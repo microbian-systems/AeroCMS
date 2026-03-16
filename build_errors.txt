@@ -1,0 +1,51 @@
+  Determining projects to restore...
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Infrastructure\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj (in 244 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Shared.Web\Aero.Cms.Shared.Web.csproj (in 244 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Infrastructure\Aero.Cms.Modules.Rewrite\Aero.Cms.Modules.Rewrite.csproj (in 244 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Analytics\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj (in 244 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Infrastructure\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj (in 364 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Shared\Aero.Cms.Shared.csproj (in 374 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Security\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj (in 374 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj (in 377 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Security\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj (in 374 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Aero.Cms.Web.csproj (in 378 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj (in 384 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.AppHost\Aero.Cms.AppHost.csproj (in 406 ms).
+  Restored C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms\Aero.Cms.csproj (in 1.11 sec).
+  Aero.Cms.ServiceDefaults -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.ServiceDefaults\bin\Debug\net10.0\Aero.Cms.ServiceDefaults.dll
+  Aero.Cms.Shared -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Shared\bin\Debug\net10.0\Aero.Cms.Shared.dll
+  XAML source generation is enabled (MauiXamlInflator=SourceGen). This generates C# code from XAML at compile time for better performance. To disable, remove the MauiXamlInflator line from your .csproj file (reverts to configuration-based defaults: Runtime in Debug, XamlC in Release).
+  XAML source generation is enabled (MauiXamlInflator=SourceGen). This generates C# code from XAML at compile time for better performance. To disable, remove the MauiXamlInflator line from your .csproj file (reverts to configuration-based defaults: Runtime in Debug, XamlC in Release).
+  Aero.Cms.Shared.Web -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Shared.Web\bin\Debug\net10.0\Aero.Cms.Shared.Web.dll
+  XAML source generation is enabled (MauiXamlInflator=SourceGen). This generates C# code from XAML at compile time for better performance. To disable, remove the MauiXamlInflator line from your .csproj file (reverts to configuration-based defaults: Runtime in Debug, XamlC in Release).
+  Aero.Cms -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms\bin\Debug\net10.0\Aero.Cms.dll
+  Aero.Cms.Modules.Rewrite -> C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Infrastructure\Aero.Cms.Modules.Rewrite\bin\Debug\net10.0\Aero.Cms.Modules.Rewrite.dll
+  Aero.Cms.Modules.Analytics -> C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Analytics\Aero.Cms.Modules.Analytics\bin\Debug\net10.0\Aero.Cms.Modules.Analytics.dll
+  Aero.Cms.Modules.RateLimiting -> C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Infrastructure\Aero.Cms.Modules.RateLimiting\bin\Debug\net10.0\Aero.Cms.Modules.RateLimiting.dll
+  Aero.Cms.Modules.Security -> C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Security\Aero.Cms.Modules.Security\bin\Debug\net10.0\Aero.Cms.Modules.Security.dll
+  Aero.Cms.Modules.SimpleSecurity -> C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Security\Aero.Cms.Modules.SimpleSecurity\bin\Debug\net10.0\Aero.Cms.Modules.SimpleSecurity.dll
+  Aero.Cms -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms\bin\Debug\net10.0-maccatalyst\maccatalyst-x64\Aero.Cms.dll
+  XAML source generation is enabled (MauiXamlInflator=SourceGen). This generates C# code from XAML at compile time for better performance. To disable, remove the MauiXamlInflator line from your .csproj file (reverts to configuration-based defaults: Runtime in Debug, XamlC in Release).
+  Aero.Cms.Modules.Cache -> C:\Users\bbqch\proj\microbians\AeroCMS\Modules\Infrastructure\Aero.Cms.Modules.Cache\bin\Debug\net10.0\Aero.Cms.Modules.Cache.dll
+  Aero.Cms -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms\bin\Debug\net10.0-ios\iossimulator-x64\Aero.Cms.dll
+  Aero.Cms.Web.Client -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web.Client\bin\Debug\net10.0\Aero.Cms.Web.Client.dll
+  Aero.Cms.Web.Client (Blazor output) -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web.Client\bin\Debug\net10.0\wwwroot
+C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Program.cs(1,20): error CS0234: The type or namespace name 'Components' does not exist in the namespace 'Aero.Cms.Web' (are you missing an assembly reference?) [C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Aero.Cms.Web.csproj]
+C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Components\_Imports.razor(13,21): error CS0234: The type or namespace name 'Components' does not exist in the namespace 'Aero.Cms.Web' (are you missing an assembly reference?) [C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Aero.Cms.Web.csproj]
+C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Components\_Imports.razor(13,21): error CS0234: The type or namespace name 'Components' does not exist in the namespace 'Aero.Cms.Web' (are you missing an assembly reference?) [C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Aero.Cms.Web.csproj]
+C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Components\_Imports.razor(13,21): error CS0234: The type or namespace name 'Components' does not exist in the namespace 'Aero.Cms.Web' (are you missing an assembly reference?) [C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Aero.Cms.Web.csproj]
+  XAML source generation is enabled (MauiXamlInflator=SourceGen). This generates C# code from XAML at compile time for better performance. To disable, remove the MauiXamlInflator line from your .csproj file (reverts to configuration-based defaults: Runtime in Debug, XamlC in Release).
+  Aero.Cms -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms\bin\Debug\net10.0-android\Aero.Cms.dll
+  Aero.Cms.Shared -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Shared\bin\Debug\net10.0\Aero.Cms.Shared.dll
+  Aero.Cms -> C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Aero.Cms.dll
+
+Build FAILED.
+
+C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Program.cs(1,20): error CS0234: The type or namespace name 'Components' does not exist in the namespace 'Aero.Cms.Web' (are you missing an assembly reference?) [C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Aero.Cms.Web.csproj]
+C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Components\_Imports.razor(13,21): error CS0234: The type or namespace name 'Components' does not exist in the namespace 'Aero.Cms.Web' (are you missing an assembly reference?) [C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Aero.Cms.Web.csproj]
+C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Components\_Imports.razor(13,21): error CS0234: The type or namespace name 'Components' does not exist in the namespace 'Aero.Cms.Web' (are you missing an assembly reference?) [C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Aero.Cms.Web.csproj]
+C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Components\_Imports.razor(13,21): error CS0234: The type or namespace name 'Components' does not exist in the namespace 'Aero.Cms.Web' (are you missing an assembly reference?) [C:\Users\bbqch\proj\microbians\AeroCMS\Aero.Cms.Web\Aero.Cms.Web.csproj]
+    0 Warning(s)
+    4 Error(s)
+
+Time Elapsed 00:01:09.92

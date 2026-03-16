@@ -1,3 +1,4 @@
+using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Web.Components;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Services;
@@ -44,3 +45,6 @@ app.MapRazorComponents<App>()
         typeof(Aero.Cms.Web.Client._Imports).Assembly);
 
 app.Run();
+
+
+var test = app.Services;

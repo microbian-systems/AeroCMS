@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetStatic" Version="0.27.7" />
+    <PackageReference Include="AspNetStaticContrib" Version="1.2.1" />
+    <PackageReference Include="AspNetStaticContrib.Stekeblad" Version="1.0.0" />
+    <PackageReference Include="Octokit" Version="14.0.0" />
+    <PackageReference Include="Octokit.Reactive" Version="14.0.0" />
+    <PackageReference Include="Octokit.Webhooks" Version="3.2.1" />
+    <PackageReference Include="Octokit.Webhooks.AspNetCore" Version="3.2.1" />
+  </ItemGroup>
+
+
+
+</Project>

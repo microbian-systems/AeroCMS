@@ -1,5 +1,5 @@
 using System.Text;
-using Aero.Cms.Shared.Pipelines;
+using Aero.Cms.Core.Pipelines;
 using Microsoft.Extensions.Options;
 
 namespace Aero.Cms.Modules.Analytics;

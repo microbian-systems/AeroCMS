@@ -1,4 +1,4 @@
-using Aero.Cms.Shared.Pipelines;
+using Aero.Cms.Core.Pipelines;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Rewrite;
