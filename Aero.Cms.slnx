@@ -2,7 +2,13 @@
   <Project Path="Aero.Cms.AppHost/Aero.Cms.AppHost.csproj" />
   <Project Path="Aero.Cms.ServiceDefaults/Aero.Cms.ServiceDefaults.csproj" />
   <Project Path="Aero.Cms.Shared/Aero.Cms.Shared.csproj" />
+  <Project Path="Aero.Cms.Shared.Web/Aero.Cms.Shared.Web.csproj" />
   <Project Path="Aero.Cms.Web.Client/Aero.Cms.Web.Client.csproj" />
   <Project Path="Aero.Cms.Web/Aero.Cms.Web.csproj" />
   <Project Path="Aero.Cms/Aero.Cms.csproj" />
+  <Project Path="Modules/Security/Aero.Cms.Modules.Security/Aero.Cms.Modules.Security.csproj" />
+  <Project Path="Modules/Security/Aero.Cms.Modules.SimpleSecurity/Aero.Cms.Modules.SimpleSecurity.csproj" />
+  <Project Path="Modules/Analytics/Aero.Cms.Modules.Analytics/Aero.Cms.Modules.Analytics.csproj" />
+  <Project Path="Modules/Infrastructure/Aero.Cms.Modules.RateLimiting/Aero.Cms.Modules.RateLimiting.csproj" />
+  <Project Path="Modules/Infrastructure/Aero.Cms.Modules.Rewrite/Aero.Cms.Modules.Rewrite.csproj" />
 </Solution>

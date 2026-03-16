@@ -7,11 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <SupportedPlatform Include="browser" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.5" />
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>

@@ -8,8 +8,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Shared.Web\Aero.Cms.Shared.Web.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.5" />
   </ItemGroup>
 
 </Project>
