@@ -41,9 +41,15 @@
 - **Unit Testing**: TUnit
 - **GUI Integration Testing**: Microsoft Playwright
 - **Integration Testing Resource**: Investigate using [mysticmind-postgresembed](https://github.com/mysticmind/mysticmind-postgresembed) for embedded Postgres in tests.
+- Use Alba for any asp.net core integration testing
+- Use nsubstitute, autofixture and fakeiteasy for mocking (mainly nsubstitute, fakeiteasy when beneficial)
+- Use TUnit for unit testing
+- Use nuget pkg bogus for fake data
+- use embedded postgres for testing: 
+    - https://github.com/mysticmind/mysticmind-postgresembed 
 
 ## Constraints & Rules
-- **DO NOT USE NPM**. All frontend dependencies should align with the CDN usage or `Microsoft.Typescript.Build` constraints.
+- **DO NOT USE NPM**. All frontend dependencies should align with the CDN usage or libman`Microsoft.Typescript.Build` constraints.
 - Project includes a .NET MAUI hybrid web and mobile setup (newly created).
 - Avoid using Guids for primary keys, use Snowflake instead (where possible)
 - Do not use newtonsoft.json (use system.text.json)
