@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/.global/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
   <Project Path="Aero.Cms.AppHost/Aero.Cms.AppHost.csproj" />
   <Project Path="Aero.Cms.Banners/Aero.Cms.Banners.csproj" Id="8fd7949a-f146-4d9e-bb09-7bc45d4d2540" />
   <Project Path="Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj" Id="bf6093a6-2be7-443e-bda2-9c8fc57de702" />

@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Boxed.AspNetCore" Version="9.0.1" />
+	<PackageReference Include="FluentValidation" Version="12.1.1" />
+	<PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageVersion Include="Scrutor" Version="7.0.0" />
+    <PackageVersion Include="Scrutor.AspNetCore" Version="3.3.0" />
+    <PackageVersion Include="System.Threading" Version="10.0.3" />
+    <PackageVersion Include="System.Threading.Channels" Version="10.0.3" />
+    <PackageVersion Include="WolverineFx" Version="5.20.1" />
+    <PackageVersion Include="WolverineFx.Marten" Version="5.20.1" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="5.20.1" />
+  </ItemGroup>
+</Project>
