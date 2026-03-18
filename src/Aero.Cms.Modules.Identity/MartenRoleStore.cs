@@ -1,4 +1,8 @@
 using System.Security.Claims;
+using Aero.Core.Identity;
+using JasperFx;
+using Marten;
+using Marten.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
@@ -10,12 +14,12 @@ namespace Aero.MartenDB.Identity;
 /// </summary>
 /// <typeparam name="TRole">The type of the class representing a role.</typeparam>
 public class RoleStore<TRole> : RoleStore<TRole, IdentityRoleClaim<string>>
-    where TRole : AeroRole
+    where TRole : AeroRole, new()
 {
     /// <summary>
     /// Constructs a new instance of <see cref="RoleStore{TRole}"/>.
     /// </summary>
-    /// <param name="context">The <see cref="IDocumentSession"/>.</param>
+    /// <param name="db">The <see cref="IDocumentSession"/>.</param>
     /// <param name="options"></param>
     /// <param name="describer">The <see cref="IdentityErrorDescriber"/>.</param>
     public RoleStore(IDocumentSession db, IOptions<AeroDbIdentityOptions> options,
@@ -45,8 +49,8 @@ public abstract class RoleStore<TRole, TRoleClaim> :
     IRoleStore<TRole>,
     IRoleClaimStore<TRole>,
     IQueryableRoleStore<TRole>
-    where TRole : AeroRole
-    where TRoleClaim : IdentityRoleClaim<string>
+    where TRole : AeroRole, new()
+    where TRoleClaim : IdentityRoleClaim<string>, new()
 {
     private readonly IOptions<AeroDbIdentityOptions> options;
 
@@ -54,6 +58,7 @@ public abstract class RoleStore<TRole, TRoleClaim> :
     /// Constructs a new instance of <see cref="RoleStore{TRole, TRoleClaim}"/>.
     /// </summary>
     /// <param name="db">The <see cref="IDocumentSession"/>.</param>
+    /// <param name="options"></param>
     /// <param name="describer">The <see cref="IdentityErrorDescriber"/>.</param>
     public RoleStore(IDocumentSession db, IOptions<AeroDbIdentityOptions> options,
         IdentityErrorDescriber? describer = null)
@@ -118,7 +123,6 @@ public abstract class RoleStore<TRole, TRoleClaim> :
             throw new ArgumentNullException(nameof(role.Name));
         }
 
-        var roleId = GetAeroIdFromRoleName(role.Name, db.DocumentStore);
         db.Store(role);
         await SaveChanges(cancellationToken);
         return IdentityResult.Success;
@@ -139,9 +143,7 @@ public abstract class RoleStore<TRole, TRoleClaim> :
             throw new ArgumentNullException(nameof(role));
         }
 
-        // TODO: Assumption is made that TRole entity is being tracked in the current session
-        // If not, then we'll have to Load<TRole> and overwrite all properties except for Id in the loaded entity
-        //role.ConcurrencyStamp = Guid.NewGuid().ToString();
+        db.Store(role);
         try
         {
             await SaveChanges(cancellationToken);
@@ -167,7 +169,7 @@ public abstract class RoleStore<TRole, TRoleClaim> :
         {
             throw new ArgumentNullException(nameof(role));
         }
-        db.Delete(role.Id);
+        db.Delete(role);
         try
         {
             await SaveChanges(cancellationToken);
@@ -257,8 +259,7 @@ public abstract class RoleStore<TRole, TRoleClaim> :
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
 
-        var roleId = GetAeroIdFromRoleName(normalizedName, db.DocumentStore);
-        return db.LoadAsync<TRole>(roleId, cancellationToken);
+        return db.Query<TRole>().FirstOrDefaultAsync(x => x.Name == normalizedName, cancellationToken);
     }
 
     /// <summary>
@@ -276,7 +277,7 @@ public abstract class RoleStore<TRole, TRoleClaim> :
             throw new ArgumentNullException(nameof(role));
         }
 
-        return Task.FromResult(role.Name?.ToLowerInvariant());
+        return Task.FromResult(role.Name?.ToUpperInvariant());
     }
 
     /// <summary>
@@ -396,14 +397,4 @@ public abstract class RoleStore<TRole, TRoleClaim> :
     /// <param name="claim">The associated claim.</param>
     /// <returns>The role claim entity.</returns>
     protected abstract TRoleClaim CreateRoleClaim(TRole role, Claim claim);
-
-    internal static string GetAeroIdFromRoleName(string role, IDocumentStore docStore)
-    {
-        // todo - translate this to marten
-        // var roleCollection = docStore.Conventions.GetCollectionName(typeof(TRole));
-        // var prefix = docStore.Conventions.TransformTypeCollectionNameToDocumentIdPrefix(roleCollection);
-        // var partSeparator = docStore.Conventions.IdentityPartsSeparator;
-        // return prefix + partSeparator + role;
-        throw new NotImplementedException();
-    }
 }

@@ -9,9 +9,3 @@ public interface IAeroSecurity
 
 
 }
-
-
-public class AeroUser
-{
-
-}

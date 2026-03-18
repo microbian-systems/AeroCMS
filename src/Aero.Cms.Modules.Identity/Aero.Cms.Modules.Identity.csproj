@@ -9,7 +9,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Marten" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.MartenDB\Aero.MartenDB.csproj" />
   </ItemGroup>
 
 

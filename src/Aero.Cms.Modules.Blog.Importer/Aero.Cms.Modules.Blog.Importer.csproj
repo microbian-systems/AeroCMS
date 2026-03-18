@@ -1,9 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<ItemGroup>
-		<PackageReference Include="AngleSharp" Version="1.4.0" />
-		<PackageReference Include="AngleSharp.Css" Version="0.17.0" />
-		<PackageReference Include="Markdig" Version="1.1.1" />
+		<PackageReference Include="AngleSharp" />
+		<PackageReference Include="AngleSharp.Css" />
+		<PackageReference Include="Markdig" />
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />

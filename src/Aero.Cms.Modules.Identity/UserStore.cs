@@ -94,10 +94,7 @@ public class UserStore<TUser, TRole> :
     public virtual Task<string> GetUserIdAsync(TUser user, CancellationToken cancellationToken)
     {
         if (user == null) throw new ArgumentNullException(nameof(user));
-        var id = user.Id  ==  0
-            ?Snowflake.NewId();
-            : user.Id;
-        return Task.FromResult(id);
+        return Task.FromResult(user.Id.ToString());
     }
 
     /// <inheritdoc />
@@ -246,12 +243,12 @@ public class UserStore<TUser, TRole> :
     }
 
     /// <inheritdoc />
-    public virtual Task<TUser> FindByIdAsync(string userId, CancellationToken cancellationToken) =>
+    public virtual Task<TUser?> FindByIdAsync(string userId, CancellationToken cancellationToken) =>
         DbSession.LoadAsync<TUser>(userId, cancellationToken);
 
     /// <inheritdoc />
     public virtual Task<TUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken) =>
-        UserQuery()
+        DbSession.Query<TUser>()
             .Where(u => u.UserName == normalizedUserName)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -293,25 +290,16 @@ public class UserStore<TUser, TRole> :
     public virtual Task<IList<UserLoginInfo>> GetLoginsAsync(TUser user, CancellationToken cancellationToken)
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
-        return Task.FromResult(user.Logins as IList<UserLoginInfo>);
+        return Task.FromResult<IList<UserLoginInfo>>(user.Logins.Select(l => new UserLoginInfo(l.LoginProvider, l.ProviderKey, l.ProviderDisplayName)).ToList());
     }
 
     /// <inheritdoc />
     public virtual async Task<TUser?> FindByLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
     {
-        //if (options.Value.UseStaticIndexes)
-        {
-            return await DbSession
-                .Query<TUser>()
-                .Where(u => u.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey))
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-        var candidates = await DbSession.Query<TUser>()
-            .Where(u => u.Logins.Any(l => l.ProviderKey == providerKey))
-            .ToListAsync(cancellationToken);
-
-        return candidates.FirstOrDefault(u => u.Logins.Any(l => l.LoginProvider == loginProvider));
+        return await DbSession
+            .Query<TUser>()
+            .Where(u => u.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey))
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     //#endregion
@@ -324,7 +312,7 @@ public class UserStore<TUser, TRole> :
         ThrowIfNullDisposedCancelled(user, cancellationToken);
 
         IList<Claim> result = user.Claims
-            .Select(c => new Claim(c.ClaimType, c.ClaimValue))
+            .Select(c => new Claim(c.ClaimType ?? string.Empty, c.ClaimValue ?? string.Empty))
             .ToList();
 
         return Task.FromResult(result);
@@ -353,12 +341,11 @@ public class UserStore<TUser, TRole> :
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
 
-        var claimList = user.Claims.As<List<IdentityUserClaim<string>>>();
-        var index = claimList.FindIndex(c => c.ClaimType == claim.Type && c.ClaimValue == claim.Value);
+        var index = user.Claims.FindIndex(c => c.ClaimType == claim.Type && c.ClaimValue == claim.Value);
         if (index != -1)
         {
-            claimList.RemoveAt(index);
-            claimList.Add(new IdentityUserClaim<string>
+            user.Claims.RemoveAt(index);
+            user.Claims.Add(new IdentityUserClaim<string>
             {
                 ClaimType = newClaim.Type,
                 ClaimValue = newClaim.Value,
@@ -374,8 +361,7 @@ public class UserStore<TUser, TRole> :
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
 
-        user.Claims.As<List<IdentityUserClaim<string>>>()
-            .RemoveAll(ic => claims.Any(c => c.Type == ic.ClaimType && c.Value == ic.ClaimValue));
+        user.Claims.RemoveAll(ic => claims.Any(c => c.Type == ic.ClaimType && c.Value == ic.ClaimValue));
 
         await SaveChangesAsync();
     }
@@ -386,10 +372,10 @@ public class UserStore<TUser, TRole> :
         ThrowIfDisposedOrCancelled(cancellationToken);
         ArgumentNullException.ThrowIfNull(claim);
 
-        var list = await UserQuery()
+        var list = await DbSession.Query<TUser>()
             .Where(u => u.Claims.Any(c => c.ClaimType == claim.Type && c.ClaimValue == claim.Value))
             .ToListAsync(cancellationToken);
-
+        
         return list.ToList();
     }
 
@@ -409,14 +395,13 @@ public class UserStore<TUser, TRole> :
         {
             ThrowIfDisposedOrCancelled(cancellationToken);
             existingRoleOrNull = new TRole { Name = roleName.ToLowerInvariant() };
-            //DbSession.Store(existingRoleOrNull, roleId);
             DbSession.Store(existingRoleOrNull);
         }
 
         var roleRealName = existingRoleOrNull.Name;
-        if (!user.GetRolesList().Contains(roleRealName, StringComparer.InvariantCultureIgnoreCase))
+        if (!user.RoleNames.Contains(roleRealName!, StringComparer.InvariantCultureIgnoreCase))
         {
-            user.GetRolesList().Add(roleRealName);
+            user.Roles.Add(existingRoleOrNull);
         }
 
         if (!existingRoleOrNull.Users.Contains(user.Id))
@@ -432,7 +417,7 @@ public class UserStore<TUser, TRole> :
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
 
-        user.GetRolesList().RemoveAll(r => string.Equals(r, roleName, StringComparison.InvariantCultureIgnoreCase));
+        user.Roles.RemoveAll(r => string.Equals(r.Name, roleName, StringComparison.InvariantCultureIgnoreCase));
 
         var roleId = RoleIdFor(roleName);
         var roleOrNull = await DbSession.LoadAsync<TRole>(roleId, cancellationToken);
@@ -448,14 +433,14 @@ public class UserStore<TUser, TRole> :
     public virtual Task<IList<string>> GetRolesAsync(TUser user, CancellationToken cancellationToken)
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
-        return Task.FromResult<IList<string>>(new List<string>(user.GetRolesList()));
+        return Task.FromResult<IList<string>>(user.RoleNames.ToList());
     }
 
     /// <inheritdoc />
     public virtual Task<bool> IsInRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(roleName)) throw new ArgumentNullException(nameof(roleName));
-        return Task.FromResult(user.GetRolesList().Contains(roleName, StringComparer.InvariantCultureIgnoreCase));
+        return Task.FromResult(user.RoleNames.Contains(roleName, StringComparer.InvariantCultureIgnoreCase));
     }
 
     /// <inheritdoc />
@@ -464,11 +449,11 @@ public class UserStore<TUser, TRole> :
         ThrowIfDisposedOrCancelled(cancellationToken);
         if (string.IsNullOrEmpty(roleName)) throw new ArgumentNullException(nameof(roleName));
 
-        var users = await UserQuery()
+        var list = await DbSession.Query<TUser>()
             .Where(u => u.RoleNames.Contains(roleName))
             .ToListAsync(cancellationToken);
-
-        return users.ToList();
+        
+        return list.ToList();
     }
 
     //#endregion
@@ -550,24 +535,8 @@ public class UserStore<TUser, TRole> :
 
         var email = normalizedEmail.ToLowerInvariant();
 
-        //if (options.Value.UseStaticIndexes)
-        {
-            return await DbSession
-                .Query<AeroUser>()
-                .Where(u => u.Email == email)
-                .OfType<TUser>()
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-        // Use the email reservation document as the authoritative lookup, bypassing
-        // potentially stale indexes. Falls back to a direct query if no reservation exists.
-        var reservation = await DbSession.LoadAsync<UserEmailReservation>(EmailReservationIdFor(email), cancellationToken);
-        if (reservation != null && !string.IsNullOrEmpty(reservation.UserId))
-        {
-            return await DbSession.LoadAsync<TUser>(reservation.UserId, cancellationToken);
-        }
-
-        return await DbSession.Query<TUser>()
+        return await DbSession
+            .Query<TUser>()
             .Where(u => u.Email == email)
             .FirstOrDefaultAsync(cancellationToken);
     }
@@ -714,7 +683,7 @@ public class UserStore<TUser, TRole> :
         }
         else
         {
-            user.Tokens.Add(new IdentityUserAuthToken
+            user.Tokens.Add(new IdentityUserToken<string>
             {
                 UserId = user.Id,
                 LoginProvider = loginProvider,
@@ -729,9 +698,7 @@ public class UserStore<TUser, TRole> :
     /// <inheritdoc />
     public virtual async Task RemoveTokenAsync(TUser user, string loginProvider, string name, CancellationToken cancellationToken)
     {
-        if (user.Tokens is List<IdentityUserToken<string>> tokens)
-            tokens.RemoveAll(t => t.LoginProvider == loginProvider && t.Name == name);
-
+        user.Tokens.RemoveAll(t => t.LoginProvider == loginProvider && t.Name == name);
         await SaveChangesAsync();
     }
 
@@ -894,15 +861,6 @@ public class UserStore<TUser, TRole> :
         if (_disposed) throw new ObjectDisposedException(GetType().Name);
         token.ThrowIfCancellationRequested();
     }
-
-    //#endregion
-
-    //#region Query helpers
-
-    /// <summary>
-    /// Creates either a static-index query or a dynamic query depending on options.
-    /// </summary>
-    private IQueryable<TUser> UserQuery() => DbSession.Query<TUser>();
 
     //#endregion
 }
