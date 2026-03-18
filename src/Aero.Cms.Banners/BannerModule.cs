@@ -12,5 +12,9 @@ public class BannerModule : AeroModuleBase
 
     public override IReadOnlyList<string> Dependencies => [];
 
-    public override string Description => "Shows banners at the top of the Aero CMS homepage";
+    public override string Description => "Shows banners at the top/bottom of the Aero CMS homepage";
+    public override bool Enabled { get; set; }
+    public override bool AllowInProduction { get; set; }
+    public override IReadOnlyList<string> Categories { get; } = [];
+    public override IReadOnlyList<string> Tags { get; } = [];
 }

@@ -19,8 +19,10 @@
   <Project Path="Aero.Cms.Modules.Localization/Aero.Cms.Modules.Localization.csproj" Id="0ff447b6-dc00-4aaa-a8f8-4bbbb842cd65" />
   <Project Path="Aero.Cms.Modules.Logging/Aero.Cms.Modules.Logging.csproj" Id="bc96530e-bcc4-4cd5-bf2e-88b83f3f6d11" />
   <Project Path="Aero.Cms.Modules.MagicLink/Aero.Cms.Modules.MagicLink.csproj" Id="98fcf8bf-e77f-4579-a652-54c4d02f7d1e" />
+  <Project Path="Aero.Cms.Modules.Mail/Aero.Cms.Modules.Mail.csproj" Id="ad0acf0d-b39d-401e-bf14-df7c773bf9c7" />
   <Project Path="Aero.Cms.Modules.Mailer/Aero.Cms.Modules.Mailer.csproj" Id="a8c18fe3-a232-4333-ab3a-5f563160ecfc" />
   <Project Path="Aero.Cms.Modules.MiniProfiler/Aero.Cms.Modules.MiniProfiler.csproj" Id="00a7bc94-c5a1-4260-bc51-c11bd27660a2" />
+  <Project Path="Aero.Cms.Modules.Modules/Aero.Cms.Modules.Modules.csproj" Id="36a8110a-a6c8-4af4-9ec1-450024f01fec" />
   <Project Path="Aero.Cms.Modules.OneTimePasscode/Aero.Cms.Modules.OneTimePasscode.csproj" Id="42ea5adb-2cd5-4135-9fa8-d0df9e3f3ba9" />
   <Project Path="Aero.Cms.Modules.OpenTelemetry/Aero.Cms.Modules.OpenTelemetry.csproj" Id="1d88cccb-81c9-46d7-9cec-a1fd76de9f3e" />
   <Project Path="Aero.Cms.Modules.OutputCache/Aero.Cms.Modules.OutputCache.csproj" Id="f0fdb431-5819-4d64-8dec-8424eba6676f" />
