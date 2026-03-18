@@ -1,98 +1,48 @@
-# Aero.Cms Spec: Distributed Cache Strategy (Redis / Garnet / FusionCache)
+# Aero.Cms Spec: The "Triple Threat" Caching Strategy
 
 ## Goal
 
-Define caching strategy across the CMS.
+Achieve maximum performance and Native AOT compatibility for Aero CMS through a multi-layered caching architecture.
 
-## Stack
+## The Triple Threat Stack
 
-- L1: per-node memory via FusionCache
-- L2: distributed cache via Redis or Garnet
-- L3: PostgreSQL / Marten
+### Layer 1: Output Caching (Full HTML/Response)
+Responses are cached at the edge of the application pipeline to bypass the entire API logic for repetitive requests.
+- **Backing Store:** Redis (via `AddStackExchangeRedisCache`).
+- **Policy A (Pages):** Applied to the root group `app.MapGroup("")`. Default duration: 24 Hours.
+- **Policy B (Blogs):** Applied to `/blog`. Default duration: 1 Hour. Includes `VaryByQuery("tag", "page")`.
+- **Implementation:** Use ASP.NET Core Output Caching.
 
-## Use Cases
+### Layer 2: Application Caching (Data Objects)
+Used inside API handlers via **FusionCache** to prevent redundant database hits during output cache misses or for partial data retrieval.
+- **L1 Cache:** Local Memory (fastest, per-node).
+- **L2 Cache:** Distributed Redis (shared across instances).
+- **Fail-Safe:** Serves stale data if the underlying database (Layer 3) is unavailable or timing out.
+- **Stampede Protection:** Built-in request coalescing.
 
-- published content cache
-- rendered shape/view cache
-- route lookup cache
-- tenant settings cache
-- localization resource cache
-- permission cache
-- media metadata cache
-- output caching for public APIs/pages
+### Layer 3: Persistent Store (Source of Truth)
+**Marten DB** (PostgreSQL Document Store).
+- **AOT Optimization:** Must be configured for Native AOT using code-generation features during build time to avoid reflection at runtime.
+
+## Cache Invalidation
+
+### Programmatic Invalidation
+- **Output Cache:** Use `IOutputCacheStore.EvictByTagAsync` to purge specific content or groups when updates occur.
+- **FusionCache:** Use `RemoveAsync` or background refresh mechanisms.
+
+### Administrative Invalidation
+Implement a dedicated admin endpoint for emergency or manual purges:
+- **Route:** `POST /admin/clear-cache`
+- **Logic:** Triggers `IOutputCacheStore.EvictByTagAsync` for relevant CMS tags.
+
+## Native AOT Requirements
+- All cached DTOs must be decorated with `[JsonSerializable]` for the `SourceGeneratedContext`.
+- Avoid `System.Reflection` and `Dynamic` in cache key generation or object mapping.
 
 ## Key Rules
 
 1. Every key must be tenant-scoped.
-2. Include culture when relevant.
-3. Include theme when output/render varies by theme.
-4. Avoid caching draft/private data in public output caches.
-5. Invalidate by event and by TTL.
+2. Include culture and theme where relevant.
+3. Policy-driven expiration based on content type (Pages vs. Blogs).
+4. Serve stale data on failure (Fail-Safe).
 
-## Key Examples
-
-- `tenant:site1:content:blog:123`
-- `tenant:site1:culture:en:route:/blog/hello-world`
-- `tenant:site1:theme:modern:shape:homepage`
-
-## FusionCache Guidance
-
-Use FusionCache for:
-- request coalescing / stampede protection
-- fail-safe stale responses
-- soft/hard timeouts
-- jitter
-- background refresh
-
-Reminder:
-- default stampede protection is per-node
-- distributed lock can be added later for extremely expensive rebuilds
-
-## Redis vs Garnet
-
-Both acceptable as L2 distributed stores when using supported primitives.
-Most CMS caching workloads mainly need:
-- strings
-- hashes
-- TTL
-- counters
-- distributed keys
-
-## Output Caching
-
-Use ASP.NET output caching for:
-- public content APIs
-- public rendered pages
-- cacheable GET endpoints
-
-Vary by:
-- tenant
-- culture
-- auth state if relevant
-- route/query where appropriate
-
-## Invalidation Triggers
-
-- content publish/unpublish
-- route/slug changes
-- theme change
-- localization changes
-- permission-sensitive content changes
-- tenant settings changes
-
-## Background Invalidation
-
-Use TickerQ jobs for larger invalidation work:
-- index rebuild + cache clear
-- theme asset refresh
-- tenant shell rebuild side effects
-
-## Deliverables
-
-1. key naming conventions
-2. tenant/culture/theme vary rules
-3. FusionCache integration
-4. Redis/Garnet provider configuration
-5. output caching policy definitions
-6. invalidation service
-7. tests

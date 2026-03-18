@@ -48,6 +48,8 @@ public sealed class TenantThemeSettings
 Modules produce shapes.
 Themes render shapes using **Razor Slices** (for high performance CMS/Blog pages) or standard Razor views (for Admin/Custom areas).
 
+**Native AOT:** The use of Razor Slices for public content ensures that the rendering pipeline is reflection-free and fully compatible with Native AOT compilation.
+
 Renderer lookup order recommendation:
 1. current theme alternate slice/template
 2. current theme default slice/template

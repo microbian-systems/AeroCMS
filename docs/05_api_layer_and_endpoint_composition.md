@@ -2,132 +2,81 @@
 
 ## Goal
 
-Define how modules expose APIs and how the host composes them consistently.
+Define a high-performance, Native AOT-compatible API architecture using Minimal APIs and RazorSlices.
 
 ## Principles
 
-- Use `IEndpointRouteBuilder` for module endpoint registration.
-- **Minimal APIs**: Core CMS features (Pages, Blog) **MUST** use Minimal APIs for public-facing content delivery to ensure maximum performance and AOT compatibility.
-- **Traditional MVC/Razor**: Reserved for the Admin UI and complex application modules where model binding and controller-based orchestration are established patterns.
-- Prefer route groups for isolation.
-- Version external APIs.
-- Keep module boundaries explicit.
-- Apply tenant context before endpoint execution.
+- **Minimal APIs First:** Core CMS features (Pages, Blog) **MUST** use Minimal APIs for public-facing content delivery.
+- **Native AOT Optimized:** Avoid reflection-based patterns (like standard MVC for public routes) to ensure minimal binary size and maximum performance.
+- **Route Groups vs. BaseControllers:** Use **Route Groups** to apply shared metadata, security, and policies instead of class inheritance.
+- **View Engine:** Use **RazorSlices** for reflection-free, compiled templates.
+- **Strict Isolation:** Reserved traditional MVC/Razor for the complex Admin UI only.
 
-## Base Pattern (Minimal APIs)
+## Infrastructure & Cross-Cutting Concerns
 
-```csharp
-public interface IModule
-{
-    void Init(IEndpointRouteBuilder endpoints);
-}
-```
+### Route Group Configuration
+Shared metadata and security are applied at the group level:
+- **Global Metadata:** Apply `Produces(StatusCodes.Status401Unauthorized)` and `Produces(StatusCodes.Status500InternalServerError)` to root groups.
+- **Security:** Enforce `RequireAuthorization()` and `RequireRateLimiting("api")` globally via the CMS root group.
 
-Public CMS content discovery:
+### Global Exception & Logging Filter
+Implement a custom `IEndpointFilter` to wrap all CMS routes:
+- **Logic:** `try-catch` block capturing unhandled exceptions, logging via `ILogger`, and returning `Results.Problem()`.
+- **Debugging:** Must inspect `context.Arguments` to log incoming DTOs or Slugs.
+
+## Route Mapping Requirements
+
+### 1. Pages Group (Root-Level)
+- **Prefix:** `""` (Empty string)
+- **Routes:**
+    - `GET /` -> Home Page Slice
+    - `GET /{slug}` -> Generic Page Slice
+- **Caching:** Apply `AeroPageCache` (Layer 1 Output Cache).
+
+### 2. Blogs Group
+- **Prefix:** `/blog`
+- **Routes:**
+    - `GET /` -> List all posts
+    - `GET /{slug}` -> Display single post
+- **Caching:** Apply `AeroBlogCache`.
+
+## Implementation Pattern (Minimal APIs + RazorSlices)
 
 ```csharp
 public void Init(IEndpointRouteBuilder endpoints)
 {
-    // Public Content Discovery (Minimal API + Razor Slices)
-    endpoints.MapGet("{culture}/{**slug}", async (string culture, string slug, PageService cms) => 
+    var cmsGroup = endpoints.MapGroup("")
+        .WithOpenApi()
+        .AddEndpointFilter<CmsExceptionFilter>();
+
+    // Public Pages
+    cmsGroup.MapGet("/{**slug}", async (string slug, IFusionCache cache, IDocumentSession db) => 
     {
-        var page = await cms.GetPageAsync(slug, culture);
+        var page = await cache.GetOrSetAsync(
+            $"page:{slug}", 
+            _ => db.LoadAsync<Page>(slug),
+            TimeSpan.FromMinutes(30));
+
         return page is not null 
             ? Results.Extensions.RazorSlice<PageSlice>(page) 
             : Results.NotFound();
-    });
+    }).CacheOutput("AeroPageCache");
 }
 ```
 
-## Route Grouping
+## Implementation Guidance
 
-Recommended groups:
-- `/api/admin/...`
-- `/api/public/...`
-- `/auth/...`
-- `/webhooks/...`
-
-Module example:
-
-```csharp
-public void Init(IEndpointRouteBuilder endpoints)
-{
-    var group = endpoints.MapGroup("/api/admin/blog");
-    group.RequireAuthorization("Permission:Blog.View");
-
-    group.MapGet("/posts", ...);
-    group.MapPost("/posts", ...);
-}
-```
-
-## Public vs Admin Contracts
-
-### Public API (Minimal APIs)
-Used by websites, headless consumers, and the core CMS frontend. 
-**Constraint**: Must use Minimal APIs for performance and AOT compatibility.
-
-Example:
-```csharp
-endpoints.MapGet("/api/v1/public/pages/{culture}/{**slug}", async (string culture, string slug, PageService cms) => {
-    var page = await cms.GetPageAsync(slug, culture);
-    return page is not null ? Results.Ok(page) : Results.NotFound();
-});
-```
-
-### Admin API (Traditional MVC)
-Used by the CMS admin UI. These remain as standard Controllers within Razor Class Libraries to leverage existing model binding and filter infrastructure.
-
-Examples:
-- `PageAdminController.cs`
-- `MediaAdminController.cs`
-- `ModuleAdminController.cs`
-
-## DTO Discipline
-
-Do not expose raw `ContentItem` internals directly unless the product is explicitly headless-first.
-Use DTO mappers per module.
-
-## Auth Schemes
-
-Support multiple schemes concurrently:
-- Cookies for admin browser UI
-- JWT for API and SPA/mobile
-- API keys for integrations
-- optional OpenID Connect / external SSO
-
-Endpoints should declare required auth scheme/policy explicitly.
-
-## Endpoint Metadata
-
-Consider a module endpoint descriptor for diagnostics/docs.
-
-```csharp
-public sealed class ModuleEndpointDescriptor
-{
-    public string Module { get; init; }
-    public string Route { get; init; }
-    public string HttpMethod { get; init; }
-    public string Policy { get; init; }
-    public bool AdminOnly { get; init; }
-}
-```
-
-## Versioning
-
-If external APIs are long-lived, support route versioning:
-- `/api/v1/public/content/...`
-- `/api/v1/admin/blog/...`
-
-## OpenAPI
-
-Generate OpenAPI for admin/public APIs, with tagging by module.
+1. **Strict Native AOT:** No `System.Reflection`. Use `[JsonSerializable]` for all DTOs.
+2. **RazorSlices:** All views must inherit from `RazorSlice<TModel>`.
+3. **DI:** Inject `IFusionCache` and `IDocumentSession` (Marten) directly into delegate handlers.
+4. **Cache Invalidation:** Implement `POST /admin/clear-cache` triggering `IOutputCacheStore.EvictByTagAsync`.
 
 ## Deliverables
 
-1. module endpoint conventions
-2. route grouping strategy
-3. admin/public API separation
-4. DTO guidelines
-5. OpenAPI tagging by module
-6. auth scheme and policy conventions
-7. tests
+1. Minimal API route group definitions
+2. `IEndpointFilter` for global logging/exceptions
+3. RazorSlices template integration
+4. Output Caching policies (AeroPageCache, AeroBlogCache)
+5. Admin cache invalidation endpoint
+6. Native AOT compatibility tests
+

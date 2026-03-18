@@ -24,9 +24,12 @@ These documents assume the previously generated specs for:
 
 Target stack:
 - ASP.NET Core (.NET 10+)
-- PostgreSQL + Marten + pg_vector
-- Redis or Garnet
-- FusionCache
-- TickerQ
-- Razor Slices for high-performance CMS/Blog rendering
-- Razor Class Libraries for modular UI (Admin/Custom)
+- **Native AOT** compatibility for core CMS delivery
+- **Minimal APIs** for high-performance routing
+- PostgreSQL + Marten (Native AOT mode)
+- Redis Backed Output Caching
+- FusionCache (L1/L2)
+- TickerQ for distributed jobs
+- **Razor Slices** for high-performance, reflection-free rendering
+- Razor Class Libraries for modular Admin UI (MVC/Blazor)
+

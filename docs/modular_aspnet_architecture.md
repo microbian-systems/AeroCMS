@@ -404,38 +404,24 @@ Database (Postgres / Marten)
 
 # Recommended Stack
 
-API Gateway
-
-YARP
-
-API services
-
-ASP.NET Core
-
-Caching
-
-FusionCache
-
-Distributed cache
-
-Redis or Garnet
-
-Database
-
-Postgres / Marten
+| Component | Technology |
+|---|---|
+| Framework | ASP.NET Core (.NET 10+) |
+| **Routing** | **Minimal APIs** (Native AOT optimized) |
+| **Rendering** | **Razor Slices** (Reflection-free templates) |
+| **Caching** | **Triple Threat** (Output Cache + FusionCache + Marten) |
+| L1 Cache | Memory cache (per node) |
+| L2 Cache | Redis distributed cache |
+| L3 / Store | Marten DB (PostgreSQL) |
 
 ---
 
-# Cache Stampede Protection
+# Cache Invalidation Strategy
 
-FusionCache provides:
+1. **Tag-Based Eviction:** Use `IOutputCacheStore.EvictByTagAsync` to clear cached HTML responses when underlying content changes.
+2. **Admin Purge:** Implement a `POST /admin/clear-cache` endpoint for manual intervention.
+3. **Fail-Safe:** Leverage FusionCache to serve stale data if the persistent store is under high load or temporarily unavailable.
 
-- request coalescing
-- stale cache fallback
-- TTL jitter
-- background refresh
-
-Meaning only one request regenerates cache values.
 
 ---
 
