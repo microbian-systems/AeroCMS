@@ -1,0 +1,3 @@
+<Project>
+  <!-- This file stops the parent Directory.Build.props from being imported for the MAUI project -->
+</Project>
