@@ -46,14 +46,14 @@ public sealed class TenantThemeSettings
 ## Shape Rendering Relationship
 
 Modules produce shapes.
-Themes render shapes.
+Themes render shapes using **Razor Slices** (for high performance CMS/Blog pages) or standard Razor views (for Admin/Custom areas).
 
 Renderer lookup order recommendation:
-1. current theme alternate template
-2. current theme default template
-3. base theme alternate template
-4. base theme default template
-5. module-provided fallback template
+1. current theme alternate slice/template
+2. current theme default slice/template
+3. base theme alternate slice/template
+4. base theme default slice/template
+5. module-provided fallback
 6. system fallback
 
 ## Template Naming Convention

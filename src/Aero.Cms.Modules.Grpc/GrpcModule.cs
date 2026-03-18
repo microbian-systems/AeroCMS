@@ -1,33 +1,24 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core.Modules;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.Grpc;
 
-public class GrpcModule : AeroModuleBase
+public class GrpcModule : ModuleBase
 {
-    public override string Name => nameof(GrpcModule);
-
+    public override string Name => "gRPC Server";
     public override string Version => "1.0.0";
-
     public override string Author => "Microbian Systems";
+    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
 
-    public override IReadOnlyList<string> Dependencies => [];
-
-    public override string Description => "Grpc server for Aero CMS";
-
-
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config = default)
+    public override void ConfigureServices(IServiceCollection services)
     {
-        base.ConfigureServices(services, config);
-
         services.AddMagicOnion();
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder app)
+    public override void Init(IEndpointRouteBuilder endpoints)
     {
-        app.MapMagicOnionService();
+        endpoints.MapMagicOnionService();
     }
 }

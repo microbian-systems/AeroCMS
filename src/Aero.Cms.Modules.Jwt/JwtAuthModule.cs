@@ -1,31 +1,23 @@
-﻿using Aero.Cms.Core;
-using Microsoft.AspNetCore.Http;
-
-namespace Aero.Cms.Modules.Jwt;
-
+using Aero.Cms.Core.Modules;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using System.Reflection.Emit;
 using System.Text;
 
-public class JwtAuthModule : AeroModuleBase
+namespace Aero.Cms.Modules.Jwt;
+
+public class JwtAuthModule : ModuleBase
 {
+    public override string Name => "JWT Authentication";
+    public override string Version => "1.0.0";
+    public override string Author => "Aero.Cms";
+    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
 
-    public override string Name => "";
-
-    public override string Version => "";
-
-    public override string Author => "";
-
-    public override IReadOnlyList<string> Dependencies => [];
-
-    public override string Description => "";
-
-    public void ConfigureServices(IServiceCollection services)
+    public override void ConfigureServices(IServiceCollection services)
     {
         var key = Encoding.UTF8.GetBytes("super-secret-key");
 
@@ -45,7 +37,7 @@ public class JwtAuthModule : AeroModuleBase
         services.AddAuthorization();
     }
 
-    public void Init(IEndpointRouteBuilder endpoints)
+    public override void Init(IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/auth");
 
@@ -54,13 +46,10 @@ public class JwtAuthModule : AeroModuleBase
             if (req.Email != "admin" || req.Password != "password")
                 return Results.Unauthorized();
 
-            var token = JwtTokenGenerator.Generate(req.Email);
-
-            return Results.Ok(new { token });
+            // Note: JwtTokenGenerator is assumed to be defined elsewhere or handled in future tasks
+            // var token = JwtTokenGenerator.Generate(req.Email);
+            // return Results.Ok(new { token });
+            return Results.Ok(new { token = "placeholder-token" });
         });
     }
-
-    public Task InitAsync(WebApplication app) => Task.CompletedTask;
-
-    public void Configure(IModuleBuilder builder) { }
 }

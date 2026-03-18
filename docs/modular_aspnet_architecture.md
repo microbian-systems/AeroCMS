@@ -1,7 +1,7 @@
 
 # Modular ASP.NET Core Architecture Guide
 Author: Generated for implementation
-Target: ASP.NET Core (.NET 8+)
+Target: ASP.NET Core (.NET 10+)
 
 ---
 

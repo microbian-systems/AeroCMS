@@ -1,17 +1,11 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core.Modules;
 
 namespace Aero.Cms.CookiePolicy;
 
-public class CookiePolicyModule : AeroModuleBase
+public class CookiePolicyModule : ModuleBase
 {
-    public override string Name => nameof(CookiePolicyModule);
-
+    public override string Name => "Cookie Policy";
     public override string Version => "1.0.0";
-
     public override string Author => "Microbian Systems";
-
-    public override IReadOnlyList<string> Dependencies => [];
-
-
-    public override string Description => "Adds a cookie policy popup on a users first visit to the site (homepage)";
+    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
 }

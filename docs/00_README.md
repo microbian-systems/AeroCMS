@@ -23,9 +23,10 @@ These documents assume the previously generated specs for:
 - Distributed background jobs with TickerQ
 
 Target stack:
-- ASP.NET Core (.NET 8+)
-- PostgreSQL + Marten
+- ASP.NET Core (.NET 10+)
+- PostgreSQL + Marten + pg_vector
 - Redis or Garnet
 - FusionCache
 - TickerQ
-- Razor Class Libraries for modular UI
+- Razor Slices for high-performance CMS/Blog rendering
+- Razor Class Libraries for modular UI (Admin/Custom)

@@ -1,21 +1,19 @@
-using Aero.Cms.Core;
+using Aero.Cms.Core.Modules;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.RateLimiting;
 
-public class RateLimitingModule : AeroModuleBase
+public class RateLimitingModule : ModuleBase
 {
-    public override string Name=> "RateLimiting";
+    public override string Name => "RateLimiting";
     public override string Version => "1.0.0";
     public override string Author => "Microbian Systems";
     public override IReadOnlyList<string> Dependencies => [];
-    public override string Description => "Rate limiter for AeroCMS";
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config = default)
+    public override void ConfigureServices(IServiceCollection services)
     {
         // todo - enable database config to supply the type of rate limiting (sliding window, fixed, etc)
         services.AddRateLimiter(options =>
@@ -29,23 +27,11 @@ public class RateLimitingModule : AeroModuleBase
         });
     }
 
-    public override void Init(IServiceProvider sp)
+    public override void Init(IEndpointRouteBuilder endpoints)
     {
-        
     }
 
-    public override void Run(IEndpointRouteBuilder app)
-    {
-        
-    }
-
-    public override Task RunAsync(IEndpointRouteBuilder app)
-    {
-        return Task.CompletedTask;
-    }
-
-
-    public override void Configure(IAeroModuleBuilder builder)
+    public override void Configure(IModuleBuilder builder)
     {
     }
 }

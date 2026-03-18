@@ -1,23 +1,11 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core.Modules;
 
 namespace Aero.Cms.Modules.Logging;
 
-public class AeroLoggingModule : AeroModuleBase
+public class AeroLoggingModule : ModuleBase
 {
-    public override string Name => nameof(AeroLoggingModule);
-
-    public override string Version => "";
-
-    public override string Author => "";
-
-    public override IReadOnlyList<string> Dependencies => [];
-
-    public override string Description => "Aero built-in logging module";
-
-    public override bool Enabled { get => ""; set => ""; }
-    public override bool AllowInProduction { get => ""; set => ""; }
-
-    public override IReadOnlyList<string> Categories => "";
-
-    public override IReadOnlyList<string> Tags => "";
+    public override string Name => "Aero Logging";
+    public override string Version => "1.0.0";
+    public override string Author => "Aero.Cms";
+    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
 }

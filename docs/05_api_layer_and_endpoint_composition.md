@@ -6,15 +6,15 @@ Define how modules expose APIs and how the host composes them consistently.
 
 ## Principles
 
-- Use `IEndpointRouteBuilder` for module endpoint registration
-- Prefer route groups for isolation
-- Version external APIs
-- Separate admin APIs from public APIs
-- Keep module boundaries explicit
-- Apply tenant context before endpoint execution
-- Apply localization/auth/authorization centrally where possible
+- Use `IEndpointRouteBuilder` for module endpoint registration.
+- **Minimal APIs**: Core CMS features (Pages, Blog) **MUST** use Minimal APIs for public-facing content delivery to ensure maximum performance and AOT compatibility.
+- **Traditional MVC/Razor**: Reserved for the Admin UI and complex application modules where model binding and controller-based orchestration are established patterns.
+- Prefer route groups for isolation.
+- Version external APIs.
+- Keep module boundaries explicit.
+- Apply tenant context before endpoint execution.
 
-## Base Pattern
+## Base Pattern (Minimal APIs)
 
 ```csharp
 public interface IModule
@@ -23,7 +23,21 @@ public interface IModule
 }
 ```
 
-Since `WebApplication` implements `IEndpointRouteBuilder`, modules stay host-agnostic.
+Public CMS content discovery:
+
+```csharp
+public void Init(IEndpointRouteBuilder endpoints)
+{
+    // Public Content Discovery (Minimal API + Razor Slices)
+    endpoints.MapGet("{culture}/{**slug}", async (string culture, string slug, PageService cms) => 
+    {
+        var page = await cms.GetPageAsync(slug, culture);
+        return page is not null 
+            ? Results.Extensions.RazorSlice<PageSlice>(page) 
+            : Results.NotFound();
+    });
+}
+```
 
 ## Route Grouping
 
@@ -48,21 +62,25 @@ public void Init(IEndpointRouteBuilder endpoints)
 
 ## Public vs Admin Contracts
 
-### Public API
-Used by websites/headless consumers.
-Examples:
-- query published content
-- query navigation
-- search published content
+### Public API (Minimal APIs)
+Used by websites, headless consumers, and the core CMS frontend. 
+**Constraint**: Must use Minimal APIs for performance and AOT compatibility.
 
-### Admin API
-Used by CMS admin UI.
+Example:
+```csharp
+endpoints.MapGet("/api/v1/public/pages/{culture}/{**slug}", async (string culture, string slug, PageService cms) => {
+    var page = await cms.GetPageAsync(slug, culture);
+    return page is not null ? Results.Ok(page) : Results.NotFound();
+});
+```
+
+### Admin API (Traditional MVC)
+Used by the CMS admin UI. These remain as standard Controllers within Razor Class Libraries to leverage existing model binding and filter infrastructure.
+
 Examples:
-- create draft
-- edit content
-- upload media
-- schedule publish
-- manage users
+- `PageAdminController.cs`
+- `MediaAdminController.cs`
+- `ModuleAdminController.cs`
 
 ## DTO Discipline
 

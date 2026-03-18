@@ -1,6 +1,5 @@
-using Aero.Cms.Core;
+using Aero.Cms.Core.Modules;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
@@ -10,15 +9,14 @@ namespace Aero.Cms.Modules.Cache;
 /// <summary>
 /// Infrastructure module for high-performance output caching using FusionCache.
 /// </summary>
-public class CacheModule : AeroModuleBase
+public class CacheModule : ModuleBase
 {
-    public override string Name=> "Caching";
+    public override string Name => "Caching";
     public override string Version => "1.0.0";
     public override string Author => "Microbian Systems";
-    public override IReadOnlyList<string> Dependencies => [];
-    public override string Description => "A content caching module for in AeroCMS";
+    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config = null)
+    public override void ConfigureServices(IServiceCollection services)
     {
         // todo - use cache configuration from an options monitor so its updated live when changes are made
         // Register FusionCache with System.Text.Json serializer
@@ -32,27 +30,16 @@ public class CacheModule : AeroModuleBase
             .WithSerializer(new FusionCacheSystemTextJsonSerializer());
 
         // Register the caching hooks
-        services.AddScoped<PageCacheHook>();
-        services.AddScoped<PageCacheStoreHook>();
-        services.AddScoped<PageCacheInvalidatorHook>();
+        // services.AddScoped<PageCacheHook>();
+        // services.AddScoped<PageCacheStoreHook>();
+        // services.AddScoped<PageCacheInvalidatorHook>();
     }
 
-    public override void Init(IServiceProvider sp)
+    public override void Init(IEndpointRouteBuilder endpoints)
     {
-        
     }
 
-    public override void Run(IEndpointRouteBuilder app)
-    {
-        
-    }
-
-    public override Task RunAsync(IEndpointRouteBuilder app)
-    {
-        return Task.CompletedTask;
-    }
-
-    public override void Configure(IAeroModuleBuilder builder)
+    public override void Configure(IModuleBuilder builder)
     {
         // Registration with the global hook system will happen here
         // builder.AddPageReadHook<PageCacheHook>();

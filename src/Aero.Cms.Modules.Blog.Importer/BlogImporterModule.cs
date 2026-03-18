@@ -1,16 +1,11 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core.Modules;
 
 namespace Aero.Cms.Modules.Blog.Importer;
 
-public class BlogImporterModule : AeroModuleBase
+public class BlogImporterModule : ModuleBase
 {
-    public override string Name => nameof(BlogImporterModule);
-
+    public override string Name => "Blog Importer";
     public override string Version => "1.0.0";
-
     public override string Author => "Microbian Systems";
-
-    public override IReadOnlyList<string> Dependencies => [];
-
-    public override string Description => "Imports markdown / html content into the aero cms blog";
+    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
 }
