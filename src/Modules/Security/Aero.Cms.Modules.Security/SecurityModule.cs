@@ -8,7 +8,7 @@ public class SecurityModule : AeroModuleBase
 {
     public override string Name => "Security";
     public override string Version => "0.0.5-alpha";
-    public override string Author => "Microbian Systems";
+    public override string Author => "Microbians";
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => [];
     public override IReadOnlyList<string> Tags => [];

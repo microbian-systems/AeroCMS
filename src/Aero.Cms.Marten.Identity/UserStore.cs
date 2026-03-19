@@ -77,7 +77,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
             .Select(t => t.Value)
             .FirstOrDefault();
 
-        return Task.FromResult(token);
+        return Task.FromResult(token)!;
     }
 
     public Task SetAuthenticatorKeyAsync(TUser user, string key, CancellationToken cancellationToken)
@@ -110,7 +110,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
 
         foreach (var claim in claims)
         {
-            var userClaim = new IdentityRoleClaim<ulong>
+            var userClaim = new IdentityUserClaim<ulong>
             {
                 ClaimType = claim.Type,
                 ClaimValue = claim.Value
@@ -170,8 +170,8 @@ internal class UserStore<TUser>(IDocumentSession session) :
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        return _session.Query<TUser>().Where(u => u.Claims.Any(c => c.ClaimType == claim.Type && c.ClaimValue == claim.Value))
-            .ToList();
+        return (await _session.Query<TUser>().Where(u => u.Claims.Any(c => c.ClaimType == claim.Type && c.ClaimValue == claim.Value))
+            .ToListAsync(cancellationToken)).ToList();
     }
 
     public Task SetEmailAsync(TUser user, string email, CancellationToken cancellationToken)
@@ -187,7 +187,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
     {
         ValidateParameters(user, cancellationToken);
 
-        return Task.FromResult(user.Email);
+        return Task.FromResult(user.Email)!;
     }
 
     public Task<bool> GetEmailConfirmedAsync(TUser user, CancellationToken cancellationToken)
@@ -206,16 +206,16 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<TUser> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
+    public async Task<TUser?> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
     {
-        return _session.Query<TUser>().FirstOrDefaultAsync(x => x.NormalizedEmail == normalizedEmail, cancellationToken)!;
+        return await _session.Query<TUser>().FirstOrDefaultAsync(x => x.NormalizedEmail == normalizedEmail, cancellationToken);
     }
 
     public Task<string> GetNormalizedEmailAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
-        return Task.FromResult(user.NormalizedEmail);
+        return Task.FromResult(user.NormalizedEmail)!;
     }
 
     public Task SetNormalizedEmailAsync(TUser user, string normalizedEmail, CancellationToken cancellationToken)
@@ -289,14 +289,14 @@ internal class UserStore<TUser>(IDocumentSession session) :
     {
         ValidateParameters(user, cancellationToken);
 
-        return Task.FromResult(user.Id.ToString(CultureInfo.InvariantCulture));
+        return Task.FromResult(user.Id.ToString(CultureInfo.InvariantCulture))!;
     }
 
     public Task<string> GetUserNameAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
-        return Task.FromResult(user.UserName);
+        return Task.FromResult(user.UserName)!;
     }
 
     public Task SetUserNameAsync(TUser user, string userName, CancellationToken cancellationToken)
@@ -311,7 +311,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
     {
         ValidateParameters(user, cancellationToken);
 
-        return Task.FromResult(user.NormalizedUserName);
+        return Task.FromResult(user.NormalizedUserName)!;
     }
 
     public Task SetNormalizedUserNameAsync(TUser user, string normalizedName, CancellationToken cancellationToken)
@@ -373,19 +373,18 @@ internal class UserStore<TUser>(IDocumentSession session) :
         }
     }
 
-    // todo - UserStore has a ref to a legacy identity method w/ string as id param
     public Task<TUser?> FindByIdAsync(string userId, CancellationToken cancellationToken)
     {
-        var id = ulong.Parse(userId);
+        if (!ulong.TryParse(userId, out var id)) return Task.FromResult<TUser?>(null);
         return FindByIdAsync(id, cancellationToken);
     }
 
-    public Task<TUser> FindByIdAsync(ulong userId, CancellationToken cancellationToken)
+    public Task<TUser?> FindByIdAsync(ulong userId, CancellationToken cancellationToken)
     {
         return _session.Query<TUser>().FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
     }
 
-    public Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
+    public Task<TUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
     {
         return _session.Query<TUser>()
             .FirstOrDefaultAsync(x => x.NormalizedUserName == normalizedUserName, cancellationToken);
@@ -429,18 +428,16 @@ internal class UserStore<TUser>(IDocumentSession session) :
     {
         ValidateParameters(user, cancellationToken);
 
-        IList<UserLoginInfo> result = user.Logins
+        return Task.FromResult<IList<UserLoginInfo>>(user.Logins
             .Select(u => new UserLoginInfo(u.LoginProvider, u.ProviderKey, u.ProviderDisplayName))
-            .ToList();
-
-        return Task.FromResult(result);
+            .ToList());
     }
 
-    public Task<TUser> FindByLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
+    public Task<TUser?> FindByLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return _session.Query<TUser>().FirstOrDefaultAsync(u =>
-            u.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey));
+            u.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey), cancellationToken);
     }
 
     public Task SetPasswordHashAsync(TUser user, string passwordHash, CancellationToken cancellationToken)
@@ -456,7 +453,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
     {
         ValidateParameters(user, cancellationToken);
 
-        return Task.FromResult(user.PasswordHash);
+        return Task.FromResult(user.PasswordHash)!;
     }
 
     public Task<bool> HasPasswordAsync(TUser user, CancellationToken cancellationToken)
@@ -479,7 +476,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
     {
         ValidateParameters(user, cancellationToken);
 
-        return Task.FromResult(user.PhoneNumber);
+        return Task.FromResult(user.PhoneNumber)!;
     }
 
     public Task<bool> GetPhoneNumberConfirmedAsync(TUser user, CancellationToken cancellationToken)
@@ -524,8 +521,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
     {
         ValidateParameters(user, cancellationToken);
 
-        IList<string> roles = user.Roles.Select(r => r.Name).ToList();
-        return Task.FromResult(roles);
+        return Task.FromResult<IList<string>>(user.Roles.Select(r => r.Name!).ToList());
     }
 
     public Task<bool> IsInRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
@@ -538,8 +534,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
 
     public async Task<IList<TUser>> GetUsersInRoleAsync(string roleName, CancellationToken cancellationToken)
     {
-        var users = _session.Query<TUser>().Where(u => u.Roles.Any(r => r.Name == roleName)).ToList();
-        return users;
+        return (await _session.Query<TUser>().Where(u => u.Roles.Any(r => r.Name == roleName)).ToListAsync(cancellationToken)).ToList();
     }
 
     public Task SetSecurityStampAsync(TUser user, string stamp, CancellationToken cancellationToken)
@@ -555,7 +550,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
     {
         ValidateParameters(user, cancellationToken);
 
-        return Task.FromResult(user.SecurityStamp);
+        return Task.FromResult(user.SecurityStamp)!;
     }
 
     public Task ReplaceCodesAsync(TUser user, IEnumerable<string> recoveryCodes, CancellationToken cancellationToken)

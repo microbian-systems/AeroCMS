@@ -1,11 +1,10 @@
-using System.Security.Claims;
 using Aero.Core;
 using Aero.Core.Identity;
 using Aero.Models.Entities;
 using Marten;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using System.Security.Claims;
 
 namespace Aero.MartenDB.Identity;
 
@@ -181,11 +180,11 @@ public class UserStore<TUser, TRole> :
 
         if (string.IsNullOrWhiteSpace(user.Email))
             throw new ArgumentException("The user's email address can't be null or empty.", nameof(user));
-        if (string.IsNullOrWhiteSpace(user.Id?.ToString()))
+        if (string.IsNullOrWhiteSpace(user.Id.ToString()))
             throw new ArgumentException("The user can't have a null ID.");
 
         // Load the existing user to detect email changes.
-        var existing = await DbSession.LoadAsync<TUser>(user.Id.ToString(), cancellationToken);
+        var existing = await DbSession.LoadAsync<TUser>(user.Id, cancellationToken);
         var oldEmail = existing?.Email?.ToLowerInvariant() ?? string.Empty;
         var newEmail = user.Email.ToLowerInvariant();
 
@@ -262,11 +261,11 @@ public class UserStore<TUser, TRole> :
         ThrowIfNullDisposedCancelled(user, cancellationToken);
         ArgumentNullException.ThrowIfNull(login);
 
-        user.Logins.Add(new IdentityUserLogin<string>
+        user.Logins.Add(new IdentityLogin
         {
             LoginProvider = login.LoginProvider,
             ProviderKey = login.ProviderKey,
-            UserId = user.Id
+            ProviderDisplayName = login.ProviderDisplayName
         });
 
         await SaveChangesAsync();
@@ -325,7 +324,7 @@ public class UserStore<TUser, TRole> :
 
         foreach (var c in claims)
         {
-            user.Claims.Add(new IdentityUserClaim<string>
+            user.Claims.Add(new IdentityUserClaim<ulong>
             {
                 ClaimType = c.Type,
                 ClaimValue = c.Value,
@@ -341,18 +340,18 @@ public class UserStore<TUser, TRole> :
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
 
-        var index = user.Claims.FindIndex(c => c.ClaimType == claim.Type && c.ClaimValue == claim.Value);
-        if (index != -1)
+        var existingClaim = user.Claims.FirstOrDefault(c => c.ClaimType == claim.Type && c.ClaimValue == claim.Value);
+        if (existingClaim != null)
         {
-            user.Claims.RemoveAt(index);
-            user.Claims.Add(new IdentityUserClaim<string>
+            var index = user.Claims.IndexOf(existingClaim);
+            user.Claims[index] = new IdentityUserClaim<ulong>
             {
                 ClaimType = newClaim.Type,
                 ClaimValue = newClaim.Value,
                 UserId = user.Id
-            });
+            };
         }
-
+        
         await SaveChangesAsync();
     }
 
@@ -361,7 +360,11 @@ public class UserStore<TUser, TRole> :
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
 
-        user.Claims.RemoveAll(ic => claims.Any(c => c.Type == ic.ClaimType && c.Value == ic.ClaimValue));
+        var toRemove = user.Claims.Where(ic => claims.Any(c => c.Type == ic.ClaimType && c.Value == ic.ClaimValue)).ToList();
+        foreach (var claim in toRemove)
+        {
+            user.Claims.Remove(claim);
+        }
 
         await SaveChangesAsync();
     }
@@ -375,7 +378,7 @@ public class UserStore<TUser, TRole> :
         var list = await DbSession.Query<TUser>()
             .Where(u => u.Claims.Any(c => c.ClaimType == claim.Type && c.ClaimValue == claim.Value))
             .ToListAsync(cancellationToken);
-        
+
         return list.ToList();
     }
 
@@ -399,9 +402,13 @@ public class UserStore<TUser, TRole> :
         }
 
         var roleRealName = existingRoleOrNull.Name;
-        if (!user.RoleNames.Contains(roleRealName!, StringComparer.InvariantCultureIgnoreCase))
+        if (!user.Roles.Any(r => r.Name.Equals(roleRealName!, StringComparison.InvariantCultureIgnoreCase)))
         {
-            user.Roles.Add(existingRoleOrNull);
+            var role = await DbSession.Query<AeroRole>().FirstOrDefaultAsync(r => r.Name == roleRealName, cancellationToken);
+            if (role != null)
+            {
+                user.Roles.Add(role);
+            }
         }
 
         if (!existingRoleOrNull.Users.Contains(user.Id))
@@ -417,7 +424,11 @@ public class UserStore<TUser, TRole> :
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
 
-        user.Roles.RemoveAll(r => string.Equals(r.Name, roleName, StringComparison.InvariantCultureIgnoreCase));
+        var role = user.Roles.FirstOrDefault(r => string.Equals(r.Name, roleName, StringComparison.InvariantCultureIgnoreCase));
+        if (role != null)
+        {
+            user.Roles.Remove(role);
+        }
 
         var roleId = RoleIdFor(roleName);
         var roleOrNull = await DbSession.LoadAsync<TRole>(roleId, cancellationToken);
@@ -433,15 +444,11 @@ public class UserStore<TUser, TRole> :
     public virtual Task<IList<string>> GetRolesAsync(TUser user, CancellationToken cancellationToken)
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
-        return Task.FromResult<IList<string>>(user.RoleNames.ToList());
+        return Task.FromResult<IList<string>>(user.Roles.Select(r => r.Name!).ToList());
     }
 
     /// <inheritdoc />
-    public virtual Task<bool> IsInRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(roleName)) throw new ArgumentNullException(nameof(roleName));
-        return Task.FromResult(user.RoleNames.Contains(roleName, StringComparer.InvariantCultureIgnoreCase));
-    }
+    public virtual Task<bool> IsInRoleAsync(TUser user, string roleName, CancellationToken cancellationToken) => Task.FromResult(user.Roles.Any(r => r.Name.Equals(roleName, StringComparison.InvariantCultureIgnoreCase)));
 
     /// <inheritdoc />
     public virtual async Task<IList<TUser>> GetUsersInRoleAsync(string roleName, CancellationToken cancellationToken)
@@ -449,11 +456,11 @@ public class UserStore<TUser, TRole> :
         ThrowIfDisposedOrCancelled(cancellationToken);
         if (string.IsNullOrEmpty(roleName)) throw new ArgumentNullException(nameof(roleName));
 
-        var list = await DbSession.Query<TUser>()
-            .Where(u => u.RoleNames.Contains(roleName))
+        var users = await DbSession.Query<TUser>()
+            .Where(u => u.Roles.Any(r => r.Name == roleName))
             .ToListAsync(cancellationToken);
-        
-        return list.ToList();
+
+        return users.ToList();
     }
 
     //#endregion
@@ -683,9 +690,8 @@ public class UserStore<TUser, TRole> :
         }
         else
         {
-            user.Tokens.Add(new IdentityUserToken<string>
+            user.Tokens.Add(new IdentityToken
             {
-                UserId = user.Id,
                 LoginProvider = loginProvider,
                 Name = name,
                 Value = value
@@ -698,7 +704,11 @@ public class UserStore<TUser, TRole> :
     /// <inheritdoc />
     public virtual async Task RemoveTokenAsync(TUser user, string loginProvider, string name, CancellationToken cancellationToken)
     {
-        user.Tokens.RemoveAll(t => t.LoginProvider == loginProvider && t.Name == name);
+        var targetToken = user.Tokens.FirstOrDefault(t => t.LoginProvider == loginProvider && t.Name == name);
+        if (targetToken != null)
+        {
+            user.Tokens.Remove(targetToken);
+        }
         await SaveChangesAsync();
     }
 

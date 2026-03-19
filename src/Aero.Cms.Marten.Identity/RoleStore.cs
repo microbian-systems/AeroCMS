@@ -108,16 +108,16 @@ internal class RoleStore<TRole>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<TRole> FindByIdAsync(string roleId, CancellationToken cancellationToken)
+    public Task<TRole?> FindByIdAsync(string roleId, CancellationToken cancellationToken)
     {
-        var parsedRoleId = ulong.Parse(roleId, CultureInfo.InvariantCulture);
-        return session.Query<TRole>().FirstAsync(x => x.Id == parsedRoleId, cancellationToken);
+        if (!ulong.TryParse(roleId, out var parsedRoleId)) return Task.FromResult<TRole?>(null);
+        return session.Query<TRole>().FirstOrDefaultAsync(x => x.Id == parsedRoleId, cancellationToken);
     }
 
-    public Task<TRole> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
+    public Task<TRole?> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
     {
         return session.Query<TRole>()
-            .FirstAsync(x => x.NormalizedName == normalizedRoleName, cancellationToken);
+            .FirstOrDefaultAsync(x => x.NormalizedName == normalizedRoleName, cancellationToken);
     }
 
     public IQueryable<TRole> Roles => session.Query<TRole>();
