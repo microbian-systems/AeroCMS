@@ -12,6 +12,7 @@
     <PackageReference Include="Boxed.AspNetCore" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="RazorSlices" />
     <PackageReference Include="Scrutor" />
     <PackageReference Include="Scrutor.AspNetCore" />
     <PackageReference Include="Serilog" />

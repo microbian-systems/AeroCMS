@@ -36,8 +36,8 @@ Implement a dedicated admin endpoint for emergency or manual purges:
 - **Logic:** Triggers `IOutputCacheStore.EvictByTagAsync` for relevant CMS tags.
 
 ## Native AOT Requirements
-- All cached DTOs must be decorated with `[JsonSerializable]` for the `SourceGeneratedContext`.
-- Avoid `System.Reflection` and `Dynamic` in cache key generation or object mapping.
+- All cached Headless API DTOs must be decorated with `[JsonSerializable]` for the `SourceGeneratedContext`.
+- Core infrastructure services should remain reflection-free where possible to support optional AOT modes.
 
 ## Key Rules
 

@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Globalization;
+using Aero.Models.Entities;
 using Marten;
 using Microsoft.AspNetCore.Identity;
 
@@ -18,7 +20,7 @@ internal class UserStore<TUser> :
     IUserAuthenticatorKeyStore<TUser>,
     IUserTwoFactorRecoveryCodeStore<TUser>,
     IUserRoleStore<TUser>
-    where TUser : IdentityUser
+    where TUser : AeroUser
 {
     private const string InternalLoginProvider = "InternalProvider";
     private const string AuthenticatorKeyTokenName = "AuthenticatorKey";
@@ -39,7 +41,7 @@ internal class UserStore<TUser> :
 
         var token = user.Tokens
             .FirstOrDefault(t => t.LoginProvider == loginProvider && t.Name == name);
-
+        
         if (token == null)
         {
             token = new IdentityToken
@@ -291,7 +293,7 @@ internal class UserStore<TUser> :
     {
         ValidateParameters(user, cancellationToken);
 
-        return Task.FromResult(user.Id.ToString());
+        return Task.FromResult(user.Id.ToString(CultureInfo.InvariantCulture));
     }
 
     public Task<string> GetUserNameAsync(TUser user, CancellationToken cancellationToken)
@@ -377,7 +379,8 @@ internal class UserStore<TUser> :
 
     public Task<TUser> FindByIdAsync(string userId, CancellationToken cancellationToken)
     {
-        return _session.Query<TUser>().FirstOrDefaultAsync(x => x.Id == Guid.Parse(userId), cancellationToken);
+        var parsedUserId = ulong.Parse(userId, CultureInfo.InvariantCulture);
+        return _session.Query<TUser>().FirstOrDefaultAsync(x => x.Id == parsedUserId, cancellationToken);
     }
 
     public Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)

@@ -47,7 +47,7 @@ The CMS architecture uses several runtime patterns that rely on reflection:
 Replace every pattern above with **compile-time generated code** using Roslyn incremental source generators so that:
 
 1. Zero reflection in domain/infrastructure layer at runtime.
-2. The generated code is **fully AOT-compatible** (including **Razor Slices** for the core CMS).
+2. The generated code is fully compatible with standard ASP.NET Core performance optimizations.
 3. Target **.NET 10+** features.
 
 ---
@@ -61,7 +61,6 @@ Scans for all non-abstract `BlockBase` subclasses and all `IBlockRenderer` (Admi
 1. `BlockBase.Polymorphic.g.cs` — partial `BlockBase` with `[JsonPolymorphic]` + `[JsonDerivedType]` attributes.
 2. `CmsJsonContext.g.cs` — `JsonSerializerContext` with `[JsonSerializable]` for every document type.
 3. `CmsBlockServiceExtensions.g.cs` — `IServiceCollection.AddCmsBlocks()` extension method.
-4. `CmsBlockSliceRegistry.g.cs` — explicit, reflection-free registry initialization for Razor Slices.
 
 ---
 
@@ -71,7 +70,6 @@ Scans for all non-abstract `BlockBase` subclasses and all `IBlockRenderer` (Admi
 |---|---|---|---|
 | Block JSON polymorphism | `[JsonPolymorphic]` + `CmsJsonContext` | ✓ `BlockJsonConverter` deleted | ✓ Full AOT |
 | Block renderer registry | `AddCmsBlocks()` extension | ✓ No `IEnumerable` scan | ✓ Full AOT |
-| **Razor Slices** | Not generated (static by nature) | ✓ No MVC overhead | ✓ Full AOT |
 | Marten documents | `MartenDocumentTypes.g.cs` | ✓ No Marten startup scan | ✓ With `TypeLoadMode.Static` |
 
 ... [Rest of document updated for .NET 10]

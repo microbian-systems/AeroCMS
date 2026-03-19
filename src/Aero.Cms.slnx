@@ -22,6 +22,8 @@
     <Project Path="../Aero/src/Aero.Web/Aero.Web.csproj" />
   </Folder>
   <Folder Name="/Modules/">
+    <Project Path="Aero.Cms.Banners/Aero.Cms.Banners.csproj" Id="8fd7949a-f146-4d9e-bb09-7bc45d4d2540" />
+    <Project Path="Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj" Id="bf6093a6-2be7-443e-bda2-9c8fc57de702" />
     <Project Path="Aero.Cms.Modules.Admin/Aero.Cms.Modules.Admin.csproj" Id="9390ff18-8404-41fb-af97-08f76bc61677" />
     <Project Path="Aero.Cms.Modules.Ai/Aero.Cms.Modules.Ai.csproj" Id="4635f02b-ab13-4e7e-9a2b-b6dc992c9631" />
     <Project Path="Aero.Cms.Modules.AiAssistant/Aero.Cms.Modules.AiAssistant.csproj" Id="f7200dd4-a7b1-4059-b84e-ead4793161fc" />
@@ -64,8 +66,6 @@
     <Project Path="Modules/Security/Aero.Cms.Modules.SimpleSecurity/Aero.Cms.Modules.SimpleSecurity.csproj" />
   </Folder>
   <Project Path="Aero.Cms.AppHost/Aero.Cms.AppHost.csproj" />
-  <Project Path="Aero.Cms.Banners/Aero.Cms.Banners.csproj" Id="8fd7949a-f146-4d9e-bb09-7bc45d4d2540" />
-  <Project Path="Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj" Id="bf6093a6-2be7-443e-bda2-9c8fc57de702" />
   <Project Path="Aero.Cms.Core/Aero.Cms.Core.csproj" Id="ff176115-2d03-4287-8d16-def80bd19295" />
   <Project Path="Aero.Cms.Events/Aero.Cms.Events.csproj" Id="924d986e-d109-438e-aeec-84ac497c12c3" />
   <Project Path="Aero.Cms.Marten.Identity/Aero.Cms.Marten.Identity.csproj" />

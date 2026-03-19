@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Globalization;
 using Marten;
 using Microsoft.AspNetCore.Identity;
 
@@ -73,7 +74,7 @@ internal class RoleStore<TRole> :
     {
         ValidateParameters(role, cancellationToken);
 
-        return Task.FromResult(role.Id.ToString());
+        return Task.FromResult(role.Id.ToString(CultureInfo.InvariantCulture));
     }
 
     public Task<string> GetRoleNameAsync(TRole role, CancellationToken cancellationToken)
@@ -113,10 +114,10 @@ internal class RoleStore<TRole> :
         return Task.CompletedTask;
     }
 
-    // todo - convert identity pkey to ulong / snowflake
     public Task<TRole> FindByIdAsync(string roleId, CancellationToken cancellationToken)
     {
-        return _session.Query<TRole>().FirstAsync(x => x.Id == Guid.Parse(roleId), cancellationToken);
+        var parsedRoleId = ulong.Parse(roleId, CultureInfo.InvariantCulture);
+        return _session.Query<TRole>().FirstAsync(x => x.Id == parsedRoleId, cancellationToken);
     }
 
     public Task<TRole> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)

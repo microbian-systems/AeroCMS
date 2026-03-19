@@ -49,8 +49,8 @@ A block-based CMS built on ASP.NET Core where:
 
 - **Pages** are composed of ordered **LayoutRegions**, each with 1–3 **Columns**, each containing ordered **Blocks**.
 - **Blocks** are polymorphic content units.
-- **Frontend Rendering (CMS/Blog)**: Uses **Razor Slices** for high-performance, lightweight rendering. Slices are used for pages, blog posts, and all block types.
-- **API Strategy**: Core CMS features (Pages, Blog) use **Minimal APIs** for public delivery to ensure maximum performance and AOT compatibility.
+- **Frontend Rendering (CMS/Blog)**: Uses Razor views for flexible, block-based rendering.
+- **API Strategy**: Core CMS features (Pages, Blog) use **Minimal APIs** for public Headless API delivery to ensure maximum performance.
 - **Other Areas (Admin/Apps)**: Continue to use MVC/Razor/HTMX or Blazor (Server/WASM) as appropriate.
 - **Storage**: PostgreSQL via Marten (document model) + `pg_vector` for semantic search.
 - **The rendering pipeline**: Chain of Responsibility pattern.
@@ -65,7 +65,7 @@ HTTP Request /en/about
       ├── ETagMiddleware               (conditional GET handling)
       ├── OutputCacheMiddleware        (serve from cache if warm)
       │
-      └── Minimal API MapGet("{culture}/{**slug}")
+      └── Request Handler (e.g., /{culture}/{**slug})
                 │
                 └── PageService.GetPageAsync()
                           │
@@ -90,8 +90,8 @@ HTTP Request /en/about
 | Concern | Technology |
 |---|---|
 | Framework | ASP.NET Core 10+ |
-| CMS Rendering | **Razor Slices** (lightweight static rendering) |
-| API Layer | **Minimal APIs** (for public CMS/Blog) |
+| CMS Rendering | Razor Views |
+| API Layer | **Minimal APIs** (for public Headless API) |
 | Admin UI | Razor / cshtml + HTMX + Alpine.js |
 | Styling | Tailwind CSS |
 | Database | PostgreSQL via Marten (document) + **pg_vector** (semantic) |
@@ -132,4 +132,11 @@ API responses serialize blocks polymorphically using source-generated JSON metad
 
 ---
 
-[Rest of document preserved with existing specification logic]
+## 34. Implementation Guidance for High Performance
+
+1.  **DTO Efficiency:** Use `[JsonSerializable]` for all Headless API DTOs within a `JsonSerializerContext` to support high-performance serialization.
+2.  **Minimal APIs:** Use Route Groups for Headless APIs to apply shared metadata, authorization, and filters.
+3.  **Custom Endpoint Filters:** Implement `IEndpointFilter` for global error handling and request logging on Headless API routes.
+4.  **Direct DI:** Inject `IFusionCache` and `IDocumentSession` (Marten) directly into delegate handlers.
+5.  **Admin Purge:** Implement `POST /admin/clear-cache` to allow manual cache invalidation.
+

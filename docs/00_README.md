@@ -24,12 +24,11 @@ These documents assume the previously generated specs for:
 
 Target stack:
 - ASP.NET Core (.NET 10+)
-- **Native AOT** compatibility for core CMS delivery
-- **Minimal APIs** for high-performance routing
-- PostgreSQL + Marten (Native AOT mode)
+- PostgreSQL + Marten
 - Redis Backed Output Caching
 - FusionCache (L1/L2)
 - TickerQ for distributed jobs
-- **Razor Slices** for high-performance, reflection-free rendering
-- Razor Class Libraries for modular Admin UI (MVC/Blazor)
+- Razor Class Libraries for modular UI (MVC/Blazor)
+- **Minimal APIs** for high-performance API routing
+
 

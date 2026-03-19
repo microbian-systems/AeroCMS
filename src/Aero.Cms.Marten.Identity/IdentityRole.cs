@@ -2,7 +2,7 @@ namespace Aero.Cms.Marten.Identity;
 
 public class IdentityRole
 {
-    public Guid Id { get; set; }
+    public ulong Id { get; set; }
 
     public string Name { get; set; }
 

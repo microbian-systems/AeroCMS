@@ -15,7 +15,7 @@ public class IdentityUser
         SecurityStamp = Guid.NewGuid().ToString("N");
     }
 
-    public Guid Id { get; set; }
+    public ulong Id { get; set; }
 
     public string UserName { get; set; }
 

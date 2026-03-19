@@ -407,8 +407,8 @@ Database (Postgres / Marten)
 | Component | Technology |
 |---|---|
 | Framework | ASP.NET Core (.NET 10+) |
-| **Routing** | **Minimal APIs** (Native AOT optimized) |
-| **Rendering** | **Razor Slices** (Reflection-free templates) |
+| **Routing** | **Minimal APIs** (for Headless API) |
+| **Rendering** | Razor Views |
 | **Caching** | **Triple Threat** (Output Cache + FusionCache + Marten) |
 | L1 Cache | Memory cache (per node) |
 | L2 Cache | Redis distributed cache |

@@ -2,6 +2,7 @@ using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Web.Components;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Services;
+using Aero.Cms.Web.Slices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +37,12 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+
+
+app.MapGet("/hello", async ctx =>
+{
+    
+});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
