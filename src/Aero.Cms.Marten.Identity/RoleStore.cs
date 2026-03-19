@@ -1,34 +1,28 @@
 using System.Security.Claims;
 using System.Globalization;
+using Aero.Core.Identity;
 using Marten;
 using Microsoft.AspNetCore.Identity;
 
 namespace Aero.Cms.Marten.Identity;
 
-internal class RoleStore<TRole> :
+internal class RoleStore<TRole>(IDocumentSession session) :
     IQueryableRoleStore<TRole>,
     IRoleClaimStore<TRole>
-    where TRole : IdentityRole
+    where TRole : AeroRole
 {
-    private readonly IDocumentSession _session;
-
-    public RoleStore(IDocumentSession session)
-    {
-        _session = session;
-    }
-
     public void Dispose()
     {
-        _session.Dispose();
+        session.Dispose();
     }
 
     public async Task<IdentityResult> CreateAsync(TRole role, CancellationToken cancellationToken)
     {
         try
         {
-            _session.Store(role);
+            session.Store(role);
 
-            await _session.SaveChangesAsync(cancellationToken);
+            await session.SaveChangesAsync(cancellationToken);
 
             return IdentityResult.Success;
         }
@@ -42,9 +36,9 @@ internal class RoleStore<TRole> :
     {
         try
         {
-            _session.Update(role);
+            session.Update(role);
         
-            await _session.SaveChangesAsync(cancellationToken);
+            await session.SaveChangesAsync(cancellationToken);
 
             return IdentityResult.Success;
         }
@@ -58,9 +52,9 @@ internal class RoleStore<TRole> :
     {
         try
         {
-            _session.Delete(role);
+            session.Delete(role);
 
-            await _session.SaveChangesAsync(cancellationToken);
+            await session.SaveChangesAsync(cancellationToken);
 
             return IdentityResult.Success;
         }
@@ -117,23 +111,23 @@ internal class RoleStore<TRole> :
     public Task<TRole> FindByIdAsync(string roleId, CancellationToken cancellationToken)
     {
         var parsedRoleId = ulong.Parse(roleId, CultureInfo.InvariantCulture);
-        return _session.Query<TRole>().FirstAsync(x => x.Id == parsedRoleId, cancellationToken);
+        return session.Query<TRole>().FirstAsync(x => x.Id == parsedRoleId, cancellationToken);
     }
 
     public Task<TRole> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
     {
-        return _session.Query<TRole>()
+        return session.Query<TRole>()
             .FirstAsync(x => x.NormalizedName == normalizedRoleName, cancellationToken);
     }
 
-    public IQueryable<TRole> Roles => _session.Query<TRole>();
+    public IQueryable<TRole> Roles => session.Query<TRole>();
 
     public Task<IList<Claim>> GetClaimsAsync(TRole role, CancellationToken cancellationToken = new())
     {
         ValidateParameters(role, cancellationToken);
 
         var claims = role.Claims
-            .Select(c => new Claim(c.Type, c.Value))
+            .Select(c => new Claim(c.ClaimType, c.ClaimValue))
             .ToList();
 
         return Task.FromResult<IList<Claim>>(claims);
@@ -146,10 +140,10 @@ internal class RoleStore<TRole> :
         if (claim == null)
             throw new ArgumentNullException(nameof(claim));
 
-        var roleClaim = new IdentityClaim
+        var roleClaim = new IdentityRoleClaim<ulong>
         {
-            Type = claim.Type,
-            Value = claim.Value
+            ClaimType = claim.Type,
+            ClaimValue = claim.Value
         };
         role.Claims.Add(roleClaim);
 
@@ -159,12 +153,12 @@ internal class RoleStore<TRole> :
     public Task RemoveClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = new())
     {
         ValidateParameters(role, cancellationToken);
-
+        IdentityRoleClaim<ulong> test;
         if (claim == null)
             throw new ArgumentNullException(nameof(claim));
 
         var matched = role.Claims
-            .Where(u => u.Value == claim.Value && u.Type == claim.Type)
+            .Where(u => u.ClaimValue == claim.Value && u.ClaimType == claim.Type)
             .ToList();
 
         foreach (var m in matched)
@@ -173,7 +167,7 @@ internal class RoleStore<TRole> :
         return Task.CompletedTask;
     }
 
-    private static void ValidateParameters(IdentityRole role, CancellationToken cancellationToken)
+    private static void ValidateParameters(AeroRole role, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 

@@ -1,19 +1,21 @@
 using Aero.Cms.Core.Modules;
+using Aero.Core.Identity;
+using Aero.MartenDB.Identity;
+using Aero.Models.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
-using Aero.Models.Entities;
-using Aero.Core.Identity;
-using Aero.MartenDB.Identity;
 
 namespace Aero.Cms.Modules.Identity;
 
 public class IdentityModule : AeroModuleBase
 {
-    public override string Name => "Identity";
-    public override string Version => "1.0.0";
-    public override string Author => "Aero.Cms";
-    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
+    public override string Name => nameof(IdentityModule);
+    public override string Version => "0.0.5-alpha";
+    public override string Author => "Microbians";
+    public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Category => ["Identity", "Security"];
+    public override IReadOnlyList<string> Tags => ["auth", "identity", "users", "roles"];
 
     public override void ConfigureServices(IServiceCollection services)
     {
@@ -25,7 +27,7 @@ public class IdentityModule : AeroModuleBase
         services.AddScoped<IRoleStore<AeroRole>, RoleStore<AeroRole>>();
     }
 
-    public override void Init(IEndpointRouteBuilder endpoints)
+    public override void Run(IEndpointRouteBuilder endpoints)
     {
     }
 }

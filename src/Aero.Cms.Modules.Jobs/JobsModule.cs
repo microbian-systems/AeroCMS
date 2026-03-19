@@ -6,23 +6,25 @@ namespace Aero.Cms.Modules.Jobs;
 
 public class JobsModule : AeroModuleBase
 {
-    public override string Name => "Aero Jobs";
-    public override string Version => "1.0.0";
-    public override string Author => "Aero.Cms";
-    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
+    public override string Name => nameof(JobsModule);
+    public override string Version => "0.0.5-alpha";
+    public override string Author => "Microbians";
+    public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Category => ["Infrastructure", "BackgroundTasks"];
+    public override IReadOnlyList<string> Tags => ["jobs", "background", "queue", "scheduler"];
 
     public override void ConfigureServices(IServiceCollection services)
     {
-        
+
     }
 
-    public override void Init(IEndpointRouteBuilder endpoints)
+    public override void Run(IEndpointRouteBuilder endpoints)
     {
-        
+
     }
 
     public override void Configure(IModuleBuilder builder)
     {
-        
+
     }
 }

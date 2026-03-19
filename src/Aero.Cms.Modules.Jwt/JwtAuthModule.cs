@@ -12,10 +12,12 @@ namespace Aero.Cms.Modules.Jwt;
 
 public class JwtAuthModule : AeroModuleBase
 {
-    public override string Name => "JWT Authentication";
-    public override string Version => "1.0.0";
-    public override string Author => "Aero.Cms";
-    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
+    public override string Name => nameof(JwtAuthModule);
+    public override string Version => "0.0.5-alpha";
+    public override string Author => "Microbians";
+    public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Category => ["Identity", "Security"];
+    public override IReadOnlyList<string> Tags => ["auth", "jwt", "tokens", "security"];
 
     public override void ConfigureServices(IServiceCollection services)
     {
@@ -37,7 +39,7 @@ public class JwtAuthModule : AeroModuleBase
         services.AddAuthorization();
     }
 
-    public override void Init(IEndpointRouteBuilder endpoints)
+    public override void Run(IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/auth");
 

@@ -1,9 +1,12 @@
 <Solution>
   <Folder Name="/.global/">
+    <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/Aero/">
+    <File Path="../Aero/src/Directory.Build.props" />
+    <File Path="../Aero/src/Directory.Packages.props" />
     <Project Path="../Aero/src/Aero.Actors/Aero.Actors.csproj" />
     <Project Path="../Aero/src/Aero.Auth/Aero.Auth.csproj" />
     <Project Path="../Aero/src/Aero.Caching/Aero.Caching.csproj" />
@@ -13,7 +16,6 @@
     <Project Path="../Aero/src/Aero.EfCore/Aero.EfCore.csproj" />
     <Project Path="../Aero/src/Aero.Events/Aero.Events.csproj" />
     <Project Path="../Aero/src/Aero.Marten/Aero.Marten.csproj" />
-    <Project Path="../Aero/src/Aero.MartenDB/Aero.MartenDB.csproj" />
     <Project Path="../Aero/src/Aero.Models/Aero.Models.csproj" />
     <Project Path="../Aero/src/Aero.Services/Aero.Services.csproj" />
     <Project Path="../Aero/src/Aero.SignalR/Aero.SignalR.csproj" />

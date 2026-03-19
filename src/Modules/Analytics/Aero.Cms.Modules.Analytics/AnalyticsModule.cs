@@ -7,10 +7,12 @@ namespace Aero.Cms.Modules.Analytics;
 
 public class AnalyticsModule : AeroModuleBase
 {
-    public override string Name => "Analytics";
-    public override string Version => "1.0.0";
-    public override string Author => "Microbian Systems";
+    public override string Name => nameof(AnalyticsModule);
+    public override string Version => "0.0.5-alpha";
+    public override string Author => "Microbians";
     public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Category => ["Marketing", "Tracking"];
+    public override IReadOnlyList<string> Tags => ["analytics", "tracking", "metrics"];
 
     public override void ConfigureServices(IServiceCollection services)
     {
@@ -18,7 +20,7 @@ public class AnalyticsModule : AeroModuleBase
         services.AddScoped<IPageReadHook, AnalyticsInjectionHook>();
     }
 
-    public override void Init(IEndpointRouteBuilder endpoints)
+    public override void Run(IEndpointRouteBuilder endpoints)
     {
     }
 

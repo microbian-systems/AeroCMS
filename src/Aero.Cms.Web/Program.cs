@@ -1,8 +1,7 @@
 using Aero.Cms.ServiceDefaults;
-using Aero.Cms.Web.Components;
 using Aero.Cms.Shared.Services;
+using Aero.Cms.Web.Components;
 using Aero.Cms.Web.Services;
-using Aero.Cms.Web.Slices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,5 +48,3 @@ app.MapRazorComponents<App>()
 
 app.Run();
 
-
-var test = app.Services;

@@ -10,7 +10,7 @@
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageVersion Include="MailKit" Version="4.15.1" />
     <PackageVersion Include="Markdig" Version="1.1.1" />
-    <PackageVersion Include="Marten" Version="8.24.0" />
+    <PackageVersion Include="Marten" Version="8.26.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
@@ -18,13 +18,13 @@
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.50" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.4.0" />
-    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.4.0" />
     <PackageVersion Include="Microsoft.Garnet" Version="1.1.1" />
     <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.50" />
-    <PackageVersion Include="MagicOnion.Server" Version="7.0.2" />
+    <PackageVersion Include="MagicOnion.Server" Version="7.10.0" />
     <PackageVersion Include="MimeKit" Version="4.15.1" />
     <PackageVersion Include="MiniProfiler" Version="4.5.4" />
     <PackageVersion Include="MiniProfiler.AspNetCore" Version="4.5.4" />
@@ -49,9 +49,9 @@
     <PackageVersion Include="TickerQ.EntityFrameworkCore" Version="10.2.2" />
     <PackageVersion Include="TickerQ.Instrumentation.OpenTelemetry" Version="10.2.2" />
     <PackageVersion Include="TickerQ.Utilities" Version="10.2.2" />
-    <PackageVersion Include="WolverineFx" Version="5.20.1" />
-    <PackageVersion Include="WolverineFx.Marten" Version="5.20.1" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="5.20.1" />
+    <PackageVersion Include="WolverineFx" Version="5.21.0" />
+    <PackageVersion Include="WolverineFx.Marten" Version="5.21.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="5.21.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache" Version="2.6.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0" />
   </ItemGroup>

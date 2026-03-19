@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Aero.Cms.Core;
+﻿namespace Aero.Cms.Core;
 
 /// <summary>
 /// default Aero CMS roles

@@ -9,6 +9,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+      <ProjectReference Include="..\Aero.Cms.Events\Aero.Cms.Events.csproj" />
     </ItemGroup>
 
 </Project>

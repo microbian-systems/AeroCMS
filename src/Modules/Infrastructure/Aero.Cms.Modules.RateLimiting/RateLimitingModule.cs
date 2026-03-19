@@ -8,10 +8,12 @@ namespace Aero.Cms.Modules.RateLimiting;
 
 public class RateLimitingModule : AeroModuleBase
 {
-    public override string Name => "RateLimiting";
-    public override string Version => "1.0.0";
-    public override string Author => "Microbian Systems";
+    public override string Name => nameof(RateLimitingModule);
+    public override string Version => "0.0.5-alpha";
+    public override string Author => "Microbians";
     public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Category => ["Security", "Infrastructure"];
+    public override IReadOnlyList<string> Tags => ["ratelimit", "security", "throttling"];
 
     public override void ConfigureServices(IServiceCollection services)
     {
@@ -27,7 +29,7 @@ public class RateLimitingModule : AeroModuleBase
         });
     }
 
-    public override void Init(IEndpointRouteBuilder endpoints)
+    public override void Run(IEndpointRouteBuilder endpoints)
     {
     }
 

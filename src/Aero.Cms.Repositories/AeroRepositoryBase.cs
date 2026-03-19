@@ -1,6 +1,25 @@
-﻿namespace Aero.Cms.Repositories;
+﻿using Aero.Marten;
+using Aero.Models.Entities;
+using Marten;
+using Microsoft.Extensions.Logging;
 
-public class AeroRepositoryBase
+namespace Aero.Cms.Repositories;
+
+public class UserProfileRepository(IDocumentSession session, ILogger<UserProfileRepository> log)
+    : GenericMartenRepository<AeroUserProfile>(session, log), IUserProfileRepository
 {
+    public Task DeleteUserProfileAsync(ulong userId)
+    {
+        throw new NotImplementedException();
+    }
 
+    public Task<Aero.Core.Railway.Option<AeroUserProfile>> GetUserProfileAsync(ulong userId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task SaveUserProfileAsync(AeroUserProfile user)
+    {
+        throw new NotImplementedException();
+    }
 }

@@ -1,12 +1,13 @@
 using System.Security.Claims;
 using System.Globalization;
+using Aero.Core.Identity;
 using Aero.Models.Entities;
 using Marten;
 using Microsoft.AspNetCore.Identity;
 
 namespace Aero.Cms.Marten.Identity;
 
-internal class UserStore<TUser> :
+internal class UserStore<TUser>(IDocumentSession session) :
     IUserLoginStore<TUser>,
     IUserClaimStore<TUser>,
     IUserPasswordStore<TUser>,
@@ -25,12 +26,7 @@ internal class UserStore<TUser> :
     private const string InternalLoginProvider = "InternalProvider";
     private const string AuthenticatorKeyTokenName = "AuthenticatorKey";
     private const string RecoveryCodeTokenName = "RecoveryCodes";
-    private readonly IDocumentSession _session;
-
-    public UserStore(IDocumentSession session)
-    {
-        _session = session;
-    }
+    private readonly IDocumentSession _session = session;
 
     public IQueryable<TUser> Users => _session.Query<TUser>();
 
@@ -99,7 +95,7 @@ internal class UserStore<TUser> :
         ValidateParameters(user, cancellationToken);
 
         var claims = user.Claims
-            .Select(c => new Claim(c.Type, c.Value))
+            .Select(c => new Claim(c.ClaimType, c.ClaimValue))
             .ToList();
 
         return Task.FromResult<IList<Claim>>(claims);
@@ -114,10 +110,10 @@ internal class UserStore<TUser> :
 
         foreach (var claim in claims)
         {
-            var userClaim = new IdentityClaim
+            var userClaim = new IdentityRoleClaim<ulong>
             {
-                Type = claim.Type,
-                Value = claim.Value
+                ClaimType = claim.Type,
+                ClaimValue = claim.Value
             };
             user.Claims.Add(userClaim);
         }
@@ -136,12 +132,12 @@ internal class UserStore<TUser> :
             throw new ArgumentNullException(nameof(newClaim));
 
         var matched = user.Claims
-            .Where(uc => uc.Value == claim.Value && uc.Type == claim.Type);
+            .Where(uc => uc.ClaimValue == claim.Value && uc.ClaimType == claim.Type);
 
         foreach (var m in matched)
         {
-            m.Value = newClaim.Value;
-            m.Type = newClaim.Type;
+            m.ClaimValue = newClaim.Value;
+            m.ClaimType = newClaim.Type;
         }
 
         return Task.CompletedTask;
@@ -157,7 +153,7 @@ internal class UserStore<TUser> :
         foreach (var claim in claims)
         {
             var matched = user.Claims
-                .Where(u => u.Value == claim.Value && u.Type == claim.Type)
+                .Where(u => u.ClaimValue == claim.Value && u.ClaimType == claim.Type)
                 .ToList();
 
             foreach (var m in matched)
@@ -174,7 +170,7 @@ internal class UserStore<TUser> :
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        return _session.Query<TUser>().Where(u => u.Claims.Any(c => c.Type == claim.Type && c.Value == claim.Value))
+        return _session.Query<TUser>().Where(u => u.Claims.Any(c => c.ClaimType == claim.Type && c.ClaimValue == claim.Value))
             .ToList();
     }
 
@@ -377,10 +373,16 @@ internal class UserStore<TUser> :
         }
     }
 
-    public Task<TUser> FindByIdAsync(string userId, CancellationToken cancellationToken)
+    // todo - UserStore has a ref to a legacy identity method w/ string as id param
+    public Task<TUser?> FindByIdAsync(string userId, CancellationToken cancellationToken)
     {
-        var parsedUserId = ulong.Parse(userId, CultureInfo.InvariantCulture);
-        return _session.Query<TUser>().FirstOrDefaultAsync(x => x.Id == parsedUserId, cancellationToken);
+        var id = ulong.Parse(userId);
+        return FindByIdAsync(id, cancellationToken);
+    }
+
+    public Task<TUser> FindByIdAsync(ulong userId, CancellationToken cancellationToken)
+    {
+        return _session.Query<TUser>().FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
     }
 
     public Task<TUser> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
@@ -496,29 +498,33 @@ internal class UserStore<TUser> :
         return Task.CompletedTask;
     }
 
-    public Task AddToRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
+    public async Task AddToRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
-        user.Roles.Add(roleName);
-        
-        return Task.CompletedTask;
+        var role = await _session.Query<AeroRole>().FirstOrDefaultAsync(r => r.Name == roleName, cancellationToken);
+        if (role != null)
+        {
+            user.Roles.Add(role);
+        }
     }
 
-    public Task RemoveFromRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
+    public async Task RemoveFromRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
-        user.Roles.Remove(roleName);
-        
-        return Task.CompletedTask;
+        var role = user.Roles.FirstOrDefault(r => r.Name == roleName);
+        if (role != null)
+        {
+            user.Roles.Remove(role);
+        }
     }
 
     public Task<IList<string>> GetRolesAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
-        IList<string> roles = user.Roles.ToList();
+        IList<string> roles = user.Roles.Select(r => r.Name).ToList();
         return Task.FromResult(roles);
     }
 
@@ -526,13 +532,13 @@ internal class UserStore<TUser> :
     {
         ValidateParameters(user, cancellationToken);
 
-        var isInRole = user.Roles.Contains(roleName);
+        var isInRole = user.Roles.Any(r => r.Name == roleName);
         return Task.FromResult(isInRole);
     }
 
     public async Task<IList<TUser>> GetUsersInRoleAsync(string roleName, CancellationToken cancellationToken)
     {
-        var users = _session.Query<TUser>().Where(u => u.Roles.Any(r => r == roleName)).ToList();
+        var users = _session.Query<TUser>().Where(u => u.Roles.Any(r => r.Name == roleName)).ToList();
         return users;
     }
 

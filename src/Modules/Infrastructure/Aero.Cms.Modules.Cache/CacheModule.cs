@@ -11,10 +11,12 @@ namespace Aero.Cms.Modules.Cache;
 /// </summary>
 public class CacheModule : AeroModuleBase
 {
-    public override string Name => "Caching";
-    public override string Version => "1.0.0";
-    public override string Author => "Microbian Systems";
-    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
+    public override string Name => nameof(CacheModule);
+    public override string Version => "0.0.5-alpha";
+    public override string Author => "Microbians";
+    public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Category => ["Infrastructure", "Performance"];
+    public override IReadOnlyList<string> Tags => ["cache", "memory", "performance"];
 
     public override void ConfigureServices(IServiceCollection services)
     {
@@ -35,7 +37,7 @@ public class CacheModule : AeroModuleBase
         // services.AddScoped<PageCacheInvalidatorHook>();
     }
 
-    public override void Init(IEndpointRouteBuilder endpoints)
+    public override void Run(IEndpointRouteBuilder endpoints)
     {
     }
 

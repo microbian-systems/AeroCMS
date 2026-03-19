@@ -4,8 +4,10 @@ namespace Aero.Cms.Modules.Blog.Importer;
 
 public class BlogImporterModule : AeroModuleBase
 {
-    public override string Name => "Blog Importer";
-    public override string Version => "1.0.0";
-    public override string Author => "Microbian Systems";
-    public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
+    public override string Name => nameof(BlogImporterModule);
+    public override string Version => "0.0.5-alpha";
+    public override string Author => "Microbians";
+    public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Category => ["Content", "Migration"];
+    public override IReadOnlyList<string> Tags => ["blog", "import", "rss", "content"];
 }

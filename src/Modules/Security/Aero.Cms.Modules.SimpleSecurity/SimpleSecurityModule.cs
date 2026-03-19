@@ -6,16 +6,18 @@ namespace Aero.Cms.Modules.SimpleSecurity;
 
 public class SimpleSecurityModule : AeroModuleBase
 {
-    public override string Name => "SimpleSecurity";
-    public override string Version => "1.0.0";
-    public override string Author => "Microbian Systems";
+    public override string Name => nameof(SimpleSecurityModule);
+    public override string Version => "0.0.5-alpha";
+    public override string Author => "Microbians";
     public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Category => ["Security"];
+    public override IReadOnlyList<string> Tags => ["security", "simple", "auth"];
 
     public override void ConfigureServices(IServiceCollection services)
     {
     }
 
-    public override void Init(IEndpointRouteBuilder endpoints)
+    public override void Run(IEndpointRouteBuilder endpoints)
     {
     }
 
