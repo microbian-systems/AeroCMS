@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.Rewrite;
 
-public class RewriteModule : ModuleBase
+public class RewriteModule : AeroModuleBase
 {
     public override string Name => "Rewrite";
     public override string Version => "1.0.0";

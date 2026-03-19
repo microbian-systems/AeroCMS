@@ -10,7 +10,7 @@ using System.Text;
 
 namespace Aero.Cms.Modules.Jwt;
 
-public class JwtAuthModule : ModuleBase
+public class JwtAuthModule : AeroModuleBase
 {
     public override string Name => "JWT Authentication";
     public override string Version => "1.0.0";

@@ -8,7 +8,7 @@ using Aero.MartenDB.Identity;
 
 namespace Aero.Cms.Modules.Identity;
 
-public class IdentityModule : ModuleBase
+public class IdentityModule : AeroModuleBase
 {
     public override string Name => "Identity";
     public override string Version => "1.0.0";

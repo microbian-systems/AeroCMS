@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.Health;
 
-public class HealthModule : ModuleBase
+public class HealthModule : AeroModuleBase
 {
     public override string Name => "Aero Health";
     public override string Version => "1.0.0";

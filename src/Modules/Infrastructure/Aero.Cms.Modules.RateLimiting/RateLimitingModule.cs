@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.RateLimiting;
 
-public class RateLimitingModule : ModuleBase
+public class RateLimitingModule : AeroModuleBase
 {
     public override string Name => "RateLimiting";
     public override string Version => "1.0.0";

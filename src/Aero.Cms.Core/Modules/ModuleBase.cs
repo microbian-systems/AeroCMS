@@ -6,7 +6,7 @@ namespace Aero.Cms.Core.Modules;
 /// <summary>
 /// A base class for Aero.Cms modules that provides default implementations.
 /// </summary>
-public abstract class ModuleBase : IModule, IDisposable
+public abstract class AeroModuleBase : IModule, IDisposable
 {
     public abstract string Name { get; }
     public abstract string Version { get; }

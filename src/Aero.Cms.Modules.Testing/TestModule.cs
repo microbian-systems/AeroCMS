@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.Testing;
 
-public class TestModule : ModuleBase
+public class TestModule : AeroModuleBase
 {
     public override string Name => "Test Module";
     public override string Version => "1.0.0";

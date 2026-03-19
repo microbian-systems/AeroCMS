@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.SimpleSecurity;
 
-public class SimpleSecurityModule : ModuleBase
+public class SimpleSecurityModule : AeroModuleBase
 {
     public override string Name => "SimpleSecurity";
     public override string Version => "1.0.0";

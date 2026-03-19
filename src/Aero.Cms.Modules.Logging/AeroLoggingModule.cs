@@ -2,7 +2,7 @@ using Aero.Cms.Core.Modules;
 
 namespace Aero.Cms.Modules.Logging;
 
-public class AeroLoggingModule : ModuleBase
+public class AeroLoggingModule : AeroModuleBase
 {
     public override string Name => "Aero Logging";
     public override string Version => "1.0.0";

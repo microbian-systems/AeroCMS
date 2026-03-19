@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.Grpc;
 
-public class GrpcModule : ModuleBase
+public class GrpcModule : AeroModuleBase
 {
     public override string Name => "gRPC Server";
     public override string Version => "1.0.0";

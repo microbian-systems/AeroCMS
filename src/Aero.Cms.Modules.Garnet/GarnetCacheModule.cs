@@ -2,7 +2,7 @@ using Aero.Cms.Core.Modules;
 
 namespace Aero.Cms.Modules.Garnet;
 
-public class GarnetCacheModule : ModuleBase
+public class GarnetCacheModule : AeroModuleBase
 {
     public override string Name => "Garnet Cache";
     public override string Version => "1.0.0";

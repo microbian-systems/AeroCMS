@@ -2,7 +2,7 @@ using Aero.Cms.Core.Modules;
 
 namespace Aero.Cms.Banners;
 
-public class BannerModule : ModuleBase
+public class BannerModule : AeroModuleBase
 {
     public override string Name => "Banners";
     public override string Version => "1.0.0";

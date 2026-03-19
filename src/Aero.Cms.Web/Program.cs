@@ -39,10 +39,6 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 
 
-app.MapGet("/hello", async ctx =>
-{
-    
-});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

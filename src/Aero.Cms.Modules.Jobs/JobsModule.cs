@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.Jobs;
 
-public class JobsModule : ModuleBase
+public class JobsModule : AeroModuleBase
 {
     public override string Name => "Aero Jobs";
     public override string Version => "1.0.0";

@@ -9,7 +9,7 @@ namespace Aero.Cms.Modules.Cache;
 /// <summary>
 /// Infrastructure module for high-performance output caching using FusionCache.
 /// </summary>
-public class CacheModule : ModuleBase
+public class CacheModule : AeroModuleBase
 {
     public override string Name => "Caching";
     public override string Version => "1.0.0";

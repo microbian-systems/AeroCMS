@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.SiteMap;
 
-public class SiteMapModule : ModuleBase
+public class SiteMapModule : AeroModuleBase
 {
     public override string Name => "SiteMapModule";
     public override string Version => "1.0.0";

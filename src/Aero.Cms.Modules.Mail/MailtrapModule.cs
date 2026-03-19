@@ -3,7 +3,7 @@ using Aero.Cms.Core.Modules;
 
 namespace Aero.Cms.Modules.Mail;
 
-public class MailTrapModule : ModuleBase
+public class MailTrapModule : AeroModuleBase
 {
     public override string Name => "MailTransport";
     public override string Version => AeroVersion.Version;

@@ -2,7 +2,7 @@ using Aero.Cms.Core.Modules;
 
 namespace Aero.Cms.CookiePolicy;
 
-public class CookiePolicyModule : ModuleBase
+public class CookiePolicyModule : AeroModuleBase
 {
     public override string Name => "Cookie Policy";
     public override string Version => "1.0.0";

@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Modules.Analytics;
 
-public class AnalyticsModule : ModuleBase
+public class AnalyticsModule : AeroModuleBase
 {
     public override string Name => "Analytics";
     public override string Version => "1.0.0";
