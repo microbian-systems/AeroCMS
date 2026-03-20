@@ -13,4 +13,24 @@ public sealed class ModuleDescriptor
     public required string AssemblyName { get; init; }
     public string? PhysicalPath { get; init; }
     public bool IsUiModule { get; init; }
+
+    /// <summary>
+    /// The load order priority for the module. Lower values load first.
+    /// </summary>
+    public int Order { get; init; }
+
+    /// <summary>
+    /// Categories this module belongs to (e.g., "Security", "Content", "Infrastructure").
+    /// </summary>
+    public IReadOnlyList<string> Category { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Tags associated with the module for discovery purposes.
+    /// </summary>
+    public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Whether this module should be disabled in production environments.
+    /// </summary>
+    public bool DisabledInProduction { get; init; }
 }

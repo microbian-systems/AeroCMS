@@ -35,7 +35,7 @@ public abstract class AeroModuleBase : IAeroModule, IDisposable
     }
 
     /// <inheritdoc/>
-    public virtual void ConfigureServices(IServiceCollection services, IConfiguration config=null, IHostEnvironment env=null)
+    public virtual void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
     }
 

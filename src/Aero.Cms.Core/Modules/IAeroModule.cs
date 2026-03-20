@@ -50,8 +50,10 @@ public interface IAeroModule
     /// <summary>
     /// configure the aspnet core services pipeline
     /// </summary>
-    /// <param name="services"></param>
-    void ConfigureServices(IServiceCollection services, IConfiguration config=null, IHostEnvironment env=null);
+    /// <param name="services">The service collection to configure.</param>
+    /// <param name="config">The application configuration.</param>
+    /// <param name="env">The current host environment.</param>
+    void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null);
     /// <summary>
     /// configure the aspnet core middleware pipeline synchronously
     /// </summary>
