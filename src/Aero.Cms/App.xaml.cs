@@ -1,4 +1,4 @@
-﻿namespace Aero.Cms;
+namespace Aero.Cms;
 
 public partial class App : Application
 {
@@ -7,7 +7,7 @@ public partial class App : Application
         InitializeComponent();
     }
 
-    protected override Window CreateWindow(IActivationState? activationState)a
+    protected override Window CreateWindow(IActivationState? activationState)
     {
         return new Window(new MainPage()) { Title = "Aero.Cms" };
     }
