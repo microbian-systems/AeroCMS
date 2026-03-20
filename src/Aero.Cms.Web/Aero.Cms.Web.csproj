@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Testing\Aero.Cms.Modules.Testing.csproj" />
     <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
     <PackageReference Include="Boxed.AspNetCore" />

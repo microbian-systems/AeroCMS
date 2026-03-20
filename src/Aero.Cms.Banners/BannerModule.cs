@@ -10,4 +10,5 @@ public class BannerModule : AeroModuleBase
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["Content", "Marketing"];
     public override IReadOnlyList<string> Tags => ["banners", "ads", "promotions"];
+
 }

@@ -1,6 +1,9 @@
+using Aero.Cms.Core;
 using Aero.Cms.Core.Modules;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
@@ -12,13 +15,13 @@ namespace Aero.Cms.Modules.Cache;
 public class CacheModule : AeroModuleBase
 {
     public override string Name => nameof(CacheModule);
-    public override string Version => "0.0.5-alpha";
-    public override string Author => "Microbians";
+    public override string Version => AeroVersion.Version;
+    public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["Infrastructure", "Performance"];
     public override IReadOnlyList<string> Tags => ["cache", "memory", "performance"];
 
-    public override void ConfigureServices(IServiceCollection services)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration config=null, IHostEnvironment env=null)
     {
         // todo - use cache configuration from an options monitor so its updated live when changes are made
         // Register FusionCache with System.Text.Json serializer
@@ -37,8 +40,9 @@ public class CacheModule : AeroModuleBase
         // services.AddScoped<PageCacheInvalidatorHook>();
     }
 
-    public override void Run(IEndpointRouteBuilder endpoints)
+    public override async Task RunAsync(IEndpointRouteBuilder endpoints)
     {
+        await base.RunAsync(endpoints);
     }
 
     public override void Configure(IModuleBuilder builder)

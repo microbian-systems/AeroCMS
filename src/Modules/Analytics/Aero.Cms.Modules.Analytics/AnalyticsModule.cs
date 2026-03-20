@@ -1,7 +1,9 @@
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Core.Pipelines;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Analytics;
 
@@ -14,7 +16,7 @@ public class AnalyticsModule : AeroModuleBase
     public override IReadOnlyList<string> Category => ["Marketing", "Tracking"];
     public override IReadOnlyList<string> Tags => ["analytics", "tracking", "metrics"];
 
-    public override void ConfigureServices(IServiceCollection services)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration config = null, IHostEnvironment env = null)
     {
         services.AddOptions<AnalyticsSettings>().BindConfiguration("AeroCms:Analytics");
         services.AddScoped<IPageReadHook, AnalyticsInjectionHook>();

@@ -1,19 +1,33 @@
+using Aero.Cms.Core.Modules;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Components;
 using Aero.Cms.Web.Services;
+using Aero.Core.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+_ = await builder.AddAeroCms<Program>(args);
+var services = builder.Services;
 
 builder.AddServiceDefaults();
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
+services.AddControllersWithViews();
+services.AddRazorPages();
+services.AddRazorComponents()
     .AddInteractiveServerComponents()
-    .AddInteractiveWebAssemblyComponents();
+    .AddInteractiveWebAssemblyComponents()
+    .AddAuthenticationStateSerialization();
+
+
+services.AddCascadingAuthenticationState();
 
 // Add device-specific services used by the Aero.Cms.Shared project
-builder.Services.AddSingleton<IFormFactor, FormFactor>();
+services.AddSingleton<IFormFactor, FormFactor>();
+
+
+
 
 var app = builder.Build();
 
@@ -26,7 +40,7 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseExceptionHandler("/error", createScopeForErrors: true);
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
@@ -36,7 +50,6 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-
 
 
 app.MapRazorComponents<App>()
