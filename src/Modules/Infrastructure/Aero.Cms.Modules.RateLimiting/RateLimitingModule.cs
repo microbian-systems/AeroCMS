@@ -31,12 +31,4 @@ public class RateLimitingModule : AeroModuleBase
             });
         });
     }
-
-    public override void Run(IEndpointRouteBuilder endpoints)
-    {
-    }
-
-    public override void Configure(IModuleBuilder builder)
-    {
-    }
 }

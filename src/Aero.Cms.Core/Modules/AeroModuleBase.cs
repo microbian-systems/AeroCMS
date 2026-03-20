@@ -26,6 +26,8 @@ public abstract class AeroModuleBase : IAeroModule, IDisposable
     public abstract IReadOnlyList<string> Category { get; }
     /// <inheritdoc/>
     public abstract IReadOnlyList<string> Tags { get; }
+    /// <inheritdoc/>
+    public virtual bool DisabledInProduction => false;
 
     /// <inheritdoc/>
     public virtual void Configure(IModuleBuilder builder)

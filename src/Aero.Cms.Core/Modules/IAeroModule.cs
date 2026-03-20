@@ -27,6 +27,12 @@ public interface IAeroModule
     /// <example>to run something last the order of 1MM would work</example>
     /// </summary>
     int Order { get ; }
+
+    /// <summary>
+    /// for plugins that are not meant to be run in production
+    /// </summary>
+    bool DisabledInProduction { get; }
+
     /// <summary>
     /// any dependencies for the module
     /// </summary>

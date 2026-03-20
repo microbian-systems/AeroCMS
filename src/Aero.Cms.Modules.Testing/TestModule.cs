@@ -13,6 +13,7 @@ public class TestModule : AeroModuleBase
     public override string Name => nameof(TestModule);
     public override string Version => AeroVersion.Version;
     public override string Author => AeroConstants.Author;
+    public override bool DisabledInProduction => true;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["Development", "Testing"];
     public override IReadOnlyList<string> Tags => ["test", "debugging", "mock"];
@@ -22,7 +23,7 @@ public class TestModule : AeroModuleBase
         log.Information("{a} called", nameof(Configure));
     }
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config=null, IHostEnvironment env=null)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config=null, IHostEnvironment? env=null)
     {
         log.Information("hello from testing module");
     }

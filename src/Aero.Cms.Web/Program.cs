@@ -7,8 +7,10 @@ using Aero.Core.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-_ = await builder.AddAeroCms<Program>(args);
+var (_, log) = await builder.AddAeroCmsAsync<Program>();
 var services = builder.Services;
+var config = builder.Configuration;
+var env = builder.Environment;
 
 builder.AddServiceDefaults();
 
@@ -28,7 +30,7 @@ services.AddSingleton<IFormFactor, FormFactor>();
 
 
 
-
+log.Information("building aero application services");
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
@@ -59,5 +61,18 @@ app.MapRazorComponents<App>()
         typeof(Aero.Cms.Shared._Imports).Assembly,
         typeof(Aero.Cms.Web.Client._Imports).Assembly);
 
-app.Run();
+try
+{
+    log.Information("starting aero application...");
+    await app.MapAeroAppAsync();
+    app.Run();
+}
+catch (Exception ex)
+{
+    log.Fatal(ex, "error starting the aero cms application");
+}
+finally
+{
+    log.Information("exiting application");
+}
 

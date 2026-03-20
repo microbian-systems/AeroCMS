@@ -1,7 +1,12 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using Aero.Core.Extensions;
+using Aero.EfCore;
+using Aero.EfCore.Extensions;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Aero.Core.Extensions;
+using Microsoft.Extensions.Logging;
+using Serilog.Extensions.Hosting;
 
 namespace Aero.Cms.Core.Modules;
 
@@ -9,10 +14,19 @@ namespace Aero.Cms.Core.Modules;
 
 public static class ModuleExtensions
 {
-    public static async Task<WebApplicationBuilder> AddAeroCms<T>(this WebApplicationBuilder builder)
-        where T : class => await builder.AddAeroCms<T>([]);
+    // public static async Task<WebApplicationBuilder> AddAeroCmsAsync<T>(this WebApplicationBuilder builder, T app)
+    //     where T : class
+    //     => await builder.AddAeroCmsAsync(app, []);
+    //
+    // public static async Task<WebApplicationBuilder> AddAeroCmsAsync<T>(this WebApplicationBuilder builder, T app, string[] args) 
+    //     where T : class
+    //     => await builder.AddAeroCmsAsync<T>(args);
+    
 
-    public static async Task<WebApplicationBuilder> AddAeroCms<T>(this WebApplicationBuilder builder, string[] args)
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsAsync<T>(this WebApplicationBuilder builder)
+        where T : class => await builder.AddAeroCmsAsync<T>([]);
+
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsAsync<T>(this WebApplicationBuilder builder, string[] args)
         where T : class
     {
         var config = builder.Configuration;
@@ -22,10 +36,19 @@ public static class ModuleExtensions
         _ = config.AddConfiguration<T>(env);
         var log = await services.ConfigureLogging(config);
 
-        return builder;
+        services.AddAeroDataLayer(config, env);
+
+        await services.AddAeroModulesAsync(config, env);
+
+        return (builder, log);
     }
 
     public static IServiceCollection AddAeroModules(
+        this IServiceCollection services,
+        IConfiguration config,
+        IHostEnvironment env) => services.AddAeroModulesAsync(config, env).GetAwaiter().GetResult();
+
+    public static async Task<IServiceCollection> AddAeroModulesAsync(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment environment)
@@ -42,7 +65,7 @@ public static class ModuleExtensions
         var moduleBuilder = new ModuleBuilder(services, configuration, environment);
 
         // Build a temporary service provider to resolve modules
-        using var tempProvider = services.BuildServiceProvider();
+        await using var tempProvider = services.BuildServiceProvider();
 
         // Get all registered module instances ordered by Order property
         var modules = tempProvider.GetServices<IAeroModule>()
@@ -88,6 +111,22 @@ public static class ModuleExtensions
     public static async Task<IEndpointRouteBuilder> MapAeroAppAsync(
         this IEndpointRouteBuilder endpoints)
     {
+        var scope = endpoints.ServiceProvider.CreateAsyncScope();
+        var services = scope.ServiceProvider;
+
+
+        var apiContext = services.GetRequiredService<AeroApiContext>();
+        var created = await apiContext.Database.EnsureCreatedAsync();
+        await apiContext.Database.MigrateAsync();
+
+        var dbContext = services.GetRequiredService<AeroDbContext>();
+        await dbContext.Database.MigrateAsync();
+
+        // Optional: Log success
+        var factory = services.GetRequiredService<ILoggerFactory>();
+        var logger = factory.CreateLogger<AeroDbContext>();
+        logger.LogInformation("Database migrations applied successfully");
+
         var modules = endpoints.ServiceProvider
             .GetServices<IAeroModule>()
             .OrderBy(m => m.Order)
