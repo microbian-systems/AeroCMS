@@ -1,4 +1,5 @@
 using Aero.Cms.Core;
+using Aero.Core;
 using Aero.Core.Identity;
 using Aero.Models.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -32,33 +33,14 @@ public interface ISetupIdentityBootstrapper
 }
 
 public sealed class SetupIdentityBootstrapper(
-    UserManager<AeroUser> userManager,
-    RoleManager<AeroRole> roleManager) : ISetupIdentityBootstrapper
+    UserManager<AeroUser> userManager) : ISetupIdentityBootstrapper
 {
     public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default)
     {
-        var createdRoles = false;
-
-        foreach (var roleName in AeroCmsRoles.All)
-        {
-            var role = await roleManager.FindByNameAsync(roleName);
-            if (role != null)
-            {
-                continue;
-            }
-
-            var createRoleResult = await roleManager.CreateAsync(new AeroRole(roleName));
-            if (!createRoleResult.Succeeded)
-            {
-                return SetupIdentityBootstrapResult.Failure(createRoleResult.Errors);
-            }
-
-            createdRoles = true;
-        }
-
         var existingAdmins = await userManager.GetUsersInRoleAsync(AeroCmsRoles.Admin);
         var adminUser = existingAdmins.FirstOrDefault();
         var createdAdmin = false;
+        var createdRoles = false;
 
         if (adminUser == null)
         {
@@ -68,7 +50,7 @@ public sealed class SetupIdentityBootstrapper(
             {
                 adminUser = new AeroUser
                 {
-                    Id = CreateUserId(),
+                    Id = Snowflake.NewId(),
                     UserName = request.AdminUserName,
                     Email = request.AdminEmail,
                     EmailConfirmed = true,
@@ -87,6 +69,7 @@ public sealed class SetupIdentityBootstrapper(
 
         if (!await userManager.IsInRoleAsync(adminUser, AeroCmsRoles.Admin))
         {
+            createdRoles = true;
             var addToRoleResult = await userManager.AddToRoleAsync(adminUser, AeroCmsRoles.Admin);
             if (!addToRoleResult.Succeeded)
             {
@@ -101,7 +84,4 @@ public sealed class SetupIdentityBootstrapper(
             CreatedRoles = createdRoles
         };
     }
-
-    private static long CreateUserId()
-        => unchecked((long)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 }

@@ -102,7 +102,8 @@ public class SetupIdentityBootstrapperTests
                 identityErrorDescriber,
                 NullLogger<RoleManager<AeroRole>>.Instance);
 
-            Bootstrapper = new SetupIdentityBootstrapper(UserManager, RoleManager);
+            // Bootstrapper = new SetupIdentityBootstrapper(UserManager, RoleManager);
+            Bootstrapper = new SetupIdentityBootstrapper(UserManager);
         }
 
         public SetupIdentityBootstrapper Bootstrapper { get; }

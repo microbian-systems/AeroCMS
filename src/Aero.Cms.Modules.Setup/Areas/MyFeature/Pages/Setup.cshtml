@@ -3,6 +3,12 @@
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     Layout = null;
+    if (System.Diagnostics.Debugger.IsAttached && HttpContext.Request.Method == "GET")
+    {
+        Model.Input.Password = "*strongPassword1";
+        Model.Input.ConfirmPassword = "*strongPassword1";
+    }
+
 
     string FieldClass(string key)
     {
@@ -24,6 +30,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -131,15 +138,37 @@
                                     <span asp-validation-for="Input.AdminEmail" class="mt-2 block text-sm font-medium text-rose-600"></span>
                                 </div>
 
-                                <div>
+                                <div x-data="{ show: false }">
                                     <label asp-for="Input.Password" class="text-sm font-semibold text-slate-800"></label>
-                                    <input asp-for="Input.Password" autocomplete="new-password" class="@FieldClass("Input.Password")" placeholder="At least 12 characters" />
+                                    <div class="relative">
+                                        <input asp-for="Input.Password" :type="show ? 'text' : 'password'" value="@Model.Input.Password" autocomplete="new-password" class="@FieldClass("Input.Password") pr-12" placeholder="At least 12 characters" />
+                                        <button type="button" @@click="show = !show" class="absolute right-3 top-1/2 mt-1 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-slate-600 focus:outline-none">
+                                            <svg x-show="!show" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.644C3.413 8.134 7.378 5 12 5c4.622 0 8.587 3.134 9.964 7.322a1.012 1.012 0 010 .644C20.587 15.866 16.622 19 12 19c-4.622 0-8.587-3.134-9.964-7.322z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            <svg x-show="show" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5" style="display:none">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.822 7.822L21 21m-2.278-2.278L15.07 15.07M9.172 9.172L7.336 7.336M9.172 9.172a4 4 0 105.656 5.656m-5.656-5.656l5.656 5.656" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                     <span asp-validation-for="Input.Password" class="mt-2 block text-sm font-medium text-rose-600"></span>
                                 </div>
 
-                                <div>
+                                <div x-data="{ show: false }">
                                     <label asp-for="Input.ConfirmPassword" class="text-sm font-semibold text-slate-800"></label>
-                                    <input asp-for="Input.ConfirmPassword" autocomplete="new-password" class="@FieldClass("Input.ConfirmPassword")" placeholder="Repeat the password" />
+                                    <div class="relative">
+                                        <input asp-for="Input.ConfirmPassword" :type="show ? 'text' : 'password'" value="@Model.Input.ConfirmPassword" autocomplete="new-password" class="@FieldClass("Input.ConfirmPassword") pr-12" placeholder="Repeat the password" />
+                                        <button type="button" @@click="show = !show" class="absolute right-3 top-1/2 mt-1 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-slate-600 focus:outline-none">
+                                            <svg x-show="!show" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.644C3.413 8.134 7.378 5 12 5c4.622 0 8.587 3.134 9.964 7.322a1.012 1.012 0 010 .644C20.587 15.866 16.622 19 12 19c-4.622 0-8.587-3.134-9.964-7.322z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            <svg x-show="show" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5" style="display:none">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.822 7.822L21 21m-2.278-2.278L15.07 15.07M9.172 9.172L7.336 7.336M9.172 9.172a4 4 0 105.656 5.656m-5.656-5.656l5.656 5.656" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                     <span asp-validation-for="Input.ConfirmPassword" class="mt-2 block text-sm font-medium text-rose-600"></span>
                                 </div>
                             </div>

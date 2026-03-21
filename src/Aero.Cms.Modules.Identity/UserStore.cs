@@ -395,23 +395,13 @@ public class UserStore<TUser, TRole> :
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
 
-        var existingRoleOrNull = await FindRoleByNameAsync(roleName, cancellationToken);
+        var existingRoleOrNull = user.Roles.FirstOrDefault(role =>
+            string.Equals(role.Name, roleName, StringComparison.InvariantCultureIgnoreCase));
 
         if (existingRoleOrNull == null)
         {
-            ThrowIfDisposedOrCancelled(cancellationToken);
             existingRoleOrNull = new TRole { Name = roleName };
-            DbSession.Store(existingRoleOrNull);
-        }
-
-        var roleRealName = existingRoleOrNull.Name;
-        if (!user.Roles.Any(r => r.Name.Equals(roleRealName!, StringComparison.InvariantCultureIgnoreCase)))
-        {
-            var role = await DbSession.Query<AeroRole>().FirstOrDefaultAsync(r => r.Name == roleRealName, cancellationToken);
-            if (role != null)
-            {
-                user.Roles.Add(role);
-            }
+            user.Roles.Add(existingRoleOrNull);
         }
 
         if (!existingRoleOrNull.Users.Contains(user.Id))
@@ -431,12 +421,6 @@ public class UserStore<TUser, TRole> :
         if (role != null)
         {
             user.Roles.Remove(role);
-        }
-
-        var roleOrNull = await FindRoleByNameAsync(roleName, cancellationToken);
-        if (roleOrNull != null)
-        {
-            roleOrNull.Users.Remove(user.Id);
         }
 
         await SaveChangesAsync();
@@ -846,21 +830,6 @@ public class UserStore<TUser, TRole> :
                 email, EmailReservationIdFor(email));
             return false;
         }
-    }
-
-    //#endregion
-
-    //#region Role helpers
-
-    /// <summary>
-    /// Finds the stored role matching the supplied role name.
-    /// </summary>
-    private async Task<TRole?> FindRoleByNameAsync(string roleName, CancellationToken cancellationToken)
-    {
-        var roles = await DbSession.Query<TRole>().ToListAsync(cancellationToken);
-
-        return roles.FirstOrDefault(role =>
-            string.Equals(role.Name, roleName, StringComparison.InvariantCultureIgnoreCase));
     }
 
     //#endregion
