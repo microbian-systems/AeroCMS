@@ -8,10 +8,24 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Banners\Aero.Cms.Banners.csproj" />
+    <ProjectReference Include="..\Aero.Cms.CookiePolicy\Aero.Cms.CookiePolicy.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Blog.Importer\Aero.Cms.Modules.Blog.Importer.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Garnet\Aero.Cms.Modules.Garnet.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Grpc\Aero.Cms.Modules.Grpc.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Jobs\Aero.Cms.Modules.Jobs.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Jwt\Aero.Cms.Modules.Jwt.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Logging\Aero.Cms.Modules.Logging.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Mail\Aero.Cms.Modules.Mail.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.SiteMap\Aero.Cms.Modules.SiteMap.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Testing\Aero.Cms.Modules.Testing.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Theming\Aero.Cms.Modules.Theming.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.WebOptimizer\Aero.Cms.Modules.WebOptimizer.csproj" />
     <ProjectReference Include="..\Modules\Analytics\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
     <ProjectReference Include="..\Modules\Infrastructure\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
     <ProjectReference Include="..\Modules\Infrastructure\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />

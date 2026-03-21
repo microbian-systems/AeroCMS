@@ -105,21 +105,50 @@ public class RealModuleDiscoveryTests
 
         await using var provider = services.BuildServiceProvider();
         var modules = provider.GetServices<IAeroModule>().ToList();
-        var moduleNames = modules.Select(module => module.Name).OrderBy(name => name).ToList();
+        var moduleTypeNames = modules.Select(module => module.GetType().Name).OrderBy(name => name).ToList();
 
-        modules.Should().HaveCount(9);
-        moduleNames.Should().Equal(new[]
+        modules.Count.Should().BeGreaterThanOrEqualTo(9);
+        moduleTypeNames.Should().Contain(new[]
         {
             "AnalyticsModule",
             "CacheModule",
             "IdentityModule",
             "RateLimitingModule",
             "RewriteModule",
-            "Security",
+            "SecurityModule",
             "SetupModule",
             "SimpleSecurityModule",
             "TestModule"
         });
+    }
+
+    [Test]
+    public async Task AddAeroModulesAsync_ShouldResolveSetupModuleFirstByOrder()
+    {
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ModuleDiscovery:ScanApplicationDependencies"] = "true",
+                ["ModuleDiscovery:IncludeDisabledInProduction"] = "true",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:0"] = "System.*",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:1"] = "Microsoft.*",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:2"] = "netstandard",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:3"] = "mscorlib",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:4"] = "Aero.Cms.Core.Tests*"
+            })
+            .Build();
+
+        await services.AddAeroModulesAsync(configuration, _hostEnvironment);
+
+        await using var provider = services.BuildServiceProvider();
+        var orderedModules = provider.GetServices<IAeroModule>()
+            .OrderBy(module => module.Order)
+            .ToList();
+
+        orderedModules.Should().NotBeEmpty();
+        orderedModules.First().Name.Should().Be("SetupModule");
+        orderedModules.First().Order.Should().Be(-32768);
     }
 
     [Test]

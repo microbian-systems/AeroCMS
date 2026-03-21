@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Aero.Cms.Core;
 using Aero.Cms.Core.Modules;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,12 +11,12 @@ namespace Aero.Cms.Modules.WebOptimizer;
 
 public class WebOptimizerModule : AeroModuleBase
 {
-    public override string Name { get; }
-    public override string Version { get; }
-    public override string Author { get; }
-    public override IReadOnlyList<string> Dependencies { get; }
-    public override IReadOnlyList<string> Category { get; }
-    public override IReadOnlyList<string> Tags { get; }
+    public override string Name { get; } = nameof(WebOptimizerModule);
+    public override string Version { get; } = AeroVersion.Version;
+    public override string Author { get; } = AeroConstants.Author;
+    public override IReadOnlyList<string> Dependencies { get; } = [];
+    public override IReadOnlyList<string> Category { get; } = ["utilities", "web"];
+    public override IReadOnlyList<string> Tags { get; } = ["utilities", "web"];
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration config=null, IHostEnvironment env=null)
     {

@@ -59,7 +59,7 @@ public class DependentTestModule : AeroModuleBase
     public override IReadOnlyList<string> Dependencies => new[] { "SimpleTest" };
     public override IReadOnlyList<string> Category => new[] { "Test" };
     public override IReadOnlyList<string> Tags => Array.Empty<string>();
-    public override int Order => 10;
+    public override short Order => 10;
 }
 
 /// <summary>
@@ -73,7 +73,7 @@ public class MultiDependencyTestModule : AeroModuleBase
     public override IReadOnlyList<string> Dependencies => new[] { "SimpleTest", "DependentTest" };
     public override IReadOnlyList<string> Category => new[] { "Test" };
     public override IReadOnlyList<string> Tags => Array.Empty<string>();
-    public override int Order => 20;
+    public override short Order => 20;
 }
 
 /// <summary>
@@ -205,7 +205,7 @@ public class EarlyLoadingTestModule : AeroModuleBase
     public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
     public override IReadOnlyList<string> Category => new[] { "Test" };
     public override IReadOnlyList<string> Tags => Array.Empty<string>();
-    public override int Order => -100;
+    public override short Order => -100;
 }
 
 /// <summary>
@@ -219,5 +219,5 @@ public class LateLoadingTestModule : AeroModuleBase
     public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
     public override IReadOnlyList<string> Category => new[] { "Test" };
     public override IReadOnlyList<string> Tags => Array.Empty<string>();
-    public override int Order => 1000;
+    public override short Order => 1000;
 }

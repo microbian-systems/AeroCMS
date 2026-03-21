@@ -26,7 +26,11 @@ public interface IAeroModule
     /// <remarks>negative numbers are loaded before larger numbers.</remarks>
     /// <example>to run something last the order of 1MM would work</example>
     /// </summary>
-    int Order { get ; }
+    short Order { get ; }
+    /// <summary>
+    /// Urls that have information about the module
+    /// </summary>
+    Dictionary<string, Uri> Urls { get; } 
 
     /// <summary>
     /// for plugins that are not meant to be run in production

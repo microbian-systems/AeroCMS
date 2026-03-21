@@ -19,7 +19,10 @@ public abstract class AeroModuleBase : IAeroModule, IDisposable
     /// <inheritdoc/>
     public abstract string Author { get; }
     /// <inheritdoc/>
-    public virtual int Order { get; } = 0;
+    public virtual short Order { get; } = 0;
+    /// <inheritdoc/>
+    public virtual Dictionary<string, Uri> Urls { get; } = [];
+
     /// <inheritdoc/>
     public abstract IReadOnlyList<string> Dependencies { get; }
     /// <inheritdoc/>
