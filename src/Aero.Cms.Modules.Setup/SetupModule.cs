@@ -1,9 +1,11 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Modules;
-using Aero.EfCore;
-using Marten;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup;
@@ -32,12 +34,23 @@ public sealed class SetupModule : AeroModuleBase
         ["website"] = new Uri($"https://aerocms.io/modules/{nameof(SetupModule)}")
     };
 
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+    {
+        services.Configure<RazorPagesOptions>(options =>
+            options.Conventions.AddAreaPageRoute("MyFeature", "/Setup", SetupPathAllowlist.SetupPath));
+        services.TryAddScoped<ISetupStateStore, MartenSetupStateStore>();
+        services.TryAddScoped<ISetupInitializationService, SetupInitializationService>();
+        services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
+        services.TryAddScoped<ISetupCompletionService, SetupCompletionService>();
+        services.TryAddSingleton<SetupPathAllowlist>();
+        services.TryAddTransient<SetupGateMiddleware>();
+    }
+
     public override async Task RunAsync(IEndpointRouteBuilder builder)
     {
         var scope = builder.ServiceProvider.CreateAsyncScope();
         var sp = scope.ServiceProvider;
         var log = sp.GetRequiredService<ILogger<SetupModule>>();
-        var db = sp.GetRequiredService<IDocumentSession>();
 
         var allModules = sp.GetServices<IAeroModule>()
             .OrderBy(m => m.Order)

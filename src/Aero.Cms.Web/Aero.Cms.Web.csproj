@@ -12,6 +12,7 @@
     <ProjectReference Include="..\Aero.Cms.CookiePolicy\Aero.Cms.CookiePolicy.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Blog.Importer\Aero.Cms.Modules.Blog.Importer.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Garnet\Aero.Cms.Modules.Garnet.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Grpc\Aero.Cms.Modules.Grpc.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
@@ -21,6 +22,7 @@
     <ProjectReference Include="..\Aero.Cms.Modules.Logging\Aero.Cms.Modules.Logging.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Mail\Aero.Cms.Modules.Mail.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.SiteMap\Aero.Cms.Modules.SiteMap.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Testing\Aero.Cms.Modules.Testing.csproj" />

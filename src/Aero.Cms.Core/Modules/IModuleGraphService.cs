@@ -57,7 +57,6 @@ public class ModuleDependencyException : Exception
 {
     public ModuleDependencyException(string message) : base(message) { }
     public ModuleDependencyException(string message, Exception inner) : base(message, inner) { }
-
     public string? OffendingModule { get; init; }
     public IReadOnlyList<string>? MissingDependencies { get; init; }
     public IReadOnlyList<string>? CycleMembers { get; init; }

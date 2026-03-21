@@ -18,7 +18,7 @@ public class HealthModule : AeroModuleBase
     public override IReadOnlyList<string> Category => ["Infrastructure", "Monitoring"];
     public override IReadOnlyList<string> Tags => ["health", "monitoring", "diagnostics"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config = null, IHostEnvironment env = null)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddHealthChecks();
     }
@@ -26,6 +26,11 @@ public class HealthModule : AeroModuleBase
     public override async Task RunAsync(IEndpointRouteBuilder app)
     {
         await base.RunAsync(app);
-        app.MapHealthChecks("/health");
+
+        var environment = app.ServiceProvider.GetRequiredService<IHostEnvironment>();
+        if (!environment.IsDevelopment())
+        {
+            app.MapHealthChecks("/health");
+        }
     }
 }

@@ -30,6 +30,8 @@ public abstract class AeroModuleBase : IAeroModule, IDisposable
     public abstract IReadOnlyList<string> Tags { get; }
     /// <inheritdoc/>
     public virtual bool DisabledInProduction => false;
+    /// <inheritdoc/>>
+    public virtual bool DisabledInProductions { get; set; }
     /// <inheritdoc/>
     public virtual string? Description => null;
     /// <inheritdoc/>

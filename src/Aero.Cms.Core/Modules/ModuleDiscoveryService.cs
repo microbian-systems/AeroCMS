@@ -327,7 +327,7 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
         var assembly = type.Assembly;
         var isUiModule = typeof(IUiModule).IsAssignableFrom(type);
 
-        return new ModuleDescriptor
+        return new()
         {
             Name = instance.Name,
             Version = instance.Version,

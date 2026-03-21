@@ -24,5 +24,13 @@ public static class AeroCmsRoles
     /// <remarks>cannot edit/insert/update content of any kind</remarks>
     /// </summary>
     public const string ViewOnly = nameof(ViewOnly);
+
+    public static IReadOnlyList<string> All { get; } =
+    [
+        Admin,
+        Editor,
+        Contributor,
+        ViewOnly
+    ];
 }
 

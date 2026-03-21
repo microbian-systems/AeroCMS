@@ -7,7 +7,6 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Hosting" />
 		<PackageReference Include="Microsoft.Garnet" />
-		<PackageReference Include="MiniProfiler" />
 		<PackageReference Include="MiniProfiler.AspNetCore" />
 		<PackageReference Include="MiniProfiler.AspNetCore.Mvc" />
 		<PackageReference Include="MiniProfiler.EntityFrameworkCore" />

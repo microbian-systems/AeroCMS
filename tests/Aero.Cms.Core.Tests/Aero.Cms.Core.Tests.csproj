@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentAssertions" Version="8.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.5" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.17">
       <PrivateAssets>all</PrivateAssets>
@@ -24,11 +25,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <!-- Real project module assemblies for integration testing -->
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Testing\Aero.Cms.Modules.Testing.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
     <ProjectReference Include="..\..\src\Modules\Infrastructure\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
     <ProjectReference Include="..\..\src\Modules\Security\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
     <ProjectReference Include="..\..\src\Modules\Security\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />

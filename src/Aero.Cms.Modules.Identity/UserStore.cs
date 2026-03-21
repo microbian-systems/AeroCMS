@@ -246,10 +246,14 @@ public class UserStore<TUser, TRole> :
         DbSession.LoadAsync<TUser>(userId, cancellationToken);
 
     /// <inheritdoc />
-    public virtual Task<TUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken) =>
-        DbSession.Query<TUser>()
-            .Where(u => u.UserName == normalizedUserName)
+    public virtual Task<TUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
+    {
+        var userName = normalizedUserName?.ToLowerInvariant();
+
+        return DbSession.Query<TUser>()
+            .Where(u => u.UserName == userName)
             .FirstOrDefaultAsync(cancellationToken);
+    }
 
     //#endregion
 
@@ -391,13 +395,12 @@ public class UserStore<TUser, TRole> :
     {
         ThrowIfNullDisposedCancelled(user, cancellationToken);
 
-        var roleId = RoleIdFor(roleName);
-        var existingRoleOrNull = await DbSession.LoadAsync<AeroRole>(roleId, cancellationToken);
+        var existingRoleOrNull = await FindRoleByNameAsync(roleName, cancellationToken);
 
         if (existingRoleOrNull == null)
         {
             ThrowIfDisposedOrCancelled(cancellationToken);
-            existingRoleOrNull = new TRole { Name = roleName.ToLowerInvariant() };
+            existingRoleOrNull = new TRole { Name = roleName };
             DbSession.Store(existingRoleOrNull);
         }
 
@@ -430,8 +433,7 @@ public class UserStore<TUser, TRole> :
             user.Roles.Remove(role);
         }
 
-        var roleId = RoleIdFor(roleName);
-        var roleOrNull = await DbSession.LoadAsync<TRole>(roleId, cancellationToken);
+        var roleOrNull = await FindRoleByNameAsync(roleName, cancellationToken);
         if (roleOrNull != null)
         {
             roleOrNull.Users.Remove(user.Id);
@@ -457,10 +459,11 @@ public class UserStore<TUser, TRole> :
         if (string.IsNullOrEmpty(roleName)) throw new ArgumentNullException(nameof(roleName));
 
         var users = await DbSession.Query<TUser>()
-            .Where(u => u.Roles.Any(r => r.Name == roleName))
             .ToListAsync(cancellationToken);
 
-        return users.ToList();
+        return users
+            .Where(u => u.Roles.Any(r => string.Equals(r.Name, roleName, StringComparison.InvariantCultureIgnoreCase)))
+            .ToList();
     }
 
     //#endregion
@@ -847,13 +850,18 @@ public class UserStore<TUser, TRole> :
 
     //#endregion
 
-    //#region Role ID helpers
+    //#region Role helpers
 
     /// <summary>
-    /// Produces a stable Marten document ID for a given role name.
+    /// Finds the stored role matching the supplied role name.
     /// </summary>
-    private static string RoleIdFor(string roleName) =>
-        $"roles/{roleName.ToLowerInvariant()}";
+    private async Task<TRole?> FindRoleByNameAsync(string roleName, CancellationToken cancellationToken)
+    {
+        var roles = await DbSession.Query<TRole>().ToListAsync(cancellationToken);
+
+        return roles.FirstOrDefault(role =>
+            string.Equals(role.Name, roleName, StringComparison.InvariantCultureIgnoreCase));
+    }
 
     //#endregion
 

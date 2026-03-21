@@ -30,7 +30,11 @@ public interface IAeroModule
     /// <summary>
     /// Signals if the module is enabled/disabled
     /// </summary>
-    public bool Disabled { get; set; };
+    public bool Disabled { get; set; }
+    /// <summary>
+    /// Signals if the module is enabled/disabled in production environments
+    /// </summary>
+    public bool DisabledInProductions { get; set; }
     /// <summary>
     /// Description of the module
     /// </summary>

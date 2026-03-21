@@ -258,12 +258,15 @@ public abstract class RoleStore<TRole, TRoleClaim> :
     /// <param name="normalizedName">The normalized role name to look for.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>A <see cref="Task{TResult}"/> that result of the look up.</returns>
-    public virtual Task<TRole?> FindByNameAsync(string normalizedName, CancellationToken cancellationToken = default)
+    public virtual async Task<TRole?> FindByNameAsync(string normalizedName, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
 
-        return db.Query<TRole>().FirstOrDefaultAsync(x => x.Name == normalizedName, cancellationToken);
+        var roleName = normalizedName?.Trim() ?? string.Empty;
+        var roles = await db.Query<TRole>().ToListAsync(cancellationToken);
+
+        return roles.FirstOrDefault(x => string.Equals(x.Name, roleName, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

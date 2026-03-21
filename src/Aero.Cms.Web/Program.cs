@@ -1,4 +1,5 @@
 using Aero.Cms.Core.Modules;
+using Aero.Cms.Modules.Setup;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Components;
@@ -6,8 +7,6 @@ using Aero.Cms.Web.Services;
 using Aero.Core.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
-
-var (_, log) = await builder.AddAeroCmsAsync<Program>();
 var services = builder.Services;
 var config = builder.Configuration;
 var env = builder.Environment;
@@ -16,7 +15,10 @@ builder.AddServiceDefaults();
 
 // Add services to the container.
 services.AddControllersWithViews();
-services.AddRazorPages();
+services.AddAuthentication();
+services.AddAuthorization();
+services.AddRazorPages()
+    .AddApplicationPart(typeof(SetupModule).Assembly);
 services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents()
@@ -28,6 +30,8 @@ services.AddCascadingAuthenticationState();
 // Add device-specific services used by the Aero.Cms.Shared project
 services.AddSingleton<IFormFactor, FormFactor>();
 
+
+var (_, log) = await builder.AddAeroCmsAsync<Program>();
 
 
 log.Information("building aero application services");
@@ -49,9 +53,15 @@ else
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
+app.MapStaticAssets();
+
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseCmsSetupGate();
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+app.MapRazorPages();
 
 
 app.MapRazorComponents<App>()
