@@ -1,10 +1,10 @@
 # Implementation Plan: Module System (Infrastructure)
 
-## Phase 1: Foundation (Contracts and Base Types)
+## Phase 1: Foundation (Contracts and Base Types) [checkpoint: dbadb31]
 - [x] Task: Define `IModule` and specialization interfaces in `Aero.Cms.Core`. 60a3ff1
 - [x] Task: Implement `ModuleDescriptor` and `ModuleGraph` models. b6945bc
 - [x] Task: Update `AeroModuleBase` to align with the new spec.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Foundation (Contracts and Base Types)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Foundation (Contracts and Base Types)' (Protocol in workflow.md)
 
 ## Phase 2: Module Discovery
 - [x] Task: Implement `IModuleDiscoveryService` using assembly scanning (Scrutor).
