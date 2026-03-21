@@ -48,6 +48,7 @@
     <Project Path="Aero.Cms.Modules.Modules/Aero.Cms.Modules.Modules.csproj" Id="36a8110a-a6c8-4af4-9ec1-450024f01fec" />
     <Project Path="Aero.Cms.Modules.OneTimePasscode/Aero.Cms.Modules.OneTimePasscode.csproj" Id="42ea5adb-2cd5-4135-9fa8-d0df9e3f3ba9" />
     <Project Path="Aero.Cms.Modules.OpenTelemetry/Aero.Cms.Modules.OpenTelemetry.csproj" Id="1d88cccb-81c9-46d7-9cec-a1fd76de9f3e" />
+    <Project Path="Aero.Cms.Modules.Orleans/Aero.Cms.Modules.Orleans.csproj" Id="779a09d3-6875-4627-8a6e-84bc74e89f80" />
     <Project Path="Aero.Cms.Modules.OutputCache/Aero.Cms.Modules.OutputCache.csproj" Id="f0fdb431-5819-4d64-8dec-8424eba6676f" />
     <Project Path="Aero.Cms.Modules.Pages/Aero.Cms.Modules.Pages.csproj" Id="964d0ec1-10bb-4ffe-9763-4e748145260c" />
     <Project Path="Aero.Cms.Modules.RequestLog/Aero.Cms.Modules.RequestLog.csproj" Id="d5384b04-0bab-4a96-bb5b-538053e2a60b" />

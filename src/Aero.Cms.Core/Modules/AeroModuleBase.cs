@@ -22,7 +22,6 @@ public abstract class AeroModuleBase : IAeroModule, IDisposable
     public virtual short Order { get; } = 0;
     /// <inheritdoc/>
     public virtual Dictionary<string, Uri> Urls { get; } = [];
-
     /// <inheritdoc/>
     public abstract IReadOnlyList<string> Dependencies { get; }
     /// <inheritdoc/>
@@ -31,6 +30,10 @@ public abstract class AeroModuleBase : IAeroModule, IDisposable
     public abstract IReadOnlyList<string> Tags { get; }
     /// <inheritdoc/>
     public virtual bool DisabledInProduction => false;
+    /// <inheritdoc/>
+    public virtual string? Description => null;
+    /// <inheritdoc/>
+    public bool Disabled { get ; set ; }
 
     /// <inheritdoc/>
     public virtual void Configure(IModuleBuilder builder)

@@ -15,6 +15,7 @@
 .bevel/
 .frolic*.json
 .idea/
+.sisyphus/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

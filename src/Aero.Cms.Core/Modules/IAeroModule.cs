@@ -28,6 +28,14 @@ public interface IAeroModule
     /// </summary>
     short Order { get ; }
     /// <summary>
+    /// Signals if the module is enabled/disabled
+    /// </summary>
+    public bool Disabled { get; set; };
+    /// <summary>
+    /// Description of the module
+    /// </summary>
+    public string? Description { get; }
+    /// <summary>
     /// Urls that have information about the module
     /// </summary>
     Dictionary<string, Uri> Urls { get; } 
