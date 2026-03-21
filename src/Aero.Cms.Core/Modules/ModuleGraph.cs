@@ -11,6 +11,6 @@ public sealed class ModuleGraph
     public static ModuleGraph Empty() => new()
     {
         Modules = new Dictionary<string, ModuleDescriptor>(),
-        LoadOrder = Array.Empty<ModuleDescriptor>()
+        LoadOrder = []
     };
 }
