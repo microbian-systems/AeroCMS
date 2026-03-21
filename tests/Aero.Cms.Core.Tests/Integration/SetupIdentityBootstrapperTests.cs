@@ -118,9 +118,9 @@ public class SetupIdentityBootstrapperTests
         IUserPasswordStore<AeroUser>,
         IUserRoleStore<AeroUser>
     {
-        private readonly Dictionary<ulong, AeroUser> _users = [];
-        private readonly Dictionary<ulong, HashSet<string>> _rolesByUser = [];
-        private ulong _nextId = 1;
+        private readonly Dictionary<long, AeroUser> _users = [];
+        private readonly Dictionary<long, HashSet<string>> _rolesByUser = [];
+        private long _nextId = 1;
 
         public IReadOnlyCollection<AeroUser> Users => _users.Values;
 
@@ -176,7 +176,7 @@ public class SetupIdentityBootstrapperTests
         }
 
         public Task<AeroUser?> FindByIdAsync(string userId, CancellationToken cancellationToken)
-            => Task.FromResult(ulong.TryParse(userId, out var id) && _users.TryGetValue(id, out var user) ? user : null);
+            => Task.FromResult(long.TryParse(userId, out var id) && _users.TryGetValue(id, out var user) ? user : null);
 
         public Task<AeroUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
             => Task.FromResult(_users.Values.FirstOrDefault(user => user.NormalizedUserName == normalizedUserName));
@@ -267,7 +267,7 @@ public class SetupIdentityBootstrapperTests
 
     private sealed class InMemoryRoleStore : IRoleStore<AeroRole>
     {
-        private readonly Dictionary<ulong, AeroRole> _roles = [];
+        private readonly Dictionary<long, AeroRole> _roles = [];
 
         public IReadOnlyCollection<AeroRole> Roles => _roles.Values;
 
@@ -315,7 +315,7 @@ public class SetupIdentityBootstrapperTests
         }
 
         public Task<AeroRole?> FindByIdAsync(string roleId, CancellationToken cancellationToken)
-            => Task.FromResult(ulong.TryParse(roleId, out var id) && _roles.TryGetValue(id, out var role) ? role : null);
+            => Task.FromResult(long.TryParse(roleId, out var id) && _roles.TryGetValue(id, out var role) ? role : null);
 
         public Task<AeroRole?> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
             => Task.FromResult(_roles.Values.FirstOrDefault(role => role.NormalizedName == normalizedRoleName));

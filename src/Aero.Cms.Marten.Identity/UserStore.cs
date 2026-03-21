@@ -110,7 +110,7 @@ internal class UserStore<TUser>(IDocumentSession session) :
 
         foreach (var claim in claims)
         {
-            var userClaim = new IdentityUserClaim<ulong>
+            var userClaim = new IdentityUserClaim<long>
             {
                 ClaimType = claim.Type,
                 ClaimValue = claim.Value
@@ -375,11 +375,11 @@ internal class UserStore<TUser>(IDocumentSession session) :
 
     public Task<TUser?> FindByIdAsync(string userId, CancellationToken cancellationToken)
     {
-        if (!ulong.TryParse(userId, out var id)) return Task.FromResult<TUser?>(null);
+        if (!long.TryParse(userId, out var id)) return Task.FromResult<TUser?>(null);
         return FindByIdAsync(id, cancellationToken);
     }
 
-    public Task<TUser?> FindByIdAsync(ulong userId, CancellationToken cancellationToken)
+    public Task<TUser?> FindByIdAsync(long userId, CancellationToken cancellationToken)
     {
         return _session.Query<TUser>().FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
     }

@@ -328,7 +328,7 @@ public class UserStore<TUser, TRole> :
 
         foreach (var c in claims)
         {
-            user.Claims.Add(new IdentityUserClaim<ulong>
+            user.Claims.Add(new IdentityUserClaim<long>
             {
                 ClaimType = c.Type,
                 ClaimValue = c.Value,
@@ -348,7 +348,7 @@ public class UserStore<TUser, TRole> :
         if (existingClaim != null)
         {
             var index = user.Claims.IndexOf(existingClaim);
-            user.Claims[index] = new IdentityUserClaim<ulong>
+            user.Claims[index] = new IdentityUserClaim<long>
             {
                 ClaimType = newClaim.Type,
                 ClaimValue = newClaim.Value,

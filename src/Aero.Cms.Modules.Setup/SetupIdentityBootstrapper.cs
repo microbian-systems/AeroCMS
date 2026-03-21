@@ -102,6 +102,6 @@ public sealed class SetupIdentityBootstrapper(
         };
     }
 
-    private static ulong CreateUserId()
-        => unchecked((ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+    private static long CreateUserId()
+        => unchecked((long)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 }

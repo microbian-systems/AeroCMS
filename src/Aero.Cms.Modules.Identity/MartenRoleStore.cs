@@ -13,7 +13,7 @@ namespace Aero.MartenDB.Identity;
 /// Creates a new instance of a persistence store for roles.
 /// </summary>
 /// <typeparam name="TRole">The type of the class representing a role.</typeparam>
-public class RoleStore<TRole> : RoleStore<TRole, IdentityRoleClaim<ulong>>
+public class RoleStore<TRole> : RoleStore<TRole, IdentityRoleClaim<long>>
     where TRole : AeroRole, new()
 {
     /// <summary>
@@ -34,9 +34,9 @@ public class RoleStore<TRole> : RoleStore<TRole, IdentityRoleClaim<ulong>>
     /// <param name="role">The associated role.</param>
     /// <param name="claim">The associated claim.</param>
     /// <returns>The role claim entity.</returns>
-    protected override IdentityRoleClaim<ulong> CreateRoleClaim(TRole role, Claim claim)
+    protected override IdentityRoleClaim<long> CreateRoleClaim(TRole role, Claim claim)
     {
-        return new IdentityRoleClaim<ulong> { ClaimType = claim.Type, ClaimValue = claim.Value };
+        return new IdentityRoleClaim<long> { ClaimType = claim.Type, ClaimValue = claim.Value };
     }
 }
 
@@ -50,7 +50,7 @@ public abstract class RoleStore<TRole, TRoleClaim> :
     IRoleClaimStore<TRole>,
     IQueryableRoleStore<TRole>
     where TRole : AeroRole, new()
-    where TRoleClaim : IdentityRoleClaim<ulong>, new()
+    where TRoleClaim : IdentityRoleClaim<long>, new()
 {
     private readonly IOptions<AeroDbIdentityOptions> options;
 
@@ -245,11 +245,11 @@ public abstract class RoleStore<TRole, TRoleClaim> :
     {
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
-        if (!ulong.TryParse(id, out var ulongId))
+        if (!long.TryParse(id, out var longId))
         {
             return Task.FromResult<TRole?>(null);
         }
-        return db.LoadAsync<TRole>(ulongId, cancellationToken);
+        return db.LoadAsync<TRole>(longId, cancellationToken);
     }
 
     /// <summary>

@@ -16,7 +16,7 @@ namespace Aero.Cms.Marten.Identity;
 //         SecurityStamp = Guid.NewGuid().ToString("N");
 //     }
 //
-//     public ulong Id { get; set; }
+//     public long Id { get; set; }
 //
 //     public string UserName { get; set; }
 //

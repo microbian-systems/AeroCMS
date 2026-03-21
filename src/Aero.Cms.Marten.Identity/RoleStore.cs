@@ -110,7 +110,7 @@ internal class RoleStore<TRole>(IDocumentSession session) :
 
     public Task<TRole?> FindByIdAsync(string roleId, CancellationToken cancellationToken)
     {
-        if (!ulong.TryParse(roleId, out var parsedRoleId)) return Task.FromResult<TRole?>(null);
+        if (!long.TryParse(roleId, out var parsedRoleId)) return Task.FromResult<TRole?>(null);
         return session.Query<TRole>().FirstOrDefaultAsync(x => x.Id == parsedRoleId, cancellationToken);
     }
 
@@ -140,7 +140,7 @@ internal class RoleStore<TRole>(IDocumentSession session) :
         if (claim == null)
             throw new ArgumentNullException(nameof(claim));
 
-        var roleClaim = new IdentityRoleClaim<ulong>
+        var roleClaim = new IdentityRoleClaim<long>
         {
             ClaimType = claim.Type,
             ClaimValue = claim.Value
@@ -153,7 +153,7 @@ internal class RoleStore<TRole>(IDocumentSession session) :
     public Task RemoveClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = new())
     {
         ValidateParameters(role, cancellationToken);
-        IdentityRoleClaim<ulong> test;
+        IdentityRoleClaim<long> test;
         if (claim == null)
             throw new ArgumentNullException(nameof(claim));
 
