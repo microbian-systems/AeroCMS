@@ -9,8 +9,15 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Testing\Aero.Cms.Modules.Testing.csproj" />
+    <ProjectReference Include="..\Modules\Analytics\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
+    <ProjectReference Include="..\Modules\Infrastructure\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
+    <ProjectReference Include="..\Modules\Infrastructure\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
+    <ProjectReference Include="..\Modules\Infrastructure\Aero.Cms.Modules.Rewrite\Aero.Cms.Modules.Rewrite.csproj" />
+    <ProjectReference Include="..\Modules\Security\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
+    <ProjectReference Include="..\Modules\Security\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
     <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
     <PackageReference Include="Boxed.AspNetCore" />

@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyModel;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -144,28 +145,42 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
 
     private IEnumerable<Assembly> GetAssembliesToScan()
     {
-        var assemblies = new HashSet<Assembly>();
+        var assemblies = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (assembly.IsDynamic)
+                continue;
+
+            var assemblyName = assembly.GetName().Name;
+            if (IsExcludedAssembly(assemblyName))
+                continue;
+
+            AddAssembly(assemblies, assembly);
+        }
 
         if (_options.ScanApplicationDependencies)
         {
-            // Get assemblies from application dependencies using Scrutor-compatible approach
             var entryAssembly = Assembly.GetEntryAssembly();
-            if (entryAssembly != null)
+            var dependencyContext = entryAssembly != null
+                ? DependencyContext.Load(entryAssembly) ?? DependencyContext.Default
+                : DependencyContext.Default;
+
+            if (dependencyContext != null)
             {
-                assemblies.Add(entryAssembly);
+                foreach (var assemblyName in dependencyContext.RuntimeLibraries
+                             .SelectMany(library => library.GetDefaultAssemblyNames(dependencyContext))
+                             .Distinct())
+                {
+                    TryAddAssembly(assemblies, assemblyName);
+                }
+            }
+            else if (entryAssembly != null)
+            {
+                AddAssembly(assemblies, entryAssembly);
                 foreach (var referenced in entryAssembly.GetReferencedAssemblies())
                 {
-                    try
-                    {
-                        if (!IsExcludedAssembly(referenced.Name))
-                        {
-                            assemblies.Add(Assembly.Load(referenced));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Could not load referenced assembly '{Assembly}'.", referenced.Name);
-                    }
+                    TryAddAssembly(assemblies, referenced);
                 }
             }
         }
@@ -189,7 +204,7 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
                         continue;
 
                     var assembly = Assembly.LoadFrom(dll);
-                    assemblies.Add(assembly);
+                    AddAssembly(assemblies, assembly);
                 }
                 catch (Exception ex)
                 {
@@ -198,7 +213,31 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
             }
         }
 
-        return assemblies;
+        return assemblies.Values;
+    }
+
+    private void TryAddAssembly(IDictionary<string, Assembly> assemblies, AssemblyName assemblyName)
+    {
+        if (IsExcludedAssembly(assemblyName.Name))
+            return;
+
+        try
+        {
+            AddAssembly(assemblies, Assembly.Load(assemblyName));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not load referenced assembly '{Assembly}'.", assemblyName.Name);
+        }
+    }
+
+    private static void AddAssembly(IDictionary<string, Assembly> assemblies, Assembly assembly)
+    {
+        var key = assembly.FullName
+            ?? assembly.GetName().Name
+            ?? assembly.Location;
+
+        assemblies.TryAdd(key, assembly);
     }
 
     private bool IsExcludedAssembly(string? assemblyName)

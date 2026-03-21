@@ -1,8 +1,6 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core;
 using Aero.Cms.Core.Modules;
-using Marten;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -27,23 +25,18 @@ public sealed class SetupModule : AeroModuleBase
 
     public override async Task RunAsync(IEndpointRouteBuilder builder)
     {
-        
         var scope = builder.ServiceProvider.CreateAsyncScope();
         var sp = scope.ServiceProvider;
-        var config = sp.GetRequiredService<IConfiguration>();
-        var log = sp.GetRequiredService<ILogger<SetupModule>>(); // serilog log
-        var session = sp.GetRequiredService<IDocumentSession>();
-
-        var existing = await session.Query<IAeroModule>()
-            .ToListAsync();
+        var log = sp.GetRequiredService<ILogger<SetupModule>>();
 
         var allModules = sp.GetServices<IAeroModule>()
             .OrderBy(m => m.Order)
             .ToList();
 
-        // Get modules that don't exist yet (by some unique property like Name or Id)
-        var newModules = allModules
-            .ExceptBy(existing.Select(e => e.Name), m => m.Name)
-            .ToList();
+        log.LogInformation("Setup module initialized with {ModuleCount} discovered modules: {ModuleNames}",
+            allModules.Count,
+            string.Join(", ", allModules.Select(module => module.Name)));
+
+        await Task.CompletedTask;
     }
 }

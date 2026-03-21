@@ -9,6 +9,8 @@ using Aero.Cms.Modules.Rewrite;
 using Aero.Cms.Modules.RateLimiting;
 using Aero.Cms.Modules.Analytics;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -23,9 +25,13 @@ namespace Aero.Cms.Core.Tests.Integration;
 public class RealModuleDiscoveryTests
 {
     private readonly ModuleDiscoveryService _discoveryService;
+    private readonly IHostEnvironment _hostEnvironment;
 
     public RealModuleDiscoveryTests()
     {
+        _hostEnvironment = Substitute.For<IHostEnvironment>();
+        _hostEnvironment.EnvironmentName.Returns(Environments.Development);
+
         var options = Options.Create(new ModuleDiscoveryOptions
         {
             ScanApplicationDependencies = false,
@@ -39,10 +45,81 @@ public class RealModuleDiscoveryTests
             }
         });
 
-        var hostEnvironment = Substitute.For<IHostEnvironment>();
-        hostEnvironment.EnvironmentName.Returns(Environments.Development);
+        _discoveryService = new ModuleDiscoveryService(options, _hostEnvironment, NullLogger<ModuleDiscoveryService>.Instance);
+    }
 
-        _discoveryService = new ModuleDiscoveryService(options, hostEnvironment, NullLogger<ModuleDiscoveryService>.Instance);
+    [Test]
+    public async Task DiscoverAsync_WithApplicationDependencies_ShouldDiscoverReferencedModules()
+    {
+        var options = Options.Create(new ModuleDiscoveryOptions
+        {
+            ScanApplicationDependencies = true,
+            IncludeDisabledInProduction = true,
+            TypeFilter = type => type.Namespace == null || !type.Namespace.StartsWith("Aero.Cms.Core.Tests", StringComparison.Ordinal),
+            ExcludedAssemblyPatterns = new[]
+            {
+                "System.*",
+                "Microsoft.*",
+                "netstandard",
+                "mscorlib"
+            }
+        });
+
+        var discoveryService = new ModuleDiscoveryService(options, _hostEnvironment, NullLogger<ModuleDiscoveryService>.Instance);
+
+        var result = await discoveryService.DiscoverAsync();
+
+        result.Should().NotBeEmpty();
+        result.Select(module => module.Name).Should().Contain(new[]
+        {
+            "TestModule",
+            "SetupModule",
+            "IdentityModule",
+            "CacheModule",
+            "Security",
+            "SimpleSecurityModule",
+            "RewriteModule",
+            "RateLimitingModule",
+            "AnalyticsModule"
+        });
+    }
+
+    [Test]
+    public async Task AddAeroModulesAsync_ShouldRegisterDiscoveredModulesIntoServices()
+    {
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ModuleDiscovery:ScanApplicationDependencies"] = "true",
+                ["ModuleDiscovery:IncludeDisabledInProduction"] = "true",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:0"] = "System.*",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:1"] = "Microsoft.*",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:2"] = "netstandard",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:3"] = "mscorlib",
+                ["ModuleDiscovery:ExcludedAssemblyPatterns:4"] = "Aero.Cms.Core.Tests*"
+            })
+            .Build();
+
+        await services.AddAeroModulesAsync(configuration, _hostEnvironment);
+
+        await using var provider = services.BuildServiceProvider();
+        var modules = provider.GetServices<IAeroModule>().ToList();
+        var moduleNames = modules.Select(module => module.Name).OrderBy(name => name).ToList();
+
+        modules.Should().HaveCount(9);
+        moduleNames.Should().Equal(new[]
+        {
+            "AnalyticsModule",
+            "CacheModule",
+            "IdentityModule",
+            "RateLimitingModule",
+            "RewriteModule",
+            "Security",
+            "SetupModule",
+            "SimpleSecurityModule",
+            "TestModule"
+        });
     }
 
     [Test]

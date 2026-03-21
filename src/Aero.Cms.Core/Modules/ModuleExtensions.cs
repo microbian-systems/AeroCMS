@@ -95,21 +95,24 @@ public static class ModuleExtensions
         discoveryServices.AddModuleSystemServices();
 
         // Add discovery options from configuration
-        discoveryServices.Configure<ModuleDiscoveryOptions>(opts =>
-        {
-            // Future: bind from configuration section
-        });
+        discoveryServices.Configure<ModuleDiscoveryOptions>(configuration.GetSection("ModuleDiscovery"));
 
         await using var discoveryProvider = discoveryServices.BuildServiceProvider();
         var discoveryService = discoveryProvider.GetRequiredService<IModuleDiscoveryService>();
         var graphService = discoveryProvider.GetRequiredService<IModuleGraphService>();
+        var logger = discoveryProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Aero.Cms.Modules.Startup");
 
         // Discover modules
         var descriptors = await discoveryService.DiscoverAsync();
 
+        logger.LogInformation("Discovered {ModuleCount} Aero modules: {ModuleNames}",
+            descriptors.Count,
+            string.Join(", ", descriptors.Select(descriptor => descriptor.Name).OrderBy(name => name)));
+
         if (descriptors.Count == 0)
         {
             // No modules discovered - register empty module set
+            logger.LogWarning("No Aero modules were discovered. Module registration will be skipped.");
             return services;
         }
 
@@ -125,13 +128,16 @@ public static class ModuleExtensions
         // Build dependency graph and get load order
         var graph = graphService.BuildGraph(descriptors);
 
+        logger.LogInformation("Resolved Aero module load order: {ModuleLoadOrder}",
+            string.Join(" -> ", graph.LoadOrder.Select(descriptor => descriptor.Name)));
+
         // Create module builder for composition
         var moduleBuilder = new ModuleBuilder(services, configuration, environment);
 
         // Register modules as singletons in dependency order
         foreach (var descriptor in graph.LoadOrder)
         {
-            services.TryAddSingleton(typeof(IAeroModule), descriptor.ModuleType);
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IAeroModule), descriptor.ModuleType));
 
             // Also register as self for concrete access
             services.TryAddSingleton(descriptor.ModuleType);
@@ -175,37 +181,37 @@ public static class ModuleExtensions
     {
         if (descriptor.IsUiModule)
         {
-            services.TryAddSingleton(typeof(IUiModule), descriptor.ModuleType);
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IUiModule), descriptor.ModuleType));
         }
 
         if (typeof(IApiModule).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddSingleton(typeof(IApiModule), descriptor.ModuleType);
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IApiModule), descriptor.ModuleType));
         }
 
         if (typeof(IBackgroundModule).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddSingleton(typeof(IBackgroundModule), descriptor.ModuleType);
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IBackgroundModule), descriptor.ModuleType));
         }
 
         if (typeof(IThemeModule).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddSingleton(typeof(IThemeModule), descriptor.ModuleType);
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IThemeModule), descriptor.ModuleType));
         }
 
         if (typeof(IAdminModule).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddSingleton(typeof(IAdminModule), descriptor.ModuleType);
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IAdminModule), descriptor.ModuleType));
         }
 
         if (typeof(IFilterModule).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddSingleton(typeof(IFilterModule), descriptor.ModuleType);
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IFilterModule), descriptor.ModuleType));
         }
 
         if (typeof(IContentDefinitionModule).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddSingleton(typeof(IContentDefinitionModule), descriptor.ModuleType);
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IContentDefinitionModule), descriptor.ModuleType));
         }
     }
 

@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="EasyScrutor" />
+    <PackageReference Include="Microsoft.Extensions.DependencyModel" />
     <PackageReference Include="Scrutor" />
     <PackageReference Include="Scrutor.AspNetCore" />
     <PackageReference Include="Serilog" />
