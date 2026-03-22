@@ -13,6 +13,8 @@ public class BlogIndexPageModel : PageModel
     }
 
     public IReadOnlyList<BlogPostDocument> Posts { get; private set; } = [];
+    public IReadOnlyList<BlogPostDocument> FeaturedPosts { get; private set; } = [];
+    public IReadOnlyList<BlogPostDocument> OtherPosts { get; private set; } = [];
 
     public async Task OnGetAsync(CancellationToken cancellationToken = default)
     {
@@ -24,5 +26,12 @@ public class BlogIndexPageModel : PageModel
             global::Aero.Core.Railway.Result<string, IReadOnlyList<BlogPostDocument>>.Failure => [],
             _ => []
         };
+
+        // Split posts into featured (top 3) and other (remaining)
+        if (Posts.Any())
+        {
+            FeaturedPosts = Posts.Take(3).ToList();
+            OtherPosts = Posts.Skip(3).ToList();
+        }
     }
 }
