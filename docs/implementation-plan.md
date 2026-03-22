@@ -141,7 +141,7 @@ Exit criteria: production-ready diagnostics and operational safety.
 ## Cross-Cutting Workstreams (run alongside phases)
 
 - [ ] Testing matrix: unit + integration + tenant-isolation + auth + caching
-- [ ] Source generators for AOT/perf-sensitive discovery and registration paths
+- [ ] Source generators for AOT/perf-sensitive discovery and registration paths (See [marten-aot.md](marten-aot.md) for strategy)
 - [ ] Data migrations/versioning strategy for Marten documents
 - [ ] Security review (permission bypass, tenant leakage, plugin trust model)
 - [ ] Documentation updates per module/phase completion

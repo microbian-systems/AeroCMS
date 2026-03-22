@@ -14,6 +14,7 @@ Included specs:
 8. 08_cache_strategy_redis_garnet_fusioncache.md
 9. 09_plugin_marketplace_and_packaging.md
 10. 10_operability_observability_and_deployment.md
+11. [Marten + AOT + Source Generators Guide](marten-aot.md)
 
 These documents assume the previously generated specs for:
 - UI composition / shape rendering

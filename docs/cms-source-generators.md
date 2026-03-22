@@ -15,14 +15,14 @@
 5. [Generator 2 — CmsPipelineSourceGenerator](#5-generator-2--cmspipelinesourcegenerator)
 6. [Generator 3 — CmsViewComponentSourceGenerator](#6-generator-3--cmsviewcomponentsourcegenerator)
 7. [Generator 4 — CmsModuleSourceGenerator](#7-generator-4--cmsmodulesourcegenerator)
-8. [Generator 5 — CmsMartenDocumentGenerator](#8-generator-5--cmsmartenDocumentgenerator)
-9. [Generator 6 — CmsEventHandlerSourceGenerator](#9-generator-6--cmseventhandlersourcegenerator)
-10. [Generator 7 — CmsAdminSectionSourceGenerator](#10-generator-7--cmsadminsectionsourcegenerator)
-11. [Integration — Program.cs Generated Extensions](#11-integration--programcs-generated-extensions)
-12. [Testing Source Generators](#12-testing-source-generators)
-13. [Diagnostics & Errors](#13-diagnostics--errors)
-14. [AOT Compatibility Matrix](#14-aot-compatibility-matrix)
-15. [Agent Implementation Notes](#15-agent-implementation-notes)
+8. **[Marten + AOT + Source Generators Guide](marten-aot.md)** (Refer to dedicated specification)
+9. [Generator 5 — CmsEventHandlerSourceGenerator](#8-generator-5--cmseventhandlersourcegenerator)
+10. [Generator 6 — CmsAdminSectionSourceGenerator](#9-generator-6--cmsadminsectionsourcegenerator)
+11. [Integration — Program.cs Generated Extensions](#10-integration--programcs-generated-extensions)
+12. [Testing Source Generators](#11-testing-source-generators)
+13. [Diagnostics & Errors](#12-diagnostics--errors)
+14. [AOT Compatibility Matrix](#13-aot-compatibility-matrix)
+15. [Agent Implementation Notes](#14-agent-implementation-notes)
 
 ---
 
@@ -39,7 +39,6 @@ The CMS architecture uses several runtime patterns that rely on reflection:
 | Pipeline hook ordering | `IEnumerable<IPageReadHook>` sorted by `hook.Order` at runtime |
 | ViewComponent dispatch | `IViewComponentHelper.InvokeAsync(string name, object args)` uses `MethodInfo.Invoke` |
 | Module wiring | `assembly.GetTypes()` + `Activator.CreateInstance` |
-| Marten document mapping | Runtime reflection scan of document POCOs |
 | Event handler routing | `IEnumerable<ICmsEventHandler<TEvent>>` DI scan |
 
 ### Goal
@@ -70,6 +69,5 @@ Scans for all non-abstract `BlockBase` subclasses and all `IBlockRenderer` (Admi
 |---|---|---|---|
 | Block JSON polymorphism | `[JsonPolymorphic]` + `CmsJsonContext` | ✓ `BlockJsonConverter` deleted | ✓ Full AOT |
 | Block renderer registry | `AddCmsBlocks()` extension | ✓ No `IEnumerable` scan | ✓ Full AOT |
-| Marten documents | `MartenDocumentTypes.g.cs` | ✓ No Marten startup scan | ✓ With `TypeLoadMode.Static` |
 
 ... [Rest of document updated for .NET 10]

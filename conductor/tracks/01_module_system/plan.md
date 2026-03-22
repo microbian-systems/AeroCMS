@@ -10,15 +10,15 @@
 - [x] Task: Implement `IModuleDiscoveryService` using assembly scanning (Scrutor).
 - [x] Task: Implement `IModuleGraphService` for building the dependency graph.
 - [x] Task: Implement topological sorting for deterministic load order.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Module Discovery' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Module Discovery' (Protocol in workflow.md)
 
 ## Phase 3: ASP.NET Core Integration
 - [x] Task: Implement `IModuleBuilder` and its core functionality.
 - [x] Task: Create `AddAeroCmsModules` extension for `IServiceCollection`.
 - [x] Task: Create `UseAeroCmsModules` extension for `IApplicationBuilder`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: ASP.NET Core Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: ASP.NET Core Integration' (Protocol in workflow.md)
 
 ## Phase 4: Final Verification and Stabilization
 - [x] Task: Create unit tests for discovery and dependency resolution.
 - [x] Task: Create integration tests for module loading in a test host.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Final Verification and Stabilization' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Final Verification and Stabilization' (Protocol in workflow.md)
