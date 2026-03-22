@@ -81,7 +81,20 @@
         {
             foreach (var block in post.Content.OrderBy(b => b.Order))
             {
-                @await Component.InvokeAsync("BlockPlacement", block)
+                var componentName = block.BlockType switch
+                {
+                    "rich_text" => "RichTextBlock",
+                    "heading" => "HeadingBlock",
+                    "image" => "ImageBlock",
+                    "cta" => "CtaBlock",
+                    "quote" => "QuoteBlock",
+                    "embed" => "EmbedBlock",
+                    _ => (string?)null
+                };
+                if (componentName is not null)
+                {
+                    @await Component.InvokeAsync(componentName, block)
+                }
             }
         }
         else

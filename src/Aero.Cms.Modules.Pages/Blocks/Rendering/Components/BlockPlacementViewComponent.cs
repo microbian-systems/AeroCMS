@@ -62,6 +62,14 @@ public class BlockPlacementViewComponent : ViewComponent
             return new HtmlString($"""<div class="text-red-500">Unknown block type: {placement.BlockType}</div>""");
         }
 
+        // The IViewComponentHelper from DI is not contextualized — it requires
+        // Contextualize(ViewContext) before InvokeAsync can be called.
+        // Without this, DefaultViewComponentHelper._viewContext is null → NullReferenceException.
+        if (_componentHelper is IViewContextAware viewContextAware)
+        {
+            viewContextAware.Contextualize(ViewContext);
+        }
+
         return await _componentHelper.InvokeAsync(viewComponentName, block);
     }
 }
