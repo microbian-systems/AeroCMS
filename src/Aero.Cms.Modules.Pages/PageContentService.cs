@@ -1,10 +1,8 @@
-using Marten;
-
 namespace Aero.Cms.Modules.Pages;
 
 public interface IPageContentService
 {
-    Task<PageDocument?> LoadAsync(string id, CancellationToken cancellationToken = default);
+    Task<PageDocument?> LoadAsync(long id, CancellationToken cancellationToken = default);
     Task<PageDocument?> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<PageDocument?> LoadHomepageAsync(CancellationToken cancellationToken = default);
     Task<PageDocument?> LoadBlogListingAsync(CancellationToken cancellationToken = default);
@@ -13,7 +11,7 @@ public interface IPageContentService
 
 public sealed class MartenPageContentService(IDocumentSession session) : IPageContentService
 {
-    public Task<PageDocument?> LoadAsync(string id, CancellationToken cancellationToken = default)
+    public Task<PageDocument?> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
         ValidateId(id);
         return session.LoadAsync<PageDocument>(id, cancellationToken);
@@ -27,7 +25,10 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
 
     public async Task<PageDocument?> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
-        var reservation = await session.LoadAsync<ContentSlugDocument>(ContentSlugDocument.BuildDocumentId(slug), cancellationToken);
+        //var reservation = await session.LoadAsync<ContentSlugDocument>(ContentSlugDocument.BuildDocumentId(slug), cancellationToken);
+        var reservation = await session.Query<ContentSlugDocument>()
+            .FirstOrDefaultAsync(x =>
+                string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
         if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.Page)
         {
             return null;
@@ -51,11 +52,11 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
             cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
-        var existingCreatedAtUtc = existingPage?.CreatedAtUtc;
-        page.CreatedAtUtc = existingCreatedAtUtc is null || existingCreatedAtUtc == default ? now : existingCreatedAtUtc.Value;
-        page.UpdatedAtUtc = now;
-        page.PublishedAtUtc = page.PublicationState == ContentPublicationState.Published
-            ? existingPage?.PublishedAtUtc ?? now
+        var existingCreatedAtUtc = existingPage?.CreatedOn;
+        page.CreatedOn = existingCreatedAtUtc is null || existingCreatedAtUtc == default ? now : existingCreatedAtUtc.Value;
+        page.ModifiedOn = now;
+        page.PublishedOn = page.PublicationState == ContentPublicationState.Published
+            ? existingPage?.PublishedOn ?? now
             : null;
 
         session.Store(page);
@@ -80,23 +81,24 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
         }
 
         if (page.Kind == PageKind.Homepage &&
-            !string.Equals(page.Id, PageDocumentIds.Homepage, StringComparison.Ordinal))
+            !string.Equals(page.Id.ToString(), PageDocumentIds.Homepage.ToString(), StringComparison.Ordinal))
         {
             throw new ArgumentException($"Homepage must use the stable id '{PageDocumentIds.Homepage}'.", nameof(page));
         }
 
         if (page.Kind == PageKind.BlogListing &&
-            !string.Equals(page.Id, PageDocumentIds.BlogListing, StringComparison.Ordinal))
+            !string.Equals(page.Id.ToString(), PageDocumentIds.BlogListing.ToString(), StringComparison.Ordinal))
         {
             throw new ArgumentException($"Blog listing page must use the stable id '{PageDocumentIds.BlogListing}'.", nameof(page));
         }
     }
 
-    private static void ValidateId(string id)
+    private static void ValidateId(long id)
     {
-        if (string.IsNullOrWhiteSpace(id))
+        //if (string.IsNullOrWhiteSpace(id))
         {
-            throw new ArgumentException("Stable content ids are required.", nameof(id));
+            var snowflake = Id.Parse(id);
+            //throw new ArgumentException("Stable content ids are required.", nameof(id));
         }
     }
 }

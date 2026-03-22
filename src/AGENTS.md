@@ -29,7 +29,7 @@
 ## Architectural Patterns
 - Entity : IEntity<long>; for database entities
     - IEntity<long> { long Id { get; set; } }
-    - using Snowflake to assign IDs
+    - using Snowflake to assign IDs (Snowflake.NewId())
     - This includes MartenDB entities and EF Core entities and aspnet Identity
 - Use the **Railway Oriented Programming** patterns:
     - `Result<T>`
@@ -53,3 +53,10 @@
 - Project includes a .NET MAUI hybrid web and mobile setup (newly created).
 - Avoid using Guids for primary keys, use Snowflake instead (where possible)
 - Do not use newtonsoft.json (use system.text.json)
+- all models to be saved to the database should make use of hte IEntity<long> or Entity (which inherits from IEntity<long>)
+- FluentValidatino is to be usd for validation of all models
+- primary keys should be of type long unless explictly needed ohterwise.  The primary key can be generated using Snowflake.NewId()
+- always use SOLID principles in the design of the code
+- Use Railway Oriented Programming for all code that handles business logic and data access (Aero.Core has the Result<T> and Option<T> types along with Bind<T> and Map<T>)
+- if something is unclear always refer to the ../docs documentation for clarity 
+- take the socratic method and ask any architectural code decisions to me

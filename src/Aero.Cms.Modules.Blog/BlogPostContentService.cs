@@ -1,11 +1,14 @@
+using Aero.Cms.Modules.Blog.Validators;
 using Aero.Cms.Modules.Pages;
+using Aero.Cms.Modules.Pages.Validators;
+using FlakeId;
 using Marten;
 
 namespace Aero.Cms.Modules.Blog;
 
 public interface IBlogPostContentService
 {
-    Task<BlogPostDocument?> LoadAsync(string id, CancellationToken cancellationToken = default);
+    Task<BlogPostDocument?> LoadAsync(long id, CancellationToken cancellationToken = default);
     Task<BlogPostDocument?> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<BlogPostDocument>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
     Task SaveAsync(BlogPostDocument post, CancellationToken cancellationToken = default);
@@ -13,15 +16,22 @@ public interface IBlogPostContentService
 
 public sealed class MartenBlogPostContentService(IDocumentSession session) : IBlogPostContentService
 {
-    public Task<BlogPostDocument?> LoadAsync(string id, CancellationToken cancellationToken = default)
+    public Task<BlogPostDocument?> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
-        ValidateId(id);
+
         return session.LoadAsync<BlogPostDocument>(id, cancellationToken);
     }
 
     public async Task<BlogPostDocument?> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
-        var reservation = await session.LoadAsync<ContentSlugDocument>(ContentSlugDocument.BuildDocumentId(slug), cancellationToken);
+        // var reservation = await session
+        //     .LoadAsync<ContentSlugDocument>(ContentSlugDocument.BuildDocumentId(slug), cancellationToken);
+
+        var reservation = await session.Query<ContentSlugDocument>()
+            .FirstOrDefaultAsync(x => 
+                string.Equals(slug, x.Slug, StringComparison.InvariantCultureIgnoreCase), token: cancellationToken);
+
+
         if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.BlogPost)
         {
             return null;
@@ -33,7 +43,8 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
     public async Task SaveAsync(BlogPostDocument post, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(post);
-        Validate(post);
+        var validator = new BlogPostValidator();
+        var valid = await validator.ValidateAsync(post, cancellationToken);
 
         var existingPost = await session.LoadAsync<BlogPostDocument>(post.Id, cancellationToken);
         await ContentSlugReservation.ReserveAsync(
@@ -45,11 +56,11 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
             cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
-        var existingCreatedAtUtc = existingPost?.CreatedAtUtc;
-        post.CreatedAtUtc = existingCreatedAtUtc is null || existingCreatedAtUtc == default ? now : existingCreatedAtUtc.Value;
-        post.UpdatedAtUtc = now;
-        post.PublishedAtUtc = post.PublicationState == ContentPublicationState.Published
-            ? existingPost?.PublishedAtUtc ?? now
+        var existingCreatedAtUtc = existingPost?.CreatedOn;
+        post.CreatedOn = existingCreatedAtUtc is null || existingCreatedAtUtc == default ? now : existingCreatedAtUtc.Value;
+        post.ModifiedOn = now;
+        post.PublishedOn = post.PublicationState == ContentPublicationState.Published
+            ? existingPost?.PublishedOn ?? now
             : null;
 
         session.Store(post);
@@ -58,33 +69,12 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
 
     public async Task<IReadOnlyList<BlogPostDocument>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default)
     {
-        return await session.Query<BlogPostDocument>()
+        var latest = await session.Query<BlogPostDocument>()
             .Where(x => x.PublicationState == ContentPublicationState.Published)
-            .OrderByDescending(x => x.PublishedAtUtc)
+            .OrderByDescending(x => x.PublishedOn)
             .Take(count)
-            .ToListAsync();
-    }
+            .ToListAsync(token: cancellationToken);
 
-    private static void Validate(BlogPostDocument post)
-    {
-        ValidateId(post.Id);
-
-        if (string.IsNullOrWhiteSpace(post.Title))
-        {
-            throw new ArgumentException("Blog post title is required.", nameof(post));
-        }
-
-        if (string.IsNullOrWhiteSpace(ContentSlugDocument.Normalize(post.Slug)))
-        {
-            throw new ArgumentException("Blog post slug is required.", nameof(post));
-        }
-    }
-
-    private static void ValidateId(string id)
-    {
-        if (string.IsNullOrWhiteSpace(id))
-        {
-            throw new ArgumentException("Stable blog post ids are required.", nameof(id));
-        }
+        return latest;
     }
 }

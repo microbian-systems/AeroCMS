@@ -1,5 +1,6 @@
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
+using Aero.Core;
 using FluentAssertions;
 using Marten;
 using NSubstitute;
@@ -39,9 +40,10 @@ public class ContentDomainPersistenceTests
             PublicationState = ContentPublicationState.Published
         };
 
+        var id = Snowflake.NewId();
         var post = new BlogPostDocument
         {
-            Id = "cms/posts/hello-world",
+            Id = id,
             Slug = "blog/hello-world",
             Title = "Hello World",
             Excerpt = "First post excerpt",
@@ -64,8 +66,8 @@ public class ContentDomainPersistenceTests
         storedHomepage.Should().NotBeNull();
         storedHomepage!.Id.Should().Be(PageDocumentIds.Homepage);
         storedHomepage.IsPubliclyVisible.Should().BeTrue();
-        storedHomepage.PublishedAtUtc.Should().NotBeNull();
-        storedHomepage.UpdatedAtUtc.Should().BeOnOrAfter(storedHomepage.CreatedAtUtc);
+        storedHomepage.PublishedOn.Should().NotBeNull();
+        storedHomepage.ModifiedOn.Should().BeOnOrAfter(storedHomepage.CreatedOn);
         storedHomepage.SeoTitle.Should().Be("Home | Aero CMS");
 
         storedBlogListing.Should().NotBeNull();
@@ -73,16 +75,16 @@ public class ContentDomainPersistenceTests
         storedBlogListing.IsPubliclyVisible.Should().BeTrue();
 
         storedPost.Should().NotBeNull();
-        storedPost!.Id.Should().Be("cms/posts/hello-world");
+        storedPost!.Id.Should().Be(post.Id);
         storedPost.IsPubliclyVisible.Should().BeFalse();
-        storedPost.PublishedAtUtc.Should().BeNull();
+        storedPost.PublishedOn.Should().BeNull();
         storedPost.Excerpt.Should().Be("First post excerpt");
 
         homepageBySlug.Should().NotBeNull();
         homepageBySlug!.Id.Should().Be(PageDocumentIds.Homepage);
 
         postBySlug.Should().NotBeNull();
-        postBySlug!.Id.Should().Be("cms/posts/hello-world");
+        postBySlug!.Id.Should().Be(post.Id);
     }
 
     [Test]
@@ -112,9 +114,10 @@ public class ContentDomainPersistenceTests
             PublicationState = ContentPublicationState.Published
         });
 
+        var home2Id = Snowflake.NewId();
         var duplicateHomepageSave = () => pageService.SaveAsync(new PageDocument
         {
-            Id = "cms/pages/home-2",
+            Id = home2Id,
             Kind = PageKind.Standard,
             Slug = "/",
             Title = "Another home",
@@ -122,9 +125,10 @@ public class ContentDomainPersistenceTests
             PublicationState = ContentPublicationState.Draft
         });
 
+        var blogOverviewId = Snowflake.NewId();
         var duplicateBlogSlugSave = () => blogService.SaveAsync(new BlogPostDocument
         {
-            Id = "cms/posts/blog-overview",
+            Id = blogOverviewId,
             Slug = "blog",
             Title = "Duplicate blog slug",
             Body = "Conflict",
@@ -133,11 +137,11 @@ public class ContentDomainPersistenceTests
 
         var homepageConflict = await duplicateHomepageSave.Should().ThrowAsync<SlugConflictException>();
         homepageConflict.Which.Slug.Should().Be("/");
-        homepageConflict.Which.ExistingOwnerId.Should().Be(PageDocumentIds.Homepage);
+        homepageConflict.Which.ExistingOwnerId.Should().Be(PageDocumentIds.Homepage.ToString());
 
         var blogConflict = await duplicateBlogSlugSave.Should().ThrowAsync<SlugConflictException>();
         blogConflict.Which.Slug.Should().Be("blog");
-        blogConflict.Which.ExistingOwnerId.Should().Be(PageDocumentIds.BlogListing);
+        blogConflict.Which.ExistingOwnerId.Should().Be(PageDocumentIds.BlogListing.ToString());
     }
 
     private static IDocumentSession CreateSession()
@@ -175,7 +179,7 @@ public class ContentDomainPersistenceTests
                 foreach (var page in callInfo.Arg<PageDocument[]>())
                 {
                     var clonedPage = Clone(page);
-                    pageDocuments[clonedPage.Id] = clonedPage;
+                    pageDocuments[clonedPage.Id.ToString()] = clonedPage;
                 }
             });
 
@@ -185,7 +189,7 @@ public class ContentDomainPersistenceTests
                 foreach (var post in callInfo.Arg<BlogPostDocument[]>())
                 {
                     var clonedPost = Clone(post);
-                    blogPosts[clonedPost.Id] = clonedPost;
+                    blogPosts[clonedPost.Id.ToString()] = clonedPost;
                 }
             });
 
@@ -195,7 +199,7 @@ public class ContentDomainPersistenceTests
                 foreach (var slugDocument in callInfo.Arg<ContentSlugDocument[]>())
                 {
                     var clonedSlugDocument = Clone(slugDocument);
-                    slugDocuments[clonedSlugDocument.Id] = clonedSlugDocument;
+                    slugDocuments[clonedSlugDocument.Id.ToString()] = clonedSlugDocument;
                 }
             });
 
@@ -203,7 +207,7 @@ public class ContentDomainPersistenceTests
             .Do(callInfo =>
             {
                 var slugDocument = callInfo.Arg<ContentSlugDocument>();
-                slugDocuments.Remove(slugDocument.Id);
+                slugDocuments.Remove(slugDocument.Id.ToString());
             });
 
         session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
@@ -223,9 +227,9 @@ public class ContentDomainPersistenceTests
             SeoDescription = page.SeoDescription,
             Body = page.Body,
             PublicationState = page.PublicationState,
-            CreatedAtUtc = page.CreatedAtUtc,
-            UpdatedAtUtc = page.UpdatedAtUtc,
-            PublishedAtUtc = page.PublishedAtUtc
+            CreatedOn = page.CreatedOn,
+            ModifiedOn = page.ModifiedOn,
+            PublishedOn = page.PublishedOn
         };
 
     private static BlogPostDocument Clone(BlogPostDocument post)
@@ -239,9 +243,9 @@ public class ContentDomainPersistenceTests
             SeoDescription = post.SeoDescription,
             Body = post.Body,
             PublicationState = post.PublicationState,
-            CreatedAtUtc = post.CreatedAtUtc,
-            UpdatedAtUtc = post.UpdatedAtUtc,
-            PublishedAtUtc = post.PublishedAtUtc
+            CreatedOn = post.CreatedOn,
+            ModifiedOn = post.ModifiedOn,
+            PublishedOn = post.PublishedOn
         };
 
     private static ContentSlugDocument Clone(ContentSlugDocument slugDocument)

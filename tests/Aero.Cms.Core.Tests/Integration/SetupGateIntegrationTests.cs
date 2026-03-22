@@ -113,8 +113,8 @@ public class SetupGateIntegrationTests
         response.Headers.Location!.OriginalString.Should().Be("/admin");
         harness.SetupStates.Should().ContainKey(SetupStateDocument.FixedId);
         harness.SetupStates[SetupStateDocument.FixedId].IsComplete.Should().BeTrue();
-        harness.Pages.Should().ContainKey(PageDocumentIds.Homepage);
-        harness.Pages.Should().ContainKey(PageDocumentIds.BlogListing);
+        harness.Pages.Should().ContainKey(PageDocumentIds.Homepage.ToString());
+        harness.Pages.Should().ContainKey(PageDocumentIds.BlogListing.ToString());
         harness.BlogPosts.Should().HaveCount(3);
         await bootstrapper.Received(1)
             .BootstrapAsync(Arg.Is<SetupIdentityBootstrapRequest>(request =>

@@ -1,5 +1,6 @@
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
+using Aero.Core;
 using Marten;
 
 namespace Aero.Cms.Modules.Setup;
@@ -135,26 +136,26 @@ public sealed class SetupCompletionService(
         =>
         [
             CreatePost(
-                id: "cms/posts/getting-started-with-aero-cms",
+                id: Snowflake.NewId(),
                 slug: "blog/getting-started-with-aero-cms",
                 title: "Getting Started with Aero CMS",
                 excerpt: $"Use {Normalize(request.SiteName)} to publish your first update in minutes.",
                 body: $"# Getting Started with Aero CMS\n\nYour site is live with a homepage and blog. Use this starter post as the baseline for your first editorial update in {Normalize(request.SiteName)}."),
             CreatePost(
-                id: "cms/posts/shaping-your-homepage-message",
+                id: Snowflake.NewId(),
                 slug: "blog/shaping-your-homepage-message",
                 title: "Shaping Your Homepage Message",
                 excerpt: "Clarify what visitors should understand in the first screenful.",
                 body: $"# Shaping Your Homepage Message\n\nStart with the promise behind {Normalize(request.HomepageTitle)} and keep the lead paragraph focused on the outcome your site delivers."),
             CreatePost(
-                id: "cms/posts/publishing-your-first-update",
+                id: Snowflake.NewId(),
                 slug: "blog/publishing-your-first-update",
                 title: "Publishing Your First Update",
                 excerpt: $"Turn {Normalize(request.BlogName)} into a steady publishing habit.",
                 body: $"# Publishing Your First Update\n\nAdd a new story to {Normalize(request.BlogName)} as soon as setup finishes so the starter content becomes your real editorial cadence.")
         ];
 
-    private static BlogPostDocument CreatePost(string id, string slug, string title, string excerpt, string body)
+    private static BlogPostDocument CreatePost(long id, string slug, string title, string excerpt, string body)
         => new()
         {
             Id = id,

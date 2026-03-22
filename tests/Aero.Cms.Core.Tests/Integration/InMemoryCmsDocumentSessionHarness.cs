@@ -51,7 +51,7 @@ internal sealed class InMemoryCmsDocumentSessionHarness
                 foreach (var page in callInfo.Arg<PageDocument[]>())
                 {
                     OnStore?.Invoke(page);
-                    _pageDocuments[page.Id] = Clone(page);
+                    _pageDocuments[page.Id.ToString()] = Clone(page);
                 }
             });
 
@@ -61,7 +61,7 @@ internal sealed class InMemoryCmsDocumentSessionHarness
                 foreach (var post in callInfo.Arg<BlogPostDocument[]>())
                 {
                     OnStore?.Invoke(post);
-                    _blogPostDocuments[post.Id] = Clone(post);
+                    _blogPostDocuments[post.Id.ToString()] = Clone(post);
                 }
             });
 
@@ -71,7 +71,7 @@ internal sealed class InMemoryCmsDocumentSessionHarness
                 foreach (var slugDocument in callInfo.Arg<ContentSlugDocument[]>())
                 {
                     OnStore?.Invoke(slugDocument);
-                    _slugDocuments[slugDocument.Id] = Clone(slugDocument);
+                    _slugDocuments[slugDocument.Id.ToString()] = Clone(slugDocument);
                 }
             });
 
@@ -89,7 +89,7 @@ internal sealed class InMemoryCmsDocumentSessionHarness
             .Do(callInfo =>
             {
                 var slugDocument = callInfo.Arg<ContentSlugDocument>();
-                _slugDocuments.Remove(slugDocument.Id);
+                _slugDocuments.Remove(slugDocument.Id.ToString());
             });
 
         Session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
@@ -113,9 +113,9 @@ internal sealed class InMemoryCmsDocumentSessionHarness
             SeoDescription = page.SeoDescription,
             Body = page.Body,
             PublicationState = page.PublicationState,
-            CreatedAtUtc = page.CreatedAtUtc,
-            UpdatedAtUtc = page.UpdatedAtUtc,
-            PublishedAtUtc = page.PublishedAtUtc
+            CreatedOn = page.CreatedOn,
+            ModifiedOn = page.ModifiedOn,
+            PublishedOn = page.PublishedOn
         };
 
     private static BlogPostDocument Clone(BlogPostDocument post)
@@ -129,9 +129,9 @@ internal sealed class InMemoryCmsDocumentSessionHarness
             SeoDescription = post.SeoDescription,
             Body = post.Body,
             PublicationState = post.PublicationState,
-            CreatedAtUtc = post.CreatedAtUtc,
-            UpdatedAtUtc = post.UpdatedAtUtc,
-            PublishedAtUtc = post.PublishedAtUtc
+            CreatedOn = post.CreatedOn,
+            ModifiedOn = post.ModifiedOn,
+            PublishedOn = post.PublishedOn
         };
 
     private static ContentSlugDocument Clone(ContentSlugDocument slugDocument)

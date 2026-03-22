@@ -1,21 +1,22 @@
-using Marten;
+using Aero.Core;
 
 namespace Aero.Cms.Modules.Pages;
 
 public enum ContentSlugOwnerType
 {
     Page = 0,
-    BlogPost = 1
+    BlogPost = 1,
+    Custom = 2
 }
 
 public sealed class ContentSlugDocument
 {
     private const string RootSlugKey = "__root__";
 
-    public string Id { get; set; } = string.Empty;
+    public long Id { get; set; } = Snowflake.NewId();
     public string Slug { get; set; } = string.Empty;
     public string NormalizedSlug { get; set; } = string.Empty;
-    public string OwnerId { get; set; } = string.Empty;
+    public long OwnerId { get; set; } 
     public ContentSlugOwnerType OwnerType { get; set; }
 
     public static string Normalize(string slug)
@@ -29,19 +30,14 @@ public sealed class ContentSlugDocument
         return string.Join('/', segments);
     }
 
-    public static string BuildDocumentId(string slug)
-    {
-        var normalizedSlug = Normalize(slug);
-        return $"cms/slugs/{(string.IsNullOrWhiteSpace(normalizedSlug) ? RootSlugKey : normalizedSlug)}";
-    }
 
-    public static ContentSlugDocument Create(string slug, string ownerId, ContentSlugOwnerType ownerType)
+    public static ContentSlugDocument Create(string slug, long ownerId, ContentSlugOwnerType ownerType)
     {
         var normalizedSlug = Normalize(slug);
 
         return new ContentSlugDocument
         {
-            Id = BuildDocumentId(slug),
+            Id = Snowflake.NewId(),
             Slug = slug,
             NormalizedSlug = normalizedSlug,
             OwnerId = ownerId,
@@ -62,28 +58,28 @@ public static class ContentSlugReservation
 {
     public static async Task ReserveAsync(
         IDocumentSession session,
-        string ownerId,
+        long ownerId,
         ContentSlugOwnerType ownerType,
         string slug,
         string? previousSlug,
         CancellationToken cancellationToken)
     {
-        var slugDocumentId = ContentSlugDocument.BuildDocumentId(slug);
+        var slugDocumentId = Snowflake.NewId();
         var existingReservation = await session.LoadAsync<ContentSlugDocument>(slugDocumentId, cancellationToken);
-        if (existingReservation is not null && !string.Equals(existingReservation.OwnerId, ownerId, StringComparison.Ordinal))
+        if (existingReservation is not null && !string.Equals(existingReservation.OwnerId.ToString(), ownerId.ToString(), StringComparison.Ordinal))
         {
-            throw new SlugConflictException(slug, existingReservation.OwnerId, ownerId);
+            throw new SlugConflictException(slug, existingReservation.OwnerId.ToString(), ownerId.ToString());
         }
 
         var previousSlugDocumentId = string.IsNullOrWhiteSpace(previousSlug)
             ? null
-            : ContentSlugDocument.BuildDocumentId(previousSlug);
+            : Snowflake.NewId().ToString();
 
-        if (previousSlugDocumentId is not null && !string.Equals(previousSlugDocumentId, slugDocumentId, StringComparison.Ordinal))
+        if (previousSlugDocumentId is not null && !string.Equals(previousSlugDocumentId, slugDocumentId.ToString(), StringComparison.Ordinal))
         {
             var previousReservation = await session.LoadAsync<ContentSlugDocument>(previousSlugDocumentId, cancellationToken);
             if (previousReservation is not null &&
-                string.Equals(previousReservation.OwnerId, ownerId, StringComparison.Ordinal) &&
+                previousReservation.OwnerId == ownerId &&
                 previousReservation.OwnerType == ownerType)
             {
                 session.Delete(previousReservation);
