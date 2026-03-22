@@ -7,6 +7,7 @@ public interface IBlogPostContentService
 {
     Task<BlogPostDocument?> LoadAsync(string id, CancellationToken cancellationToken = default);
     Task<BlogPostDocument?> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<BlogPostDocument>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
     Task SaveAsync(BlogPostDocument post, CancellationToken cancellationToken = default);
 }
 
@@ -53,6 +54,15 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
 
         session.Store(post);
         await session.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<BlogPostDocument>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default)
+    {
+        return await session.Query<BlogPostDocument>()
+            .Where(x => x.PublicationState == ContentPublicationState.Published)
+            .OrderByDescending(x => x.PublishedAtUtc)
+            .Take(count)
+            .ToListAsync();
     }
 
     private static void Validate(BlogPostDocument post)
