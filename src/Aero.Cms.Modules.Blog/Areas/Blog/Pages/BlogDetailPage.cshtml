@@ -2,6 +2,7 @@
 @using Aero.Cms.Modules.Blog.Models
 @using Aero.Core.Railway
 @inject Aero.Cms.Modules.Blog.IBlogPostContentService BlogService
+@inject Aero.Cms.Modules.Blog.IStaticPhotosClient StaticPhotos
 @model BlogDetailPageModel
 @{
     ViewBag.Title = Model.Post?.SeoTitle ?? Model.Post?.Title ?? "Blog Post";
@@ -9,6 +10,13 @@
 }
 
 <article class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    @* Sample Header Image Injection *@
+    <div class="mb-10 overflow-hidden rounded-2xl shadow-2xl">
+        <img src="@StaticPhotos.GetPhotoUrl("blurred", "1200x630")" 
+             alt="Header background" 
+             class="w-full h-80 object-cover transition-transform duration-700 hover:scale-110"/>
+    </div>
+
     @* Header Section *@
     <header class="mb-10">
         <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight">
