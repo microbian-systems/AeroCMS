@@ -1,0 +1,98 @@
+@page "/{slug?}"
+@using Aero.Cms.Modules.Pages.Models
+@model DynamicPageModel
+@{
+    var pageDoc = Model.PageDocument;
+    ViewBag.Title = pageDoc?.SeoTitle ?? pageDoc?.Title ?? "Page";
+}
+
+@if (pageDoc is null)
+{
+    <div class="min-h-screen flex items-center justify-center bg-gray-50">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">Page Not Found</h1>
+            <p class="text-gray-600">The requested page could not be found.</p>
+        </div>
+    </div>
+}
+else
+{
+    <article class="min-h-screen bg-white">
+        @* Page Header *@
+        <header class="bg-gradient-to-br from-slate-50 via-white to-slate-100 border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+                <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight">
+                    @pageDoc.Title
+                </h1>
+                
+                @if (!string.IsNullOrEmpty(pageDoc.Summary))
+                {
+                    <p class="mt-4 text-xl text-gray-600 leading-relaxed max-w-3xl">
+                        @pageDoc.Summary
+                    </p>
+                }
+            </div>
+        </header>
+
+        @* Layout Regions *@
+        <div class="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+            @if (pageDoc.LayoutRegions?.Count > 0)
+            {
+                foreach (var region in pageDoc.LayoutRegions.OrderBy(r => r.Order))
+                {
+                    <section class="mb-12">
+                        @if (!string.IsNullOrEmpty(region.Name))
+                        {
+                            <h2 class="text-2xl font-semibold text-gray-800 mb-6">@region.Name</h2>
+                        }
+                        
+                        @if (region.Columns?.Count > 0)
+                        {
+                            <div class="grid gap-8" style="grid-template-columns: repeat(@region.Columns.Count, 1fr);">
+                                @foreach (var column in region.Columns.OrderBy(c => c.Order))
+                                {
+                                    var colWidth = column.Width > 0 && column.Width <= 12 ? column.Width : 12;
+                                    var colClass = $"col-span-1 lg:col-span-{colWidth}";
+                                    
+                                    <div class="@colClass">
+                                        @if (column.Blocks?.Count > 0)
+                                        {
+                                            foreach (var blockPlacement in column.Blocks.OrderBy(b => b.Order))
+                                            {
+                                                @* Render the block using the BlockPlacement ViewComponent *@
+                                                @await Component.InvokeAsync("BlockPlacement", blockPlacement)
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <div class="text-gray-400 italic p-4 bg-gray-50 rounded">
+                                                No blocks in this column
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-gray-400 italic p-8 bg-gray-50 rounded text-center">
+                                No columns in this region
+                            </div>
+                        }
+                    </section>
+                }
+            }
+            else
+            {
+                @* Empty State *@
+                <div class="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">
+                    <svg class="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                    <h3 class="mt-4 text-lg font-medium text-gray-900">No Content Yet</h3>
+                    <p class="mt-2 text-center text-gray-500">This page doesn't have any content blocks configured.</p>
+                </div>
+            }
+        </div>
+    </article>
+}

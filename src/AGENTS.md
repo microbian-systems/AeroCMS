@@ -60,4 +60,58 @@
 - Use Railway Oriented Programming for all code that handles business logic and data access (Aero.Core has the Result<T> and Option<T> types along with Bind<T> and Map<T>)
 - if something is unclear always refer to the ../docs documentation for clarity 
 - take the socratic method and ask any architectural code decisions to me
-- for sample images on web pages use: static.photos/blurred/640x360/110
+- for sample images on web pages use: static.photos/blurred/640x360/110 (the number at the end is any number form 1 to 100000)
+    - ## Sample Image Categories
+        - nature
+        - office
+        - people
+        - technology
+        - minimal
+        - abstract
+        - aerial
+        - blurred
+        - bokeh
+        - gradient
+        - monochrome
+        - vintage
+        - white
+        - black
+        - blue
+        - red
+        - green
+        - yellow
+        - cityscape
+        - workspace
+        - food
+        - travel
+        - textures
+        - industry
+        - indoor
+        - outdoor
+        - studio
+        - finance
+        - medical
+        - season
+        - holiday
+        - event
+        - sport
+        - science
+        - legal
+        - estate
+        - restaurant
+        - retail
+        - wellness
+        - agriculture
+        - construction
+        - craft
+        - cosmetic
+        - automotive
+        - gaming
+        - education
+
+    - ## Sample Image Sizes
+        - 200x200
+        - 320x240
+        - 640x360
+        - 1024x576
+        - 1200x630

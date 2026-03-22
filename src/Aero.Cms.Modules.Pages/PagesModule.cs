@@ -26,7 +26,8 @@ public sealed class PagesModule : AeroModuleBase
 
     public override Task RunAsync(IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPageRoutes();
+        // MapPageRoutes() removed - now using Razor Pages for dynamic page rendering
+        // Routes are handled by Areas/Cms/Pages/Page.cshtml with @page "/{slug?}"
         return Task.CompletedTask;
     }
 }
