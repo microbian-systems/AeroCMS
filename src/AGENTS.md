@@ -60,3 +60,4 @@
 - Use Railway Oriented Programming for all code that handles business logic and data access (Aero.Core has the Result<T> and Option<T> types along with Bind<T> and Map<T>)
 - if something is unclear always refer to the ../docs documentation for clarity 
 - take the socratic method and ask any architectural code decisions to me
+- for sample images on web pages use: static.photos/blurred/640x360/110

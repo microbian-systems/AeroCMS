@@ -2,6 +2,7 @@ using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Modules;
 using Marten;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -21,6 +22,12 @@ public sealed class PagesModule : AeroModuleBase
     {
         services.AddScoped<IPageContentService, MartenPageContentService>();
         services.AddSingleton<IConfigureMarten, BlockMartenConfiguration>();
+    }
+
+    public override Task RunAsync(IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapPageRoutes();
+        return Task.CompletedTask;
     }
 }
 

@@ -57,6 +57,11 @@ public sealed class SetupModel(ISetupCompletionService setupCompletionService) :
                 ? "Aero CMS is ready with administrator access and starter content."
                 : "Aero CMS starter content is confirmed and administrator access was already provisioned.";
 
+        if (!completionResult.AlreadyComplete && completionResult.CreatedAdmin)
+        {
+            return LocalRedirect("/");
+        }
+
         return LocalRedirect(GetSafePostTarget(ReturnUrl));
     }
 
