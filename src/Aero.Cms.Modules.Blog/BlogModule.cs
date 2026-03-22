@@ -24,6 +24,10 @@ public sealed class BlogModule : AeroModuleBase, IUiModule
         {
             client.BaseAddress = new Uri("https://static.photos/");
         });
+        services.AddHttpClient<IPicsumPhotosClient, PicsumPhotosClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://picsum.photos/");
+        });
     }
 
     public override async Task RunAsync(IEndpointRouteBuilder app)

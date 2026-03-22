@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="EasyScrutor" />
+    <PackageReference Include="Marten" />
     <PackageReference Include="Microsoft.Extensions.DependencyModel" />
     <PackageReference Include="Scrutor" />
     <PackageReference Include="Scrutor.AspNetCore" />
