@@ -1,11 +1,12 @@
 <Project>
-	<!-- https://devblogs.microsoft.com/dotnet/introducing-central-package-management/ -->
-	<PropertyGroup>
+  <!-- https://devblogs.microsoft.com/dotnet/introducing-central-package-management/ -->
+  <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="AngleSharp" Version="1.4.0" />
     <PackageVersion Include="AngleSharp.Css" Version="0.17.0" />
+    <PackageVersion Include="Blazor.Radzen.Theming" Version="10.0.5" />
     <PackageVersion Include="Boxed.AspNetCore" Version="9.0.1" />
     <PackageVersion Include="EasyScrutor" Version="0.3.0" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
@@ -48,6 +49,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
+    <PackageVersion Include="Radzen.Blazor" Version="10.0.5" />
     <PackageVersion Include="RazorSlices" Version="0.9.5" />
     <PackageVersion Include="Scrutor" Version="7.0.0" />
     <PackageVersion Include="Scrutor.AspNetCore" Version="3.3.0" />

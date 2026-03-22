@@ -1,13 +1,9 @@
 namespace Aero.Cms.Modules.Admin.Api;
 
 using Aero.Core.Railway;
-using Aero.Cms.Modules.Blog;
-using Aero.Cms.Modules.Pages;
 using Marten;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Admin API for previewing unpublished content.

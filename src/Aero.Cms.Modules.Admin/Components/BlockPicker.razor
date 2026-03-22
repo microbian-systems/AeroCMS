@@ -57,7 +57,7 @@
             <RadzenButton Click="ConfirmSelection"
                           Variant="Variant.Filled"
                           ButtonStyle="ButtonStyle.Primary"
-                          Text="Add @SelectedBlockType.DisplayName"
+                          Text="@($"Add {SelectedBlockType?.DisplayName}")"
                           Icon="add"
                           Class="px-4" />
         </div>
