@@ -426,7 +426,7 @@ public sealed class SetupCompletionService(
                 quoteText: "Premature optimization is the root of all evil. But so is ignoring performance until it bites you."),
             CreatePost(
                 id: Snowflake.NewId(),
-                slug: "blog/ embracing-blazor-and-htmx",
+                slug: "blog/embracing-blazor-and-htmx",
                 title: "Embracing Blazor and HTMX for Interactive UIs",
                 excerpt: "How we combine server-side rendering with progressive enhancement.",
                 headingText: "Embracing Blazor and HTMX for Interactive UIs",

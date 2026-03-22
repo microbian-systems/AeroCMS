@@ -1,7 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Modules;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -28,13 +27,18 @@ public sealed class BlogModule : AeroModuleBase, IUiModule
         {
             client.BaseAddress = new Uri("https://picsum.photos/");
         });
-    }
 
-    public override async Task RunAsync(IEndpointRouteBuilder app)
-    {
-        var scope = app.ServiceProvider.CreateAsyncScope();
-        _ = scope.ServiceProvider.GetRequiredService<IBlogPostContentService>();
+        // Register this assembly so the Razor Pages in Areas/Blog/Pages are discovered
+        services.AddRazorPages()
+            .AddApplicationPart(typeof(BlogModule).Assembly);
 
-        app.MapRazorPages();
+        // Map area page routes — without this, pages in Areas/Blog/Pages/ are only
+        // reachable via the area-prefixed default (e.g. /Blog/BlogIndexPage).
+        // These conventions expose them at the desired public URLs.
+        services.Configure<RazorPagesOptions>(options =>
+        {
+            options.Conventions.AddAreaPageRoute("Blog", "/BlogIndexPage", "/blog");
+            options.Conventions.AddAreaPageRoute("Blog", "/BlogDetailPage", "/blog/{slug}");
+        });
     }
 }

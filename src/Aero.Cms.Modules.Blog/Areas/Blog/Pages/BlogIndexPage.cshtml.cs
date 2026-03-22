@@ -1,29 +1,21 @@
-using Aero.Cms.Modules.Blog.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages;
 
-public class BlogIndexPageModel : PageModel
+public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
 {
-    private readonly IBlogPostContentService _blogService;
-
-    public BlogIndexPageModel(IBlogPostContentService blogService)
-    {
-        _blogService = blogService;
-    }
-
     public IReadOnlyList<BlogPostDocument> Posts { get; private set; } = [];
     public IReadOnlyList<BlogPostDocument> FeaturedPosts { get; private set; } = [];
     public IReadOnlyList<BlogPostDocument> OtherPosts { get; private set; } = [];
 
     public async Task OnGetAsync(CancellationToken cancellationToken = default)
     {
-        var result = await _blogService.GetLatestPostsAsync(10, cancellationToken);
+        var result = await blogService.GetLatestPostsAsync(10, cancellationToken);
 
         Posts = result switch
         {
-            global::Aero.Core.Railway.Result<string, IReadOnlyList<BlogPostDocument>>.Ok(var posts) => posts,
-            global::Aero.Core.Railway.Result<string, IReadOnlyList<BlogPostDocument>>.Failure => [],
+            Result<string, IReadOnlyList<BlogPostDocument>>.Ok(var posts) => posts,
+            Result<string, IReadOnlyList<BlogPostDocument>>.Failure => [],
             _ => []
         };
 
@@ -31,7 +23,7 @@ public class BlogIndexPageModel : PageModel
         if (Posts.Any())
         {
             FeaturedPosts = Posts.Take(3).ToList();
-            OtherPosts = Posts.Skip(3).ToList();
+            OtherPosts = Posts.Skip(3).Take(10).ToList();
         }
     }
 }

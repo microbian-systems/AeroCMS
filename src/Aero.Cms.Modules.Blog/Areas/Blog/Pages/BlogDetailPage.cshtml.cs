@@ -25,7 +25,10 @@ public class BlogDetailPageModel : PageModel
             return NotFound();
         }
 
-        var result = await _blogService.FindBySlugAsync(Slug, cancellationToken);
+        // Slugs are stored with the blog/ prefix (e.g. "blog/my-post")
+        // but the route {slug} parameter only captures the post portion
+        var fullSlug = $"blog/{Slug}";
+        var result = await _blogService.FindBySlugAsync(fullSlug, cancellationToken);
 
         var post = result switch
         {

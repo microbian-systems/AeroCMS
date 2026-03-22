@@ -1,4 +1,4 @@
-@page "/blog"
+@page
 
 @model BlogIndexPageModel
 
@@ -33,7 +33,7 @@
                                 <div class="flex flex-1 flex-col p-6">
                                     <!-- Title Link -->
                                     <h3 class="mb-3 text-xl font-semibold leading-tight text-slate-900">
-                                        <a href="/blog/@post.Slug" class="hover:text-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
+                                        <a href="/@post.Slug" class="hover:text-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
                                             <span class="absolute inset-0" aria-hidden="true"></span>
                                             @post.Title
                                         </a>
@@ -108,7 +108,7 @@
                                     <!-- Title and Excerpt -->
                                     <div class="flex-1">
                                         <h3 class="text-lg font-semibold text-slate-900">
-                                            <a href="/blog/@post.Slug" class="hover:text-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
+                                            <a href="/@post.Slug" class="hover:text-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
                                                 <span class="absolute inset-0" aria-hidden="true"></span>
                                                 @post.Title
                                             </a>

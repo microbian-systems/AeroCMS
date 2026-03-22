@@ -1,8 +1,7 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Modules;
-using Marten;
-using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,13 +21,18 @@ public sealed class PagesModule : AeroModuleBase
     {
         services.AddScoped<IPageContentService, MartenPageContentService>();
         services.AddSingleton<IConfigureMarten, BlockMartenConfiguration>();
-    }
 
-    public override Task RunAsync(IEndpointRouteBuilder endpoints)
-    {
-        // MapPageRoutes() removed - now using Razor Pages for dynamic page rendering
-        // Routes are handled by Areas/Cms/Pages/Page.cshtml with @page "/{slug?}"
-        return Task.CompletedTask;
+        // Register this assembly so the Razor Pages in Areas/Cms/Pages are discovered
+        services.AddRazorPages()
+            .AddApplicationPart(typeof(PagesModule).Assembly);
+
+        // Map area page routes — without this, pages in Areas/Cms/Pages/ are only
+        // reachable via the area-prefixed default (e.g. /Cms/Page). These conventions
+        // expose them at the desired public URLs.
+        services.Configure<RazorPagesOptions>(options =>
+        {
+            options.Conventions.AddAreaPageRoute("Cms", "/Page", "/{slug?}");
+        });
     }
 }
 
