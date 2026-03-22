@@ -1,5 +1,7 @@
 using Aero.Cms.Core;
+using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Modules;
+using Marten;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,5 +20,20 @@ public sealed class PagesModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IPageContentService, MartenPageContentService>();
+        services.AddSingleton<IConfigureMarten, BlockMartenConfiguration>();
+    }
+}
+
+internal sealed class BlockMartenConfiguration : IConfigureMarten
+{
+    public void Configure(IServiceProvider services, StoreOptions options)
+    {
+        options.Schema.For<BlockBase>().AddSubClassHierarchy(
+            typeof(RichTextBlock),
+            typeof(HeadingBlock),
+            typeof(ImageBlock),
+            typeof(CtaBlock),
+            typeof(QuoteBlock),
+            typeof(EmbedBlock));
     }
 }
