@@ -1,5 +1,6 @@
 <Project>
-  <PropertyGroup>
+	<!-- https://devblogs.microsoft.com/dotnet/introducing-central-package-management/ -->
+	<PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>

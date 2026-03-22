@@ -1,0 +1,6 @@
+@model Aero.Cms.Modules.Pages.PageDocument
+
+@foreach (var region in Model.LayoutRegions.OrderBy(r => r.Order))
+{
+    @await Component.InvokeAsync("RegionSlice", region)
+}

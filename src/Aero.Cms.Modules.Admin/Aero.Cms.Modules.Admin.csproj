@@ -10,6 +10,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
   </ItemGroup>
 
 </Project>

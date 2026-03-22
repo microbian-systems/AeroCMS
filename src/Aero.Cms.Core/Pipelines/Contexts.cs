@@ -1,3 +1,4 @@
+using Aero.Cms.Core.Blocks;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -23,7 +24,7 @@ public class PageSaveContext : PipelineContext
 
 public class BlockRenderContext : PipelineContext
 {
-    public required object Block { get; init; } // TODO: Replace with BlockBase when defined
+    public required BlockBase Block { get; init; }
     public required ViewContext ViewContext { get; init; }
     public IHtmlContent? Output { get; set; }
     public Dictionary<string, object> RenderData { get; } = new();

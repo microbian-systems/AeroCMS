@@ -1,0 +1,19 @@
+@model Aero.Cms.Modules.Pages.Models.BlockPlacement
+
+@{
+    var blockComponent = Model.BlockType switch
+    {
+        "rich_text" => "RichTextBlock",
+        "heading" => "HeadingBlock",
+        "image" => "ImageBlock",
+        "cta" => "CtaBlock",
+        "quote" => "QuoteBlock",
+        "embed" => "EmbedBlock",
+        _ => null
+    };
+}
+
+@if (blockComponent != null)
+{
+    @await Component.InvokeAsync(blockComponent, Model)
+}

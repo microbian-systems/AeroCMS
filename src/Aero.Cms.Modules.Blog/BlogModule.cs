@@ -25,8 +25,9 @@ public sealed class BlogModule : AeroModuleBase, IUiModule
 
     public override async Task RunAsync(IEndpointRouteBuilder app)
     {
-        var sp = app.ServiceProvider;
         var scope = app.ServiceProvider.CreateAsyncScope();
-        var blogService = scope.ServiceProvider.GetRequiredService<IBlogPostContentService>();
+        _ = scope.ServiceProvider.GetRequiredService<IBlogPostContentService>();
+
+        app.MapRazorPages();
     }
 }

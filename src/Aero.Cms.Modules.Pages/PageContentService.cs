@@ -1,66 +1,117 @@
 namespace Aero.Cms.Modules.Pages;
 
+using Aero.Core.Railway;
+
 public interface IPageContentService
 {
-    Task<PageDocument?> LoadAsync(long id, CancellationToken cancellationToken = default);
-    Task<PageDocument?> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
-    Task<PageDocument?> LoadHomepageAsync(CancellationToken cancellationToken = default);
-    Task<PageDocument?> LoadBlogListingAsync(CancellationToken cancellationToken = default);
-    Task SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
+    Task<Result<string, PageDocument?>> LoadAsync(long id, CancellationToken cancellationToken = default);
+    Task<Result<string, PageDocument?>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
+    Task<Result<string, PageDocument?>> LoadHomepageAsync(CancellationToken cancellationToken = default);
+    Task<Result<string, PageDocument?>> LoadBlogListingAsync(CancellationToken cancellationToken = default);
+    Task<Result<string, IReadOnlyList<PageDocument>>> GetAllPagesAsync(CancellationToken cancellationToken = default);
+    Task<Result<string, PageDocument>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
 }
 
 public sealed class MartenPageContentService(IDocumentSession session) : IPageContentService
 {
-    public Task<PageDocument?> LoadAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<Result<string, PageDocument?>> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
-        ValidateId(id);
-        return session.LoadAsync<PageDocument>(id, cancellationToken);
+        try
+        {
+            ValidateId(id);
+            var document = await session.LoadAsync<PageDocument>(id, cancellationToken);
+            return document is null
+                ? Prelude.Fail<string, PageDocument?>($"Page with id '{id}' not found")
+                : Prelude.Ok<string, PageDocument?>(document);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<string, PageDocument?>(ex.Message);
+        }
     }
 
-    public Task<PageDocument?> LoadHomepageAsync(CancellationToken cancellationToken = default)
+    public Task<Result<string, PageDocument?>> LoadHomepageAsync(CancellationToken cancellationToken = default)
         => LoadAsync(PageDocumentIds.Homepage, cancellationToken);
 
-    public Task<PageDocument?> LoadBlogListingAsync(CancellationToken cancellationToken = default)
+    public Task<Result<string, PageDocument?>> LoadBlogListingAsync(CancellationToken cancellationToken = default)
         => LoadAsync(PageDocumentIds.BlogListing, cancellationToken);
 
-    public async Task<PageDocument?> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public async Task<Result<string, IReadOnlyList<PageDocument>>> GetAllPagesAsync(CancellationToken cancellationToken = default)
     {
-        //var reservation = await session.LoadAsync<ContentSlugDocument>(ContentSlugDocument.BuildDocumentId(slug), cancellationToken);
-        var reservation = await session.Query<ContentSlugDocument>()
-            .FirstOrDefaultAsync(x =>
-                string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
-        if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.Page)
+        try
         {
-            return null;
-        }
+            var pages = await session.Query<PageDocument>()
+                .OrderBy(x => x.Title)
+                .ToListAsync(token: cancellationToken);
 
-        return await session.LoadAsync<PageDocument>(reservation.OwnerId, cancellationToken);
+            return Prelude.Ok<string, IReadOnlyList<PageDocument>>(pages);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<string, IReadOnlyList<PageDocument>>(ex.Message);
+        }
     }
 
-    public async Task SaveAsync(PageDocument page, CancellationToken cancellationToken = default)
+    public async Task<Result<string, PageDocument?>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(page);
-        ValidatePage(page);
+        try
+        {
+            var reservation = await session.Query<ContentSlugDocument>()
+                .FirstOrDefaultAsync(x =>
+                    string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
+            if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.Page)
+            {
+                return Prelude.Fail<string, PageDocument?>($"Page with slug '{slug}' not found");
+            }
 
-        var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
-        await ContentSlugReservation.ReserveAsync(
-            session,
-            page.Id,
-            ContentSlugOwnerType.Page,
-            page.Slug,
-            existingPage?.Slug,
-            cancellationToken);
+            var document = await session.LoadAsync<PageDocument>(reservation.OwnerId, cancellationToken);
+            return document is null
+                ? Prelude.Fail<string, PageDocument?>($"Page with id '{reservation.OwnerId}' not found")
+                : Prelude.Ok<string, PageDocument?>(document);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<string, PageDocument?>(ex.Message);
+        }
+    }
 
-        var now = DateTimeOffset.UtcNow;
-        var existingCreatedAtUtc = existingPage?.CreatedOn;
-        page.CreatedOn = existingCreatedAtUtc is null || existingCreatedAtUtc == default ? now : existingCreatedAtUtc.Value;
-        page.ModifiedOn = now;
-        page.PublishedOn = page.PublicationState == ContentPublicationState.Published
-            ? existingPage?.PublishedOn ?? now
-            : null;
+    public async Task<Result<string, PageDocument>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(page);
+            ValidatePage(page);
 
-        session.Store(page);
-        await session.SaveChangesAsync(cancellationToken);
+            var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
+            await ContentSlugReservation.ReserveAsync(
+                session,
+                page.Id,
+                ContentSlugOwnerType.Page,
+                page.Slug,
+                existingPage?.Slug,
+                cancellationToken);
+
+            var now = DateTimeOffset.UtcNow;
+            var existingCreatedAtUtc = existingPage?.CreatedOn;
+            page.CreatedOn = existingCreatedAtUtc is null || existingCreatedAtUtc == default ? now : existingCreatedAtUtc.Value;
+            page.ModifiedOn = now;
+            page.PublishedOn = page.PublicationState == ContentPublicationState.Published
+                ? existingPage?.PublishedOn ?? now
+                : null;
+
+            session.Store(page);
+            await session.SaveChangesAsync(cancellationToken);
+
+            return Prelude.Ok<string, PageDocument>(page);
+        }
+        catch (ArgumentException ex)
+        {
+            return Prelude.Fail<string, PageDocument>(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<string, PageDocument>(ex.Message);
+        }
     }
 
     private static void ValidatePage(PageDocument page)
@@ -95,10 +146,6 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
 
     private static void ValidateId(long id)
     {
-        //if (string.IsNullOrWhiteSpace(id))
-        {
-            var snowflake = Id.Parse(id);
-            //throw new ArgumentException("Stable content ids are required.", nameof(id));
-        }
+        var snowflake = Id.Parse(id);
     }
 }

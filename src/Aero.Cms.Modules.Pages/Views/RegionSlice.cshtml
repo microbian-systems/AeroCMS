@@ -1,0 +1,15 @@
+@model Aero.Cms.Modules.Pages.Models.LayoutRegion
+
+<section data-region="@Model.Name">
+    <div class="grid grid-cols-12 gap-4">
+        @foreach (var column in Model.Columns.OrderBy(c => c.Order))
+        {
+            <div class="col-span-@column.Width">
+                @foreach (var block in column.Blocks.OrderBy(b => b.Order))
+                {
+                    @await Component.InvokeAsync("BlockPlacement", block)
+                }
+            </div>
+        }
+    </div>
+</section>

@@ -1,5 +1,6 @@
-using Aero.Cms.Modules.Pages;
 using Aero.Core.Entities;
+using Aero.Cms.Core.Blocks;
+using Aero.Cms.Modules.Pages;
 
 namespace Aero.Cms.Modules.Blog;
 
@@ -10,10 +11,28 @@ public sealed class BlogPostDocument : Entity
     public string? Excerpt { get; set; }
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
-    public string Body { get; set; } = string.Empty;
     public DateTimeOffset? PublishedOn { get; set; } = null;
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
 
+    /// <summary>
+    /// Gets or sets the block-based content for this blog post.
+    /// </summary>
+    public List<BlockBase> Content { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the IDs of tags associated with this blog post.
+    /// </summary>
+    public List<long> TagIds { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the IDs of categories associated with this blog post.
+    /// </summary>
+    public List<long> CategoryIds { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the ID of the author for this blog post.
+    /// </summary>
+    public long? AuthorId { get; set; }
 
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 }
