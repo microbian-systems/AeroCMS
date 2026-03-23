@@ -33,6 +33,6 @@ public sealed class PageDocument : Entity
 
 public static class PageDocumentIds
 {
-    public static readonly long Homepage = Snowflake.NewId();
-    public static readonly long BlogListing = Snowflake.NewId();
+    public static readonly long Homepage = 8766987814568501248;
+    public static readonly long BlogListing = 8766987814568501249;
 }
