@@ -5,14 +5,9 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for users endpoints (stub implementation).
 /// </summary>
-public class UsersClient : AeroClientBase
+public class UsersClient(HttpClient httpClient, ILogger<UsersClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "users";
-
-    public UsersClient(HttpClient httpClient, ILogger<UsersClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<UserSummary>> GetAllAsync(CancellationToken ct = default)
     {

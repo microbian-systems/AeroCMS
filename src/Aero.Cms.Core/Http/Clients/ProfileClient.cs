@@ -5,14 +5,9 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for profile endpoints (stub implementation).
 /// </summary>
-public class ProfileClient : AeroClientBase
+public class ProfileClient(HttpClient httpClient, ILogger<ProfileClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "profile";
-
-    public ProfileClient(HttpClient httpClient, ILogger<ProfileClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<UserProfile?> GetCurrentAsync(CancellationToken ct = default)
     {

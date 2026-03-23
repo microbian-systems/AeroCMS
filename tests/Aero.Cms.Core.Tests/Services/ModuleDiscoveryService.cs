@@ -1,6 +1,7 @@
 using Aero.Cms.Core.Modules;
 using System.Reflection;
 using Aero.Cms.Core.Tests.TestModules;
+using Aero.Cms.Web.Core.Modules;
 
 namespace Aero.Cms.Core.Tests.Services;
 

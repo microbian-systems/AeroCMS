@@ -1,5 +1,3 @@
-using FluentValidation;
-
 namespace Aero.Cms.Modules.Blog.Requests;
 
 internal class UpdateBlogPostRequestValidator : AbstractValidator<UpdateBlogPostRequest>

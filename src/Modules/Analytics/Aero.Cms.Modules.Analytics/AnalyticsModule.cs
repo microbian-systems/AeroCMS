@@ -1,5 +1,6 @@
 using Aero.Cms.Core.Modules;
-using Aero.Cms.Core.Pipelines;
+using Aero.Cms.Web.Core.Modules;
+using Aero.Cms.Web.Core.Pipelines;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

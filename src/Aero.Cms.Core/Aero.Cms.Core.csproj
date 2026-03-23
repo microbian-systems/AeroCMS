@@ -1,15 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="EasyScrutor" />
     <PackageReference Include="Marten" />
+    <PackageReference Include="Microsoft.AspNetCore.Html.Abstractions" />
+    <PackageReference Include="Microsoft.AspNetCore.Routing.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.DependencyModel" />
     <PackageReference Include="Scrutor" />
-    <PackageReference Include="Scrutor.AspNetCore" />
     <PackageReference Include="Serilog" />
   </ItemGroup>
 

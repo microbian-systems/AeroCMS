@@ -1,4 +1,5 @@
 using Aero.Cms.Core.Modules;
+using Aero.Cms.Web.Core.Modules;
 using FluentAssertions;
 
 namespace Aero.Cms.Core.Tests.Models;

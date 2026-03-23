@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Aero.Core.Identity;
 using JasperFx;
 using Marten;
-using Marten.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 

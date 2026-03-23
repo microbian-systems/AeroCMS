@@ -1,8 +1,7 @@
+namespace Aero.Cms.Web.Core.Modules;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-
-namespace Aero.Cms.Core.Modules;
 
 /// <summary>
 /// Extension methods for registering module system services.

@@ -4,15 +4,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages;
 
-public class BlogDetailPageModel : PageModel
+public class BlogDetailPageModel(IBlogPostContentService blogService) : PageModel
 {
-    private readonly IBlogPostContentService _blogService;
-
-    public BlogDetailPageModel(IBlogPostContentService blogService)
-    {
-        _blogService = blogService;
-    }
-
     [BindProperty(SupportsGet = true)]
     public string Slug { get; set; } = string.Empty;
 
@@ -29,8 +22,8 @@ public class BlogDetailPageModel : PageModel
         // Slugs are stored with the blog/ prefix (e.g. "blog/my-post")
         // but the route {slug} parameter only captures the post portion
         var fullSlug = $"blog/{Slug}";
-        var result = await _blogService.FindBySlugAsync(fullSlug, cancellationToken);
-        var tagsResult = await _blogService.GetAllTagsAsync(cancellationToken);
+        var result = await blogService.FindBySlugAsync(fullSlug, cancellationToken);
+        var tagsResult = await blogService.GetAllTagsAsync(cancellationToken);
 
         var post = result switch
         {

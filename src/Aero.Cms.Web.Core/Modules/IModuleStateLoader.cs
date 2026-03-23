@@ -1,4 +1,6 @@
-namespace Aero.Cms.Core.Modules;
+namespace Aero.Cms.Web.Core.Modules;
+
+using Aero.Cms.Core.Modules;
 
 /// <summary>
 /// Service responsible for loading module state from the database.

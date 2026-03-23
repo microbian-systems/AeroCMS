@@ -1,4 +1,6 @@
-namespace Aero.Cms.Core.Modules;
+namespace Aero.Cms.Web.Core.Modules;
+
+using Aero.Cms.Core.Modules;
 
 /// <summary>
 /// Represents the resolved dependency graph and load order of modules.

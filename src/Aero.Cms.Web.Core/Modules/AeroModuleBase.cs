@@ -1,9 +1,12 @@
+namespace Aero.Cms.Web.Core.Modules;
+
+using Aero.Cms.Core.Modules;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Routing;
 using Serilog;
 using ILogger = Serilog.ILogger;
-
-namespace Aero.Cms.Core.Modules;
 
 /// <summary>
 /// A base class for Aero.Cms modules that provides default implementations.
@@ -30,7 +33,7 @@ public abstract class AeroModuleBase : IAeroModule, IDisposable
     public abstract IReadOnlyList<string> Tags { get; }
     /// <inheritdoc/>
     public virtual bool DisabledInProduction => false;
-    /// <inheritdoc/>>
+    /// <inheritdoc/>
     public virtual bool DisabledInProductions { get; set; }
     /// <inheritdoc/>
     public virtual string? Description => null;

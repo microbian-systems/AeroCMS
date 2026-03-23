@@ -1,8 +1,5 @@
-using Aero.Cms.Core.Modules;
-using Aero.Cms.Core.Tests.Services;
 using Aero.Cms.Core.Tests.TestModules;
 using FluentAssertions;
-using System.Reflection;
 
 namespace Aero.Cms.Core.Tests.Discovery;
 
@@ -11,12 +8,7 @@ namespace Aero.Cms.Core.Tests.Discovery;
 /// </summary>
 public class ModuleDiscoveryTests
 {
-    private readonly Aero.Cms.Core.Tests.Services.IModuleDiscoveryService _discoveryService;
-
-    public ModuleDiscoveryTests()
-    {
-        _discoveryService = new Aero.Cms.Core.Tests.Services.ModuleDiscoveryService();
-    }
+    private readonly Aero.Cms.Core.Tests.Services.IModuleDiscoveryService _discoveryService = new Aero.Cms.Core.Tests.Services.ModuleDiscoveryService();
 
     [Test]
     public async Task DiscoverAsync_WithValidModules_ShouldReturnAllConcreteModules()

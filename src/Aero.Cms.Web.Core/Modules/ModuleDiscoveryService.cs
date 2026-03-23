@@ -1,50 +1,41 @@
+namespace Aero.Cms.Web.Core.Modules;
+
+using Aero.Cms.Core.Modules;
 using System.Reflection;
 using Microsoft.Extensions.DependencyModel;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Aero.Cms.Core.Modules;
-
 /// <summary>
 /// Default implementation of module discovery using Scrutor-compatible reflection patterns.
 /// Supports optional database-backed state loading for subsequent runs.
 /// </summary>
-public sealed class ModuleDiscoveryService : IModuleDiscoveryService
+public sealed class ModuleDiscoveryService(
+    IOptions<ModuleDiscoveryOptions> options,
+    IHostEnvironment environment,
+    ILogger<ModuleDiscoveryService> logger,
+    IModuleStateStore? stateStore = null)
+    : IModuleDiscoveryService
 {
-    private readonly ModuleDiscoveryOptions _options;
-    private readonly IHostEnvironment _environment;
-    private readonly ILogger<ModuleDiscoveryService> _logger;
-    private readonly IModuleStateStore? _stateStore;
-
-    public ModuleDiscoveryService(
-        IOptions<ModuleDiscoveryOptions> options,
-        IHostEnvironment environment,
-        ILogger<ModuleDiscoveryService> logger,
-        IModuleStateStore? stateStore = null)
-    {
-        _options = options.Value;
-        _environment = environment;
-        _logger = logger;
-        _stateStore = stateStore;
-    }
+    private readonly ModuleDiscoveryOptions _options = options.Value;
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ModuleDescriptor>> DiscoverAsync(CancellationToken ct = default)
     {
         // If state store is available and has stored modules, load from DB
-        if (_stateStore != null)
+        if (stateStore != null)
         {
-            var storedStates = await _stateStore.GetAllAsync(ct);
+            var storedStates = await stateStore.GetAllAsync(ct);
             if (storedStates.Count > 0)
             {
-                _logger.LogDebug("Found {Count} stored modules in database, loading via reflection to resolve types", storedStates.Count);
+                logger.LogDebug("Found {Count} stored modules in database, loading via reflection to resolve types", storedStates.Count);
                 // We still need reflection to resolve ModuleType, but we use stored state for metadata
                 return await DiscoverAndMergeWithStoredStateAsync(storedStates, ct);
             }
         }
 
-        _logger.LogDebug("No stored module state found, performing reflection-based discovery");
+        logger.LogDebug("No stored module state found, performing reflection-based discovery");
         return await DiscoverViaReflectionAsync(ct);
     }
 
@@ -66,16 +57,16 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
             if (storedByName.TryGetValue(descriptor.Name, out var stored))
             {
                 merged.Add(MergeWithStoredState(descriptor, stored));
-                _logger.LogDebug("Merged stored state for module '{ModuleName}'", descriptor.Name);
+                logger.LogDebug("Merged stored state for module '{ModuleName}'", descriptor.Name);
             }
             else
             {
                 merged.Add(descriptor);
-                _logger.LogDebug("Module '{ModuleName}' not in stored state, using reflection data", descriptor.Name);
+                logger.LogDebug("Module '{ModuleName}' not in stored state, using reflection data", descriptor.Name);
             }
         }
 
-        _logger.LogInformation("Loaded {Count} modules (merged with stored state)", merged.Count);
+        logger.LogInformation("Loaded {Count} modules (merged with stored state)", merged.Count);
         return merged;
     }
 
@@ -117,12 +108,12 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
             }
             catch (ReflectionTypeLoadException ex)
             {
-                _logger.LogWarning(ex, "Partial load of assembly '{Assembly}' - some types may be skipped.", assembly.FullName);
+                logger.LogWarning(ex, "Partial load of assembly '{Assembly}' - some types may be skipped.", assembly.FullName);
                 moduleTypes = ex.Types.Where(t => t != null && IsValidModuleType(t))!;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to scan assembly '{Assembly}' for modules.", assembly.FullName);
+                logger.LogError(ex, "Failed to scan assembly '{Assembly}' for modules.", assembly.FullName);
                 continue;
             }
 
@@ -144,16 +135,16 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
                     }
 
                     // Skip modules disabled in production unless configured otherwise
-                    if (IsDisabledInProduction(type) && !_options.IncludeDisabledInProduction && _environment.IsProduction())
+                    if (IsDisabledInProduction(type) && !_options.IncludeDisabledInProduction && environment.IsProduction())
                     {
-                        _logger.LogInformation("Skipping module '{ModuleName}' - disabled in production.", descriptor.Name);
+                        logger.LogInformation("Skipping module '{ModuleName}' - disabled in production.", descriptor.Name);
                         continue;
                     }
 
                     seenNames[descriptor.Name] = descriptor;
                     descriptors.Add(descriptor);
 
-                    _logger.LogDebug("Discovered module '{ModuleName}' v{Version} from '{Assembly}'.",
+                    logger.LogDebug("Discovered module '{ModuleName}' v{Version} from '{Assembly}'.",
                         descriptor.Name, descriptor.Version, descriptor.AssemblyName);
                 }
                 catch (DuplicateModuleNameException)
@@ -162,13 +153,13 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to create descriptor for type '{Type}' in assembly '{Assembly}'.",
+                    logger.LogError(ex, "Failed to create descriptor for type '{Type}' in assembly '{Assembly}'.",
                         type.FullName, assembly.FullName);
                 }
             }
         }
 
-        _logger.LogInformation("Discovered {Count} modules.", descriptors.Count);
+        logger.LogInformation("Discovered {Count} modules.", descriptors.Count);
         return Task.FromResult<IReadOnlyList<ModuleDescriptor>>(descriptors);
     }
 
@@ -184,7 +175,7 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
 
             if (!IsValidModuleType(type))
             {
-                _logger.LogWarning("Type '{Type}' is not a valid module type - must be non-abstract class implementing IAeroModule.", type.FullName);
+                logger.LogWarning("Type '{Type}' is not a valid module type - must be non-abstract class implementing IAeroModule.", type.FullName);
                 continue;
             }
 
@@ -209,7 +200,7 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to create descriptor for type '{Type}'.", type.FullName);
+                logger.LogError(ex, "Failed to create descriptor for type '{Type}'.", type.FullName);
             }
         }
 
@@ -263,7 +254,7 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
         {
             if (!Directory.Exists(path))
             {
-                _logger.LogWarning("Module scan path does not exist: '{Path}'.", path);
+                logger.LogWarning("Module scan path does not exist: '{Path}'.", path);
                 continue;
             }
 
@@ -281,7 +272,7 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Could not load assembly from '{Path}'.", dll);
+                    logger.LogWarning(ex, "Could not load assembly from '{Path}'.", dll);
                 }
             }
         }
@@ -300,7 +291,7 @@ public sealed class ModuleDiscoveryService : IModuleDiscoveryService
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Could not load referenced assembly '{Assembly}'.", assemblyName.Name);
+            logger.LogDebug(ex, "Could not load referenced assembly '{Assembly}'.", assemblyName.Name);
         }
     }
 

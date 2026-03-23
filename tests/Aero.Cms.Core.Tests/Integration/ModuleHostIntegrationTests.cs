@@ -1,9 +1,8 @@
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Core.Tests.TestModules;
+using Aero.Cms.Web.Core.Modules;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Configuration;
@@ -267,15 +266,8 @@ public class ModuleHostIntegrationTests
     /// <summary>
     /// Test module that captures the builder.
     /// </summary>
-    private class CallbackTestModule : AeroModuleBase
+    private class CallbackTestModule(Action<IModuleBuilder> callback) : AeroModuleBase
     {
-        private readonly Action<IModuleBuilder> _callback;
-
-        public CallbackTestModule(Action<IModuleBuilder> callback)
-        {
-            _callback = callback;
-        }
-
         public override string Name => "CallbackTest";
         public override string Version => "1.0.0";
         public override string Author => "Test";
@@ -285,7 +277,7 @@ public class ModuleHostIntegrationTests
 
         public override void Configure(IModuleBuilder builder)
         {
-            _callback(builder);
+            callback(builder);
             base.Configure(builder);
         }
     }

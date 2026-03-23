@@ -1,10 +1,10 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Modules;
+using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Serilog;
 
 namespace Aero.Cms.Modules.Testing;
 

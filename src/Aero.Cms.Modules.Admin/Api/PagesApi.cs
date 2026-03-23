@@ -1,11 +1,9 @@
 namespace Aero.Cms.Modules.Admin.Api;
 
-using System.Security.Claims;
 using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Pages.Requests;
-using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

@@ -1,4 +1,3 @@
-using Aero.Core;
 using Aero.Core.Identity;
 using Aero.Models.Entities;
 using Marten;

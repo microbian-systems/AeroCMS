@@ -1,4 +1,5 @@
 using Aero.Cms.Core.Modules;
+using Aero.Cms.Web.Core.Modules;
 
 namespace Aero.Cms.Core.Tests.Services;
 

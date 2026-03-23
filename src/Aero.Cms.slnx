@@ -77,6 +77,7 @@
   </Folder>
   <Project Path="Aero.Cms.AppHost/Aero.Cms.AppHost.csproj" />
   <Project Path="Aero.Cms.Core/Aero.Cms.Core.csproj" Id="ff176115-2d03-4287-8d16-def80bd19295" />
+  <Project Path="Aero.Cms.Web.Core/Aero.Cms.Web.Core.csproj" />
   <Project Path="Aero.Cms.Events/Aero.Cms.Events.csproj" Id="924d986e-d109-438e-aeec-84ac497c12c3" />
   <Project Path="Aero.Cms.Marten.Identity/Aero.Cms.Marten.Identity.csproj" />
   <Project Path="Aero.Cms.Repositories/Aero.Cms.Repositories.csproj" Id="291895fb-20c0-485f-b360-491a1f2c04e4" />

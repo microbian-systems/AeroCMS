@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Modules;
+namespace Aero.Cms.Web.Core.Modules;
 
 /// <summary>
 /// Repository interface for loading and saving module state documents.

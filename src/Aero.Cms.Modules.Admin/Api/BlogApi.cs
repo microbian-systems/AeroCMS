@@ -7,12 +7,10 @@ using Aero.Cms.Core.Audit;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Blog.Requests;
 using Aero.Cms.Modules.Pages;
-using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 public static class BlogApi

@@ -1,4 +1,6 @@
-namespace Aero.Cms.Core.Modules;
+namespace Aero.Cms.Web.Core.Modules;
+
+using Aero.Cms.Core.Modules;
 
 /// <summary>
 /// Document representing the persisted state of a module.

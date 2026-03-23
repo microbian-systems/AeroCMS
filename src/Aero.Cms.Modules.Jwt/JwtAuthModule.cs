@@ -1,4 +1,4 @@
-using Aero.Cms.Core.Modules;
+using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;

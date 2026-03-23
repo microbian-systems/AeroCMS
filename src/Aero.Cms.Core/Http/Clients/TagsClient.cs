@@ -5,14 +5,9 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for tags endpoints (stub implementation).
 /// </summary>
-public class TagsClient : AeroClientBase
+public class TagsClient(HttpClient httpClient, ILogger<TagsClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "tags";
-
-    public TagsClient(HttpClient httpClient, ILogger<TagsClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<TagSummary>> GetAllAsync(CancellationToken ct = default)
     {

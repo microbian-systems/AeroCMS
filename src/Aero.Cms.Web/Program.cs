@@ -1,10 +1,9 @@
-using Aero.Cms.Core.Modules;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Components;
+using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Services;
-using Aero.Core.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;

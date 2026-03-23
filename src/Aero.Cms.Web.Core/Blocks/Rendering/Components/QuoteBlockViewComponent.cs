@@ -1,8 +1,9 @@
 using System.Web;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc;
+using Aero.Cms.Core.Blocks;
 
-namespace Aero.Cms.Core.Blocks.Rendering.Components;
+namespace Aero.Cms.Core.Web.Blocks.Rendering.Components;
 
 /// <summary>
 /// ViewComponent for rendering quote/blockquote blocks with optional author and citation.

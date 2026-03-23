@@ -5,14 +5,10 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for navigations endpoints (stub implementation).
 /// </summary>
-public class NavigationsClient : AeroClientBase
+public class NavigationsClient(HttpClient httpClient, ILogger<NavigationsClient> logger)
+    : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "navigations";
-
-    public NavigationsClient(HttpClient httpClient, ILogger<NavigationsClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<NavigationSummary>> GetAllAsync(CancellationToken ct = default)
     {

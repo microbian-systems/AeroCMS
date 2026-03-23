@@ -1,17 +1,10 @@
-using Aero.Cms.Core.Pipelines;
+using Aero.Cms.Web.Core.Pipelines;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Rewrite;
 
-public class SlugRewriteHook : IPageSaveHook
+public class SlugRewriteHook(ILogger<SlugRewriteHook> logger) : IPageSaveHook
 {
-    private readonly ILogger<SlugRewriteHook> _logger;
-
-    public SlugRewriteHook(ILogger<SlugRewriteHook> logger)
-    {
-        _logger = logger;
-    }
-
     public int Order => -50; // Run early to capture original state if needed, or late? 
     // Usually late to ensure we only act on success? No, hooks run sequentially.
     // Order 0 is core save. So we should run after save to ensure it's persisted, 
@@ -23,7 +16,7 @@ public class SlugRewriteHook : IPageSaveHook
         // In a real implementation, we would compare ctx.Page current slug with DB version
         // if (ctx.Operation == "Publish" && slugChanged) { ... create RedirectRule ... }
         
-        _logger.LogInformation("SlugRewriteHook executed for operation {Operation}", ctx.Operation);
+        logger.LogInformation("SlugRewriteHook executed for operation {Operation}", ctx.Operation);
         await Task.CompletedTask;
     }
 }

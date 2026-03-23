@@ -5,14 +5,10 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for dashboard endpoints (stub implementation).
 /// </summary>
-public class DashboardClient : AeroClientBase
+public class DashboardClient(HttpClient httpClient, ILogger<DashboardClient> logger)
+    : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "dashboard";
-
-    public DashboardClient(HttpClient httpClient, ILogger<DashboardClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<DashboardStats?> GetStatsAsync(CancellationToken ct = default)
     {

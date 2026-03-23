@@ -1,7 +1,10 @@
+namespace Aero.Cms.Web.Core.Modules;
+
+using Aero.Cms.Core.Modules;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-
-namespace Aero.Cms.Core.Modules;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Routing;
 
 /// <summary>
 /// Defines the core contract for an Aero.Cms module functionality.
@@ -78,7 +81,7 @@ public interface IAeroModule
     /// <summary>
     /// configure the aspnet core middleware pipeline asynchronously
     /// </summary>
-    /// <param name="endpoints"><see cref="IEndpointRouteBuilder"/>/></param>
+    /// <param name="endpoints"><see cref="IEndpointRouteBuilder"/></param>
     /// <returns>asynchronous task <see cref="Task"/></returns>
     Task RunAsync(IEndpointRouteBuilder endpoints);
 }

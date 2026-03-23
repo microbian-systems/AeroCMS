@@ -5,14 +5,9 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for themes endpoints (stub implementation).
 /// </summary>
-public class ThemesClient : AeroClientBase
+public class ThemesClient(HttpClient httpClient, ILogger<ThemesClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "themes";
-
-    public ThemesClient(HttpClient httpClient, ILogger<ThemesClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<ThemeSummary>> GetAllAsync(CancellationToken ct = default)
     {

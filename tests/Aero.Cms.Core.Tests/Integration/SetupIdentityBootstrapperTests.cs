@@ -1,4 +1,3 @@
-using Aero.Cms.Core;
 using Aero.Cms.Modules.Setup;
 using Aero.Core.Identity;
 using Aero.Models.Entities;

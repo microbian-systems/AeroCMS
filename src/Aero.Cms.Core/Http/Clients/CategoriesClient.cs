@@ -5,14 +5,10 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for categories endpoints (stub implementation).
 /// </summary>
-public class CategoriesClient : AeroClientBase
+public class CategoriesClient(HttpClient httpClient, ILogger<CategoriesClient> logger)
+    : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "categories";
-
-    public CategoriesClient(HttpClient httpClient, ILogger<CategoriesClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<CategorySummary>> GetAllAsync(CancellationToken ct = default)
     {

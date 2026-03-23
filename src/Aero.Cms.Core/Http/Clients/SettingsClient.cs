@@ -5,14 +5,9 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for settings endpoints (stub implementation).
 /// </summary>
-public class SettingsClient : AeroClientBase
+public class SettingsClient(HttpClient httpClient, ILogger<SettingsClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "settings";
-
-    public SettingsClient(HttpClient httpClient, ILogger<SettingsClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<SettingSummary>> GetAllAsync(CancellationToken ct = default)
     {

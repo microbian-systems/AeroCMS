@@ -1,6 +1,5 @@
 using Aero.Cms.Core;
 using Aero.Core;
-using Aero.Core.Identity;
 using Aero.Models.Entities;
 using Microsoft.AspNetCore.Identity;
 

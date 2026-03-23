@@ -1,4 +1,3 @@
-using Aero.Cms.Core.Modules;
 using Aero.Cms.Modules.Testing;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Identity;
@@ -8,6 +7,7 @@ using Aero.Cms.Modules.SimpleSecurity;
 using Aero.Cms.Modules.Rewrite;
 using Aero.Cms.Modules.RateLimiting;
 using Aero.Cms.Modules.Analytics;
+using Aero.Cms.Web.Core.Modules;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

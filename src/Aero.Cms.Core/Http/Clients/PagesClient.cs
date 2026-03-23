@@ -2,14 +2,9 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
-public class PagesClient : AeroClientBase
+public class PagesClient(HttpClient httpClient, ILogger<PagesClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "pages";
-
-    public PagesClient(HttpClient httpClient, ILogger<PagesClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<PageSummary>> GetAllAsync(CancellationToken ct = default)
     {

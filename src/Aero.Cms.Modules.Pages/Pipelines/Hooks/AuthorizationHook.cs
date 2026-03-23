@@ -1,4 +1,4 @@
-using Aero.Cms.Core.Pipelines;
+using Aero.Cms.Web.Core.Pipelines;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -7,17 +7,9 @@ namespace Aero.Cms.Modules.Pages.Pipelines.Hooks;
 /// <summary>
 /// Hook that checks if the page requires authorization and short-circuits if user is not authenticated.
 /// </summary>
-public class AuthorizationHook : IPageReadHook
+public class AuthorizationHook(IHttpContextAccessor httpContextAccessor, ILogger<AuthorizationHook> logger)
+    : IPageReadHook
 {
-    private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly ILogger<AuthorizationHook> _logger;
-
-    public AuthorizationHook(IHttpContextAccessor httpContextAccessor, ILogger<AuthorizationHook> logger)
-    {
-        _httpContextAccessor = httpContextAccessor;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Order 0 - runs first to gate access before any other processing.
     /// </summary>
@@ -25,10 +17,10 @@ public class AuthorizationHook : IPageReadHook
 
     public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
     {
-        var httpContext = _httpContextAccessor.HttpContext;
+        var httpContext = httpContextAccessor.HttpContext;
         if (httpContext == null)
         {
-            _logger.LogWarning("AuthorizationHook: HttpContext is null, skipping authorization check");
+            logger.LogWarning("AuthorizationHook: HttpContext is null, skipping authorization check");
             return Task.CompletedTask;
         }
 
@@ -53,7 +45,7 @@ public class AuthorizationHook : IPageReadHook
 
             if (!isAuthenticated)
             {
-                _logger.LogInformation(
+                logger.LogInformation(
                     "AuthorizationHook: Page '{Slug}' requires authorization but user is not authenticated. Short-circuiting.",
                     page.Slug);
 
@@ -61,12 +53,12 @@ public class AuthorizationHook : IPageReadHook
                 return Task.CompletedTask;
             }
 
-            _logger.LogDebug("AuthorizationHook: Page '{Slug}' requires authorization and user is authenticated",
+            logger.LogDebug("AuthorizationHook: Page '{Slug}' requires authorization and user is authenticated",
                 page.Slug);
         }
         else
         {
-            _logger.LogDebug("AuthorizationHook: Page '{Slug}' is publicly visible, allowing access",
+            logger.LogDebug("AuthorizationHook: Page '{Slug}' is publicly visible, allowing access",
                 page.Slug);
         }
 

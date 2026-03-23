@@ -1,3 +1,6 @@
+namespace Aero.Cms.Web.Core.Modules;
+
+using Aero.Cms.Core.Modules;
 using Aero.Core.Extensions;
 using Aero.EfCore;
 using Aero.EfCore.Extensions;
@@ -8,8 +11,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog.Extensions.Hosting;
-
-namespace Aero.Cms.Core.Modules;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 // todo - abstract/extract Aero modules into its own lib so it can be used in any type of app (host, console, web, etc)
 

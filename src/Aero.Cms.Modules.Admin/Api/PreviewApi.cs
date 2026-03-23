@@ -1,7 +1,6 @@
 namespace Aero.Cms.Modules.Admin.Api;
 
 using Aero.Core.Railway;
-using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 

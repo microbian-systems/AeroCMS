@@ -1,53 +1,44 @@
-using Microsoft.Extensions.Logging;
+namespace Aero.Cms.Web.Core.Modules;
 
-namespace Aero.Cms.Core.Modules;
+using Aero.Cms.Core.Modules;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Loads module state from the database and merges it with reflection-discovered module types.
 /// This enables subsequent application runs to skip expensive reflection-based discovery
 /// while preserving user modifications (Disabled, Order, Description, etc.) from the database.
 /// </summary>
-public sealed class DatabaseBackedModuleLoader : IModuleStateLoader
+public sealed class DatabaseBackedModuleLoader(
+    IModuleStateStore stateStore,
+    IModuleDiscoveryService discoveryService,
+    ILogger<DatabaseBackedModuleLoader> logger)
+    : IModuleStateLoader
 {
-    private readonly IModuleStateStore _stateStore;
-    private readonly IModuleDiscoveryService _discoveryService;
-    private readonly ILogger<DatabaseBackedModuleLoader> _logger;
-
-    public DatabaseBackedModuleLoader(
-        IModuleStateStore stateStore,
-        IModuleDiscoveryService discoveryService,
-        ILogger<DatabaseBackedModuleLoader> logger)
-    {
-        _stateStore = stateStore;
-        _discoveryService = discoveryService;
-        _logger = logger;
-    }
-
     /// <inheritdoc/>
     public async Task<bool> HasStoredModulesAsync(CancellationToken ct = default)
     {
-        var states = await _stateStore.GetAllAsync(ct);
+        var states = await stateStore.GetAllAsync(ct);
         return states.Count > 0;
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ModuleStateDocument>> LoadModuleStatesAsync(CancellationToken ct = default)
     {
-        return await _stateStore.GetAllAsync(ct);
+        return await stateStore.GetAllAsync(ct);
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ModuleDescriptor>> LoadMergedModulesAsync(CancellationToken ct = default)
     {
         // First, discover modules via reflection to get ModuleType and other runtime properties
-        var discoveredDescriptors = await _discoveryService.DiscoverAsync(ct);
+        var discoveredDescriptors = await discoveryService.DiscoverAsync(ct);
         
         // Load persisted state from database
-        var storedStates = await _stateStore.GetAllAsync(ct);
+        var storedStates = await stateStore.GetAllAsync(ct);
         
         if (storedStates.Count == 0)
         {
-            _logger.LogDebug("No stored module state found, returning reflection-discovered modules");
+            logger.LogDebug("No stored module state found, returning reflection-discovered modules");
             return discoveredDescriptors;
         }
 
@@ -67,7 +58,7 @@ public sealed class DatabaseBackedModuleLoader : IModuleStateLoader
                 var merged = MergeDescriptor(descriptor, storedState);
                 mergedDescriptors.Add(merged);
                 
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Merged stored state for module '{ModuleName}': Disabled={Disabled}, Order={Order}",
                     descriptor.Name, merged.Disabled, merged.Order);
             }
@@ -77,13 +68,13 @@ public sealed class DatabaseBackedModuleLoader : IModuleStateLoader
                 // Return as-is (it will be saved to DB on next SetupCompletionService run)
                 mergedDescriptors.Add(descriptor);
                 
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Module '{ModuleName}' discovered via reflection but not in DB - using reflection state",
                     descriptor.Name);
             }
         }
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Loaded {Count} modules from DB state merged with {Total} discovered modules",
             mergedDescriptors.Count,
             discoveredDescriptors.Count);

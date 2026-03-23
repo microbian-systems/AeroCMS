@@ -3,15 +3,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 
-public class DynamicPageModel : PageModel
+public class DynamicPageModel(IPageContentService pageService) : PageModel
 {
-    private readonly IPageContentService _pageService;
-
-    public DynamicPageModel(IPageContentService pageService)
-    {
-        _pageService = pageService;
-    }
-
     [BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
 
@@ -24,13 +17,13 @@ public class DynamicPageModel : PageModel
         // If no slug provided, load the homepage
         if (string.IsNullOrWhiteSpace(Slug))
         {
-            result = await _pageService.LoadHomepageAsync(cancellationToken);
+            result = await pageService.LoadHomepageAsync(cancellationToken);
         }
         else
         {
             // Normalize slug - remove leading slash if present for consistency
             var normalizedSlug = Slug.TrimStart('/');
-            result = await _pageService.FindBySlugAsync(normalizedSlug, cancellationToken);
+            result = await pageService.FindBySlugAsync(normalizedSlug, cancellationToken);
         }
 
         var page = result switch

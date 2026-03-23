@@ -5,14 +5,9 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for media endpoints (stub implementation).
 /// </summary>
-public class MediaClient : AeroClientBase
+public class MediaClient(HttpClient httpClient, ILogger<MediaClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "media";
-
-    public MediaClient(HttpClient httpClient, ILogger<MediaClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<MediaSummary>> GetAllAsync(CancellationToken ct = default)
     {

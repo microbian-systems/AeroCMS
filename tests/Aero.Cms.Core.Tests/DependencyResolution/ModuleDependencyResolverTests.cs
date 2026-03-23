@@ -1,6 +1,7 @@
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Core.Tests.Services;
 using Aero.Cms.Core.Tests.TestModules;
+using Aero.Cms.Web.Core.Modules;
 using FluentAssertions;
 
 namespace Aero.Cms.Core.Tests.DependencyResolution;
@@ -10,12 +11,7 @@ namespace Aero.Cms.Core.Tests.DependencyResolution;
 /// </summary>
 public class ModuleDependencyResolverTests
 {
-    private readonly IModuleDependencyResolver _resolver;
-
-    public ModuleDependencyResolverTests()
-    {
-        _resolver = new ModuleDependencyResolver();
-    }
+    private readonly IModuleDependencyResolver _resolver = new ModuleDependencyResolver();
 
     [Test]
     public async Task ResolveAsync_WithNoDependencies_ShouldReturnSameOrder()

@@ -1,6 +1,4 @@
-﻿using FluentValidation;
-
-namespace Aero.Cms.Modules.Blog.Validators;
+﻿namespace Aero.Cms.Modules.Blog.Validators;
 
 internal class BlogPostValidator : AbstractValidator<BlogPostDocument>
 {

@@ -2,14 +2,9 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
-public class BlogClient : AeroClientBase
+public class BlogClient(HttpClient httpClient, ILogger<BlogClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "blogs";
-
-    public BlogClient(HttpClient httpClient, ILogger<BlogClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<BlogSummary>> GetAllAsync(CancellationToken ct = default)
     {

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Blocks.Serialization;
 

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Html;
+using Aero.Cms.Core.Blocks;
 
-namespace Aero.Cms.Core.Blocks.Rendering;
+namespace Aero.Cms.Core.Web.Blocks.Rendering;
 
 /// <summary>
 /// Defines an interface for rendering a single CMS block slice.

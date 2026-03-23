@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Modules;
+namespace Aero.Cms.Web.Core.Modules;
 
 /// <summary>
 /// Options for configuring module graph behavior.

@@ -1,9 +1,7 @@
-using Aero.Cms.Core.Modules;
 using Aero.Cms.Core.Tests.TestModules;
+using Aero.Cms.Web.Core.Modules;
 using FluentAssertions;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Core.Tests.Extensions;
 

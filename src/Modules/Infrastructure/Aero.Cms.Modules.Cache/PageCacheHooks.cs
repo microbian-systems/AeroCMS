@@ -1,4 +1,4 @@
-using Aero.Cms.Core.Pipelines;
+using Aero.Cms.Web.Core.Pipelines;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.Cache;
@@ -6,15 +6,8 @@ namespace Aero.Cms.Modules.Cache;
 /// <summary>
 /// Hook to handle cache lookup for pages.
 /// </summary>
-public class PageCacheHook : IPageReadHook
+public class PageCacheHook(IFusionCache cache) : IPageReadHook
 {
-    private readonly IFusionCache _cache;
-
-    public PageCacheHook(IFusionCache cache)
-    {
-        _cache = cache;
-    }
-
     public int Order => -100; // Run early to catch cache hits
 
     public async Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
@@ -24,7 +17,7 @@ public class PageCacheHook : IPageReadHook
         // We use GetOrDefaultAsync to avoid the factory-based GetOrSetAsync pattern here
         // because the "factory" is the rest of the pipeline.
         // A better integration would be in the PipelineRunner itself.
-        var cachedPage = await _cache.GetOrDefaultAsync<object>(key, token: ct);
+        var cachedPage = await cache.GetOrDefaultAsync<object>(key, token: ct);
 
         if (cachedPage != null)
         {
@@ -42,15 +35,8 @@ public class PageCacheHook : IPageReadHook
 /// <summary>
 /// Hook to store successfully read pages into the cache.
 /// </summary>
-public class PageCacheStoreHook : IPageReadHook
+public class PageCacheStoreHook(IFusionCache cache) : IPageReadHook
 {
-    private readonly IFusionCache _cache;
-
-    public PageCacheStoreHook(IFusionCache cache)
-    {
-        _cache = cache;
-    }
-
     public int Order => 1000; // Run late to capture the loaded page
 
     public async Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
@@ -59,7 +45,7 @@ public class PageCacheStoreHook : IPageReadHook
         if (ctx.Page != null && !ctx.IsShortCircuited)
         {
             var key = GetCacheKey(ctx);
-            await _cache.SetAsync(key, ctx.Page, token: ct);
+            await cache.SetAsync(key, ctx.Page, token: ct);
         }
     }
 
@@ -72,14 +58,9 @@ public class PageCacheStoreHook : IPageReadHook
 /// <summary>
 /// Hook to invalidate cache when a page is saved.
 /// </summary>
-public class PageCacheInvalidatorHook : IPageSaveHook
+public class PageCacheInvalidatorHook(IFusionCache cache) : IPageSaveHook
 {
-    private readonly IFusionCache _cache;
-
-    public PageCacheInvalidatorHook(IFusionCache cache)
-    {
-        _cache = cache;
-    }
+    private readonly IFusionCache _cache = cache;
 
     public int Order => 1000; // Run after save is confirmed
 

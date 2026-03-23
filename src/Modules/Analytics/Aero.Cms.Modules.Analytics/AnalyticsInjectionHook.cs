@@ -1,17 +1,14 @@
 using System.Text;
-using Aero.Cms.Core.Pipelines;
+using Aero.Cms.Web.Core.Pipelines;
 using Microsoft.Extensions.Options;
 
 namespace Aero.Cms.Modules.Analytics;
 
-public class AnalyticsInjectionHook : IPageReadHook
-{
-    private readonly AnalyticsSettings _settings;
 
-    public AnalyticsInjectionHook(IOptions<AnalyticsSettings> settings)
-    {
-        _settings = settings.Value;
-    }
+// todo - use view components here. StringBuilder is absolute wrong way to do this
+public class AnalyticsInjectionHook(IOptions<AnalyticsSettings> settings) : IPageReadHook
+{
+    private readonly AnalyticsSettings _settings = settings.Value;
 
     public int Order => 100; // Run late to inject scripts
 

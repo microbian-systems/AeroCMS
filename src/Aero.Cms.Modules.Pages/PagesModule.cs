@@ -1,7 +1,7 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Editing;
-using Aero.Cms.Core.Modules;
+using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

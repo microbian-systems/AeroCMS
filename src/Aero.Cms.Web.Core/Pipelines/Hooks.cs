@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Pipelines;
+namespace Aero.Cms.Web.Core.Pipelines;
 
 public interface IPageReadHook
 {

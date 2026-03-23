@@ -1,4 +1,4 @@
-using Aero.Cms.Core.Pipelines;
+using Aero.Cms.Web.Core.Pipelines;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Pages.Pipelines.Hooks;
@@ -6,15 +6,8 @@ namespace Aero.Cms.Modules.Pages.Pipelines.Hooks;
 /// <summary>
 /// Hook that enriches the context with SEO metadata extracted from the page document.
 /// </summary>
-public class SeoEnrichmentHook : IPageReadHook
+public class SeoEnrichmentHook(ILogger<SeoEnrichmentHook> logger) : IPageReadHook
 {
-    private readonly ILogger<SeoEnrichmentHook> _logger;
-
-    public SeoEnrichmentHook(ILogger<SeoEnrichmentHook> logger)
-    {
-        _logger = logger;
-    }
-
     /// <summary>
     /// Order 50 - runs after authorization hook to enrich the response with SEO data.
     /// </summary>
@@ -25,7 +18,7 @@ public class SeoEnrichmentHook : IPageReadHook
         // Skip if context is already short-circuited
         if (ctx.IsShortCircuited)
         {
-            _logger.LogDebug("SeoEnrichmentHook: Context is short-circuited, skipping SEO enrichment");
+            logger.LogDebug("SeoEnrichmentHook: Context is short-circuited, skipping SEO enrichment");
             return Task.CompletedTask;
         }
 
@@ -33,7 +26,7 @@ public class SeoEnrichmentHook : IPageReadHook
         var page = ctx.Page as PageDocument;
         if (page == null)
         {
-            _logger.LogDebug("SeoEnrichmentHook: No page document available, skipping SEO enrichment");
+            logger.LogDebug("SeoEnrichmentHook: No page document available, skipping SEO enrichment");
             return Task.CompletedTask;
         }
 
@@ -41,13 +34,13 @@ public class SeoEnrichmentHook : IPageReadHook
         var seoTitle = page.SeoTitle ?? page.Title;
         ctx.Metadata["SeoTitle"] = seoTitle;
 
-        _logger.LogDebug("SeoEnrichmentHook: Added SeoTitle '{SeoTitle}' to metadata", seoTitle);
+        logger.LogDebug("SeoEnrichmentHook: Added SeoTitle '{SeoTitle}' to metadata", seoTitle);
 
         // Extract and add SEO description
         if (!string.IsNullOrEmpty(page.SeoDescription))
         {
             ctx.Metadata["SeoDescription"] = page.SeoDescription;
-            _logger.LogDebug("SeoEnrichmentHook: Added SeoDescription to metadata");
+            logger.LogDebug("SeoEnrichmentHook: Added SeoDescription to metadata");
         }
 
         // Add page kind for additional context

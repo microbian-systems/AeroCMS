@@ -1,20 +1,13 @@
-using System.Text;
-using Microsoft.Extensions.Logging;
+namespace Aero.Cms.Web.Core.Modules;
 
-namespace Aero.Cms.Core.Modules;
+using Aero.Cms.Core.Modules;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Default implementation of the module graph service with topological sorting.
 /// </summary>
-public sealed class ModuleGraphService : IModuleGraphService
+public sealed class ModuleGraphService(ILogger<ModuleGraphService> logger) : IModuleGraphService
 {
-    private readonly ILogger<ModuleGraphService> _logger;
-
-    public ModuleGraphService(ILogger<ModuleGraphService> logger)
-    {
-        _logger = logger;
-    }
-
     /// <inheritdoc/>
     public ModuleGraph BuildGraph(IReadOnlyList<ModuleDescriptor> descriptors)
     {
@@ -42,7 +35,7 @@ public sealed class ModuleGraphService : IModuleGraphService
         // Perform topological sort using Kahn's algorithm
         var loadOrder = TopologicalSort(descriptors, modulesByName);
 
-        _logger.LogInformation("Built module graph with {Count} modules in load order.", loadOrder.Count);
+        logger.LogInformation("Built module graph with {Count} modules in load order.", loadOrder.Count);
 
         return new ModuleGraph
         {
@@ -146,7 +139,7 @@ public sealed class ModuleGraphService : IModuleGraphService
         var effectiveList = effectiveModules.Values.ToList();
         var loadOrder = TopologicalSort(effectiveList, effectiveModules);
 
-        _logger.LogInformation("Effective module set contains {Count} modules (from {Enabled} enabled).",
+        logger.LogInformation("Effective module set contains {Count} modules (from {Enabled} enabled).",
             effectiveNames.Count, enabledNames.Count);
 
         return new ModuleGraph

@@ -1,5 +1,3 @@
-using System;
-
 namespace Aero.Cms.Core.Blocks.Editing;
 
 /// <summary>

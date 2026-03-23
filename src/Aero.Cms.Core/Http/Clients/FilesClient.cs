@@ -5,14 +5,9 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for files endpoints (stub implementation).
 /// </summary>
-public class FilesClient : AeroClientBase
+public class FilesClient(HttpClient httpClient, ILogger<FilesClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "files";
-
-    public FilesClient(HttpClient httpClient, ILogger<FilesClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<FileSummary>> GetAllAsync(string? folder = null, CancellationToken ct = default)
     {

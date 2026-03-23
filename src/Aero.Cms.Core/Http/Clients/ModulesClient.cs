@@ -5,14 +5,9 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Typed client for modules endpoints (stub implementation).
 /// </summary>
-public class ModulesClient : AeroClientBase
+public class ModulesClient(HttpClient httpClient, ILogger<ModulesClient> logger) : AeroClientBase(httpClient, logger)
 {
     protected override string ResourceName => "modules";
-
-    public ModulesClient(HttpClient httpClient, ILogger<ModulesClient> logger)
-        : base(httpClient, logger)
-    {
-    }
 
     public Task<IReadOnlyList<ModuleSummary>> GetAllAsync(CancellationToken ct = default)
     {
