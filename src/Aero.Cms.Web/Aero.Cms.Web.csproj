@@ -37,8 +37,14 @@
     <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
     <PackageReference Include="Boxed.AspNetCore" />
+    <PackageReference Include="Htmx" />
+    <PackageReference Include="Htmx.TagHelpers" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.TypeScript.MSBuild">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="RazorSlices" />
     <PackageReference Include="Scrutor" />
     <PackageReference Include="Scrutor.AspNetCore" />
@@ -47,6 +53,8 @@
 
   <ItemGroup>
     <Folder Include="logs\" />
+    <Folder Include="Areas\" />
+    <Folder Include="wwwroot\" />
   </ItemGroup>
 
 </Project>
