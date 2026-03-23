@@ -31,10 +31,10 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
     }
 
     public Task<Result<string, PageDocument?>> LoadHomepageAsync(CancellationToken cancellationToken = default)
-        => LoadAsync(PageDocumentIds.Homepage, cancellationToken);
+        => FindBySlugAsync("/", cancellationToken);
 
     public Task<Result<string, PageDocument?>> LoadBlogListingAsync(CancellationToken cancellationToken = default)
-        => LoadAsync(PageDocumentIds.BlogListing, cancellationToken);
+        => FindBySlugAsync("blog", cancellationToken);
 
     public async Task<Result<string, IReadOnlyList<PageDocument>>> GetAllPagesAsync(CancellationToken cancellationToken = default)
     {
