@@ -1,10 +1,16 @@
 namespace Aero.Cms.Modules.Blog.Api;
 
+using System.Security.Claims;
+using Aero.Core;
 using Aero.Core.Railway;
+using Aero.Cms.Core.Audit;
 using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Modules.Blog.Requests;
+using Aero.Cms.Modules.Pages;
 using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,6 +32,14 @@ public static class BlogApi
 
         app.MapGet("/api/v1/blog/posts/by-tag/{tag}", GetPostsByTag)
             .WithName("GetPostsByTag")
+            .WithTags("Blog");
+
+        app.MapPost("/api/v1/blog/posts", CreatePost)
+            .WithName("CreatePost")
+            .WithTags("Blog");
+
+        app.MapPut("/api/v1/blog/posts/{id}", UpdatePost)
+            .WithName("UpdatePost")
             .WithTags("Blog");
     }
 
@@ -129,5 +143,148 @@ public static class BlogApi
             logger.LogError(ex, "Error retrieving posts for tag={Tag}", tag);
             return TypedResults.NotFound();
         }
+    }
+
+    private static async Task<IResult> CreatePost(
+        [FromBody] CreateBlogPostRequest request,
+        IBlogPostContentService blogService,
+        IAuditService auditService,
+        IHttpContextAccessor httpContextAccessor,
+        IDocumentSession session,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Check slug uniqueness
+            var normalizedSlug = ContentSlugDocument.Normalize(request.Slug);
+            var existingSlug = await session.Query<ContentSlugDocument>()
+                .FirstOrDefaultAsync(s => s.NormalizedSlug == normalizedSlug, cancellationToken);
+            if (existingSlug != null)
+            {
+                return TypedResults.BadRequest(new ProblemDetails
+                {
+                    Title = "Slug already exists",
+                    Detail = $"The slug '{request.Slug}' is already reserved by another post"
+                });
+            }
+
+            var post = new BlogPostDocument
+            {
+                Id = Snowflake.NewId(),
+                Title = request.Title,
+                Slug = request.Slug,
+                Excerpt = request.Summary,
+                SeoTitle = request.SeoTitle,
+                SeoDescription = request.SeoDescription,
+                ImageUrl = request.ImageUrl,
+                PublicationState = request.PublicationState,
+                Content = []
+            };
+
+            var result = await blogService.SaveAsync(post, cancellationToken);
+
+            if (result is Result<string, BlogPostDocument>.Failure failure)
+            {
+                return TypedResults.BadRequest(new { error = failure.Error });
+            }
+
+            if (result is Result<string, BlogPostDocument>.Ok ok)
+            {
+                var userId = GetUserId(httpContextAccessor);
+                var auditEvent = BlogPostCreatedEvent.Create(userId, post.Id, post.Title, post.Slug, null);
+                await auditService.LogAsync(auditEvent, cancellationToken);
+                return TypedResults.Ok(ok.Value);
+            }
+
+            return TypedResults.BadRequest(new { error = "An unexpected error occurred." });
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private static async Task<IResult> UpdatePost(
+        long id,
+        [FromBody] UpdateBlogPostRequest request,
+        IBlogPostContentService blogService,
+        IAuditService auditService,
+        IHttpContextAccessor httpContextAccessor,
+        IDocumentSession session,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Check slug uniqueness (excluding current post)
+            var normalizedSlug = ContentSlugDocument.Normalize(request.Slug);
+            var existingSlug = await session.Query<ContentSlugDocument>()
+                .FirstOrDefaultAsync(s => s.NormalizedSlug == normalizedSlug && s.OwnerId != id, cancellationToken);
+            if (existingSlug != null)
+            {
+                return TypedResults.BadRequest(new ProblemDetails
+                {
+                    Title = "Slug already exists",
+                    Detail = $"The slug '{request.Slug}' is already reserved by another post"
+                });
+            }
+
+            var loadResult = await blogService.LoadAsync(id, cancellationToken);
+
+            if (loadResult is Result<string, BlogPostDocument?>.Failure failure)
+            {
+                return TypedResults.NotFound(new { error = failure.Error });
+            }
+
+            if (loadResult is Result<string, BlogPostDocument?>.Ok { Value: null })
+            {
+                return TypedResults.NotFound(new { error = $"Blog post with id '{id}' not found" });
+            }
+
+            if (loadResult is not Result<string, BlogPostDocument?>.Ok { Value: not null } ok)
+            {
+                return TypedResults.NotFound(new { error = $"Blog post with id '{id}' not found" });
+            }
+
+            var existingPost = ok.Value;
+
+            existingPost.Title = request.Title;
+            existingPost.Slug = request.Slug;
+            existingPost.Excerpt = request.Summary;
+            existingPost.SeoTitle = request.SeoTitle;
+            existingPost.SeoDescription = request.SeoDescription;
+            existingPost.ImageUrl = request.ImageUrl;
+            existingPost.PublicationState = request.PublicationState;
+
+            var saveResult = await blogService.SaveAsync(existingPost, cancellationToken);
+
+            if (saveResult is Result<string, BlogPostDocument>.Failure saveFailure)
+            {
+                return TypedResults.BadRequest(new { error = saveFailure.Error });
+            }
+
+            if (saveResult is Result<string, BlogPostDocument>.Ok saveOk)
+            {
+                var userId = GetUserId(httpContextAccessor);
+                var auditEvent = BlogPostUpdatedEvent.Create(userId, existingPost.Id, existingPost.Title, existingPost.Slug);
+                await auditService.LogAsync(auditEvent, cancellationToken);
+                return TypedResults.Ok(saveOk.Value);
+            }
+
+            return TypedResults.BadRequest(new { error = "An unexpected error occurred." });
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private static long GetUserId(IHttpContextAccessor httpContextAccessor)
+    {
+        var userIdClaim = httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim != null && long.TryParse(userIdClaim.Value, out var userId))
+        {
+            return userId;
+        }
+        return 0;
     }
 }

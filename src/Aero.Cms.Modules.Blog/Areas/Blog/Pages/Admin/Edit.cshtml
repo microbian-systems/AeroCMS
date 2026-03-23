@@ -1,0 +1,416 @@
+@page "/admin/blog/edit/{id?}"
+@page "/admin/blog/create"
+@using Aero.Cms.Modules.Blog
+@using Aero.Cms.Modules.Pages
+@using Radzen.Blazor
+
+@model global::Aero.Cms.Modules.Blog.Areas.Blog.Pages.Admin.EditModel
+
+@{
+    ViewBag.Title = Model.IsNew ? "Create Blog Post" : "Edit Blog Post";
+}
+
+<div class="min-h-screen bg-slate-50">
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight text-slate-900">
+                    @(Model.IsNew ? "Create New Blog Post" : "Edit Blog Post")
+                </h1>
+                <p class="mt-2 text-sm text-slate-600">
+                    @(Model.IsNew ? "Create a new blog post for your site" : "Update your blog post content and settings")
+                </p>
+            </div>
+            <a href="/admin/blog" 
+               class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
+                <svg class="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Blog Posts
+            </a>
+        </div>
+
+        <!-- Error Message -->
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                <div class="flex items-center gap-3">
+                    <svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="text-sm font-medium text-red-800">@Model.ErrorMessage</span>
+                </div>
+            </div>
+        }
+
+        <!-- Blog Post Form -->
+        <form method="post" class="space-y-6">
+            <input type="hidden" asp-for="BlogPost!.Id" />
+            <input type="hidden" asp-for="BlogPost!.PublicationState" />
+            <input type="hidden" asp-for="BlogPost!.PublishedOn" />
+            <input type="hidden" asp-for="BlogPost!.Likes" />
+            
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <!-- Main Content Column -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Basic Info Card -->
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-slate-900">Post Details</h2>
+                            <p class="mt-1 text-sm text-slate-600">Basic information about the blog post</p>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <!-- Title -->
+                            <div>
+                                <label asp-for="BlogPost!.Title" class="block text-sm font-medium text-slate-900">
+                                    Post Title
+                                </label>
+                                <input asp-for="BlogPost!.Title" 
+                                       class="mt-2 block w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                       placeholder="Enter blog post title" />
+                                <span asp-validation-for="BlogPost!.Title" class="mt-2 text-sm text-red-600"></span>
+                            </div>
+
+                            <!-- Slug -->
+                            <div>
+                                <label asp-for="BlogPost!.Slug" class="block text-sm font-medium text-slate-900">
+                                    Slug (URL)
+                                </label>
+                                <div class="mt-2 flex rounded-lg shadow-sm">
+                                    <span class="inline-flex items-center rounded-l-lg border border-r-0 border-slate-300 bg-slate-50 px-3 text-sm text-slate-500">
+                                        /blog/
+                                    </span>
+                                    <input asp-for="BlogPost!.Slug" 
+                                           class="block w-full rounded-none rounded-r-lg border-0 py-2.5 px-3 text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                           placeholder="post-slug" />
+                                </div>
+                                <p class="mt-2 text-xs text-slate-500">The URL-friendly identifier for this blog post</p>
+                                <span asp-validation-for="BlogPost!.Slug" class="mt-2 text-sm text-red-600"></span>
+                            </div>
+
+                            <!-- Summary/Excerpt -->
+                            <div>
+                                <label asp-for="BlogPost!.Excerpt" class="block text-sm font-medium text-slate-900">
+                                    Summary / Excerpt
+                                </label>
+                                <textarea asp-for="BlogPost!.Excerpt" 
+                                          rows="3"
+                                          class="mt-2 block w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                          placeholder="Brief description of the blog post"></textarea>
+                                <p class="mt-2 text-xs text-slate-500">A short summary shown in blog listings and previews</p>
+                                <span asp-validation-for="BlogPost!.Excerpt" class="mt-2 text-sm text-red-600"></span>
+                            </div>
+
+                            <!-- Content -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-900">
+                                    Content
+                                </label>
+                                <div class="mt-2">
+                                    <RadzenMarkdown @bind-Value="Model.MarkdownContent" 
+                                                    Style="min-height: 400px;" />
+                                </div>
+                                <p class="mt-2 text-xs text-slate-500">Use Markdown to format your blog post content</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Block Composition -->
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 bg-slate-50 px-6 py-4 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-lg font-semibold text-slate-900">Content Blocks</h2>
+                                <p class="mt-1 text-sm text-slate-600">Build your post with reusable content blocks</p>
+                            </div>
+                            @if (!Model.ShowBlockPicker && !Model.ShowBlockEditor)
+                            {
+                                <form method="get" action="/admin/blog/edit/@(Model.BlogPost?.Id > 0 ? Model.BlogPost.Id : "")">
+                                    <input type="hidden" name="handler" value="ShowBlockPicker" />
+                                    @if (Model.BlogPost?.Id > 0)
+                                    {
+                                        <input type="hidden" name="id" value="@Model.BlogPost.Id" />
+                                    }
+                                    <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
+                                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        Add Block
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                        <div class="p-6">
+                            @if (Model.ShowBlockPicker)
+                            {
+                                <component type="typeof(Aero.Cms.Modules.Admin.Components.BlockPicker)" 
+                                           render-mode="ServerPrerendered"
+                                           param-OnBlockTypeSelected="EventCallback.Factory.Create< Aero.Cms.Modules.Admin.Services.BlockTypeInfo>(this, async (info) => await Model.OnPostAddBlockAsync(info.Name))"
+                                           param-OnCancel="EventCallback.Factory.Create(this, async () => { await Model.OnGetCancelBlockEditing(); })" />
+                            }
+                            else if (Model.ShowBlockEditor && Model.SelectedBlock != null)
+                            {
+                                var canMoveUp = Model.BlogPost?.Content.Any(b => b.Order < Model.SelectedBlock.Order) == true;
+                                var canMoveDown = Model.BlogPost?.Content.Any(b => b.Order > Model.SelectedBlock.Order) == true;
+                                
+                                <component type="typeof(Aero.Cms.Modules.Admin.Components.BlockEditor)" 
+                                           render-mode="ServerPrerendered"
+                                           param-Block="Model.SelectedBlock"
+                                           param-CanMoveUp="canMoveUp"
+                                           param-CanMoveDown="canMoveDown"
+                                           param-OnSave="EventCallback.Factory.Create<BlockBase>(this, async (block) => await Model.OnPostSaveBlockAsync()))"
+                                           param-OnCancel="EventCallback.Factory.Create(this, async () => await Model.OnGetCancelBlockEditing())"
+                                           param-OnDelete="EventCallback.Factory.Create<BlockBase>(this, async (block) => await Model.OnPostDeleteBlockAsync(block.Id)))"
+                                           param-OnDuplicate="EventCallback.Factory.Create<BlockBase>(this, async (block) => await Model.OnPostDuplicateBlockAsync(block.Id)))"
+                                           param-OnMoveUp="EventCallback.Factory.Create<BlockBase>(this, async (block) => await Model.OnPostMoveBlockUpAsync(block.Id)))"
+                                           param-OnMoveDown="EventCallback.Factory.Create<BlockBase>(this, async (block) => await Model.OnPostMoveBlockDownAsync(block.Id)))" />
+                            }
+                            else
+                            {
+                                <!-- Block List -->
+                                @if (Model.BlogPost?.Content != null && Model.BlogPost.Content.Any())
+                                {
+                                    <div class="space-y-4">
+                                        @foreach (var block in Model.BlogPost.Content.OrderBy(b => b.Order))
+                                        {
+                                            <div class="flex items-center justify-between p-4 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors">
+                                                <div class="flex items-center gap-4">
+                                                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white">
+                                                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            @switch (block.BlockType?.ToLowerInvariant())
+                                                            {
+                                                                case "rich_text":
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+                                                                    break;
+                                                                case "heading":
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16" />
+                                                                    break;
+                                                                case "image":
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                    break;
+                                                                case "cta":
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" />
+                                                                    break;
+                                                                case "quote":
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                                    break;
+                                                                case "embed":
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                                                    break;
+                                                                default:
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                                                                    break;
+                                                            }
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-slate-900">@block.BlockType?.Replace("_", " ").Replace(" ", "").ToTitleCase()</p>
+                                                        <p class="text-xs text-slate-500">Order: @block.Order</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <form method="get" action="/admin/blog/edit/@Model.BlogPost.Id">
+                                                        <input type="hidden" name="handler" value="EditBlock" />
+                                                        <input type="hidden" name="blockId" value="@block.Id" />
+                                                        <button type="submit" class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                                            Edit
+                                                        </button>
+                                                    </form>
+                                                    <form method="post" action="/admin/blog/edit/@Model.BlogPost.Id?handler=DeleteBlock">
+                                                        <input type="hidden" name="blockId" value="@block.Id" />
+                                                        <button type="submit" class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-red-700 shadow-sm ring-1 ring-inset ring-red-300 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500">
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="py-12 text-center">
+                                        <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                        </svg>
+                                        <h3 class="mt-4 text-sm font-medium text-slate-900">No content blocks yet</h3>
+                                        <p class="mt-2 text-sm text-slate-500">Click "Add Block" to start building your post content</p>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar Column -->
+                <div class="space-y-6">
+                    <!-- Featured Image Card -->
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-slate-900">Featured Image</h2>
+                            <p class="mt-1 text-sm text-slate-600">Blog post thumbnail image</p>
+                        </div>
+                        <div class="p-6">
+                            <div>
+                                <label asp-for="BlogPost!.ImageUrl" class="block text-sm font-medium text-slate-900">
+                                    Image URL
+                                </label>
+                                <input asp-for="BlogPost!.ImageUrl" 
+                                       class="mt-2 block w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                       placeholder="https://example.com/image.jpg" />
+                                <p class="mt-2 text-xs text-slate-500">URL to the featured image for this post</p>
+                                <span asp-validation-for="BlogPost!.ImageUrl" class="mt-2 text-sm text-red-600"></span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(Model.BlogPost?.ImageUrl))
+                            {
+                                <div class="mt-4">
+                                    <img src="@Model.BlogPost.ImageUrl" 
+                                         alt="Featured image preview" 
+                                         class="h-32 w-full rounded-lg object-cover" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Author Card -->
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-slate-900">Author</h2>
+                            <p class="mt-1 text-sm text-slate-600">Blog post author</p>
+                        </div>
+                        <div class="p-6">
+                            <div>
+                                <label asp-for="BlogPost!.AuthorId" class="block text-sm font-medium text-slate-900">
+                                    Author ID
+                                </label>
+                                <input asp-for="BlogPost!.AuthorId" 
+                                       class="mt-2 block w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                       placeholder="Author ID (numeric)" />
+                                <p class="mt-2 text-xs text-slate-500">ID of the author for this blog post</p>
+                                <span asp-validation-for="BlogPost!.AuthorId" class="mt-2 text-sm text-red-600"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Categories & Tags Card -->
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-slate-900">Categories & Tags</h2>
+                            <p class="mt-1 text-sm text-slate-600">Organize your blog post</p>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <!-- Categories -->
+                            <div>
+                                <label asp-for="CategoryIds" class="block text-sm font-medium text-slate-900">
+                                    Categories
+                                </label>
+                                <input asp-for="CategoryIds" 
+                                       class="mt-2 block w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                       placeholder="1, 2, 3 (comma-separated IDs)" />
+                                <p class="mt-2 text-xs text-slate-500">Comma-separated category IDs</p>
+                                <span asp-validation-for="CategoryIds" class="mt-2 text-sm text-red-600"></span>
+                            </div>
+
+                            <!-- Tags -->
+                            <div>
+                                <label asp-for="TagIds" class="block text-sm font-medium text-slate-900">
+                                    Tags
+                                </label>
+                                <input asp-for="TagIds" 
+                                       class="mt-2 block w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                       placeholder="1, 2, 3 (comma-separated IDs)" />
+                                <p class="mt-2 text-xs text-slate-500">Comma-separated tag IDs</p>
+                                <span asp-validation-for="TagIds" class="mt-2 text-sm text-red-600"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEO Card -->
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-slate-900">SEO Settings</h2>
+                            <p class="mt-1 text-sm text-slate-600">Search engine optimization</p>
+                        </div>
+                        <div class="p-6 space-y-6">
+                            <!-- SEO Title -->
+                            <div>
+                                <label asp-for="BlogPost!.SeoTitle" class="block text-sm font-medium text-slate-900">
+                                    SEO Title
+                                </label>
+                                <input asp-for="BlogPost!.SeoTitle" 
+                                       class="mt-2 block w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                       placeholder="Custom title for search engines" />
+                                <p class="mt-2 text-xs text-slate-500">Leave empty to use the post title</p>
+                                <span asp-validation-for="BlogPost!.SeoTitle" class="mt-2 text-sm text-red-600"></span>
+                            </div>
+
+                            <!-- SEO Description -->
+                            <div>
+                                <label asp-for="BlogPost!.SeoDescription" class="block text-sm font-medium text-slate-900">
+                                    SEO Description
+                                </label>
+                                <textarea asp-for="BlogPost!.SeoDescription" 
+                                          rows="4"
+                                          class="mt-2 block w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                          placeholder="Meta description for search results"></textarea>
+                                <p class="mt-2 text-xs text-slate-500">Recommended: 150-160 characters</p>
+                                <span asp-validation-for="BlogPost!.SeoDescription" class="mt-2 text-sm text-red-600"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Publication Status Card -->
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 bg-slate-50 px-6 py-4">
+                            <h2 class="text-lg font-semibold text-slate-900">Publication Status</h2>
+                        </div>
+                        <div class="p-6">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-slate-900">Status</span>
+                                @if (Model.BlogPost?.PublicationState == ContentPublicationState.Published)
+                                {
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                                        Published
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-amber-600"></span>
+                                        Draft
+                                    </span>
+                                }
+                            </div>
+                            @if (Model.BlogPost?.PublishedOn.HasValue == true)
+                            {
+                                <p class="mt-2 text-xs text-slate-500">
+                                    Published on @Model.BlogPost.PublishedOn.Value.ToString("MMM dd, yyyy")
+                                </p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center justify-end gap-4 border-t border-slate-200 pt-6">
+                <a href="/admin/blog" 
+                   class="rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Save Post
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

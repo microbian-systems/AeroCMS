@@ -1,10 +1,10 @@
-@page "/admin/pages"
-@using Aero.Cms.Modules.Pages
+@page "/admin/blog"
+@using Aero.Cms.Modules.Blog
 
-@model global::Aero.Cms.Modules.Pages.Areas.Admin.Pages.IndexModel
+@model global::Aero.Cms.Modules.Blog.Areas.Blog.Pages.Admin.IndexModel
 
 @{
-    ViewBag.Title = "Pages";
+    ViewBag.Title = "Blog Posts";
 }
 
 <div class="min-h-screen bg-slate-50">
@@ -13,23 +13,23 @@
         <div class="mb-8 flex items-center justify-between">
             <div>
                 <h1 class="text-3xl font-bold tracking-tight text-slate-900">
-                    Pages
+                    Blog Posts
                 </h1>
                 <p class="mt-2 text-sm text-slate-600">
-                    Manage your site pages and content
+                    Manage your blog posts and content
                 </p>
             </div>
-            <a href="/admin/pages/create" 
+            <a href="/admin/blog/create" 
                class="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                Create New Page
+                Create New Post
             </a>
         </div>
 
-        <!-- Pages Table -->
-        @if (Model.Pages.Any())
+        <!-- Posts Table -->
+        @if (Model.Posts.Any())
         {
             <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <table class="min-w-full divide-y divide-slate-200">
@@ -42,6 +42,12 @@
                                 Slug
                             </th>
                             <th scope="col" class="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                                Author
+                            </th>
+                            <th scope="col" class="px-6 py-4 text-left text-sm font-semibold text-slate-900">
+                                Category
+                            </th>
+                            <th scope="col" class="px-6 py-4 text-left text-sm font-semibold text-slate-900">
                                 State
                             </th>
                             <th scope="col" class="px-6 py-4 text-right text-sm font-semibold text-slate-900">
@@ -50,15 +56,15 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200">
-                        @foreach (var p in Model.Pages)
+                        @foreach (var p in Model.Posts)
                         {
                             <tr class="transition-colors hover:bg-slate-50">
                                 <td class="px-6 py-4">
                                     <div class="flex flex-col">
                                         <span class="text-sm font-medium text-slate-900">@p.Title</span>
-                                        @if (!string.IsNullOrEmpty(p.Summary))
+                                        @if (!string.IsNullOrEmpty(p.Excerpt))
                                         {
-                                            <span class="mt-1 max-w-xs truncate text-xs text-slate-500">@p.Summary</span>
+                                            <span class="mt-1 max-w-xs truncate text-xs text-slate-500">@p.Excerpt</span>
                                         }
                                     </div>
                                 </td>
@@ -66,6 +72,26 @@
                                     <code class="rounded-md bg-slate-100 px-2 py-1 text-xs font-mono text-slate-700">
                                         @p.Slug
                                     </code>
+                                </td>
+                                <td class="px-6 py-4">
+                                    @if (p.AuthorId.HasValue)
+                                    {
+                                        <span class="text-sm text-slate-700">@p.AuthorId</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-sm text-slate-400">-</span>
+                                    }
+                                </td>
+                                <td class="px-6 py-4">
+                                    @if (p.CategoryIds.Any())
+                                    {
+                                        <span class="text-sm text-slate-700">@string.Join(", ", p.CategoryIds)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-sm text-slate-400">-</span>
+                                    }
                                 </td>
                                 <td class="px-6 py-4">
                                     @if (p.PublicationState == ContentPublicationState.Published)
@@ -85,7 +111,7 @@
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex items-center justify-end gap-2">
-                                        <a href="/admin/pages/edit/@p.Id" 
+                                        <a href="/admin/blog/edit/@p.Id" 
                                            class="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
                                             <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -94,7 +120,7 @@
                                         </a>
                                         @if (p.IsPubliclyVisible)
                                         {
-                                            <a href="/@p.Slug" 
+                                            <a href="/blog/@p.Slug" 
                                                target="_blank"
                                                class="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
                                                 <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,14 +145,14 @@
                 <svg class="h-16 w-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <h3 class="mt-4 text-lg font-medium text-slate-900">No pages yet</h3>
-                <p class="mt-2 text-center text-slate-500">Get started by creating your first page.</p>
-                <a href="/admin/pages/create" 
+                <h3 class="mt-4 text-lg font-medium text-slate-900">No blog posts yet</h3>
+                <p class="mt-2 text-center text-slate-500">Get started by creating your first blog post.</p>
+                <a href="/admin/blog/create" 
                    class="mt-6 inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
-                    Create Page
+                    Create Post
                 </a>
             </div>
         }

@@ -51,6 +51,7 @@
 ## Constraints & Rules
 - **DO NOT USE NPM**. All frontend dependencies should align with the CDN usage or libman`Microsoft.Typescript.Build` constraints.
 - Project includes a .NET MAUI hybrid web and mobile setup (newly created).
+- All APIs should make use of minimal apis over mvc
 - Avoid using Guids for primary keys, use Snowflake instead (where possible)
 - Do not use newtonsoft.json (use system.text.json)
 - all models to be saved to the database should make use of hte IEntity<long> or Entity (which inherits from IEntity<long>)
