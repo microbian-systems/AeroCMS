@@ -7,9 +7,9 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages.Admin;
+namespace Aero.Cms.Modules.Pages.Areas.Admin.Pages;
 
-public class EditModel(IPageContentService pageService, IDocumentSession session) : PageModel
+public class PagesEditModel(IPageContentService pageService, IDocumentSession session) : PageModel
 {
     [BindProperty(SupportsGet = true)]
     public long? Id { get; set; }
@@ -55,8 +55,8 @@ public class EditModel(IPageContentService pageService, IDocumentSession session
             var result = await pageService.LoadAsync(Id.Value, cancellationToken);
             PageDocument = result switch
             {
-                global::Aero.Core.Railway.Result<string, PageDocument?>.Ok(var page) => page,
-                global::Aero.Core.Railway.Result<string, PageDocument?>.Failure => null,
+                Result<string, PageDocument?>.Ok(var page) => page,
+                Aero.Core.Railway.Result<string, PageDocument?>.Failure => null,
                 _ => null
             };
 
@@ -101,12 +101,12 @@ public class EditModel(IPageContentService pageService, IDocumentSession session
 
         var result = await pageService.SaveAsync(PageDocument, cancellationToken);
 
-        if (result is global::Aero.Core.Railway.Result<string, PageDocument>.Ok)
+        if (((result is Result<string, PageDocument>.Ok)))
         {
             return RedirectToPage("/Admin/Index");
         }
 
-        if (result is global::Aero.Core.Railway.Result<string, PageDocument>.Failure(var error))
+        if (result is Result<string, PageDocument>.Failure(var error))
         {
             ErrorMessage = error;
         }
@@ -236,7 +236,7 @@ public class EditModel(IPageContentService pageService, IDocumentSession session
         var order = column.Blocks.Count;
 
         var blockResult = CreateBlock(blockTypeName, order);
-        if (blockResult is global::Aero.Core.Railway.Result<string, BlockBase>.Ok(var block))
+        if (blockResult is Result<string, BlockBase>.Ok(var block))
         {
             // Store the block in Marten
             session.Store(block);
@@ -254,7 +254,7 @@ public class EditModel(IPageContentService pageService, IDocumentSession session
             ShowBlockPicker = false;
             ShowBlockEditor = true;
         }
-        else if (blockResult is global::Aero.Core.Railway.Result<string, BlockBase>.Failure(var error))
+        else if (blockResult is Result<string, BlockBase>.Failure(var error))
         {
             ErrorMessage = error;
         }
@@ -330,7 +330,7 @@ public class EditModel(IPageContentService pageService, IDocumentSession session
         var column = region.Columns[EditingColumnIndex];
         var duplicateResult = DuplicateBlock(sourceBlock, column.Blocks.Count);
         
-        if (duplicateResult is global::Aero.Core.Railway.Result<string, BlockBase>.Ok(var duplicate))
+        if (duplicateResult is Result<string, BlockBase>.Ok(var duplicate))
         {
             session.Store(duplicate);
             var placement = new BlockPlacement
@@ -450,7 +450,7 @@ public class EditModel(IPageContentService pageService, IDocumentSession session
         }
     }
 
-    private static global::Aero.Core.Railway.Result<string, BlockBase> CreateBlock(string blockTypeName, int order)
+    private static Result<string, BlockBase> CreateBlock(string blockTypeName, int order)
     {
         var blockType = GetBlockType(blockTypeName);
         if (blockType is null)
@@ -477,7 +477,7 @@ public class EditModel(IPageContentService pageService, IDocumentSession session
         }
     }
 
-    private global::Aero.Core.Railway.Result<string, BlockBase> DuplicateBlock(BlockBase sourceBlock, int newOrder)
+    private Result<string, BlockBase> DuplicateBlock(BlockBase sourceBlock, int newOrder)
     {
         if (sourceBlock is null)
         {

@@ -1,21 +1,14 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages.Admin;
+namespace Aero.Cms.Modules.Blog.Areas.Admin.Pages;
 
-public class IndexModel : PageModel
+public class IndexModel(IBlogPostContentService blogPostContentService) : PageModel
 {
-    private readonly IBlogPostContentService _blogPostContentService;
-
-    public IndexModel(IBlogPostContentService blogPostContentService)
-    {
-        _blogPostContentService = blogPostContentService;
-    }
-
     public IReadOnlyList<BlogPostDocument> Posts { get; private set; } = [];
 
     public async Task OnGetAsync(CancellationToken cancellationToken = default)
     {
-        var result = await _blogPostContentService.GetLatestPostsAsync(1000, cancellationToken);
+        var result = await blogPostContentService.GetLatestPostsAsync(1000, cancellationToken);
 
         Posts = result switch
         {

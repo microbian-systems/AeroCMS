@@ -2,20 +2,13 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Pages.Areas.Admin.Pages;
 
-public class IndexModel : PageModel
+public class PagesIndexModel(IPageContentService pageContentService) : PageModel
 {
-    private readonly IPageContentService _pageContentService;
-
-    public IndexModel(IPageContentService pageContentService)
-    {
-        _pageContentService = pageContentService;
-    }
-
     public IReadOnlyList<PageDocument> Pages { get; private set; } = [];
 
     public async Task OnGetAsync(CancellationToken cancellationToken = default)
     {
-        var result = await _pageContentService.GetAllPagesAsync(cancellationToken);
+        var result = await pageContentService.GetAllPagesAsync(cancellationToken);
 
         Pages = result switch
         {

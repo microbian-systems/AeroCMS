@@ -1,10 +1,9 @@
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Editing;
-using Aero.Cms.Modules.Blog;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages.Admin;
+namespace Aero.Cms.Modules.Blog.Areas.Admin.Pages;
 
 public class EditModel(IBlogPostContentService blogService, BlockEditingService blockService)
     : PageModel
@@ -216,12 +215,12 @@ public class EditModel(IBlogPostContentService blogService, BlockEditingService 
 
         var result = await blogService.SaveAsync(BlogPost, cancellationToken);
 
-        if (result is global::Aero.Core.Railway.Result<string, BlogPostDocument>.Ok)
+        if (((result is Result<string, BlogPostDocument>.Ok)))
         {
             return RedirectToPage("/Admin/Index");
         }
 
-        if (result is global::Aero.Core.Railway.Result<string, BlogPostDocument>.Failure(var error))
+        if (result is Result<string, BlogPostDocument>.Failure(var error))
         {
             ErrorMessage = error;
         }

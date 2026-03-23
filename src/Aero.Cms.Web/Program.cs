@@ -18,7 +18,8 @@ services.AddControllersWithViews();
 services.AddAuthentication();
 services.AddAuthorization();
 services.AddRazorPages()
-    .AddApplicationPart(typeof(SetupModule).Assembly);
+    .AddApplicationPart(typeof(SetupModule).Assembly)
+    .AddApplicationPart(typeof(Aero.Cms.Core.Blocks.BlockBase).Assembly);
 services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents()

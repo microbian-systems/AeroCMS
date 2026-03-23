@@ -1,7 +1,7 @@
-@page "/admin/pages/{id:long?}"
+@page "/admin/pages/edit/{id:long?}"
 @using Aero.Cms.Modules.Pages
 
-@model global::Aero.Cms.Modules.Pages.Areas.Cms.Pages.Admin.EditModel
+@model PagesEditModel
 
 @{
     ViewBag.Title = Model.IsNew ? "Create Page" : "Edit Page";
