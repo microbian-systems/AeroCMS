@@ -1,0 +1,13 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using System.Reflection
+
+<Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="new[] { typeof(Aero.Cms.Shared._Imports).Assembly }">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Aero.Cms.Shared.Layout.MainLayout)" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(Aero.Cms.Shared.Layout.MainLayout)">
+            <p>Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

@@ -1,0 +1,133 @@
+@using Aero.Cms.Core.Blocks
+@using Aero.Cms.Core.Blocks.Editing
+@inject BlockEditingService BlockService
+
+<div class="block-picker">
+    <RadzenText TextStyle="TextStyle.H5" Class="rz-mb-4">
+        <RadzenIcon Icon="add_box" Class="rz-mr-2" />
+        Add Content Block
+    </RadzenText>
+    
+    <RadzenText TextStyle="TextStyle.Body1" Class="rz-text-secondary rz-mb-6">
+        Select a block type to add to your content
+    </RadzenText>
+
+    <div class="block-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        @foreach (var blockType in GetBlockTypes())
+        {
+            <div @onclick="() => SelectBlockType(blockType)"
+                 class="block-card group relative p-6 rounded-xl border-2 border-transparent bg-white hover:border-blue-500 hover:shadow-lg transition-all duration-200 cursor-pointer @(SelectedBlockType?.Name == blockType.Name ? "ring-2 ring-blue-500 border-blue-500" : "border-gray-200")">
+                <div class="flex items-start gap-4">
+                    <div class="block-icon flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl shadow-md group-hover:shadow-lg transition-shadow">
+                        <RadzenIcon Icon="@GetBlockIcon(blockType.Name)" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                            @blockType.DisplayName
+                        </h3>
+                        @if (!string.IsNullOrEmpty(blockType.Description))
+                        {
+                            <p class="mt-1 text-xs text-gray-500 line-clamp-2">
+                                @blockType.Description
+                            </p>
+                        }
+                        <span class="mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                            @blockType.Category
+                        </span>
+                    </div>
+                </div>
+                
+                @if (SelectedBlockType?.Name == blockType.Name)
+                {
+                    <div class="absolute top-2 right-2">
+                        <RadzenIcon Icon="check_circle" Class="text-blue-500" Style="font-size: 1.25rem;" />
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @if (SelectedBlockType is not null)
+    {
+        <div class="mt-6 flex justify-end gap-3">
+            <RadzenButton Click="CancelSelection"
+                          Variant="Variant.Outlined"
+                          Text="Cancel"
+                          Class="px-4" />
+            <RadzenButton Click="ConfirmSelection"
+                          Variant="Variant.Filled"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Text="@($"Add {SelectedBlockType?.DisplayName}")"
+                          Icon="add"
+                          Class="px-4" />
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Event callback fired when a block type is selected.
+    /// </summary>
+    [Parameter]
+    public EventCallback<BlockTypeInfo> OnBlockTypeSelected { get; set; }
+
+    /// <summary>
+    /// Event callback fired when the picker is cancelled.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>
+    /// Optional category filter to show only specific block types.
+    /// </summary>
+    [Parameter]
+    public string? CategoryFilter { get; set; }
+
+    private BlockTypeInfo? SelectedBlockType { get; set; }
+    private IEnumerable<BlockTypeInfo> AllBlockTypes { get; set; } = Array.Empty<BlockTypeInfo>();
+
+    protected override void OnInitialized()
+    {
+        AllBlockTypes = BlockService.GetAvailableBlockTypes();
+    }
+
+    private IEnumerable<BlockTypeInfo> GetBlockTypes()
+    {
+        if (string.IsNullOrEmpty(CategoryFilter))
+        {
+            return AllBlockTypes;
+        }
+        return AllBlockTypes.Where(b => b.Category.Equals(CategoryFilter, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void SelectBlockType(BlockTypeInfo blockType)
+    {
+        SelectedBlockType = blockType;
+    }
+
+    private void CancelSelection()
+    {
+        SelectedBlockType = null;
+        OnCancel.InvokeAsync();
+    }
+
+    private async Task ConfirmSelection()
+    {
+        if (SelectedBlockType is not null)
+        {
+            await OnBlockTypeSelected.InvokeAsync(SelectedBlockType);
+            SelectedBlockType = null;
+        }
+    }
+
+    private static string GetBlockIcon(string blockTypeName) => blockTypeName.ToLowerInvariant() switch
+    {
+        "rich_text" => "text_fields",
+        "heading" => "title",
+        "image" => "image",
+        "cta" => "touch_app",
+        "quote" => "format_quote",
+        "embed" => "code",
+        _ => "widgets"
+    };
+}

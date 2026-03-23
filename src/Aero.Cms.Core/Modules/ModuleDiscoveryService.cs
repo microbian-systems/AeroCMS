@@ -8,25 +8,98 @@ namespace Aero.Cms.Core.Modules;
 
 /// <summary>
 /// Default implementation of module discovery using Scrutor-compatible reflection patterns.
+/// Supports optional database-backed state loading for subsequent runs.
 /// </summary>
 public sealed class ModuleDiscoveryService : IModuleDiscoveryService
 {
     private readonly ModuleDiscoveryOptions _options;
     private readonly IHostEnvironment _environment;
     private readonly ILogger<ModuleDiscoveryService> _logger;
+    private readonly IModuleStateStore? _stateStore;
 
     public ModuleDiscoveryService(
         IOptions<ModuleDiscoveryOptions> options,
         IHostEnvironment environment,
-        ILogger<ModuleDiscoveryService> logger)
+        ILogger<ModuleDiscoveryService> logger,
+        IModuleStateStore? stateStore = null)
     {
         _options = options.Value;
         _environment = environment;
         _logger = logger;
+        _stateStore = stateStore;
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ModuleDescriptor>> DiscoverAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<ModuleDescriptor>> DiscoverAsync(CancellationToken ct = default)
+    {
+        // If state store is available and has stored modules, load from DB
+        if (_stateStore != null)
+        {
+            var storedStates = await _stateStore.GetAllAsync(ct);
+            if (storedStates.Count > 0)
+            {
+                _logger.LogDebug("Found {Count} stored modules in database, loading via reflection to resolve types", storedStates.Count);
+                // We still need reflection to resolve ModuleType, but we use stored state for metadata
+                return await DiscoverAndMergeWithStoredStateAsync(storedStates, ct);
+            }
+        }
+
+        _logger.LogDebug("No stored module state found, performing reflection-based discovery");
+        return await DiscoverViaReflectionAsync(ct);
+    }
+
+    private async Task<IReadOnlyList<ModuleDescriptor>> DiscoverAndMergeWithStoredStateAsync(
+        IReadOnlyList<ModuleStateDocument> storedStates, 
+        CancellationToken ct)
+    {
+        var discoveredDescriptors = await DiscoverViaReflectionAsync(ct);
+        
+        // Build lookup of stored state by module name
+        var storedByName = storedStates.ToDictionary(
+            s => s.Name,
+            s => s,
+            StringComparer.OrdinalIgnoreCase);
+
+        var merged = new List<ModuleDescriptor>();
+        foreach (var descriptor in discoveredDescriptors)
+        {
+            if (storedByName.TryGetValue(descriptor.Name, out var stored))
+            {
+                merged.Add(MergeWithStoredState(descriptor, stored));
+                _logger.LogDebug("Merged stored state for module '{ModuleName}'", descriptor.Name);
+            }
+            else
+            {
+                merged.Add(descriptor);
+                _logger.LogDebug("Module '{ModuleName}' not in stored state, using reflection data", descriptor.Name);
+            }
+        }
+
+        _logger.LogInformation("Loaded {Count} modules (merged with stored state)", merged.Count);
+        return merged;
+    }
+
+    private static ModuleDescriptor MergeWithStoredState(ModuleDescriptor reflection, ModuleStateDocument stored)
+    {
+        return new ModuleDescriptor
+        {
+            Name = reflection.Name,
+            Version = reflection.Version,
+            Author = reflection.Author,
+            ModuleType = reflection.ModuleType,
+            Dependencies = stored.Dependencies.Count > 0 ? stored.Dependencies : reflection.Dependencies,
+            AssemblyName = reflection.AssemblyName,
+            PhysicalPath = reflection.PhysicalPath,
+            IsUiModule = reflection.IsUiModule,
+            Order = stored.Order,
+            Category = stored.Category.Count > 0 ? stored.Category : reflection.Category,
+            Tags = stored.Tags.Count > 0 ? stored.Tags : reflection.Tags,
+            DisabledInProduction = stored.DisabledInProduction,
+            Disabled = stored.Disabled
+        };
+    }
+
+    private Task<IReadOnlyList<ModuleDescriptor>> DiscoverViaReflectionAsync(CancellationToken ct)
     {
         var descriptors = new List<ModuleDescriptor>();
         var seenNames = new Dictionary<string, ModuleDescriptor>(StringComparer.OrdinalIgnoreCase);

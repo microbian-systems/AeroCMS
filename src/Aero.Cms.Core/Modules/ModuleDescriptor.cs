@@ -33,4 +33,10 @@ public sealed class ModuleDescriptor
     /// Whether this module should be disabled in production environments.
     /// </summary>
     public bool DisabledInProduction { get; init; }
+
+    /// <summary>
+    /// Whether this module has been disabled by the user.
+    /// When true, the module will not be loaded regardless of other settings.
+    /// </summary>
+    public bool Disabled { get; init; }
 }

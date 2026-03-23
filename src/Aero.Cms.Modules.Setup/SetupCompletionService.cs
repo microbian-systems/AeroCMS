@@ -1,4 +1,5 @@
 using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Modules;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Pages;
@@ -47,7 +48,9 @@ public sealed class SetupCompletionService(
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
     IBlogPostContentService blogPostContentService,
-    IStaticPhotosClient staticPhotosClient) : ISetupCompletionService
+    IStaticPhotosClient staticPhotosClient,
+    IModuleDiscoveryService moduleDiscoveryService,
+    IModuleStateStore moduleStateStore) : ISetupCompletionService
 {
     public async Task<SetupCompletionResult> CompleteAsync(SetupCompletionRequest request, CancellationToken cancellationToken = default)
     {
@@ -91,6 +94,9 @@ public sealed class SetupCompletionService(
             CompletedAtUtc = completedAtUtc
         });
         await session.SaveChangesAsync(cancellationToken);
+
+        // Discover and save all available modules
+        await SaveModuleStateAsync(cancellationToken);
 
         return new SetupCompletionResult
         {
@@ -147,6 +153,13 @@ public sealed class SetupCompletionService(
         {
             await blogPostContentService.SaveAsync(post, cancellationToken);
         }
+    }
+
+    private async Task SaveModuleStateAsync(CancellationToken cancellationToken)
+    {
+        var descriptors = await moduleDiscoveryService.DiscoverAsync(cancellationToken);
+        var moduleStates = descriptors.Select(d => ModuleStateDocument.FromDescriptor(d, isBuiltIn: true));
+        await moduleStateStore.SaveAllAsync(moduleStates, cancellationToken);
     }
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SetupCompletionRequest request)

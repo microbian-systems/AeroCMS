@@ -1,3 +1,4 @@
+using Aero.Cms.Core.Modules;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
@@ -113,7 +114,9 @@ public class SetupCompletionServiceTests
             identityBootstrapper,
             new MartenPageContentService(harness.Session),
             new MartenBlogPostContentService(harness.Session),
-            Substitute.For<IStaticPhotosClient>());
+            Substitute.For<IStaticPhotosClient>(),
+            Substitute.For<IModuleDiscoveryService>(),
+            Substitute.For<IModuleStateStore>());
 
     private static SetupCompletionRequest CreateRequest()
         => new(

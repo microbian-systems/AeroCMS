@@ -5,13 +5,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Blazor.Radzen.Theming" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
     <PackageReference Include="Radzen.Blazor" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Pages\Manager\" />
     <Folder Include="Security\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
   </ItemGroup>
 
 </Project>

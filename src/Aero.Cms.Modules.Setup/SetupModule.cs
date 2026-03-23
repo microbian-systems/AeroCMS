@@ -42,6 +42,7 @@ public sealed class SetupModule : AeroModuleBase
         services.TryAddScoped<ISetupInitializationService, SetupInitializationService>();
         services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
         services.TryAddScoped<ISetupCompletionService, SetupCompletionService>();
+        services.TryAddScoped<IModuleStateStore, ModuleStateStore>();
         services.TryAddSingleton<SetupPathAllowlist>();
         services.TryAddTransient<SetupGateMiddleware>();
     }
@@ -51,6 +52,14 @@ public sealed class SetupModule : AeroModuleBase
         var scope = builder.ServiceProvider.CreateAsyncScope();
         var sp = scope.ServiceProvider;
         var log = sp.GetRequiredService<ILogger<SetupModule>>();
+        var setupInitService = sp.GetRequiredService<ISetupInitializationService>();
+
+        // Skip if setup is already complete - prevents unnecessary work on subsequent starts
+        if (await setupInitService.IsSetupCompleteAsync())
+        {
+            log.LogInformation("Setup module skipped - setup already complete");
+            return;
+        }
 
         var allModules = sp.GetServices<IAeroModule>()
             .OrderBy(m => m.Order)
