@@ -156,7 +156,7 @@ public sealed class SetupCompletionService(
         return (
             new PageDocument
             {
-                Id = PageDocumentIds.Homepage,
+                Id = Snowflake.NewId(),
                 Kind = PageKind.Homepage,
                 Slug = "/",
                 Title = Normalize(request.HomepageTitle),
@@ -209,7 +209,7 @@ public sealed class SetupCompletionService(
         return (
             new PageDocument
             {
-                Id = PageDocumentIds.BlogListing,
+                Id = Snowflake.NewId(),
                 Kind = PageKind.BlogListing,
                 Slug = "blog",
                 Title = Normalize(request.BlogName),

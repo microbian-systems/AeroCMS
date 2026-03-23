@@ -1,5 +1,4 @@
 using Aero.Cms.Modules.Blog;
-using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
 using FluentAssertions;
 using NSubstitute;
@@ -26,12 +25,14 @@ public class SetupCompletionServiceTests
         harness.SetupStates[SetupStateDocument.FixedId].CompletedAtUtc.Should().NotBeNull();
 
         harness.Pages.Should().HaveCount(2);
-        harness.Pages[PageDocumentIds.Homepage.ToString()].Slug.Should().Be("/");
-        harness.Pages[PageDocumentIds.Homepage.ToString()].Title.Should().Be("Welcome to Aero CMS");
-        harness.Pages[PageDocumentIds.Homepage.ToString()].PublicationState.Should().Be(ContentPublicationState.Published);
-        harness.Pages[PageDocumentIds.BlogListing.ToString()].Slug.Should().Be("blog");
-        harness.Pages[PageDocumentIds.BlogListing.ToString()].Title.Should().Be("Field Notes");
-        harness.Pages[PageDocumentIds.BlogListing.ToString()].PublicationState.Should().Be(ContentPublicationState.Published);
+        var homepage = harness.Pages.Values.First(p => p.Slug == "/");
+        homepage.Slug.Should().Be("/");
+        homepage.Title.Should().Be("Welcome to Aero CMS");
+        homepage.PublicationState.Should().Be(ContentPublicationState.Published);
+        var blogListing = harness.Pages.Values.First(p => p.Slug == "blog");
+        blogListing.Slug.Should().Be("blog");
+        blogListing.Title.Should().Be("Field Notes");
+        blogListing.PublicationState.Should().Be(ContentPublicationState.Published);
 
         harness.BlogPosts.Should().HaveCount(3);
         harness.BlogPosts.Keys.Should().BeEquivalentTo(

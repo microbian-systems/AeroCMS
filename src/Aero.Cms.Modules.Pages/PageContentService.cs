@@ -1,3 +1,5 @@
+using Aero.Cms.Modules.Pages.Validators;
+
 namespace Aero.Cms.Modules.Pages;
 
 using Aero.Core.Railway;
@@ -18,7 +20,6 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
     {
         try
         {
-            ValidateId(id);
             var document = await session.LoadAsync<PageDocument>(id, cancellationToken);
             return document is null
                 ? Prelude.Fail<string, PageDocument?>($"Page with id '{id}' not found")
@@ -80,7 +81,7 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
         try
         {
             ArgumentNullException.ThrowIfNull(page);
-            ValidatePage(page);
+            await ValidatePage(page);
 
             var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
             await ContentSlugReservation.ReserveAsync(
@@ -114,38 +115,16 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
         }
     }
 
-    private static void ValidatePage(PageDocument page)
+    private static async Task ValidatePage(PageDocument page)
     {
-        ValidateId(page.Id);
+        var validator = new PageModelValidator();
+        var valid = await validator.ValidateAsync(page);
 
-        if (string.IsNullOrWhiteSpace(page.Title))
+        if (valid.Errors.Any())
         {
-            throw new ArgumentException("Page title is required.", nameof(page));
-        }
-
-        var normalizedSlug = ContentSlugDocument.Normalize(page.Slug);
-        if (page.Kind != PageKind.Homepage &&
-            string.IsNullOrWhiteSpace(normalizedSlug) &&
-            !string.Equals(page.Slug, "/", StringComparison.Ordinal))
-        {
-            throw new ArgumentException("Page slug is required.", nameof(page));
-        }
-
-        if (page.Kind == PageKind.Homepage &&
-            !string.Equals(page.Id.ToString(), PageDocumentIds.Homepage.ToString(), StringComparison.Ordinal))
-        {
-            throw new ArgumentException($"Homepage must use the stable id '{PageDocumentIds.Homepage}'.", nameof(page));
-        }
-
-        if (page.Kind == PageKind.BlogListing &&
-            !string.Equals(page.Id.ToString(), PageDocumentIds.BlogListing.ToString(), StringComparison.Ordinal))
-        {
-            throw new ArgumentException($"Blog listing page must use the stable id '{PageDocumentIds.BlogListing}'.", nameof(page));
+            // todo - return a Result<T> here and avoid throwing an exception
+            throw new ArgumentException($"page errors: {valid.Errors}");
         }
     }
 
-    private static void ValidateId(long id)
-    {
-        var snowflake = Id.Parse(id);
-    }
 }

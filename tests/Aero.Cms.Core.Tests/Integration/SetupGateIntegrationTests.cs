@@ -1,6 +1,5 @@
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Blog;
-using Aero.Cms.Modules.Pages;
 using Aero.Cms.ServiceDefaults;
 using FluentAssertions;
 using Marten;
@@ -113,8 +112,8 @@ public class SetupGateIntegrationTests
         response.Headers.Location!.OriginalString.Should().Be("/admin");
         harness.SetupStates.Should().ContainKey(SetupStateDocument.FixedId);
         harness.SetupStates[SetupStateDocument.FixedId].IsComplete.Should().BeTrue();
-        harness.Pages.Should().ContainKey(PageDocumentIds.Homepage.ToString());
-        harness.Pages.Should().ContainKey(PageDocumentIds.BlogListing.ToString());
+        harness.Pages.Values.Any(p => p.Slug == "/").Should().BeTrue();
+        harness.Pages.Values.Any(p => p.Slug == "blog").Should().BeTrue();
         harness.BlogPosts.Should().HaveCount(3);
         await bootstrapper.Received(1)
             .BootstrapAsync(Arg.Is<SetupIdentityBootstrapRequest>(request =>
