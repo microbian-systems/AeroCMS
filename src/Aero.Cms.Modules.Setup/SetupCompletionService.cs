@@ -1,8 +1,10 @@
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Modules.Blog;
+using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Pages.Models;
 using Aero.Core;
+using Aero.Core.Entities;
 using FlakeId;
 using Marten;
 
@@ -44,7 +46,8 @@ public sealed class SetupCompletionService(
     IDocumentSession session,
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
-    IBlogPostContentService blogPostContentService) : ISetupCompletionService
+    IBlogPostContentService blogPostContentService,
+    IStaticPhotosClient staticPhotosClient) : ISetupCompletionService
 {
     public async Task<SetupCompletionResult> CompleteAsync(SetupCompletionRequest request, CancellationToken cancellationToken = default)
     {
@@ -131,7 +134,7 @@ public sealed class SetupCompletionService(
         await pageContentService.SaveAsync(contactPage, cancellationToken);
 
         // Save blog posts (blocks are stored inline in Content)
-        foreach (var post in BuildStarterBlogPosts(request))
+        foreach (var post in BuildStarterBlogPosts(request, staticPhotosClient))
         {
             await blogPostContentService.SaveAsync(post, cancellationToken);
         }
@@ -361,8 +364,13 @@ public sealed class SetupCompletionService(
         );
     }
 
-    private static IReadOnlyList<BlogPostDocument> BuildStarterBlogPosts(SetupCompletionRequest request)
-        =>
+    private static IReadOnlyList<BlogPostDocument> BuildStarterBlogPosts(SetupCompletionRequest request, IStaticPhotosClient staticPhotosClient)
+    {
+        var random = new Random();
+        var tags = CreateTags();
+        var tagIdsList = tags.Select(t => t.Id).ToList();
+
+        return
         [
             CreatePost(
                 id: Snowflake.NewId(),
@@ -372,7 +380,10 @@ public sealed class SetupCompletionService(
                 headingText: "Welcome to Our New Platform",
                 bodyHtml: $"<p>We're thrilled to unveil our new digital home. This platform marks a significant step forward in how we communicate, share, and engage with you—our community.</p>" +
                           "<p>Built from the ground up with modern technology, this site represents our commitment to speed, accessibility, and user experience. Every pixel has been crafted with care, every feature designed with purpose.</p>" +
-                          "<p>As you explore, you'll find our blog at the heart of this platform. This is where we'll share insights, announce updates, and tell the stories behind our work.</p>"),
+                          "<p>As you explore, you'll find our blog at the heart of this platform. This is where we'll share insights, announce updates, and tell the stories behind our work.</p>",
+                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                imageUrl: staticPhotosClient.GetPhotoUrl("technology"),
+                likes: random.Next(1, 1001)),
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/behind-the-scenes-building-a-content-management-system",
@@ -383,7 +394,10 @@ public sealed class SetupCompletionService(
                           "<p>We chose .NET 10 for its performance and robust ecosystem. MartenDB provides the document storage layer, giving us flexibility in our schema while maintaining query performance. The block-based content model allows for rich, modular layouts.</p>" +
                           "<p>The result is a system that's fast, flexible, and fun to use. Stay tuned for more technical deep dives.</p>",
                 quoteText: "The best systems are those that disappear, letting creators focus on what matters—creating.",
-                quoteAuthor: "Our Team"),
+                quoteAuthor: "Our Team",
+                tagIds: GetRandomTagIds(tagIdsList, random, 3),
+                imageUrl: staticPhotosClient.GetPhotoUrl("technology"),
+                likes: random.Next(1, 1001)),
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/design-principles-for-modern-web-platforms",
@@ -392,7 +406,10 @@ public sealed class SetupCompletionService(
                 headingText: "Design Principles for Modern Web Platforms",
                 bodyHtml: "<p>Good design is invisible. It works so well that users never notice the effort behind it. That's the standard we hold ourselves to.</p>" +
                           "<p>Our design philosophy centers on three pillars: clarity, speed, and delightful interactions. Every component we build must serve a purpose, load instantly, and feel natural to use.</p>" +
-                          "<p>We believe in progressive enhancement—starting with a solid, accessible foundation and layering on polished experiences for capable browsers. This ensures everyone gets a great experience, regardless of device or connection.</p>"),
+                          "<p>We believe in progressive enhancement—starting with a solid, accessible foundation and layering on polished experiences for capable browsers. This ensures everyone gets a great experience, regardless of device or connection.</p>",
+                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                imageUrl: staticPhotosClient.GetPhotoUrl("workspace"),
+                likes: random.Next(1, 1001)),
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/choosing-orleans-for-distributed-systems",
@@ -402,7 +419,10 @@ public sealed class SetupCompletionService(
                 bodyHtml: "<p>When architecting a platform that needs to scale, the choice of service framework is critical. After evaluating several options, we chose Microsoft Orleans for its balance of simplicity and power.</p>" +
                           "<p>Orleans brings the actor model to .NET in a way that feels natural. Grains provide a clean mental model for stateful services, while the runtime handles distribution, persistence, and scaling concerns.</p>" +
                           "<p>What sold us most was the developer experience. The programming model is intuitive, the debugging story is solid, and the documentation is excellent. After months of building, we haven't looked back.</p>",
-                quoteText: "Orleans lets us think about business logic, not infrastructure. That's exactly what we needed."),
+                quoteText: "Orleans lets us think about business logic, not infrastructure. That's exactly what we needed.",
+                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                imageUrl: staticPhotosClient.GetPhotoUrl("architecture"),
+                likes: random.Next(1, 1001)),
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/content-strategy-blogging-best-practices",
@@ -412,7 +432,10 @@ public sealed class SetupCompletionService(
                 bodyHtml: "<p>Starting a blog is easy. Maintaining one is hard. Here's what we've learned about building a sustainable content practice.</p>" +
                           "<p>First, quality beats quantity. We'd rather publish one excellent article than three mediocre ones. Each post should add genuine value—whether that's solving a problem, sharing insight, or telling a compelling story.</p>" +
                           "<p>Second, consistency builds trust. When readers know they can expect content on a regular schedule, they become loyal followers. We publish weekly, every Tuesday morning.</p>" +
-                          "<p>Finally, engage with your audience. Respond to comments, answer questions, and acknowledge feedback. The best blogs are conversations, not monologues.</p>"),
+                          "<p>Finally, engage with your audience. Respond to comments, answer questions, and acknowledge feedback. The best blogs are conversations, not monologues.</p>",
+                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                imageUrl: staticPhotosClient.GetPhotoUrl("office"),
+                likes: random.Next(1, 1001)),
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/scaling-postgres-for-high-traffic",
@@ -423,7 +446,10 @@ public sealed class SetupCompletionService(
                           "<p>Indexing is everything. Every query was analyzed and optimized. We use covering indexes for read-heavy paths, partial indexes for filtered queries, andGIN indexes for full-text search. The difference in performance is night and day.</p>" +
                           "<p>Connection pooling is essential. With Marten's pooling built-in, we reuse connections efficiently, avoiding the overhead of establishing new connections for each request.</p>" +
                           "<p>And always, always monitor. Query stats, connection counts, cache hit ratios—know your system's vital signs before problems arise.</p>",
-                quoteText: "Premature optimization is the root of all evil. But so is ignoring performance until it bites you."),
+                quoteText: "Premature optimization is the root of all evil. But so is ignoring performance until it bites you.",
+                tagIds: GetRandomTagIds(tagIdsList, random, 3),
+                imageUrl: staticPhotosClient.GetPhotoUrl("technology"),
+                likes: random.Next(1, 1001)),
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/embracing-blazor-and-htmx",
@@ -433,7 +459,10 @@ public sealed class SetupCompletionService(
                 bodyHtml: "<p>The web development landscape is fractured between full-page reload purists and SPA enthusiasts. We found a middle ground that gives us the best of both worlds.</p>" +
                           "<p>Blazor provides rich, interactive components in C#. We use Radzen's component library for rapid development of complex UI elements—data grids, editors, dialogs. Everything works without writing JavaScript.</p>" +
                           "<p>HTMX adds the dynamic touch. With a few attributes, we enable seamless partial page updates, infinite scroll, and real-time interactions. The pattern is simple: server renders HTML, HTMX swaps it in. No client-side routing, no hydration complexity.</p>" +
-                          "<p>The result is a site that loads fast, works without JavaScript, yet feels modern and responsive. That's the sweet spot.</p>"),
+                          "<p>The result is a site that loads fast, works without JavaScript, yet feels modern and responsive. That's the sweet spot.</p>",
+                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                imageUrl: staticPhotosClient.GetPhotoUrl("workspace"),
+                likes: random.Next(1, 1001)),
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/open-telemetry-observability-at-scale",
@@ -444,7 +473,10 @@ public sealed class SetupCompletionService(
                           "<p>We instrument everything with OpenTelemetry: requests, database calls, cache operations, message processing. Using Serilog as our logging foundation and OpenObserve for storage and visualization, we have complete visibility into system behavior.</p>" +
                           "<p>Traces let us follow requests across service boundaries, finding where latency bubbles up. Metrics show trends over time—error rates, response times, throughput. Logs provide the detail when something goes wrong.</p>" +
                           "<p>The investment pays dividends every incident. Instead of guessing, we know exactly what happened and where.</p>",
-                quoteText: "Without observability, you're flying blind. With it, you can debug with confidence."),
+                quoteText: "Without observability, you're flying blind. With it, you can debug with confidence.",
+                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                imageUrl: staticPhotosClient.GetPhotoUrl("science"),
+                likes: random.Next(1, 1001)),
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/getting-started-with-aero-cms",
@@ -453,7 +485,10 @@ public sealed class SetupCompletionService(
                 headingText: "Getting Started with Aero CMS",
                 bodyHtml: $"<p>Your site is live with a homepage and blog. Use this starter post as the baseline for your first editorial update in {Normalize(request.SiteName)}.</p>" +
                           "<p>The platform is designed to be intuitive. Create pages, arrange blocks, publish content—all without touching code. But if you need to extend functionality, the architecture is open and extensible.</p>" +
-                          "<p>Browse the admin panel to explore what's possible. Add new pages, create blog posts, arrange content blocks, customize the design. This is just the beginning.</p>"),
+                          "<p>Browse the admin panel to explore what's possible. Add new pages, create blog posts, arrange content blocks, customize the design. This is just the beginning.</p>",
+                tagIds: GetRandomTagIds(tagIdsList, random, 1),
+                imageUrl: staticPhotosClient.GetPhotoUrl("education"),
+                likes: random.Next(1, 1001)),
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/the-future-of-content-management",
@@ -463,10 +498,14 @@ public sealed class SetupCompletionService(
                 bodyHtml: "<p>The CMS landscape is evolving. Traditional monoliths give way to composable architectures. Proprietary formats yield to open standards. We're excited about where it's heading.</p>" +
                           "<p>Block-based content models are becoming the norm. Instead of rigid templates, editors compose with reusable components. This flexibility unlocks creativity while maintaining consistency.</p>" +
                           "<p>Headless is hot, but we're skeptical of the one-size-fits-all pitch. Most teams need a cohesive system, not a puzzle of separate products. We believe in integrated solutions that just work.</p>" +
-                          "<p>The future is fast, accessible, and focused on the creator experience. That's the future we're building toward.</p>")
+                          "<p>The future is fast, accessible, and focused on the creator experience. That's the future we're building toward.</p>",
+                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                imageUrl: staticPhotosClient.GetPhotoUrl("technology"),
+                likes: random.Next(1, 1001))
         ];
+    }
 
-    private static BlogPostDocument CreatePost(long id, string slug, string title, string excerpt, string headingText, string bodyHtml, string? quoteText = null, string? quoteAuthor = null)
+    private static BlogPostDocument CreatePost(long id, string slug, string title, string excerpt, string headingText, string bodyHtml, string? quoteText = null, string? quoteAuthor = null, List<long>? tagIds = null, string? imageUrl = null, int likes = 0)
     {
         var blocks = new List<BlockBase>
         {
@@ -488,10 +527,30 @@ public sealed class SetupCompletionService(
             SeoTitle = title,
             SeoDescription = excerpt,
             Content = blocks,
-            PublicationState = ContentPublicationState.Published
+            PublicationState = ContentPublicationState.Published,
+            TagIds = tagIds ?? [],
+            ImageUrl = imageUrl,
+            Likes = likes
         };
     }
 
     private static string Normalize(string value)
         => value.Trim();
+
+    private static List<Tag> CreateTags()
+    {
+        var tagNames = new[] { "technology", "design", "architecture", "tutorial", "announcements", "insights" };
+        return tagNames.Select(name => new Tag
+        {
+            Id = Snowflake.NewId(),
+            Name = name,
+            Slug = name.ToLowerInvariant()
+        }).ToList();
+    }
+
+    private static List<long> GetRandomTagIds(List<long> allTagIds, Random random, int count)
+    {
+        var shuffled = allTagIds.OrderBy(_ => random.Next()).ToList();
+        return shuffled.Take(count).ToList();
+    }
 }

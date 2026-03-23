@@ -34,5 +34,15 @@ public sealed class BlogPostDocument : Entity
     /// </summary>
     public long? AuthorId { get; set; }
 
+    /// <summary>
+    /// Gets or sets the URL of the featured image for this blog post.
+    /// </summary>
+    public string? ImageUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of likes for this blog post.
+    /// </summary>
+    public int Likes { get; set; }
+
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 }

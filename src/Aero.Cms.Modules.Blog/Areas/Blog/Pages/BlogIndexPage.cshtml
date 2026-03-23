@@ -39,6 +39,19 @@
                                         </a>
                                     </h3>
 
+                                    <!-- Tags -->
+                                    @if (post.TagIds.Any())
+                                    {
+                                        <div class="mb-3 flex flex-wrap items-center gap-2">
+                                            @foreach (var tagId in post.TagIds)
+                                            {
+                                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                                    Tag #@tagId
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+
                                     <!-- Excerpt -->
                                     @if (!string.IsNullOrEmpty(post.Excerpt))
                                     {
@@ -113,6 +126,20 @@
                                                 @post.Title
                                             </a>
                                         </h3>
+
+                                        <!-- Tags -->
+                                        @if (post.TagIds.Any())
+                                        {
+                                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                                @foreach (var tagId in post.TagIds)
+                                                {
+                                                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                                        Tag #@tagId
+                                                    </span>
+                                                }
+                                            </div>
+                                        }
+
                                         @if (!string.IsNullOrEmpty(post.Excerpt))
                                         {
                                             <p class="mt-2 text-sm text-slate-600 line-clamp-2">
