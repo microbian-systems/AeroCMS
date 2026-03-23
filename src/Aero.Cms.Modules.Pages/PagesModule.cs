@@ -1,5 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Blocks.Editing;
 using Aero.Cms.Core.Modules;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
@@ -20,6 +21,7 @@ public sealed class PagesModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IPageContentService, MartenPageContentService>();
+        services.AddSingleton<BlockEditingService>();
         services.AddSingleton<IConfigureMarten, BlockMartenConfiguration>();
 
         // Register this assembly so the Razor Pages in Areas/Cms/Pages are discovered

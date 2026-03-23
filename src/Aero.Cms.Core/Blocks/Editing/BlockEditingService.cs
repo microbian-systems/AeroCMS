@@ -1,8 +1,9 @@
 using System.Reflection;
 using Aero.Cms.Core.Blocks;
+using Aero.Core;
 using Aero.Core.Railway;
 
-namespace Aero.Cms.Modules.Admin.Services;
+namespace Aero.Cms.Core.Blocks.Editing;
 
 /// <summary>
 /// Service for block editing operations, providing methods to create, update, delete, and manage CMS blocks.

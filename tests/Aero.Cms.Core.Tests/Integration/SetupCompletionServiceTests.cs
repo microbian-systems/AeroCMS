@@ -1,4 +1,5 @@
 using Aero.Cms.Modules.Blog;
+using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
 using FluentAssertions;
 using NSubstitute;
@@ -111,7 +112,8 @@ public class SetupCompletionServiceTests
             harness.Session,
             identityBootstrapper,
             new MartenPageContentService(harness.Session),
-            new MartenBlogPostContentService(harness.Session));
+            new MartenBlogPostContentService(harness.Session),
+            Substitute.For<IStaticPhotosClient>());
 
     private static SetupCompletionRequest CreateRequest()
         => new(

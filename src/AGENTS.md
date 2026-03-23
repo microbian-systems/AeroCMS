@@ -49,6 +49,7 @@
     - https://github.com/mysticmind/mysticmind-postgresembed 
 
 ## Constraints & Rules
+- DO NOT COMMIT Changes to git unless explicitly told to do so
 - **DO NOT USE NPM**. All frontend dependencies should align with the CDN usage or libman`Microsoft.Typescript.Build` constraints.
 - Project includes a .NET MAUI hybrid web and mobile setup (newly created).
 - All APIs should make use of minimal apis over mvc

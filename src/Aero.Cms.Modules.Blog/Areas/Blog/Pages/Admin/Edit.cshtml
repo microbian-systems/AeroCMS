@@ -1,5 +1,4 @@
-@page "/admin/blog/edit/{id?}"
-@page "/admin/blog/create"
+@page "/admin/blog/edit/{id:long?}"
 @using Aero.Cms.Modules.Blog
 @using Aero.Cms.Modules.Pages
 @using Radzen.Blazor
@@ -108,8 +107,10 @@
                                     Content
                                 </label>
                                 <div class="mt-2">
-                                    <RadzenMarkdown @bind-Value="Model.MarkdownContent" 
-                                                    Style="min-height: 400px;" />
+                                    <textarea class="w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-cyan-600 sm:text-sm"
+                                              rows="10"
+                                              placeholder="Write your blog post content in Markdown..."></textarea>
+                                </div>
                                 </div>
                                 <p class="mt-2 text-xs text-slate-500">Use Markdown to format your blog post content</p>
                             </div>
@@ -204,7 +205,7 @@
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <p class="text-sm font-medium text-slate-900">@block.BlockType?.Replace("_", " ").Replace(" ", "").ToTitleCase()</p>
+                                                        <p class="text-sm font-medium text-slate-900">@System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(block.BlockType?.Replace("_", " ").Replace(" ", "").ToLower() ?? "")</p>
                                                         <p class="text-xs text-slate-500">Order: @block.Order</p>
                                                     </div>
                                                 </div>

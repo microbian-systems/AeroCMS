@@ -1,48 +1,29 @@
 using System.Reflection;
 using Aero.Cms.Core.Blocks;
-using Aero.Cms.Modules.Admin.Services;
-using Aero.Cms.Modules.Pages;
+using Aero.Cms.Core.Blocks.Editing;
 using Aero.Cms.Modules.Pages.Models;
-using Aero.Core.Entities;
-using Aero.Core.Railway;
 using Aero.Core;
-using Marten;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages.Admin;
 
-public class EditModel : PageModel
+public class EditModel(IPageContentService pageService, IDocumentSession session) : PageModel
 {
-    private readonly IPageContentService _pageService;
-    private readonly IDocumentSession _session;
-
-    public EditModel(IPageContentService pageService, IDocumentSession session)
-    {
-        _pageService = pageService;
-        _session = session;
-    }
-
     [BindProperty(SupportsGet = true)]
     public long? Id { get; set; }
-
     [BindProperty]
     public PageDocument? PageDocument { get; set; }
-
     public bool IsNew { get; private set; }
-
     public string? ErrorMessage { get; private set; }
-
     // Block editing state
     public BlockBase? SelectedBlock { get; set; }
     public bool ShowBlockPicker { get; set; }
     public bool ShowBlockEditor { get; set; }
-
     // Track which region/column we're editing
     public string EditingRegionName { get; set; } = "MainContent";
     public int EditingColumnIndex { get; set; }
-
     // EventCallbacks for Blazor components
     public EventCallback<BlockTypeInfo> OnBlockTypeSelected => EventCallback.Factory.Create<BlockTypeInfo>(this, HandleBlockTypeSelected);
     public EventCallback OnCancelBlockPicker => EventCallback.Factory.Create(this, HandleCancelBlockPicker);
@@ -71,7 +52,7 @@ public class EditModel : PageModel
     {
         if (Id.HasValue)
         {
-            var result = await _pageService.LoadAsync(Id.Value, cancellationToken);
+            var result = await pageService.LoadAsync(Id.Value, cancellationToken);
             PageDocument = result switch
             {
                 global::Aero.Core.Railway.Result<string, PageDocument?>.Ok(var page) => page,
@@ -118,7 +99,7 @@ public class EditModel : PageModel
             return Page();
         }
 
-        var result = await _pageService.SaveAsync(PageDocument, cancellationToken);
+        var result = await pageService.SaveAsync(PageDocument, cancellationToken);
 
         if (result is global::Aero.Core.Railway.Result<string, PageDocument>.Ok)
         {
@@ -155,7 +136,7 @@ public class EditModel : PageModel
     {
         if (block is not null)
         {
-            _session.Store(block);
+            session.Store(block);
             ShowBlockEditor = false;
             ShowBlockPicker = false;
             SelectedBlock = null;
@@ -219,7 +200,7 @@ public class EditModel : PageModel
     }
 
     // Edit a specific block
-    public IActionResult OnGetEditBlock(long blockId, string regionName = "MainContent", int columnIndex = 0)
+    public async Task<IActionResult> OnGetEditBlock(long blockId, string regionName = "MainContent", int columnIndex = 0)
     {
         EditingRegionName = regionName;
         EditingColumnIndex = columnIndex;
@@ -230,7 +211,7 @@ public class EditModel : PageModel
         }
 
         // Find the block in the layout regions
-        SelectedBlock = FindBlockById(blockId);
+        SelectedBlock = await FindBlockByIdAsync(blockId);
         ShowBlockEditor = SelectedBlock is not null;
         ShowBlockPicker = false;
 
@@ -258,7 +239,7 @@ public class EditModel : PageModel
         if (blockResult is global::Aero.Core.Railway.Result<string, BlockBase>.Ok(var block))
         {
             // Store the block in Marten
-            _session.Store(block);
+            session.Store(block);
             
             // Create a placement referencing the block
             var placement = new BlockPlacement
@@ -287,7 +268,7 @@ public class EditModel : PageModel
         if (SelectedBlock is not null)
         {
             // Block is already updated via binding, just close the editor
-            _session.Store(SelectedBlock);
+            session.Store(SelectedBlock);
             ShowBlockEditor = false;
             ShowBlockPicker = false;
             SelectedBlock = null;
@@ -297,7 +278,7 @@ public class EditModel : PageModel
     }
 
     // Handler for deleting a block
-    public IActionResult OnPostDeleteBlock(long blockId)
+    public async Task<IActionResult> OnPostDeleteBlock(long blockId)
     {
         if (PageDocument is null)
         {
@@ -313,7 +294,7 @@ public class EditModel : PageModel
                 if (placement is not null)
                 {
                     column.Blocks.Remove(placement);
-                    ReorderBlocksInColumn(region.Name, column);
+                    await ReorderBlocksInColumnAsync(region.Name, column);
                     break;
                 }
             }
@@ -327,14 +308,14 @@ public class EditModel : PageModel
     }
 
     // Handler for duplicating a block
-    public IActionResult OnPostDuplicateBlock(long blockId)
+    public async Task<IActionResult> OnPostDuplicateBlock(long blockId)
     {
         if (PageDocument is null)
         {
             return Page();
         }
 
-        var sourceBlock = FindBlockById(blockId);
+        var sourceBlock = await FindBlockByIdAsync(blockId);
         if (sourceBlock is null)
         {
             return Page();
@@ -351,7 +332,7 @@ public class EditModel : PageModel
         
         if (duplicateResult is global::Aero.Core.Railway.Result<string, BlockBase>.Ok(var duplicate))
         {
-            _session.Store(duplicate);
+            session.Store(duplicate);
             var placement = new BlockPlacement
             {
                 BlockId = duplicate.Id,
@@ -369,7 +350,7 @@ public class EditModel : PageModel
     }
 
     // Handler for moving a block up
-    public IActionResult OnPostMoveBlockUp(long blockId)
+    public async Task<IActionResult> OnPostMoveBlockUp(long blockId)
     {
         if (PageDocument is null)
         {
@@ -383,18 +364,18 @@ public class EditModel : PageModel
         }
 
         var column = region.Columns[EditingColumnIndex];
-        var block = FindBlockById(blockId);
+        var block = await FindBlockByIdAsync(blockId);
         if (block is not null && block.Order > 0)
         {
             block.Order--;
-            ReorderBlocksInColumn(region.Name, column);
+            await ReorderBlocksInColumnAsync(region.Name, column);
         }
 
         return Page();
     }
 
     // Handler for moving a block down
-    public IActionResult OnPostMoveBlockDown(long blockId)
+    public async Task<IActionResult> OnPostMoveBlockDown(long blockId)
     {
         if (PageDocument is null)
         {
@@ -408,11 +389,11 @@ public class EditModel : PageModel
         }
 
         var column = region.Columns[EditingColumnIndex];
-        var block = FindBlockById(blockId);
+        var block = await FindBlockByIdAsync(blockId);
         if (block is not null)
         {
             block.Order++;
-            ReorderBlocksInColumn(region.Name, column);
+            await ReorderBlocksInColumnAsync(region.Name, column);
         }
 
         return Page();
@@ -427,7 +408,7 @@ public class EditModel : PageModel
         return Page();
     }
 
-    private BlockBase? FindBlockById(long blockId)
+    private async Task<BlockBase?> FindBlockByIdAsync(long blockId)
     {
         if (PageDocument is null)
         {
@@ -443,7 +424,7 @@ public class EditModel : PageModel
                 if (placement is not null)
                 {
                     // Load the block from Marten
-                    return _session.Load<BlockBase>(blockId);
+                    return await session.LoadAsync<BlockBase>(blockId);
                 }
             }
         }
@@ -451,10 +432,10 @@ public class EditModel : PageModel
         return null;
     }
 
-    private void ReorderBlocksInColumn(string regionName, LayoutColumn column)
+    private async Task ReorderBlocksInColumnAsync(string regionName, LayoutColumn column)
     {
         var blocks = column.Blocks
-            .Select(b => new { Placement = b, Block = FindBlockById(b.BlockId) })
+            .Select(b => new { Placement = b, Block = FindBlockByIdAsync(b.BlockId).GetAwaiter().GetResult() })
             .Where(x => x.Block is not null)
             .OrderBy(x => x.Block!.Order)
             .ToList();

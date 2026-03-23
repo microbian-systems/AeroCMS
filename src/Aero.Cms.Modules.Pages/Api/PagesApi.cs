@@ -5,14 +5,11 @@ using System.Threading.Tasks;
 using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Cms.Core.Audit;
-using Aero.Cms.Modules.Pages.Models;
 using Aero.Cms.Modules.Pages.Requests;
-using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 public static class PagesApi
@@ -126,7 +123,7 @@ public static class PagesApi
             if (result is Result<string, PageDocument>.Ok ok)
             {
                 var userId = GetUserId(httpContextAccessor);
-                var auditEvent = PageCreatedEvent.Create(userId, page.Id, page.Title, page.Slug, page.Kind);
+                var auditEvent = PageCreatedEvent.Create(userId, page.Id, page.Title, page.Slug, (Aero.Cms.Core.Audit.PageKind)page.Kind);
                 await auditService.LogAsync(auditEvent, cancellationToken);
                 return TypedResults.Ok(ok.Value);
             }

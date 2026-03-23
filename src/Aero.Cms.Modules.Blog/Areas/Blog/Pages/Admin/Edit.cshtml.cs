@@ -1,22 +1,14 @@
 using Aero.Cms.Core.Blocks;
-using Aero.Cms.Modules.Admin.Services;
+using Aero.Cms.Core.Blocks.Editing;
 using Aero.Cms.Modules.Blog;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages.Admin;
 
-public class EditModel : PageModel
+public class EditModel(IBlogPostContentService blogService, BlockEditingService blockService)
+    : PageModel
 {
-    private readonly IBlogPostContentService _blogService;
-    private readonly BlockEditingService _blockService;
-
-    public EditModel(IBlogPostContentService blogService, BlockEditingService blockService)
-    {
-        _blogService = blogService;
-        _blockService = blockService;
-    }
-
     [BindProperty(SupportsGet = true)]
     public long? Id { get; set; }
 
@@ -42,7 +34,7 @@ public class EditModel : PageModel
             return Page();
         }
 
-        var result = _blockService.CreateBlock(blockTypeName, BlogPost.Content.Count);
+        var result = blockService.CreateBlock(blockTypeName, BlogPost.Content.Count);
         if (result is Result<string, BlockBase>.Ok(var block))
         {
             BlogPost.Content.Add(block);
@@ -83,7 +75,7 @@ public class EditModel : PageModel
         if (block is not null)
         {
             BlogPost.Content.Remove(block);
-            _blockService.ReorderBlocks(BlogPost.Content);
+            blockService.ReorderBlocks(BlogPost.Content);
         }
 
         ShowBlockEditor = false;
@@ -103,7 +95,7 @@ public class EditModel : PageModel
         var sourceBlock = BlogPost.Content.FirstOrDefault(b => b.Id == blockId);
         if (sourceBlock is not null)
         {
-            var result = _blockService.DuplicateBlock(sourceBlock, BlogPost.Content.Count);
+            var result = blockService.DuplicateBlock(sourceBlock, BlogPost.Content.Count);
             if (result is Result<string, BlockBase>.Ok(var duplicate))
             {
                 BlogPost.Content.Add(duplicate);
@@ -127,8 +119,8 @@ public class EditModel : PageModel
         var block = BlogPost.Content.FirstOrDefault(b => b.Id == blockId);
         if (block is not null)
         {
-            _blockService.MoveBlockUp(block);
-            _blockService.ReorderBlocks(BlogPost.Content);
+            blockService.MoveBlockUp(block);
+            blockService.ReorderBlocks(BlogPost.Content);
         }
 
         return Page();
@@ -145,8 +137,8 @@ public class EditModel : PageModel
         var block = BlogPost.Content.FirstOrDefault(b => b.Id == blockId);
         if (block is not null)
         {
-            _blockService.MoveBlockDown(block);
-            _blockService.ReorderBlocks(BlogPost.Content);
+            blockService.MoveBlockDown(block);
+            blockService.ReorderBlocks(BlogPost.Content);
         }
 
         return Page();
@@ -189,7 +181,7 @@ public class EditModel : PageModel
     {
         if (Id.HasValue)
         {
-            var result = await _blogService.LoadAsync(Id.Value, cancellationToken);
+            var result = await blogService.LoadAsync(Id.Value, cancellationToken);
             BlogPost = result switch
             {
                 Result<string, BlogPostDocument?>.Ok(var post) => post,
@@ -222,7 +214,7 @@ public class EditModel : PageModel
             return Page();
         }
 
-        var result = await _blogService.SaveAsync(BlogPost, cancellationToken);
+        var result = await blogService.SaveAsync(BlogPost, cancellationToken);
 
         if (result is global::Aero.Core.Railway.Result<string, BlogPostDocument>.Ok)
         {

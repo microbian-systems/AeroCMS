@@ -1,5 +1,6 @@
 @page "/admin/blog"
 @using Aero.Cms.Modules.Blog
+@using Aero.Cms.Modules.Pages
 
 @model global::Aero.Cms.Modules.Blog.Areas.Blog.Pages.Admin.IndexModel
 
@@ -120,7 +121,7 @@
                                         </a>
                                         @if (p.IsPubliclyVisible)
                                         {
-                                            <a href="/blog/@p.Slug" 
+                                            <a href="/@p.Slug" 
                                                target="_blank"
                                                class="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2">
                                                 <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

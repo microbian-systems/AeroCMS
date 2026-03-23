@@ -1,5 +1,3 @@
-using Aero.Cms.Modules.Pages;
-
 namespace Aero.Cms.Modules.Pages.Requests;
 
 public record CreatePageRequest(

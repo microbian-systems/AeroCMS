@@ -1,4 +1,3 @@
-using Aero.Core;
 using Aero.Core.Entities;
 using Aero.Cms.Modules.Pages.Models;
 
