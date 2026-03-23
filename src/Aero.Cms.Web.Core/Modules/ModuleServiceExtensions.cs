@@ -26,8 +26,8 @@ public static class ModuleServiceExtensions
         }
 
         // Register core module services
-        services.AddSingleton<IModuleDiscoveryService, ModuleDiscoveryService>();
-        services.AddSingleton<IModuleGraphService, ModuleGraphService>();
+        services.AddScoped<IModuleDiscoveryService, ModuleDiscoveryService>();
+        services.AddScoped<IModuleGraphService, ModuleGraphService>();
 
         return services;
     }
@@ -45,8 +45,8 @@ public static class ModuleServiceExtensions
         services.Configure<ModuleDiscoveryOptions>(configuration.GetSection("ModuleDiscovery"));
 
         // Register core module services
-        services.AddSingleton<IModuleDiscoveryService, ModuleDiscoveryService>();
-        services.AddSingleton<IModuleGraphService, ModuleGraphService>();
+        services.AddScoped<IModuleDiscoveryService, ModuleDiscoveryService>();
+        services.AddScoped<IModuleGraphService, ModuleGraphService>();
 
         return services;
     }

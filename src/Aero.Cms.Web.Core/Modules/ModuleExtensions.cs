@@ -57,10 +57,10 @@ public static class ModuleExtensions
     public static IServiceCollection AddModuleSystemServices(this IServiceCollection services)
     {
         // Register discovery service
-        services.TryAddSingleton<IModuleDiscoveryService, ModuleDiscoveryService>();
+        services.TryAddScoped<IModuleDiscoveryService, ModuleDiscoveryService>();
 
         // Register graph service
-        services.TryAddSingleton<IModuleGraphService, ModuleGraphService>();
+        services.TryAddScoped<IModuleGraphService, ModuleGraphService>();
 
         // Register options
         services.AddOptions<ModuleDiscoveryOptions>();
@@ -101,9 +101,10 @@ public static class ModuleExtensions
         discoveryServices.Configure<ModuleDiscoveryOptions>(configuration.GetSection("ModuleDiscovery"));
 
         await using var discoveryProvider = discoveryServices.BuildServiceProvider();
-        var discoveryService = discoveryProvider.GetRequiredService<IModuleDiscoveryService>();
-        var graphService = discoveryProvider.GetRequiredService<IModuleGraphService>();
-        var logger = discoveryProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Aero.Cms.Modules.Startup");
+        using var scope = discoveryProvider.CreateScope();
+        var discoveryService = scope.ServiceProvider.GetRequiredService<IModuleDiscoveryService>();
+        var graphService = scope.ServiceProvider.GetRequiredService<IModuleGraphService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Aero.Cms.Modules.Startup");
 
         // Discover modules
         var descriptors = await discoveryService.DiscoverAsync();
