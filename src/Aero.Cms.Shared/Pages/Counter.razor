@@ -1,12 +1,30 @@
-﻿@page "/counter"
+@page "/counter"
 
-<PageTitle>Counter</PageTitle>
+<PageTitle>Analytics - Aero CMS</PageTitle>
 
-<h1>Counter</h1>
+<div class="space-y-6">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center max-w-lg mx-auto mt-12">
+        <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Live Session Analytics</h1>
+        <p class="text-gray-500 mb-8">This module simulates real-time data ingestion. Every click represents an intercepted request event.</p>
+        
+        <div class="bg-gray-50 rounded-xl p-6 mb-8 border border-gray-100">
+            <span class="text-sm font-bold text-gray-400 uppercase tracking-widest block mb-1">Total Intercepted Events</span>
+            <div class="text-5xl font-black text-indigo-600 tracking-tighter">@currentCount</div>
+        </div>
 
-<p role="status">Current count: @currentCount</p>
-
-<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+        <button class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-lg active:scale-[0.98] focus:ring-4 focus:ring-indigo-100" 
+                @onclick="IncrementCount">
+            Simulate Event Ingress
+        </button>
+        
+        <p class="mt-4 text-xs text-gray-400">Events are persisted locally within this session's transient state.</p>
+    </div>
+</div>
 
 @code {
     private int currentCount = 0;

@@ -1,0 +1,137 @@
+@page "/manager"
+@using Aero.Cms.Shared.Pages
+
+<PageTitle>Dashboard - Aero CMS</PageTitle>
+
+<div class="space-y-8 animate-in fade-in duration-500">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Enterprise Console</h1>
+            <p class="text-gray-500 mt-1">Real-time infrastructure and content performance overview.</p>
+        </div>
+        <div class="flex space-x-3">
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold shadow-sm hover:bg-indigo-700 transition-all flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                <span>Provision Resource</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard Label="Global Page Views" Value="428,912" Change="+24.2%" Color="bg-blue-500" Icon="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        <StatsCard Label="Total Content Likes" Value="12.5k" Change="+8.1%" Color="bg-rose-500" Icon="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        <StatsCard Label="Avg. Response Time" Value="42ms" Color="bg-emerald-500" Icon="M13 10V3L4 14h7v7l9-11h-7z" />
+        <StatsCard Label="Critical Exceptions" Value="14" Change="-40%" Color="bg-amber-500" Icon="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <h3 class="text-lg font-bold text-gray-900 mb-6">Engagement Trends</h3>
+            <div class="h-80 w-full">
+                <RadzenChart>
+                    <RadzenLineSeries Data="@viewsData" CategoryProperty="Date" Title="Page Views" ValueProperty="Count" Smooth="true" Stroke="#4f46e5" StrokeWidth="3">
+                        <RadzenMarkers MarkerType="MarkerType.Circle" Fill="#4f46e5" Size="4" />
+                    </RadzenLineSeries>
+                    <RadzenCategoryAxis Padding="20" Formatter="@FormatDate" />
+                    <RadzenValueAxis>
+                        <RadzenGridLines Visible="true" Stroke="#f3f4f6" />
+                    </RadzenValueAxis>
+                    <RadzenChartTooltipOptions Shared="true" />
+                </RadzenChart>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <h3 class="text-lg font-bold text-gray-900 mb-6">Traffic Attribution</h3>
+            <div class="h-80 w-full">
+                <RadzenChart>
+                    <RadzenPieSeries Data="@trafficData" Title="Traffic Source" CategoryProperty="Source" ValueProperty="Percentage">
+                        <RadzenSeriesDataLabels Visible="true" />
+                    </RadzenPieSeries>
+                    <RadzenLegend Visible="true" Position="LegendPosition.Right" />
+                </RadzenChart>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lower Grid -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <!-- Error Logs -->
+        <div class="xl:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                    <h3 class="font-bold text-gray-900 uppercase text-xs tracking-widest">Recent System Exceptions</h3>
+                </div>
+                <button class="text-indigo-600 font-bold text-[10px] uppercase hover:underline">Clear Logs</button>
+            </div>
+            <div class="divide-y divide-gray-50 flex-1">
+                @foreach (var error in errors)
+                {
+                    <div class="px-6 py-4 flex items-center justify-between hover:bg-red-50/30 transition-colors">
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-shrink-0 w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center font-mono text-xs font-bold">@error.Code</div>
+                            <div>
+                                <h4 class="text-sm font-semibold text-gray-900">@error.Message</h4>
+                                <p class="text-[10px] text-gray-400 font-mono">@error.Endpoint • @error.Timestamp</p>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold @(error.Severity == "Critical" ? "bg-red-600 text-white" : "bg-red-100 text-red-700")">@error.Severity</span>
+                    </div>
+                }
+            </div>
+            <div class="p-4 bg-gray-50 border-t border-gray-100 text-center">
+                <button class="text-xs font-bold text-gray-500 hover:text-indigo-600 transition-colors">View Deep Logs Management</button>
+            </div>
+        </div>
+
+        <!-- Latest Activity -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h3 class="font-bold text-gray-900 uppercase text-xs tracking-widest">Content Pipeline</h3>
+            </div>
+            <div class="divide-y divide-gray-50 flex-1">
+                <RecentActivity Title="Global Strategy Revamp" Author="Lena K." Status="Published" Time="12m ago" />
+                <RecentActivity Title="Architecture Docs V2" Author="David S." Status="Review" Time="1h ago" />
+                <RecentActivity Title="Marketing Site Cleanup" Author="Sarah L." Status="Published" Time="3h ago" />
+                <RecentActivity Title="Q3 Product Roadmap" Author="James W." Status="Draft" Time="5h ago" />
+                <RecentActivity Title="User Authentication Patch" Author="System" Status="Published" Time="1d ago" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    class DataItem { public string Date { get; set; } = ""; public double Count { get; set; } }
+    class TrafficItem { public string Source { get; set; } = ""; public double Percentage { get; set; } }
+    class ErrorItem { public string Code { get; set; } = ""; public string Message { get; set; } = ""; public string Endpoint { get; set; } = ""; public string Timestamp { get; set; } = ""; public string Severity { get; set; } = ""; }
+
+    DataItem[] viewsData = new DataItem[] {
+        new() { Date = "Mar 17", Count = 42000 },
+        new() { Date = "Mar 18", Count = 53000 },
+        new() { Date = "Mar 19", Count = 48000 },
+        new() { Date = "Mar 20", Count = 65000 },
+        new() { Date = "Mar 21", Count = 59000 },
+        new() { Date = "Mar 22", Count = 78000 },
+        new() { Date = "Mar 23", Count = 85000 },
+    };
+
+    TrafficItem[] trafficData = new TrafficItem[] {
+        new() { Source = "Direct", Percentage = 42 },
+        new() { Source = "Organic", Percentage = 28 },
+        new() { Source = "Referral", Percentage = 15 },
+        new() { Source = "Social", Percentage = 10 },
+        new() { Source = "Other", Percentage = 5 },
+    };
+
+    ErrorItem[] errors = new ErrorItem[] {
+        new() { Code = "500", Message = "Critical: Marten session conflict in ContentPipeline", Endpoint = "/api/v1/posts/publish", Timestamp = "14:22:01", Severity = "Critical" },
+        new() { Code = "404", Message = "Asset not found: /static/hero-banner-x2.webp", Endpoint = "/landing", Timestamp = "14:18:45", Severity = "Error" },
+        new() { Code = "503", Message = "Service Unavailable: Orleans Silo [Region: US-East-1]", Endpoint = "System.Gateway", Timestamp = "14:15:22", Severity = "Critical" },
+        new() { Code = "401", Message = "Unauthorized Access attempt detected", Endpoint = "/manager/settings", Timestamp = "14:02:10", Severity = "Warning" },
+    };
+
+    string FormatDate(object value) => (string)value;
+}

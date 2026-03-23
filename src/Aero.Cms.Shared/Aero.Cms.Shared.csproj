@@ -6,9 +6,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+    <PackageReference Include="Radzen.Blazor" />
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Pages\Manager\" />
     <Folder Include="Security\" />
   </ItemGroup>
 

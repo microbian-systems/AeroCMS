@@ -1,0 +1,33 @@
+@page "/manager/files"
+
+<PageTitle>Files - Aero CMS</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-900 italic tracking-tight uppercase leading-tight">System Files Storage</h1>
+        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold shadow-sm hover:bg-indigo-700 transition-all flex items-center space-x-2">
+             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+            <span>Stage Sync Point</span>
+        </button>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50 flex flex-col">
+        @for (int i = 1; i <= 8; i++) {
+        <div class="px-8 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+            <div class="flex items-center space-x-4">
+                <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                </div>
+                <div>
+                   <h5 class="text-sm font-bold text-gray-900 italic uppercase tracking-wider">storage-node-0@(i).config</h5>
+                    <p class="text-[10px] text-gray-400 font-mono">Size: 42 KB • Oct 14, 2025</p>
+                </div>
+            </div>
+            <div class="flex space-x-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                <button class="hover:text-indigo-600">Download</button>
+                <button class="hover:text-red-500">Purge</button>
+            </div>
+        </div>
+        }
+    </div>
+</div>
