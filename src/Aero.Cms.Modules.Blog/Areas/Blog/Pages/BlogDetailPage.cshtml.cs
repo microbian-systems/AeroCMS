@@ -17,6 +17,7 @@ public class BlogDetailPageModel : PageModel
     public string Slug { get; set; } = string.Empty;
 
     public BlogPostDocument? Post { get; private set; }
+    public Dictionary<long, string> TagNames { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
@@ -29,11 +30,11 @@ public class BlogDetailPageModel : PageModel
         // but the route {slug} parameter only captures the post portion
         var fullSlug = $"blog/{Slug}";
         var result = await _blogService.FindBySlugAsync(fullSlug, cancellationToken);
+        var tagsResult = await _blogService.GetAllTagsAsync(cancellationToken);
 
         var post = result switch
         {
             global::Aero.Core.Railway.Result<string, BlogPostDocument?>.Ok(var foundPost) => foundPost,
-            global::Aero.Core.Railway.Result<string, BlogPostDocument?>.Failure => (BlogPostDocument?)null,
             _ => (BlogPostDocument?)null
         };
 
@@ -41,6 +42,12 @@ public class BlogDetailPageModel : PageModel
         {
             return NotFound();
         }
+
+        TagNames = tagsResult switch
+        {
+            global::Aero.Core.Railway.Result<string, IReadOnlyList<Tag>>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
+            _ => []
+        };
 
         Post = post;
         return Page();

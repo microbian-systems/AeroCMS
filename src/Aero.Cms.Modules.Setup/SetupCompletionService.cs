@@ -133,8 +133,17 @@ public sealed class SetupCompletionService(
         }
         await pageContentService.SaveAsync(contactPage, cancellationToken);
 
+        // Build starter blog content (posts and tags)
+        var (posts, tags) = BuildStarterBlogContent(request, staticPhotosClient);
+
+        // Store tags first
+        foreach (var tag in tags)
+        {
+            session.Store(tag);
+        }
+
         // Save blog posts (blocks are stored inline in Content)
-        foreach (var post in BuildStarterBlogPosts(request, staticPhotosClient))
+        foreach (var post in posts)
         {
             await blogPostContentService.SaveAsync(post, cancellationToken);
         }
@@ -364,14 +373,14 @@ public sealed class SetupCompletionService(
         );
     }
 
-    private static IReadOnlyList<BlogPostDocument> BuildStarterBlogPosts(SetupCompletionRequest request, IStaticPhotosClient staticPhotosClient)
+    private static (IReadOnlyList<BlogPostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SetupCompletionRequest request, IStaticPhotosClient staticPhotosClient)
     {
         var random = new Random();
         var tags = CreateTags();
-        var tagIdsList = tags.Select(t => t.Id).ToList();
+        var tagMap = tags.ToDictionary(t => t.Name, t => t.Id);
 
-        return
-        [
+        var posts = new List<BlogPostDocument>
+        {
             CreatePost(
                 id: Snowflake.NewId(),
                 slug: "blog/welcome-to-our-new-platform",
@@ -381,7 +390,7 @@ public sealed class SetupCompletionService(
                 bodyHtml: $"<p>We're thrilled to unveil our new digital home. This platform marks a significant step forward in how we communicate, share, and engage with you—our community.</p>" +
                           "<p>Built from the ground up with modern technology, this site represents our commitment to speed, accessibility, and user experience. Every pixel has been crafted with care, every feature designed with purpose.</p>" +
                           "<p>As you explore, you'll find our blog at the heart of this platform. This is where we'll share insights, announce updates, and tell the stories behind our work.</p>",
-                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                tagIds: [tagMap["announcements"], tagMap["community"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("technology"),
                 likes: random.Next(1, 1001)),
             CreatePost(
@@ -395,7 +404,7 @@ public sealed class SetupCompletionService(
                           "<p>The result is a system that's fast, flexible, and fun to use. Stay tuned for more technical deep dives.</p>",
                 quoteText: "The best systems are those that disappear, letting creators focus on what matters—creating.",
                 quoteAuthor: "Our Team",
-                tagIds: GetRandomTagIds(tagIdsList, random, 3),
+                tagIds: [tagMap["architecture"], tagMap["cms"], tagMap[".net"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("technology"),
                 likes: random.Next(1, 1001)),
             CreatePost(
@@ -407,7 +416,7 @@ public sealed class SetupCompletionService(
                 bodyHtml: "<p>Good design is invisible. It works so well that users never notice the effort behind it. That's the standard we hold ourselves to.</p>" +
                           "<p>Our design philosophy centers on three pillars: clarity, speed, and delightful interactions. Every component we build must serve a purpose, load instantly, and feel natural to use.</p>" +
                           "<p>We believe in progressive enhancement—starting with a solid, accessible foundation and layering on polished experiences for capable browsers. This ensures everyone gets a great experience, regardless of device or connection.</p>",
-                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                tagIds: [tagMap["design"], tagMap["ux"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("workspace"),
                 likes: random.Next(1, 1001)),
             CreatePost(
@@ -420,7 +429,7 @@ public sealed class SetupCompletionService(
                           "<p>Orleans brings the actor model to .NET in a way that feels natural. Grains provide a clean mental model for stateful services, while the runtime handles distribution, persistence, and scaling concerns.</p>" +
                           "<p>What sold us most was the developer experience. The programming model is intuitive, the debugging story is solid, and the documentation is excellent. After months of building, we haven't looked back.</p>",
                 quoteText: "Orleans lets us think about business logic, not infrastructure. That's exactly what we needed.",
-                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                tagIds: [tagMap["orleans"], tagMap["distributed-systems"], tagMap[".net"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("architecture"),
                 likes: random.Next(1, 1001)),
             CreatePost(
@@ -433,7 +442,7 @@ public sealed class SetupCompletionService(
                           "<p>First, quality beats quantity. We'd rather publish one excellent article than three mediocre ones. Each post should add genuine value—whether that's solving a problem, sharing insight, or telling a compelling story.</p>" +
                           "<p>Second, consistency builds trust. When readers know they can expect content on a regular schedule, they become loyal followers. We publish weekly, every Tuesday morning.</p>" +
                           "<p>Finally, engage with your audience. Respond to comments, answer questions, and acknowledge feedback. The best blogs are conversations, not monologues.</p>",
-                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                tagIds: [tagMap["content-strategy"], tagMap["blogging"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("office"),
                 likes: random.Next(1, 1001)),
             CreatePost(
@@ -447,7 +456,7 @@ public sealed class SetupCompletionService(
                           "<p>Connection pooling is essential. With Marten's pooling built-in, we reuse connections efficiently, avoiding the overhead of establishing new connections for each request.</p>" +
                           "<p>And always, always monitor. Query stats, connection counts, cache hit ratios—know your system's vital signs before problems arise.</p>",
                 quoteText: "Premature optimization is the root of all evil. But so is ignoring performance until it bites you.",
-                tagIds: GetRandomTagIds(tagIdsList, random, 3),
+                tagIds: [tagMap["postgresql"], tagMap["performance"], tagMap["database"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("technology"),
                 likes: random.Next(1, 1001)),
             CreatePost(
@@ -460,7 +469,7 @@ public sealed class SetupCompletionService(
                           "<p>Blazor provides rich, interactive components in C#. We use Radzen's component library for rapid development of complex UI elements—data grids, editors, dialogs. Everything works without writing JavaScript.</p>" +
                           "<p>HTMX adds the dynamic touch. With a few attributes, we enable seamless partial page updates, infinite scroll, and real-time interactions. The pattern is simple: server renders HTML, HTMX swaps it in. No client-side routing, no hydration complexity.</p>" +
                           "<p>The result is a site that loads fast, works without JavaScript, yet feels modern and responsive. That's the sweet spot.</p>",
-                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                tagIds: [tagMap["blazor"], tagMap["htmx"], tagMap["frontend"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("workspace"),
                 likes: random.Next(1, 1001)),
             CreatePost(
@@ -474,7 +483,7 @@ public sealed class SetupCompletionService(
                           "<p>Traces let us follow requests across service boundaries, finding where latency bubbles up. Metrics show trends over time—error rates, response times, throughput. Logs provide the detail when something goes wrong.</p>" +
                           "<p>The investment pays dividends every incident. Instead of guessing, we know exactly what happened and where.</p>",
                 quoteText: "Without observability, you're flying blind. With it, you can debug with confidence.",
-                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                tagIds: [tagMap["observability"], tagMap["opentelemetry"], tagMap["monitoring"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("science"),
                 likes: random.Next(1, 1001)),
             CreatePost(
@@ -486,7 +495,7 @@ public sealed class SetupCompletionService(
                 bodyHtml: $"<p>Your site is live with a homepage and blog. Use this starter post as the baseline for your first editorial update in {Normalize(request.SiteName)}.</p>" +
                           "<p>The platform is designed to be intuitive. Create pages, arrange blocks, publish content—all without touching code. But if you need to extend functionality, the architecture is open and extensible.</p>" +
                           "<p>Browse the admin panel to explore what's possible. Add new pages, create blog posts, arrange content blocks, customize the design. This is just the beginning.</p>",
-                tagIds: GetRandomTagIds(tagIdsList, random, 1),
+                tagIds: [tagMap["cms"], tagMap["tutorial"], tagMap["guide"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("education"),
                 likes: random.Next(1, 1001)),
             CreatePost(
@@ -499,10 +508,12 @@ public sealed class SetupCompletionService(
                           "<p>Block-based content models are becoming the norm. Instead of rigid templates, editors compose with reusable components. This flexibility unlocks creativity while maintaining consistency.</p>" +
                           "<p>Headless is hot, but we're skeptical of the one-size-fits-all pitch. Most teams need a cohesive system, not a puzzle of separate products. We believe in integrated solutions that just work.</p>" +
                           "<p>The future is fast, accessible, and focused on the creator experience. That's the future we're building toward.</p>",
-                tagIds: GetRandomTagIds(tagIdsList, random, 2),
+                tagIds: [tagMap["future"], tagMap["cms"], tagMap["trends"]],
                 imageUrl: staticPhotosClient.GetPhotoUrl("technology"),
                 likes: random.Next(1, 1001))
-        ];
+        };
+
+        return (posts, tags);
     }
 
     private static BlogPostDocument CreatePost(long id, string slug, string title, string excerpt, string headingText, string bodyHtml, string? quoteText = null, string? quoteAuthor = null, List<long>? tagIds = null, string? imageUrl = null, int likes = 0)
@@ -539,18 +550,18 @@ public sealed class SetupCompletionService(
 
     private static List<Tag> CreateTags()
     {
-        var tagNames = new[] { "technology", "design", "architecture", "tutorial", "announcements", "insights" };
+        var tagNames = new[]
+        {
+            "announcements", "community", "architecture", "cms", ".net", "design", "ux", "orleans",
+            "distributed-systems", "content-strategy", "blogging", "postgresql", "performance",
+            "database", "blazor", "htmx", "frontend", "observability", "opentelemetry", "monitoring",
+            "tutorial", "guide", "future", "trends"
+        };
         return tagNames.Select(name => new Tag
         {
             Id = Snowflake.NewId(),
             Name = name,
-            Slug = name.ToLowerInvariant()
+            Slug = name.ToLowerInvariant().Replace(' ', '-')
         }).ToList();
-    }
-
-    private static List<long> GetRandomTagIds(List<long> allTagIds, Random random, int count)
-    {
-        var shuffled = allTagIds.OrderBy(_ => random.Next()).ToList();
-        return shuffled.Take(count).ToList();
     }
 }
