@@ -53,12 +53,10 @@ public class PagesEditModel(IPageContentService pageService, IDocumentSession se
         if (Id.HasValue)
         {
             var result = await pageService.LoadAsync(Id.Value, cancellationToken);
-            PageDocument = result switch
-            {
-                Result<string, PageDocument?>.Ok(var page) => page,
-                Aero.Core.Railway.Result<string, PageDocument?>.Failure => null,
-                _ => null
-            };
+            PageDocument = result.Match(
+                page => page,
+                _ => (PageDocument?)null
+            );
 
             if (PageDocument is null)
             {

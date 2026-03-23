@@ -181,12 +181,10 @@ public class EditModel(IBlogPostContentService blogService, BlockEditingService 
         if (Id.HasValue)
         {
             var result = await blogService.LoadAsync(Id.Value, cancellationToken);
-            BlogPost = result switch
-            {
-                Result<string, BlogPostDocument?>.Ok(var post) => post,
-                Result<string, BlogPostDocument?>.Failure => null,
-                _ => null
-            };
+            BlogPost = result.Match(
+                post => post,
+                _ => (BlogPostDocument?)null
+            );
 
             if (BlogPost is null)
             {

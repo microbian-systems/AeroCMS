@@ -1,6 +1,7 @@
 @page "/admin/blog/edit/{id:long?}"
 @using Aero.Cms.Modules.Blog
 @using Aero.Cms.Modules.Pages
+@using Aero.Cms.Core.Blocks.Editing
 @using Radzen.Blazor
 
 @model EditModel
@@ -146,7 +147,7 @@
                             {
                                 <component type="typeof(Aero.Cms.Modules.Admin.Components.BlockPicker)" 
                                            render-mode="ServerPrerendered"
-                                           param-OnBlockTypeSelected="EventCallback.Factory.Create< Aero.Cms.Modules.Admin.Services.BlockTypeInfo>(this, async (info) => await Model.OnPostAddBlockAsync(info.Name))"
+                                           param-OnBlockTypeSelected="EventCallback.Factory.Create<Aero.Cms.Core.Blocks.Editing.BlockTypeInfo>(this, async (info) => await Model.OnPostAddBlockAsync(info.Name))"
                                            param-OnCancel="EventCallback.Factory.Create(this, async () => { await Model.OnGetCancelBlockEditing(); })" />
                             }
                             else if (Model.ShowBlockEditor && Model.SelectedBlock != null)
