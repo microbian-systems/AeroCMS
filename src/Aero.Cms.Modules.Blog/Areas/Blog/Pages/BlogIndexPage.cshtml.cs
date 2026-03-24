@@ -2,8 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Blog.Models;
-using Marten;
-using Marten.Pagination;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages;
 
@@ -65,7 +63,7 @@ public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
         // Fetch archive posts skipping the 3 featured ones
         var result = await blogService.GetPagedPostsAsync(pageNumber, PageSize, skip: 3, cancellationToken);
         
-        if (result is global::Aero.Core.Railway.Result<string, global::Marten.Pagination.IPagedList<BlogPostDocument>>.Ok(var pagedList))
+        if (result is Result<string, global::Marten.Pagination.IPagedList<BlogPostDocument>>.Ok(var pagedList))
         {
             OtherPosts = pagedList.ToList();
             TotalCount = (int)pagedList.TotalItemCount; // Note: Marten total count for .Skip(3) might reflect the filtered set or original.
@@ -76,4 +74,4 @@ public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
             HasPreviousPage = pagedList.HasPreviousPage;
         }
     }
-}
+}

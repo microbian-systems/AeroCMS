@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Markdig" />
     <PackageReference Include="Marten" />
   </ItemGroup>
 

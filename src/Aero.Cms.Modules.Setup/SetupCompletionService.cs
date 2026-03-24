@@ -185,7 +185,60 @@ public sealed class SetupCompletionService(
         var bodyBlock = new RichTextBlock
         {
             Id = Snowflake.NewId(),
-            Content = $"<p>{Normalize(request.SiteName)} is now configured. Visit the blog to publish your next update.</p>",
+            Content = @"
+                <style>
+                    .no-scrollbar::-webkit-scrollbar { display: none; }
+                    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                </style>
+                <div class='max-w-4xl'>
+                    <p class='text-xl leading-relaxed text-slate-700 mb-10'>
+                        <strong>Aero CMS</strong> is a high-performance content platform designed for the next generation of web experience. 
+                        Engineered with a relentless focus on efficiency, our ultimate goal is full <strong>Native AOT</strong> compatibility—delivering 
+                        blindingly fast startup times and a minimal memory footprint.
+                    </p>
+
+                    <div class='grid grid-cols-1 md:grid-cols-2 gap-12 mb-16'>
+                        <div class='space-y-4'>
+                            <h3 class='text-lg font-bold text-slate-900 flex items-center gap-2'>
+                                <span class='h-1 w-6 bg-indigo-600 rounded-full'></span>
+                                The Power Core
+                            </h3>
+                            <p class='text-slate-600 leading-relaxed font-medium'>
+                                Built on <strong>.NET 10</strong>, <strong>Marten</strong>, and <strong>PostgreSQL</strong>, we provide a sophisticated 
+                                document-database experience with the reliability of a relational backend. <strong>Wolverine</strong> and 
+                                <strong>LavinMQ</strong> handle our high-performance messaging, while <strong>S3 compatible storage</strong> 
+                                ensures your assets are served globally at scale.
+                            </p>
+                        </div>
+                        <div class='space-y-4'>
+                            <h3 class='text-lg font-bold text-slate-900 flex items-center gap-2'>
+                                <span class='h-1 w-6 bg-violet-600 rounded-full'></span>
+                                Modern Frontend
+                            </h3>
+                            <p class='text-slate-600 leading-relaxed font-medium'>
+                                We embrace the hypermedia revolution with <strong>HTMX</strong> and <strong>Alpine.js</strong>, supplemented by 
+                                <strong>Lit</strong> and <strong>Preact</strong> for standard-based components. The entire ecosystem is 
+                                <strong>.NET Aspire</strong> compatible and managed via powerful <strong>.NET MAUI</strong> clients.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class='mt-20 -mx-4 sm:-mx-6 lg:-mx-8'>
+                        <h4 class='px-4 sm:px-6 lg:px-8 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8'>Tech we use:</h4>
+                        <div class='flex overflow-x-auto gap-12 pb-8 px-4 sm:px-6 lg:px-8 items-center no-scrollbar group cursor-grab active:cursor-grabbing'>
+                            <img src='/img/dotnet-logo.svg' alt='DotNet' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                            <img src='/img/csharp.DJ9MidBD_1dalL.svg' alt='C#' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                            <img src='/img/postgresql.webp' alt='PostgreSQL' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                            <img src='/img/htmx-logo.png' alt='HTMX' class='h-7 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                            <img src='/img/typescript.C9-blvjE_1dalL.svg' alt='TypeScript' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                            <img src='/img/preact-logo.svg' alt='Preact' class='h-12 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                            <img src='/img/lavinmq.png' alt='LavinMQ' class='h-12 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                            <img src='/img/aspire.png' alt='Aspire' class='h-12 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                            <img src='/img/maui-icon.oIIgefok_ZfsSNl.webp' alt='MAUI' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                            <img src='/img/hydro_logo_s3.svg' alt='S3' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                        </div>
+                    </div>
+                </div>",
             Order = 1
         };
 
