@@ -2,10 +2,20 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface ISettingsHttpClient
+{
+    Task<IReadOnlyList<SettingSummary>> GetAllAsync(CancellationToken ct = default);
+    Task<SettingDetail?> GetByKeyAsync(string key, CancellationToken ct = default);
+    Task<IReadOnlyList<SettingDetail>> GetByCategoryAsync(string category, CancellationToken ct = default);
+    Task<SettingDetail?> SetAsync(SetSettingRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(string key, CancellationToken ct = default);
+    Task<IReadOnlyList<SettingCategory>> GetCategoriesAsync(CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for settings endpoints (stub implementation).
 /// </summary>
-public class SettingsClient(HttpClient httpClient, ILogger<SettingsClient> logger) : AeroClientBase(httpClient, logger)
+public class SettingsHttpClient(HttpClient httpClient, ILogger<SettingsHttpClient> logger) : AeroClientBase(httpClient, logger), ISettingsHttpClient
 {
     protected override string ResourceName => "settings";
 

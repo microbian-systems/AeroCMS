@@ -18,7 +18,7 @@ public sealed class RichTextBlock : BlockBase
     public override string BlockType => "rich_text";
 
     /// <inheritdoc />
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((RichTextBlock)this);
+    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -41,7 +41,7 @@ public sealed class HeadingBlock : BlockBase
     public override string BlockType => "heading";
 
     /// <inheritdoc />
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((HeadingBlock)this);
+    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -69,7 +69,7 @@ public sealed class ImageBlock : BlockBase
     public override string BlockType => "image";
 
     /// <inheritdoc />
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((ImageBlock)this);
+    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -97,7 +97,7 @@ public sealed class CtaBlock : BlockBase
     public override string BlockType => "cta";
 
     /// <inheritdoc />
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((CtaBlock)this);
+    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -125,7 +125,7 @@ public sealed class QuoteBlock : BlockBase
     public override string BlockType => "quote";
 
     /// <inheritdoc />
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((QuoteBlock)this);
+    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -153,7 +153,7 @@ public sealed class EmbedBlock : BlockBase
     public override string BlockType => "embed";
 
     /// <inheritdoc />
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((EmbedBlock)this);
+    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -182,7 +182,9 @@ public sealed class NavigationBlock : BlockBase
     public override string BlockType => "navigation";
 
     /// <inheritdoc />
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((NavigationBlock)this);
+    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+
+    public long NavigationId { get; set; }
 
     /// <summary>
     /// The list of navigation/menu items in display order

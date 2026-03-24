@@ -2,10 +2,19 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface IProfileHttpClient
+{
+    Task<UserProfile?> GetCurrentAsync(CancellationToken ct = default);
+    Task<UserProfile?> UpdateAsync(UpdateProfileRequest request, CancellationToken ct = default);
+    Task<bool> ChangePasswordAsync(ChangeProfilePasswordRequest request, CancellationToken ct = default);
+    Task<UserProfile?> UploadAvatarAsync(UploadAvatarRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAvatarAsync(CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for profile endpoints (stub implementation).
 /// </summary>
-public class ProfileClient(HttpClient httpClient, ILogger<ProfileClient> logger) : AeroClientBase(httpClient, logger)
+public class ProfileHttpClient(HttpClient httpClient, ILogger<ProfileHttpClient> logger) : AeroClientBase(httpClient, logger), IProfileHttpClient
 {
     protected override string ResourceName => "profile";
 

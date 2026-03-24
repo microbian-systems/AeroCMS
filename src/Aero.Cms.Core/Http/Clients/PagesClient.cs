@@ -2,7 +2,20 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
-public class PagesClient(HttpClient httpClient, ILogger<PagesClient> logger) : AeroClientBase(httpClient, logger)
+public interface IPagesHttpClient
+{
+    Task<IReadOnlyList<PageSummary>> GetAllAsync(CancellationToken ct = default);
+    Task<PageDetail?> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<PageDetail?> GetBySlugAsync(string slug, CancellationToken ct = default);
+    Task<IReadOnlyList<PageSummary>> GetPublishedAsync(CancellationToken ct = default);
+    Task<PageDetail?> CreateAsync(CreatePageRequest request, CancellationToken ct = default);
+    Task<PageDetail?> UpdateAsync(long id, UpdatePageRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+    Task<PageDetail?> PublishAsync(long id, CancellationToken ct = default);
+    Task<PageDetail?> UnpublishAsync(long id, CancellationToken ct = default);
+}
+
+public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> logger) : AeroClientBase(httpClient, logger), IPagesHttpClient
 {
     protected override string ResourceName => "pages";
 

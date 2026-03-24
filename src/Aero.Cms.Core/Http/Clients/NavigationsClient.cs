@@ -2,11 +2,20 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface INavigationsHttpClient
+{
+    Task<IReadOnlyList<NavigationSummary>> GetAllAsync(CancellationToken ct = default);
+    Task<NavigationDetail?> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<NavigationDetail?> CreateAsync(CreateNavigationRequest request, CancellationToken ct = default);
+    Task<NavigationDetail?> UpdateAsync(long id, UpdateNavigationRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for navigations endpoints (stub implementation).
 /// </summary>
-public class NavigationsClient(HttpClient httpClient, ILogger<NavigationsClient> logger)
-    : AeroClientBase(httpClient, logger)
+public class NavigationsHttpClient(HttpClient httpClient, ILogger<NavigationsHttpClient> logger)
+    : AeroClientBase(httpClient, logger), INavigationsHttpClient
 {
     protected override string ResourceName => "navigations";
 

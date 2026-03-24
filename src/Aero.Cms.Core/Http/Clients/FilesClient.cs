@@ -2,10 +2,19 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface IFilesHttpClient
+{
+    Task<IReadOnlyList<FileSummary>> GetAllAsync(string? folder = null, CancellationToken ct = default);
+    Task<FileDetail?> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<FileDetail?> UploadAsync(UploadFileRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+    Task<bool> MoveAsync(long id, string destinationFolder, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for files endpoints (stub implementation).
 /// </summary>
-public class FilesClient(HttpClient httpClient, ILogger<FilesClient> logger) : AeroClientBase(httpClient, logger)
+public class FilesHttpClient(HttpClient httpClient, ILogger<FilesHttpClient> logger) : AeroClientBase(httpClient, logger), IFilesHttpClient
 {
     protected override string ResourceName => "files";
 

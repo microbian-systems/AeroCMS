@@ -2,11 +2,17 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface IDashboardHttpClient
+{
+    Task<DashboardStats?> GetStatsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<RecentActivity>> GetRecentActivityAsync(int count = 10, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for dashboard endpoints (stub implementation).
 /// </summary>
-public class DashboardClient(HttpClient httpClient, ILogger<DashboardClient> logger)
-    : AeroClientBase(httpClient, logger)
+public class DashboardHttpClient(HttpClient httpClient, ILogger<DashboardHttpClient> logger)
+    : AeroClientBase(httpClient, logger), IDashboardHttpClient
 {
     protected override string ResourceName => "dashboard";
 

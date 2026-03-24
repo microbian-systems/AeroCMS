@@ -2,10 +2,20 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface IUsersHttpClient
+{
+    Task<IReadOnlyList<UserSummary>> GetAllAsync(CancellationToken ct = default);
+    Task<UserDetail?> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<UserDetail?> CreateAsync(CreateUserRequest request, CancellationToken ct = default);
+    Task<UserDetail?> UpdateAsync(long id, UpdateUserRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+    Task<bool> ChangePasswordAsync(long id, ChangePasswordRequest request, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for users endpoints (stub implementation).
 /// </summary>
-public class UsersClient(HttpClient httpClient, ILogger<UsersClient> logger) : AeroClientBase(httpClient, logger)
+public class UsersHttpClient(HttpClient httpClient, ILogger<UsersHttpClient> logger) : AeroClientBase(httpClient, logger), IUsersHttpClient
 {
     protected override string ResourceName => "users";
 

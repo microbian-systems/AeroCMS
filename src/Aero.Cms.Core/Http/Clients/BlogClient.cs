@@ -2,7 +2,21 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
-public class BlogClient(HttpClient httpClient, ILogger<BlogClient> logger) : AeroClientBase(httpClient, logger)
+public interface IBlogHttpClient
+{
+    Task<IReadOnlyList<BlogSummary>> GetAllAsync(CancellationToken ct = default);
+    Task<BlogDetail?> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<IReadOnlyList<BlogSummary>> GetPublishedAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<BlogSummary>> GetByCategoryAsync(long categoryId, CancellationToken ct = default);
+    Task<IReadOnlyList<BlogSummary>> SearchAsync(string query, CancellationToken ct = default);
+    Task<BlogDetail?> CreateAsync(CreateBlogRequest request, CancellationToken ct = default);
+    Task<BlogDetail?> UpdateAsync(long id, UpdateBlogRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+    Task<BlogDetail?> PublishAsync(long id, CancellationToken ct = default);
+    Task<BlogDetail?> UnpublishAsync(long id, CancellationToken ct = default);
+}
+
+public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logger) : AeroClientBase(httpClient, logger), IBlogHttpClient
 {
     protected override string ResourceName => "blogs";
 

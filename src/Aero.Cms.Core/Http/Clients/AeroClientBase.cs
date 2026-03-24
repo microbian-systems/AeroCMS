@@ -3,6 +3,9 @@ namespace Aero.Cms.Core.Http.Clients;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 
+
+// todo - replace the AeroClientBase HttpClient impl with the existing Aero.Core HttpClientBase implementation
+
 /// <summary>
 /// Abstract base class for typed HTTP clients used by Blazor WASM to communicate with the Admin API.
 /// </summary>

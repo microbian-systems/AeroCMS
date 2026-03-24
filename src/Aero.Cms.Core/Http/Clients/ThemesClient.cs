@@ -2,10 +2,20 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface IThemesHttpClient
+{
+    Task<IReadOnlyList<ThemeSummary>> GetAllAsync(CancellationToken ct = default);
+    Task<ThemeDetail?> GetByIdAsync(string id, CancellationToken ct = default);
+    Task<ThemeDetail?> GetCurrentAsync(CancellationToken ct = default);
+    Task<ThemeDetail?> ActivateAsync(string id, CancellationToken ct = default);
+    Task<ThemeDetail?> UploadAsync(UploadThemeRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(string id, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for themes endpoints (stub implementation).
 /// </summary>
-public class ThemesClient(HttpClient httpClient, ILogger<ThemesClient> logger) : AeroClientBase(httpClient, logger)
+public class ThemesHttpClient(HttpClient httpClient, ILogger<ThemesHttpClient> logger) : AeroClientBase(httpClient, logger), IThemesHttpClient
 {
     protected override string ResourceName => "themes";
 

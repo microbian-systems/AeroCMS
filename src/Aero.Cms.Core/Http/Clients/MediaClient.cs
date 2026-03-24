@@ -2,10 +2,18 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface IMediaHttpClient
+{
+    Task<IReadOnlyList<MediaSummary>> GetAllAsync(CancellationToken ct = default);
+    Task<MediaDetail?> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<MediaDetail?> UploadAsync(UploadMediaRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for media endpoints (stub implementation).
 /// </summary>
-public class MediaClient(HttpClient httpClient, ILogger<MediaClient> logger) : AeroClientBase(httpClient, logger)
+public class MediaHttpClient(HttpClient httpClient, ILogger<MediaHttpClient> logger) : AeroClientBase(httpClient, logger), IMediaHttpClient
 {
     protected override string ResourceName => "media";
 

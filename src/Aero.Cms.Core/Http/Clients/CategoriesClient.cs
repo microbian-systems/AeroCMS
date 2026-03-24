@@ -2,11 +2,20 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface ICategoriesHttpClient
+{
+    Task<IReadOnlyList<CategorySummary>> GetAllAsync(CancellationToken ct = default);
+    Task<CategoryDetail?> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<CategoryDetail?> CreateAsync(CreateCategoryRequest request, CancellationToken ct = default);
+    Task<CategoryDetail?> UpdateAsync(long id, UpdateCategoryRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for categories endpoints (stub implementation).
 /// </summary>
-public class CategoriesClient(HttpClient httpClient, ILogger<CategoriesClient> logger)
-    : AeroClientBase(httpClient, logger)
+public class CategoriesHttpClient(HttpClient httpClient, ILogger<CategoriesHttpClient> logger)
+    : AeroClientBase(httpClient, logger), ICategoriesHttpClient
 {
     protected override string ResourceName => "categories";
 

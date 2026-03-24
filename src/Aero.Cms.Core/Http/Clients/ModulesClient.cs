@@ -2,10 +2,20 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface IModulesHttpClient
+{
+    Task<IReadOnlyList<ModuleSummary>> GetAllAsync(CancellationToken ct = default);
+    Task<ModuleDetail?> GetByIdAsync(string id, CancellationToken ct = default);
+    Task<ModuleDetail?> InstallAsync(InstallModuleRequest request, CancellationToken ct = default);
+    Task<bool> UninstallAsync(string id, CancellationToken ct = default);
+    Task<ModuleDetail?> EnableAsync(string id, CancellationToken ct = default);
+    Task<ModuleDetail?> DisableAsync(string id, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for modules endpoints (stub implementation).
 /// </summary>
-public class ModulesClient(HttpClient httpClient, ILogger<ModulesClient> logger) : AeroClientBase(httpClient, logger)
+public class ModulesHttpClient(HttpClient httpClient, ILogger<ModulesHttpClient> logger) : AeroClientBase(httpClient, logger), IModulesHttpClient
 {
     protected override string ResourceName => "modules";
 

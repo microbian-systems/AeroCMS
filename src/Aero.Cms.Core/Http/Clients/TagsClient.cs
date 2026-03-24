@@ -2,10 +2,19 @@ namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
 
+public interface ITagsHttpClient
+{
+    Task<IReadOnlyList<TagSummary>> GetAllAsync(CancellationToken ct = default);
+    Task<TagDetail?> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<TagDetail?> CreateAsync(CreateTagRequest request, CancellationToken ct = default);
+    Task<TagDetail?> UpdateAsync(long id, UpdateTagRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+}
+
 /// <summary>
 /// Typed client for tags endpoints (stub implementation).
 /// </summary>
-public class TagsClient(HttpClient httpClient, ILogger<TagsClient> logger) : AeroClientBase(httpClient, logger)
+public class TagsHttpClient(HttpClient httpClient, ILogger<TagsHttpClient> logger) : AeroClientBase(httpClient, logger), ITagsHttpClient
 {
     protected override string ResourceName => "tags";
 
