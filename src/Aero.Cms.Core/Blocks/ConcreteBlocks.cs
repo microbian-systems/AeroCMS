@@ -154,3 +154,26 @@ public sealed class EmbedBlock : BlockBase
     /// <inheritdoc />
     public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((EmbedBlock)this);
 }
+
+/// <summary>
+/// Represents a navigation block that displays a navigation menu.
+/// </summary>
+[BlockMetadata("navigation", "Navigation Menu")]
+public sealed class NavigationBlock : BlockBase
+{
+    /// <summary>
+    /// Gets the unique identifier of the navigation menu to display.
+    /// </summary>
+    public long NavigationId { get; set; }
+
+    /// <summary>
+    /// Gets the optional title for the navigation block.
+    /// </summary>
+    public string? Title { get; set; }
+
+    /// <inheritdoc />
+    public override string BlockType => "navigation";
+
+    /// <inheritdoc />
+    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((NavigationBlock)this);
+}

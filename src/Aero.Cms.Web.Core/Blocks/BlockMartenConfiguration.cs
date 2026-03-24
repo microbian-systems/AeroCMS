@@ -16,6 +16,7 @@ public sealed class BlockMartenConfiguration : IConfigureMarten
             typeof(ImageBlock),
             typeof(CtaBlock),
             typeof(QuoteBlock),
-            typeof(EmbedBlock));
+            typeof(EmbedBlock),
+            typeof(NavigationBlock));
     }
 }

@@ -1,4 +1,7 @@
+@using Aero.Cms.Core.Blocks
+@using Aero.Cms.Core.Http.Clients
 @inject BlockEditingService BlockService
+@inject NavigationsClient NavClient
 
 <div class="block-editor">
     <div class="flex items-center justify-between mb-6">
@@ -258,6 +261,33 @@
                     </div>
                     break;
 
+                case NavigationBlock nav:
+                    <div class="form-group">
+                        <RadzenLabel Text="Title (Optional)" Component="navTitle" Class="block text-sm font-medium text-gray-700 mb-2" />
+                        <RadzenTextBox @bind-Value="nav.Title"
+                                      id="navTitle"
+                                      Placeholder="e.g., Quick Links, Resources..."
+                                      Class="w-full" />
+                    </div>
+                    <div class="form-group mt-4">
+                        <RadzenLabel Text="Navigation Menu" Component="navMenu" Class="block text-sm font-medium text-gray-700 mb-2" />
+                        <RadzenDropDown @bind-Value="nav.NavigationId"
+                                       Data="AvailableNavigations"
+                                       TextProperty="Name"
+                                       ValueProperty="Id"
+                                       Placeholder="Select a navigation menu..."
+                                       id="navMenu"
+                                       Class="w-full" />
+                        @if (ShowValidationErrors && nav.NavigationId <= 0)
+                        {
+                            <RadzenText TextStyle="TextStyle.Caption" Class="text-red-500 mt-1">
+                                <RadzenIcon Icon="error" Class="rz-mr-1" Style="font-size: 0.875rem;" />
+                                Please select a navigation menu
+                            </RadzenText>
+                        }
+                    </div>
+                    break;
+
                 default:
                     <div class="p-8 text-center text-gray-500">
                         <RadzenIcon Icon="block" Style="font-size: 3rem; margin-bottom: 1rem;" />
@@ -345,6 +375,12 @@
     public bool CanMoveDown { get; set; } = true;
 
     private bool ShowValidationErrors { get; set; }
+    private IReadOnlyList<NavigationSummary> AvailableNavigations { get; set; } = Array.Empty<NavigationSummary>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        AvailableNavigations = await NavClient.GetAllAsync();
+    }
 
     private readonly List<dynamic> HeadingLevels = new()
     {
@@ -437,6 +473,7 @@
         "cta" => "touch_app",
         "quote" => "format_quote",
         "embed" => "code",
+        "navigation" => "nav_menu",
         _ => "widgets"
     };
 
@@ -448,6 +485,7 @@
         "cta" => "Call to Action",
         "quote" => "Quote",
         "embed" => "Embed",
+        "navigation" => "Navigation Menu",
         _ => "Block"
     };
 }

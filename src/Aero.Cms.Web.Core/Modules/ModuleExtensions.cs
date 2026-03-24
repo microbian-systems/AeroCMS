@@ -3,7 +3,6 @@ namespace Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Blocks;
-using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Extensions;
 using Aero.EfCore;
 using Aero.EfCore.Extensions;
@@ -16,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Serilog.Extensions.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Marten;
 
 // todo - abstract/extract Aero modules into its own lib so it can be used in any type of app (host, console, web, etc)
 
@@ -60,8 +60,8 @@ public static class ModuleExtensions
     public static IServiceCollection AddModuleSystemServices(this IServiceCollection services)
     {
         // Register block service
-        services.TryAddScoped<IBlockService, MartenBlockService>();
-        services.AddSingleton<IConfigureMarten, BlockMartenConfiguration>();
+        services.TryAddScoped<Aero.Cms.Core.Blocks.IBlockService, Aero.Cms.Web.Core.Blocks.MartenBlockService>();
+        services.AddSingleton<global::Marten.IConfigureMarten, Aero.Cms.Web.Core.Blocks.BlockMartenConfiguration>();
 
         // Register discovery service
         services.TryAddScoped<IModuleDiscoveryService, ModuleDiscoveryService>();

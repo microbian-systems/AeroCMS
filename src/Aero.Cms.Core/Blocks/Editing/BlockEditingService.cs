@@ -187,6 +187,13 @@ public sealed class BlockEditingService
                     errors.Add("Source URL cannot be empty.");
                 }
                 break;
+
+            case NavigationBlock nav:
+                if (nav.NavigationId <= 0)
+                {
+                    errors.Add("Please select a navigation menu.");
+                }
+                break;
         }
 
         return errors.Count == 0 ? true : errors.ToArray();
@@ -208,6 +215,7 @@ public sealed class BlockEditingService
             "cta" => new Dictionary<string, object> { ["Text"] = string.Empty, ["Url"] = string.Empty, ["Style"] = string.Empty },
             "quote" => new Dictionary<string, object> { ["Content"] = string.Empty, ["Author"] = string.Empty, ["Citation"] = string.Empty },
             "embed" => new Dictionary<string, object> { ["EmbedType"] = string.Empty, ["SourceUrl"] = string.Empty, ["ThumbnailUrl"] = string.Empty },
+            "navigation" => new Dictionary<string, object> { ["NavigationId"] = 0L, ["Title"] = string.Empty },
             _ => new Dictionary<string, object>()
         };
     }
@@ -232,6 +240,7 @@ public sealed class BlockEditingService
             CtaBlock cta => new Dictionary<string, object> { ["Text"] = cta.Text, ["Url"] = cta.Url, ["Style"] = cta.Style ?? string.Empty },
             QuoteBlock quote => new Dictionary<string, object> { ["Content"] = quote.Content, ["Author"] = quote.Author ?? string.Empty, ["Citation"] = quote.Citation ?? string.Empty },
             EmbedBlock embed => new Dictionary<string, object> { ["EmbedType"] = embed.EmbedType, ["SourceUrl"] = embed.SourceUrl, ["ThumbnailUrl"] = embed.ThumbnailUrl ?? string.Empty },
+            NavigationBlock nav => new Dictionary<string, object> { ["NavigationId"] = nav.NavigationId, ["Title"] = nav.Title ?? string.Empty },
             _ => new Dictionary<string, object>()
         };
     }
@@ -296,6 +305,13 @@ public sealed class BlockEditingService
                     embed.SourceUrl = sourceUrl?.ToString() ?? string.Empty;
                 if (properties.TryGetValue("ThumbnailUrl", out var thumbnailUrl))
                     embed.ThumbnailUrl = thumbnailUrl?.ToString();
+                break;
+
+            case NavigationBlock nav:
+                if (properties.TryGetValue("NavigationId", out var navId))
+                    nav.NavigationId = Convert.ToInt64(navId);
+                if (properties.TryGetValue("Title", out var navTitle))
+                    nav.Title = navTitle?.ToString();
                 break;
         }
     }
