@@ -20,6 +20,13 @@ public sealed class SetupModel(ISetupCompletionService setupCompletionService) :
     {
         ReturnUrl = NormalizeReturnUrl(ReturnUrl);
         Input = SetupInputModel.CreateDefault();
+
+        if (System.Diagnostics.Debugger.IsAttached)
+        {
+            Input.AdminUserName = "Admin";
+            Input.Password = "*strongPassword1";
+            Input.ConfirmPassword = "*strongPassword1";
+        }
     }
 
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)

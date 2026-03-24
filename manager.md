@@ -12,7 +12,9 @@ the web aspect of the UI it will be using Wasm. So, we will need to make use
 of minimap apis (most likely creating new *minimal* apis) in the 
 Aero.Cms.Modules.Headless csproj.  
 
-radzen trial key: 77f29c08e92fd761f31d614d01f115232aae93b12020918c272a2baf4046d6b9
+The apis have (most?) clients defined here and will be used by the 'Manager' app/module:
+
+src\Aero.Cms.Core\Http\Clients\
 
 Foreach category in the nav menu we will need a screen and some sub-menus (for this we will most likely need to make heavy use of Radzen: ): 
 
@@ -55,6 +57,36 @@ Foreach category in the nav menu we will need a screen and some sub-menus (for t
             <NavMenuItem Href="/manager/themes" Icon="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" Label="Themes" IsCollapsed="collapseNavMenu" />
         </nav>
 ```
+Each menu item above should start with one sub-menu item called "General". These items are explicitly defined here and do not come from a/the database.
+
+each menu item above when clicked should load its "index" page named the same as
+the menu item label. 
+
+General should list multiple items for the main category label - i.e. - 
+
+Posts - General should list all blog posts
+Pages - General should list all page posts
+Docs - general should list all Docs Categories 
+  - Docs categories should also be submenu items (based on how the data shape of docs)
+  - I believe the seed data has 3 categories (Getting-started, guides and api-reference) 
+  - Docs data should be a hiearchical tree (if not we will ahve to make this aJUSTMENT)
+Users - general should list all users
+ - Navigations the same
+SEO 
+  - single page to rank SEO score by analyze the site (TBD)
+MOudles
+  - list of moudles available. click them opens a detail flyout page on right
+Databases
+  - list of databases available. click them opens a detail flyout page on right
+Categores and Tags
+  - Belong under one main menu item titled 'Taxonomy' 
+    -  Categories - submenu item
+    - Tags - submenu item
+Media 
+  - a Screen showcasing all avaiable meida - TBD, we'll detail this one out later
+Themes 
+  - a list of installed themes
+  - clicking on a theem will open a flyout with details on the right side of the screen
 
 
-        
+
