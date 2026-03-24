@@ -19,13 +19,13 @@ document.addEventListener('alpine:init', () => {
 
 // HTMX Global Listeners
 document.body.addEventListener('htmx:beforeRequest', (evt: any) => {
-    if ((evt as any).detail.target?.id === 'load-more-container') {
+    if ((evt as any).detail.target?.id === 'posts-container') {
         window.Alpine?.store('blog')?.setLoading(true);
     }
 });
 
 document.body.addEventListener('htmx:afterRequest', (evt: any) => {
-    if ((evt as any).detail.target?.id === 'load-more-container') {
+    if ((evt as any).detail.target?.id === 'posts-container') {
         window.Alpine?.store('blog')?.setLoading(false);
     }
 });
