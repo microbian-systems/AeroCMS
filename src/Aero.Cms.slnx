@@ -47,6 +47,7 @@
     <Project Path="Aero.Cms.Modules.MagicLink/Aero.Cms.Modules.MagicLink.csproj" Id="98fcf8bf-e77f-4579-a652-54c4d02f7d1e" />
     <Project Path="Aero.Cms.Modules.Mail/Aero.Cms.Modules.Mail.csproj" Id="ad0acf0d-b39d-401e-bf14-df7c773bf9c7" />
     <Project Path="Aero.Cms.Modules.Mailer/Aero.Cms.Modules.Mailer.csproj" Id="a8c18fe3-a232-4333-ab3a-5f563160ecfc" />
+    <Project Path="Aero.Cms.Modules.Manager/Aero.Cms.Modules.Manager.csproj" Id="89539f4e-d841-4a8a-85d0-3dd731377150" />
     <Project Path="Aero.Cms.Modules.Mcp/Aero.Cms.Modules.Mcp.csproj" Id="16641810-2886-4657-9d3b-94de5311309b" />
     <Project Path="Aero.Cms.Modules.Members/Aero.Cms.Modules.Members.csproj" Id="2044a008-ed36-4f56-b801-4127f67def09" />
     <Project Path="Aero.Cms.Modules.MiniProfiler/Aero.Cms.Modules.MiniProfiler.csproj" Id="00a7bc94-c5a1-4260-bc51-c11bd27660a2" />
