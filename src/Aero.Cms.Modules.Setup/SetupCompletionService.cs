@@ -9,7 +9,6 @@ using Aero.Cms.Services;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
 using Marten;
-//using NavigationBlock = Aero.Cms.Core.NavigationBlock;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -114,7 +113,8 @@ public sealed class SetupCompletionService(
         var (blogListing, blogListingBlocks) = BuildBlogListingPage(request);
         var (aboutPage, aboutBlocks) = BuildAboutPage(request);
         var (contactPage, contactBlocks) = BuildContactPage(request);
-        var markdownDocsPage = BuildMarkdownDocsPage();
+        var docs = BuildStarterDocsContent();
+        var rootDoc = docs.First(d => d.Slug == "docs");
 
         // Create main navigation menu
         var mainNav = new NavigationBlock
@@ -127,17 +127,10 @@ public sealed class SetupCompletionService(
                 { 1, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "About", Url = "/about", PageId = aboutPage.Id, Order = 1, AltText = "About Us" } },
                 { 2, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Contact", Url = "/contact", PageId = contactPage.Id, Order = 2, AltText = "Contact Us" } },
                 { 3, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Blog", Url = "/blog", PageId = blogListing.Id, Order = 3, AltText = "Blog and Field Notes" } },
-                { 4, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Docs", Url = "/docs", PageId = markdownDocsPage.Id, Order = 4, AltText = "Developer Documentation" } }
+                { 4, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Docs", Url = "/docs", PageId = rootDoc.Id, Order = 4, AltText = "Documentation" } }
             }
         };
         session.Store(mainNav);
-
-        // Add navigation block to each page
-        // Removed to prevent duplicate navigation regions on pages, as the layout now serves the global navigation dynamically using PageDocument flags.
-        // AddNavigationBlockToPage(homepage, homepageBlocks, mainNav);
-        // AddNavigationBlockToPage(blogListing, blogListingBlocks, mainNav);
-        // AddNavigationBlockToPage(aboutPage, aboutBlocks, mainNav);
-        // AddNavigationBlockToPage(contactPage, contactBlocks, mainNav);
 
         // Store pages and their blocks
         foreach (var block in homepageBlocks) session.Store(block);
@@ -151,7 +144,11 @@ public sealed class SetupCompletionService(
 
         foreach (var block in contactBlocks) session.Store(block);
         await pageContentService.SaveAsync(contactPage, cancellationToken);
-        session.Store(markdownDocsPage);
+        
+        foreach (var doc in docs)
+        {
+            session.Store(doc);
+        }
 
         // Build starter blog content (posts and tags)
         var (posts, tags) = BuildStarterBlogContent(request, staticPhotosClient);
@@ -175,7 +172,6 @@ public sealed class SetupCompletionService(
         var moduleStates = descriptors.Select(d => ModuleStateDocument.FromDescriptor(d, isBuiltIn: true));
         await moduleStateStore.SaveAllAsync(moduleStates, cancellationToken);
     }
-
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SetupCompletionRequest request)
     {
@@ -534,7 +530,7 @@ public sealed class SetupCompletionService(
                 excerpt: "Lessons learned from optimizing our database layer for performance.",
                 headingText: "Scaling Postgres for High Traffic",
                 bodyHtml: "<p>PostgreSQL is remarkably capable, but pushing it to its limits requires thoughtfulness. Here's how we handle traffic spikes without breaking a sweat.</p>" +
-                          "<p>Indexing is everything. Every query was analyzed and optimized. We use covering indexes for read-heavy paths, partial indexes for filtered queries, andGIN indexes for full-text search. The difference in performance is night and day.</p>" +
+                          "<p>Indexing is everything. Every query was analyzed and optimized. We use covering indexes for read-heavy paths, partial indexes for filtered queries, and GIN indexes for full-text search. The difference in performance is night and day.</p>" +
                           "<p>Connection pooling is essential. With Marten's pooling built-in, we reuse connections efficiently, avoiding the overhead of establishing new connections for each request.</p>" +
                           "<p>And always, always monitor. Query stats, connection counts, cache hit ratios—know your system's vital signs before problems arise.</p>",
                 quoteText: "Premature optimization is the root of all evil. But so is ignoring performance until it bites you.",
@@ -678,48 +674,167 @@ public sealed class SetupCompletionService(
         }).ToList();
     }
 
-    private MarkdownPage BuildMarkdownDocsPage()
+    private List<MarkdownPage> BuildStarterDocsContent()
     {
-        return new MarkdownPage
+        var docs = new List<MarkdownPage>();
+        
+        // 1. Root Documentation Page
+        var rootDoc = new MarkdownPage
         {
             Id = Snowflake.NewId(),
             Title = "Aero CMS Documentation",
             Slug = "docs",
-            HeaderImageUrl = staticPhotosClient.GetPhotoUrl("tech", "1920x1080"),
+            Summary = "Official developer documentation for Aero CMS—the high-performance, AOT-compatible content platform.",
             MarkdownContent = @"# Aero CMS Documentation
 
-Welcome to the official developer documentation for **Aero CMS**—the high-performance, AOT-compatible content platform built for the modern .NET ecosystem.
-
-## Core Philosophical Pillars
-
-1.  **AOT-First**: Designed from the ground up for Native AOT.
-2.  **Module-Driven**: Highly extensible architecture using Razor Class Libraries.
-3.  **Modern Data**: Leveraging Marten and PostgreSQL for document-based storage.
-4.  **Interactive UI**: Powered by HTMX, Alpine.js, and Blazor.
+Welcome to the official developer documentation for **Aero CMS**. Use the guides below to explore our architecture and features.
 
 ## Getting Started
+Learn how to install and configure Aero CMS for your next project.
 
-To get started with development, you'll need the following:
-*   .NET 10.0 SDK
-*   PostgreSQL 16+
-*   pnpm (for frontend assets)
+## Advanced Guides
+Deep dives into theming, localization, and custom module development.
 
-## Technology Stack
-
-Our stack is curated for maximum developer productivity and runtime efficiency:
-*   **Backend**: C# 14, .NET 10
-*   **Database**: Marten & PostgreSQL
-*   **Messaging**: Wolverine & LavinMQ
-*   **Frontend**: HTMX, Alpine.js, Tailwind CSS
-*   **Storage**: S3 Compatible Providers
-
----
-
-*This page is rendered dynamically from raw Markdown stored in the database.*",
+## API Reference
+Technical documentation for integrating with the Aero CMS core services.",
             PublishedOn = DateTimeOffset.UtcNow,
             PublicationState = ContentPublicationState.Published,
+            Order = 0,
+            HeaderImageUrl = staticPhotosClient.GetPhotoUrl("tech", "1920x1080"),
             SeoTitle = "Aero CMS Documentation - Knowledge Base",
             SeoDescription = "Learn how to build and extend Aero CMS with our comprehensive developer guides."
         };
+        docs.Add(rootDoc);
+
+        // 2. Getting Started Chapter
+        var gettingStarted = new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            ParentId = rootDoc.Id,
+            Title = "Getting Started",
+            Slug = "docs/getting-started",
+            Summary = "Everything you need to know to get Aero CMS up and running.",
+            MarkdownContent = "# Getting Started\n\nWelcome to Aero CMS! This chapter covers the basics of settting up your development environment. Aero CMS is designed to be lean and fast, leveraging the latest .NET features.",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            Order = 0
+        };
+        docs.Add(gettingStarted);
+
+        // 3. Installation Section
+        docs.Add(new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            ParentId = gettingStarted.Id,
+            Title = "Installation",
+            Slug = "docs/getting-started/installation",
+            Summary = "Step-by-step guide to installing Aero CMS via CLI or source.",
+            MarkdownContent = "# Installation\n\nTo install Aero CMS, you can clone the repository directly or use our upcoming dotnet new templates.\n\n```bash\ngit clone https://github.com/microbian-systems/AeroCMS.git\ncd AeroCMS\ndotnet build\n```",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            Order = 0
+        });
+
+        // 4. Configuration Section
+        docs.Add(new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            ParentId = gettingStarted.Id,
+            Title = "Configuration",
+            Slug = "docs/getting-started/configuration",
+            Summary = "How to configure your database, caching, and storage providers.",
+            MarkdownContent = "# Configuration\n\nAll configuration is handled through standard .NET configuration providers. The primary settings are located in `appsettings.json` and can be overridden by environment variables.",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            Order = 1
+        });
+
+        // 5. Guides Chapter
+        var guides = new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            ParentId = rootDoc.Id,
+            Title = "Guides",
+            Slug = "docs/guides",
+            Summary = "Practical tutorials for common tasks like theming and localization.",
+            MarkdownContent = "# Guides\n\nOur guides are designed to help you solve real-world problems with Aero CMS. Whether you're building a simple blog or a complex enterprise portal, you'll find what you need here.",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            Order = 1
+        };
+        docs.Add(guides);
+
+        // 6. Theming Section
+        docs.Add(new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            ParentId = guides.Id,
+            Title = "Theming",
+            Slug = "docs/guides/theming",
+            Summary = "Learn how to use Tailwind CSS and CSS variables to style your site.",
+            MarkdownContent = "# Theming\n\nAero CMS uses a modern CSS utility approach. You can customize the look and feel by modifying the `tailwind.config.js` or providing custom global styles via the admin interface.",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            Order = 0
+        });
+
+        // 7. Localization Section
+        docs.Add(new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            ParentId = guides.Id,
+            Title = "Localization",
+            Slug = "docs/guides/localization",
+            Summary = "Setting up multi-lingual sites and managing translations.",
+            MarkdownContent = "# Localization\n\nInternationalization is built into the core. You can define multiple languages and provide translated versions of all your content, including pages, posts, and documentation.",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            Order = 1
+        });
+
+        // 8. API Reference Chapter
+        var api = new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            ParentId = rootDoc.Id,
+            Title = "API Reference",
+            Slug = "docs/api",
+            Summary = "Detailed technical specifications for the Aero CMS core API.",
+            MarkdownContent = "# API Reference\n\nThe Aero CMS API provides programmatic access to all system functionality. This reference documentation covers the REST endpoints and the underlying C# service contracts.",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            Order = 2
+        };
+        docs.Add(api);
+
+        // 9. Authentication Section
+        docs.Add(new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            ParentId = api.Id,
+            Title = "Authentication",
+            Slug = "docs/api/authentication",
+            Summary = "Securing your API requests with Bearer tokens and OAuth.",
+            MarkdownContent = "# API Authentication\n\nAero CMS uses JWT-based authentication for its API. To make requests, you must obtain a token and include it in the `Authorization` header of your HTTP requests.",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            Order = 0
+        });
+
+        // 10. Content Management Section
+        docs.Add(new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            ParentId = api.Id,
+            Title = "Content Mgmt",
+            Slug = "docs/api/content-management",
+            Summary = "Programmatically creating and updating pages and blocks.",
+            MarkdownContent = "# Content Management Service\n\nThe `IContentService` is the primary interface for managing content entities. It provides methods for creating, retrieving, updating, and deleting documents across all modules.",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            Order = 1
+        });
+
+        return docs;
     }
 }

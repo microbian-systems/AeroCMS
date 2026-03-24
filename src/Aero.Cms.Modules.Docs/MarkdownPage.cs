@@ -25,4 +25,14 @@ public sealed class MarkdownPage : Entity
     /// Gets or sets an optional image URL to be used as a background for the page header/hero section.
     /// </summary>
     public string? HeaderImageUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the parent document ID for hierarchical structure.
+    /// </summary>
+    public long? ParentId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the sort order among siblings.
+    /// </summary>
+    public int Order { get; set; }
 }

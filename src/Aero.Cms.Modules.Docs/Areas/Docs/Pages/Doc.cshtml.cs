@@ -14,8 +14,8 @@ public class DocModel(IQuerySession session) : PageModel
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
-        // If no slug, look for a default "docs" page
-        var pageSlug = string.IsNullOrWhiteSpace(Slug) ? "docs" : Slug.TrimStart('/');
+        // Ensure we search with the "docs/" prefix if Slug is set
+        var pageSlug = string.IsNullOrWhiteSpace(Slug) ? "docs" : "docs/" + Slug.TrimStart('/');
         
         MarkdownPage = await session.Query<MarkdownPage>()
             .FirstOrDefaultAsync(p => p.Slug == pageSlug && p.PublicationState == ContentPublicationState.Published, cancellationToken);
