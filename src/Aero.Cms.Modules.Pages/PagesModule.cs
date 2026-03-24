@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -18,11 +19,16 @@ public sealed class PagesModule : AeroModuleBase
     public override IReadOnlyList<string> Category => ["content", "pages"];
     public override IReadOnlyList<string> Tags => ["content", "pages", "cms"];
 
+    public override async Task RunAsync(IEndpointRouteBuilder builder)
+    {
+
+        await Task.CompletedTask;
+    }
+
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IPageContentService, MartenPageContentService>();
         services.AddSingleton<BlockEditingService>();
-        services.AddSingleton<IConfigureMarten, BlockMartenConfiguration>();
 
         // Register this assembly so the Razor Pages in Areas/Cms/Pages are discovered
         services.AddRazorPages()
@@ -35,19 +41,5 @@ public sealed class PagesModule : AeroModuleBase
         {
             options.Conventions.AddAreaPageRoute("Cms", "/Page", "/{slug?}");
         });
-    }
-}
-
-internal sealed class BlockMartenConfiguration : IConfigureMarten
-{
-    public void Configure(IServiceProvider services, StoreOptions options)
-    {
-        options.Schema.For<BlockBase>().AddSubClassHierarchy(
-            typeof(RichTextBlock),
-            typeof(HeadingBlock),
-            typeof(ImageBlock),
-            typeof(CtaBlock),
-            typeof(QuoteBlock),
-            typeof(EmbedBlock));
     }
 }

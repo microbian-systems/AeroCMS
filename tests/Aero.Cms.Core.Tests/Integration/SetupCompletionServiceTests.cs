@@ -1,6 +1,7 @@
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
+using Aero.Cms.Services;
 using Aero.Cms.Web.Core.Modules;
 using FluentAssertions;
 using NSubstitute;

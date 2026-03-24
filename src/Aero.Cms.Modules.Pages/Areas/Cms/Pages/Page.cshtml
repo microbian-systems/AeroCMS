@@ -39,46 +39,7 @@ else
             {
                 foreach (var region in pageDoc.LayoutRegions.OrderBy(r => r.Order))
                 {
-                    <section class="mb-12">
-                        @if (!string.IsNullOrEmpty(region.Name))
-                        {
-                            <h2 class="text-2xl font-semibold text-gray-800 mb-6">@region.Name</h2>
-                        }
-                        
-                        @if (region.Columns?.Count > 0)
-                        {
-                            <div class="grid gap-8" style="grid-template-columns: repeat(@region.Columns.Count, 1fr);">
-                                @foreach (var column in region.Columns.OrderBy(c => c.Order))
-                                {
-                                    var colWidth = column.Width > 0 && column.Width <= 12 ? column.Width : 12;
-                                    var colClass = $"col-span-1 lg:col-span-{colWidth}";
-                                    
-                                    <div class="@colClass">
-                                        @if (column.Blocks?.Count > 0)
-                                        {
-                                            foreach (var blockPlacement in column.Blocks.OrderBy(b => b.Order))
-                                            {
-                                                @* Render the block using the BlockPlacement ViewComponent *@
-                                                @await Component.InvokeAsync("BlockPlacement", blockPlacement)
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <div class="text-gray-400 italic p-4 bg-gray-50 rounded">
-                                                No blocks in this column
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="text-gray-400 italic p-8 bg-gray-50 rounded text-center">
-                                No columns in this region
-                            </div>
-                        }
-                    </section>
+                    <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.LayoutRegionRenderer)" render-mode="Static" param-Region="region" />
                 }
             }
             else

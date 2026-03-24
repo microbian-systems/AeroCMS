@@ -1,6 +1,7 @@
+@using Aero.Cms.Shared.Blocks.Rendering
 @model Aero.Cms.Modules.Pages.PageDocument
 
 @foreach (var region in Model.LayoutRegions.OrderBy(r => r.Order))
 {
-    @await Component.InvokeAsync("RegionSlice", region)
+    <component type="typeof(LayoutRegionRenderer)" render-mode="Static" param-Region="region" />
 }

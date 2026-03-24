@@ -1,0 +1,13 @@
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    <div class="rich-text prose prose-slate max-w-none">
+        @((MarkupString)Block.Content)
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Aero.Cms.Core.Blocks.RichTextBlock? Block { get; set; }
+}

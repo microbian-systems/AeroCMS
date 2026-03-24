@@ -1,0 +1,54 @@
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    @switch (Block.BlockType)
+    {
+        case "rich_text":
+            {
+                var richText = Block as RichTextBlock;
+                <RichTextBlockRenderer Block="@richText" />
+            }
+            break;
+        case "heading":
+            {
+                var heading = Block as HeadingBlock;
+                <HeadingBlockRenderer Block="@heading" />
+            }
+            break;
+        case "image":
+            {
+                var image = Block as ImageBlock;
+                <ImageBlockRenderer Block="@image" />
+            }
+            break;
+        case "cta":
+            {
+                var cta = Block as CtaBlock;
+                <CtaBlockRenderer Block="@cta" />
+            }
+            break;
+        case "quote":
+            {
+                var quote = Block as QuoteBlock;
+                <QuoteBlockRenderer Block="@quote" />
+            }
+            break;
+        case "embed":
+            {
+                var embed = Block as EmbedBlock;
+                <EmbedBlockRenderer Block="@embed" />
+            }
+            break;
+        default:
+            <div class="p-4 border border-dashed border-gray-300 rounded text-gray-500 italic">
+                Unknown block type: @Block.BlockType (@Block.GetType().Name)
+            </div>
+            break;
+    }
+}
+
+@code {
+    [Parameter]
+    public IBlock? Block { get; set; }
+}

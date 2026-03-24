@@ -26,9 +26,7 @@
   </Folder>
   <Folder Name="/Modules/">
     <Project Path="Aero.Cms.Banners/Aero.Cms.Banners.csproj" Id="8fd7949a-f146-4d9e-bb09-7bc45d4d2540" />
-    <Project Path="Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj" Id="bf6093a6-2be7-443e-bda2-9c8fc57de702" />
-    <Project Path="Aero.Cms.Modules.Admin/Aero.Cms.Modules.Admin.csproj" Id="9390ff18-8404-41fb-af97-08f76bc61677" />
-    <Project Path="Aero.Cms.Modules.Ai/Aero.Cms.Modules.Ai.csproj" Id="4635f02b-ab13-4e7e-9a2b-b6dc992c9631" />
+    <Project Path="Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj" Id="bf6093a6-2be7-443e-bda2-9c8fc57de702" />    <Project Path="Aero.Cms.Modules.Ai/Aero.Cms.Modules.Ai.csproj" Id="4635f02b-ab13-4e7e-9a2b-b6dc992c9631" />
     <Project Path="Aero.Cms.Modules.AiAssistant/Aero.Cms.Modules.AiAssistant.csproj" Id="f7200dd4-a7b1-4059-b84e-ead4793161fc" />
     <Project Path="Aero.Cms.Modules.Blog.Importer/Aero.Cms.Modules.Blog.Importer.csproj" Id="e7e2e70d-cb9a-42a0-86d0-c7787cd64f48" />
     <Project Path="Aero.Cms.Modules.Blog/Aero.Cms.Modules.Blog.csproj" Id="84f7df72-76e2-4520-91b0-d4f25d1508dc" />
@@ -36,7 +34,7 @@
     <Project Path="Aero.Cms.Modules.Garnet/Aero.Cms.Modules.Garnet.csproj" Id="70a44903-21e8-4852-94fa-d2ed26a545fd" />
     <Project Path="Aero.Cms.Modules.GlobalExceptionFilter/Aero.Cms.Modules.GlobalExceptionFilter.csproj" Id="d7bbaa97-afc2-4e7b-95c5-4932a0c97a24" />
     <Project Path="Aero.Cms.Modules.Grpc/Aero.Cms.Modules.Grpc.csproj" Id="cc3792d8-b3eb-40cf-82ff-26a2585f780f" />
-    <Project Path="Aero.Cms.Modules.Headless/Aero.Cms.Modules.Headless.csproj" Id="b4629f93-4bb5-45af-91e7-22627a0d043e" />
+    <Project Path="Aero.Cms.Modules.Headless/Aero.Cms.Modules.Headless.csproj" Id="71bd21df-4631-4ff8-9dd3-46070cc75e1e" />
     <Project Path="Aero.Cms.Modules.Health/Aero.Cms.Modules.Health.csproj" Id="fe74e857-c118-4f75-8959-da9db76271c1" />
     <Project Path="Aero.Cms.Modules.Identity/Aero.Cms.Modules.Identity.csproj" Id="22b618b0-5bfc-4c71-97fb-e2107c1da0a4" />
     <Project Path="Aero.Cms.Modules.Jobs/Aero.Cms.Modules.Jobs.csproj" Id="4eedfa36-c44c-4681-a0d6-9830f47e1af4" />
@@ -82,6 +80,8 @@
   <Project Path="Aero.Cms.Marten.Identity/Aero.Cms.Marten.Identity.csproj" />
   <Project Path="Aero.Cms.Repositories/Aero.Cms.Repositories.csproj" Id="291895fb-20c0-485f-b360-491a1f2c04e4" />
   <Project Path="Aero.Cms.ServiceDefaults/Aero.Cms.ServiceDefaults.csproj" />
+  <Project Path="Aero.Cms.Services/Aero.Cms.Services.csproj" />
+  <Project Path="Aero.Cms.Shared.Models/Aero.Cms.Shared.Models.csproj" Id="d4bc698f-6a9e-4852-9070-cee846ad3183" />
   <Project Path="Aero.Cms.Shared/Aero.Cms.Shared.csproj" />
   <Project Path="Aero.Cms.Web.Client/Aero.Cms.Web.Client.csproj" />
   <Project Path="Aero.Cms.Web/Aero.Cms.Web.csproj" />

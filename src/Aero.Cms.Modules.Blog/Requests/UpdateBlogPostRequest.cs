@@ -1,3 +1,4 @@
+using Aero.Cms.Core;
 using Aero.Cms.Modules.Pages;
 
 namespace Aero.Cms.Modules.Blog.Requests;

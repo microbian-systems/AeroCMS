@@ -61,5 +61,23 @@ public class PagesClient(HttpClient httpClient, ILogger<PagesClient> logger) : A
 
 public record PageSummary(long Id, string Title, string Slug, DateTime CreatedAt, DateTime? PublishedAt, string? Excerpt);
 public record PageDetail(long Id, string Title, string Slug, string Content, DateTime CreatedAt, DateTime UpdatedAt, DateTime? PublishedAt, string? Excerpt, IReadOnlyList<long> BlockIds);
-public record CreatePageRequest(string Title, string Slug, string Content, string? Excerpt, IReadOnlyList<long> BlockIds);
-public record UpdatePageRequest(string Title, string Slug, string Content, string? Excerpt, IReadOnlyList<long> BlockIds);
+public record CreatePageRequest(string Title, string Slug, string Content, string? Excerpt, IReadOnlyList<long> BlockIds)
+{
+    public string Summary { get; set; }
+    public string SeoTitle { get; set; }
+    public string SeoDescription { get; set; }
+    public ContentPublicationState PublicationState { get; set; }
+}
+
+public record UpdatePageRequest(
+    string Title,
+    string Slug,
+    string Content,
+    string? Summary,
+    string? SeoTitle,
+    string? SeoDescription,
+    string? Excerpt,
+    IReadOnlyList<long> BlockIds)
+{
+    public ContentPublicationState PublicationState { get; set; }
+}

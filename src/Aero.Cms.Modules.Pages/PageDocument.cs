@@ -1,5 +1,6 @@
+using Aero.Cms.Core;
 using Aero.Core.Entities;
-using Aero.Cms.Modules.Pages.Models;
+using Aero.Cms.Core.Blocks.Layout;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -8,7 +9,8 @@ public enum PageKind
     Standard = 0,
     Homepage = 1,
     BlogListing = 2,
-    Custom = 3
+    Markdown = 3,
+    Custom = 4
 }
 
 public sealed class PageDocument : Entity
@@ -19,12 +21,12 @@ public sealed class PageDocument : Entity
     public string? Summary { get; set; }
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
-    
+
     /// <summary>
     /// Gets or sets the block-based layout regions for this page.
     /// </summary>
     public List<LayoutRegion> LayoutRegions { get; set; } = [];
-    
+
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset? PublishedOn { get; set; } = null;
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;

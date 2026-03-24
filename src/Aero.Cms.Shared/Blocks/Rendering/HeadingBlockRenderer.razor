@@ -1,0 +1,32 @@
+@using Aero.Cms.Core.Blocks
+@using System.Web
+
+@if (Block != null)
+{
+    @switch (Math.Clamp(Block.Level, 1, 6))
+    {
+        case 1:
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">@Block.Text</h1>
+            break;
+        case 2:
+            <h2 class="text-3xl font-bold text-gray-900 mb-3">@Block.Text</h2>
+            break;
+        case 3:
+            <h3 class="text-2xl font-bold text-gray-900 mb-3">@Block.Text</h3>
+            break;
+        case 4:
+            <h4 class="text-xl font-bold text-gray-900 mb-2">@Block.Text</h4>
+            break;
+        case 5:
+            <h5 class="text-lg font-bold text-gray-900 mb-2">@Block.Text</h5>
+            break;
+        case 6:
+            <h6 class="text-base font-bold text-gray-900 mb-2">@Block.Text</h6>
+            break;
+    }
+}
+
+@code {
+    [Parameter]
+    public Aero.Cms.Core.Blocks.HeadingBlock? Block { get; set; }
+}

@@ -1,0 +1,83 @@
+@using Aero.Cms.Core.Blocks
+@using System.Web
+
+@if (Block != null)
+{
+    <div class="embed my-6">
+        <div class="relative w-full" style="padding-bottom: 56.25%;">
+            <iframe 
+                src="@GetEmbedUrl()" 
+                class="absolute top-0 left-0 w-full h-full rounded-lg shadow-md"
+                frameborder="0" 
+                allow="@GetAllowAttribute()" 
+                allowfullscreen
+                loading="lazy">
+            </iframe>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Aero.Cms.Core.Blocks.EmbedBlock? Block { get; set; }
+
+    private string GetEmbedUrl()
+    {
+        if (Block == null) return string.Empty;
+
+        var url = Block.SourceUrl;
+        var type = Block.EmbedType.ToLowerInvariant();
+
+        return type switch
+        {
+            "youtube" => ConvertToYouTubeEmbedUrl(url),
+            "vimeo" => ConvertToVimeoEmbedUrl(url),
+            _ => url
+        };
+    }
+
+    private string GetAllowAttribute()
+    {
+        if (Block == null) return string.Empty;
+        
+        return Block.EmbedType.ToLowerInvariant() switch
+        {
+            "youtube" => "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+            "vimeo" => "autoplay; fullscreen; picture-in-picture",
+            _ => string.Empty
+        };
+    }
+
+    private string ConvertToYouTubeEmbedUrl(string url)
+    {
+        if (url.Contains("youtube.com/watch"))
+        {
+            var uri = new Uri(url);
+            var query = HttpUtility.ParseQueryString(uri.Query);
+            var videoId = query["v"];
+            if (!string.IsNullOrEmpty(videoId))
+            {
+                return $"https://www.youtube.com/embed/{videoId}";
+            }
+        }
+
+        if (url.Contains("youtu.be/"))
+        {
+            var videoId = url.Split('/').Last().Split('?').First();
+            return $"https://www.youtube.com/embed/{videoId}";
+        }
+
+        return url;
+    }
+
+    private string ConvertToVimeoEmbedUrl(string url)
+    {
+        if (url.Contains("vimeo.com/"))
+        {
+            var videoId = url.Split('/').Last().Split('?').First();
+            return $"https://player.vimeo.com/video/{videoId}";
+        }
+
+        return url;
+    }
+}

@@ -1,6 +1,9 @@
 namespace Aero.Cms.Web.Core.Modules;
 
+using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Modules;
+using Aero.Cms.Web.Core.Blocks;
+using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Extensions;
 using Aero.EfCore;
 using Aero.EfCore.Extensions;
@@ -56,6 +59,10 @@ public static class ModuleExtensions
     /// </summary>
     public static IServiceCollection AddModuleSystemServices(this IServiceCollection services)
     {
+        // Register block service
+        services.TryAddScoped<IBlockService, MartenBlockService>();
+        services.AddSingleton<IConfigureMarten, BlockMartenConfiguration>();
+
         // Register discovery service
         services.TryAddScoped<IModuleDiscoveryService, ModuleDiscoveryService>();
 

@@ -1,9 +1,13 @@
 @page
 @using Aero.Cms.Modules.Blog.Models
+@using Aero.Cms.Services
 @using Aero.Core.Railway
+
 @inject Aero.Cms.Modules.Blog.IBlogPostContentService BlogService
-@inject Aero.Cms.Modules.Blog.IStaticPhotosClient StaticPhotos
+@inject IStaticPhotosClient StaticPhotos
+
 @model BlogDetailPageModel
+
 @{
     ViewBag.Title = Model.Post?.SeoTitle ?? Model.Post?.Title ?? "Blog Post";
     var post = Model.Post!;
@@ -84,20 +88,7 @@
         {
             foreach (var block in post.Content.OrderBy(b => b.Order))
             {
-                var componentName = block.BlockType switch
-                {
-                    "rich_text" => "RichTextBlock",
-                    "heading" => "HeadingBlock",
-                    "image" => "ImageBlock",
-                    "cta" => "CtaBlock",
-                    "quote" => "QuoteBlock",
-                    "embed" => "EmbedBlock",
-                    _ => (string?)null
-                };
-                if (componentName is not null)
-                {
-                    @await Component.InvokeAsync(componentName, block)
-                }
+                <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.BlockRenderer)" render-mode="Static" param-Block="block" />
             }
         }
         else

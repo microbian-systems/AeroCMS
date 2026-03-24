@@ -1,3 +1,5 @@
+using Aero.Cms.Core;
+
 namespace Aero.Cms.Modules.Pages.Requests;
 
 public record UpdatePageRequest(

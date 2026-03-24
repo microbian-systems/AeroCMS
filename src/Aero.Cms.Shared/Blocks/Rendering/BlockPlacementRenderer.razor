@@ -1,0 +1,39 @@
+@using Aero.Cms.Core.Blocks
+@using Aero.Cms.Core.Blocks.Layout
+@inject IBlockService BlockService
+
+@if (Placement != null)
+{
+    @if (_block == null && !_loadingAttempted)
+    {
+        <span>Loading...</span>
+    }
+    else if (_block != null)
+    {
+        <BlockRenderer Block="_block" />
+    }
+    else if (_loadingAttempted)
+    {
+        <div class="text-red-500 p-2 border border-red-200 rounded bg-red-50 text-sm">
+            Block with ID @Placement.BlockId not found
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public BlockPlacement? Placement { get; set; }
+
+    private IBlock? _block;
+    private bool _loadingAttempted;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Placement != null && (_block == null || _block.Id != Placement.BlockId))
+        {
+            _loadingAttempted = false;
+            _block = await BlockService.GetByIdAsync(Placement.BlockId);
+            _loadingAttempted = true;
+        }
+    }
+}
