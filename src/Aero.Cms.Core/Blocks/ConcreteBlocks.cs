@@ -1,3 +1,4 @@
+using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
 namespace Aero.Cms.Core.Blocks;
@@ -161,19 +162,30 @@ public sealed class EmbedBlock : BlockBase
 [BlockMetadata("navigation", "Navigation Menu")]
 public sealed class NavigationBlock : BlockBase
 {
-    /// <summary>
-    /// Gets the unique identifier of the navigation menu to display.
-    /// </summary>
-    public long NavigationId { get; set; }
+    public class NavigationBlockItem : Entity
+    {
+        public long PageId { get; set; }
+        public string? Name { get; set; }
+        public string? Label { get; set; }
+        public string? Url { get; set; }
+        public string? AltText { get; set; }
+        public ushort Order { get; set; }
+    }
 
     /// <summary>
     /// Gets the optional title for the navigation block.
     /// </summary>
     public string? Title { get; set; }
+    public string? Name { get; set; }
 
     /// <inheritdoc />
     public override string BlockType => "navigation";
 
     /// <inheritdoc />
     public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit((NavigationBlock)this);
+
+    /// <summary>
+    /// The list of navigation/menu items in display order
+    /// </summary>
+    public OrderedDictionary<ushort, NavigationBlockItem> Items { get; set; } = [];
 }

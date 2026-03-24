@@ -8,6 +8,8 @@ using Aero.Cms.Services;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
 using Marten;
+using Aero.Cms.Core;
+//using NavigationBlock = Aero.Cms.Core.NavigationBlock;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -107,36 +109,44 @@ public sealed class SetupCompletionService(
 
     private async Task SeedStarterContentAsync(SetupCompletionRequest request, CancellationToken cancellationToken)
     {
-        // Build homepage and store its blocks first
+        // Build pages first to get their IDs for navigation items
         var (homepage, homepageBlocks) = BuildHomepage(request);
-        foreach (var block in homepageBlocks)
+        var (blogListing, blogListingBlocks) = BuildBlogListingPage(request);
+        var (aboutPage, aboutBlocks) = BuildAboutPage(request);
+        var (contactPage, contactBlocks) = BuildContactPage(request);
+
+        // Create main navigation menu
+        var mainNav = new NavigationBlock
         {
-            session.Store(block);
-        }
+            Id = Snowflake.NewId(),
+            Name = "Main Navigation",
+            Items =
+            [
+                new {0, NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Home", Url = "/", PageId = homepage.Id, Order = 0, AltText = "Home Page" }},
+                new {1, NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "About", Url = "/about", PageId = aboutPage.Id, Order = 1, AltText = "About Us" }},
+                new {2, NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Contact", Url = "/contact", PageId = contactPage.Id, Order = 2, AltText = "Contact Us" }},
+                new {3, NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Blog", Url = "/blog", PageId = blogListing.Id, Order = 3, AltText = "Blog and Field Notes" }}
+            ]
+        };
+        session.Store(mainNav);
+
+        // Add navigation block to each page
+        AddNavigationBlockToPage(homepage, homepageBlocks, mainNav.Id);
+        AddNavigationBlockToPage(blogListing, blogListingBlocks, mainNav.Id);
+        AddNavigationBlockToPage(aboutPage, aboutBlocks, mainNav.Id);
+        AddNavigationBlockToPage(contactPage, contactBlocks, mainNav.Id);
+
+        // Store pages and their blocks
+        foreach (var block in homepageBlocks) session.Store(block);
         await pageContentService.SaveAsync(homepage, cancellationToken);
 
-        // Build blog listing page and store its blocks first
-        var (blogListing, blogListingBlocks) = BuildBlogListingPage(request);
-        foreach (var block in blogListingBlocks)
-        {
-            session.Store(block);
-        }
+        foreach (var block in blogListingBlocks) session.Store(block);
         await pageContentService.SaveAsync(blogListing, cancellationToken);
 
-        // Build About page and store its blocks first
-        var (aboutPage, aboutBlocks) = BuildAboutPage(request);
-        foreach (var block in aboutBlocks)
-        {
-            session.Store(block);
-        }
+        foreach (var block in aboutBlocks) session.Store(block);
         await pageContentService.SaveAsync(aboutPage, cancellationToken);
 
-        // Build Contact Us page and store its blocks first
-        var (contactPage, contactBlocks) = BuildContactPage(request);
-        foreach (var block in contactBlocks)
-        {
-            session.Store(block);
-        }
+        foreach (var block in contactBlocks) session.Store(block);
         await pageContentService.SaveAsync(contactPage, cancellationToken);
 
         // Build starter blog content (posts and tags)
@@ -160,6 +170,45 @@ public sealed class SetupCompletionService(
         var descriptors = await moduleDiscoveryService.DiscoverAsync(cancellationToken);
         var moduleStates = descriptors.Select(d => ModuleStateDocument.FromDescriptor(d, isBuiltIn: true));
         await moduleStateStore.SaveAllAsync(moduleStates, cancellationToken);
+    }
+
+    private static void AddNavigationBlockToPage(PageDocument page, List<BlockBase> blocks, long navigationId)
+    {
+        var navBlock = new Core.Blocks.NavigationBlock
+        {
+            Id = Snowflake.NewId(),
+            NavigationId = navigationId,
+            Title = "Main Navigation",
+            Order = 0 // Position at the top
+        };
+
+        // Shift existing blocks order
+        foreach (var block in blocks)
+        {
+            block.Order++;
+        }
+        blocks.Add(navBlock);
+
+        // Update block placement order in LayoutRegions
+        foreach (var region in page.LayoutRegions)
+        {
+            foreach (var column in region.Columns)
+            {
+                // Shift existing block placements
+                foreach (var placement in column.Blocks)
+                {
+                    placement.Order++;
+                }
+
+                // Add navigation block placement at the top
+                column.Blocks.Insert(0, new BlockPlacement
+                {
+                    BlockId = navBlock.Id,
+                    BlockType = navBlock.BlockType,
+                    Order = 0
+                });
+            }
+        }
     }
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SetupCompletionRequest request)
