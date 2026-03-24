@@ -12,14 +12,22 @@
         // Load the pages referenced by the navigation items to check their ShowInNavMenu property
         var pageIds = navBlock.Items.Values.Where(i => i.PageId != 0).Select(i => i.PageId).ToList();
         var pages = await MartenSession.LoadManyAsync<Aero.Cms.Modules.Pages.PageDocument>(pageIds);
-        var visiblePageIds = pages.Where(p => p.ShowInNavMenu).Select(p => p.Id).ToHashSet();
+        
+        // Find IDs that are explicitly hidden standard pages
+        var hiddenPageIds = pages.Where(p => !p.ShowInNavMenu).Select(p => p.Id).ToHashSet();
 
         navigation = new NavigationDetail(
             navBlock.Id,
             navBlock.Name ?? string.Empty,
             string.Empty,
             navBlock.Items
-                .Where(kvp => kvp.Value.PageId == 0 || visiblePageIds.Contains(kvp.Value.PageId))
+                .Where(kvp => {
+                    var item = kvp.Value;
+                    // Filter out only if it's a standard page that has been purposely hidden
+                    if (item.PageId != 0 && hiddenPageIds.Contains(item.PageId)) return false;
+                    // Otherwise show it if it has a label and URL (like Docs, Blog, etc.)
+                    return !string.IsNullOrEmpty(item.Label) && !string.IsNullOrEmpty(item.Url);
+                })
                 .Select(i => new NavigationItemDetail(i.Value.Id, i.Value.Label ?? string.Empty, i.Value.Url, i.Value.PageId, i.Key, null))
                 .ToList(),
             DateTime.UtcNow,

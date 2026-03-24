@@ -111,8 +111,8 @@ public sealed class SetupCompletionService(
         // Build pages first to get their IDs for navigation items
         var (homepage, homepageBlocks) = BuildHomepage(request);
         var (blogListing, blogListingBlocks) = BuildBlogListingPage(request);
-        var (aboutPage, aboutBlocks) = BuildAboutPage(request);
-        var (contactPage, contactBlocks) = BuildContactPage(request);
+        var (aboutPage, aboutBlocks) = BuildAboutPage();
+        var (contactPage, contactBlocks) = BuildContactPage();
         var docs = BuildStarterDocsContent();
         var rootDoc = docs.First(d => d.Slug == "docs");
 
@@ -335,7 +335,7 @@ public sealed class SetupCompletionService(
         );
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildAboutPage(SetupCompletionRequest request)
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildAboutPage()
     {
         var headingBlock = new HeadingBlock
         {
@@ -389,7 +389,7 @@ public sealed class SetupCompletionService(
         );
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildContactPage(SetupCompletionRequest request)
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildContactPage()
     {
         var headingBlock = new HeadingBlock
         {
