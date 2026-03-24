@@ -4,41 +4,41 @@
   "libraries": [
     {
       "library": "alpinejs@3.15.0",
-      "destination": "lib/alpinejs/"
+      "destination": "wwwroot/lib/alpinejs/"
     },
     {
       "library": "htmx@2.0.7",
-      "destination": "lib/htmx/"
+      "destination": "wwwroot/lib/htmx/"
     },
     {
       "library": "Swiper@11.0.5",
-      "destination": "lib/Swiper/"
+      "destination": "wwwroot/lib/Swiper/"
     },
     {
       "library": "gsap@3.13.0",
-      "destination": "lib/gsap/"
+      "destination": "wwwroot/lib/gsap/"
     },
     {
       "library": "preact@10.27.2",
-      "destination": "lib/preact/"
+      "destination": "wwwroot/lib/preact/"
     },
     {
       "provider": "jsdelivr",
       "library": "@animxyz/core@0.6.6",
-      "destination": "lib/animxyz/core/"
+      "destination": "wwwroot/lib/animxyz/core/"
     },
     {
       "library": "rxjs@7.8.2",
-      "destination": "lib/rxjs/"
+      "destination": "wwwroot/lib/rxjs/"
     },
     {
       "provider": "jsdelivr",
       "library": "@reapptor/ts-linq@1.0.44",
-      "destination": "lib/reapptor/ts-linq/"
+      "destination": "wwwroot/lib/reapptor/ts-linq/"
     },
     {
       "library": "simple-parallax-js@5.6.2",
-      "destination": "lib/simple-parallax-js/"
+      "destination": "wwwroot/lib/simple-parallax-js/"
     }
   ]
 }

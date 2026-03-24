@@ -2,6 +2,8 @@ using Aero.Cms.Core;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Pages;
 using FlakeId;
+using Marten;
+using Marten.Pagination;
 
 namespace Aero.Cms.Modules.Blog;
 
@@ -13,6 +15,7 @@ public interface IBlogPostContentService
     Task<Result<string, BlogPostDocument>> SaveAsync(BlogPostDocument post, CancellationToken cancellationToken = default);
     Task<Result<string, IReadOnlyList<BlogPostDocument>>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default);
     Task<Result<string, IReadOnlyList<BlogPostDocument>>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default);
+    Task<Result<string, IPagedList<BlogPostDocument>>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default);
     Task<Result<string, IReadOnlyList<Tag>>> GetAllTagsAsync(CancellationToken cancellationToken = default);
     Task<Result<string, IReadOnlyList<Category>>> GetAllCategoriesAsync(CancellationToken cancellationToken = default);
     Task<Result<string, BlogAuthor?>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default);
@@ -148,6 +151,24 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
         catch (Exception ex)
         {
             return Prelude.Fail<string, IReadOnlyList<BlogPostDocument>>(ex.Message);
+        }
+    }
+
+    public async Task<Result<string, IPagedList<BlogPostDocument>>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var pagedList = await session.Query<BlogPostDocument>()
+                .Where(x => x.PublicationState == ContentPublicationState.Published)
+                .OrderByDescending(x => x.PublishedOn)
+                .Skip(skip)
+                .ToPagedListAsync(pageNumber, pageSize, cancellationToken);
+
+            return Prelude.Ok<string, IPagedList<BlogPostDocument>>(pagedList);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<string, IPagedList<BlogPostDocument>>(ex.Message);
         }
     }
 

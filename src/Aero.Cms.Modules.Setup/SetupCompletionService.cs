@@ -130,10 +130,11 @@ public sealed class SetupCompletionService(
         session.Store(mainNav);
 
         // Add navigation block to each page
-        AddNavigationBlockToPage(homepage, homepageBlocks, mainNav);
-        AddNavigationBlockToPage(blogListing, blogListingBlocks, mainNav);
-        AddNavigationBlockToPage(aboutPage, aboutBlocks, mainNav);
-        AddNavigationBlockToPage(contactPage, contactBlocks, mainNav);
+        // Removed to prevent duplicate navigation regions on pages, as the layout now serves the global navigation dynamically using PageDocument flags.
+        // AddNavigationBlockToPage(homepage, homepageBlocks, mainNav);
+        // AddNavigationBlockToPage(blogListing, blogListingBlocks, mainNav);
+        // AddNavigationBlockToPage(aboutPage, aboutBlocks, mainNav);
+        // AddNavigationBlockToPage(contactPage, contactBlocks, mainNav);
 
         // Store pages and their blocks
         foreach (var block in homepageBlocks) session.Store(block);
@@ -171,36 +172,6 @@ public sealed class SetupCompletionService(
         await moduleStateStore.SaveAllAsync(moduleStates, cancellationToken);
     }
 
-    private static void AddNavigationBlockToPage(PageDocument page, List<BlockBase> blocks, NavigationBlock navBlock)
-    {
-        // Shift existing blocks order
-        foreach (var block in blocks)
-        {
-            block.Order++;
-        }
-        blocks.Add(navBlock);
-
-        // Update block placement order in LayoutRegions
-        foreach (var region in page.LayoutRegions)
-        {
-            foreach (var column in region.Columns)
-            {
-                // Shift existing block placements
-                foreach (var placement in column.Blocks)
-                {
-                    placement.Order++;
-                }
-
-                // Add navigation block placement at the top
-                column.Blocks.Insert(0, new BlockPlacement
-                {
-                    BlockId = navBlock.Id,
-                    BlockType = navBlock.BlockType,
-                    Order = 0
-                });
-            }
-        }
-    }
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SetupCompletionRequest request)
     {
@@ -225,9 +196,10 @@ public sealed class SetupCompletionService(
                 Kind = PageKind.Homepage,
                 Slug = "/",
                 Title = Normalize(request.HomepageTitle),
-                Summary = $"{Normalize(request.SiteName)} is ready with a published homepage, blog, and starter stories.",
+                Summary = $"A high-performance, block-based content platform built for scale. Experience the next generation of web management with {Normalize(request.SiteName)}.",
                 SeoTitle = $"{Normalize(request.HomepageTitle)} | {Normalize(request.SiteName)}",
-                SeoDescription = $"Launch {Normalize(request.SiteName)} with a published homepage and starter content.",
+                SeoDescription = $"Welcome to {Normalize(request.SiteName)}. A modern CMS built on .NET 10, Marten, and Microsoft Orleans.",
+                HeaderImageUrl = "/assets/hero-01.svg",
                 LayoutRegions =
                 [
                     new LayoutRegion
@@ -320,9 +292,8 @@ public sealed class SetupCompletionService(
         var bodyBlock = new RichTextBlock
         {
             Id = Snowflake.NewId(),
-            Content = "<p>Welcome to our digital home. We're passionate about creating exceptional experiences on the web, and this platform is where we share our journey, insights, and discoveries with you.</p>" +
-                      "<p>Our mission is to build tools and content that help people thrive in the digital age. Whether you're here to learn, explore, or collaborate, we're glad to have you.</p>" +
-                      "<p>This site represents our commitment to transparency, quality, and community. Check back often for updates, and feel free to reach out—we'd love to hear from you.</p>",
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-6'>We believe that content management should be intuitive, performant, and extensible. Our team is dedicated to building tools that empower creators to share their vision without technical friction.</p>" +
+                      "<p class='text-lg leading-relaxed text-slate-700'>Founded on the principles of clarity and engineering excellence, Aero CMS is the culmination of years of experience in distributed systems and modern web architecture.</p>",
             Order = 1
         };
 
@@ -375,8 +346,7 @@ public sealed class SetupCompletionService(
         var bodyBlock = new RichTextBlock
         {
             Id = Snowflake.NewId(),
-            Content = "<p>We'd love to hear from you. Whether you have a question, feedback, or just want to say hello, our team is here to help.</p>" +
-                      "<p>Fill out the form below and we'll get back to you as soon as possible. For urgent inquiries, please email us directly.</p>",
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-8'>Have a question or looking to collaborate? We'd love to hear from you. Our team typically responds within 24 hours.</p>",
             Order = 1
         };
         var ctaBlock = new CtaBlock
@@ -566,6 +536,36 @@ public sealed class SetupCompletionService(
                 likes: random.Next(1, 1001))
         };
 
+        // Add 20 more posts
+        var techTopics = new[]
+        {
+            "Cloud Native Architecture", "Microservices Patterns", "WebAssembly and Blazor", "AI Integration in CMS",
+            "Performance Tuning .NET 10", "Durable Functions Workflows", "Message Queues with Wolverine", "GraphQL API Design",
+            "Modern CSS with Tailwind", "Responsive Design Best Practices", "Unit Testing with TUnit", "Infrastructure as Code",
+            "Identity and Access Management", "Distributed Caching Strategies", "Real-time Apps with SignalR", "SEO Optimization Guide",
+            "Static Site Generation", "Dynamic Block Rendering", "Headless CMS Advantages", "The Creator Economy Tools"
+        };
+
+        var allTagIds = tags.Select(t => t.Id).ToList();
+
+        for (int i = 0; i < 20; i++)
+        {
+            var topic = techTopics[i];
+            var slugTopic = topic.ToLowerInvariant().Replace(' ', '-');
+            
+            posts.Add(CreatePost(
+                id: Snowflake.NewId(),
+                slug: $"blog/{slugTopic}",
+                title: topic,
+                excerpt: $"Exploring the nuances of {topic} in the context of modern enterprise applications.",
+                headingText: topic,
+                bodyHtml: $"<p>{topic} is a crucial area of modern software development. In this deep dive, we examine the core principles and how they apply to building high-performance systems.</p>" +
+                          "<p>As we move towards more distributed and resilient architectures, understanding the underlying patterns becomes even more important.</p>",
+                tagIds: allTagIds.OrderBy(_ => random.Next()).Take(3).ToList(),
+                imageUrl: staticPhotosClient.GetPhotoUrl("technology"),
+                likes: random.Next(1, 500)));
+        }
+
         return (posts, tags);
     }
 
@@ -582,7 +582,7 @@ public sealed class SetupCompletionService(
             blocks.Add(new QuoteBlock { Id = Snowflake.NewId(), Content = quoteText, Author = quoteAuthor, Order = (short)(blocks.Count) });
         }
 
-        return new()
+        return new BlogPostDocument
         {
             Id = id,
             Slug = slug,
@@ -591,6 +591,7 @@ public sealed class SetupCompletionService(
             SeoTitle = title,
             SeoDescription = excerpt,
             Content = blocks,
+            PublishedOn = DateTimeOffset.UtcNow,
             PublicationState = ContentPublicationState.Published,
             TagIds = tagIds ?? [],
             ImageUrl = imageUrl,

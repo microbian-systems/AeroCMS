@@ -9,212 +9,238 @@
         Model.Input.ConfirmPassword = "*strongPassword1";
     }
 
-
     string FieldClass(string key)
     {
         var hasError = ViewData.ModelState.TryGetValue(key, out var entry) && entry.Errors.Count > 0;
 
         return hasError
-            ? "mt-2 block w-full rounded-2xl border border-rose-300 bg-white/95 px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none ring-4 ring-rose-100 transition placeholder:text-slate-400"
-            : "mt-2 block w-full rounded-2xl border border-slate-200 bg-white/95 px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100";
+            ? "border-rose-300 bg-rose-50/10 focus:ring-rose-100"
+            : "border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-indigo-50";
     }
 }
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950">
+<html lang="en" class="h-full bg-slate-50">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light" />
-    <title>Aero CMS Setup</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="color-scheme" content="light"/>
+    <title>Aero CMS | Bootstrapping</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        aero: {
-                            ink: "#0f172a",
-                            mist: "#e2e8f0",
-                            cloud: "#f8fafc",
-                            cyan: "#0f766e",
-                            gold: "#f59e0b"
-                        }
-                    },
                     fontFamily: {
-                        sans: ["Manrope", "ui-sans-serif", "sans-serif"],
-                        display: ["Fraunces", "ui-serif", "serif"]
+                        sans: ["Inter", "ui-sans-serif", "sans-serif"],
+                        display: ["Outfit", "ui-sans-serif", "sans-serif"]
                     },
                     boxShadow: {
-                        panel: "0 24px 80px rgba(15, 23, 42, 0.14)"
+                        'premium': '0 20px 50px rgba(0, 0, 0, 0.05)',
+                        'accent': '0 10px 30px rgba(79, 70, 229, 0.15)'
                     }
                 }
             }
         };
     </script>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    
+        .bg-aero {
+            background-image: url('/img/Aero.png');
+            background-repeat: no-repeat;
+            background-position: -15% 50%;
+            background-size: 50%;
+            opacity: 0.58;
+        }
+    </style>
 </head>
-<body class="min-h-full bg-[radial-gradient(circle_at_top_left,_rgba(15,118,110,0.18),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(245,158,11,0.16),_transparent_28%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_42%,_#f8fafc_100%)] font-sans text-slate-900 antialiased">
-    <div class="relative isolate overflow-hidden">
-        <div class="absolute inset-x-0 top-0 -z-10 h-40 bg-[linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(15,23,42,0.72),_rgba(15,118,110,0.52))]"></div>
-        <div class="absolute left-1/2 top-20 -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-300/20 blur-3xl"></div>
+<body class="min-h-full font-sans text-slate-900 border-t-4 border-indigo-600">
+@* Large decorative background image *@
+<div class="fixed inset-0 pointer-events-none bg-aero"></div>
 
-        <main class="mx-auto flex min-h-screen max-w-7xl items-center px-6 py-10 lg:px-8">
-            <div class="grid w-full gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(22rem,34rem)] lg:items-center">
-                <section class="max-w-2xl text-slate-950">
-                    <span class="inline-flex items-center rounded-full border border-white/50 bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-600 shadow-sm backdrop-blur">Aero CMS bootstrap</span>
-                    <h1 class="mt-6 max-w-xl font-display text-4xl leading-tight text-slate-950 sm:text-5xl">Shape the first admin experience before your content model wakes up.</h1>
-                    <p class="mt-5 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">Capture the account details and starter site metadata the CMS will use for first-run provisioning. This pass bootstraps the initial administrator through ASP.NET Core Identity managers, keeps redirects local, and leaves content seeding for the next task.</p>
+@* Subtle gradients for depth *@
+<div class="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_70%_20%,_rgba(79,70,229,0.03),_transparent_40%),radial-gradient(circle_at_20%_80%,_rgba(16,185,129,0.03),_transparent_40%)]"></div>
 
-                    <div class="mt-8 grid gap-4 sm:grid-cols-3">
-                        <div class="rounded-3xl border border-white/70 bg-white/75 p-5 shadow-lg shadow-slate-900/5 backdrop-blur">
-                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Access</p>
-                            <p class="mt-3 text-lg font-semibold text-slate-900">First administrator</p>
-                            <p class="mt-2 text-sm leading-6 text-slate-600">Username, email, and password are validated server-side before anything mutates.</p>
+<div class="relative min-h-screen flex flex-col items-center justify-center p-6 lg:p-12">
+    <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+
+        @* Left Side - Context *@
+        <div class="lg:col-span-5 order-2 lg:order-1">
+            <div class="h-full bg-white/40 backdrop-blur-xl border border-white/40 rounded-[2.5rem] shadow-premium p-8 sm:p-12 space-y-10">
+                <div class="space-y-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-indigo-50 text-indigo-600 border border-indigo-100">
+                        System Setup
+                    </span>
+                    <h1 class="text-4xl sm:text-5xl font-display font-extrabold text-slate-900 leading-[1.1]">
+                        Welcome to <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">Aero CMS</span>
+                    </h1>
+                    <p class="text-lg text-slate-600 leading-relaxed font-medium">
+                        You're just a few steps away from your new high-performance content platform. Let's configure the foundational administrative access and site identity.
+                    </p>
+                </div>
+
+                <div class="grid gap-6">
+                    <div class="group flex gap-4 p-4 rounded-3xl transition-colors hover:bg-white/40">
+                        <div class="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-accent transition-transform group-hover:scale-110">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
                         </div>
-                        <div class="rounded-3xl border border-white/70 bg-white/75 p-5 shadow-lg shadow-slate-900/5 backdrop-blur">
-                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Seed copy</p>
-                            <p class="mt-3 text-lg font-semibold text-slate-900">Starter site metadata</p>
-                            <p class="mt-2 text-sm leading-6 text-slate-600">Site, homepage, and blog titles are collected now so the next setup task can seed content deterministically.</p>
-                        </div>
-                        <div class="rounded-3xl border border-white/70 bg-white/75 p-5 shadow-lg shadow-slate-900/5 backdrop-blur">
-                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Safety</p>
-                            <p class="mt-3 text-lg font-semibold text-slate-900">Local redirects only</p>
-                            <p class="mt-2 text-sm leading-6 text-slate-600">Any external `returnUrl` is ignored so the setup surface cannot become an open redirect.</p>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Secure Access</h3>
+                            <p class="text-sm text-slate-500 mt-1">We'll bootstrap your primary administrative account using industry-standard Identity managers.</p>
                         </div>
                     </div>
-                </section>
 
-                <section class="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-panel backdrop-blur xl:p-8">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-aero-cyan">Setup workspace</p>
-                            <h2 class="mt-2 text-2xl font-semibold text-slate-950">Configure the first-run command</h2>
-                            <p class="mt-2 text-sm leading-6 text-slate-500">Invalid submissions stay here with inline guidance. Valid submissions redirect only to a local target.</p>
+                    <div class="group flex gap-4 p-4 rounded-3xl transition-colors hover:bg-white/40">
+                        <div class="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 transition-transform group-hover:scale-110">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                            </svg>
                         </div>
-                        <div class="hidden rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-right text-xs font-medium text-amber-700 sm:block">
-                            Tailwind surface
-                            <div class="text-[11px] font-normal text-amber-600">inside the setup module</div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Deterministic Seeding</h3>
+                            <p class="text-sm text-slate-500 mt-1">Your site structure, homepage, and blog listing will be seeded based on the metadata you provide now.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Right Side - Form *@
+        <div class="lg:col-span-7 order-1 lg:order-2">
+            <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-premium p-8 sm:p-12 relative overflow-hidden">
+                @* Glass background element *@
+                <div class="absolute -right-16 -top-16 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-60"></div>
+
+                <div class="relative">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-8 mb-8">
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-950">Foundation Config</h2>
+                            <p class="text-sm text-slate-500 mt-1">Configure your workspace defaults</p>
+                        </div>
+                        <div class="h-12 w-12 flex items-center justify-center rounded-2xl bg-slate-50 border border-slate-100 italic font-display font-bold text-slate-400">
+                            0.1
                         </div>
                     </div>
 
                     @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
                     {
-                        <div class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+                        <div class="mb-8 rounded-2xl bg-indigo-50 border border-indigo-100 px-5 py-4 text-sm font-semibold text-indigo-700">
                             @Model.StatusMessage
                         </div>
                     }
 
                     @if (!ViewData.ModelState.IsValid)
                     {
-                        <div class="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                            <p class="font-semibold text-rose-800">Review the highlighted fields before continuing.</p>
-                            <div asp-validation-summary="ModelOnly" class="mt-2 space-y-1"></div>
+                        <div class="mb-8 rounded-2xl bg-rose-50 border border-rose-100 p-5">
+                            <h4 class="text-sm font-bold text-rose-800">Please review the following:</h4>
+                            <div asp-validation-summary="ModelOnly" class="mt-2 text-xs font-medium text-rose-600 list-disc list-inside"></div>
                         </div>
                     }
 
-                    <form method="post" novalidate class="mt-6 space-y-8">
-                        <input asp-for="ReturnUrl" type="hidden" />
+                    <form method="post" novalidate class="space-y-10 cursor-default">
+                        <input asp-for="ReturnUrl" type="hidden"/>
 
-                        <div class="space-y-5">
-                            <div class="flex items-center gap-3">
-                                <div class="h-px flex-1 bg-slate-200"></div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Administrator access</p>
-                                <div class="h-px flex-1 bg-slate-200"></div>
+                        @* Account Section *@
+                        <div class="space-y-6">
+                            <div class="flex items-center gap-4">
+                                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Admin Identity</h3>
+                                <div class="h-px flex-1 bg-slate-100"></div>
                             </div>
 
-                            <div class="grid gap-5 sm:grid-cols-2">
-                                <div class="sm:col-span-2">
-                                    <label asp-for="Input.AdminUserName" class="text-sm font-semibold text-slate-800"></label>
-                                    <input asp-for="Input.AdminUserName" autocomplete="username" class="@FieldClass("Input.AdminUserName")" placeholder="founder" />
-                                    <span asp-validation-for="Input.AdminUserName" class="mt-2 block text-sm font-medium text-rose-600"></span>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2">
+                                    <label asp-for="Input.AdminUserName" class="text-xs font-bold text-slate-700">Username</label>
+                                    <input asp-for="Input.AdminUserName" autocomplete="username" class="@FieldClass("Input.AdminUserName") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all placeholder:text-slate-300" placeholder="e.g. founder"/>
+                                    <span asp-validation-for="Input.AdminUserName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"></span>
                                 </div>
-
-                                <div class="sm:col-span-2">
-                                    <label asp-for="Input.AdminEmail" class="text-sm font-semibold text-slate-800"></label>
-                                    <input asp-for="Input.AdminEmail" autocomplete="email" class="@FieldClass("Input.AdminEmail")" placeholder="admin@example.com" />
-                                    <span asp-validation-for="Input.AdminEmail" class="mt-2 block text-sm font-medium text-rose-600"></span>
+                                <div class="space-y-2">
+                                    <label asp-for="Input.AdminEmail" class="text-xs font-bold text-slate-700">Email Address</label>
+                                    <input asp-for="Input.AdminEmail" autocomplete="email" class="@FieldClass("Input.AdminEmail") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all placeholder:text-slate-300" placeholder="admin@domain.com"/>
+                                    <span asp-validation-for="Input.AdminEmail" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"></span>
                                 </div>
-
-                                <div x-data="{ show: false }">
-                                    <label asp-for="Input.Password" class="text-sm font-semibold text-slate-800"></label>
+                                <div class="space-y-2" x-data="{ show: false }">
+                                    <label asp-for="Input.Password" class="text-xs font-bold text-slate-700">Password</label>
                                     <div class="relative">
-                                        <input asp-for="Input.Password" :type="show ? 'text' : 'password'" value="@Model.Input.Password" autocomplete="new-password" class="@FieldClass("Input.Password") pr-12" placeholder="At least 12 characters" />
-                                        <button type="button" @@click="show = !show" class="absolute right-3 top-1/2 mt-1 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-slate-600 focus:outline-none">
-                                            <svg x-show="!show" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.644C3.413 8.134 7.378 5 12 5c4.622 0 8.587 3.134 9.964 7.322a1.012 1.012 0 010 .644C20.587 15.866 16.622 19 12 19c-4.622 0-8.587-3.134-9.964-7.322z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <input asp-for="Input.Password" :type="show ? 'text' : 'password'" value="@Model.Input.Password" autocomplete="new-password" class="@FieldClass("Input.Password") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all pr-12 placeholder:text-slate-300" placeholder="Password"/>
+                                        <button type="button" @@click="show = !show" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-indigo-600 transition-colors">
+                                            <svg x-show="!show" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                             </svg>
-                                            <svg x-show="show" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5" style="display:none">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.822 7.822L21 21m-2.278-2.278L15.07 15.07M9.172 9.172L7.336 7.336M9.172 9.172a4 4 0 105.656 5.656m-5.656-5.656l5.656 5.656" />
+                                            <svg x-show="show" x-cloak class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 1.225 0 2.392.27 3.435.748M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                             </svg>
                                         </button>
                                     </div>
-                                    <span asp-validation-for="Input.Password" class="mt-2 block text-sm font-medium text-rose-600"></span>
+                                    <span asp-validation-for="Input.Password" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"></span>
                                 </div>
-
-                                <div x-data="{ show: false }">
-                                    <label asp-for="Input.ConfirmPassword" class="text-sm font-semibold text-slate-800"></label>
+                                <div class="space-y-2" x-data="{ show: false }">
+                                    <label asp-for="Input.ConfirmPassword" class="text-xs font-bold text-slate-700">Confirm Password</label>
                                     <div class="relative">
-                                        <input asp-for="Input.ConfirmPassword" :type="show ? 'text' : 'password'" value="@Model.Input.ConfirmPassword" autocomplete="new-password" class="@FieldClass("Input.ConfirmPassword") pr-12" placeholder="Repeat the password" />
-                                        <button type="button" @@click="show = !show" class="absolute right-3 top-1/2 mt-1 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-slate-600 focus:outline-none">
-                                            <svg x-show="!show" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.644C3.413 8.134 7.378 5 12 5c4.622 0 8.587 3.134 9.964 7.322a1.012 1.012 0 010 .644C20.587 15.866 16.622 19 12 19c-4.622 0-8.587-3.134-9.964-7.322z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <input asp-for="Input.ConfirmPassword" :type="show ? 'text' : 'password'" value="@Model.Input.ConfirmPassword" autocomplete="new-password" class="@FieldClass("Input.ConfirmPassword") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all pr-12 placeholder:text-slate-300" placeholder="Confirm"/>
+                                        <button type="button" @@click="show = !show" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-indigo-600 transition-colors">
+                                            <svg x-show="!show" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                             </svg>
-                                            <svg x-show="show" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5" style="display:none">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.822 7.822L21 21m-2.278-2.278L15.07 15.07M9.172 9.172L7.336 7.336M9.172 9.172a4 4 0 105.656 5.656m-5.656-5.656l5.656 5.656" />
+                                            <svg x-show="show" x-cloak class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 1.225 0 2.392.27 3.435.748M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                             </svg>
                                         </button>
                                     </div>
-                                    <span asp-validation-for="Input.ConfirmPassword" class="mt-2 block text-sm font-medium text-rose-600"></span>
+                                    <span asp-validation-for="Input.ConfirmPassword" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"></span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="space-y-5">
-                            <div class="flex items-center gap-3">
-                                <div class="h-px flex-1 bg-slate-200"></div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Starter site metadata</p>
-                                <div class="h-px flex-1 bg-slate-200"></div>
+                        @* Site Content Section *@
+                        <div class="space-y-6">
+                            <div class="flex items-center gap-4">
+                                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Content Model Seed</h3>
+                                <div class="h-px flex-1 bg-slate-100"></div>
                             </div>
 
-                            <div class="grid gap-5">
-                                <div>
-                                    <label asp-for="Input.SiteName" class="text-sm font-semibold text-slate-800"></label>
-                                    <input asp-for="Input.SiteName" autocomplete="organization" class="@FieldClass("Input.SiteName")" placeholder="Aero CMS" />
-                                    <span asp-validation-for="Input.SiteName" class="mt-2 block text-sm font-medium text-rose-600"></span>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-2">
+                                    <label asp-for="Input.SiteName" class="text-xs font-bold text-slate-700">Site Name</label>
+                                    <input asp-for="Input.SiteName" autocomplete="organization" class="@FieldClass("Input.SiteName") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all placeholder:text-slate-300" placeholder="Aero CMS"/>
+                                    <span asp-validation-for="Input.SiteName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"></span>
                                 </div>
-
-                                <div>
-                                    <label asp-for="Input.HomepageTitle" class="text-sm font-semibold text-slate-800"></label>
-                                    <input asp-for="Input.HomepageTitle" class="@FieldClass("Input.HomepageTitle")" placeholder="Welcome to Aero CMS" />
-                                    <span asp-validation-for="Input.HomepageTitle" class="mt-2 block text-sm font-medium text-rose-600"></span>
+                                <div class="space-y-2">
+                                    <label asp-for="Input.HomepageTitle" class="text-xs font-bold text-slate-700">Home Title</label>
+                                    <input asp-for="Input.HomepageTitle" class="@FieldClass("Input.HomepageTitle") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all placeholder:text-slate-300" placeholder="Welcome"/>
+                                    <span asp-validation-for="Input.HomepageTitle" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"></span>
                                 </div>
-
-                                <div>
-                                    <label asp-for="Input.BlogName" class="text-sm font-semibold text-slate-800"></label>
-                                    <input asp-for="Input.BlogName" class="@FieldClass("Input.BlogName")" placeholder="Field Notes" />
-                                    <span asp-validation-for="Input.BlogName" class="mt-2 block text-sm font-medium text-rose-600"></span>
+                                <div class="space-y-2">
+                                    <label asp-for="Input.BlogName" class="text-xs font-bold text-slate-700">Blog Name</label>
+                                    <input asp-for="Input.BlogName" class="@FieldClass("Input.BlogName") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all placeholder:text-slate-300" placeholder="Journal"/>
+                                    <span asp-validation-for="Input.BlogName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"></span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="rounded-3xl bg-slate-950 px-5 py-4 text-sm text-slate-200">
-                            <p class="font-semibold text-white">What this task does now</p>
-                            <p class="mt-2 leading-6 text-slate-300">This form now creates the first admin through Identity managers, ensures the starter roles exist, keeps external return targets out, and preserves entered values on invalid posts. Content seeding and final setup completion still land in later tasks.</p>
-                        </div>
-
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p class="text-sm leading-6 text-slate-500">Posting stays Razor Pages-native and antiforgery-compatible.</p>
-                            <button type="submit" class="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-300">Validate setup details</button>
+                        <div class="pt-6">
+                            <button type="submit" class="group relative w-full h-14 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-2xl transition-all hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0">
+                                <span>Initialize System</span>
+                                <svg class="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                </svg>
+                            </button>
+                            <p class="text-center text-[11px] text-slate-400 mt-4 font-medium uppercase tracking-[0.15em]">
+                                Identity Managers &bull; Content Seeding &bull; Deterministic Reset
+                            </p>
                         </div>
                     </form>
-                </section>
+                </div>
             </div>
-        </main>
+        </div>
     </div>
+</div>
 </body>
 </html>

@@ -10,7 +10,7 @@ public enum PageKind
     Homepage = 1,
     BlogListing = 2,
     Markdown = 3,
-    Custom = 4
+    Razor = 4
 }
 
 public sealed class PageDocument : Entity
@@ -30,4 +30,19 @@ public sealed class PageDocument : Entity
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset? PublishedOn { get; set; } = null;
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+
+    /// <summary>
+    /// Gets or sets whether this page should be displayed in the main navigation menu.
+    /// </summary>
+    public bool ShowInNavMenu { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the global header navigation should be shown when viewing this page.
+    /// </summary>
+    public bool ShowHeaderNavigation { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets an optional image URL to be used as a background for the page header/hero section.
+    /// </summary>
+    public string? HeaderImageUrl { get; set; }
 }

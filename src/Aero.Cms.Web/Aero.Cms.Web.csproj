@@ -52,7 +52,7 @@
   <ItemGroup>
     <Folder Include="logs\" />
     <Folder Include="Areas\" />
-    <Folder Include="wwwroot\" />
+    <Folder Include="wwwroot\img\" />
   </ItemGroup>
 
 </Project>

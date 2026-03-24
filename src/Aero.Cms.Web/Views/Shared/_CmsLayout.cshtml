@@ -9,15 +9,25 @@
     NavigationDetail? navigation = null;
     if (navBlock != null)
     {
+        // Load the pages referenced by the navigation items to check their ShowInNavMenu property
+        var pageIds = navBlock.Items.Values.Where(i => i.PageId != 0).Select(i => i.PageId).ToList();
+        var pages = await MartenSession.LoadManyAsync<Aero.Cms.Modules.Pages.PageDocument>(pageIds);
+        var visiblePageIds = pages.Where(p => p.ShowInNavMenu).Select(p => p.Id).ToHashSet();
+
         navigation = new NavigationDetail(
             navBlock.Id,
             navBlock.Name ?? string.Empty,
             string.Empty,
-            navBlock.Items.Select(i => new NavigationItemDetail(i.Value.Id, i.Value.Label ?? string.Empty, i.Value.Url, i.Value.PageId, i.Key, null)).ToList(),
+            navBlock.Items
+                .Where(kvp => kvp.Value.PageId == 0 || visiblePageIds.Contains(kvp.Value.PageId))
+                .Select(i => new NavigationItemDetail(i.Value.Id, i.Value.Label ?? string.Empty, i.Value.Url, i.Value.PageId, i.Key, null))
+                .ToList(),
             DateTime.UtcNow,
             DateTime.UtcNow
         );
     }
+    
+    var showHeaderNavigation = ViewBag.ShowHeaderNavigation as bool? ?? true;
 }
 <!DOCTYPE html>
 
@@ -30,38 +40,105 @@
     @await RenderSectionAsync("cssPartial", required: false)
     <title>@ViewBag.Title</title>
     @await RenderSectionAsync("headPartial", required:false)
+    <script src="/lib/htmx/htmx.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col">
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
-                <div class="flex-shrink-0 flex items-center">
-                    <a href="/" class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
-                        Aero CMS
-                    </a>
-                </div>
-                <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                    @if (navigation != null)
-                    {
-                        foreach (var item in navigation.Items.OrderBy(i => i.Order))
+<body class="bg-slate-50 min-h-screen flex flex-col font-sans text-slate-900 antialiased" x-data="{ mobileMenuOpen: false }">
+    @if (showHeaderNavigation)
+    {
+        <header class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 transition-all duration-300">
+            <div class="mx-auto px-4 sm:px-6 lg:px-12">
+                <div class="flex justify-between h-20 items-center">
+                    @* Logo / Brand *@
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="group flex items-center gap-2">
+                            <div class="h-10 w-10 flex items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform">
+                                <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <span class="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600">
+                                Aero<span class="text-indigo-600">CMS</span>
+                            </span>
+                        </a>
+                    </div>
+
+                    @* Desktop Navigation - Pushed to right *@
+                    <nav class="hidden md:ml-auto md:flex md:items-center md:space-x-1">
+                        @if (navigation != null)
                         {
-                            <a href="@item.Url" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700 transition-colors">
-                                @item.Label
-                            </a>
+                            foreach (var item in navigation.Items.OrderBy(i => i.Order))
+                            {
+                                <a href="@item.Url" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-all duration-200">
+                                    @item.Label
+                                </a>
+                            }
                         }
-                    }
-                </div>
-                <div class="sm:hidden">
-                    @* Mobile menu button - could be a Blazor component later *@
-                    <button type="button" class="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
+                    </nav>
+
+                    @* Mobile Toggle *@
+                    <div class="flex items-center ml-4 md:hidden">
+                        <button type="button" @@click="mobileMenuOpen = true" class="inline-flex items-center justify-center p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors">
+                            <span class="sr-only">Open menu</span>
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    </header>
+
+            @* Mobile Side-Drawer Overlay *@
+            <template x-teleport="body">
+                <div x-show="mobileMenuOpen" 
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 z-[60] md:hidden">
+                    
+                    <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" @@click="mobileMenuOpen = false"></div>
+                    
+                    <div x-show="mobileMenuOpen"
+                         x-transition:enter="transition ease-out duration-300"
+                         x-transition:enter-start="translate-x-full"
+                         x-transition:enter-end="translate-x-0"
+                         x-transition:leave="transition ease-in duration-200"
+                         x-transition:leave-start="translate-x-0"
+                         x-transition:leave-end="translate-x-full"
+                         class="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-2xl flex flex-col">
+                        
+                        <div class="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                            <span class="text-xl font-bold text-slate-900">Navigation</span>
+                            <button type="button" @@click="mobileMenuOpen = false" class="p-2 -mr-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="flex-grow py-6 px-4 space-y-2 overflow-y-auto">
+                            @if (navigation != null)
+                            {
+                                foreach (var item in navigation.Items.OrderBy(i => i.Order))
+                                {
+                                    <a href="@item.Url" class="block px-4 py-4 rounded-2xl text-lg font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200">
+                                        @item.Label
+                                    </a>
+                                }
+                            }
+                        </div>
+
+                        <div class="p-6 border-t border-slate-100 bg-slate-50/50 text-center">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Aero CMS Platform</p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </header>
+    }
 
     <main class="flex-grow">
         @RenderBody()
