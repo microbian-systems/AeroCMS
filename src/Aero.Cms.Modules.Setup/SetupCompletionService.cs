@@ -3,6 +3,7 @@ using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Layout;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Modules.Docs;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Services;
 using Aero.Cms.Web.Core.Modules;
@@ -113,6 +114,7 @@ public sealed class SetupCompletionService(
         var (blogListing, blogListingBlocks) = BuildBlogListingPage(request);
         var (aboutPage, aboutBlocks) = BuildAboutPage(request);
         var (contactPage, contactBlocks) = BuildContactPage(request);
+        var markdownDocsPage = BuildMarkdownDocsPage();
 
         // Create main navigation menu
         var mainNav = new NavigationBlock
@@ -124,7 +126,8 @@ public sealed class SetupCompletionService(
                 { 0, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Home", Url = "/", PageId = homepage.Id, Order = 0, AltText = "Home Page" } },
                 { 1, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "About", Url = "/about", PageId = aboutPage.Id, Order = 1, AltText = "About Us" } },
                 { 2, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Contact", Url = "/contact", PageId = contactPage.Id, Order = 2, AltText = "Contact Us" } },
-                { 3, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Blog", Url = "/blog", PageId = blogListing.Id, Order = 3, AltText = "Blog and Field Notes" } }
+                { 3, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Blog", Url = "/blog", PageId = blogListing.Id, Order = 3, AltText = "Blog and Field Notes" } },
+                { 4, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Docs", Url = "/docs", PageId = markdownDocsPage.Id, Order = 4, AltText = "Developer Documentation" } }
             }
         };
         session.Store(mainNav);
@@ -148,6 +151,7 @@ public sealed class SetupCompletionService(
 
         foreach (var block in contactBlocks) session.Store(block);
         await pageContentService.SaveAsync(contactPage, cancellationToken);
+        session.Store(markdownDocsPage);
 
         // Build starter blog content (posts and tags)
         var (posts, tags) = BuildStarterBlogContent(request, staticPhotosClient);
@@ -223,19 +227,21 @@ public sealed class SetupCompletionService(
                         </div>
                     </div>
 
-                    <div class='mt-20 -mx-4 sm:-mx-6 lg:-mx-8'>
-                        <h4 class='px-4 sm:px-6 lg:px-8 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8'>Tech we use:</h4>
-                        <div class='flex overflow-x-auto gap-12 pb-8 px-4 sm:px-6 lg:px-8 items-center no-scrollbar group cursor-grab active:cursor-grabbing'>
-                            <img src='/img/dotnet-logo.svg' alt='DotNet' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
-                            <img src='/img/csharp.DJ9MidBD_1dalL.svg' alt='C#' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
-                            <img src='/img/postgresql.webp' alt='PostgreSQL' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
-                            <img src='/img/htmx-logo.png' alt='HTMX' class='h-7 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
-                            <img src='/img/typescript.C9-blvjE_1dalL.svg' alt='TypeScript' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
-                            <img src='/img/preact-logo.svg' alt='Preact' class='h-12 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
-                            <img src='/img/lavinmq.png' alt='LavinMQ' class='h-12 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
-                            <img src='/img/aspire.png' alt='Aspire' class='h-12 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
-                            <img src='/img/maui-icon.oIIgefok_ZfsSNl.webp' alt='MAUI' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
-                            <img src='/img/hydro_logo_s3.svg' alt='S3' class='h-10 w-auto grayscale transition-all duration-500 hover:grayscale-0 opacity-40 hover:opacity-100 hover:scale-110 drop-shadow-sm' />
+                    <div class='mt-24 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16 border-y border-slate-100'>
+                        <div class='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center'>
+                            <h2 class='text-2xl font-black text-slate-900 uppercase tracking-widest mb-12'>Tech we use:</h2>
+                            <div class='flex overflow-x-auto gap-16 pb-4 items-center no-scrollbar justify-center px-4'>
+                                <img src='/img/dotnet-logo.svg' alt='DotNet' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/csharp.DJ9MidBD_1dalL.svg' alt='C#' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/postgresql.webp' alt='PostgreSQL' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/htmx-logo.png' alt='HTMX' class='h-8 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/typescript.C9-blvjE_1dalL.svg' alt='TypeScript' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/preact-logo.svg' alt='Preact' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/lavinmq.png' alt='LavinMQ' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/aspire.png' alt='Aspire' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/maui-icon.oIIgefok_ZfsSNl.webp' alt='MAUI' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/hydro_logo_s3.svg' alt='S3' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                            </div>
                         </div>
                     </div>
                 </div>",
@@ -670,5 +676,50 @@ public sealed class SetupCompletionService(
             Name = name,
             Slug = name.ToLowerInvariant().Replace(' ', '-')
         }).ToList();
+    }
+
+    private MarkdownPage BuildMarkdownDocsPage()
+    {
+        return new MarkdownPage
+        {
+            Id = Snowflake.NewId(),
+            Title = "Aero CMS Documentation",
+            Slug = "docs",
+            HeaderImageUrl = staticPhotosClient.GetPhotoUrl("tech", "1920x1080"),
+            MarkdownContent = @"# Aero CMS Documentation
+
+Welcome to the official developer documentation for **Aero CMS**—the high-performance, AOT-compatible content platform built for the modern .NET ecosystem.
+
+## Core Philosophical Pillars
+
+1.  **AOT-First**: Designed from the ground up for Native AOT.
+2.  **Module-Driven**: Highly extensible architecture using Razor Class Libraries.
+3.  **Modern Data**: Leveraging Marten and PostgreSQL for document-based storage.
+4.  **Interactive UI**: Powered by HTMX, Alpine.js, and Blazor.
+
+## Getting Started
+
+To get started with development, you'll need the following:
+*   .NET 10.0 SDK
+*   PostgreSQL 16+
+*   pnpm (for frontend assets)
+
+## Technology Stack
+
+Our stack is curated for maximum developer productivity and runtime efficiency:
+*   **Backend**: C# 14, .NET 10
+*   **Database**: Marten & PostgreSQL
+*   **Messaging**: Wolverine & LavinMQ
+*   **Frontend**: HTMX, Alpine.js, Tailwind CSS
+*   **Storage**: S3 Compatible Providers
+
+---
+
+*This page is rendered dynamically from raw Markdown stored in the database.*",
+            PublishedOn = DateTimeOffset.UtcNow,
+            PublicationState = ContentPublicationState.Published,
+            SeoTitle = "Aero CMS Documentation - Knowledge Base",
+            SeoDescription = "Learn how to build and extend Aero CMS with our comprehensive developer guides."
+        };
     }
 }

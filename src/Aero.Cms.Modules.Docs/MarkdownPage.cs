@@ -1,0 +1,28 @@
+using Aero.Cms.Core;
+using Aero.Core.Entities;
+
+namespace Aero.Cms.Modules.Docs;
+
+public sealed class MarkdownPage : Entity
+{
+    public string Slug { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string? Summary { get; set; }
+    public string? MarkdownContent { get; set; }
+    public string? SeoTitle { get; set; }
+    public string? SeoDescription { get; set; }
+    
+    public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+    public DateTimeOffset? PublishedOn { get; set; } = null;
+    public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+
+    /// <summary>
+    /// Gets or sets whether the global header navigation should be shown when viewing this page.
+    /// </summary>
+    public bool ShowHeaderNavigation { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets an optional image URL to be used as a background for the page header/hero section.
+    /// </summary>
+    public string? HeaderImageUrl { get; set; }
+}

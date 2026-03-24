@@ -1,0 +1,58 @@
+@page "/docs/{slug?}"
+@using Markdig
+@model Aero.Cms.Modules.Docs.Areas.Docs.Pages.DocModel
+@{
+    var pageDoc = Model.MarkdownPage;
+    ViewBag.Title = pageDoc?.SeoTitle ?? pageDoc?.Title ?? "Docs";
+    ViewBag.ShowHeaderNavigation = pageDoc?.ShowHeaderNavigation ?? true;
+}
+
+@if (pageDoc is null)
+{
+    <div class="min-h-screen flex items-center justify-center bg-gray-50">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">Documentation Not Found</h1>
+            <p class="text-gray-600">The requested documentation page could not be found.</p>
+        </div>
+    </div>
+}
+else
+{
+    <article class="min-h-screen bg-white">
+        @* Page Header / Hero Section *@
+        @{
+            var hasHeaderImage = !string.IsNullOrEmpty(pageDoc.HeaderImageUrl);
+            var headerStyle = hasHeaderImage 
+                ? $"background-image: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), url('{pageDoc.HeaderImageUrl}'); background-size: cover; background-position: center;"
+                : "background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);";
+            var headerTextClass = hasHeaderImage ? "text-white" : "text-slate-900";
+            var subTextClass = hasHeaderImage ? "text-slate-200" : "text-slate-600";
+        }
+        
+        <header class="relative border-b border-slate-200 overflow-hidden" style="@headerStyle">
+            <div class="max-w-7xl mx-auto px-4 py-20 sm:py-32 sm:px-6 lg:px-8 relative z-10 transition-all duration-700">
+                <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-none @headerTextClass">
+                    @pageDoc.Title
+                </h1>
+                
+                @if (!string.IsNullOrEmpty(pageDoc.Summary))
+                {
+                    <p class="mt-6 text-lg sm:text-xl @subTextClass leading-relaxed max-w-2xl font-medium">
+                        @pageDoc.Summary
+                    </p>
+                }
+            </div>
+            @if (!hasHeaderImage)
+            {
+                <div class="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,transparent,black)] pointer-events-none"></div>
+            }
+        </header>
+
+        @* Markdown Content *@
+        <div class="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+            <div class="prose prose-slate max-w-none prose-headings:font-display prose-headings:font-bold prose-a:text-indigo-600 prose-img:rounded-[2rem] prose-img:shadow-xl prose-pre:bg-slate-900 prose-pre:rounded-2xl">
+                @Html.Raw(Markdown.ToHtml(pageDoc.MarkdownContent ?? ""))
+            </div>
+        </div>
+    </article>
+}
