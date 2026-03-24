@@ -6,6 +6,8 @@ using Aero.Cms.Core.Http.Clients;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Services;
 using Radzen;
+using Serilog;
+using Serilog.Events;
 
 namespace Aero.Cms;
 
@@ -29,6 +31,18 @@ public static class MauiProgram
             builder.Configuration.AddJsonStream(stream);
         }
 
+        // Configure Serilog
+        var logPath = Path.Combine(FileSystem.AppDataDirectory, "logs", "aero-.log");
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+            .Enrich.FromLogContext()
+            //.WriteTo.Debug()
+            .WriteTo.File(logPath, rollingInterval: RollingInterval.Day)
+            .CreateLogger();
+
+        builder.Logging.AddSerilog(dispose: true);
+
         // Add device-specific services used by the Aero.Cms.Shared project
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
         
@@ -45,7 +59,6 @@ public static class MauiProgram
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();
-        builder.Logging.AddDebug();
 #endif
 
         return builder.Build();

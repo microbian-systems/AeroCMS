@@ -47,6 +47,7 @@
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+    <DefaultLanguage>en-US</DefaultLanguage>
   </PropertyGroup>
 
   <ItemGroup>
@@ -75,6 +76,10 @@
     <PackageReference Include="Microsoft.Maui.Controls" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
+    <!-- <PackageReference Include="Serilog" /> -->
+    <!-- <PackageReference Include="Serilog.Extensions.Logging" /> -->
+    <!-- <PackageReference Include="Serilog.Sinks.Debug" /> -->
+    <!-- <PackageReference Include="Serilog.Sinks.File" /> -->
   </ItemGroup>
 
   <ItemGroup>
