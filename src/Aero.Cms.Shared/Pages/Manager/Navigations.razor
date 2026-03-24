@@ -1,0 +1,25 @@
+@page "/manager/navigations"
+@page "/manager/navigations/general"
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Navigations</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage your site menus and link structure.</p>
+        </div>
+        <RadzenButton Icon="add" Text="Create Navigation" ButtonStyle="ButtonStyle.Primary" />
+    </div>
+
+    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
+                    EmptyText="No navigations found. Let's create one!">
+        <Columns>
+            <RadzenDataGridColumn TItem="object" Property="Name" Title="Name" />
+            <RadzenDataGridColumn TItem="object" Property="Handle" Title="Handle / Slug" />
+            <RadzenDataGridColumn TItem="object" Property="Type" Title="Type" />
+            <RadzenDataGridColumn TItem="object" Property="Modified" Title="Last Modified" />
+        </Columns>
+    </RadzenDataGrid>
+</div>
+
+@code {
+}

@@ -40,6 +40,7 @@ public sealed class HeadlessModule : AeroModuleBase
         builder.MapDashboardApi();
         builder.MapNavigationsApi();
         builder.MapModulesApi();
+        builder.MapDocsApi();
         builder.MapCategoriesApi();
         builder.MapTagsApi();
         builder.MapFilesApi();
@@ -47,7 +48,6 @@ public sealed class HeadlessModule : AeroModuleBase
         builder.MapThemesApi();
         builder.MapSettingsApi();
         builder.MapProfileApi();
-        builder.MapPagesApi();
         builder.MapBlocksApi();
 
         return Task.CompletedTask;

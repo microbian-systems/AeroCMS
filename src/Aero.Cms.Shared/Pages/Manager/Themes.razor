@@ -1,0 +1,49 @@
+@page "/manager/themes"
+@page "/manager/themes/general"
+@inject DialogService DialogService
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Themes</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage your site's visual identity and layout sets.</p>
+        </div>
+        <div class="flex space-x-3">
+             <RadzenButton Icon="brush" Text="Customizer" ButtonStyle="ButtonStyle.Light" />
+             <RadzenButton Icon="file_upload" Text="Install Theme" ButtonStyle="ButtonStyle.Primary" />
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @{
+            var themes = new[] { ("Modern", "Default Look"), ("Ocean", "Blue Accents"), ("Forest", "Sustainable Green") };
+        }
+        @foreach (var theme in themes)
+        {
+            <RadzenCard class="p-6 cursor-pointer hover:border-indigo-500 transition-colors shadow-sm" @onclick="() => OpenDetail(theme.Item1)">
+                <div class="aspect-video bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 mb-4 overflow-hidden relative group">
+                    <div class="w-full h-full bg-indigo-50 flex items-center justify-center">
+                        <svg class="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <RadzenText TextStyle="TextStyle.H6" class="font-bold leading-none">@theme.Item1</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500 mt-1">@theme.Item2</RadzenText>
+                    </div>
+                    @if (theme.Item1 == "Modern")
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="Active" />
+                    }
+                </div>
+            </RadzenCard>
+        }
+    </div>
+</div>
+
+@code {
+    private void OpenDetail(string name)
+    {
+        DialogService.OpenSide<RadzenText>(name, new Dictionary<string, object?> { { "Text", name } }, new SideDialogOptions { Position = DialogPosition.Right, Width = "500px" });
+    }
+}

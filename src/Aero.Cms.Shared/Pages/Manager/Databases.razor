@@ -1,0 +1,47 @@
+@page "/manager/databases"
+@page "/manager/databases/general"
+@inject DialogService DialogService
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Databases</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage your system's data-driven modules and stores.</p>
+        </div>
+        <div class="flex space-x-3">
+             <RadzenButton Icon="history" Text="Migrations" ButtonStyle="ButtonStyle.Light" />
+             <RadzenButton Icon="add" Text="Connect DB" ButtonStyle="ButtonStyle.Primary" />
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @{
+            var dbs = new[] { ("Marten", "Marten / Postgres"), ("RavenDB", "NoSQL Store"), ("Identity", "Auth Database"), ("Audit", "Audit Store") };
+        }
+        @foreach (var db in dbs)
+        {
+            <RadzenCard class="p-6 cursor-pointer hover:border-indigo-500 transition-colors shadow-sm" @onclick="() => OpenDetail(db.Item1)">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 font-bold overflow-hidden">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 4.48 4 10 4s10-1.79 10-4V7M4 7c0 2.21 4.48 4 10 4s10-1.79 10-4M4 7c0-2.21 4.48-4 10-4s10 1.79 10 4m0 5c0 2.21-4.48 4-10 4s-10-1.79-10-4"/></svg>
+                    </div>
+                    <div>
+                        <RadzenText TextStyle="TextStyle.H6" class="font-bold leading-none">@db.Item1</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500 mt-1">@db.Item2</RadzenText>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mt-4 text-sm">
+                    <span class="text-gray-600">Status</span>
+                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Connected" />
+                </div>
+            </RadzenCard>
+        }
+    </div>
+</div>
+
+@code {
+    private void OpenDetail(string name)
+    {
+        DialogService.OpenSide<RadzenText>(name, new Dictionary<string, object?> { { "Text", name } }, new SideDialogOptions { Position = DialogPosition.Right, Width = "400px" });
+    }
+}
