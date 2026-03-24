@@ -1,6 +1,10 @@
 @using Aero.Cms.Core.Blocks
 @using Aero.Cms.Core.Blocks.Layout
+@using Aero.Cms.Core.Http.Clients
+@using global::Marten
+@using Marten
 @inject IBlockService BlockService
+@inject IDocumentSession MartenSession
 
 @if (Placement != null)
 {
@@ -10,7 +14,7 @@
     }
     else if (_block != null)
     {
-        <BlockRenderer Block="_block" />
+        <BlockRenderer Block="_block" Navigation="_navigation" />
     }
     else if (_loadingAttempted)
     {
@@ -25,6 +29,7 @@
     public BlockPlacement? Placement { get; set; }
 
     private IBlock? _block;
+    private NavigationDetail? _navigation;
     private bool _loadingAttempted;
 
     protected override async Task OnParametersSetAsync()
@@ -33,7 +38,45 @@
         {
             _loadingAttempted = false;
             _block = await BlockService.GetByIdAsync(Placement.BlockId);
+            
+            if (_block is NavigationBlock navBlock)
+            {
+                // Scenario 1: Block points to a shared navigation structure
+                if (navBlock.NavigationId > 0)
+                {
+                    var sharedNav = await MartenSession.LoadAsync<NavigationBlock>(navBlock.NavigationId);
+                    if (sharedNav != null)
+                    {
+                        _navigation = MapToDetail(sharedNav);
+                    }
+                }
+                
+                // Scenario 2: Block has inline items (Fallback or primary if NavigationId is 0)
+                if (_navigation == null && navBlock.Items != null && navBlock.Items.Count > 0)
+                {
+                    _navigation = MapToDetail(navBlock);
+                }
+            }
+            
             _loadingAttempted = true;
         }
+    }
+
+    private NavigationDetail MapToDetail(NavigationBlock nav)
+    {
+        return new NavigationDetail(
+            nav.Id,
+            nav.Name ?? string.Empty,
+            string.Empty,
+            nav.Items.Select(i => new NavigationItemDetail(
+                i.Value.Id, 
+                i.Value.Label ?? string.Empty, 
+                i.Value.Url, 
+                i.Value.PageId, 
+                (int)i.Key, 
+                null)).ToList(),
+            DateTime.UtcNow,
+            DateTime.UtcNow
+        );
     }
 }

@@ -1,3 +1,4 @@
+using Aero.Caching.Extensions;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Web.Core.Modules;
@@ -46,6 +47,7 @@ public sealed class SetupModule : AeroModuleBase
         services.TryAddScoped<IModuleStateStore, ModuleStateStore>();
         services.TryAddSingleton<SetupPathAllowlist>();
         services.TryAddTransient<SetupGateMiddleware>();
+        services.AddAeroCaching(false);
     }
 
     public override async Task RunAsync(IEndpointRouteBuilder builder)
