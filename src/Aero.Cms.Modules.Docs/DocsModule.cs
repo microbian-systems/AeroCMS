@@ -20,6 +20,7 @@ public sealed class DocsModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddSingleton<global::Marten.IConfigureMarten, DocsMartenConfiguration>();
+        services.AddScoped<IDocsService, DocsService>();
     }
 
     public override async Task RunAsync(IEndpointRouteBuilder builder)

@@ -1,0 +1,61 @@
+@using Microsoft.AspNetCore.Components.Routing
+@inject NavigationManager Navigation
+
+<div class="space-y-1">
+    <div class="flex items-center justify-between w-full group relative">
+        <NavLink class="flex-1 flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-indigo-50 active:bg-indigo-100" href="@Href" Match="@Match">
+            <div class="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+                <svg class="w-5 h-5 text-gray-400 group-hover:text-indigo-600 group-[.active]:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="@Icon" />
+                </svg>
+            </div>
+            @if (!IsCollapsed)
+            {
+                <span class="text-sm font-medium text-gray-600 group-hover:text-gray-900 group-[.active]:text-gray-900 transition-colors truncate">@Label</span>
+            }
+        </NavLink>
+        
+        @if (!IsCollapsed && ChildContent != null)
+        {
+            <button @onclick="ToggleExpand" @onclick:stopPropagation="true" class="p-2 text-gray-400 hover:text-indigo-600 transform transition-transform @(isExpanded ? "rotate-180" : "")">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+        }
+    </div>
+
+    @if (isExpanded && !IsCollapsed && ChildContent != null)
+    {
+        <div class="pl-9 space-y-1">
+            @ChildContent
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Icon { get; set; } = "";
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Href { get; set; } = "";
+    [Parameter] public bool IsCollapsed { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool Expanded { get; set; }
+    [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
+
+    private bool isExpanded;
+
+    protected override void OnInitialized()
+    {
+        isExpanded = Expanded;
+        // If the current URL starts with Href, expand it
+        if (!string.IsNullOrEmpty(Href) && Navigation.Uri.Contains(Href))
+        {
+            isExpanded = true;
+        }
+    }
+
+    private void ToggleExpand()
+    {
+        isExpanded = !isExpanded;
+    }
+}

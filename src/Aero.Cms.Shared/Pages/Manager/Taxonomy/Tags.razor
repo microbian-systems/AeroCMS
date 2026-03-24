@@ -1,0 +1,23 @@
+@page "/manager/taxonomy/tags"
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Tags</h1>
+            <p class="mt-1 text-sm text-gray-500">Label your content with keywords for better discoverability.</p>
+        </div>
+        <RadzenButton Icon="add" Text="Create Tag" ButtonStyle="ButtonStyle.Primary" />
+    </div>
+
+    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
+                    EmptyText="No tags found. Put a label on it!">
+        <Columns>
+            <RadzenDataGridColumn TItem="object" Property="Name" Title="Name" />
+            <RadzenDataGridColumn TItem="object" Property="Slug" Title="Slug" />
+            <RadzenDataGridColumn TItem="object" Property="Count" Title="Used In" Width="100px" />
+        </Columns>
+    </RadzenDataGrid>
+</div>
+
+@code {
+}

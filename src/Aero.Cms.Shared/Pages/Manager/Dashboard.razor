@@ -1,0 +1,78 @@
+@page "/manager"
+@page "/manager/general"
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p class="mt-1 text-sm text-gray-500">Welcome back to Aero CMS management console.</p>
+        </div>
+        <div class="flex space-x-3">
+            <RadzenButton Icon="refresh" Text="Refresh" ButtonStyle="ButtonStyle.Light" />
+            <RadzenButton Icon="add" Text="New Post" ButtonStyle="ButtonStyle.Primary" />
+        </div>
+    </div>
+
+    @* Placeholder for stats *@
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <RadzenCard class="flex flex-col items-center justify-center p-6 bg-indigo-50 border-indigo-100">
+            <RadzenText TextStyle="TextStyle.H6" class="text-indigo-600">Total Posts</RadzenText>
+            <RadzenText TextStyle="TextStyle.H3" class="font-bold">124</RadzenText>
+        </RadzenCard>
+        <RadzenCard class="flex flex-col items-center justify-center p-6 bg-emerald-50 border-emerald-100">
+            <RadzenText TextStyle="TextStyle.H6" class="text-emerald-600">Active Pages</RadzenText>
+            <RadzenText TextStyle="TextStyle.H3" class="font-bold">12</RadzenText>
+        </RadzenCard>
+        <RadzenCard class="flex flex-col items-center justify-center p-6 bg-amber-50 border-amber-100">
+            <RadzenText TextStyle="TextStyle.H6" class="text-amber-600">Media Files</RadzenText>
+            <RadzenText TextStyle="TextStyle.H3" class="font-bold">452</RadzenText>
+        </RadzenCard>
+        <RadzenCard class="flex flex-col items-center justify-center p-6 bg-violet-50 border-violet-100">
+            <RadzenText TextStyle="TextStyle.H6" class="text-violet-600">Users</RadzenText>
+            <RadzenText TextStyle="TextStyle.H3" class="font-bold">8</RadzenText>
+        </RadzenCard>
+    </div>
+
+    @* Placeholder for charts *@
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <RadzenCard>
+            <RadzenText TextStyle="TextStyle.H6" class="mb-4">Recent Activity</RadzenText>
+            <RadzenHtml>
+                <div class="space-y-4">
+                    @for (int i = 0; i < 5; i++)
+                    {
+                        <div class="flex items-start space-x-3 pb-3 border-b border-gray-100 last:border-0">
+                            <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">New post published: "Getting Started with Aero"</p>
+                                <p class="text-xs text-gray-500">2 hours ago</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </RadzenHtml>
+        </RadzenCard>
+        <RadzenCard>
+            <RadzenText TextStyle="TextStyle.H6" class="mb-4">System Status</RadzenText>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">API Health</span>
+                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Operational" />
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Database</span>
+                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Healthy" />
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Storage</span>
+                    <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="75% Free" />
+                </div>
+            </div>
+        </RadzenCard>
+    </div>
+</div>
+
+@code {
+}

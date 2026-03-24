@@ -1,0 +1,32 @@
+@page "/manager/posts"
+@page "/manager/posts/general"
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Posts</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage your blog content and articles.</p>
+        </div>
+        <div class="flex space-x-3">
+            <RadzenButton Icon="filter_list" ButtonStyle="ButtonStyle.Light" />
+            <RadzenButton Icon="add" Text="New Post" ButtonStyle="ButtonStyle.Primary" />
+        </div>
+    </div>
+
+    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
+                    EmptyText="No posts found. Time to write something!">
+        <Columns>
+            <RadzenDataGridColumn TItem="object" Property="Title" Title="Title" />
+            <RadzenDataGridColumn TItem="object" Property="Author" Title="Author" />
+            <RadzenDataGridColumn TItem="object" Property="Status" Title="Status">
+                <Template Context="post">
+                    <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Draft" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="object" Property="Published" Title="Date" />
+        </Columns>
+    </RadzenDataGrid>
+</div>
+
+@code {
+}

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Http.Clients;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Services;
 
@@ -22,6 +23,9 @@ public static class MauiProgram
         
         builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5000") }); // todo - get from config
         builder.Services.AddScoped<IBlockService, HttpBlockService>();
+        
+        // Register API clients
+        builder.Services.AddScoped<DocsClient>();
 
         builder.Services.AddMauiBlazorWebView();
 
