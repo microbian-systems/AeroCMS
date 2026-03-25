@@ -29,6 +29,9 @@ namespace Aero.Cms.Core.Blocks;
 [JsonDerivedType(typeof(CarouselBlock), "carousel")]
 [JsonDerivedType(typeof(ContentLinkBlock), "content_link")]
 [JsonDerivedType(typeof(HeroBlock), "hero")]
+[JsonDerivedType(typeof(MarkdownBlock), "markdown")]
+[JsonDerivedType(typeof(RawHtmlBlock), "raw_html")]
+[JsonDerivedType(typeof(AnalyticsBlock), "analytics_script")]
 [JsonDerivedType(typeof(NavigationBlock), "navigation")]
 public abstract class BlockBase : Entity, IBlock
 {
