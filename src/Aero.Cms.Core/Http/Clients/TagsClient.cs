@@ -1,47 +1,48 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface ITagsHttpClient
 {
-    Task<IReadOnlyList<TagSummary>> GetAllAsync(CancellationToken ct = default);
-    Task<TagDetail?> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<TagDetail?> CreateAsync(CreateTagRequest request, CancellationToken ct = default);
-    Task<TagDetail?> UpdateAsync(long id, UpdateTagRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<TagSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, TagDetail>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Result<string, TagDetail>> CreateAsync(CreateTagRequest request, CancellationToken ct = default);
+    Task<Result<string, TagDetail>> UpdateAsync(long id, UpdateTagRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
 /// Typed client for tags endpoints (stub implementation).
 /// </summary>
-public class TagsHttpClient(HttpClient httpClient, ILogger<TagsHttpClient> logger) : AeroClientBase(httpClient, logger), ITagsHttpClient
+public class TagsHttpClient(HttpClient httpClient, ILogger<TagsHttpClient> logger)
+    : AeroCmsClientBase(httpClient, logger), ITagsHttpClient
 {
     protected override string ResourceName => "tags";
 
-    public Task<IReadOnlyList<TagSummary>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<TagSummary>>> GetAllAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<TagSummary>>(string.Empty, ct) 
-            ?? Task.FromResult<IReadOnlyList<TagSummary>>(Array.Empty<TagSummary>());
+        return GetResultAsync<IReadOnlyList<TagSummary>>(string.Empty, ct);
     }
 
-    public Task<TagDetail?> GetByIdAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, TagDetail>> GetByIdAsync(long id, CancellationToken ct = default)
     {
-        return GetAsync<TagDetail>($"details/{id}", ct);
+        return GetResultAsync<TagDetail>($"details/{id}", ct);
     }
 
-    public Task<TagDetail?> CreateAsync(CreateTagRequest request, CancellationToken ct = default)
+    public Task<Result<string, TagDetail>> CreateAsync(CreateTagRequest request, CancellationToken ct = default)
     {
-        return PostAsync<TagDetail?, CreateTagRequest>(string.Empty, request, ct);
+        return PostResultAsync<CreateTagRequest, TagDetail>(string.Empty, request, ct);
     }
 
-    public Task<TagDetail?> UpdateAsync(long id, UpdateTagRequest request, CancellationToken ct = default)
+    public Task<Result<string, TagDetail>> UpdateAsync(long id, UpdateTagRequest request, CancellationToken ct = default)
     {
-        return PutAsync<TagDetail?, UpdateTagRequest>(id.ToString(), request, ct);
+        return PutResultAsync<UpdateTagRequest, TagDetail>(id.ToString(), request, ct);
     }
 
-    public Task<bool> DeleteAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return DeleteResultAsync(id.ToString(), ct);
     }
 }
 

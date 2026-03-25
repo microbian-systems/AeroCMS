@@ -1,48 +1,48 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface INavigationsHttpClient
 {
-    Task<IReadOnlyList<NavigationSummary>> GetAllAsync(CancellationToken ct = default);
-    Task<NavigationDetail?> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<NavigationDetail?> CreateAsync(CreateNavigationRequest request, CancellationToken ct = default);
-    Task<NavigationDetail?> UpdateAsync(long id, UpdateNavigationRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<NavigationSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, NavigationDetail>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Result<string, NavigationDetail>> CreateAsync(CreateNavigationRequest request, CancellationToken ct = default);
+    Task<Result<string, NavigationDetail>> UpdateAsync(long id, UpdateNavigationRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
 /// Typed client for navigations endpoints (stub implementation).
 /// </summary>
 public class NavigationsHttpClient(HttpClient httpClient, ILogger<NavigationsHttpClient> logger)
-    : AeroClientBase(httpClient, logger), INavigationsHttpClient
+    : AeroCmsClientBase(httpClient, logger), INavigationsHttpClient
 {
     protected override string ResourceName => "navigations";
 
-    public Task<IReadOnlyList<NavigationSummary>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<NavigationSummary>>> GetAllAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<NavigationSummary>>(string.Empty, ct) 
-            ?? Task.FromResult<IReadOnlyList<NavigationSummary>>(Array.Empty<NavigationSummary>());
+        return GetResultAsync<IReadOnlyList<NavigationSummary>>(string.Empty, ct);
     }
 
-    public Task<NavigationDetail?> GetByIdAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, NavigationDetail>> GetByIdAsync(long id, CancellationToken ct = default)
     {
-        return GetAsync<NavigationDetail>($"details/{id}", ct);
+        return GetResultAsync<NavigationDetail>($"details/{id}", ct);
     }
 
-    public Task<NavigationDetail?> CreateAsync(CreateNavigationRequest request, CancellationToken ct = default)
+    public Task<Result<string, NavigationDetail>> CreateAsync(CreateNavigationRequest request, CancellationToken ct = default)
     {
-        return PostAsync<NavigationDetail?, CreateNavigationRequest>(string.Empty, request, ct);
+        return PostResultAsync<CreateNavigationRequest, NavigationDetail>(string.Empty, request, ct);
     }
 
-    public Task<NavigationDetail?> UpdateAsync(long id, UpdateNavigationRequest request, CancellationToken ct = default)
+    public Task<Result<string, NavigationDetail>> UpdateAsync(long id, UpdateNavigationRequest request, CancellationToken ct = default)
     {
-        return PutAsync<NavigationDetail?, UpdateNavigationRequest>(id.ToString(), request, ct);
+        return PutResultAsync<UpdateNavigationRequest, NavigationDetail>(id.ToString(), request, ct);
     }
 
-    public Task<bool> DeleteAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return DeleteResultAsync(id.ToString(), ct);
     }
 }
 

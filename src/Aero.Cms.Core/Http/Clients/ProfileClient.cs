@@ -1,46 +1,47 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface IProfileHttpClient
 {
-    Task<UserProfile?> GetCurrentAsync(CancellationToken ct = default);
-    Task<UserProfile?> UpdateAsync(UpdateProfileRequest request, CancellationToken ct = default);
-    Task<bool> ChangePasswordAsync(ChangeProfilePasswordRequest request, CancellationToken ct = default);
-    Task<UserProfile?> UploadAvatarAsync(UploadAvatarRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAvatarAsync(CancellationToken ct = default);
+    Task<Result<string, UserProfile>> GetCurrentAsync(CancellationToken ct = default);
+    Task<Result<string, UserProfile>> UpdateAsync(UpdateProfileRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> ChangePasswordAsync(ChangeProfilePasswordRequest request, CancellationToken ct = default);
+    Task<Result<string, UserProfile>> UploadAvatarAsync(UploadAvatarRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> DeleteAvatarAsync(CancellationToken ct = default);
 }
 
 /// <summary>
 /// Typed client for profile endpoints (stub implementation).
 /// </summary>
-public class ProfileHttpClient(HttpClient httpClient, ILogger<ProfileHttpClient> logger) : AeroClientBase(httpClient, logger), IProfileHttpClient
+public class ProfileHttpClient(HttpClient httpClient, ILogger<ProfileHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IProfileHttpClient
 {
     protected override string ResourceName => "profile";
 
-    public Task<UserProfile?> GetCurrentAsync(CancellationToken ct = default)
+    public Task<Result<string, UserProfile>> GetCurrentAsync(CancellationToken ct = default)
     {
-        return GetAsync<UserProfile>("", ct);
+        return GetResultAsync<UserProfile>(string.Empty, ct);
     }
 
-    public Task<UserProfile?> UpdateAsync(UpdateProfileRequest request, CancellationToken ct = default)
+    public Task<Result<string, UserProfile>> UpdateAsync(UpdateProfileRequest request, CancellationToken ct = default)
     {
-        return PutAsync<UserProfile?, UpdateProfileRequest>(string.Empty, request, ct);
+        return PutResultAsync<UpdateProfileRequest, UserProfile>(string.Empty, request, ct);
     }
 
-    public Task<bool> ChangePasswordAsync(ChangeProfilePasswordRequest request, CancellationToken ct = default)
+    public Task<Result<string, bool>> ChangePasswordAsync(ChangeProfilePasswordRequest request, CancellationToken ct = default)
     {
-        return PostAsync<bool, ChangeProfilePasswordRequest>("password", request, ct);
+        return PostResultAsync<ChangeProfilePasswordRequest, bool>("password", request, ct);
     }
 
-    public Task<UserProfile?> UploadAvatarAsync(UploadAvatarRequest request, CancellationToken ct = default)
+    public Task<Result<string, UserProfile>> UploadAvatarAsync(UploadAvatarRequest request, CancellationToken ct = default)
     {
-        return PostAsync<UserProfile?, UploadAvatarRequest>("avatar", request, ct);
+        return PostResultAsync<UploadAvatarRequest, UserProfile>("avatar", request, ct);
     }
 
-    public Task<bool> DeleteAvatarAsync(CancellationToken ct = default)
+    public Task<Result<string, bool>> DeleteAvatarAsync(CancellationToken ct = default)
     {
-        return DeleteAsync("avatar", ct);
+        return DeleteResultAsync("avatar", ct);
     }
 }
 

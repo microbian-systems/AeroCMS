@@ -1,54 +1,54 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface IThemesHttpClient
 {
-    Task<IReadOnlyList<ThemeSummary>> GetAllAsync(CancellationToken ct = default);
-    Task<ThemeDetail?> GetByIdAsync(string id, CancellationToken ct = default);
-    Task<ThemeDetail?> GetCurrentAsync(CancellationToken ct = default);
-    Task<ThemeDetail?> ActivateAsync(string id, CancellationToken ct = default);
-    Task<ThemeDetail?> UploadAsync(UploadThemeRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAsync(string id, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<ThemeSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, ThemeDetail>> GetByIdAsync(string id, CancellationToken ct = default);
+    Task<Result<string, ThemeDetail>> GetCurrentAsync(CancellationToken ct = default);
+    Task<Result<string, ThemeDetail>> ActivateAsync(string id, CancellationToken ct = default);
+    Task<Result<string, ThemeDetail>> UploadAsync(UploadThemeRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> DeleteAsync(string id, CancellationToken ct = default);
 }
 
 /// <summary>
 /// Typed client for themes endpoints (stub implementation).
 /// </summary>
-public class ThemesHttpClient(HttpClient httpClient, ILogger<ThemesHttpClient> logger) : AeroClientBase(httpClient, logger), IThemesHttpClient
+public class ThemesHttpClient(HttpClient httpClient, ILogger<ThemesHttpClient> logger)
+    : AeroCmsClientBase(httpClient, logger), IThemesHttpClient
 {
     protected override string ResourceName => "themes";
 
-    public Task<IReadOnlyList<ThemeSummary>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<ThemeSummary>>> GetAllAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<ThemeSummary>>(string.Empty, ct) 
-            ?? Task.FromResult<IReadOnlyList<ThemeSummary>>(Array.Empty<ThemeSummary>());
+        return GetResultAsync<IReadOnlyList<ThemeSummary>>(string.Empty, ct);
     }
 
-    public Task<ThemeDetail?> GetByIdAsync(string id, CancellationToken ct = default)
+    public Task<Result<string, ThemeDetail>> GetByIdAsync(string id, CancellationToken ct = default)
     {
-        return GetAsync<ThemeDetail>($"details/{Uri.EscapeDataString(id)}", ct);
+        return GetResultAsync<ThemeDetail>($"details/{Uri.EscapeDataString(id)}", ct);
     }
 
-    public Task<ThemeDetail?> GetCurrentAsync(CancellationToken ct = default)
+    public Task<Result<string, ThemeDetail>> GetCurrentAsync(CancellationToken ct = default)
     {
-        return GetAsync<ThemeDetail>("current", ct);
+        return GetResultAsync<ThemeDetail>("current", ct);
     }
 
-    public Task<ThemeDetail?> ActivateAsync(string id, CancellationToken ct = default)
+    public Task<Result<string, ThemeDetail>> ActivateAsync(string id, CancellationToken ct = default)
     {
-        return PostAsync<ThemeDetail?, object>($"{id}/activate", new object(), ct) 
-            ?? Task.FromResult<ThemeDetail?>(null);
+        return PostResultAsync<object, ThemeDetail>($"{id}/activate", new object(), ct);
     }
 
-    public Task<ThemeDetail?> UploadAsync(UploadThemeRequest request, CancellationToken ct = default)
+    public Task<Result<string, ThemeDetail>> UploadAsync(UploadThemeRequest request, CancellationToken ct = default)
     {
-        return PostAsync<ThemeDetail?, UploadThemeRequest>(string.Empty, request, ct);
+        return PostResultAsync<UploadThemeRequest, ThemeDetail>(string.Empty, request, ct);
     }
 
-    public Task<bool> DeleteAsync(string id, CancellationToken ct = default)
+    public Task<Result<string, bool>> DeleteAsync(string id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return DeleteResultAsync(id, ct);
     }
 }
 

@@ -1,55 +1,53 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface IModulesHttpClient
 {
-    Task<IReadOnlyList<ModuleSummary>> GetAllAsync(CancellationToken ct = default);
-    Task<ModuleDetail?> GetByIdAsync(string id, CancellationToken ct = default);
-    Task<ModuleDetail?> InstallAsync(InstallModuleRequest request, CancellationToken ct = default);
-    Task<bool> UninstallAsync(string id, CancellationToken ct = default);
-    Task<ModuleDetail?> EnableAsync(string id, CancellationToken ct = default);
-    Task<ModuleDetail?> DisableAsync(string id, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<ModuleSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, ModuleDetail>> GetByIdAsync(string id, CancellationToken ct = default);
+    Task<Result<string, ModuleDetail>> InstallAsync(InstallModuleRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> UninstallAsync(string id, CancellationToken ct = default);
+    Task<Result<string, ModuleDetail>> EnableAsync(string id, CancellationToken ct = default);
+    Task<Result<string, ModuleDetail>> DisableAsync(string id, CancellationToken ct = default);
 }
 
 /// <summary>
 /// Typed client for modules endpoints (stub implementation).
 /// </summary>
-public class ModulesHttpClient(HttpClient httpClient, ILogger<ModulesHttpClient> logger) : AeroClientBase(httpClient, logger), IModulesHttpClient
+public class ModulesHttpClient(HttpClient httpClient, ILogger<ModulesHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IModulesHttpClient
 {
     protected override string ResourceName => "modules";
 
-    public Task<IReadOnlyList<ModuleSummary>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<ModuleSummary>>> GetAllAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<ModuleSummary>>(string.Empty, ct) 
-            ?? Task.FromResult<IReadOnlyList<ModuleSummary>>(Array.Empty<ModuleSummary>());
+        return GetResultAsync<IReadOnlyList<ModuleSummary>>(string.Empty, ct);
     }
 
-    public Task<ModuleDetail?> GetByIdAsync(string id, CancellationToken ct = default)
+    public Task<Result<string, ModuleDetail>> GetByIdAsync(string id, CancellationToken ct = default)
     {
-        return GetAsync<ModuleDetail>($"details/{Uri.EscapeDataString(id)}", ct);
+        return GetResultAsync<ModuleDetail>($"details/{Uri.EscapeDataString(id)}", ct);
     }
 
-    public Task<ModuleDetail?> InstallAsync(InstallModuleRequest request, CancellationToken ct = default)
+    public Task<Result<string, ModuleDetail>> InstallAsync(InstallModuleRequest request, CancellationToken ct = default)
     {
-        return PostAsync<ModuleDetail?, InstallModuleRequest>(string.Empty, request, ct);
+        return PostResultAsync<InstallModuleRequest, ModuleDetail>(string.Empty, request, ct);
     }
 
-    public Task<bool> UninstallAsync(string id, CancellationToken ct = default)
+    public Task<Result<string, bool>> UninstallAsync(string id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return DeleteResultAsync(id, ct);
     }
 
-    public Task<ModuleDetail?> EnableAsync(string id, CancellationToken ct = default)
+    public Task<Result<string, ModuleDetail>> EnableAsync(string id, CancellationToken ct = default)
     {
-        return PostAsync<ModuleDetail?, object>($"{id}/enable", new object(), ct) 
-            ?? Task.FromResult<ModuleDetail?>(null);
+        return PostResultAsync<object, ModuleDetail>($"{id}/enable", new object(), ct);
     }
 
-    public Task<ModuleDetail?> DisableAsync(string id, CancellationToken ct = default)
+    public Task<Result<string, ModuleDetail>> DisableAsync(string id, CancellationToken ct = default)
     {
-        return PostAsync<ModuleDetail?, object>($"{id}/disable", new object(), ct) 
-            ?? Task.FromResult<ModuleDetail?>(null);
+        return PostResultAsync<object, ModuleDetail>($"{id}/disable", new object(), ct);
     }
 }
 

@@ -1,5 +1,7 @@
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core.Railway
 @inject DocsClient DocsClient
+@inject NotificationService NotificationService
 
 <aside class="@NavMenuCssClass bg-white border-r border-gray-200 transition-all duration-300 flex flex-col z-20">
     <div class="h-16 flex items-center justify-between px-4 border-b border-gray-100 flex-shrink-0">
@@ -107,13 +109,21 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try 
+        var result = await DocsClient.GetCategoriesAsync();
+
+        if (result is Result<string, IReadOnlyList<DocsSummary>>.Ok ok)
         {
-            docsCategories = await DocsClient.GetCategoriesAsync();
-        } 
-        catch 
-        { 
-            // handle error
+            docsCategories = ok.Value;
+        }
+        else if (result is Result<string, IReadOnlyList<DocsSummary>>.Failure failure)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error Loading Docs",
+                Detail = failure.Error,
+                Duration = 4000
+            });
         }
     }
 

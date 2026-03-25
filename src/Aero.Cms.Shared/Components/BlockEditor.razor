@@ -379,7 +379,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        AvailableNavigations = await NavClient.GetAllAsync();
+        var result = await NavClient.GetAllAsync();
+        if (result is Result<string, IReadOnlyList<NavigationSummary>>.Ok ok && ok.Value != null)
+        {
+            AvailableNavigations = ok.Value;
+        }
     }
 
     private readonly List<dynamic> HeadingLevels = new()

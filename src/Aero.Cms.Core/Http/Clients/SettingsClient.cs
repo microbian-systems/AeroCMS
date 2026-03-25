@@ -1,55 +1,53 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface ISettingsHttpClient
 {
-    Task<IReadOnlyList<SettingSummary>> GetAllAsync(CancellationToken ct = default);
-    Task<SettingDetail?> GetByKeyAsync(string key, CancellationToken ct = default);
-    Task<IReadOnlyList<SettingDetail>> GetByCategoryAsync(string category, CancellationToken ct = default);
-    Task<SettingDetail?> SetAsync(SetSettingRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAsync(string key, CancellationToken ct = default);
-    Task<IReadOnlyList<SettingCategory>> GetCategoriesAsync(CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<SettingSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, SettingDetail>> GetByKeyAsync(string key, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<SettingDetail>>> GetByCategoryAsync(string category, CancellationToken ct = default);
+    Task<Result<string, SettingDetail>> SetAsync(SetSettingRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> DeleteAsync(string key, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<SettingCategory>>> GetCategoriesAsync(CancellationToken ct = default);
 }
 
 /// <summary>
 /// Typed client for settings endpoints (stub implementation).
 /// </summary>
-public class SettingsHttpClient(HttpClient httpClient, ILogger<SettingsHttpClient> logger) : AeroClientBase(httpClient, logger), ISettingsHttpClient
+public class SettingsHttpClient(HttpClient httpClient, ILogger<SettingsHttpClient> logger) : AeroCmsClientBase(httpClient, logger), ISettingsHttpClient
 {
     protected override string ResourceName => "settings";
 
-    public Task<IReadOnlyList<SettingSummary>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<SettingSummary>>> GetAllAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<SettingSummary>>(string.Empty, ct) 
-            ?? Task.FromResult<IReadOnlyList<SettingSummary>>(Array.Empty<SettingSummary>());
+        return GetResultAsync<IReadOnlyList<SettingSummary>>(string.Empty, ct);
     }
 
-    public Task<SettingDetail?> GetByKeyAsync(string key, CancellationToken ct = default)
+    public Task<Result<string, SettingDetail>> GetByKeyAsync(string key, CancellationToken ct = default)
     {
-        return GetAsync<SettingDetail>($"key/{Uri.EscapeDataString(key)}", ct);
+        return GetResultAsync<SettingDetail>($"key/{Uri.EscapeDataString(key)}", ct);
     }
 
-    public Task<IReadOnlyList<SettingDetail>> GetByCategoryAsync(string category, CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<SettingDetail>>> GetByCategoryAsync(string category, CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<SettingDetail>>($"category/{Uri.EscapeDataString(category)}", ct) 
-            ?? Task.FromResult<IReadOnlyList<SettingDetail>>(Array.Empty<SettingDetail>());
+        return GetResultAsync<IReadOnlyList<SettingDetail>>($"category/{Uri.EscapeDataString(category)}", ct);
     }
 
-    public Task<SettingDetail?> SetAsync(SetSettingRequest request, CancellationToken ct = default)
+    public Task<Result<string, SettingDetail>> SetAsync(SetSettingRequest request, CancellationToken ct = default)
     {
-        return PostAsync<SettingDetail?, SetSettingRequest>(string.Empty, request, ct);
+        return PostResultAsync<SetSettingRequest, SettingDetail>(string.Empty, request, ct);
     }
 
-    public Task<bool> DeleteAsync(string key, CancellationToken ct = default)
+    public Task<Result<string, bool>> DeleteAsync(string key, CancellationToken ct = default)
     {
-        return DeleteAsync($"key/{Uri.EscapeDataString(key)}", ct);
+        return DeleteResultAsync($"key/{Uri.EscapeDataString(key)}", ct);
     }
 
-    public Task<IReadOnlyList<SettingCategory>> GetCategoriesAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<SettingCategory>>> GetCategoriesAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<SettingCategory>>("categories", ct) 
-            ?? Task.FromResult<IReadOnlyList<SettingCategory>>(Array.Empty<SettingCategory>());
+        return GetResultAsync<IReadOnlyList<SettingCategory>>("categories", ct);
     }
 }
 

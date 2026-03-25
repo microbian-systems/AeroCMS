@@ -68,28 +68,67 @@
 
     protected override async Task OnInitializedAsync()
     {
-        categories = await DocsClient.GetCategoriesAsync();
+        var result = await DocsClient.GetCategoriesAsync();
+        if (result is Result<string, IReadOnlyList<DocsSummary>>.Ok ok)
+        {
+            categories = ok.Value;
+        }
+        else if (result is Result<string, IReadOnlyList<DocsSummary>>.Failure failure)
+        {
+            ShowError("Failed to load categories", failure.Error);
+        }
     }
 
     protected override async Task OnParametersSetAsync()
     {
         if (!string.IsNullOrEmpty(slug) && slug != "general")
         {
-            selectedCategory = await DocsClient.GetBySlugAsync(slug);
-            if (selectedCategory != null)
+            var categoryResult = await DocsClient.GetBySlugAsync(slug);
+            if (categoryResult is Result<string, DocsDetail>.Ok ok && ok.Value != null)
             {
-                articles = await DocsClient.GetChildrenAsync(selectedCategory.Id);
+                selectedCategory = ok.Value;
+                var childrenResult = await DocsClient.GetChildrenAsync(selectedCategory.Id);
+                if (childrenResult is Result<string, IReadOnlyList<DocsSummary>>.Ok childrenOk)
+                {
+                    articles = childrenOk.Value;
+                }
+                else if (childrenResult is Result<string, IReadOnlyList<DocsSummary>>.Failure childrenFailure)
+                {
+                    ShowError("Failed to load articles", childrenFailure.Error);
+                }
+            }
+            else if (categoryResult is Result<string, DocsDetail>.Failure failure)
+            {
+                ShowError("Failed to load category", failure.Error);
             }
         }
-        else 
+        else
         {
             selectedCategory = null;
-            articles = await DocsClient.GetAllAsync();
+            var allResult = await DocsClient.GetAllAsync();
+            if (allResult is Result<string, IReadOnlyList<DocsSummary>>.Ok ok)
+            {
+                articles = ok.Value;
+            }
+            else if (allResult is Result<string, IReadOnlyList<DocsSummary>>.Failure failure)
+            {
+                ShowError("Failed to load articles", failure.Error);
+            }
         }
     }
 
-    private void OnTreeChange(TreeEventArgs args)
+    private void ShowError(string summary, string detail)
     {
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Error,
+            Summary = summary,
+            Detail = detail,
+            Duration = 4000
+        });
+    }
+
+    private void OnTreeChange(TreeEventArgs args)    {
         var categorySlug = args.Value as string;
         if (!string.IsNullOrEmpty(categorySlug))
         {

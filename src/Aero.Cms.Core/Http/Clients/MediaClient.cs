@@ -1,41 +1,41 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface IMediaHttpClient
 {
-    Task<IReadOnlyList<MediaSummary>> GetAllAsync(CancellationToken ct = default);
-    Task<MediaDetail?> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<MediaDetail?> UploadAsync(UploadMediaRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<MediaSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, MediaDetail>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Result<string, MediaDetail>> UploadAsync(UploadMediaRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
 /// Typed client for media endpoints (stub implementation).
 /// </summary>
-public class MediaHttpClient(HttpClient httpClient, ILogger<MediaHttpClient> logger) : AeroClientBase(httpClient, logger), IMediaHttpClient
+public class MediaHttpClient(HttpClient httpClient, ILogger<MediaHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IMediaHttpClient
 {
     protected override string ResourceName => "media";
 
-    public Task<IReadOnlyList<MediaSummary>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<MediaSummary>>> GetAllAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<MediaSummary>>(string.Empty, ct) 
-            ?? Task.FromResult<IReadOnlyList<MediaSummary>>(Array.Empty<MediaSummary>());
+        return GetResultAsync<IReadOnlyList<MediaSummary>>(string.Empty, ct);
     }
 
-    public Task<MediaDetail?> GetByIdAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, MediaDetail>> GetByIdAsync(long id, CancellationToken ct = default)
     {
-        return GetAsync<MediaDetail>($"details/{id}", ct);
+        return GetResultAsync<MediaDetail>($"details/{id}", ct);
     }
 
-    public Task<MediaDetail?> UploadAsync(UploadMediaRequest request, CancellationToken ct = default)
+    public Task<Result<string, MediaDetail>> UploadAsync(UploadMediaRequest request, CancellationToken ct = default)
     {
-        return PostAsync<MediaDetail?, UploadMediaRequest>(string.Empty, request, ct);
+        return PostResultAsync<UploadMediaRequest, MediaDetail>(string.Empty, request, ct);
     }
 
-    public Task<bool> DeleteAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return DeleteResultAsync(id.ToString(), ct);
     }
 }
 

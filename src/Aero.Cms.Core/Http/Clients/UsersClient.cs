@@ -1,53 +1,54 @@
 namespace Aero.Cms.Core.Http.Clients;
 
 using Microsoft.Extensions.Logging;
+using Aero.Core.Railway;
 
 public interface IUsersHttpClient
 {
-    Task<IReadOnlyList<UserSummary>> GetAllAsync(CancellationToken ct = default);
-    Task<UserDetail?> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<UserDetail?> CreateAsync(CreateUserRequest request, CancellationToken ct = default);
-    Task<UserDetail?> UpdateAsync(long id, UpdateUserRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
-    Task<bool> ChangePasswordAsync(long id, ChangePasswordRequest request, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<UserSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, UserDetail>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Result<string, UserDetail>> CreateAsync(CreateUserRequest request, CancellationToken ct = default);
+    Task<Result<string, UserDetail>> UpdateAsync(long id, UpdateUserRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default);
+    Task<Result<string, bool>> ChangePasswordAsync(long id, ChangePasswordRequest request, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Typed client for users endpoints (stub implementation).
+/// Typed client for users endpoints.
 /// </summary>
-public class UsersHttpClient(HttpClient httpClient, ILogger<UsersHttpClient> logger) : AeroClientBase(httpClient, logger), IUsersHttpClient
+public class UsersHttpClient(HttpClient httpClient, ILogger<UsersHttpClient> logger) 
+    : AeroCmsClientBase(httpClient, logger), IUsersHttpClient
 {
     protected override string ResourceName => "users";
 
-    public Task<IReadOnlyList<UserSummary>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<UserSummary>>> GetAllAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<UserSummary>>(string.Empty, ct) 
-            ?? Task.FromResult<IReadOnlyList<UserSummary>>(Array.Empty<UserSummary>());
+        return GetResultAsync<IReadOnlyList<UserSummary>>(string.Empty, ct);
     }
 
-    public Task<UserDetail?> GetByIdAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, UserDetail>> GetByIdAsync(long id, CancellationToken ct = default)
     {
-        return GetAsync<UserDetail>($"details/{id}", ct);
+        return GetResultAsync<UserDetail>($"details/{id}", ct);
     }
 
-    public Task<UserDetail?> CreateAsync(CreateUserRequest request, CancellationToken ct = default)
+    public Task<Result<string, UserDetail>> CreateAsync(CreateUserRequest request, CancellationToken ct = default)
     {
-        return PostAsync<UserDetail?, CreateUserRequest>(string.Empty, request, ct);
+        return PostResultAsync<CreateUserRequest, UserDetail>(string.Empty, request, ct);
     }
 
-    public Task<UserDetail?> UpdateAsync(long id, UpdateUserRequest request, CancellationToken ct = default)
+    public Task<Result<string, UserDetail>> UpdateAsync(long id, UpdateUserRequest request, CancellationToken ct = default)
     {
-        return PutAsync<UserDetail?, UpdateUserRequest>(id.ToString(), request, ct);
+        return PutResultAsync<UpdateUserRequest, UserDetail>(id.ToString(), request, ct);
     }
 
-    public Task<bool> DeleteAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return base.DeleteResultAsync(id.ToString(), ct);
     }
 
-    public Task<bool> ChangePasswordAsync(long id, ChangePasswordRequest request, CancellationToken ct = default)
+    public Task<Result<string, bool>> ChangePasswordAsync(long id, ChangePasswordRequest request, CancellationToken ct = default)
     {
-        return PostAsync<bool, ChangePasswordRequest>($"{id}/password", request, ct);
+        return PostResultAsync<ChangePasswordRequest, bool>($"{id}/password", request, ct);
     }
 }
 

@@ -1,30 +1,30 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface IDashboardHttpClient
 {
-    Task<DashboardStats?> GetStatsAsync(CancellationToken ct = default);
-    Task<IReadOnlyList<RecentActivity>> GetRecentActivityAsync(int count = 10, CancellationToken ct = default);
+    Task<Result<string, DashboardStats>> GetStatsAsync(CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<RecentActivity>>> GetRecentActivityAsync(int count = 10, CancellationToken ct = default);
 }
 
 /// <summary>
 /// Typed client for dashboard endpoints (stub implementation).
 /// </summary>
 public class DashboardHttpClient(HttpClient httpClient, ILogger<DashboardHttpClient> logger)
-    : AeroClientBase(httpClient, logger), IDashboardHttpClient
+    : AeroCmsClientBase(httpClient, logger), IDashboardHttpClient
 {
     protected override string ResourceName => "dashboard";
 
-    public Task<DashboardStats?> GetStatsAsync(CancellationToken ct = default)
+    public Task<Result<string, DashboardStats>> GetStatsAsync(CancellationToken ct = default)
     {
-        return GetAsync<DashboardStats>("stats", ct);
+        return GetResultAsync<DashboardStats>("stats", ct);
     }
 
-    public Task<IReadOnlyList<RecentActivity>> GetRecentActivityAsync(int count = 10, CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<RecentActivity>>> GetRecentActivityAsync(int count = 10, CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<RecentActivity>>($"activity?count={count}", ct) 
-            ?? Task.FromResult<IReadOnlyList<RecentActivity>>(Array.Empty<RecentActivity>());
+        return GetResultAsync<IReadOnlyList<RecentActivity>>($"activity?count={count}", ct);
     }
 }
 

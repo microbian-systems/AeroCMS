@@ -1,48 +1,48 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface ICategoriesHttpClient
 {
-    Task<IReadOnlyList<CategorySummary>> GetAllAsync(CancellationToken ct = default);
-    Task<CategoryDetail?> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<CategoryDetail?> CreateAsync(CreateCategoryRequest request, CancellationToken ct = default);
-    Task<CategoryDetail?> UpdateAsync(long id, UpdateCategoryRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<CategorySummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, CategoryDetail>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Result<string, CategoryDetail>> CreateAsync(CreateCategoryRequest request, CancellationToken ct = default);
+    Task<Result<string, CategoryDetail>> UpdateAsync(long id, UpdateCategoryRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
 /// Typed client for categories endpoints (stub implementation).
 /// </summary>
 public class CategoriesHttpClient(HttpClient httpClient, ILogger<CategoriesHttpClient> logger)
-    : AeroClientBase(httpClient, logger), ICategoriesHttpClient
+    : AeroCmsClientBase(httpClient, logger), ICategoriesHttpClient
 {
     protected override string ResourceName => "categories";
 
-    public Task<IReadOnlyList<CategorySummary>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<CategorySummary>>> GetAllAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<CategorySummary>>(string.Empty, ct) 
-            ?? Task.FromResult<IReadOnlyList<CategorySummary>>(Array.Empty<CategorySummary>());
+        return GetResultAsync<IReadOnlyList<CategorySummary>>(string.Empty, ct);
     }
 
-    public Task<CategoryDetail?> GetByIdAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, CategoryDetail>> GetByIdAsync(long id, CancellationToken ct = default)
     {
-        return GetAsync<CategoryDetail>($"details/{id}", ct);
+        return GetResultAsync<CategoryDetail>($"details/{id}", ct);
     }
 
-    public Task<CategoryDetail?> CreateAsync(CreateCategoryRequest request, CancellationToken ct = default)
+    public Task<Result<string, CategoryDetail>> CreateAsync(CreateCategoryRequest request, CancellationToken ct = default)
     {
-        return PostAsync<CategoryDetail?, CreateCategoryRequest>(string.Empty, request, ct);
+        return PostResultAsync<CreateCategoryRequest, CategoryDetail>(string.Empty, request, ct);
     }
 
-    public Task<CategoryDetail?> UpdateAsync(long id, UpdateCategoryRequest request, CancellationToken ct = default)
+    public Task<Result<string, CategoryDetail>> UpdateAsync(long id, UpdateCategoryRequest request, CancellationToken ct = default)
     {
-        return PutAsync<CategoryDetail?, UpdateCategoryRequest>(id.ToString(), request, ct);
+        return PutResultAsync<UpdateCategoryRequest, CategoryDetail>(id.ToString(), request, ct);
     }
 
-    public Task<bool> DeleteAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return DeleteResultAsync(id.ToString(), ct);
     }
 }
 

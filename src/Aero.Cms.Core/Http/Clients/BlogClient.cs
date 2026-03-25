@@ -1,79 +1,74 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface IBlogHttpClient
 {
-    Task<IReadOnlyList<BlogSummary>> GetAllAsync(CancellationToken ct = default);
-    Task<BlogDetail?> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<IReadOnlyList<BlogSummary>> GetPublishedAsync(CancellationToken ct = default);
-    Task<IReadOnlyList<BlogSummary>> GetByCategoryAsync(long categoryId, CancellationToken ct = default);
-    Task<IReadOnlyList<BlogSummary>> SearchAsync(string query, CancellationToken ct = default);
-    Task<BlogDetail?> CreateAsync(CreateBlogRequest request, CancellationToken ct = default);
-    Task<BlogDetail?> UpdateAsync(long id, UpdateBlogRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAsync(long id, CancellationToken ct = default);
-    Task<BlogDetail?> PublishAsync(long id, CancellationToken ct = default);
-    Task<BlogDetail?> UnpublishAsync(long id, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<BlogSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, BlogDetail>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<BlogSummary>>> GetPublishedAsync(CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<BlogSummary>>> GetByCategoryAsync(long categoryId, CancellationToken ct = default);
+    Task<Result<string, IReadOnlyList<BlogSummary>>> SearchAsync(string query, CancellationToken ct = default);
+    Task<Result<string, BlogDetail>> CreateAsync(CreateBlogRequest request, CancellationToken ct = default);
+    Task<Result<string, BlogDetail>> UpdateAsync(long id, UpdateBlogRequest request, CancellationToken ct = default);
+    Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default);
+    Task<Result<string, BlogDetail>> PublishAsync(long id, CancellationToken ct = default);
+    Task<Result<string, BlogDetail>> UnpublishAsync(long id, CancellationToken ct = default);
 }
 
-public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logger) : AeroClientBase(httpClient, logger), IBlogHttpClient
+public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IBlogHttpClient
 {
     protected override string ResourceName => "blogs";
 
-    public Task<IReadOnlyList<BlogSummary>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<BlogSummary>>> GetAllAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<BlogSummary>>(string.Empty, ct) 
-            ?? Task.FromResult<IReadOnlyList<BlogSummary>>(Array.Empty<BlogSummary>());
+        return GetResultAsync<IReadOnlyList<BlogSummary>>(string.Empty, ct);
     }
 
-    public Task<BlogDetail?> GetByIdAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, BlogDetail>> GetByIdAsync(long id, CancellationToken ct = default)
     {
-        return GetAsync<BlogDetail>($"details/{id}", ct);
+        return GetResultAsync<BlogDetail>($"details/{id}", ct);
     }
 
-    public Task<IReadOnlyList<BlogSummary>> GetPublishedAsync(CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<BlogSummary>>> GetPublishedAsync(CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<BlogSummary>>("published", ct) 
-            ?? Task.FromResult<IReadOnlyList<BlogSummary>>(Array.Empty<BlogSummary>());
+        return GetResultAsync<IReadOnlyList<BlogSummary>>("published", ct);
     }
 
-    public Task<IReadOnlyList<BlogSummary>> GetByCategoryAsync(long categoryId, CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<BlogSummary>>> GetByCategoryAsync(long categoryId, CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<BlogSummary>>($"category/{categoryId}", ct) 
-            ?? Task.FromResult<IReadOnlyList<BlogSummary>>(Array.Empty<BlogSummary>());
+        return GetResultAsync<IReadOnlyList<BlogSummary>>($"category/{categoryId}", ct);
     }
 
-    public Task<IReadOnlyList<BlogSummary>> SearchAsync(string query, CancellationToken ct = default)
+    public Task<Result<string, IReadOnlyList<BlogSummary>>> SearchAsync(string query, CancellationToken ct = default)
     {
-        return GetAsync<IReadOnlyList<BlogSummary>>($"search?q={Uri.EscapeDataString(query)}", ct) 
-            ?? Task.FromResult<IReadOnlyList<BlogSummary>>(Array.Empty<BlogSummary>());
+        return GetResultAsync<IReadOnlyList<BlogSummary>>($"search?q={Uri.EscapeDataString(query)}", ct);
     }
 
-    public Task<BlogDetail?> CreateAsync(CreateBlogRequest request, CancellationToken ct = default)
+    public Task<Result<string, BlogDetail>> CreateAsync(CreateBlogRequest request, CancellationToken ct = default)
     {
-        return PostAsync<BlogDetail?, CreateBlogRequest>(string.Empty, request, ct);
+        return PostResultAsync<CreateBlogRequest, BlogDetail>(string.Empty, request, ct);
     }
 
-    public Task<BlogDetail?> UpdateAsync(long id, UpdateBlogRequest request, CancellationToken ct = default)
+    public Task<Result<string, BlogDetail>> UpdateAsync(long id, UpdateBlogRequest request, CancellationToken ct = default)
     {
-        return PutAsync<BlogDetail?, UpdateBlogRequest>(id.ToString(), request, ct);
+        return PutResultAsync<UpdateBlogRequest, BlogDetail>(id.ToString(), request, ct);
     }
 
-    public Task<bool> DeleteAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return DeleteResultAsync(id.ToString(), ct);
     }
 
-    public Task<BlogDetail?> PublishAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, BlogDetail>> PublishAsync(long id, CancellationToken ct = default)
     {
-        return PostAsync<BlogDetail?, object>($"{id}/publish", new object(), ct) 
-            ?? Task.FromResult<BlogDetail?>(null);
+        return PostResultAsync<object, BlogDetail>($"{id}/publish", new object(), ct);
     }
 
-    public Task<BlogDetail?> UnpublishAsync(long id, CancellationToken ct = default)
+    public Task<Result<string, BlogDetail>> UnpublishAsync(long id, CancellationToken ct = default)
     {
-        return PostAsync<BlogDetail?, object>($"{id}/unpublish", new object(), ct) 
-            ?? Task.FromResult<BlogDetail?>(null);
+        return PostResultAsync<object, BlogDetail>($"{id}/unpublish", new object(), ct);
     }
 }
 
