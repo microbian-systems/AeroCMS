@@ -22,6 +22,9 @@ namespace Aero.Cms.Core.Blocks.Serialization;
 [JsonSerializable(typeof(List<CarouselItem>))]
 [JsonSerializable(typeof(ScrollingContentItem))]
 [JsonSerializable(typeof(List<ScrollingContentItem>))]
+[JsonSerializable(typeof(FormFieldDefinition))]
+[JsonSerializable(typeof(List<FormFieldDefinition>))]
+[JsonSerializable(typeof(OrderedDictionary<ushort, FormFieldDefinition>))]
 [JsonSerializable(typeof(NavigationBlock.NavigationBlockItem))]
 [JsonSerializable(typeof(List<NavigationBlock.NavigationBlockItem>))]
 [JsonSerializable(typeof(OrderedDictionary<ushort, NavigationBlock.NavigationBlockItem>))]
@@ -46,6 +49,7 @@ namespace Aero.Cms.Core.Blocks.Serialization;
 [JsonSerializable(typeof(List<RawHtmlBlock>))]
 [JsonSerializable(typeof(List<AnalyticsBlock>))]
 [JsonSerializable(typeof(List<ScrollingContentBlock>))]
+[JsonSerializable(typeof(List<FormEditorBlock>))]
 [JsonSerializable(typeof(List<NavigationBlock>))]
 
 // Concrete types (Only needed if used directly outside of BlockBase polymorphism)
@@ -68,9 +72,11 @@ namespace Aero.Cms.Core.Blocks.Serialization;
 [JsonSerializable(typeof(RawHtmlBlock))]
 [JsonSerializable(typeof(AnalyticsBlock))]
 [JsonSerializable(typeof(ScrollingContentBlock))]
+[JsonSerializable(typeof(FormEditorBlock))]
 [JsonSerializable(typeof(NavigationBlock))]
 
 // Common Primitives and System Types
+[JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, BlockBase>))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]

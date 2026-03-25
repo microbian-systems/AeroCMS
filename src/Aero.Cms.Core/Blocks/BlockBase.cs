@@ -29,6 +29,7 @@ namespace Aero.Cms.Core.Blocks;
 [JsonDerivedType(typeof(CarouselBlock), "carousel")]
 [JsonDerivedType(typeof(ContentLinkBlock), "content_link")]
 [JsonDerivedType(typeof(HeroBlock), "hero")]
+[JsonDerivedType(typeof(FormEditorBlock), "form_editor")]
 [JsonDerivedType(typeof(ScrollingContentBlock), "scrolling_content")]
 [JsonDerivedType(typeof(MarkdownBlock), "markdown")]
 [JsonDerivedType(typeof(RawHtmlBlock), "raw_html")]
