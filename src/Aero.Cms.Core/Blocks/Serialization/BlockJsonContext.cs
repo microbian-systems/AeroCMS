@@ -10,8 +10,45 @@ namespace Aero.Cms.Core.Blocks.Serialization;
 /// <remarks>
 /// This context is designed to be regenerated when new block types are added.
 /// The source generator will automatically include all types decorated with
-/// [JsonDerivedType] on BlockBase subclasses.
+/// [JsonDerivedType] on BlockBase subclasses when BlockBase is registered.
 /// </remarks>
+[JsonSerializable(typeof(BlockBase))]
+[JsonSerializable(typeof(List<BlockBase>))]
+
+// Supporting Models
+[JsonSerializable(typeof(ColumnItem))]
+[JsonSerializable(typeof(List<ColumnItem>))]
+[JsonSerializable(typeof(CarouselItem))]
+[JsonSerializable(typeof(List<CarouselItem>))]
+[JsonSerializable(typeof(ScrollingContentItem))]
+[JsonSerializable(typeof(List<ScrollingContentItem>))]
+[JsonSerializable(typeof(NavigationBlock.NavigationBlockItem))]
+[JsonSerializable(typeof(List<NavigationBlock.NavigationBlockItem>))]
+[JsonSerializable(typeof(OrderedDictionary<ushort, NavigationBlock.NavigationBlockItem>))]
+
+// Explicit List registrations for all concrete blocks to ensure they can be serialized as collections
+[JsonSerializable(typeof(List<RichTextBlock>))]
+[JsonSerializable(typeof(List<HeadingBlock>))]
+[JsonSerializable(typeof(List<ImageBlock>))]
+[JsonSerializable(typeof(List<CtaBlock>))]
+[JsonSerializable(typeof(List<QuoteBlock>))]
+[JsonSerializable(typeof(List<EmbedBlock>))]
+[JsonSerializable(typeof(List<YouTubeBlock>))]
+[JsonSerializable(typeof(List<VimeoBlock>))]
+[JsonSerializable(typeof(List<TwitchBlock>))]
+[JsonSerializable(typeof(List<TikTokBlock>))]
+[JsonSerializable(typeof(List<ColumnsBlock>))]
+[JsonSerializable(typeof(List<CardBlock>))]
+[JsonSerializable(typeof(List<CarouselBlock>))]
+[JsonSerializable(typeof(List<ContentLinkBlock>))]
+[JsonSerializable(typeof(List<HeroBlock>))]
+[JsonSerializable(typeof(List<MarkdownBlock>))]
+[JsonSerializable(typeof(List<RawHtmlBlock>))]
+[JsonSerializable(typeof(List<AnalyticsBlock>))]
+[JsonSerializable(typeof(List<ScrollingContentBlock>))]
+[JsonSerializable(typeof(List<NavigationBlock>))]
+
+// Concrete types (Only needed if used directly outside of BlockBase polymorphism)
 [JsonSerializable(typeof(RichTextBlock))]
 [JsonSerializable(typeof(HeadingBlock))]
 [JsonSerializable(typeof(ImageBlock))]
@@ -26,38 +63,14 @@ namespace Aero.Cms.Core.Blocks.Serialization;
 [JsonSerializable(typeof(CardBlock))]
 [JsonSerializable(typeof(CarouselBlock))]
 [JsonSerializable(typeof(ContentLinkBlock))]
-[JsonSerializable(typeof(ColumnItem))]
-[JsonSerializable(typeof(CarouselItem))]
-[JsonSerializable(typeof(BlockBase))]
-[JsonSerializable(typeof(List<BlockBase>))]
-[JsonSerializable(typeof(List<YouTubeBlock>))]
-[JsonSerializable(typeof(List<VimeoBlock>))]
-[JsonSerializable(typeof(List<TwitchBlock>))]
-[JsonSerializable(typeof(List<TikTokBlock>))]
-[JsonSerializable(typeof(List<ColumnsBlock>))]
-[JsonSerializable(typeof(List<CardBlock>))]
-[JsonSerializable(typeof(List<CarouselBlock>))]
-[JsonSerializable(typeof(List<ContentLinkBlock>))]
-[JsonSerializable(typeof(List<HeroBlock>))]
-[JsonSerializable(typeof(List<RawHtmlBlock>))]
-[JsonSerializable(typeof(List<AnalyticsBlock>))]
 [JsonSerializable(typeof(HeroBlock))]
+[JsonSerializable(typeof(MarkdownBlock))]
 [JsonSerializable(typeof(RawHtmlBlock))]
 [JsonSerializable(typeof(AnalyticsBlock))]
-[JsonSerializable(typeof(List<MarkdownBlock>))]
-[JsonSerializable(typeof(MarkdownBlock))]
-[JsonSerializable(typeof(List<NavigationBlock>))]
+[JsonSerializable(typeof(ScrollingContentBlock))]
 [JsonSerializable(typeof(NavigationBlock))]
-[JsonSerializable(typeof(NavigationBlock.NavigationBlockItem))]
-[JsonSerializable(typeof(OrderedDictionary<ushort, NavigationBlock.NavigationBlockItem>))]
-[JsonSerializable(typeof(List<ColumnItem>))]
-[JsonSerializable(typeof(List<CarouselItem>))]
-[JsonSerializable(typeof(List<RichTextBlock>))]
-[JsonSerializable(typeof(List<HeadingBlock>))]
-[JsonSerializable(typeof(List<ImageBlock>))]
-[JsonSerializable(typeof(List<CtaBlock>))]
-[JsonSerializable(typeof(List<QuoteBlock>))]
-[JsonSerializable(typeof(List<EmbedBlock>))]
+
+// Common Primitives and System Types
 [JsonSerializable(typeof(Dictionary<string, BlockBase>))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]
@@ -66,6 +79,7 @@ namespace Aero.Cms.Core.Blocks.Serialization;
 [JsonSerializable(typeof(DateTime))]
 [JsonSerializable(typeof(Guid))]
 [JsonSerializable(typeof(JsonElement))]
+
 [JsonSourceGenerationOptions(
     WriteIndented = false,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
