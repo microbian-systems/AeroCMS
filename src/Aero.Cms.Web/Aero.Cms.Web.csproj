@@ -49,6 +49,7 @@
     </PackageReference>
     <PackageReference Include="RazorSlices" />
     <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.OpenObserve" />
   </ItemGroup>
 
   <ItemGroup>

@@ -8,6 +8,7 @@
     <PackageReference Include="Blazor.Radzen.Theming" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
     <PackageReference Include="Radzen.Blazor" />
+    <PackageReference Include="Serilog.Sinks.OpenObserve" />
   </ItemGroup>
 
   <ItemGroup>
