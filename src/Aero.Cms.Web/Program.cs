@@ -4,6 +4,7 @@ using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Components;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Services;
+using Aero.Cms.Core.Extensions;
 using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +34,8 @@ services.AddCascadingAuthenticationState();
 // Add device-specific services used by the Aero.Cms.Shared project
 services.AddSingleton<IFormFactor, FormFactor>();
 
+// Register all Aero HTTP clients
+services.AddAeroHttpClients(config);
 
 var (_, log) = await builder.AddAeroCmsAsync<Program>();
 
@@ -88,4 +91,3 @@ finally
 {
     log.Information("exiting application");
 }
-

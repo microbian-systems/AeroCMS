@@ -1,8 +1,9 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Core.Extensions;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Services;
 using Radzen;
@@ -47,11 +48,15 @@ public static class MauiProgram
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
         
         // Load API base URL from configuration, fallback to default if not found
-        var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:49572";
-        builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+        var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:49572/api/v1";
+        builder.Configuration["AeroHttpClientBaseAddress"] = apiBaseUrl;
+        
+        // Register all Aero HTTP clients
+        builder.Services.AddAeroHttpClients(builder.Configuration);
+        
         builder.Services.AddScoped<IBlockService, HttpBlockService>();
         
-        // Register API clients
+        // Legacy registrations (ensure both class and interface work for transition)
         builder.Services.AddScoped<DocsClient>();
 
         builder.Services.AddMauiBlazorWebView();

@@ -1,6 +1,7 @@
 using Aero.Cms.Core.Http.Clients;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Extensions;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Client.Services;
 using Radzen;
@@ -11,7 +12,11 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddScoped<IBlockService, HttpBlockService>();
 
-// Register API clients
+// Register all Aero HTTP clients
+builder.Configuration["AeroHttpClientBaseAddress"] = builder.HostEnvironment.BaseAddress + "api/v1";
+builder.Services.AddAeroHttpClients(builder.Configuration);
+
+// Legacy registrations
 builder.Services.AddScoped<DocsClient>();
 builder.Services.AddRadzenComponents();
 
