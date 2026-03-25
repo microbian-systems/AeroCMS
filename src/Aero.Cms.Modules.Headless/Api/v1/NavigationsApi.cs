@@ -1,4 +1,5 @@
 using Aero.Cms.Core;
+using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Http.Clients;
 using Marten;
 using Microsoft.AspNetCore.Builder;
@@ -46,14 +47,14 @@ public static class NavigationsApi
         var logger = loggerFactory.CreateLogger(typeof(NavigationsApi));
         try
         {
-            var navigations = await session.Query<Navigation>()
+            var navigations = await session.Query<NavigationBlock>()
                 .OrderBy(x => x.Name)
                 .ToListAsync(cancellationToken);
 
             var summaries = navigations.Select(n => new NavigationSummary(
                 n.Id,
-                n.Name,
-                n.Location,
+                n.Name ?? string.Empty,
+                n.Title ?? string.Empty,
                 n.Items.Count,
                 n.CreatedOn.DateTime
             )).ToList();
@@ -76,7 +77,7 @@ public static class NavigationsApi
         var logger = loggerFactory.CreateLogger(typeof(NavigationsApi));
         try
         {
-            var navigation = await session.LoadAsync<Navigation>(id, cancellationToken);
+            var navigation = await session.LoadAsync<NavigationBlock>(id, cancellationToken);
 
             if (navigation is null)
             {
@@ -85,15 +86,15 @@ public static class NavigationsApi
 
             var detail = new NavigationDetail(
                 navigation.Id,
-                navigation.Name,
-                navigation.Location,
+                navigation.Name ?? string.Empty,
+                navigation.Title ?? string.Empty,
                 navigation.Items.Select(i => new NavigationItemDetail(
-                    i.Id,
-                    i.Label,
-                    i.Url,
-                    i.PageId,
-                    i.Order,
-                    i.ParentId
+                    i.Value.Id,
+                    i.Value.Label ?? string.Empty,
+                    i.Value.Url,
+                    i.Value.PageId,
+                    i.Key,
+                    i.Value.AltText
                 )).ToList(),
                 navigation.CreatedOn.DateTime,
                 navigation.ModifiedOn.GetValueOrDefault().DateTime
@@ -117,36 +118,42 @@ public static class NavigationsApi
         var logger = loggerFactory.CreateLogger(typeof(NavigationsApi));
         try
         {
-            var navigation = new Navigation
+            var navigation = new NavigationBlock
             {
                 Id = Snowflake.NewId(),
                 Name = request.Name,
-                Location = request.Location,
-                Items = request.Items.Select(i => new NavigationItem
+                Title = request.Title,
+                Items = []
+            };
+
+            foreach (var i in request.Items.OrderBy(x => x.Order))
+            {
+                var item = new NavigationBlock.NavigationBlockItem
                 {
                     Id = Snowflake.NewId(),
                     Label = i.Label,
                     Url = i.Url,
-                    PageId = i.PageId,
-                    Order = i.Order,
-                    ParentId = i.ParentId
-                }).ToList()
-            };
+                    PageId = i.PageId ?? 0,
+                    Order = (ushort)i.Order,
+                    AltText = i.AltText
+                };
+                navigation.Items.TryAdd(item.Order, item);
+            }
 
             session.Store(navigation);
             await session.SaveChangesAsync(cancellationToken);
 
             var detail = new NavigationDetail(
                 navigation.Id,
-                navigation.Name,
-                navigation.Location,
+                navigation.Name ?? string.Empty,
+                navigation.Title ?? string.Empty,
                 navigation.Items.Select(i => new NavigationItemDetail(
-                    i.Id,
-                    i.Label,
-                    i.Url,
-                    i.PageId,
-                    i.Order,
-                    i.ParentId
+                    i.Value.Id,
+                    i.Value.Label ?? string.Empty,
+                    i.Value.Url,
+                    i.Value.PageId,
+                    i.Key,
+                    i.Value.AltText
                 )).ToList(),
                 navigation.CreatedOn.DateTime,
                 navigation.ModifiedOn.GetValueOrDefault().DateTime
@@ -171,7 +178,7 @@ public static class NavigationsApi
         var logger = loggerFactory.CreateLogger(typeof(NavigationsApi));
         try
         {
-            var navigation = await session.LoadAsync<Navigation>(id, cancellationToken);
+            var navigation = await session.LoadAsync<NavigationBlock>(id, cancellationToken);
 
             if (navigation is null)
             {
@@ -179,31 +186,37 @@ public static class NavigationsApi
             }
 
             navigation.Name = request.Name;
-            navigation.Location = request.Location;
-            navigation.Items = request.Items.Select(i => new NavigationItem
+            navigation.Title = request.Title;
+            navigation.Items = [];
+
+            foreach (var i in request.Items.OrderBy(x => x.Order))
             {
-                Id = i.Id == 0 ? Snowflake.NewId() : i.Id,
-                Label = i.Label,
-                Url = i.Url,
-                PageId = i.PageId,
-                Order = i.Order,
-                ParentId = i.ParentId
-            }).ToList();
+                var item = new NavigationBlock.NavigationBlockItem
+                {
+                    Id = i.Id == 0 ? Snowflake.NewId() : i.Id,
+                    Label = i.Label,
+                    Url = i.Url,
+                    PageId = i.PageId ?? 0,
+                    Order = (ushort)i.Order,
+                    AltText = i.AltText
+                };
+                navigation.Items.TryAdd(item.Order, item);
+            }
 
             session.Store(navigation);
             await session.SaveChangesAsync(cancellationToken);
 
             var detail = new NavigationDetail(
                 navigation.Id,
-                navigation.Name,
-                navigation.Location,
+                navigation.Name ?? string.Empty,
+                navigation.Title ?? string.Empty,
                 navigation.Items.Select(i => new NavigationItemDetail(
-                    i.Id,
-                    i.Label,
-                    i.Url,
-                    i.PageId,
-                    i.Order,
-                    i.ParentId
+                    i.Value.Id,
+                    i.Value.Label ?? string.Empty,
+                    i.Value.Url,
+                    i.Value.PageId,
+                    i.Key,
+                    i.Value.AltText
                 )).ToList(),
                 navigation.CreatedOn.DateTime,
                 navigation.ModifiedOn.GetValueOrDefault().DateTime
@@ -227,7 +240,7 @@ public static class NavigationsApi
         var logger = loggerFactory.CreateLogger(typeof(NavigationsApi));
         try
         {
-            var navigation = await session.LoadAsync<Navigation>(id, cancellationToken);
+            var navigation = await session.LoadAsync<NavigationBlock>(id, cancellationToken);
 
             if (navigation is null)
             {

@@ -49,10 +49,10 @@ public class NavigationsHttpClient(HttpClient httpClient, ILogger<NavigationsHtt
 #pragma warning disable SA1402 // File may only contain a single type
 #pragma warning disable SA1649 // File name should match first type name
 
-public record NavigationSummary(long Id, string Name, string Location, int ItemCount, DateTime CreatedAt);
-public record NavigationDetail(long Id, string Name, string Location, IReadOnlyList<NavigationItemDetail> Items, DateTime CreatedAt, DateTime UpdatedAt);
-public record NavigationItemDetail(long Id, string Label, string? Url, long? PageId, int Order, long? ParentId);
-public record CreateNavigationRequest(string Name, string Location, IReadOnlyList<CreateNavigationItemRequest> Items);
-public record UpdateNavigationRequest(string Name, string Location, IReadOnlyList<UpdateNavigationItemRequest> Items);
-public record CreateNavigationItemRequest(string Label, string? Url, long? PageId, int Order, long? ParentId);
-public record UpdateNavigationItemRequest(long Id, string Label, string? Url, long? PageId, int Order, long? ParentId);
+public record NavigationSummary(long Id, string Name, string? Title, int ItemCount, DateTime CreatedAt);
+public record NavigationDetail(long Id, string Name, string? Title, IReadOnlyList<NavigationItemDetail> Items, DateTime CreatedAt, DateTime UpdatedAt);
+public record NavigationItemDetail(long Id, string Label, string? Url, long? PageId, int Order, string? AltText);
+public record CreateNavigationRequest(string Name, string? Title, IReadOnlyList<CreateNavigationItemRequest> Items);
+public record UpdateNavigationRequest(string Name, string? Title, IReadOnlyList<UpdateNavigationItemRequest> Items);
+public record CreateNavigationItemRequest(string Label, string? Url, long? PageId, int Order, string? AltText);
+public record UpdateNavigationItemRequest(long Id, string Label, string? Url, long? PageId, int Order, string? AltText);
