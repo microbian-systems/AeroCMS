@@ -31,14 +31,14 @@ public sealed class HeadlessModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddOpenApi();
-        
+
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         var scope = builder.ServiceProvider.CreateAsyncScope();
-        var env  = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
-        
+        var env = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
+
         builder.MapPublishApi();
         builder.MapPreviewApi();
         builder.MapBlogApi();
@@ -57,22 +57,19 @@ public sealed class HeadlessModule : AeroModuleBase
         builder.MapProfileApi();
         builder.MapBlocksApi();
 
-        if (env.IsDevelopment()) // todo - put scalar behind a gated login
+        // todo - put scalar behind a gated login (auth filter)
+        builder.MapOpenApi();
+        builder.MapScalarApiReference(opts =>
         {
-            builder.MapOpenApi();
-            builder.MapScalarApiReference(opts =>
-            {
-                opts.WithTitle("Aero CMS")
-                    //.WithClassicLayout()
-                    .ForceDarkMode()
-                    .HideSearch()
-                    .ShowOperationId()
-                    .ExpandAllTags()
-                    .SortTagsAlphabetically()
-                    .SortOperationsByMethod()
-                    .PreserveSchemaPropertyOrder();
-            });
-        }
+            opts.WithTitle(AeroConstants.AppName)
+                .ForceDarkMode()
+                .HideSearch()
+                .ShowOperationId()
+                .ExpandAllTags()
+                .SortTagsAlphabetically()
+                .SortOperationsByMethod()
+                .PreserveSchemaPropertyOrder();
+        });
 
         return Task.CompletedTask;
     }
