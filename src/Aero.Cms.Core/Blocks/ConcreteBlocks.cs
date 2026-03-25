@@ -132,7 +132,7 @@ public sealed class QuoteBlock : BlockBase
 /// Represents an embed block for external content (videos, social posts, etc.).
 /// </summary>
 [BlockMetadata("embed", "Embed")]
-public sealed class EmbedBlock : BlockBase
+public class EmbedBlock : BlockBase
 {
     /// <summary>
     /// Gets the type of embedded content (e.g., "youtube", "vimeo", "twitter").

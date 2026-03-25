@@ -2,6 +2,8 @@ using System.Text.Json.Serialization;
 using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
+using Aero.Cms.Core.Blocks.Common;
+
 namespace Aero.Cms.Core.Blocks;
 
 /// <summary>
@@ -18,6 +20,16 @@ namespace Aero.Cms.Core.Blocks;
 [JsonDerivedType(typeof(CtaBlock), "cta")]
 [JsonDerivedType(typeof(QuoteBlock), "quote")]
 [JsonDerivedType(typeof(EmbedBlock), "embed")]
+[JsonDerivedType(typeof(YouTubeBlock), "youtube_player")]
+[JsonDerivedType(typeof(VimeoBlock), "vimeo_player")]
+[JsonDerivedType(typeof(TwitchBlock), "twitch_player")]
+[JsonDerivedType(typeof(TikTokBlock), "tiktok_player")]
+[JsonDerivedType(typeof(ColumnsBlock), "columns")]
+[JsonDerivedType(typeof(CardBlock), "cards")]
+[JsonDerivedType(typeof(CarouselBlock), "carousel")]
+[JsonDerivedType(typeof(ContentLinkBlock), "content_link")]
+[JsonDerivedType(typeof(HeroBlock), "hero")]
+[JsonDerivedType(typeof(NavigationBlock), "navigation")]
 public abstract class BlockBase : Entity, IBlock
 {
     /// <summary>

@@ -19,22 +19,22 @@ public sealed class BlockMetadataAttribute : Attribute
     /// <summary>
     /// Gets the description of the block type.
     /// </summary>
-    public string? Description { get; }
+    public string? Description { get; set; }
 
     /// <summary>
     /// Gets the category of the block type.
     /// </summary>
-    public string? Category { get; }
+    public string? Category { get; set; }
 
     /// <summary>
     /// Gets the icon identifier for the block type.
     /// </summary>
-    public string? Icon { get; }
+    public string? Icon { get; set; }
 
     /// <summary>
     /// Gets the sort order for the block type in UI listings.
     /// </summary>
-    public int SortOrder { get; }
+    public int SortOrder { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BlockMetadataAttribute"/> class.
