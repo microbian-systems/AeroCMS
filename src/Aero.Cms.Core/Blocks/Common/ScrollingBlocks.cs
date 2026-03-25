@@ -8,9 +8,7 @@ namespace Aero.Cms.Core.Blocks.Common;
 public enum ScrollDirection
 {
     HorizontalLeft = 0,
-    HorizontalRight = 1,
-    VerticalUp = 2,
-    VerticalDown = 3
+    HorizontalRight = 1
 }
 
 /// <summary>
