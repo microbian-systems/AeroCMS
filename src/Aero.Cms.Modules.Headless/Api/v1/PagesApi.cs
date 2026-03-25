@@ -1,13 +1,17 @@
 using Aero.Cms.Core.Http.Clients;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Aero.Cms.Web.Core;
-using Aero.Cms.Core;
+using Microsoft.Extensions.Logging;
+using Aero.Cms.Modules.Pages;
 
 namespace Aero.Cms.Modules.Headless.Api.v1;
 
+/// <summary>
+/// Admin API for page content management.
+/// </summary>
 public static class PagesApi
 {
     /// <summary>
@@ -15,78 +19,61 @@ public static class PagesApi
     /// </summary>
     public static void MapPagesApi(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/admin/pages", ListPages)
-            .WithName("ListPages")
+        var group = app.MapGroup("/api/v1/admin/pages")
             .WithTags("Admin - Pages");
 
-        app.MapGet("/api/v1/admin/pages/{id:long}", GetPageById)
-            .WithName("GetPageById")
-            .WithTags("Admin - Pages");
+        group.MapGet("/", ListPages)
+            .WithName("ListPages");
 
-        app.MapGet("/api/v1/admin/pages/by-slug/{slug}", GetPageBySlug)
-            .WithName("GetPageBySlug")
-            .WithTags("Admin - Pages");
+        group.MapGet("/{id:long}", GetPageById)
+            .WithName("GetPageById");
 
-        app.MapPost("/api/v1/admin/pages", CreatePage)
-            .WithName("CreatePage")
-            .WithTags("Admin - Pages");
+        group.MapGet("/slug/{*slug}", GetPageBySlug)
+            .WithName("GetPageBySlug");
 
-        app.MapPut("/api/v1/admin/pages/{id:long}", UpdatePage)
-            .WithName("UpdatePage")
-            .WithTags("Admin - Pages");
+        group.MapPost("/", CreatePage)
+            .WithName("CreatePage");
 
-        app.MapDelete("/api/v1/admin/pages/{id:long}", DeletePage)
-            .WithName("DeletePage")
-            .WithTags("Admin - Pages");
+        group.MapPut("/{id:long}", UpdatePage)
+            .WithName("UpdatePage");
+
+        group.MapDelete("/{id:long}", DeletePage)
+            .WithName("DeletePage");
     }
 
     private static async Task<IResult> ListPages(
-        IPageContentService pageService,
-        ILoggerFactory loggerFactory,
+        [FromServices] IPageContentService pageService,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
             var result = await pageService.GetAllPagesAsync(cancellationToken);
-
-            if (result is Result<string, IReadOnlyList<PageDocument>>.Failure failure)
-            {
-                logger.LogWarning("Failed to retrieve pages: {Error}", failure.Error);
-                return TypedResults.NotFound();
-            }
-
             if (result is Result<string, IReadOnlyList<PageDocument>>.Ok ok)
             {
                 return TypedResults.Ok(ok.Value);
             }
 
-            return TypedResults.NotFound();
+            return TypedResults.Problem("Failed to list pages");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving pages");
-            return TypedResults.NotFound();
+            logger.LogError(ex, "Error listing pages");
+            return TypedResults.Problem(ex.Message);
         }
     }
 
     private static async Task<IResult> GetPageById(
         long id,
-        IPageContentService pageService,
-        ILoggerFactory loggerFactory,
+        [FromServices] IPageContentService pageService,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
             var result = await pageService.LoadAsync(id, cancellationToken);
-
-            if (result is Result<string, PageDocument?>.Failure failure)
-            {
-                logger.LogWarning("Page not found for id={Id}: {Error}", id, failure.Error);
-                return TypedResults.NotFound();
-            }
-
             if (result is Result<string, PageDocument?>.Ok { Value: not null } ok)
             {
                 return TypedResults.Ok(ok.Value);
@@ -103,21 +90,14 @@ public static class PagesApi
 
     private static async Task<IResult> GetPageBySlug(
         string slug,
-        IPageContentService pageService,
-        ILoggerFactory loggerFactory,
+        [FromServices] IPageContentService pageService,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
             var result = await pageService.FindBySlugAsync(slug, cancellationToken);
-
-            if (result is Result<string, PageDocument?>.Failure failure)
-            {
-                logger.LogWarning("Page not found for slug={Slug}: {Error}", slug, failure.Error);
-                return TypedResults.NotFound();
-            }
-
             if (result is Result<string, PageDocument?>.Ok { Value: not null } ok)
             {
                 return TypedResults.Ok(ok.Value);
@@ -133,32 +113,31 @@ public static class PagesApi
     }
 
     private static async Task<IResult> CreatePage(
-        [FromBody] CreatePageRequest request,
+        [FromBody] Aero.Cms.Core.Http.Clients.CreatePageRequest request,
         [FromServices] IPageContentService pageService,
-        [FromServices] IDocumentSession session,
-        [FromServices] IHttpContextAccessor httpContextAccessor,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var page = new PageDocument
-            {
-                Id = Snowflake.NewId(),
-                Title = request.Title,
-                Slug = request.Slug,
-                Summary = request.Summary,
-                SeoTitle = request.SeoTitle,
-                SeoDescription = request.SeoDescription,
-                PublicationState = request.PublicationState
-            };
+            var moduleRequest = new Aero.Cms.Modules.Pages.Requests.CreatePageRequest(
+                request.Title,
+                request.Slug,
+                request.Summary,
+                request.SeoTitle,
+                request.SeoDescription,
+                request.PublicationState
+            );
 
-            var result = await pageService.SaveAsync(page, cancellationToken);
+            var result = await pageService.CreateAsync(moduleRequest, cancellationToken);
+            if (result is Result<string, PageDocument>.Ok ok)
+            {
+                return TypedResults.Created($"/api/v1/admin/pages/{ok.Value.Id}", ok.Value);
+            }
 
             if (result is Result<string, PageDocument>.Failure failure)
             {
-                logger.LogWarning("Failed to create page: {Error}", failure.Error);
                 return TypedResults.BadRequest(new ProblemDetails
                 {
                     Title = "Failed to create page",
@@ -166,144 +145,79 @@ public static class PagesApi
                 });
             }
 
-            if (result is Result<string, PageDocument>.Ok ok)
-            {
-                logger.LogInformation("Created page id={Id}, slug={Slug}", ok.Value.Id, ok.Value.Slug);
-                return TypedResults.Created($"/api/v1/admin/pages/{ok.Value.Id}", ok.Value);
-            }
-
-            return TypedResults.BadRequest(new ProblemDetails
-            {
-                Title = "Failed to create page",
-                Detail = "An unexpected error occurred"
-            });
+            return TypedResults.Problem("An unexpected error occurred");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating page");
-            return TypedResults.BadRequest(new ProblemDetails
-            {
-                Title = "Failed to create page",
-                Detail = ex.Message
-            });
+            return TypedResults.Problem(ex.Message);
         }
     }
 
     private static async Task<IResult> UpdatePage(
         long id,
-        [FromBody] UpdatePageRequest request,
+        [FromBody] Aero.Cms.Core.Http.Clients.UpdatePageRequest request,
         [FromServices] IPageContentService pageService,
-        [FromServices] IDocumentSession session,
-        [FromServices] IHttpContextAccessor httpContextAccessor,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var loadResult = await pageService.LoadAsync(id, cancellationToken);
+            var moduleRequest = new Aero.Cms.Modules.Pages.Requests.UpdatePageRequest(
+                id,
+                request.Title,
+                request.Slug,
+                request.Summary,
+                request.SeoTitle,
+                request.SeoDescription,
+                request.PublicationState
+            );
 
-            if (loadResult is Result<string, PageDocument?>.Failure failure)
+            var result = await pageService.UpdateAsync(id, moduleRequest, cancellationToken);
+            if (result is Result<string, PageDocument>.Ok ok)
             {
-                logger.LogWarning("Failed to load page id={Id}: {Error}", id, failure.Error);
-                return TypedResults.NotFound(new ProblemDetails
+                return TypedResults.Ok(ok.Value);
+            }
+
+            if (result is Result<string, PageDocument>.Failure failure)
+            {
+                return TypedResults.BadRequest(new ProblemDetails
                 {
-                    Title = "Page not found",
+                    Title = "Failed to update page",
                     Detail = failure.Error
                 });
             }
 
-            if (loadResult is Result<string, PageDocument?>.Ok { Value: null })
-            {
-                return TypedResults.NotFound(new ProblemDetails
-                {
-                    Title = "Page not found",
-                    Detail = $"Page with id '{id}' not found"
-                });
-            }
-
-            if (loadResult is not Result<string, PageDocument?>.Ok { Value: not null } ok)
-            {
-                return TypedResults.NotFound(new ProblemDetails
-                {
-                    Title = "Page not found",
-                    Detail = $"Page with id '{id}' not found"
-                });
-            }
-
-            var existingPage = ok.Value;
-
-            existingPage.Title = request.Title;
-            existingPage.Slug = request.Slug;
-            existingPage.Summary = request.Summary;
-            existingPage.SeoTitle = request.SeoTitle;
-            existingPage.SeoDescription = request.SeoDescription;
-            existingPage.PublicationState = request.PublicationState;
-
-            var saveResult = await pageService.SaveAsync(existingPage, cancellationToken);
-
-            if (saveResult is Result<string, PageDocument>.Failure saveFailure)
-            {
-                logger.LogWarning("Failed to update page id={Id}: {Error}", id, saveFailure.Error);
-                return TypedResults.BadRequest(new ProblemDetails
-                {
-                    Title = "Failed to update page",
-                    Detail = saveFailure.Error
-                });
-            }
-
-            if (saveResult is Result<string, PageDocument>.Ok saveOk)
-            {
-                logger.LogInformation("Updated page id={Id}, slug={Slug}", saveOk.Value.Id, saveOk.Value.Slug);
-                return TypedResults.Ok(saveOk.Value);
-            }
-
-            return TypedResults.BadRequest(new ProblemDetails
-            {
-                Title = "Failed to update page",
-                Detail = "An unexpected error occurred"
-            });
+            return TypedResults.Problem("An unexpected error occurred");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error updating page id={Id}", id);
-            return TypedResults.BadRequest(new ProblemDetails
-            {
-                Title = "Failed to update page",
-                Detail = ex.Message
-            });
+            logger.LogError(ex, "Error updating page for id={Id}", id);
+            return TypedResults.Problem(ex.Message);
         }
     }
 
     private static async Task<IResult> DeletePage(
         long id,
-        IDocumentSession session,
-        ILoggerFactory loggerFactory,
+        [FromServices] IPageContentService pageService,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
-
-            if (page is null)
+            var result = await pageService.DeleteAsync(id, cancellationToken);
+            if (result is Result<string, bool>.Ok { Value: true })
             {
-                return TypedResults.NotFound(new ProblemDetails
-                {
-                    Title = "Page not found",
-                    Detail = $"Page with id '{id}' not found"
-                });
+                return TypedResults.Ok(true);
             }
 
-            session.Delete(page);
-            await session.SaveChangesAsync(cancellationToken);
-
-            logger.LogInformation("Deleted page id={Id}", id);
-            return TypedResults.NoContent();
+            return TypedResults.NotFound();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error deleting page id={Id}", id);
+            logger.LogError(ex, "Error deleting page for id={Id}", id);
             return TypedResults.BadRequest(new ProblemDetails
             {
                 Title = "Failed to delete page",

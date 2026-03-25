@@ -25,6 +25,9 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<TagsHttpClient>(c => c.BaseAddress = uri);
         services.AddHttpClient<ThemesHttpClient>(c => c.BaseAddress = uri);
         services.AddHttpClient<UsersHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<BlocksHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<PublishHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<PreviewHttpClient>(c => c.BaseAddress = uri);
 
         services.AddTransient<IBlogHttpClient, BlogHttpClient>();
         services.AddTransient<ICategoriesHttpClient, CategoriesHttpClient>();
@@ -39,6 +42,9 @@ public static class AeroHttpClientExtensions
         services.AddTransient<ITagsHttpClient, TagsHttpClient>();
         services.AddTransient<IThemesHttpClient, ThemesHttpClient>();
         services.AddTransient<IUsersHttpClient, UsersHttpClient>();
+        services.AddTransient<IBlocksHttpClient, BlocksHttpClient>();
+        services.AddTransient<IPublishHttpClient, PublishHttpClient>();
+        services.AddTransient<IPreviewHttpClient, PreviewHttpClient>();
 
         return services;
     }

@@ -66,7 +66,7 @@ public sealed class SetupModel(ISetupCompletionService setupCompletionService) :
 
         if (!completionResult.AlreadyComplete && completionResult.CreatedAdmin)
         {
-            return LocalRedirect("/");
+            return LocalRedirect("/manager/settings");
         }
 
         return LocalRedirect(GetSafePostTarget(ReturnUrl));

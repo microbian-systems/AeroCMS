@@ -1,5 +1,11 @@
+using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Headless.Api.v1;
 
@@ -13,64 +19,205 @@ public static class ThemesApi
     /// </summary>
     public static void MapThemesApi(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/admin/themes", GetAllThemes)
-            .WithName("GetAllThemes")
+        var group = app.MapGroup("/api/v1/admin/themes")
             .WithTags("Admin - Themes");
 
-        app.MapGet("/api/v1/admin/themes/{id}", GetThemeById)
-            .WithName("GetThemeById")
-            .WithTags("Admin - Themes");
+        group.MapGet("/", GetAllThemes)
+            .WithName("GetAllThemes");
 
-        app.MapPost("/api/v1/admin/themes", CreateTheme)
-            .WithName("CreateTheme")
-            .WithTags("Admin - Themes");
+        group.MapGet("/details/{id}", GetThemeById)
+            .WithName("GetThemeById");
 
-        app.MapPut("/api/v1/admin/themes/{id}", UpdateTheme)
-            .WithName("UpdateTheme")
-            .WithTags("Admin - Themes");
+        group.MapGet("/current", GetCurrentTheme)
+            .WithName("GetCurrentTheme");
 
-        app.MapDelete("/api/v1/admin/themes/{id}", DeleteTheme)
-            .WithName("DeleteTheme")
-            .WithTags("Admin - Themes");
+        group.MapPost("/{id}/activate", ActivateTheme)
+            .WithName("ActivateTheme");
 
-        app.MapPost("/api/v1/admin/themes/{id}/activate", ActivateTheme)
-            .WithName("ActivateTheme")
-            .WithTags("Admin - Themes");
+        group.MapPost("/", UploadTheme)
+            .WithName("UploadTheme");
+
+        group.MapDelete("/{id}", DeleteTheme)
+            .WithName("DeleteTheme");
     }
 
-    private static async Task<IResult> GetAllThemes(CancellationToken cancellationToken = default)
+    private static async Task<IResult> GetAllThemes(
+        [FromServices] IServiceProvider sp,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
-        throw new NotImplementedException("ThemesApi.GetAllThemes is not yet implemented");
+        var logger = loggerFactory.CreateLogger(typeof(ThemesApi));
+        try
+        {
+            var themes = sp.GetThemeModules().ToList();
+            var activeThemeName = "Default"; // TODO: Get from settings
+
+            var summaries = themes.Select(t => new ThemeSummary(
+                t.Name,
+                t.Name,
+                t.Version,
+                t.Author,
+                null,
+                t.Name == activeThemeName
+            )).ToList();
+
+            return TypedResults.Ok(summaries);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving all themes");
+            return TypedResults.Problem(ex.Message);
+        }
     }
 
-    private static async Task<IResult> GetThemeById(string id, CancellationToken cancellationToken = default)
+    private static async Task<IResult> GetThemeById(
+        string id,
+        [FromServices] IServiceProvider sp,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
-        throw new NotImplementedException($"ThemesApi.GetThemeById({id}) is not yet implemented");
+        var logger = loggerFactory.CreateLogger(typeof(ThemesApi));
+        try
+        {
+            var theme = sp.GetThemeModules().FirstOrDefault(t => t.Name == id);
+
+            if (theme is null)
+            {
+                return TypedResults.NotFound(new { error = $"Theme with ID '{id}' not found." });
+            }
+
+            var activeThemeName = "Default"; // TODO: Get from settings
+
+            var detail = new ThemeDetail(
+                theme.Name,
+                theme.Name,
+                theme.Version,
+                theme.Author,
+                theme.Description ?? string.Empty,
+                null,
+                theme.Name == activeThemeName,
+                [],
+                DateTime.UtcNow
+            );
+
+            return TypedResults.Ok(detail);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving theme for id={Id}", id);
+            return TypedResults.Problem(ex.Message);
+        }
     }
 
-    private static async Task<IResult> CreateTheme(CancellationToken cancellationToken = default)
+    private static async Task<IResult> GetCurrentTheme(
+        [FromServices] IServiceProvider sp,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
-        throw new NotImplementedException("ThemesApi.CreateTheme is not yet implemented");
+        var logger = loggerFactory.CreateLogger(typeof(ThemesApi));
+        try
+        {
+            var activeThemeName = "Default"; // TODO: Get from settings
+            var theme = sp.GetThemeModules().FirstOrDefault(t => t.Name == activeThemeName) 
+                        ?? sp.GetThemeModules().FirstOrDefault();
+
+            if (theme is null)
+            {
+                return TypedResults.NotFound(new { error = "No themes found." });
+            }
+
+            var detail = new ThemeDetail(
+                theme.Name,
+                theme.Name,
+                theme.Version,
+                theme.Author,
+                theme.Description ?? string.Empty,
+                null,
+                true,
+                [],
+                DateTime.UtcNow
+            );
+
+            return TypedResults.Ok(detail);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving current theme");
+            return TypedResults.Problem(ex.Message);
+        }
     }
 
-    private static async Task<IResult> UpdateTheme(string id, CancellationToken cancellationToken = default)
+    private static async Task<IResult> ActivateTheme(
+        string id,
+        [FromServices] IServiceProvider sp,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
-        throw new NotImplementedException($"ThemesApi.UpdateTheme({id}) is not yet implemented");
+        var logger = loggerFactory.CreateLogger(typeof(ThemesApi));
+        try
+        {
+            var theme = sp.GetThemeModules().FirstOrDefault(t => t.Name == id);
+
+            if (theme is null)
+            {
+                return TypedResults.NotFound(new { error = $"Theme with ID '{id}' not found." });
+            }
+
+            // TODO: Save active theme to settings
+            
+            var detail = new ThemeDetail(
+                theme.Name,
+                theme.Name,
+                theme.Version,
+                theme.Author,
+                theme.Description ?? string.Empty,
+                null,
+                true,
+                [],
+                DateTime.UtcNow
+            );
+
+            return TypedResults.Ok(detail);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error activating theme id={Id}", id);
+            return TypedResults.Problem(ex.Message);
+        }
     }
 
-    private static async Task<IResult> DeleteTheme(string id, CancellationToken cancellationToken = default)
+    private static async Task<IResult> UploadTheme(
+        [FromBody] UploadThemeRequest request,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
-        throw new NotImplementedException($"ThemesApi.DeleteTheme({id}) is not yet implemented");
+        var logger = loggerFactory.CreateLogger(typeof(ThemesApi));
+        try
+        {
+            // In a modular system, uploading a theme might involve saving a ZIP and restarting or dynamic loading
+            return TypedResults.Problem("Theme upload not implemented.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error uploading theme");
+            return TypedResults.Problem(ex.Message);
+        }
     }
 
-    private static async Task<IResult> ActivateTheme(string id, CancellationToken cancellationToken = default)
+    private static async Task<IResult> DeleteTheme(
+        string id,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
-        throw new NotImplementedException($"ThemesApi.ActivateTheme({id}) is not yet implemented");
+        var logger = loggerFactory.CreateLogger(typeof(ThemesApi));
+        try
+        {
+            return TypedResults.Problem("Theme deletion not implemented.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting theme id={Id}", id);
+            return TypedResults.Problem(ex.Message);
+        }
     }
 }

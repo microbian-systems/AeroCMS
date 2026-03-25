@@ -19,10 +19,34 @@ public interface IBlogPostContentService
     Task<Result<string, IReadOnlyList<Tag>>> GetAllTagsAsync(CancellationToken cancellationToken = default);
     Task<Result<string, IReadOnlyList<Category>>> GetAllCategoriesAsync(CancellationToken cancellationToken = default);
     Task<Result<string, BlogAuthor?>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default);
+    Task<Result<string, bool>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
 public sealed class MartenBlogPostContentService(IDocumentSession session) : IBlogPostContentService
 {
+    public async Task<Result<string, bool>> DeleteAsync(long id, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ValidateId(id);
+            var reservation = await session.Query<ContentSlugDocument>()
+                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.BlogPost, token: cancellationToken);
+
+            if (reservation is not null)
+            {
+                session.Delete(reservation);
+            }
+
+            session.Delete<BlogPostDocument>(id);
+            await session.SaveChangesAsync(cancellationToken);
+            return Prelude.Ok<string, bool>(true);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<string, bool>(ex.Message);
+        }
+    }
+
     public async Task<Result<string, BlogPostDocument?>> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
         try

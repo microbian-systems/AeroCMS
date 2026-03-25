@@ -1,5 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Pages.Validators;
+using Aero.Core;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -13,6 +14,9 @@ public interface IPageContentService
     Task<Result<string, PageDocument?>> LoadBlogListingAsync(CancellationToken cancellationToken = default);
     Task<Result<string, IReadOnlyList<PageDocument>>> GetAllPagesAsync(CancellationToken cancellationToken = default);
     Task<Result<string, PageDocument>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
+    Task<Result<string, PageDocument>> CreateAsync(Requests.CreatePageRequest request, CancellationToken cancellationToken = default);
+    Task<Result<string, PageDocument>> UpdateAsync(long id, Requests.UpdatePageRequest request, CancellationToken cancellationToken = default);
+    Task<Result<string, bool>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
 public sealed class MartenPageContentService(IDocumentSession session) : IPageContentService
@@ -74,6 +78,63 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
         catch (Exception ex)
         {
             return Prelude.Fail<string, PageDocument?>(ex.Message);
+        }
+    }
+
+    public async Task<Result<string, PageDocument>> CreateAsync(Requests.CreatePageRequest request, CancellationToken cancellationToken = default)
+    {
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            Title = request.Title,
+            Slug = request.Slug,
+            Summary = request.Summary,
+            SeoTitle = request.SeoTitle,
+            SeoDescription = request.SeoDescription,
+            PublicationState = request.PublicationState
+        };
+
+        return await SaveAsync(page, cancellationToken);
+    }
+
+    public async Task<Result<string, PageDocument>> UpdateAsync(long id, Requests.UpdatePageRequest request, CancellationToken cancellationToken = default)
+    {
+        var loadResult = await LoadAsync(id, cancellationToken);
+        if (loadResult is Result<string, PageDocument?>.Ok { Value: not null } ok)
+        {
+            var page = ok.Value;
+            page.Title = request.Title;
+            page.Slug = request.Slug;
+            page.Summary = request.Summary;
+            page.SeoTitle = request.SeoTitle;
+            page.SeoDescription = request.SeoDescription;
+            page.PublicationState = request.PublicationState;
+
+            return await SaveAsync(page, cancellationToken);
+        }
+
+        return Prelude.Fail<string, PageDocument>($"Page with id '{id}' not found");
+    }
+
+    public async Task<Result<string, bool>> DeleteAsync(long id, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var reservation = await session.Query<ContentSlugDocument>()
+                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.Page, token: cancellationToken);
+
+            if (reservation is not null)
+            {
+                session.Delete(reservation);
+            }
+
+            session.Delete<PageDocument>(id);
+            await session.SaveChangesAsync(cancellationToken);
+            return Prelude.Ok<string, bool>(true);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<string, bool>(ex.Message);
         }
     }
 

@@ -16,30 +16,31 @@ public static class BlogApi
     /// </summary>
     public static void MapBlogApi(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/blog/posts", ListPosts)
-            .WithName("ListPosts")
-            .WithTags("Blog");
+        var group = app.MapGroup("/api/v1/admin/blogs")
+            .WithTags("Admin - Blog");
 
-        app.MapGet("/api/v1/blog/posts/{slug}", GetPostBySlug)
-            .WithName("GetPostBySlug")
-            .WithTags("Blog");
+        group.MapGet("/", ListPosts)
+            .WithName("ListPosts");
 
-        app.MapGet("/api/v1/blog/posts/by-tag/{tag}", GetPostsByTag)
-            .WithName("GetPostsByTag")
-            .WithTags("Blog");
+        group.MapGet("/{id:long}", GetPostById)
+            .WithName("GetPostById");
 
-        app.MapPost("/api/v1/blog/posts", CreatePost)
-            .WithName("CreatePost")
-            .WithTags("Blog");
+        group.MapGet("/slug/{slug}", GetPostBySlug)
+            .WithName("GetPostBySlug");
 
-        app.MapPut("/api/v1/blog/posts/{id}", UpdatePost)
-            .WithName("UpdatePost")
-            .WithTags("Blog");
+        group.MapPost("/", CreatePost)
+            .WithName("CreatePost");
+
+        group.MapPut("/{id:long}", UpdatePost)
+            .WithName("UpdatePost");
+
+        group.MapDelete("/{id:long}", DeletePost)
+            .WithName("DeletePost");
     }
 
     private static async Task<IResult> ListPosts(
-        IBlogPostContentService blogService,
-        ILoggerFactory loggerFactory,
+        [FromServices] IBlogPostContentService blogService,
+        [FromServices] ILoggerFactory loggerFactory,
         int count = 20,
         CancellationToken cancellationToken = default)
     {
@@ -70,8 +71,8 @@ public static class BlogApi
 
     private static async Task<IResult> GetPostBySlug(
         string slug,
-        IBlogPostContentService blogService,
-        ILoggerFactory loggerFactory,
+        [FromServices] IBlogPostContentService blogService,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger(typeof(BlogApi));
@@ -101,9 +102,9 @@ public static class BlogApi
 
     private static async Task<IResult> GetPostsByTag(
         string tag,
-        IBlogPostContentService blogService,
-        IDocumentSession session,
-        ILoggerFactory loggerFactory,
+        [FromServices] IBlogPostContentService blogService,
+        [FromServices] IDocumentSession session,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger(typeof(BlogApi));
@@ -272,6 +273,72 @@ public static class BlogApi
         catch (Exception ex)
         {
             return TypedResults.BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private static async Task<IResult> GetPostById(
+        long id,
+        [FromServices] IBlogPostContentService blogService,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(BlogApi));
+        try
+        {
+            var result = await blogService.LoadAsync(id, cancellationToken);
+
+            if (result is Result<string, BlogPostDocument?>.Failure failure)
+            {
+                logger.LogWarning("Blog post not found for id={Id}: {Error}", id, failure.Error);
+                return TypedResults.NotFound();
+            }
+
+            if (result is Result<string, BlogPostDocument?>.Ok { Value: not null } ok)
+            {
+                return TypedResults.Ok(ok.Value);
+            }
+
+            return TypedResults.NotFound();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error retrieving blog post for id={Id}", id);
+            return TypedResults.NotFound();
+        }
+    }
+
+    private static async Task<IResult> DeletePost(
+        long id,
+        [FromServices] IBlogPostContentService blogService,
+        [FromServices] IAuditService auditService,
+        [FromServices] IHttpContextAccessor httpContextAccessor,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(BlogApi));
+        try
+        {
+            var loadResult = await blogService.LoadAsync(id, cancellationToken);
+            if (loadResult is Result<string, BlogPostDocument?>.Ok { Value: not null } ok)
+            {
+                var post = ok.Value;
+                var result = await blogService.DeleteAsync(id, cancellationToken);
+
+                if (result is Result<string, bool>.Ok { Value: true })
+                {
+                    var userId = GetUserId(httpContextAccessor);
+                    var auditEvent = BlogPostDeletedEvent.Create(userId, post.Id, post.Title);
+                    await auditService.LogAsync(auditEvent, cancellationToken);
+                    return TypedResults.Ok(true);
+                }
+            }
+
+            return TypedResults.NotFound();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting blog post for id={Id}", id);
+            return TypedResults.Problem(ex.Message);
         }
     }
 

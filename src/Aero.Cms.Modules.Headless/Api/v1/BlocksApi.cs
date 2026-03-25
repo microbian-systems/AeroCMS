@@ -11,9 +11,11 @@ public static class BlocksApi
     /// </summary>
     public static void MapBlocksApi(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/blocks/{id:long}", GetBlockById)
-            .WithName("GetBlockById")
-            .WithTags("Blocks");
+        var group = app.MapGroup("/api/v1/admin/blocks")
+            .WithTags("Admin - Blocks");
+
+        group.MapGet("/{id:long}", GetBlockById)
+            .WithName("GetBlockById");
     }
 
     private static async Task<IResult> GetBlockById(

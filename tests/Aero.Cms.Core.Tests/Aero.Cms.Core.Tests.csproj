@@ -21,10 +21,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="TUnit" Version="0.50.0" />
+    <PackageReference Include="Alba" Version="8.1.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <!-- Real project module assemblies for integration testing -->

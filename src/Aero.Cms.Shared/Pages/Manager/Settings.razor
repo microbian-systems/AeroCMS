@@ -1,0 +1,109 @@
+@page "/manager/settings"
+@using Aero.Cms.Core.Http.Clients
+@using Aero.Core.Railway
+@inject ISettingsHttpClient SettingsClient
+@inject NotificationService NotificationService
+
+<div class="p-6 max-w-4xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Manager Settings</h1>
+        <p class="mt-2 text-sm text-gray-600">Configure security and access options for the management interface.</p>
+    </div>
+
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6 space-y-6">
+            <!-- Public Access Setting -->
+            <div class="flex items-start">
+                <div class="flex items-center h-5">
+                    <input id="disable-public-access" type="checkbox" @bind="disablePublicAccess" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                </div>
+                <div class="ml-3 text-sm">
+                    <label for="disable-public-access" class="font-medium text-gray-700">Disable Public Access</label>
+                    <p class="text-gray-500">When enabled, the manager interface will only be accessible from authorized IP addresses or internal networks.</p>
+                </div>
+            </div>
+
+            <!-- WASM Install Setting -->
+            <div class="flex items-start">
+                <div class="flex items-center h-5">
+                    <input id="require-wasm-install" type="checkbox" @bind="requireWasmInstall" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                </div>
+                <div class="ml-3 text-sm">
+                    <label for="require-wasm-install" class="font-medium text-gray-700">Require WASM Install</label>
+                    <p class="text-gray-500">Force users to install the manager as a WebAssembly PWA for offline access and improved performance.</p>
+                </div>
+            </div>
+
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <button type="button" @onclick="SaveSettings" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        @if (isSaving)
+                        {
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        }
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool disablePublicAccess;
+    private bool requireWasmInstall;
+    private bool isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettings();
+    }
+
+    private async Task LoadSettings()
+    {
+        var result = await SettingsClient.GetByCategoryAsync("Security");
+        if (result is Result<string, IReadOnlyList<SettingDetail>>.Ok ok)
+        {
+            disablePublicAccess = ok.Value.FirstOrDefault(s => s.Key == "Manager.DisablePublicAccess")?.Value == "true";
+            requireWasmInstall = ok.Value.FirstOrDefault(s => s.Key == "Manager.RequireWasmInstall")?.Value == "true";
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        isSaving = true;
+        try
+        {
+            var r1 = await SettingsClient.SetAsync(new SetSettingRequest("Manager.DisablePublicAccess", disablePublicAccess.ToString().ToLower(), "Security", "bool"));
+            var r2 = await SettingsClient.SetAsync(new SetSettingRequest("Manager.RequireWasmInstall", requireWasmInstall.ToString().ToLower(), "Security", "bool"));
+
+            if (r1.IsSuccess && r2.IsSuccess)
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Settings Saved",
+                    Detail = "Manager settings have been updated successfully.",
+                    Duration = 4000
+                });
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Save Failed",
+                    Detail = "Could not save one or more settings.",
+                    Duration = 4000
+                });
+            }
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

@@ -2,6 +2,10 @@ using Aero.Cms.Web.Core.Modules;
 
 namespace Aero.Cms.Modules.Logging;
 
+
+/// <summary>
+/// Design to trap errors in the manager application (errors only)
+/// </summary>
 public class AeroLoggingModule : AeroModuleBase
 {
     public override string Name => nameof(AeroLoggingModule);
