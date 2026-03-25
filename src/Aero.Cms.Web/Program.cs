@@ -4,6 +4,7 @@ using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Components;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Services;
+using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -16,6 +17,7 @@ builder.AddServiceDefaults();
 services.AddControllersWithViews();
 services.AddAuthentication();
 services.AddAuthorization();
+services.AddRadzenComponents();
 services.AddRazorPages()
     .AddApplicationPart(typeof(SetupModule).Assembly)
     .AddApplicationPart(typeof(Aero.Cms.Modules.Docs.DocsModule).Assembly)

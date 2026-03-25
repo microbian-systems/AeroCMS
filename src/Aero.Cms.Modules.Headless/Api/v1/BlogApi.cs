@@ -39,10 +39,11 @@ public static class BlogApi
 
     private static async Task<IResult> ListPosts(
         IBlogPostContentService blogService,
-        ILogger logger,
+        ILoggerFactory loggerFactory,
         int count = 20,
         CancellationToken cancellationToken = default)
     {
+        var logger = loggerFactory.CreateLogger(typeof(BlogApi));
         try
         {
             var result = await blogService.GetLatestPostsAsync(count, cancellationToken);
@@ -70,9 +71,10 @@ public static class BlogApi
     private static async Task<IResult> GetPostBySlug(
         string slug,
         IBlogPostContentService blogService,
-        ILogger logger,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        var logger = loggerFactory.CreateLogger(typeof(BlogApi));
         try
         {
             var result = await blogService.FindBySlugAsync(slug, cancellationToken);
@@ -101,9 +103,10 @@ public static class BlogApi
         string tag,
         IBlogPostContentService blogService,
         IDocumentSession session,
-        ILogger logger,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        var logger = loggerFactory.CreateLogger(typeof(BlogApi));
         try
         {
             // First, find the tag by slug
@@ -141,10 +144,10 @@ public static class BlogApi
 
     private static async Task<IResult> CreatePost(
         [FromBody] CreateBlogPostRequest request,
-        IBlogPostContentService blogService,
-        IAuditService auditService,
-        IHttpContextAccessor httpContextAccessor,
-        IDocumentSession session,
+        [FromServices] IBlogPostContentService blogService,
+        [FromServices] IAuditService auditService,
+        [FromServices] IHttpContextAccessor httpContextAccessor,
+        [FromServices] IDocumentSession session,
         CancellationToken cancellationToken)
     {
         try
@@ -201,10 +204,10 @@ public static class BlogApi
     private static async Task<IResult> UpdatePost(
         long id,
         [FromBody] UpdateBlogPostRequest request,
-        IBlogPostContentService blogService,
-        IAuditService auditService,
-        IHttpContextAccessor httpContextAccessor,
-        IDocumentSession session,
+        [FromServices] IBlogPostContentService blogService,
+        [FromServices] IAuditService auditService,
+        [FromServices] IHttpContextAccessor httpContextAccessor,
+        [FromServices] IDocumentSession session,
         CancellationToken cancellationToken)
     {
         try

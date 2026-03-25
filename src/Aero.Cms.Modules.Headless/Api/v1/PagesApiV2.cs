@@ -49,9 +49,10 @@ public static class PagesApiV2
         string culture,
         string slug,
         IPageContentService pageService,
-        ILogger logger,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        var logger = loggerFactory.CreateLogger(typeof(PagesApiV2));
         try
         {
             var result = await pageService.FindBySlugAsync(slug, cancellationToken);
@@ -79,9 +80,10 @@ public static class PagesApiV2
 
     private static async Task<IResult> ListPages(
         IPageContentService pageService,
-        ILogger logger,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        var logger = loggerFactory.CreateLogger(typeof(PagesApiV2));
         // Query published pages directly using the service's session-like pattern
         // For now, return empty array - the service doesn't have a list method
         // This would need to be extended to query all pages and filter by PublicationState
@@ -89,11 +91,11 @@ public static class PagesApiV2
     }
 
     private static async Task<IResult> CreatePage(
-        CreatePageRequest request,
-        IPageContentService pageService,
-        IAuditService auditService,
-        IHttpContextAccessor httpContextAccessor,
-        IDocumentSession session,
+        [FromBody] CreatePageRequest request,
+        [FromServices] IPageContentService pageService,
+        [FromServices] IAuditService auditService,
+        [FromServices] IHttpContextAccessor httpContextAccessor,
+        [FromServices] IDocumentSession session,
         CancellationToken cancellationToken)
     {
         try
@@ -147,11 +149,11 @@ public static class PagesApiV2
 
     private static async Task<IResult> UpdatePage(
         long id,
-        UpdatePageRequest request,
-        IPageContentService pageService,
-        IAuditService auditService,
-        IHttpContextAccessor httpContextAccessor,
-        IDocumentSession session,
+        [FromBody] UpdatePageRequest request,
+        [FromServices] IPageContentService pageService,
+        [FromServices] IAuditService auditService,
+        [FromServices] IHttpContextAccessor httpContextAccessor,
+        [FromServices] IDocumentSession session,
         CancellationToken cancellationToken)
     {
         try

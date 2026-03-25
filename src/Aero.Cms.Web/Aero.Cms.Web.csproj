@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Banners\Aero.Cms.Banners.csproj" />
     <ProjectReference Include="..\Aero.Cms.CookiePolicy\Aero.Cms.CookiePolicy.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Blog.Importer\Aero.Cms.Modules.Blog.Importer.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />

@@ -57,6 +57,8 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
     <PackageVersion Include="Radzen.Blazor" Version="10.0.6" />
     <PackageVersion Include="RazorSlices" Version="0.9.5" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.13.14" />
+    <PackageVersion Include="Scalar.AspNetCore.Microsoft" Version="2.13.14" />
     <PackageVersion Include="Scrutor" Version="7.0.0" />
     <PackageVersion Include="Scrutor.AspNetCore" Version="3.3.0" />
     <PackageVersion Include="Serilog" Version="4.3.1" />

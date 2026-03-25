@@ -134,10 +134,10 @@ public static class PagesApi
 
     private static async Task<IResult> CreatePage(
         [FromBody] CreatePageRequest request,
-        IPageContentService pageService,
-        IDocumentSession session,
-        IHttpContextAccessor httpContextAccessor,
-        ILoggerFactory loggerFactory,
+        [FromServices] IPageContentService pageService,
+        [FromServices] IDocumentSession session,
+        [FromServices] IHttpContextAccessor httpContextAccessor,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
@@ -192,10 +192,10 @@ public static class PagesApi
     private static async Task<IResult> UpdatePage(
         long id,
         [FromBody] UpdatePageRequest request,
-        IPageContentService pageService,
-        IDocumentSession session,
-        IHttpContextAccessor httpContextAccessor,
-        ILoggerFactory loggerFactory,
+        [FromServices] IPageContentService pageService,
+        [FromServices] IDocumentSession session,
+        [FromServices] IHttpContextAccessor httpContextAccessor,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
