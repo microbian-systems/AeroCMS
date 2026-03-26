@@ -1,0 +1,15 @@
+@inherits LayoutComponentBase
+@inject Aero.Cms.Shared.Services.ManagerThemeService Theme
+@layout ManagerShellLayout
+
+@Body
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        if (Theme.IsDarkMode)
+        {
+            await Theme.SetDarkModeAsync(false);
+        }
+    }
+}

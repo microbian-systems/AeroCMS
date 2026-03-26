@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" />
+    <PackageReference Include="Marten" />
+    <PackageReference Include="Radzen.Blazor" />
+    <PackageReference Include="Shouldly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Services\Aero.Cms.Services.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

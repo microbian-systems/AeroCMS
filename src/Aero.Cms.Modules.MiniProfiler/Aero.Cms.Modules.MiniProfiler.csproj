@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MiniProfiler.AspNetCore" />
+    <PackageReference Include="MiniProfiler.AspNetCore.Mvc" />
+    <PackageReference Include="MiniProfiler.EntityFrameworkCore" />
+  </ItemGroup>
+
+</Project>

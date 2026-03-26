@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <PackageReference Include="TickerQ" />
+    <PackageReference Include="TickerQ.Caching.StackExchangeRedis" />
+    <PackageReference Include="TickerQ.Dashboard" />
+    <PackageReference Include="TickerQ.EntityFrameworkCore" />
+    <PackageReference Include="TickerQ.Instrumentation.OpenTelemetry" />
+    <PackageReference Include="TickerQ.Utilities" />
+  </ItemGroup>
+
+</Project>

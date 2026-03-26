@@ -1,0 +1,41 @@
+<aside class="pe-sidebar @(Side == SidebarSide.Right ? "pe-sidebar-right" : "") @(IsCollapsed ? "collapsed" : "")">
+    <div class="pe-sidebar-header">
+        @if (Side == SidebarSide.Left)
+        {
+            <button class="pe-collapse-btn" @onclick="Toggle" title="Toggle Sidebar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+        }
+        
+        @if (!IsCollapsed)
+        {
+            <span class="pe-sidebar-title">@Title</span>
+        }
+
+        @if (Side == SidebarSide.Right)
+        {
+            <button class="pe-collapse-btn" @onclick="Toggle" title="Toggle Sidebar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        }
+    </div>
+    <div class="pe-sidebar-content">
+        <CascadingValue Value="IsCollapsed">
+            @ChildContent
+        </CascadingValue>
+    </div>
+</aside>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Navigation";
+    [Parameter] public bool IsCollapsed { get; set; }
+    [Parameter] public SidebarSide Side { get; set; } = SidebarSide.Left;
+    [Parameter] public EventCallback<bool> IsCollapsedChanged { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private async Task Toggle()
+    {
+        IsCollapsed = !IsCollapsed;
+        await IsCollapsedChanged.InvokeAsync(IsCollapsed);
+    }
+}

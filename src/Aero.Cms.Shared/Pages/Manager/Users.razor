@@ -1,0 +1,25 @@
+@page "/manager/users"
+@page "/manager/users/general"
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Users</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage user accounts, roles, and permissions.</p>
+        </div>
+        <RadzenButton Icon="person_add" Text="Invite User" ButtonStyle="ButtonStyle.Primary" />
+    </div>
+
+    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
+                    EmptyText="No users found. Admin is solitary for now.">
+        <Columns>
+            <RadzenDataGridColumn TItem="object" Property="Email" Title="Email" />
+            <RadzenDataGridColumn TItem="object" Property="Name" Title="Full Name" />
+            <RadzenDataGridColumn TItem="object" Property="Role" Title="Role" />
+            <RadzenDataGridColumn TItem="object" Property="Status" Title="Status" />
+        </Columns>
+    </RadzenDataGrid>
+</div>
+
+@code {
+}

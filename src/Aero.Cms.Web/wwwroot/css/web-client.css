@@ -1,0 +1,53 @@
+/* 
+  Aero CMS Web Client Theme
+  Targeting Tailwind CSS v4 Browser Engine
+*/
+
+@theme {
+  /* Fonts */
+  --font-display: "Satoshi", "Inter", sans-serif;
+  --font-sans: "Inter", "system-ui", sans-serif;
+
+  /* Screen Breakpoints */
+  --breakpoint-3xl: 120rem;
+
+  /* Custom Color Palette (Avocado) */
+  --color-avocado-100: oklch(0.99 0 0);
+  --color-avocado-200: oklch(0.98 0.04 113.22);
+  --color-avocado-300: oklch(0.94 0.11 115.03);
+  --color-avocado-400: oklch(0.92 0.19 114.08);
+  --color-avocado-500: oklch(0.84 0.18 117.33);
+  --color-avocado-600: oklch(0.53 0.12 118.34);
+
+  /* Brand Accents */
+  --color-brand-600: oklch(0.51 0.22 262.38); /* Premium Indigo */
+  --color-brand-700: oklch(0.44 0.19 261.21);
+
+  /* Animation Easing */
+  --ease-fluid: cubic-bezier(0.3, 0, 0, 1);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Styling Hooks */
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+}
+
+/* Base Styles */
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  
+  body {
+    @apply font-sans;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-black tracking-tight;
+  }
+  
+  /* Shared block utilities */
+  .container-wide {
+    @apply mx-auto px-4 sm:px-6 lg:px-12 max-w-[100rem];
+  }
+}

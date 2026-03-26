@@ -1,0 +1,17 @@
+using Aero.Cms.Core.Blocks;
+
+namespace Aero.Cms.Core.Blocks;
+
+/// <summary>
+/// Service for retrieving CMS blocks.
+/// </summary>
+public interface IBlockService
+{
+    /// <summary>
+    /// Loads a block by its unique identifier.
+    /// </summary>
+    /// <param name="id">The block ID.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The block if found, otherwise null.</returns>
+    Task<BlockBase?> GetByIdAsync(long id, CancellationToken ct = default);
+}

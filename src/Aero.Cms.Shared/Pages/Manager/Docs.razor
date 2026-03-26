@@ -1,0 +1,138 @@
+@page "/manager/docs"
+@page "/manager/docs/general"
+@page "/manager/docs/categories/{slug}"
+
+@using Aero.Cms.Core.Http.Clients
+@inject DocsClient DocsClient
+@inject NavigationManager NavigationManager
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Documentation</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage hierarchical docs, guides, and API reference.</p>
+        </div>
+        <div class="flex space-x-3">
+            <RadzenButton Icon="add" Text="New Category" ButtonStyle="ButtonStyle.Light" />
+            <RadzenButton Icon="add" Text="New Article" ButtonStyle="ButtonStyle.Primary" />
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <RadzenCard class="lg:col-span-1 border-r border-gray-100">
+            <RadzenText TextStyle="TextStyle.H6" class="mb-4">Explorer</RadzenText>
+            <RadzenTree Change="@OnTreeChange">
+                @if (categories != null)
+                {
+                    @foreach (var category in categories)
+                    {
+                        <RadzenTreeItem Text="@category.Title" Value="@category.Slug" Selected="@(category.Slug == slug)" />
+                    }
+                }
+            </RadzenTree>
+        </RadzenCard>
+        
+        <RadzenCard class="lg:col-span-3">
+            <div class="flex items-center justify-between mb-4">
+                <RadzenText TextStyle="TextStyle.H6">
+                    @(selectedCategory?.Title ?? "Recent Articles")
+                </RadzenText>
+                @if (selectedCategory != null)
+                {
+                    <RadzenButton Icon="edit" Text="Edit Category" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" />
+                }
+            </div>
+            
+            <RadzenDataGrid Data="@articles" TItem="DocsSummary" AllowPaging="true" PageSize="10" 
+                            EmptyText="No articles found in this category.">
+                <Columns>
+                    <RadzenDataGridColumn TItem="DocsSummary" Property="Title" Title="Title" />
+                    <RadzenDataGridColumn TItem="DocsSummary" Property="Slug" Title="Slug" />
+                    <RadzenDataGridColumn TItem="DocsSummary" Property="Order" Title="Order" Width="80px" />
+                    <RadzenDataGridColumn TItem="DocsSummary" Title="Actions" Width="100px" TextAlign="TextAlign.Center">
+                        <Template Context="doc">
+                            <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenCard>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? slug { get; set; }
+    private IReadOnlyList<DocsSummary>? categories;
+    private IReadOnlyList<DocsSummary>? articles;
+    private DocsDetail? selectedCategory;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await DocsClient.GetCategoriesAsync();
+        if (result is Result<string, IReadOnlyList<DocsSummary>>.Ok ok)
+        {
+            categories = ok.Value;
+        }
+        else if (result is Result<string, IReadOnlyList<DocsSummary>>.Failure failure)
+        {
+            ShowError("Failed to load categories", failure.Error);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(slug) && slug != "general")
+        {
+            var categoryResult = await DocsClient.GetBySlugAsync(slug);
+            if (categoryResult is Result<string, DocsDetail>.Ok ok && ok.Value != null)
+            {
+                selectedCategory = ok.Value;
+                var childrenResult = await DocsClient.GetChildrenAsync(selectedCategory.Id);
+                if (childrenResult is Result<string, IReadOnlyList<DocsSummary>>.Ok childrenOk)
+                {
+                    articles = childrenOk.Value;
+                }
+                else if (childrenResult is Result<string, IReadOnlyList<DocsSummary>>.Failure childrenFailure)
+                {
+                    ShowError("Failed to load articles", childrenFailure.Error);
+                }
+            }
+            else if (categoryResult is Result<string, DocsDetail>.Failure failure)
+            {
+                ShowError("Failed to load category", failure.Error);
+            }
+        }
+        else
+        {
+            selectedCategory = null;
+            var allResult = await DocsClient.GetAllAsync();
+            if (allResult is Result<string, IReadOnlyList<DocsSummary>>.Ok ok)
+            {
+                articles = ok.Value;
+            }
+            else if (allResult is Result<string, IReadOnlyList<DocsSummary>>.Failure failure)
+            {
+                ShowError("Failed to load articles", failure.Error);
+            }
+        }
+    }
+
+    private void ShowError(string summary, string detail)
+    {
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Error,
+            Summary = summary,
+            Detail = detail,
+            Duration = 4000
+        });
+    }
+
+    private void OnTreeChange(TreeEventArgs args)    {
+        var categorySlug = args.Value as string;
+        if (!string.IsNullOrEmpty(categorySlug))
+        {
+            NavigationManager.NavigateTo($"/manager/docs/categories/{categorySlug}");
+        }
+    }
+}

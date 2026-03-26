@@ -1,0 +1,23 @@
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    <figure class="my-6">
+        <img src="/api/media/@Block.MediaId" 
+             alt="@Block.AltText" 
+             class="w-full h-auto rounded-lg shadow-md" 
+             loading="lazy" />
+        
+        @if (!string.IsNullOrWhiteSpace(Block.Caption))
+        {
+            <figcaption class="mt-2 text-sm text-gray-600 text-center italic">
+                @Block.Caption
+            </figcaption>
+        }
+    </figure>
+}
+
+@code {
+    [Parameter]
+    public Aero.Cms.Core.Blocks.ImageBlock? Block { get; set; }
+}

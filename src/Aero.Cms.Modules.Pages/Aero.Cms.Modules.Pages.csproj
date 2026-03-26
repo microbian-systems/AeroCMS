@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Markdig" />
+    <PackageReference Include="Marten" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

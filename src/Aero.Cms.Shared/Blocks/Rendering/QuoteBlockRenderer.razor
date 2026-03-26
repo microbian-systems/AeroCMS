@@ -1,0 +1,35 @@
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    <blockquote class="border-l-4 border-blue-500 pl-6 py-2 my-6 bg-gray-50 rounded-r-lg">
+        <p class="text-lg text-gray-800 italic mb-3">&ldquo;@Block.Content&rdquo;</p>
+        
+        @if (!string.IsNullOrWhiteSpace(Block.Author) || !string.IsNullOrWhiteSpace(Block.Citation))
+        {
+            <cite class="text-sm text-gray-600 not-italic">
+                @if (!string.IsNullOrWhiteSpace(Block.Author))
+                {
+                    <span class="font-semibold">@Block.Author</span>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Block.Citation))
+                {
+                    if (!string.IsNullOrWhiteSpace(Block.Author))
+                    {
+                        @(", ") <span class="text-gray-500">@Block.Citation</span>
+                    }
+                    else
+                    {
+                        <span class="text-gray-500">@Block.Citation</span>
+                    }
+                }
+            </cite>
+        }
+    </blockquote>
+}
+
+@code {
+    [Parameter]
+    public Aero.Cms.Core.Blocks.QuoteBlock? Block { get; set; }
+}

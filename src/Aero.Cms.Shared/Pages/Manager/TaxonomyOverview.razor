@@ -1,0 +1,46 @@
+@page "/manager/taxonomy"
+@page "/manager/taxonomy/general"
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Taxonomy</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage categories, tags, and classification systems.</p>
+        </div>
+        <div class="flex space-x-3">
+             <RadzenButton Icon="category" Text="Categories" Href="/manager/taxonomy/categories" ButtonStyle="ButtonStyle.Light" />
+             <RadzenButton Icon="label" Text="Tags" Href="/manager/taxonomy/tags" ButtonStyle="ButtonStyle.Light" />
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <RadzenCard class="p-6 bg-indigo-50 border-indigo-100 flex items-center space-x-4 cursor-pointer hover:shadow-md transition-shadow" @onclick="@(() => NavTo("categories"))">
+            <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-indigo-600 shadow-sm">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            </div>
+            <div>
+                <RadzenText TextStyle="TextStyle.H6" class="font-bold underline">Categories</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500">Manage content containers and hierarchies.</RadzenText>
+            </div>
+        </RadzenCard>
+        
+        <RadzenCard class="p-6 bg-emerald-50 border-emerald-100 flex items-center space-x-4 cursor-pointer hover:shadow-md transition-shadow" @onclick="@(() => NavTo("tags"))">
+            <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-emerald-600 shadow-sm">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+            </div>
+            <div>
+                <RadzenText TextStyle="TextStyle.H6" class="font-bold underline">Tags</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500">Manage flexible content taxonomies and labels.</RadzenText>
+            </div>
+        </RadzenCard>
+    </div>
+</div>
+
+@code {
+    [Inject] public NavigationManager Navigation { get; set; } = default!;
+
+    private void NavTo(string sub)
+    {
+        Navigation.NavigateTo($"/manager/taxonomy/{sub}");
+    }
+}

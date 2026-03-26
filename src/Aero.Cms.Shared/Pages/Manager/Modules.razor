@@ -1,0 +1,37 @@
+@page "/manager/modules"
+@page "/manager/modules/general"
+@inject DialogService DialogService
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Modules</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage your system modules and extensions.</p>
+        </div>
+        <RadzenButton Icon="search" Text="Explore" ButtonStyle="ButtonStyle.Primary" />
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @for (int i = 0; i < 6; i++)
+        {
+            var moduleName = new[] { "Core", "Headless", "Manager", "Auth", "Setup", "Banners" }[i];
+            <RadzenCard class="p-6 cursor-pointer hover:border-indigo-500 transition-colors shadow-sm" @onclick="() => OpenDetail(moduleName)">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 font-bold">@moduleName[0]</div>
+                    <div>
+                        <RadzenText TextStyle="TextStyle.H6" class="font-bold leading-none">Aero.Cms.Modules.@moduleName</RadzenText>
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Active" class="mt-1" />
+                    </div>
+                </div>
+                <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500">System module providing core functionality and CMS capabilities for the @moduleName section.</RadzenText>
+            </RadzenCard>
+        }
+    </div>
+</div>
+
+@code {
+    private void OpenDetail(string name)
+    {
+        DialogService.OpenSide<RadzenText>(name, new Dictionary<string, object?> { { "Text", name } }, new SideDialogOptions { Position = DialogPosition.Right, Width = "400px" });
+    }
+}

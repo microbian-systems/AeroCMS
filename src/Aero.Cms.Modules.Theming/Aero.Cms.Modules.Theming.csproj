@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+  </ItemGroup>
+
+
+
+</Project>

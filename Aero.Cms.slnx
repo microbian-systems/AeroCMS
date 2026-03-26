@@ -1,8 +1,0 @@
-<Solution>
-  <Project Path="Aero.Cms.AppHost/Aero.Cms.AppHost.csproj" />
-  <Project Path="Aero.Cms.ServiceDefaults/Aero.Cms.ServiceDefaults.csproj" />
-  <Project Path="Aero.Cms.Shared/Aero.Cms.Shared.csproj" />
-  <Project Path="Aero.Cms.Web.Client/Aero.Cms.Web.Client.csproj" />
-  <Project Path="Aero.Cms.Web/Aero.Cms.Web.csproj" />
-  <Project Path="Aero.Cms/Aero.Cms.csproj" />
-</Solution>

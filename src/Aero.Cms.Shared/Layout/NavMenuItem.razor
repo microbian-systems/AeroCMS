@@ -1,0 +1,19 @@
+<NavLink class="pe-nav-link" href="@Href" Match="@Match">
+    <div class="pe-nav-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="@Icon" />
+        </svg>
+    </div>
+    @if (!IsCollapsed)
+    {
+        <span>@Label</span>
+    }
+</NavLink>
+
+@code {
+    [Parameter] public string Href { get; set; } = "";
+    [Parameter] public string Icon { get; set; } = "";
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public bool IsCollapsed { get; set; }
+    [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
+}

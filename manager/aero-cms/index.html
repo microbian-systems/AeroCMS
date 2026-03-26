@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aero CMS - Page Editor</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body x-data="cmsEditor()" x-init="init()">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="8" fill="#6366f1"/>
+                    <path d="M8 16L14 10L20 16L14 22L8 16Z" fill="white"/>
+                    <path d="M14 16L20 10L26 16L20 22L14 16Z" fill="white" opacity="0.6"/>
+                </svg>
+                <span class="logo-text">Aero</span>
+            </div>
+            <nav class="header-nav">
+                <a href="#" class="nav-link">Content</a>
+                <a href="#" class="nav-link active">Media</a>
+                <a href="#" class="nav-link">References</a>
+                <a href="#" class="nav-link">Settings</a>
+            </nav>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-ghost" @click="togglePreview()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Preview
+            </button>
+            <button class="btn btn-secondary" @click="savePage()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Save
+            </button>
+            <button class="btn btn-primary" @click="publishPage()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+                Publish
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" :class="{ 'collapsed': sidebarCollapsed }">
+            <div class="sidebar-header">
+                <button class="collapse-btn" @click="sidebarCollapsed = !sidebarCollapsed">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </button>
+                <span class="sidebar-title" x-show="!sidebarCollapsed">Blocks</span>
+            </div>
+            
+            <div class="sidebar-content" x-show="!sidebarCollapsed">
+                <!-- Content Category -->
+                <div class="category">
+                    <button class="category-header" @click="toggleCategory('content')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        Content
+                        <svg class="chevron" :class="{ 'rotated': categories.content }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                    <div class="category-items" x-show="categories.content" x-transition>
+                        <button class="block-item" @click="addBlock('hero')" draggable="true" @dragstart="dragStart($event, 'hero')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <line x1="3" y1="9" x2="21" y2="9"/>
+                                <line x1="9" y1="21" x2="9" y2="9"/>
+                            </svg>
+                            Hero
+                        </button>
+                        <button class="block-item" @click="addBlock('text')" draggable="true" @dragstart="dragStart($event, 'text')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="4 7 4 4 20 4 20 7"/>
+                                <line x1="9" y1="20" x2="15" y2="20"/>
+                                <line x1="12" y1="4" x2="12" y2="20"/>
+                            </svg>
+                            Text
+                        </button>
+                        <button class="block-item" @click="addBlock('columns')" draggable="true" @dragstart="dragStart($event, 'columns')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="18"/>
+                                <rect x="14" y="3" width="7" height="18"/>
+                            </svg>
+                            Columns
+                        </button>
+                        <button class="block-item" @click="addBlock('content')" draggable="true" @dragstart="dragStart($event, 'content')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <line x1="3" y1="9" x2="21" y2="9"/>
+                                <line x1="9" y1="21" x2="9" y2="9"/>
+                            </svg>
+                            Content
+                        </button>
+                        <button class="block-item" @click="addBlock('markdown')" draggable="true" @dragstart="dragStart($event, 'markdown')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            Markdown
+                        </button>
+                        <button class="block-item" @click="addBlock('quote')" draggable="true" @dragstart="dragStart($event, 'quote')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3"/>
+                            </svg>
+                            Quote
+                        </button>
+                        <button class="block-item" @click="addBlock('separator')" draggable="true" @dragstart="dragStart($event, 'separator')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            Separator
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Media Category -->
+                <div class="category">
+                    <button class="category-header" @click="toggleCategory('media')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        Media
+                        <svg class="chevron" :class="{ 'rotated': categories.media }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                    <div class="category-items" x-show="categories.media" x-transition>
+                        <button class="block-item" @click="addBlock('image')" draggable="true" @dragstart="dragStart($event, 'image')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            Image
+                        </button>
+                        <button class="block-item" @click="addBlock('video')" draggable="true" @dragstart="dragStart($event, 'video')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+                                <line x1="7" y1="2" x2="7" y2="22"/>
+                                <line x1="17" y1="2" x2="17" y2="22"/>
+                                <line x1="2" y1="12" x2="22" y2="12"/>
+                                <line x1="2" y1="7" x2="7" y2="7"/>
+                                <line x1="2" y1="17" x2="7" y2="17"/>
+                                <line x1="17" y1="17" x2="22" y2="17"/>
+                                <line x1="17" y1="7" x2="22" y2="7"/>
+                            </svg>
+                            Video
+                        </button>
+                        <button class="block-item" @click="addBlock('gallery')" draggable="true" @dragstart="dragStart($event, 'gallery')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            Gallery
+                        </button>
+                        <button class="block-item" @click="addBlock('audio')" draggable="true" @dragstart="dragStart($event, 'audio')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 18V5l12-2v13"/>
+                                <circle cx="6" cy="18" r="3"/>
+                                <circle cx="18" cy="16" r="3"/>
+                            </svg>
+                            Audio
+                        </button>
+                    </div>
+                </div>
+
+                <!-- References Category -->
+                <div class="category">
+                    <button class="category-header" @click="toggleCategory('references')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                        References
+                        <svg class="chevron" :class="{ 'rotated': categories.references }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                    <div class="category-items" x-show="categories.references" x-transition>
+                        <button class="block-item" @click="addBlock('pages')" draggable="true" @dragstart="dragStart($event, 'pages')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            Pages
+                        </button>
+                        <button class="block-item" @click="addBlock('posts')" draggable="true" @dragstart="dragStart($event, 'posts')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                            Posts
+                        </button>
+                        <button class="block-item" @click="addBlock('categories')" draggable="true" @dragstart="dragStart($event, 'categories')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            Categories
+                        </button>
+                        <button class="block-item" @click="addBlock('tags')" draggable="true" @dragstart="dragStart($event, 'tags')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                                <line x1="7" y1="7" x2="7.01" y2="7"/>
+                            </svg>
+                            Tags
+                        </button>
+                        <button class="block-item" @click="addBlock('authors')" draggable="true" @dragstart="dragStart($event, 'authors')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            Authors
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Editor Area -->
+        <main class="editor-area" :class="{ 'preview-mode': previewMode }">
+            <!-- Page Header -->
+            <div class="page-header" x-show="!previewMode">
+                <input type="text" class="page-title-input" x-model="pageTitle" placeholder="Page Title">
+                <div class="page-meta">
+                    <span class="meta-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        Last saved: <span x-text="lastSaved"></span>
+                    </span>
+                    <span class="meta-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <span x-text="author"></span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Preview Header -->
+            <div class="preview-header" x-show="previewMode">
+                <div class="preview-devices">
+                    <button class="device-btn" :class="{ active: previewDevice === 'desktop' }" @click="previewDevice = 'desktop'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                    </button>
+                    <button class="device-btn" :class="{ active: previewDevice === 'tablet' }" @click="previewDevice = 'tablet'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                    </button>
+                    <button class="device-btn" :class="{ active: previewDevice === 'mobile' }" @click="previewDevice = 'mobile'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <button class="btn btn-ghost" @click="togglePreview()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    Close Preview
+                </button>
+            </div>
+
+            <!-- Blocks Container -->
+            <div class="blocks-container" 
+                 :class="{ 'preview-desktop': previewMode && previewDevice === 'desktop', 'preview-tablet': previewMode && previewDevice === 'tablet', 'preview-mobile': previewMode && previewDevice === 'mobile' }"
+                 @dragover.prevent="dragOver($event)" 
+                 @drop="drop($event)">
+                
+                <!-- Empty State -->
+                <div class="empty-state" x-show="blocks.length === 0 && !previewMode">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="12" y1="8" x2="12" y2="16"/>
+                        <line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                    <h3>Start building your page</h3>
+                    <p>Drag blocks from the sidebar or click to add them here</p>
+                </div>
+
+                <!-- Blocks -->
+                <template x-for="(block, index) in blocks" :key="block.id">
+                    <div class="block-wrapper" 
+                         :class="{ 'selected': selectedBlock === block.id, 'dragging': draggedBlock === block.id }"
+                         @click="selectBlock(block.id)"
+                         draggable="true"
+                         @dragstart="dragStartBlock($event, block.id, index)"
+                         @dragover.prevent="dragOverBlock($event, index)"
+                         @drop="dropBlock($event, index)">
+                        
+                        <!-- Block Toolbar -->
+                        <div class="block-toolbar" x-show="selectedBlock === block.id && !previewMode">
+                            <button class="toolbar-btn" @click.stop="moveBlockUp(index)" :disabled="index === 0">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="18 15 12 9 6 15"/>
+                                </svg>
+                            </button>
+                            <button class="toolbar-btn" @click.stop="moveBlockDown(index)" :disabled="index === blocks.length - 1">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
+                            <button class="toolbar-btn" @click.stop="duplicateBlock(index)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                </svg>
+                            </button>
+                            <button class="toolbar-btn delete" @click.stop="deleteBlock(index)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Block Content -->
+                        <div class="block-content">
+                            <!-- Hero Block -->
+                            <template x-if="block.type === 'hero'">
+                                <div class="hero-block" :style="block.backgroundImage ? 'background-image: url(' + block.backgroundImage + ')' : ''">
+                                    <div class="hero-overlay" x-show="block.backgroundImage"></div>
+                                    <div class="hero-content">
+                                        <input type="text" class="hero-title" x-model="block.mainText" placeholder="Main Headline" @focus="selectBlock(block.id)">
+                                        <input type="text" class="hero-subtitle" x-model="block.subText" placeholder="Sub headline or description" @focus="selectBlock(block.id)">
+                                        <div class="hero-cta-row">
+                                            <input type="text" class="hero-cta-text" x-model="block.ctaText" placeholder="Button text" @focus="selectBlock(block.id)">
+                                            <input type="text" class="hero-cta-url" x-model="block.ctaUrl" placeholder="Button URL" @focus="selectBlock(block.id)">
+                                        </div>
+                                        <div class="hero-bg-controls">
+                                            <button class="btn btn-secondary btn-sm" @click="openMediaSelector(block, false, 'background')" x-show="!block.backgroundImage">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                                                    <polyline points="21 15 16 10 5 21"/>
+                                                </svg>
+                                                Add Background Image
+                                            </button>
+                                            <button class="btn btn-ghost btn-sm" @click="block.backgroundImage = ''" x-show="block.backgroundImage">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                                </svg>
+                                                Remove Background
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Text Block -->
+                            <template x-if="block.type === 'text'">
+                                <div class="text-block">
+                                    <textarea x-model="block.content" placeholder="Enter your text here..." @focus="selectBlock(block.id)"></textarea>
+                                </div>
+                            </template>
+
+                            <!-- Rich Content Block -->
+                            <template x-if="block.type === 'content'">
+                                <div class="content-block">
+                                    <div class="rich-editor" :id="'editor-' + block.id" x-init="initEditor(block)"></div>
+                                </div>
+                            </template>
+
+                            <!-- Markdown Block -->
+                            <template x-if="block.type === 'markdown'">
+                                <div class="markdown-block">
+                                    <div class="markdown-tabs">
+                                        <button class="tab-btn" :class="{ active: block.view === 'edit' }" @click="block.view = 'edit'">Edit</button>
+                                        <button class="tab-btn" :class="{ active: block.view === 'preview' }" @click="block.view = 'preview'">Preview</button>
+                                    </div>
+                                    <textarea x-show="block.view === 'edit'" x-model="block.content" placeholder="# Markdown content..." @focus="selectBlock(block.id)"></textarea>
+                                    <div class="markdown-preview" x-show="block.view === 'preview'" x-html="renderMarkdown(block.content)"></div>
+                                </div>
+                            </template>
+
+                            <!-- Quote Block -->
+                            <template x-if="block.type === 'quote'">
+                                <div class="quote-block">
+                                    <blockquote>
+                                        <textarea x-model="block.content" placeholder="Enter quote text..." @focus="selectBlock(block.id)"></textarea>
+                                    </blockquote>
+                                    <input type="text" class="quote-author" x-model="block.author" placeholder="Author name" @focus="selectBlock(block.id)">
+                                </div>
+                            </template>
+
+                            <!-- Separator Block -->
+                            <template x-if="block.type === 'separator'">
+                                <hr class="separator-block">
+                            </template>
+
+                            <!-- Columns Block -->
+                            <template x-if="block.type === 'columns'">
+                                <div class="columns-block-wrapper">
+                                    <div class="columns-controls" x-show="selectedBlock === block.id && !previewMode">
+                                        <div class="column-count-control">
+                                            <label>Columns: <span x-text="block.columnCount"></span></label>
+                                            <input type="range" min="1" max="12" x-model="block.columnCount" @change="updateColumnCount(block)">
+                                        </div>
+                                        <div class="column-gap-control">
+                                            <label>Gap: <span x-text="block.gap + 'px'"></span></label>
+                                            <input type="range" min="0" max="64" x-model="block.gap">
+                                        </div>
+                                    </div>
+                                    <div class="columns-block" :style="'gap: ' + block.gap + 'px'">
+                                        <template x-for="(col, colIndex) in block.columns" :key="col.id">
+                                            <div class="column" 
+                                                 :style="'flex: 0 0 calc(' + (100 / block.columnCount) + '% - ' + (block.gap * (block.columnCount - 1) / block.columnCount) + 'px)'"
+                                                 @dragover.prevent="dragOverColumn($event, block, colIndex)"
+                                                 @drop="dropOnColumn($event, block, colIndex)">
+                                                <div class="column-header" x-show="selectedBlock === block.id && !previewMode">
+                                                    <span class="column-label">Col <span x-text="colIndex + 1"></span></span>
+                                                    <button class="column-add-btn" @click="addBlockToColumn(block, colIndex, 'text')" title="Add text">
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <line x1="12" y1="5" x2="12" y2="19"/>
+                                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <div class="column-content">
+                                                    <!-- Render nested blocks in column -->
+                                                    <template x-for="(nestedBlock, nestedIndex) in col.blocks" :key="nestedBlock.id">
+                                                        <div class="nested-block" :class="'nested-' + nestedBlock.type">
+                                                            <!-- Text in column -->
+                                                            <template x-if="nestedBlock.type === 'text'">
+                                                                <textarea x-model="nestedBlock.content" placeholder="Text..." rows="3"></textarea>
+                                                            </template>
+                                                            <!-- Image in column -->
+                                                            <template x-if="nestedBlock.type === 'image'">
+                                                                <div class="nested-image">
+                                                                    <template x-if="!nestedBlock.src">
+                                                                        <button class="add-nested-btn" @click="openMediaSelectorForNested(block, colIndex, nestedBlock)">
+                                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                                                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                                                                <polyline points="21 15 16 10 5 21"/>
+                                                                            </svg>
+                                                                        </button>
+                                                                    </template>
+                                                                    <template x-if="nestedBlock.src">
+                                                                        <img :src="nestedBlock.src" :alt="nestedBlock.alt">
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                            <!-- Video in column -->
+                                                            <template x-if="nestedBlock.type === 'video'">
+                                                                <div class="nested-video">
+                                                                    <template x-if="!nestedBlock.src">
+                                                                        <input type="text" x-model="nestedBlock.url" placeholder="Video URL" @keydown.enter="loadNestedVideo(block, colIndex, nestedBlock)">
+                                                                    </template>
+                                                                    <template x-if="nestedBlock.src">
+                                                                        <iframe :src="nestedBlock.src" frameborder="0" allowfullscreen></iframe>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                            <!-- Button in column -->
+                                                            <template x-if="nestedBlock.type === 'button'">
+                                                                <div class="nested-button-editor">
+                                                                    <input type="text" x-model="nestedBlock.text" placeholder="Button text">
+                                                                    <input type="text" x-model="nestedBlock.url" placeholder="URL">
+                                                                    <select x-model="nestedBlock.style">
+                                                                        <option value="primary">Primary</option>
+                                                                        <option value="secondary">Secondary</option>
+                                                                        <option value="outline">Outline</option>
+                                                                    </select>
+                                                                </div>
+                                                            </template>
+                                                            <!-- Remove nested block -->
+                                                            <button class="remove-nested-btn" @click="removeNestedBlock(block, colIndex, nestedIndex)" x-show="selectedBlock === block.id && !previewMode">
+                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                    <!-- Drop zone hint -->
+                                                    <div class="column-drop-hint" x-show="col.blocks.length === 0 && selectedBlock === block.id && !previewMode">
+                                                        <span>Drag blocks here or click + to add</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Image Block -->
+                            <template x-if="block.type === 'image'">
+                                <div class="image-block">
+                                    <template x-if="!block.src">
+                                        <button class="add-media-btn" @click="openMediaSelector(block)">
+                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                                <polyline points="21 15 16 10 5 21"/>
+                                            </svg>
+                                            <span>Add Image</span>
+                                        </button>
+                                    </template>
+                                    <template x-if="block.src">
+                                        <div class="image-wrapper">
+                                            <img :src="block.src" :alt="block.alt">
+                                            <div class="image-overlay">
+                                                <button class="overlay-btn" @click="openMediaSelector(block)">Change</button>
+                                                <button class="overlay-btn delete" @click="removeImage(block)">Remove</button>
+                                            </div>
+                                            <input type="text" class="image-caption" x-model="block.caption" placeholder="Add caption...">
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Video Block -->
+                            <template x-if="block.type === 'video'">
+                                <div class="video-block">
+                                    <template x-if="!block.src">
+                                        <div class="video-input">
+                                            <input type="text" x-model="block.url" placeholder="Enter video URL (YouTube, Vimeo, or direct link)">
+                                            <button class="btn btn-primary" @click="loadVideo(block)">Add Video</button>
+                                        </div>
+                                    </template>
+                                    <template x-if="block.src">
+                                        <div class="video-wrapper">
+                                            <iframe :src="block.src" frameborder="0" allowfullscreen></iframe>
+                                            <button class="remove-video" @click="removeVideo(block)">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Gallery Block -->
+                            <template x-if="block.type === 'gallery'">
+                                <div class="gallery-block">
+                                    <div class="gallery-grid">
+                                        <template x-for="(img, imgIndex) in block.images" :key="imgIndex">
+                                            <div class="gallery-item">
+                                                <img :src="img.src" :alt="img.alt">
+                                                <button class="remove-item" @click="removeGalleryImage(block, imgIndex)">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <line x1="18" y1="6" x2="6" y2="18"/>
+                                                        <line x1="6" y1="6" x2="18" y2="18"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <button class="add-gallery-item" @click="openMediaSelector(block, true)">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Audio Block -->
+                            <template x-if="block.type === 'audio'">
+                                <div class="audio-block">
+                                    <template x-if="!block.src">
+                                        <button class="add-media-btn" @click="openAudioSelector(block)">
+                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                <path d="M9 18V5l12-2v13"/>
+                                                <circle cx="6" cy="18" r="3"/>
+                                                <circle cx="18" cy="16" r="3"/>
+                                            </svg>
+                                            <span>Add Audio</span>
+                                        </button>
+                                    </template>
+                                    <template x-if="block.src">
+                                        <div class="audio-wrapper">
+                                            <audio controls :src="block.src"></audio>
+                                            <button class="remove-audio" @click="removeAudio(block)">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Pages/Posts/References Blocks -->
+                            <template x-if="['pages', 'posts', 'categories', 'tags', 'authors'].includes(block.type)">
+                                <div class="reference-block" :class="'reference-' + block.type">
+                                    <div class="reference-header">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <template x-if="block.type === 'pages'">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            </template>
+                                            <template x-if="block.type === 'posts'">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            </template>
+                                            <template x-if="block.type === 'categories'">
+                                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                            </template>
+                                            <template x-if="block.type === 'tags'">
+                                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                                            </template>
+                                            <template x-if="block.type === 'authors'">
+                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                                <circle cx="12" cy="7" r="4"/>
+                                            </template>
+                                        </svg>
+                                        <span x-text="block.type.charAt(0).toUpperCase() + block.type.slice(1) + ' Reference'"></span>
+                                    </div>
+                                    <select x-model="block.selected" @change="updateReference(block)">
+                                        <option value="">Select {{ block.type }}...</option>
+                                        <template x-for="item in getReferenceItems(block.type)" :key="item.id">
+                                            <option :value="item.id" x-text="item.title || item.name"></option>
+                                        </template>
+                                    </select>
+                                    <div class="reference-preview" x-show="block.selected" x-html="renderReferencePreview(block)"></div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Add Block Button -->
+                <button class="add-block-fab" x-show="!previewMode && blocks.length > 0" @click="showBlockMenu = !showBlockMenu">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Media Selector Modal -->
+    <div class="modal-overlay" x-show="mediaModalOpen" x-transition @click.self="mediaModalOpen = false">
+        <div class="modal media-modal">
+            <div class="modal-header">
+                <h3>Select Media</h3>
+                <button class="modal-close" @click="mediaModalOpen = false">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-tabs">
+                <button class="tab-btn" :class="{ active: mediaTab === 'gallery' }" @click="mediaTab = 'gallery'">Gallery</button>
+                <button class="tab-btn" :class="{ active: mediaTab === 'upload' }" @click="mediaTab = 'upload'">Upload</button>
+            </div>
+            <div class="modal-body">
+                <!-- Gallery Tab -->
+                <div x-show="mediaTab === 'gallery'" class="media-gallery">
+                    <template x-for="img in mediaLibrary" :key="img.id">
+                        <div class="media-item" :class="{ selected: selectedMedia.includes(img.id) }" @click="toggleMediaSelection(img)">
+                            <img :src="img.src" :alt="img.alt">
+                            <div class="media-overlay" x-show="selectedMedia.includes(img.id)">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <!-- Upload Tab -->
+                <div x-show="mediaTab === 'upload'" class="upload-area">
+                    <div class="upload-dropzone" @dragover.prevent @drop.prevent="handleFileDrop($event)">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p>Drag and drop files here</p>
+                        <span>or</span>
+                        <input type="file" id="file-upload" multiple accept="image/*" @change="handleFileSelect($event)" hidden>
+                        <label for="file-upload" class="btn btn-primary">Browse Files</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" @click="mediaModalOpen = false">Cancel</button>
+                <button class="btn btn-primary" @click="confirmMediaSelection()" :disabled="selectedMedia.length === 0">
+                    Select <span x-show="selectedMedia.length > 0" x-text="'(' + selectedMedia.length + ')'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-container">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div class="toast" :class="toast.type" x-transition @click="removeToast(toast.id)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <template x-if="toast.type === 'success'">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </template>
+                    <template x-if="toast.type === 'error'">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </template>
+                    <template x-if="toast.type === 'info'">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </template>
+                </svg>
+                <span x-text="toast.message"></span>
+            </div>
+        </template>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

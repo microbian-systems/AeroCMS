@@ -1,0 +1,26 @@
+@page "/manager/pages"
+@page "/manager/pages/general"
+@inject NavigationManager Navigation
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Pages</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage your static and landing pages.</p>
+        </div>
+        <RadzenButton Icon="add" Text="Create Page" ButtonStyle="ButtonStyle.Primary" Click='() => Navigation.NavigateTo("/manager/page/editor")' />
+    </div>
+
+    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
+                    EmptyText="No pages found. Start building!">
+        <Columns>
+            <RadzenDataGridColumn TItem="object" Property="Title" Title="Title" />
+            <RadzenDataGridColumn TItem="object" Property="Path" Title="URL Path" />
+            <RadzenDataGridColumn TItem="object" Property="Template" Title="Template" />
+            <RadzenDataGridColumn TItem="object" Property="Status" Title="Status" />
+        </Columns>
+    </RadzenDataGrid>
+</div>
+
+@code {
+}

@@ -1,0 +1,26 @@
+@using Aero.Cms.Core.Blocks
+@using Aero.Cms.Core.Http.Clients
+
+@if (Block != null && Navigation != null)
+{
+    <nav class="navigation-block my-6">
+        @if (!string.IsNullOrEmpty(Block.Title))
+        {
+            <h3 class="text-lg font-semibold mb-4 text-gray-900">@Block.Title</h3>
+        }
+        <ul class="flex flex-col gap-2">
+            @foreach (var item in Navigation.Items.OrderBy(i => i.Order))
+            {
+                <li>
+                    <a href="@item.Url" class="text-blue-600 hover:text-blue-800 hover:underline transition-colors">
+                        @item.Label
+                    </a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@code {
+
+}

@@ -1,0 +1,117 @@
+@page
+@using Aero.Cms.Modules.Blog.Models
+@using Aero.Cms.Services
+@using Aero.Core.Railway
+
+@inject Aero.Cms.Modules.Blog.IBlogPostContentService BlogService
+@inject IStaticPhotosClient StaticPhotos
+
+@model BlogDetailPageModel
+
+@{
+    ViewBag.Title = Model.Post?.SeoTitle ?? Model.Post?.Title ?? "Blog Post";
+    var post = Model.Post!;
+}
+
+@{
+    var headerImageUrl = post.ImageUrl ?? StaticPhotos.GetPhotoUrl("blurred", "1200x630");
+}
+<article class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    @* Header Image *@
+    <div class="mb-10 overflow-hidden rounded-2xl shadow-2xl">
+        <img src="@headerImageUrl"
+             alt="Header background"
+             class="w-full h-80 object-cover transition-transform duration-700 hover:scale-110"/>
+    </div>
+
+    @* Header Section *@
+    <header class="mb-10">
+        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+            @post.Title
+        </h1>
+        
+        @if (!string.IsNullOrEmpty(post.Excerpt))
+        {
+            <p class="text-xl text-gray-600 italic mb-6 leading-relaxed">
+                @post.Excerpt
+            </p>
+        }
+        
+        @* Meta information row *@
+        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 border-t border-b border-gray-200 py-4">
+            @if (post.PublishedOn.HasValue)
+            {
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <time datetime="@post.PublishedOn.Value.ToString("yyyy-MM-dd")">
+                        @post.PublishedOn.Value.ToString("MMMM d, yyyy")
+                    </time>
+                </div>
+            }
+            
+            @if (post.AuthorId.HasValue)
+            {
+                var authorResult = await BlogService.GetAuthorAsync(post.AuthorId.Value);
+                if (authorResult is Result<string, BlogAuthor?>.Ok { Value: not null } okResult)
+                {
+                    var author = okResult.Value;
+                    <div class="flex items-center gap-3">
+                        <span class="text-gray-400">|</span>
+                        @if (!string.IsNullOrEmpty(author.AvatarUrl))
+                        {
+                            <img src="@author.AvatarUrl" alt="@author.Name" class="w-8 h-8 rounded-full object-cover"/>
+                        }
+                        else
+                        {
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-medium">
+                                @(author.Name.FirstOrDefault())
+                            </div>
+                        }
+                        <div class="flex flex-col">
+                            <span class="font-medium text-gray-900">@author.Name</span>
+                            @if (!string.IsNullOrEmpty(author.Bio))
+                            {
+                                <span class="text-xs text-gray-500 hidden sm:inline">@author.Bio</span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </header>
+
+    @* Content Blocks *@
+    <div class="prose prose-lg max-w-none">
+        @if (post.Content?.Count > 0)
+        {
+            foreach (var block in post.Content.OrderBy(b => b.Order))
+            {
+                <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.BlockRenderer)" render-mode="Static" param-Block="block" />
+            }
+        }
+        else
+        {
+            <div class="text-gray-500 italic py-8 text-center">
+                No content available for this post.
+            </div>
+        }
+    </div>
+
+    @* Footer with tags *@
+    @if (post.TagIds?.Count > 0)
+    {
+        <footer class="mt-12 pt-6 border-t border-gray-200">
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-sm font-medium text-gray-700">Tags:</span>
+                @foreach (var tagId in post.TagIds)
+                {
+                    <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                        @(Model.TagNames.GetValueOrDefault(tagId, $"Tag #{tagId}"))
+                    </span>
+                }
+            </div>
+        </footer>
+    }
+</article>

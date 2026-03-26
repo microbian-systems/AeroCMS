@@ -1,0 +1,44 @@
+{
+  "version": "3.0",
+  "defaultProvider": "cdnjs",
+  "libraries": [
+    {
+      "library": "alpinejs@3.15.0",
+      "destination": "wwwroot/lib/alpinejs/"
+    },
+    {
+      "library": "htmx@2.0.7",
+      "destination": "wwwroot/lib/htmx/"
+    },
+    {
+      "library": "Swiper@11.0.5",
+      "destination": "wwwroot/lib/Swiper/"
+    },
+    {
+      "library": "gsap@3.13.0",
+      "destination": "wwwroot/lib/gsap/"
+    },
+    {
+      "library": "preact@10.27.2",
+      "destination": "wwwroot/lib/preact/"
+    },
+    {
+      "provider": "jsdelivr",
+      "library": "@animxyz/core@0.6.6",
+      "destination": "wwwroot/lib/animxyz/core/"
+    },
+    {
+      "library": "rxjs@7.8.2",
+      "destination": "wwwroot/lib/rxjs/"
+    },
+    {
+      "provider": "jsdelivr",
+      "library": "@reapptor/ts-linq@1.0.44",
+      "destination": "wwwroot/lib/reapptor/ts-linq/"
+    },
+    {
+      "library": "simple-parallax-js@5.6.2",
+      "destination": "wwwroot/lib/simple-parallax-js/"
+    }
+  ]
+}

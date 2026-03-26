@@ -1,0 +1,18 @@
+@using Aero.Cms.Core.Blocks.Layout
+
+@if (Region != null)
+{
+    <div class="layout-region my-8" data-region="@Region.Name">
+        <div class="grid grid-cols-12 gap-6">
+            @foreach (var column in Region.Columns.OrderBy(c => c.Order))
+            {
+                <LayoutColumnRenderer Column="column" />
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public LayoutRegion? Region { get; set; }
+}

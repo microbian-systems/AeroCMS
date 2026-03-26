@@ -1,0 +1,121 @@
+@page
+
+@model BlogIndexPageModel
+
+@{
+    ViewBag.Title = "Blog";
+}
+
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-12 text-center">
+            <h1 class="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+                Aero CMS Blog
+            </h1>
+            <p class="mt-4 text-lg text-slate-600">
+                Latest thoughts, stories, and ideas
+            </p>
+        </div>
+
+        @if (Model.FeaturedPosts.Any() || Model.OtherPosts.Any())
+        {
+            <!-- Featured Posts Section -->
+            @if (Model.FeaturedPosts.Any())
+            {
+                <section class="mb-20">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold tracking-tight text-slate-900 font-display">Featured</h2>
+                            <p class="text-slate-500 mt-1 font-medium">Specially selected technical insights</p>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-10 lg:grid-cols-3">
+                        @foreach (var post in Model.FeaturedPosts)
+                        {
+                            <article class="group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/50 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-200/50 bg-white">
+                                <!-- Background Photo -->
+                                <div class="absolute inset-0 z-0 h-48 overflow-hidden">
+                                    <img src="@post.ImageUrl" alt="" class="h-full w-full object-cover opacity-100 transition-transform duration-700 group-hover:scale-110"/>
+                                    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-white/80 to-white"></div>
+                                </div>
+
+                                <div class="relative z-10 flex flex-1 flex-col p-8 pt-32">
+                                    <h3 class="mb-4 text-2xl font-extrabold leading-tight text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                        <a href="/@post.Slug" class="focus:outline-none">
+                                            <span class="absolute inset-0" aria-hidden="true"></span>
+                                            @post.Title
+                                        </a>
+                                    </h3>
+
+                                    @if (post.TagIds.Any())
+                                    {
+                                        <div class="mb-5 flex flex-wrap items-center gap-2">
+                                            @foreach (var tagId in post.TagIds)
+                                            {
+                                                <span class="inline-flex items-center rounded-xl bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-indigo-600 border border-indigo-100/50">
+                                                    @(Model.TagNames.GetValueOrDefault(tagId, $"Tag #{tagId}"))
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(post.Excerpt))
+                                    {
+                                        <p class="mb-6 flex-1 text-base leading-relaxed text-slate-600 line-clamp-3 font-medium">
+                                            @post.Excerpt
+                                        </p>
+                                    }
+
+                                    <div class="mt-auto flex items-center justify-between border-t border-slate-100 pt-6">
+                                        <div class="flex items-center gap-3">
+                                            <div class="h-10 w-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 font-bold border-2 border-white shadow-sm">
+                                                @(post.AuthorId.HasValue ? post.AuthorId.Value.ToString() : "A")
+                                            </div>
+                                            <div class="flex flex-col">
+                                                <span class="text-xs font-bold text-slate-900 uppercase tracking-wide">Staff Author</span>
+                                                <time datetime="@(post.PublishedOn?.ToString("yyyy-MM-dd"))" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                    @(post.PublishedOn?.ToString("MMM dd, yyyy") ?? "Draft")
+                                                </time>
+                                            </div>
+                                        </div>
+
+                                        <div class="h-10 w-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 transition-colors group-hover:bg-indigo-600 group-hover:text-white group-hover:shadow-lg group-hover:shadow-indigo-300">
+                                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </section>
+            }
+
+            <!-- Other Posts Section -->
+            <section class="mt-24 border-t border-slate-200/60 pt-20">
+                <div class="mb-12">
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900 font-display">Full Archive</h2>
+                    <p class="text-slate-500 mt-1 font-medium">Explore the complete history of our publications</p>
+                </div>
+
+                <div id="posts-container" class="space-y-6">
+                    <partial name="_BlogPostsList" model="Model"/>
+                </div>
+            </section>
+        }
+        else
+        {
+            <!-- Empty State -->
+            <div class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white/50 py-16">
+                <svg class="h-16 w-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                </svg>
+                <h3 class="mt-4 text-lg font-medium text-slate-900">No posts yet</h3>
+                <p class="mt-2 text-center text-slate-500">Check back soon for new content!</p>
+            </div>
+        }
+    </div>
+</div>

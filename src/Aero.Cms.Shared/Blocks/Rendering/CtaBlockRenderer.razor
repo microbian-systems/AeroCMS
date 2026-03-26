@@ -1,0 +1,25 @@
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    <a href="@Block.Url" class="@GetStyleClass(Block.Style)">
+        @Block.Text
+    </a>
+}
+
+@code {
+    [Parameter]
+    public Aero.Cms.Core.Blocks.CtaBlock? Block { get; set; }
+
+    private string GetStyleClass(string? style)
+    {
+        const string baseClasses = "cta-button inline-block px-6 py-3 font-semibold rounded-lg transition-colors duration-200 ";
+
+        return style?.ToLowerInvariant() switch
+        {
+            "secondary" => baseClasses + "bg-gray-600 text-white hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2",
+            "outline" => baseClasses + "border-2 border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
+            "primary" or _ => baseClasses + "bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        };
+    }
+}

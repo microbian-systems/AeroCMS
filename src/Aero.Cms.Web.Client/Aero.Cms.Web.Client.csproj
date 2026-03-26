@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
+    <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Serilog.Sinks.OpenObserve" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

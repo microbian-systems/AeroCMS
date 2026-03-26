@@ -1,0 +1,39 @@
+@inherits LayoutComponentBase
+@using Aero.Cms.Shared.Services
+@using Aero.Cms.Shared.Layout
+@using Microsoft.AspNetCore.Components.Sections
+@inject ManagerThemeService ThemeService
+@implements IDisposable
+
+<div class="pe-root" data-theme="@ThemeService.Theme">
+    <ManagerHeader />
+    
+    <div class="pe-main-layout">
+        <AeroSidebar Title="Menu" 
+                     Side="SidebarSide.Left" 
+                     IsCollapsed="@ThemeService.IsSidebarCollapsed"
+                     IsCollapsedChanged="@(async (c) => ThemeService.ToggleSidebar())">
+            <NavMenu IsCollapsed="@ThemeService.IsSidebarCollapsed" />
+        </AeroSidebar>
+
+        <div class="pe-editor-area">
+            @Body
+        </div>
+
+        <SectionOutlet SectionName="RightSidebar" />
+    </div>
+</div>
+
+<RadzenComponents />
+
+@code {
+    protected override void OnInitialized()
+    {
+        ThemeService.OnThemeChanged += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= StateHasChanged;
+    }
+}

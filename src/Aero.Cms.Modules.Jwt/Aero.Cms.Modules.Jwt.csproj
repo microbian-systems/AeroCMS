@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+	</ItemGroup>
+</Project>

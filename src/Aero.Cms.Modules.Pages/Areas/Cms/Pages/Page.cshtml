@@ -1,0 +1,72 @@
+@page
+@model DynamicPageModel
+@{
+    var pageDoc = Model.PageDocument;
+    ViewBag.Title = pageDoc?.SeoTitle ?? pageDoc?.Title ?? "Page";
+    ViewBag.ShowHeaderNavigation = pageDoc?.ShowHeaderNavigation ?? true;
+}
+
+@if (pageDoc is null)
+{
+    <div class="min-h-screen flex items-center justify-center bg-gray-50">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">Page Not Found</h1>
+            <p class="text-gray-600">The requested page could not be found.</p>
+        </div>
+    </div>
+}
+else
+{
+    <article class="min-h-screen bg-white">
+        @* Page Header / Hero Section *@
+        @{
+            var hasHeaderImage = !string.IsNullOrEmpty(pageDoc.HeaderImageUrl);
+            var headerStyle = hasHeaderImage 
+                ? $"background-image: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), url('{pageDoc.HeaderImageUrl}'); background-size: cover; background-position: center;"
+                : "background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);";
+            var headerTextClass = hasHeaderImage ? "text-white" : "text-slate-900";
+            var subTextClass = hasHeaderImage ? "text-slate-200" : "text-slate-600";
+        }
+        
+        <header class="relative border-b border-slate-200 overflow-hidden" style="@headerStyle">
+            <div class="max-w-7xl mx-auto px-4 py-20 sm:py-32 sm:px-6 lg:px-8 relative z-10 transition-all duration-700">
+                <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-none @headerTextClass">
+                    @pageDoc.Title
+                </h1>
+                
+                @if (!string.IsNullOrEmpty(pageDoc.Summary))
+                {
+                    <p class="mt-6 text-lg sm:text-xl @subTextClass leading-relaxed max-w-2xl font-medium">
+                        @pageDoc.Summary
+                    </p>
+                }
+            </div>
+            @if (!hasHeaderImage)
+            {
+                <div class="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,transparent,black)] pointer-events-none"></div>
+            }
+        </header>
+
+        @* Layout Regions *@
+        <div class="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+            @if (pageDoc.LayoutRegions.Count > 0)
+            {
+                foreach (var region in pageDoc.LayoutRegions.OrderBy(r => r.Order))
+                {
+                    <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.LayoutRegionRenderer)" render-mode="Static" param-Region="@region" />
+                }
+            }
+            else
+            {
+                @* Empty State *@
+                <div class="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">
+                    <svg class="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                    <h3 class="mt-4 text-lg font-medium text-gray-900">No Content Yet</h3>
+                    <p class="mt-2 text-center text-gray-500">This page doesn't have any content blocks configured.</p>
+                </div>
+            }
+        </div>
+    </article>
+}

@@ -1,0 +1,31 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<button class="pe-block-item"
+        draggable="true"
+        @ondragstart="OnDragStart"
+        @onclick="OnClick">
+    <div class="pe-block-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            @IconContent
+        </svg>
+    </div>
+    @if (!IsCollapsed)
+    {
+        <span>@Label</span>
+    }
+</button>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [CascadingParameter] public bool IsCollapsed { get; set; }
+    [Parameter] public RenderFragment? IconContent { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public EventCallback<DragEventArgs> OnDragStart { get; set; }
+
+    // Allow child content to be used as icon paths
+    [Parameter] public RenderFragment? ChildContent
+    {
+        get => IconContent;
+        set => IconContent = value;
+    }
+}
