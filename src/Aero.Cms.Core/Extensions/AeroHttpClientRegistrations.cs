@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Core.Http.Clients;
 using Microsoft.Extensions.Configuration;
 
 
@@ -28,6 +28,7 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<BlocksHttpClient>(c => c.BaseAddress = uri);
         services.AddHttpClient<PublishHttpClient>(c => c.BaseAddress = uri);
         services.AddHttpClient<PreviewHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<DocsClient>(c => c.BaseAddress = uri);
 
         services.AddTransient<IBlogHttpClient, BlogHttpClient>();
         services.AddTransient<ICategoriesHttpClient, CategoriesHttpClient>();
