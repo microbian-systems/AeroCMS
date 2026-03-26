@@ -1,6 +1,6 @@
 <Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="new[] { typeof(Aero.Cms.Shared._Imports).Assembly }">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Aero.Cms.Shared.Layout.MainLayout)" />
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(DarkModeLayout)" />
     </Found>
     <NotFound>
         <LayoutView Layout="@typeof(Aero.Cms.Shared.Layout.MainLayout)">

@@ -1,1 +1,135 @@
-﻿
+@using Aero.Cms.Shared.Pages.Manager.PageEditor
+
+@if (Show)
+{
+    <div class="pe-modal-overlay" @onclick="CloseModal">
+        <div class="pe-modal" @onclick:stopPropagation="true">
+            <div class="pe-modal-header">
+                <h3>Select Media</h3>
+                <button class="pe-modal-close" @onclick="CloseModal">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="pe-modal-tabs">
+                <button class="pe-tab-btn @(MediaTab == "gallery" ? "active" : "")" @onclick='() => MediaTab = "gallery"'>Gallery</button>
+                <button class="pe-tab-btn @(MediaTab == "upload" ? "active" : "")" @onclick='() => MediaTab = "upload"'>Upload</button>
+            </div>
+            <div class="pe-modal-body">
+                @if (MediaTab == "gallery")
+                {
+                    <div class="pe-media-gallery">
+                        @foreach (var img in Library)
+                        {
+                            var isChecked = SelectedMediaIds.Contains(img.Id.ToString());
+                            <div class="pe-media-item @(isChecked ? "selected" : "")"
+                                 @onclick="() => ToggleMediaSelection(img)">
+                                <img src="@img.Src" alt="@img.Alt"/>
+                                @if (isChecked)
+                                {
+                                    <div class="pe-media-check">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                        </svg>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="pe-upload-dropzone">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p>Drag and drop image files here</p>
+                        <span>or</span>
+                        <InputFile id="pe-file-upload" multiple accept="image/*" OnChange="HandleFileSelect" class="pe-btn pe-btn-primary"/>
+                    </div>
+                }
+            </div>
+            <div class="pe-modal-footer">
+                <button class="pe-btn pe-btn-ghost" @onclick="CloseModal">Cancel</button>
+                <button class="pe-btn pe-btn-primary"
+                        disabled="@(SelectedMediaIds.Count == 0)"
+                        @onclick="ConfirmSelection">
+                    Select @(SelectedMediaIds.Count > 0 ? $"({SelectedMediaIds.Count})" : "")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Whether to show the modal.</summary>
+    [Parameter] public bool Show { get; set; }
+
+    /// <summary>Whether multiple images can be selected (Gallery mode).</summary>
+    [Parameter] public bool MultiSelect { get; set; }
+
+    /// <summary>The list of media items to display in the gallery.</summary>
+    [Parameter] public List<MediaItem> Library { get; set; } = [];
+
+    /// <summary>Callback when the modal is closed without selection.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>Callback when media items are selected and confirmed.</summary>
+    [Parameter] public EventCallback<List<MediaItem>> OnConfirm { get; set; }
+
+    /// <summary>Callback when files are selected for upload.</summary>
+    [Parameter] public EventCallback<InputFileChangeEventArgs> OnUpload { get; set; }
+
+    private string MediaTab { get; set; } = "gallery";
+    private List<string> SelectedMediaIds { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        if (Show && SelectedMediaIds.Count > 0 && !MultiSelect)
+        {
+             // Clear selection if we are opening in single mode and had previous selection?
+             // Actually it's probably better to let the parent control it, but let's clear it when it opens if needed.
+        }
+        
+        if (!Show)
+        {
+            SelectedMediaIds.Clear();
+            MediaTab = "gallery";
+        }
+    }
+
+    private void ToggleMediaSelection(MediaItem img)
+    {
+        if (MultiSelect)
+        {
+            if (SelectedMediaIds.Contains(img.Id.ToString()))
+                SelectedMediaIds.Remove(img.Id.ToString());
+            else
+                SelectedMediaIds.Add(img.Id.ToString());
+        }
+        else
+        {
+            SelectedMediaIds = [img.Id.ToString()];
+        }
+    }
+
+    private async Task ConfirmSelection()
+    {
+        var selected = Library.Where(img => SelectedMediaIds.Contains(img.Id.ToString())).ToList();
+        await OnConfirm.InvokeAsync(selected);
+    }
+
+    private async Task CloseModal()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleFileSelect(InputFileChangeEventArgs e)
+    {
+        await OnUpload.InvokeAsync(e);
+    }
+}

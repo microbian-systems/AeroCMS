@@ -1,9 +1,12 @@
 @page "/manager/page/editor"
 @page "/manager/page/editor/{id:long}"
 
-@layout _PageEditorLayout
+@* @layout _PageEditorLayout *@
 @using Aero.Cms.Core.Blocks
 @using Aero.Cms.Core.Blocks.Common
+@using Aero.Cms.Shared.Layout
+@using Aero.Cms.Core.Http.Clients
+@using Aero.Core.Railway
 
 @* ────────────────────────────────────────────────────────────
    Aero CMS – Page Editor  (Blazor port of aero-cms/index.html)
@@ -23,35 +26,22 @@
             <span class="pe-logo-text">Aero</span>
         </div>
         <nav class="pe-nav">
-            <button class="pe-nav-link @(ActiveNavTab == "content" ? "active" : "")" @onclick='() => ActiveNavTab = "content"'>Content</button>
-            <button class="pe-nav-link @(ActiveNavTab == "media" ? "active" : "")" @onclick='() => ActiveNavTab = "media"'>Media</button>
-            <button class="pe-nav-link @(ActiveNavTab == "references" ? "active" : "")" @onclick='() => ActiveNavTab = "references"'>References</button>
-            <button class="pe-nav-link @(ActiveNavTab == "settings" ? "active" : "")" @onclick='() => ActiveNavTab = "settings"'>Settings</button>
+            <NavLink class="pe-nav-link" href="/manager" Match="NavLinkMatch.All">Dashboard</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/navigations">Navigations</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/posts">Posts</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/pages">Pages</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/docs">Docs</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/modules">Modules</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/databases">Databases</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/taxonomy/general">Taxonomy</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/media">Media</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/users">Users</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/settings">Settings</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/seo">SEO</NavLink>
         </nav>
     </div>
     <div class="pe-header-right">
-        <button class="pe-btn pe-btn-ghost" @onclick="TogglePreview">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-            </svg>
-            Preview
-        </button>
-        <button class="pe-btn pe-btn-secondary" @onclick="SavePage">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/>
-                <polyline points="7 3 7 8 15 8"/>
-            </svg>
-            Save
-        </button>
-        <button class="pe-btn pe-btn-primary" @onclick="PublishPage">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-            Publish
-        </button>
+        @* Actions moved to pe-page-meta *@
     </div>
 </header>
 
@@ -59,157 +49,8 @@
 <div class="pe-main-layout">
 
 @* ── Sidebar ─────────────────────────────────────────── *@
-<aside class="pe-sidebar @(SidebarCollapsed ? "collapsed" : "")">
-    <div class="pe-sidebar-header">
-        <button class="pe-collapse-btn" @onclick="() => SidebarCollapsed = !SidebarCollapsed">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"/>
-            </svg>
-        </button>
-        @if (!SidebarCollapsed)
-        {
-            <span class="pe-sidebar-title">Blocks</span>
-        }
-    </div>
+    @RenderLeftSidebar(SidebarCollapsed, () => SidebarCollapsed = !SidebarCollapsed)
 
-    @if (!SidebarCollapsed)
-    {
-        <div class="pe-sidebar-content">
-            @* Content category *@
-            <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("content")'>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="16" y1="13" x2="8" y2="13"/>
-                        <line x1="16" y1="17" x2="8" y2="17"/>
-                        <polyline points="10 9 9 9 8 9"/>
-                    </svg>
-                    Content
-                    <svg class="pe-chevron @(CategoryContent ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"/>
-                    </svg>
-                </button>
-                @if (CategoryContent)
-                {
-                    <div class="pe-category-items">
-                        <SidebarBlockItem Label="Hero" @ondragstart='e => DragStart(e, "hero")' OnClick='() => AddBlock("hero")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <line x1="3" y1="9" x2="21" y2="9"/>
-                            <line x1="9" y1="21" x2="9" y2="9"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Text" @ondragstart='e => DragStart(e, "text")' OnClick='() => AddBlock("text")'>
-                            <polyline points="4 7 4 4 20 4 20 7"/>
-                            <line x1="9" y1="20" x2="15" y2="20"/>
-                            <line x1="12" y1="4" x2="12" y2="20"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Columns" @ondragstart='e => DragStart(e, "columns")' OnClick='() => AddBlock("columns")'>
-                            <rect x="3" y="3" width="7" height="18"/>
-                            <rect x="14" y="3" width="7" height="18"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Rich Text" @ondragstart='e => DragStart(e, "content")' OnClick='() => AddBlock("content")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <line x1="3" y1="9" x2="21" y2="9"/>
-                            <line x1="9" y1="21" x2="9" y2="9"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Markdown" @ondragstart='e => DragStart(e, "markdown")' OnClick='() => AddBlock("markdown")'>
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Quote" @ondragstart='e => DragStart(e, "quote")' OnClick='() => AddBlock("quote")'>
-                            <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Separator" @ondragstart='e => DragStart(e, "separator")' OnClick='() => AddBlock("separator")'>
-                            <line x1="5" y1="12" x2="19" y2="12"/>
-                        </SidebarBlockItem>
-                    </div>
-                }
-            </div>
-
-            @* Media category *@
-            <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("media")'>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                    Media
-                    <svg class="pe-chevron @(CategoryMedia ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"/>
-                    </svg>
-                </button>
-                @if (CategoryMedia)
-                {
-                    <div class="pe-category-items">
-                        <SidebarBlockItem Label="Image" @ondragstart='e => DragStart(e, "image")' OnClick='() => AddBlock("image")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Video" @ondragstart='e => DragStart(e, "video")' OnClick='() => AddBlock("video")'>
-                            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
-                            <line x1="7" y1="2" x2="7" y2="22"/>
-                            <line x1="17" y1="2" x2="17" y2="22"/>
-                            <line x1="2" y1="12" x2="22" y2="12"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Gallery" @ondragstart='e => DragStart(e, "gallery")' OnClick='() => AddBlock("gallery")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Audio" @ondragstart='e => DragStart(e, "audio")' OnClick='() => AddBlock("audio")'>
-                            <path d="M9 18V5l12-2v13"/>
-                            <circle cx="6" cy="18" r="3"/>
-                            <circle cx="18" cy="16" r="3"/>
-                        </SidebarBlockItem>
-                    </div>
-                }
-            </div>
-
-            @* References category *@
-            <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("references")'>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                    </svg>
-                    References
-                    <svg class="pe-chevron @(CategoryReferences ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"/>
-                    </svg>
-                </button>
-                @if (CategoryReferences)
-                {
-                    <div class="pe-category-items">
-                        <SidebarBlockItem Label="Pages" @ondragstart='e => DragStart(e, "pages")' OnClick='() => AddBlock("pages")'>
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Posts" @ondragstart='e => DragStart(e, "posts")' OnClick='() => AddBlock("posts")'>
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                            <polyline points="10 9 9 9 8 9"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Categories" @ondragstart='e => DragStart(e, "categories")' OnClick='() => AddBlock("categories")'>
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Tags" @ondragstart='e => DragStart(e, "tags")' OnClick='() => AddBlock("tags")'>
-                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                            <line x1="7" y1="7" x2="7.01" y2="7"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Authors" @ondragstart='e => DragStart(e, "authors")' OnClick='() => AddBlock("authors")'>
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                        </SidebarBlockItem>
-                    </div>
-                }
-            </div>
-        </div>
-    }
-</aside>
 
 @* ── Editor area ─────────────────────────────────────── *@
 <main class="pe-editor-area @(PreviewMode ? "preview-mode" : "")"
@@ -223,20 +64,46 @@
             <input class="pe-page-title-input" type="text" placeholder="Page Title"
                    value="@PageTitle" @oninput="e => PageTitle = e.Value?.ToString() ?? string.Empty"/>
             <div class="pe-page-meta">
-                <span class="pe-meta-item">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    Last saved: <strong>@LastSaved</strong>
-                </span>
-                <span class="pe-meta-item">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    @Author
-                </span>
+                <div class="pe-meta-left">
+                    <span class="pe-meta-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        Last saved: <strong>@LastSaved</strong>
+                    </span>
+                    <span class="pe-meta-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        @Author
+                    </span>
+                </div>
+                <div class="pe-meta-right">
+                    <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="TogglePreview">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Preview
+                    </button>
+                    <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="SavePage">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Save
+                    </button>
+                    <button class="pe-btn pe-btn-primary pe-btn-sm" @onclick="PublishPage">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                        Publish
+                    </button>
+                </div>
             </div>
         </div>
     }
@@ -285,7 +152,8 @@
         @if (Blocks.Count == 0 && !PreviewMode)
         {
             <div class="pe-empty-state">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                     style="cursor: pointer" @onclick="() => RightSidebarCollapsed = false">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                     <line x1="12" y1="8" x2="12" y2="16"/>
                     <line x1="8" y1="12" x2="16" y2="12"/>
@@ -359,7 +227,7 @@
         @* FAB to add block *@
         @if (!PreviewMode && Blocks.Count > 0)
         {
-            <button class="pe-add-block-fab" title="Add block" @onclick='() => AddBlock("text")'>
+            <button class="pe-add-block-fab" title="Add block" @onclick='() => { RightSidebarCollapsed = false; AddBlock("text"); }'>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/>
                     <line x1="5" y1="12" x2="19" y2="12"/>
@@ -368,74 +236,17 @@
         }
     </div>
 </main>
-</div>
+@RenderRightSidebar(RightSidebarCollapsed, () => RightSidebarCollapsed = !RightSidebarCollapsed)
 </div>
 
 @* ── Media selector modal ────────────────────────────────── *@
-@if (MediaModalOpen)
-{
-    <div class="pe-modal-overlay" @onclick="() => MediaModalOpen = false">
-        <div class="pe-modal" @onclick:stopPropagation="true">
-            <div class="pe-modal-header">
-                <h3>Select Media</h3>
-                <button class="pe-modal-close" @onclick="() => MediaModalOpen = false">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="pe-modal-tabs">
-                <button class="pe-tab-btn @(MediaTab == "gallery" ? "active" : "")" @onclick='() => MediaTab = "gallery"'>Gallery</button>
-                <button class="pe-tab-btn @(MediaTab == "upload" ? "active" : "")" @onclick='() => MediaTab = "upload"'>Upload</button>
-            </div>
-            <div class="pe-modal-body">
-                @if (MediaTab == "gallery")
-                {
-                    <div class="pe-media-gallery">
-                        @foreach (var img in MediaLibrary)
-                        {
-                            var isChecked = SelectedMediaIds.Contains(img.Id.ToString());
-                            <div class="pe-media-item @(isChecked ? "selected" : "")"
-                                 @onclick="() => ToggleMediaSelection(img)">
-                                <img src="@img.Src" alt="@img.Alt"/>
-                                @if (isChecked)
-                                {
-                                    <div class="pe-media-check">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="20 6 9 17 4 12"/>
-                                        </svg>
-                                    </div>
-                                }
-                            </div>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div class="pe-upload-dropzone">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        <p>Drag and drop image files here</p>
-                        <span>or</span>
-                        <InputFile id="pe-file-upload" multiple accept="image/*" OnChange="HandleFileSelect" class="pe-btn pe-btn-primary"/>
-                    </div>
-                }
-            </div>
-            <div class="pe-modal-footer">
-                <button class="pe-btn pe-btn-ghost" @onclick="() => MediaModalOpen = false">Cancel</button>
-                <button class="pe-btn pe-btn-primary"
-                        disabled="@(SelectedMediaIds.Count == 0)"
-                        @onclick="ConfirmMediaSelection">
-                    Select @(SelectedMediaIds.Count > 0 ? $"({SelectedMediaIds.Count})" : "")
-                </button>
-            </div>
-        </div>
-    </div>
-}
+<MediaSelectorModal 
+    Show="MediaModalOpen" 
+    MultiSelect="IsGalleryMode"
+    Library="MediaLibrary"
+    OnClose="() => MediaModalOpen = false"
+    OnConfirm="OnConfirmMediaSelection"
+    OnUpload="HandleFileSelect" />
 
 @* ── Toast notifications ─────────────────────────────────── *@
 <div class="pe-toast-container">
@@ -469,6 +280,7 @@
         </div>
     }
 </div>
+</div> @* pe-root *@
 
 @* ── Inline render helpers ───────────────────────────────── *@
 
@@ -921,4 +733,278 @@
 
     // inline helper – call from SidebarBlockItem via ChildContent
     RenderFragment<string> SidebarIcon => label => __builder => { };
+
+    RenderFragment RenderLeftSidebar(bool collapsed, System.Action onToggle) => __builder =>
+    {
+        <aside class="pe-sidebar left @(collapsed ? "collapsed" : "")">
+            <div class="pe-sidebar-header">
+                <button class="pe-collapse-btn" @onclick="onToggle">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                </button>
+                @if (!collapsed)
+                {
+                    <span class="pe-sidebar-title">Navigation</span>
+                }
+            </div>
+
+            @if (!collapsed)
+            {
+                <div class="pe-sidebar-content">
+                    <div class="flex-1 overflow-y-auto py-4 scrollbar-hide">
+                        <nav class="space-y-1 px-3">
+                            <NavMenuSection Href="/manager" Label="Dashboard" Icon="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" IsCollapsed="collapsed" Match="NavLinkMatch.All">
+                                <NavMenuItem Href="/manager/settings" Label="Settings" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/navigations" Label="Navigations" Icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/navigations/general" Label="General" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/posts" Label="Posts" Icon="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/posts/general" Label="General" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/pages" Label="Pages" Icon="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/pages/general" Label="General" IsCollapsed="collapsed"/>
+                                <NavMenuItem Href="/manager/page/editor/0" Label="New Page" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/docs" Label="Docs" Icon="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/docs/general" Label="General" IsCollapsed="collapsed"/>
+                                @if (DocsCategories != null)
+                                {
+                                    @foreach (var category in DocsCategories)
+                                    {
+                                        <NavMenuItem Href="@($"/manager/docs/categories/{category.Slug}")" Label="@category.Title" IsCollapsed="collapsed"/>
+                                    }
+                                }
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/HotReload" Label="Modules" Icon="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/HotReload/general" Label="Hot 🔥" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/modules" Label="Modules" Icon="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/modules/general" Label="General" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/databases" Label="Databases" Icon="M4 7v10c0 2.21 4.48 4 10 4s10-1.79 10-4V7M4 7c0 2.21 4.48 4 10 4s10-1.79-10-4M4 7c0-2.21 4.48-4 10-4s10 1.79 10 4m0 5c0 2.21-4.48 4-10 4s-10-1.79-10-4M4 7c0-2.21 4.48-4 10-4s10 1.79 10 4m0 5c0 2.21-4.48 4-10 4s-10-1.79-10-4" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/databases/general" Label="General" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Label="Taxonomy" Icon="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/taxonomy/general" Label="General" IsCollapsed="collapsed"/>
+                                <NavMenuItem Href="/manager/taxonomy/categories" Label="Categories" IsCollapsed="collapsed"/>
+                                <NavMenuItem Href="/manager/taxonomy/tags" Label="Tags" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/media" Label="Media" Icon="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/media/general" Label="General" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/users" Label="Users" Icon="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/users/general" Label="General" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/themes" Label="Themes" Icon="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/themes/general" Label="General" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+
+                            <NavMenuSection Href="/manager/seo" Label="SEO" Icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" IsCollapsed="collapsed">
+                                <NavMenuItem Href="/manager/seo/general" Label="General" IsCollapsed="collapsed"/>
+                            </NavMenuSection>
+                        </nav>
+                        <div class="p-4 border-t border-gray-100 flex-shrink-0">
+                            <NavMenuItem Href="/manager/settings" Icon="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" Label="Settings" IsCollapsed="collapsed"/>
+                        </div>
+                    </div>
+                </div>
+            }
+        </aside>
+    };
+
+    RenderFragment RenderRightSidebar(bool collapsed, System.Action onToggle) => __builder =>
+    {
+        <aside class="pe-sidebar right @(collapsed ? "collapsed" : "")">
+            <div class="pe-sidebar-header">
+                <button class="pe-collapse-btn" @onclick="onToggle">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                </button>
+                @if (!collapsed)
+                {
+                    <span class="pe-sidebar-title">Blocks</span>
+                }
+            </div>
+
+            @if (!collapsed)
+            {
+                <div class="pe-sidebar-content">
+                    @* Content category *@
+                    <div class="pe-category">
+                        <button class="pe-category-header" @onclick='() => ToggleCategory("content")'>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                                <polyline points="10 9 9 9 8 9" />
+                            </svg>
+                            Content
+                            <svg class="pe-chevron @(CategoryContent ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </button>
+                        @if (CategoryContent)
+                        {
+                            <div class="pe-category-items">
+                                <SidebarBlockItem Label="Hero" @ondragstart='e => DragStart(e, "hero")' OnClick='() => AddBlock("hero")'>
+                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    <line x1="3" y1="9" x2="21" y2="9" />
+                                    <line x1="9" y1="21" x2="9" y2="9" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Text" @ondragstart='e => DragStart(e, "text")' OnClick='() => AddBlock("text")'>
+                                    <polyline points="4 7 4 4 20 4 20 7" />
+                                    <line x1="9" y1="20" x2="15" y2="20" />
+                                    <line x1="12" y1="4" x2="12" y2="20" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Columns" @ondragstart='e => DragStart(e, "columns")' OnClick='() => AddBlock("columns")'>
+                                    <rect x="3" y="3" width="7" height="18" />
+                                    <rect x="14" y="3" width="7" height="18" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Rich Text" @ondragstart='e => DragStart(e, "content")' OnClick='() => AddBlock("content")'>
+                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    <line x1="3" y1="9" x2="21" y2="9" />
+                                    <line x1="9" y1="21" x2="9" y2="9" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Markdown" @ondragstart='e => DragStart(e, "markdown")' OnClick='() => AddBlock("markdown")'>
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Quote" @ondragstart='e => DragStart(e, "quote")' OnClick='() => AddBlock("quote")'>
+                                    <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Separator" @ondragstart='e => DragStart(e, "separator")' OnClick='() => AddBlock("separator")'>
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                </SidebarBlockItem>
+                            </div>
+                        }
+                    </div>
+
+                    @* Media category *@
+                    <div class="pe-category">
+                        <button class="pe-category-header" @onclick='() => ToggleCategory("media")'>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            Media
+                            <svg class="pe-chevron @(CategoryMedia ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </button>
+                        @if (CategoryMedia)
+                        {
+                            <div class="pe-category-items">
+                                <SidebarBlockItem Label="Image" @ondragstart='e => DragStart(e, "image")' OnClick='() => AddBlock("image")'>
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <polyline points="21 15 16 10 5 21" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Video" @ondragstart='e => DragStart(e, "video")' OnClick='() => AddBlock("video")'>
+                                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+                                    <line x1="7" y1="2" x2="7" y2="22" />
+                                    <line x1="17" y1="2" x2="17" y2="22" />
+                                    <line x1="2" y1="12" x2="22" y2="12" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Gallery" @ondragstart='e => DragStart(e, "gallery")' OnClick='() => AddBlock("gallery")'>
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <polyline points="21 15 16 10 5 21" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Audio" @ondragstart='e => DragStart(e, "audio")' OnClick='() => AddBlock("audio")'>
+                                    <path d="M9 18V5l12-2v13" />
+                                    <circle cx="6" cy="18" r="3" />
+                                    <circle cx="18" cy="16" r="3" />
+                                </SidebarBlockItem>
+                            </div>
+                        }
+                    </div>
+
+                    @* References category *@
+                    <div class="pe-category">
+                        <button class="pe-category-header" @onclick='() => ToggleCategory("references")'>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                            References
+                            <svg class="pe-chevron @(CategoryReferences ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </button>
+                        @if (CategoryReferences)
+                        {
+                            <div class="pe-category-items">
+                                <SidebarBlockItem Label="Pages" @ondragstart='e => DragStart(e, "pages")' OnClick='() => AddBlock("pages")'>
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Posts" @ondragstart='e => DragStart(e, "posts")' OnClick='() => AddBlock("posts")'>
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                    <polyline points="10 9 9 9 8 9" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Categories" @ondragstart='e => DragStart(e, "categories")' OnClick='() => AddBlock("categories")'>
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Tags" @ondragstart='e => DragStart(e, "tags")' OnClick='() => AddBlock("tags")'>
+                                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="Authors" @ondragstart='e => DragStart(e, "authors")' OnClick='() => AddBlock("authors")'>
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                    <circle cx="12" cy="7" r="4" />
+                                </SidebarBlockItem>
+                            </div>
+                        }
+                    </div>
+
+                    @* Settings category *@
+                    <div class="pe-category">
+                        <button class="pe-category-header" @onclick='() => ToggleCategory("settings")'>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                            Settings
+                            <svg class="pe-chevron @(CategorySettings ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </button>
+                        @if (CategorySettings)
+                        {
+                            <div class="pe-category-items">
+                                <SidebarBlockItem Label="Page Setup" OnClick='() => CategorySettings = true'>
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                </SidebarBlockItem>
+                                <SidebarBlockItem Label="SEO" OnClick='() => CategorySettings = true'>
+                                    <circle cx="11" cy="11" r="8" />
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                </SidebarBlockItem>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </aside>
+    };
+}
 }

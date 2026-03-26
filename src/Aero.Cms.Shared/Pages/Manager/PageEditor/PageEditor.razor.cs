@@ -2,6 +2,9 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
+using Aero.Cms.Core.Http.Clients;
+using Aero.Core.Railway;
+using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -18,6 +21,8 @@ public partial class PageEditor : ComponentBase, IDisposable
     /// <summary>Optional ID of an existing page to edit.</summary>
     [Parameter] public long? Id { get; set; }
 
+    [Inject] protected DocsClient DocsClient { get; set; } = default!;
+
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
     // ──────────────────────────────────────────────────────────
@@ -25,7 +30,6 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string PageTitle    { get; set; } = "Homepage";
     protected string LastSaved    { get; set; } = "Never";
     protected string Author       { get; set; } = "Admin";
-    protected string ActiveNavTab { get; set; } = "content";
 
     // Block list
     protected List<EditorBlock> Blocks { get; set; } = [];
@@ -41,16 +45,17 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool   SidebarCollapsed { get; set; }
     protected bool   PreviewMode      { get; set; }
     protected string PreviewDevice    { get; set; } = "desktop";
+    protected bool   RightSidebarCollapsed { get; set; } = true;
 
     // Sidebar category toggles
     protected bool CategoryContent    { get; set; } = true;
     protected bool CategoryMedia      { get; set; } = true;
     protected bool CategoryReferences { get; set; } = true;
+    protected bool CategorySettings   { get; set; } = true;
+    protected IReadOnlyList<DocsSummary>? DocsCategories { get; set; }
 
     // Media modal
     protected bool         MediaModalOpen   { get; set; }
-    protected string       MediaTab         { get; set; } = "gallery";
-    protected List<string> SelectedMediaIds { get; set; } = [];
     protected EditorBlock? CurrentMediaBlock { get; set; }
     protected bool         IsGalleryMode    { get; set; }
     protected string?      MediaContext     { get; set; }   // "background" | "nested"
@@ -87,7 +92,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Lifecycle  (mirrors Alpine.js init())
     // ──────────────────────────────────────────────────────────
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         UpdateLastSaved();
 
@@ -95,6 +100,13 @@ public partial class PageEditor : ComponentBase, IDisposable
         _autoSaveTimer.Elapsed += async (_, _) => await AutoSaveAsync();
         _autoSaveTimer.AutoReset = true;
         _autoSaveTimer.Start();
+
+        var result = await DocsClient.GetCategoriesAsync();
+
+        if (result is Result<string, IReadOnlyList<DocsSummary>>.Ok ok)
+        {
+            DocsCategories = ok.Value;
+        }
     }
 
     public void Dispose()
@@ -113,6 +125,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             case "content":    CategoryContent    = !CategoryContent;    break;
             case "media":      CategoryMedia      = !CategoryMedia;      break;
             case "references": CategoryReferences = !CategoryReferences; break;
+            case "settings":   CategorySettings   = !CategorySettings;   break;
         }
     }
 
@@ -408,9 +421,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         IsGalleryMode     = isGallery;
         MediaContext      = context;
         NestedMediaTarget = null;
-        SelectedMediaIds  = [];
         MediaModalOpen    = true;
-        MediaTab          = "gallery";
     }
 
     protected void OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb)
@@ -419,9 +430,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         IsGalleryMode     = false;
         MediaContext      = "nested";
         NestedMediaTarget = nb;
-        SelectedMediaIds  = [];
         MediaModalOpen    = true;
-        MediaTab          = "gallery";
     }
 
     protected void OpenAudioSelector(EditorBlock block)
@@ -431,27 +440,8 @@ public partial class PageEditor : ComponentBase, IDisposable
         ShowToast("Audio added", "success");
     }
 
-    protected void ToggleMediaSelection(MediaItem img)
+    protected void OnConfirmMediaSelection(List<MediaItem> selected)
     {
-        if (IsGalleryMode)
-        {
-            if (SelectedMediaIds.Contains(img.Id.ToString()))
-                SelectedMediaIds.Remove(img.Id.ToString());
-            else
-                SelectedMediaIds.Add(img.Id.ToString());
-        }
-        else
-        {
-            SelectedMediaIds = [img.Id.ToString()];
-        }
-    }
-
-    protected void ConfirmMediaSelection()
-    {
-        var selected = MediaLibrary
-            .Where(img => SelectedMediaIds.Contains(img.Id.ToString()))
-            .ToList();
-
         if (MediaContext == "background" && selected.Count > 0)
         {
             CurrentMediaBlock!.BackgroundImage = selected[0].Src;
