@@ -16,7 +16,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     // ──────────────────────────────────────────────────────────
 
     /// <summary>Optional ID of an existing page to edit.</summary>
-    [Parameter] public long? PageId { get; set; }
+    [Parameter] public long? Id { get; set; }
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
@@ -618,105 +618,14 @@ public partial class PageEditor : ComponentBase, IDisposable
         => Toasts.RemoveAll(t => t.Id == id);
 }
 
+
+
 // ──────────────────────────────────────────────────────────────
 // Supporting types
 // ──────────────────────────────────────────────────────────────
-
-/// <summary>
-/// A flat "bag of properties" representing any block being edited
-/// in the canvas. Keeps the editor free from coupling to the
-/// backend block hierarchy until Save is called.
-/// </summary>
-public class EditorBlock
-{
-    public string EditorId { get; set; } = Guid.NewGuid().ToString();
-    public string Type     { get; set; } = string.Empty;
-
-    // Hero
-    public string MainText        { get; set; } = string.Empty;
-    public string SubText         { get; set; } = string.Empty;
-    public string CtaText         { get; set; } = string.Empty;
-    public string CtaUrl          { get; set; } = string.Empty;
-    public string BackgroundImage { get; set; } = string.Empty;
-
-    // Text / Quote / Markdown / Rich Text
-    public string Content      { get; set; } = string.Empty;
-    public string Author       { get; set; } = string.Empty;
-    public string MarkdownView { get; set; } = "edit";  // "edit" | "preview"
-
-    // Columns
-    public int                ColumnCount   { get; set; } = 2;
-    public int                Gap           { get; set; } = 16;
-    public List<EditorColumn> EditorColumns { get; set; } = [];
-
-    // Image / Audio / Nested
-    public string Src     { get; set; } = string.Empty;
-    public string Alt     { get; set; } = string.Empty;
-    public string Caption { get; set; } = string.Empty;
-
-    // Video
-    public string Url { get; set; } = string.Empty;
-
-    // Gallery
-    public List<GalleryImage> GalleryImages { get; set; } = [];
-
-    // Reference blocks
-    public string SelectedReferenceId { get; set; } = string.Empty;
-
-    public EditorBlock DeepClone()
-    {
-        var copy = (EditorBlock)MemberwiseClone();
-        copy.EditorId = Guid.NewGuid().ToString();
-        copy.EditorColumns = EditorColumns
-            .Select(c => new EditorColumn
-            {
-                ColId  = Guid.NewGuid().ToString(),
-                Blocks = c.Blocks.Select(nb => nb.Clone()).ToList(),
-            })
-            .ToList();
-        copy.GalleryImages = GalleryImages.Select(g => new GalleryImage { Src = g.Src, Alt = g.Alt }).ToList();
-        return copy;
-    }
-}
-
-/// <summary>Column within a Columns block in the editor.</summary>
-public class EditorColumn
-{
-    public string           ColId  { get; set; } = Guid.NewGuid().ToString();
-    public List<NestedBlock> Blocks { get; set; } = [];
-}
-
-/// <summary>A simplified nested block (text / image / video / button) inside a column.</summary>
-public class NestedBlock
-{
-    public string Type    { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public string Src     { get; set; } = string.Empty;
-    public string Alt     { get; set; } = string.Empty;
-    public string Url     { get; set; } = string.Empty;
-    public string Text    { get; set; } = string.Empty;
-    public string Style   { get; set; } = "primary";
-
-    public NestedBlock Clone() => (NestedBlock)MemberwiseClone();
-}
-
-/// <summary>A single image in a gallery block.</summary>
-public class GalleryImage
-{
-    public string Src { get; set; } = string.Empty;
-    public string Alt { get; set; } = string.Empty;
-}
 
 /// <summary>An item in the media library picker.</summary>
 public record MediaItem(int Id, string Src, string Alt);
 
 /// <summary>An item in the reference selector (pages, posts, etc.).</summary>
 public record ReferenceItem(string Id, string? Title = null, string? Name = null);
-
-/// <summary>An active toast notification.</summary>
-public class ToastMessage
-{
-    public string Id      { get; init; } = Guid.NewGuid().ToString();
-    public string Message { get; set; }  = string.Empty;
-    public string Type    { get; set; }  = "info"; // "success" | "error" | "info"
-}
