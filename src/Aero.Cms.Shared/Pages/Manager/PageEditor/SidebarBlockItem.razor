@@ -4,14 +4,20 @@
         draggable="true"
         @ondragstart="OnDragStart"
         @onclick="OnClick">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        @IconContent
-    </svg>
-    <span>@Label</span>
+    <div class="pe-block-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            @IconContent
+        </svg>
+    </div>
+    @if (!IsCollapsed)
+    {
+        <span>@Label</span>
+    }
 </button>
 
 @code {
     [Parameter] public string Label { get; set; } = string.Empty;
+    [CascadingParameter] public bool IsCollapsed { get; set; }
     [Parameter] public RenderFragment? IconContent { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public EventCallback<DragEventArgs> OnDragStart { get; set; }

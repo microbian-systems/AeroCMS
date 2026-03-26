@@ -20,7 +20,9 @@
         }
     </div>
     <div class="pe-sidebar-content">
-        @ChildContent
+        <CascadingValue Value="IsCollapsed">
+            @ChildContent
+        </CascadingValue>
     </div>
 </aside>
 
