@@ -58,6 +58,7 @@ public static class MauiProgram
         
         // Legacy registrations (ensure both class and interface work for transition)
         builder.Services.AddScoped<DocsClient>();
+        builder.Services.AddScoped<ManagerThemeService>();
 
         builder.Services.AddMauiBlazorWebView();
         builder.Services.AddRadzenComponents();

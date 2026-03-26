@@ -18,6 +18,7 @@ builder.Services.AddAeroHttpClients(builder.Configuration);
 
 // Legacy registrations
 builder.Services.AddScoped<DocsClient>();
+builder.Services.AddScoped<ManagerThemeService>();
 builder.Services.AddRadzenComponents();
 
 await builder.Build().RunAsync();

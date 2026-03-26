@@ -46,6 +46,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool   PreviewMode      { get; set; }
     protected string PreviewDevice    { get; set; } = "desktop";
     protected bool   RightSidebarCollapsed { get; set; } = true;
+    protected bool   IsSaving              { get; set; }
 
     // Sidebar category toggles
     protected bool CategoryContent    { get; set; } = true;
@@ -565,11 +566,24 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Save / Publish  (mirrors savePage / publishPage)
     // ──────────────────────────────────────────────────────────
 
-    protected void SavePage()
+    protected async Task SavePage()
     {
-        // TODO: wire up to PageContentService / MediatR command
-        UpdateLastSaved();
-        ShowToast("Page saved successfully", "success");
+        if (IsSaving) return;
+        IsSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            // TODO: wire up to PageContentService / MediatR command
+            await Task.Delay(800); // simulate network lag
+            UpdateLastSaved();
+            ShowToast("Page saved successfully", "success");
+        }
+        finally
+        {
+            IsSaving = false;
+            StateHasChanged();
+        }
     }
 
     protected async Task AutoSaveAsync()
@@ -578,9 +592,9 @@ public partial class PageEditor : ComponentBase, IDisposable
         await InvokeAsync(SavePage);
     }
 
-    protected void PublishPage()
+    protected async Task PublishPage()
     {
-        SavePage();
+        await SavePage();
         ShowToast("Page published!", "success");
     }
 

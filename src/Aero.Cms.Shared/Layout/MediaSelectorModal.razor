@@ -87,6 +87,7 @@
     private string MediaTab { get; set; } = "gallery";
     private List<string> SelectedMediaIds { get; set; } = [];
 
+    /// <summary>Resets the internal state of the modal when visibility or library parameters change.</summary>
     protected override void OnParametersSet()
     {
         if (Show && SelectedMediaIds.Count > 0 && !MultiSelect)

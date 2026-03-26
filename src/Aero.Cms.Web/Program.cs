@@ -36,6 +36,7 @@ services.AddSingleton<IFormFactor, FormFactor>();
 
 // Register all Aero HTTP clients
 services.AddAeroHttpClients(config);
+services.AddScoped<ManagerThemeService>();
 
 var (_, log) = await builder.AddAeroCmsAsync<Program>();
 
