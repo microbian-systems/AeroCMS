@@ -13,201 +13,192 @@
 @* Note: .pe-editor-area is now provided by ManagerShellLayout *@
 @* We just need to handle the internal page header and block container *@
 
-    @* Page header (edit mode) *@
-    @if (!PreviewMode)
-    {
-        <div class="pe-page-header">
-            <div class="pe-header-tabs">
-                <NavLink class="pe-tab" href="/manager" Match="NavLinkMatch.All">Dashboard</NavLink>
-                <NavLink class="pe-tab" href="/manager/navigations">Navigations</NavLink>
-                <NavLink class="pe-tab" href="/manager/posts">Posts</NavLink>
-                <NavLink class="pe-tab" href="/manager/pages">Pages</NavLink>
-                <NavLink class="pe-tab" href="/manager/docs">Docs</NavLink>
-                <NavLink class="pe-tab" href="/manager/modules">Modules</NavLink>
-                <NavLink class="pe-tab" href="/manager/media">Media</NavLink>
+@* Page header (edit mode) *@
+@if (!PreviewMode)
+{
+    <div class="pe-page-header">
+        <input class="pe-page-title-input" type="text" placeholder="Page Title"
+               value="@PageTitle" @oninput="e => PageTitle = e.Value?.ToString() ?? string.Empty"/>
+        <div class="pe-page-meta">
+            <div class="pe-meta-left">
+                <span class="pe-meta-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    Last saved: <strong>@LastSaved</strong>
+                </span>
+                <span class="pe-meta-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    @Author
+                </span>
             </div>
-            <input class="pe-page-title-input" type="text" placeholder="Page Title"
-                   value="@PageTitle" @oninput="e => PageTitle = e.Value?.ToString() ?? string.Empty"/>
-            <div class="pe-page-meta">
-                <div class="pe-meta-left">
-                    <span class="pe-meta-item">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                        Last saved: <strong>@LastSaved</strong>
-                    </span>
-                    <span class="pe-meta-item">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                        </svg>
-                        @Author
-                    </span>
-                </div>
-                <div class="pe-meta-right">
-                    <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="TogglePreview">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                        Preview
-                    </button>
-                    <button class="pe-btn @(IsSaving ? "pe-btn-secondary" : "pe-btn-primary") pe-btn-sm" @onclick="SavePage" disabled="@IsSaving">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                            <polyline points="17 21 17 13 7 13 7 21"/>
-                            <polyline points="7 3 7 8 15 8"/>
-                        </svg>
-                        @(IsSaving ? "Saving..." : "Save")
-                    </button>
-                    <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPage">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                        Publish
-                    </button>
-                </div>
+            <div class="pe-meta-right">
+                <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="TogglePreview">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    Preview
+                </button>
+                <button class="pe-btn @(IsSaving ? "pe-btn-secondary" : "pe-btn-primary") pe-btn-sm" @onclick="SavePage" disabled="@IsSaving">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    @(IsSaving ? "Saving..." : "Save")
+                </button>
+                <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPage">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Publish
+                </button>
             </div>
         </div>
-    }
+    </div>
+}
 
-    @* Preview device toolbar *@
-    @if (PreviewMode)
-    {
-        <div class="pe-preview-header">
-            <div class="pe-preview-devices">
-                <button class="pe-device-btn @(PreviewDevice == "desktop" ? "active" : "")" title="Desktop" @onclick='() => PreviewDevice = "desktop"'>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                        <line x1="8" y1="21" x2="16" y2="21"/>
-                        <line x1="12" y1="17" x2="12" y2="21"/>
-                    </svg>
-                </button>
-                <button class="pe-device-btn @(PreviewDevice == "tablet" ? "active" : "")" title="Tablet" @onclick='() => PreviewDevice = "tablet"'>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
-                        <line x1="12" y1="18" x2="12.01" y2="18"/>
-                    </svg>
-                </button>
-                <button class="pe-device-btn @(PreviewDevice == "mobile" ? "active" : "")" title="Mobile" @onclick='() => PreviewDevice = "mobile"'>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                        <line x1="12" y1="18" x2="12.01" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            <button class="pe-btn pe-btn-ghost" @onclick="TogglePreview">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
+@* Preview device toolbar *@
+@if (PreviewMode)
+{
+    <div class="pe-preview-header">
+        <div class="pe-preview-devices">
+            <button class="pe-device-btn @(PreviewDevice == "desktop" ? "active" : "")" title="Desktop" @onclick='() => PreviewDevice = "desktop"'>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                    <line x1="8" y1="21" x2="16" y2="21"/>
+                    <line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
-                Close Preview
+            </button>
+            <button class="pe-device-btn @(PreviewDevice == "tablet" ? "active" : "")" title="Tablet" @onclick='() => PreviewDevice = "tablet"'>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+                    <line x1="12" y1="18" x2="12.01" y2="18"/>
+                </svg>
+            </button>
+            <button class="pe-device-btn @(PreviewDevice == "mobile" ? "active" : "")" title="Mobile" @onclick='() => PreviewDevice = "mobile"'>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                    <line x1="12" y1="18" x2="12.01" y2="18"/>
+                </svg>
             </button>
         </div>
+        <button class="pe-btn pe-btn-ghost" @onclick="TogglePreview">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            Close Preview
+        </button>
+    </div>
+}
+
+@* Blocks canvas *@
+<div class="pe-blocks-container @(PreviewMode ? "preview-" + PreviewDevice : "")"
+     @ondragover:preventDefault
+     @ondrop="OnDropCanvas">
+
+    @* Empty state *@
+    @if (Blocks.Count == 0 && !PreviewMode)
+    {
+        <div class="pe-empty-state">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                 style="cursor: pointer" @onclick="() => RightSidebarCollapsed = false">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <h3>Start building your page</h3>
+            <p>Drag blocks from the sidebar or click to add them here</p>
+        </div>
     }
 
-    @* Blocks canvas *@
-    <div class="pe-blocks-container @(PreviewMode ? "preview-" + PreviewDevice : "")"
-         @ondragover:preventDefault
-         @ondrop="OnDropCanvas">
+    @* Block list *@
+    @for (var i = 0; i < Blocks.Count; i++)
+    {
+        var block = Blocks[i];
+        var index = i; // capture for lambda
+        var isSelected = SelectedBlockId == block.EditorId;
 
-        @* Empty state *@
-        @if (Blocks.Count == 0 && !PreviewMode)
-        {
-            <div class="pe-empty-state">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
-                     style="cursor: pointer" @onclick="() => RightSidebarCollapsed = false">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="12" y1="8" x2="12" y2="16"/>
-                    <line x1="8" y1="12" x2="16" y2="12"/>
-                </svg>
-                <h3>Start building your page</h3>
-                <p>Drag blocks from the sidebar or click to add them here</p>
-            </div>
-        }
+        <div class="pe-block-wrapper @(isSelected ? "selected" : "") @(DraggedBlockId == block.EditorId ? "dragging" : "") @(DragOverIndex == index ? "drag-over" : "")"
+             @onclick="() => SelectBlock(block.EditorId)"
+             draggable="true"
+             @ondragstart="e => DragStartBlock(e, block.EditorId, index)"
+             @ondragover="e => DragOverBlock(e, index)"
+             @ondragover:preventDefault
+             @ondrop="e => DropBlock(e, index)"
+             @ondrop:stopPropagation>
 
-        @* Block list *@
-        @for (var i = 0; i < Blocks.Count; i++)
-        {
-            var block = Blocks[i];
-            var index = i; // capture for lambda
-            var isSelected = SelectedBlockId == block.EditorId;
-
-            <div class="pe-block-wrapper @(isSelected ? "selected" : "") @(DraggedBlockId == block.EditorId ? "dragging" : "") @(DragOverIndex == index ? "drag-over" : "")"
-                 @onclick="() => SelectBlock(block.EditorId)"
-                 draggable="true"
-                 @ondragstart="e => DragStartBlock(e, block.EditorId, index)"
-                 @ondragover="e => DragOverBlock(e, index)"
-                 @ondragover:preventDefault
-                 @ondrop="e => DropBlock(e, index)"
-                 @ondrop:stopPropagation>
-
-                @* Toolbar *@
-                @if (isSelected && !PreviewMode)
-                {
-                    <div class="pe-block-toolbar">
-                        <button class="pe-toolbar-btn" title="Move up"
-                                disabled="@(index == 0)"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => MoveBlockUp(index)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="18 15 12 9 6 15"/>
-                            </svg>
-                        </button>
-                        <button class="pe-toolbar-btn" title="Move down"
-                                disabled="@(index == Blocks.Count - 1)"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => MoveBlockDown(index)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"/>
-                            </svg>
-                        </button>
-                        <button class="pe-toolbar-btn" title="Duplicate"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => DuplicateBlock(index)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                            </svg>
-                        </button>
-                        <button class="pe-toolbar-btn delete" title="Delete"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => DeleteBlock(index)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="3 6 5 6 21 6"/>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                            </svg>
-                        </button>
-                    </div>
-                }
-
-                <div class="pe-block-content">
-                    @RenderBlock(block, isSelected)
+            @* Toolbar *@
+            @if (isSelected && !PreviewMode)
+            {
+                <div class="pe-block-toolbar">
+                    <button class="pe-toolbar-btn" title="Move up"
+                            disabled="@(index == 0)"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => MoveBlockUp(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="18 15 12 9 6 15"/>
+                        </svg>
+                    </button>
+                    <button class="pe-toolbar-btn" title="Move down"
+                            disabled="@(index == Blocks.Count - 1)"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => MoveBlockDown(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                    <button class="pe-toolbar-btn" title="Duplicate"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => DuplicateBlock(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                    </button>
+                    <button class="pe-toolbar-btn delete" title="Delete"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => DeleteBlock(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
                 </div>
-            </div>
-        }
-    </div>
+            }
 
-    @* Right sidebar content *@
+            <div class="pe-block-content">
+                @RenderBlock(block, isSelected)
+            </div>
+        </div>
+    }
+</div>
+
+@* Right sidebar content *@
 <SectionContent SectionName="RightSidebar">
-    <AeroSidebar Title="Library" Side="SidebarSide.Right" @bind-IsCollapsed="RightSidebarCollapsed">
+    <AeroSidebar Title="Blocks" Side="SidebarSide.Right" @bind-IsCollapsed="RightSidebarCollapsed">
         <div class="pe-blocks-sidebar">
             @* Content category *@
             <div class="pe-category">
                 <button class="pe-category-header" @onclick='() => ToggleCategory("content")'>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="16" y1="13" x2="8" y2="13" />
-                        <line x1="16" y1="17" x2="8" y2="17" />
-                        <polyline points="10 9 9 9 8 9" />
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
                     </svg>
                     @if (!RightSidebarCollapsed)
                     {
                         @:Dashboard
                         <svg class="pe-chevron @(CategoryContent ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9" />
+                            <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     }
                 </button>
@@ -215,33 +206,33 @@
                 {
                     <div class="pe-category-items">
                         <SidebarBlockItem Label="Hero" @ondragstart='e => DragStart(e, "hero")' OnClick='() => AddBlock("hero")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <line x1="3" y1="9" x2="21" y2="9" />
-                            <line x1="9" y1="21" x2="9" y2="9" />
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/>
+                            <line x1="9" y1="21" x2="9" y2="9"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Text" @ondragstart='e => DragStart(e, "text")' OnClick='() => AddBlock("text")'>
-                            <polyline points="4 7 4 4 20 4 20 7" />
-                            <line x1="9" y1="20" x2="15" y2="20" />
-                            <line x1="12" y1="4" x2="12" y2="20" />
+                            <polyline points="4 7 4 4 20 4 20 7"/>
+                            <line x1="9" y1="20" x2="15" y2="20"/>
+                            <line x1="12" y1="4" x2="12" y2="20"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Columns" @ondragstart='e => DragStart(e, "columns")' OnClick='() => AddBlock("columns")'>
-                            <rect x="3" y="3" width="7" height="18" />
-                            <rect x="14" y="3" width="7" height="18" />
+                            <rect x="3" y="3" width="7" height="18"/>
+                            <rect x="14" y="3" width="7" height="18"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Rich Text" @ondragstart='e => DragStart(e, "content")' OnClick='() => AddBlock("content")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <line x1="3" y1="9" x2="21" y2="9" />
-                            <line x1="9" y1="21" x2="9" y2="9" />
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/>
+                            <line x1="9" y1="21" x2="9" y2="9"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Markdown" @ondragstart='e => DragStart(e, "markdown")' OnClick='() => AddBlock("markdown")'>
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Quote" @ondragstart='e => DragStart(e, "quote")' OnClick='() => AddBlock("quote")'>
-                            <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3" />
+                            <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Separator" @ondragstart='e => DragStart(e, "separator")' OnClick='() => AddBlock("separator")'>
-                            <line x1="5" y1="12" x2="19" y2="12" />
+                            <line x1="5" y1="12" x2="19" y2="12"/>
                         </SidebarBlockItem>
                     </div>
                 }
@@ -251,15 +242,15 @@
             <div class="pe-category">
                 <button class="pe-category-header" @onclick='() => ToggleCategory("media")'>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                        <circle cx="8.5" cy="8.5" r="1.5" />
-                        <polyline points="21 15 16 10 5 21" />
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
                     </svg>
                     @if (!RightSidebarCollapsed)
                     {
                         @:Media
                         <svg class="pe-chevron @(CategoryMedia ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9" />
+                            <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     }
                 </button>
@@ -267,25 +258,25 @@
                 {
                     <div class="pe-category-items">
                         <SidebarBlockItem Label="Image" @ondragstart='e => DragStart(e, "image")' OnClick='() => AddBlock("image")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Video" @ondragstart='e => DragStart(e, "video")' OnClick='() => AddBlock("video")'>
-                            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
-                            <line x1="7" y1="2" x2="7" y2="22" />
-                            <line x1="17" y1="2" x2="17" y2="22" />
-                            <line x1="2" y1="12" x2="22" y2="12" />
+                            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+                            <line x1="7" y1="2" x2="7" y2="22"/>
+                            <line x1="17" y1="2" x2="17" y2="22"/>
+                            <line x1="2" y1="12" x2="22" y2="12"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Gallery" @ondragstart='e => DragStart(e, "gallery")' OnClick='() => AddBlock("gallery")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Audio" @ondragstart='e => DragStart(e, "audio")' OnClick='() => AddBlock("audio")'>
-                            <path d="M9 18V5l12-2v13" />
-                            <circle cx="6" cy="18" r="3" />
-                            <circle cx="18" cy="16" r="3" />
+                            <path d="M9 18V5l12-2v13"/>
+                            <circle cx="6" cy="18" r="3"/>
+                            <circle cx="18" cy="16" r="3"/>
                         </SidebarBlockItem>
                     </div>
                 }
@@ -295,14 +286,14 @@
             <div class="pe-category">
                 <button class="pe-category-header" @onclick='() => ToggleCategory("references")'>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                     </svg>
                     @if (!RightSidebarCollapsed)
                     {
                         @:References
                         <svg class="pe-chevron @(CategoryReferences ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9" />
+                            <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     }
                 </button>
@@ -310,26 +301,26 @@
                 {
                     <div class="pe-category-items">
                         <SidebarBlockItem Label="Pages" @ondragstart='e => DragStart(e, "pages")' OnClick='() => AddBlock("pages")'>
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Posts" @ondragstart='e => DragStart(e, "posts")' OnClick='() => AddBlock("posts")'>
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                            <line x1="16" y1="13" x2="8" y2="13" />
-                            <line x1="16" y1="17" x2="8" y2="17" />
-                            <polyline points="10 9 9 9 8 9" />
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Categories" @ondragstart='e => DragStart(e, "categories")' OnClick='() => AddBlock("categories")'>
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Tags" @ondragstart='e => DragStart(e, "tags")' OnClick='() => AddBlock("tags")'>
-                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-                            <line x1="7" y1="7" x2="7.01" y2="7" />
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                            <line x1="7" y1="7" x2="7.01" y2="7"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Authors" @ondragstart='e => DragStart(e, "authors")' OnClick='() => AddBlock("authors")'>
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
                         </SidebarBlockItem>
                     </div>
                 }
@@ -339,14 +330,14 @@
             <div class="pe-category">
                 <button class="pe-category-header" @onclick='() => ToggleCategory("settings")'>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3" />
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
                     @if (!RightSidebarCollapsed)
                     {
                         @:Settings
                         <svg class="pe-chevron @(CategorySettings ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9" />
+                            <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     }
                 </button>
@@ -354,12 +345,12 @@
                 {
                     <div class="pe-category-items">
                         <SidebarBlockItem Label="Page Setup" OnClick='() => CategorySettings = true'>
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="SEO" OnClick='() => CategorySettings = true'>
-                            <circle cx="11" cy="11" r="8" />
-                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                         </SidebarBlockItem>
                     </div>
                 }
@@ -369,13 +360,13 @@
 </SectionContent>
 
 @* ── Media selector modal ────────────────────────────────── *@
-<MediaSelectorModal 
-    Show="MediaModalOpen" 
+<MediaSelectorModal
+    Show="MediaModalOpen"
     MultiSelect="IsGalleryMode"
     Library="MediaLibrary"
     OnClose="() => MediaModalOpen = false"
     OnConfirm="OnConfirmMediaSelection"
-    OnUpload="HandleFileSelect" />
+    OnUpload="HandleFileSelect"/>
 
 @* ── Toast notifications ─────────────────────────────────── *@
 <div class="pe-toast-container">
