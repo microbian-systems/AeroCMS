@@ -34,6 +34,10 @@ services.AddCascadingAuthenticationState();
 // Add device-specific services used by the Aero.Cms.Shared project
 services.AddSingleton<IFormFactor, FormFactor>();
 
+// Load API base URL from configuration
+var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:333";
+builder.Configuration["AeroHttpClientBaseAddress"] = apiBaseUrl;
+
 // Register all Aero HTTP clients
 services.AddAeroHttpClients(config);
 services.AddScoped<ManagerThemeService>();

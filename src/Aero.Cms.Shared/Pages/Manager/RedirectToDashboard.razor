@@ -1,9 +1,14 @@
 @page "/"
+@using Aero.Cms.Shared.Services
 @inject NavigationManager Navigation
+@inject IFormFactor FormFactor
 
 @code {
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo("/manager");
+        if (FormFactor.GetFormFactor() != "Web")
+        {
+            Navigation.NavigateTo("/manager");
+        }
     }
 }
