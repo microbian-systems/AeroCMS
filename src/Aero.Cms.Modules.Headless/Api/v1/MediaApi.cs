@@ -189,11 +189,22 @@ public static class MediaApi
             if (!string.IsNullOrEmpty(request.Base64Data))
             {
                 var directory = Path.Combine(env.WebRootPath, "media");
-                if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+                logger.LogInformation("Saving media file to: {Directory}. FileName: {FileName}", directory, request.FileName);
+
+                if (!Directory.Exists(directory)) 
+                {
+                    logger.LogDebug("Directory does not exist. Creating: {Directory}", directory);
+                    Directory.CreateDirectory(directory);
+                }
 
                 var filePath = Path.Combine(directory, request.FileName);
+                logger.LogDebug("Converting Base64 data (Length: {Length}) to bytes...", request.Base64Data.Length);
+                
                 var data = Convert.FromBase64String(request.Base64Data);
+                logger.LogInformation("Writing {Bytes} bytes to disk at {FilePath}...", data.Length, filePath);
+                
                 await File.WriteAllBytesAsync(filePath, data, cancellationToken);
+                logger.LogDebug("File write complete.");
             }
 
             var media = new MediaAsset
@@ -209,8 +220,10 @@ public static class MediaApi
                 IsFolder = false
             };
 
+            logger.LogDebug("Storing MediaAsset record in DB. ID: {Id}", media.Id);
             session.Store(media);
             await session.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("MediaAsset record persisted successfully for {Id}", media.Id);
 
             var detail = new MediaDetail(
                 media.Id,

@@ -5,6 +5,8 @@
 @inject IMediaHttpClient MediaClient
 @inject DialogService DialogService
 @inject NotificationService NotificationService
+@using Microsoft.Extensions.Logging
+@inject ILogger<Media> Logger
 
 <div class="media-container bg-[#f8fafc] dark:bg-[#0f172a] h-full flex flex-col overflow-hidden">
     <!-- Media Header -->
@@ -255,6 +257,7 @@
 
     async Task LoadMedia()
     {
+        Logger.LogInformation("Loading media for folder: {FolderId}. Search: {Search}", currentFolderId, searchText);
         isLoading = true;
         
         // 1. Load current items
@@ -342,11 +345,16 @@
 
     async Task OnUploadClick()
     {
+        Logger.LogDebug("Opening UploadDialog...");
         var result = await DialogService.OpenAsync<UploadDialog>("Upload Media", 
             new Dictionary<string, object> { { "ParentId", currentFolderId } },
             new DialogOptions { Width = "500px" });
 
-        if (result == true) await LoadMedia();
+        if (result == true) 
+        {
+            Logger.LogInformation("UploadDialog returned success. Refreshing media...");
+            await LoadMedia();
+        }
     }
 
     async Task OnDeleteMedia(MediaSummary item)

@@ -7,6 +7,8 @@
 @inject IMediaHttpClient MediaClient
 @inject NotificationService NotificationService
 @inject DialogService DialogService
+@using Microsoft.Extensions.Logging
+@inject ILogger<UploadDialog> Logger
 
 <div class="media-upload-dialog p-6 bg-white dark:bg-gray-900 rounded-3xl">
     <div class="mb-8 flex items-center justify-between">
@@ -89,6 +91,7 @@
 
     void OnInputFileChange(InputFileChangeEventArgs args)
     {
+        Logger.LogInformation("File input change detected. Selected {Count} files.", args.FileCount);
         foreach (var file in args.GetMultipleFiles(20))
         {
             if (!selectedFiles.Any(f => f.Name == file.Name && f.Size == file.Size))
@@ -112,25 +115,40 @@
 
         foreach (var file in selectedFiles.ToList())
         {
+            Logger.LogInformation("Processing upload for {FileName} ({Size} bytes)", file.Name, file.Size);
             try 
             {
                 using var stream = file.OpenReadStream(10 * 1024 * 1024); // max 10MB
                 using var memoryStream = new MemoryStream();
+                
+                Logger.LogDebug("Copying {FileName} to memory stream...", file.Name);
                 await stream.CopyToAsync(memoryStream);
-                var base64 = Convert.ToBase64String(memoryStream.ToArray());
-
+                
+                var data = memoryStream.ToArray();
+                Logger.LogDebug("Finished reading file. Size: {Bytes} bytes. Converting to Base64...", data.Length);
+                
+                var base64 = Convert.ToBase64String(data);
                 var req = new UploadMediaRequest(file.Name, file.ContentType, file.Size, null, null, ParentId, base64);
+                
+                Logger.LogInformation("Invoking MediaClient.UploadAsync for {FileName}...", file.Name);
                 var result = await MediaClient.UploadAsync(req);
 
-                if (result is Result<string, MediaDetail>.Ok)
+                if (result is Result<string, MediaDetail>.Ok ok)
                 {
+                    Logger.LogInformation("Successfully uploaded {FileName}. Assigned ID: {Id}", file.Name, ok.Value.Id);
                     successCount++;
                     selectedFiles.Remove(file);
+                }
+                else if (result is Result<string, MediaDetail>.Failure fail)
+                {
+                    Logger.LogError("API Error during upload of {FileName}: {Error}", file.Name, fail.Error);
+                    NotificationService.Notify(NotificationSeverity.Error, "Upload Failed", $"API Error: {fail.Error}");
                 }
             }
             catch (Exception ex)
             {
-                 NotificationService.Notify(NotificationSeverity.Error, "Upload Failed", $"Error uploading {file.Name}: {ex.Message}");
+                Logger.LogCritical(ex, "Unexpected crash during upload of {FileName}", file.Name);
+                NotificationService.Notify(NotificationSeverity.Error, "Upload Failed", $"Error uploading {file.Name}: {ex.Message}");
             }
         }
 
