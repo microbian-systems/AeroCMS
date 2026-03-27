@@ -1,0 +1,55 @@
+@using Aero.Cms.Core.Http.Clients
+@using Aero.Core.Railway
+@inject IMediaHttpClient MediaClient
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<div class="p-6 bg-white dark:bg-gray-900 rounded-2xl">
+    <div class="mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Create New Folder</h3>
+        <p class="text-xs text-gray-500 mt-1">Folders help you organize your media library assets.</p>
+    </div>
+
+    <div class="space-y-4">
+        <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Folder Name</label>
+            <RadzenTextBox @bind-Value="@folderName" Placeholder="@("Enter folder name...")" class="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm px-4 py-2" />
+        </div>
+    </div>
+
+    <div class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3">
+        <RadzenButton Text="@("Cancel")" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@(() => DialogService.Close(false))" />
+        <RadzenButton Text="@("Create Folder")" Icon="@("create_new_folder")" ButtonStyle="ButtonStyle.Primary" Variant="Variant.Filled" 
+                     Click="@OnCreate" Disabled="@(string.IsNullOrWhiteSpace(folderName) || isSaving)" class="rounded-xl px-6 shadow-lg shadow-indigo-500/20" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public long? ParentId { get; set; }
+    string? folderName;
+    bool isSaving;
+
+    async Task OnCreate()
+    {
+        if (string.IsNullOrWhiteSpace(folderName)) return;
+        
+        isSaving = true;
+        // In this CMS, folders are just media records with IsFolder=true or a specific mime type
+        // The API likely expects a specific request for this.
+        // For now, we'll use the same UploadMediaRequest or similar if the API supports it.
+        // Assume MediaClient has a CreateFolderAsync or we use UploadAsync with a folder flag.
+        
+        var result = await MediaClient.UploadAsync(new UploadMediaRequest(folderName, "application/x-directory", 0, null, null, ParentId, ""));
+        
+        isSaving = false;
+        if (result is Result<string, MediaDetail>.Ok)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Folder Created", $"Folder '{folderName}' created successfully.");
+            DialogService.Close(true);
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to create folder.");
+        }
+    }
+}

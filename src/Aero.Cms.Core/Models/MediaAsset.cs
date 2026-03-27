@@ -15,4 +15,6 @@ public class MediaAsset : Entity
     public int Height { get; set; }
     public string? AltText { get; set; }
     public string? Description { get; set; }
+    public bool IsFolder { get; set; }
+    public long? ParentId { get; set; }
 }

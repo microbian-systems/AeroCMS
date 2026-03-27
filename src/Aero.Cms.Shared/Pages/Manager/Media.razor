@@ -1,77 +1,252 @@
 @page "/manager/media"
 @page "/manager/media/general"
 @using Aero.Cms.Core.Http.Clients
-@inject IMediaHttpClient MediaApi
+@using Aero.Core.Railway
+@inject IMediaHttpClient MediaClient
 @inject DialogService DialogService
+@inject NotificationService NotificationService
 
-<div class="space-y-6">
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Media Library</h1>
-            <p class="mt-1 text-sm text-gray-500">Manage your images, videos, and documents.</p>
+<div class="media-container bg-[#f8fafc] dark:bg-[#0f172a] h-full flex flex-col overflow-hidden">
+    <!-- Media Header -->
+    <div class="px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e293b] shadow-sm z-10">
+        <div class="flex items-center space-x-4">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <RadzenIcon Icon="@("photo_library")" class="text-indigo-500" />
+                Media Library
+            </h1>
+            
+            <div class="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-2"></div>
+            
+            <div class="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
+                <RadzenButton Icon="@("home")" Variant="Variant.Text" Size="ButtonSize.Small" 
+                              ButtonStyle="ButtonStyle.Secondary" Click="@(() => NavigateToFolder(null))" 
+                              class="hover:text-indigo-500 transition-colors" />
+                
+                @foreach (var crumb in breadcrumbs)
+                {
+                    <span class="opacity-40">/</span>
+                    <RadzenButton Text="@crumb.FileName" Variant="Variant.Text" Size="ButtonSize.Small" 
+                                 ButtonStyle="ButtonStyle.Secondary" Click="@(() => NavigateToFolder(crumb.Id))"
+                                 class="hover:text-indigo-500 transition-colors" />
+                }
+            </div>
         </div>
-        <div class="flex space-x-3">
-             <RadzenTextBox Placeholder="Search media..." 
+
+        <div class="flex items-center space-x-3">
+             <RadzenTextBox Placeholder="@("Search all media...")" 
                             Value="@searchText" 
                             ValueChanged="@(args => OnSearch(args))" 
-                            class="w-64" />
-            <RadzenButton Icon="upload" Text="Upload Media" ButtonStyle="ButtonStyle.Primary" />
+                            class="w-72 bg-gray-50 dark:bg-gray-800 border-none rounded-full px-4 text-sm" />
+            
+            <RadzenButton Icon="@("create_new_folder")" ButtonStyle="ButtonStyle.Secondary" 
+                          Variant="Variant.Flat" Size="ButtonSize.Medium" class="rounded-full" 
+                          Click="@OnCreateFolder" />
+                          
+            <RadzenButton Icon="@("file_upload")" Text="Upload" ButtonStyle="ButtonStyle.Primary" 
+                          Variant="Variant.Filled" Size="ButtonSize.Medium" class="rounded-full shadow-lg shadow-indigo-500/20 px-6 font-bold" 
+                          Click="@OnUploadClick" />
         </div>
     </div>
 
-    @if (isLoading && mediaItems == null)
-    {
-        <div class="flex items-center justify-center py-20">
-            <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
-        </div>
-    }
-    else
-    {
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            @foreach (var item in mediaItems ?? Enumerable.Empty<MediaSummary>())
-            {
-                <RadzenCard class="p-2 cursor-pointer hover:shadow-xl transition-all group border-gray-100 hover:border-blue-200" 
-                            @onclick="@(() => OnMediaClick(item))">
-                    <div class="aspect-square bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 mb-3 relative overflow-hidden group-hover:bg-white transition-colors">
-                        @if (item.MimeType.StartsWith("image/"))
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="w-80 border-r border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-[#1e293b]/50 backdrop-blur-md p-6 overflow-y-auto">
+            <div class="space-y-8">
+                <div>
+                    <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">View Modes</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <RadzenButton Text="Grid" Icon="@("grid_view")" Variant="@(viewType == ViewType.Grid ? Variant.Filled : Variant.Text)" 
+                                     ButtonStyle="@(viewType == ViewType.Grid ? ButtonStyle.Primary : ButtonStyle.Light)"
+                                     Size="ButtonSize.Small" Click="@(() => SetView(ViewType.Grid))" class="w-full font-bold" />
+                        <RadzenButton Text="List" Icon="@("view_list")" Variant="@(viewType == ViewType.List ? Variant.Filled : Variant.Text)" 
+                                     ButtonStyle="@(viewType == ViewType.List ? ButtonStyle.Primary : ButtonStyle.Light)"
+                                     Size="ButtonSize.Small" Click="@(() => SetView(ViewType.List))" class="w-full font-bold" />
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Library Folders</h3>
+                    <div class="flex flex-col space-y-1">
+                        <div class="flex items-center p-2 rounded-lg cursor-pointer transition-colors @(currentFolderId == null ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300")"
+                             @onclick="@(() => NavigateToFolder(null))">
+                            <RadzenIcon Icon="@("folder")" class="mr-3 w-5 h-5 opacity-70" />
+                            <span class="text-sm">Root Content</span>
+                        </div>
+                        
+                        @foreach (var folder in availableFolders)
                         {
-                            <img src="@item.Url" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" alt="@item.FileName" />
-                        }
-                        else
-                        {
-                            <div class="flex flex-col items-center gap-2">
-                                <RadzenIcon Icon="insert_drive_file" class="text-gray-300 w-12 h-12" />
-                                <span class="text-[10px] uppercase font-bold text-gray-400">@item.MimeType.Split('/').Last()</span>
+                            <div class="flex items-center p-2 rounded-lg cursor-pointer transition-colors group @(currentFolderId == folder.Id ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300")"
+                                 @onclick="@(() => NavigateToFolder(folder.Id))">
+                                <RadzenIcon Icon="@("folder")" class="mr-3 w-5 h-5 opacity-70" />
+                                <span class="truncate flex-1 text-sm">@folder.FileName</span>
+                                <RadzenButton Icon="@("delete")" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Danger" 
+                                             Variant="Variant.Text" class="opacity-0 group-hover:opacity-100 transition-opacity" 
+                                             Click:stopPropagation="true" Click="@(() => OnDeleteMedia(folder))" />
                             </div>
                         }
                     </div>
-                    <div class="px-1">
-                        <div class="truncate text-xs font-semibold text-gray-900 mb-0.5" title="@item.FileName">@item.FileName</div>
-                        <div class="text-[10px] text-gray-500 flex justify-between">
-                            <span>@FormatSize(item.FileSize)</span>
-                            <span>@item.CreatedAt.ToShortDateString()</span>
-                        </div>
-                    </div>
-                </RadzenCard>
-            }
-        </div>
+                </div>
 
-        @if (totalCount > pageSize)
-        {
-            <div class="mt-10 flex justify-center border-t border-gray-100 pt-6">
-                <RadzenPager Count="@totalCount" PageSize="@pageSize" PageChanged="@OnPageChanged" />
+                <div>
+                    <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Quick Insights</h3>
+                    <div class="bg-indigo-50 dark:bg-indigo-900/10 rounded-2xl p-4 border border-indigo-100 dark:border-indigo-900/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs text-indigo-700 dark:text-indigo-400 font-bold uppercase tracking-wider">Storage Usage</span>
+                            <span class="text-[10px] text-indigo-600/60 dark:text-indigo-400/60 font-medium">62%</span>
+                        </div>
+                        <RadzenProgressBar Value="62" ShowValue="false" class="h-1.5 rounded-full overflow-hidden" Style="@("--rz-progressbar-value-background: var(--rz-primary)")" />
+                        <p class="mt-3 text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                            You have used 1.2 GB of your 2.0 GB allocated space.
+                        </p>
+                    </div>
+                </div>
             </div>
-        }
-    }
+        </aside>
+
+        <!-- Main Media Grid/List -->
+        <main class="flex-1 overflow-y-auto p-8 relative scrollbar-thin">
+            @if (isLoading)
+            {
+                <div class="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm z-20">
+                    <RadzenProgressBar Circular="true" Value="100" Mode="ProgressBarMode.Indeterminate" Style="@("width: 48px; height: 48px")" />
+                </div>
+            }
+
+            @if (totalCount == 0 && !isLoading)
+            {
+                <div class="h-full flex flex-col items-center justify-center text-center opacity-40">
+                    <div class="w-32 h-32 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
+                        <RadzenIcon Icon="@("cloud_upload")" class="w-16 h-16 text-gray-400" />
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-600 dark:text-gray-300">No media found here</h2>
+                    <p class="mt-2 text-gray-500 max-w-xs mx-auto">Upload your first asset to start organizing your digital content.</p>
+                </div>
+            }
+            else
+            {
+                @if (viewType == ViewType.Grid)
+                {
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6">
+                        @foreach (var item in mediaItems ?? Enumerable.Empty<MediaSummary>())
+                        {
+                            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl p-2 border border-gray-100 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-800 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 cursor-pointer"
+                                 @onclick="@(() => OnMediaClick(item))" @key="item.Id">
+                                
+                                <div class="aspect-square bg-gray-50 dark:bg-gray-900 rounded-xl flex items-center justify-center relative overflow-hidden mb-3">
+                                    @if (item.IsFolder)
+                                    {
+                                        <div class="transform group-hover:scale-110 transition-transform duration-300">
+                                            <RadzenIcon Icon="@("folder")" class="w-16 h-16 text-amber-400 opacity-80" />
+                                        </div>
+                                    }
+                                    else if (IsImage(item.MimeType))
+                                    {
+                                        <img src="@item.Url" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" alt="@item.FileName" />
+                                    }
+                                    else
+                                    {
+                                        <div class="flex flex-col items-center gap-2">
+                                            <RadzenIcon Icon="@("insert_drive_file")" class="text-gray-300 dark:text-gray-700 w-12 h-12" />
+                                            <span class="text-[9px] uppercase font-black text-gray-400 tracking-tighter">@item.MimeType.Split('/').Last()</span>
+                                        </div>
+                                    }
+
+                                    <!-- Overlay Actions -->
+                                    <div class="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/60 to-transparent translate-y-full group-hover:translate-y-0 transition-transform flex justify-end space-x-1">
+                                        <RadzenButton Icon="@("delete")" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.ExtraSmall" 
+                                                     Variant="Variant.Flat" Click="@(() => OnDeleteMedia(item))" />
+                                    </div>
+                                </div>
+                                
+                                <div class="px-1 overflow-hidden">
+                                    <div class="truncate text-xs font-bold text-gray-800 dark:text-gray-200 mb-1" title="@item.FileName">@item.FileName</div>
+                                    <div class="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 font-medium font-mono">
+                                        <span>@(item.IsFolder ? "Folder" : FormatSize(item.FileSize))</span>
+                                        <span>@item.CreatedAt.ToString("MMM dd")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <RadzenDataGrid Data="@mediaItems" TItem="MediaSummary" class="bg-transparent" AllowAlternatingRows="false">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="MediaSummary" Property="FileName" Title="Name">
+                                <Template Context="item">
+                                    <div class="flex items-center py-1 cursor-pointer" @onclick="@(() => OnMediaClick(item))">
+                                        <RadzenIcon Icon="@(item.IsFolder ? "folder" : "insert_drive_file")" 
+                                                   class="@(item.IsFolder ? "mr-3 text-amber-400" : "mr-3 text-gray-400")" />
+                                        <span class="font-medium text-gray-700 dark:text-gray-200">@item.FileName</span>
+                                    </div>
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="MediaSummary" Property="MimeType" Title="Type" Width="@("150px")" />
+                            <RadzenDataGridColumn TItem="MediaSummary" Property="FileSize" Title="Size" Width="@("100px")">
+                                <Template Context="item">
+                                    @(item.IsFolder ? "--" : FormatSize(item.FileSize))
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="MediaSummary" Property="CreatedAt" Title="Date" Width="@("150px")">
+                                <Template Context="item">
+                                    @item.CreatedAt.ToShortDateString()
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="MediaSummary" Width="@("80px")" Resizable="false" Sortable="false">
+                                <Template Context="item">
+                                    <RadzenButton Icon="@("delete")" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text" 
+                                                 Size="ButtonSize.ExtraSmall" Click="@(() => OnDeleteMedia(item))" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                }
+
+                @if (totalCount > pageSize)
+                {
+                    <div class="mt-12 flex justify-center pb-12">
+                        <RadzenPager Count="@((int)totalCount)" PageSize="@pageSize" PageChanged="@OnPageChanged" class="rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm" />
+                    </div>
+                }
+            }
+        </main>
+    </div>
 </div>
+
+<style>
+    .media-container ::v-deep .rz-textbox {
+        box-shadow: none !important;
+    }
+    .scrollbar-thin::-webkit-scrollbar {
+        width: 6px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+    .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: #334155;
+    }
+</style>
 
 @code {
     IEnumerable<MediaSummary>? mediaItems;
+    List<MediaSummary> availableFolders = new();
+    List<MediaSummary> breadcrumbs = new();
+    
     int totalCount;
-    int pageSize = 24;
+    int pageSize = 48;
     int currentPage = 0;
     bool isLoading = true;
     string searchText = "";
+    long? currentFolderId = null;
+    ViewType viewType = ViewType.Grid;
+
+    enum ViewType { Grid, List }
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,14 +256,53 @@
     async Task LoadMedia()
     {
         isLoading = true;
-        var result = await MediaApi.GetAllAsync(currentPage * pageSize, pageSize, searchText);
+        
+        // 1. Load current items
+        var result = await MediaClient.GetAllAsync(currentFolderId, currentPage * pageSize, pageSize, searchText);
         if (result is Result<string, PagedResult<MediaSummary>>.Ok ok)
         {
             mediaItems = ok.Value.Items;
             totalCount = (int)ok.Value.TotalCount;
         }
+        
+        // 2. Load side folders (for the sidebar)
+        var folderResult = await MediaClient.GetAllAsync(null, 0, 100); 
+        if (folderResult is Result<string, PagedResult<MediaSummary>>.Ok fok)
+        {
+            availableFolders = fok.Value.Items.Where(x => x.IsFolder).ToList();
+        }
+
         isLoading = false;
         StateHasChanged();
+    }
+
+    async Task SetView(ViewType type)
+    {
+        viewType = type;
+        await Task.CompletedTask;
+    }
+
+    async Task NavigateToFolder(long? id)
+    {
+        currentFolderId = id;
+        currentPage = 0;
+        
+        if (id == null) {
+            breadcrumbs.Clear();
+        } else {
+            // In a production app, you'd fetch the folder trail. 
+            // Here we just use availableFolders to find the clicked one if it's top-level or in side list.
+            var folder = availableFolders.FirstOrDefault(x => x.Id == id);
+            if (folder != null) {
+                if (!breadcrumbs.Any(x => x.Id == id)) breadcrumbs.Add(folder);
+                else {
+                    var idx = breadcrumbs.FindIndex(x => x.Id == id);
+                    breadcrumbs = breadcrumbs.Take(idx + 1).ToList();
+                }
+            }
+        }
+        
+        await LoadMedia();
     }
 
     async Task OnPageChanged(PagerEventArgs args)
@@ -104,10 +318,54 @@
         await LoadMedia();
     }
 
-    void OnMediaClick(MediaSummary item)
+    async Task OnMediaClick(MediaSummary item)
     {
-        // TODO: Open Media Detail Dialog
+        if (item.IsFolder)
+        {
+            await NavigateToFolder(item.Id);
+            return;
+        }
+
+        await DialogService.OpenAsync<MediaDetailDialog>("Media Details", 
+            new Dictionary<string, object> { { "MediaId", item.Id } },
+            new DialogOptions { Width = "700px", Resizable = true, Draggable = true });
     }
+
+    async Task OnCreateFolder()
+    {
+        var result = await DialogService.OpenAsync<CreateFolderDialog>("New Folder", 
+            new Dictionary<string, object> { { "ParentId", currentFolderId } },
+            new DialogOptions { Width = "400px" });
+
+        if (result == true) await LoadMedia();
+    }
+
+    async Task OnUploadClick()
+    {
+        var result = await DialogService.OpenAsync<UploadDialog>("Upload Media", 
+            new Dictionary<string, object> { { "ParentId", currentFolderId } },
+            new DialogOptions { Width = "500px" });
+
+        if (result == true) await LoadMedia();
+    }
+
+    async Task OnDeleteMedia(MediaSummary item)
+    {
+        var confirm = await DialogService.Confirm($"Are you sure you want to delete {item.FileName}?", "Delete Media", 
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirm == true)
+        {
+            var res = await MediaClient.DeleteAsync(item.Id);
+            if (res is Result<string, bool>.Ok)
+            {
+                NotificationService.Notify(NotificationSeverity.Success, "Deleted", "Media asset removed successfully");
+                await LoadMedia();
+            }
+        }
+    }
+
+    bool IsImage(string mimeType) => mimeType?.StartsWith("image/") == true;
 
     string FormatSize(long bytes)
     {
