@@ -5,7 +5,7 @@ using Aero.Core.Railway;
 
 public interface IUsersHttpClient
 {
-    Task<Result<string, IReadOnlyList<UserSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, PagedResult<UserSummary>>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
     Task<Result<string, UserDetail>> GetByIdAsync(long id, CancellationToken ct = default);
     Task<Result<string, UserDetail>> CreateAsync(CreateUserRequest request, CancellationToken ct = default);
     Task<Result<string, UserDetail>> UpdateAsync(long id, UpdateUserRequest request, CancellationToken ct = default);
@@ -21,9 +21,11 @@ public class UsersHttpClient(HttpClient httpClient, ILogger<UsersHttpClient> log
 {
     protected override string ResourceName => "users";
 
-    public Task<Result<string, IReadOnlyList<UserSummary>>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, PagedResult<UserSummary>>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)
     {
-        return GetResultAsync<IReadOnlyList<UserSummary>>(string.Empty, ct);
+        var url = $"?skip={skip}&take={take}";
+        if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+        return GetResultAsync<PagedResult<UserSummary>>(url, ct);
     }
 
     public Task<Result<string, UserDetail>> GetByIdAsync(long id, CancellationToken ct = default)

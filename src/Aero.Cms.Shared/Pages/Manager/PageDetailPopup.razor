@@ -1,0 +1,97 @@
+@using Aero.Cms.Core.Http.Clients
+@inject IPagesHttpClient PagesApi
+@inject DialogService DialogService
+@inject NavigationManager Navigation
+
+<div class="p-6 space-y-4">
+    @if (pageDetail == null)
+    {
+        <div class="flex items-center justify-center py-20">
+            <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Title</label>
+                    <div class="text-lg font-bold text-gray-900">@pageDetail.Title</div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Slug</label>
+                    <div class="text-sm font-mono bg-blue-50 text-blue-700 px-2 py-1 rounded-md inline-block">@pageDetail.Slug</div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Summary</label>
+                    <div class="text-sm text-gray-700 italic border-l-4 border-gray-200 pl-3 py-1">@pageDetail.Excerpt</div>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Publication Status</label>
+                    @if (pageDetail.PublishedAt.HasValue)
+                    {
+                        <div class="flex items-center gap-2 text-green-700">
+                            <RadzenIcon Icon="check_circle" class="w-4 h-4" />
+                            <span class="text-sm font-medium">Published on @pageDetail.PublishedAt?.ToString("MMMM dd, yyyy")</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="flex items-center gap-2 text-yellow-700">
+                             <RadzenIcon Icon="edit" class="w-4 h-4" />
+                             <span class="text-sm font-medium">Draft - Not Yet Published</span>
+                        </div>
+                    }
+                </div>
+                <div class="pt-4 flex gap-3">
+                     <RadzenButton Icon="edit" Text="Edit Page" ButtonStyle="ButtonStyle.Primary" Click="OnEdit" class="w-full" />
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 border-t pt-6">
+             <h3 class="text-sm font-semibold text-gray-900 mb-4">Metadata</h3>
+             <div class="grid grid-cols-2 gap-x-12 gap-y-4 text-xs text-gray-600">
+                  <div class="flex justify-between border-b pb-2">
+                       <span>SEO Title</span>
+                       <span class="font-medium text-gray-900">@(string.IsNullOrEmpty(pageDetail.SeoTitle) ? "(Default)" : pageDetail.SeoTitle)</span>
+                  </div>
+                  <div class="flex justify-between border-b pb-2">
+                       <span>Blocks</span>
+                       <span class="font-medium text-gray-900">@pageDetail.BlockCount</span>
+                  </div>
+                   <div class="flex justify-between border-b pb-2">
+                       <span>Created</span>
+                       <span class="font-medium text-gray-900">@pageDetail.CreatedAt.ToShortDateString()</span>
+                  </div>
+                  <div class="flex justify-between border-b pb-2">
+                       <span>Last Modified</span>
+                       <span class="font-medium text-gray-900">@pageDetail.UpdatedAt.ToShortDateString()</span>
+                  </div>
+             </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public long PageId { get; set; }
+    
+    private PageDetail? pageDetail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await PagesApi.GetByIdAsync(PageId);
+        if (result is Result<string, PageDetail>.Ok ok)
+        {
+             pageDetail = ok.Value;
+        }
+    }
+
+    void OnEdit()
+    {
+        DialogService.Close();
+        Navigation.NavigateTo($"/manager/page/editor?id={PageId}");
+    }
+}

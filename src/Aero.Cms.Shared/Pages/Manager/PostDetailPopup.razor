@@ -1,0 +1,109 @@
+@using Aero.Cms.Core.Http.Clients
+@inject IBlogHttpClient BlogApi
+@inject DialogService DialogService
+@inject NavigationManager Navigation
+
+<div class="p-6 space-y-4">
+    @if (post == null)
+    {
+        <div class="flex items-center justify-center py-20">
+            <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-2 gap-6">
+            <div class="space-y-4 col-span-2 sm:col-span-1">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Title</label>
+                    <div class="text-lg font-bold text-gray-900 leading-tight">@post.Title</div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Slug</label>
+                    <div class="text-sm font-mono bg-blue-50 text-blue-700 px-2 py-1 rounded-md inline-block">/@post.Slug</div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Summary / Excerpt</label>
+                    <div class="text-sm text-gray-700 italic bg-gray-50 p-3 rounded-lg border-l-4 border-gray-300">
+                        @(string.IsNullOrEmpty(post.Excerpt) ? "No excerpt provided." : post.Excerpt)
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-4 col-span-2 sm:col-span-1">
+                 @if (!string.IsNullOrEmpty(post.FeaturedImageUrl))
+                 {
+                    <div class="rounded-xl overflow-hidden shadow-sm border border-gray-100">
+                        <img src="@post.FeaturedImageUrl" class="w-full h-40 object-cover" alt="Featured Image" />
+                    </div>
+                 }
+                <div class="pt-2">
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Status</label>
+                    @if (post.PublishedAt.HasValue)
+                    {
+                        <div class="flex items-center gap-2 text-green-700">
+                            <RadzenIcon Icon="check_circle" class="w-4 h-4" />
+                            <span class="text-sm font-medium">Published on @post.PublishedAt?.ToString("MMMM dd, yyyy")</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="flex items-center gap-2 text-yellow-700">
+                             <RadzenIcon Icon="edit" class="w-4 h-4" />
+                             <span class="text-sm font-medium">Draft - Visibility: Private</span>
+                        </div>
+                    }
+                </div>
+                <div class="pt-4 flex gap-3">
+                     <RadzenButton Icon="edit" Text="Open in Editor" ButtonStyle="ButtonStyle.Primary" Click="OnEdit" class="w-full shadow-md" />
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 border-t pt-6">
+             <h3 class="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                 <RadzenIcon Icon="info" class="w-4 h-4 text-blue-500" />
+                 Metadata & Categorization
+             </h3>
+             <div class="grid grid-cols-2 gap-x-12 gap-y-4 text-xs text-gray-600">
+                  <div class="flex justify-between border-b border-gray-50 pb-2">
+                       <span>Author ID</span>
+                       <span class="font-medium text-gray-900">@post.AuthorId</span>
+                  </div>
+                  <div class="flex justify-between border-b border-gray-50 pb-2">
+                       <span>Category ID</span>
+                       <span class="font-medium text-gray-900">@post.CategoryId</span>
+                  </div>
+                   <div class="flex justify-between border-b border-gray-50 pb-2">
+                       <span>Created</span>
+                       <span class="font-medium text-gray-900">@post.CreatedAt.ToShortDateString()</span>
+                  </div>
+                  <div class="flex justify-between border-b border-gray-50 pb-2">
+                       <span>Last Modified</span>
+                       <span class="font-medium text-gray-900">@post.UpdatedAt.ToShortDateString()</span>
+                  </div>
+             </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public long PostId { get; set; }
+    
+    private BlogDetail? post;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await BlogApi.GetByIdAsync(PostId);
+        if (result is Result<string, BlogDetail>.Ok ok)
+        {
+             post = ok.Value;
+        }
+    }
+
+    void OnEdit()
+    {
+        DialogService.Close();
+        // Assuming there's a blog editor page similar to page editor
+        Navigation.NavigateTo($"/manager/post/editor?id={PostId}");
+    }
+}

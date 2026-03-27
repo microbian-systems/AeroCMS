@@ -1,5 +1,8 @@
 @page "/manager/media"
 @page "/manager/media/general"
+@using Aero.Cms.Core.Http.Clients
+@inject IMediaHttpClient MediaApi
+@inject DialogService DialogService
 
 <div class="space-y-6">
     <div class="flex items-center justify-between">
@@ -8,23 +11,113 @@
             <p class="mt-1 text-sm text-gray-500">Manage your images, videos, and documents.</p>
         </div>
         <div class="flex space-x-3">
-            <RadzenButton Icon="folder_open" Text="New Folder" ButtonStyle="ButtonStyle.Light" />
+             <RadzenTextBox Placeholder="Search media..." 
+                            Value="@searchText" 
+                            ValueChanged="@(args => OnSearch(args))" 
+                            class="w-64" />
             <RadzenButton Icon="upload" Text="Upload Media" ButtonStyle="ButtonStyle.Primary" />
         </div>
     </div>
 
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        @for (int i = 0; i < 12; i++)
+    @if (isLoading && mediaItems == null)
+    {
+        <div class="flex items-center justify-center py-20">
+            <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+            @foreach (var item in mediaItems ?? Enumerable.Empty<MediaSummary>())
+            {
+                <RadzenCard class="p-2 cursor-pointer hover:shadow-xl transition-all group border-gray-100 hover:border-blue-200" 
+                            @onclick="@(() => OnMediaClick(item))">
+                    <div class="aspect-square bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 mb-3 relative overflow-hidden group-hover:bg-white transition-colors">
+                        @if (item.MimeType.StartsWith("image/"))
+                        {
+                            <img src="@item.Url" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" alt="@item.FileName" />
+                        }
+                        else
+                        {
+                            <div class="flex flex-col items-center gap-2">
+                                <RadzenIcon Icon="insert_drive_file" class="text-gray-300 w-12 h-12" />
+                                <span class="text-[10px] uppercase font-bold text-gray-400">@item.MimeType.Split('/').Last()</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="px-1">
+                        <div class="truncate text-xs font-semibold text-gray-900 mb-0.5" title="@item.FileName">@item.FileName</div>
+                        <div class="text-[10px] text-gray-500 flex justify-between">
+                            <span>@FormatSize(item.FileSize)</span>
+                            <span>@item.CreatedAt.ToShortDateString()</span>
+                        </div>
+                    </div>
+                </RadzenCard>
+            }
+        </div>
+
+        @if (totalCount > pageSize)
         {
-            <RadzenCard class="p-2 cursor-pointer hover:shadow-lg transition-all group">
-                <div class="aspect-square bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 mb-2 relative overflow-hidden">
-                    <svg class="w-12 h-12 text-gray-300 transform group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                </div>
-                <div class="truncate text-xs font-medium text-gray-900 px-1">media-file-@(i+1).jpg</div>
-            </RadzenCard>
+            <div class="mt-10 flex justify-center border-t border-gray-100 pt-6">
+                <RadzenPager Count="@totalCount" PageSize="@pageSize" PageChanged="@OnPageChanged" />
+            </div>
         }
-    </div>
+    }
 </div>
 
 @code {
+    IEnumerable<MediaSummary>? mediaItems;
+    int totalCount;
+    int pageSize = 24;
+    int currentPage = 0;
+    bool isLoading = true;
+    string searchText = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMedia();
+    }
+
+    async Task LoadMedia()
+    {
+        isLoading = true;
+        var result = await MediaApi.GetAllAsync(currentPage * pageSize, pageSize, searchText);
+        if (result is Result<string, PagedResult<MediaSummary>>.Ok ok)
+        {
+            mediaItems = ok.Value.Items;
+            totalCount = (int)ok.Value.TotalCount;
+        }
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    async Task OnPageChanged(PagerEventArgs args)
+    {
+        currentPage = args.PageIndex;
+        await LoadMedia();
+    }
+
+    async Task OnSearch(string text)
+    {
+        searchText = text;
+        currentPage = 0;
+        await LoadMedia();
+    }
+
+    void OnMediaClick(MediaSummary item)
+    {
+        // TODO: Open Media Detail Dialog
+    }
+
+    string FormatSize(long bytes)
+    {
+        string[] suffix = { "B", "KB", "MB", "GB", "TB" };
+        int i;
+        double dblSByte = bytes;
+        for (i = 0; i < suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+        {
+            dblSByte = bytes / 1024.0;
+        }
+        return $"{dblSByte:0.##} {suffix[i]}";
+    }
 }

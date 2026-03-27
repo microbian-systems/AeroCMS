@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 public interface IMediaHttpClient
 {
-    Task<Result<string, IReadOnlyList<MediaSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, PagedResult<MediaSummary>>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
     Task<Result<string, MediaDetail>> GetByIdAsync(long id, CancellationToken ct = default);
     Task<Result<string, MediaDetail>> UploadAsync(UploadMediaRequest request, CancellationToken ct = default);
     Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default);
@@ -18,9 +18,11 @@ public class MediaHttpClient(HttpClient httpClient, ILogger<MediaHttpClient> log
 {
     protected override string ResourceName => "media";
 
-    public Task<Result<string, IReadOnlyList<MediaSummary>>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, PagedResult<MediaSummary>>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)
     {
-        return GetResultAsync<IReadOnlyList<MediaSummary>>(string.Empty, ct);
+        var url = $"?skip={skip}&take={take}";
+        if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+        return GetResultAsync<PagedResult<MediaSummary>>(url, ct);
     }
 
     public Task<Result<string, MediaDetail>> GetByIdAsync(long id, CancellationToken ct = default)

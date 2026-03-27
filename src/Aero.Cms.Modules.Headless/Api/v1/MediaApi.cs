@@ -41,13 +41,29 @@ public static class MediaApi
     private static async Task<IResult> GetAllMedia(
         [FromServices] IDocumentSession session,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 10,
+        [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(MediaApi));
         try
         {
-            var media = await session.Query<MediaAsset>()
+            var query = session.Query<MediaAsset>();
+
+            IQueryable<MediaAsset> filteredQuery = query;
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.ToLower();
+                filteredQuery = query.Where(x => x.FileName.ToLower().Contains(s) || (x.AltText != null && x.AltText.ToLower().Contains(s)));
+            }
+
+            var stats = new global::Marten.Linq.QueryStatistics();
+            var media = await ((global::Marten.Linq.IMartenQueryable<MediaAsset>)filteredQuery)
                 .OrderByDescending(x => x.CreatedOn)
+                .Stats(out stats)
+                .Skip(skip)
+                .Take(take)
                 .ToListAsync(cancellationToken);
 
             var summaries = media.Select(m => new MediaSummary(
@@ -59,7 +75,7 @@ public static class MediaApi
                 m.CreatedOn.DateTime
             )).ToList();
 
-            return TypedResults.Ok(summaries);
+            return TypedResults.Ok(new PagedResult<MediaSummary>(summaries, stats.TotalResults, skip, take));
         }
         catch (Exception ex)
         {

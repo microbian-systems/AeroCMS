@@ -1,5 +1,8 @@
 @page "/manager/posts"
 @page "/manager/posts/general"
+@using Aero.Cms.Core.Http.Clients
+@inject IBlogHttpClient BlogApi
+@inject DialogService DialogService
 
 <div class="space-y-6">
     <div class="flex items-center justify-between">
@@ -8,25 +11,99 @@
             <p class="mt-1 text-sm text-gray-500">Manage your blog content and articles.</p>
         </div>
         <div class="flex space-x-3">
-            <RadzenButton Icon="filter_list" ButtonStyle="ButtonStyle.Light" />
+             <RadzenTextBox Placeholder="Search posts..." 
+                            Value="@searchText" 
+                            ValueChanged="@(args => OnSearch(args))" 
+                            class="w-64" />
             <RadzenButton Icon="add" Text="New Post" ButtonStyle="ButtonStyle.Primary" />
         </div>
     </div>
 
-    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
+    <RadzenDataGrid @ref="grid"
+                    Data="@posts" 
+                    TItem="BlogSummary" 
+                    Count="@count"
+                    LoadData="@LoadData"
+                    IsLoading="@isLoading"
+                    AllowPaging="true" 
+                    PageSize="10" 
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    ShowPagingSummary="true"
+                    RowClick="@(args => OnRowClick(args.Data))"
+                    class="aero-grid cursor-pointer"
                     EmptyText="No posts found. Time to write something!">
         <Columns>
-            <RadzenDataGridColumn TItem="object" Property="Title" Title="Title" />
-            <RadzenDataGridColumn TItem="object" Property="Author" Title="Author" />
-            <RadzenDataGridColumn TItem="object" Property="Status" Title="Status">
+            <RadzenDataGridColumn TItem="BlogSummary" Property="Title" Title="Title">
                 <Template Context="post">
-                    <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Draft" />
+                    <div class="flex items-center gap-3">
+                         @if (!string.IsNullOrEmpty(post.FeaturedImageUrl))
+                         {
+                             <img src="@post.FeaturedImageUrl" class="w-8 h-8 rounded object-cover shadow-sm" alt="" />
+                         }
+                         <span class="font-medium text-gray-900">@post.Title</span>
+                    </div>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="object" Property="Published" Title="Date" />
+            <RadzenDataGridColumn TItem="BlogSummary" Property="Slug" Title="URL Slug">
+                 <Template Context="post">
+                      <span class="text-xs font-mono text-gray-500">/@post.Slug</span>
+                 </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="BlogSummary" Property="PublishedAt" Title="Status">
+                <Template Context="post">
+                    @if (post.PublishedAt.HasValue)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Published" class="px-2 py-1" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Draft" class="px-2 py-1" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="BlogSummary" Property="CreatedAt" Title="Created">
+                 <Template Context="post">
+                      <span class="text-sm text-gray-600">@post.CreatedAt.ToShortDateString()</span>
+                 </Template>
+            </RadzenDataGridColumn>
         </Columns>
     </RadzenDataGrid>
 </div>
 
 @code {
+    RadzenDataGrid<BlogSummary>? grid;
+    IEnumerable<BlogSummary>? posts;
+    int count;
+    bool isLoading = true;
+    string searchText = "";
+
+    async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        
+        var result = await BlogApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchText);
+        
+        if (result is Result<string, PagedResult<BlogSummary>>.Ok ok)
+        {
+            posts = ok.Value.Items;
+            count = (int)ok.Value.TotalCount;
+        }
+        
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    void OnSearch(string text)
+    {
+        searchText = text;
+        grid?.Reload();
+    }
+
+    async Task OnRowClick(BlogSummary? post)
+    {
+        if (post == null) return;
+        await DialogService.OpenAsync<PostDetailPopup>($"Post: {post.Title}", 
+            new Dictionary<string, object?> { { "PostId", post.Id } },
+            new DialogOptions { Width = "700px", Resizable = true, Draggable = true });
+    }
 }

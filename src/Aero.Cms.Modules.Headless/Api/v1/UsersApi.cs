@@ -46,13 +46,31 @@ public static class UsersApi
     private static async Task<IResult> GetAllUsers(
         [FromServices] UserManager<AeroUser> userManager,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 10,
+        [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(UsersApi));
         try
         {
-            var users = await EntityFrameworkQueryableExtensions.ToListAsync(userManager.Users
-                .OrderBy(u => u.UserName), cancellationToken);
+            var query = userManager.Users;
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.ToLower();
+                query = query.Where(u => 
+                    (u.UserName != null && u.UserName.ToLower().Contains(s)) || 
+                    (u.Email != null && u.Email.ToLower().Contains(s)) || 
+                    (u.FirstName != null && u.FirstName.ToLower().Contains(s)) || 
+                    (u.LastName != null && u.LastName.ToLower().Contains(s)));
+            }
+
+            var totalCount = await EntityFrameworkQueryableExtensions.CountAsync(query, cancellationToken);
+            var users = await EntityFrameworkQueryableExtensions.ToListAsync(query
+                .OrderBy(u => u.UserName)
+                .Skip(skip)
+                .Take(take), cancellationToken);
 
             var summaries = users.Select(u => new UserSummary(
                 u.Id,
@@ -63,7 +81,7 @@ public static class UsersApi
                 u.CreatedOn.DateTime
             )).ToList();
 
-            return TypedResults.Ok(summaries);
+            return TypedResults.Ok(new PagedResult<UserSummary>(summaries, totalCount, skip, take));
         }
         catch (Exception ex)
         {

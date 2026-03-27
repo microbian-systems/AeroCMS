@@ -1,14 +1,19 @@
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Pages;
+using Aero.Core.Railway;
 using FlakeId;
 using Marten;
 using Marten.Pagination;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Aero.Cms.Modules.Blog;
 
 public interface IBlogPostContentService
 {
+    Task<Result<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
     Task<Result<string, BlogPostDocument?>> LoadAsync(long id, CancellationToken cancellationToken = default);
     Task<Result<string, BlogPostDocument?>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<Result<string, IReadOnlyList<BlogPostDocument>>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
@@ -24,6 +29,35 @@ public interface IBlogPostContentService
 
 public sealed class MartenBlogPostContentService(IDocumentSession session) : IBlogPostContentService
 {
+    public async Task<Result<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var query = session.Query<BlogPostDocument>();
+
+            IQueryable<BlogPostDocument> filteredQuery = query;
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.ToLower();
+                filteredQuery = query.Where(x => x.Title.ToLower().Contains(s) || x.Slug.ToLower().Contains(s));
+            }
+
+            var stats = new global::Marten.Linq.QueryStatistics();
+            var posts = await ((global::Marten.Linq.IMartenQueryable<BlogPostDocument>)filteredQuery)
+                .OrderByDescending(x => x.CreatedOn)
+                .Stats(out stats)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync(token: cancellationToken);
+
+            return Prelude.Ok<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>((posts, stats.TotalResults));
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>(ex.Message);
+        }
+    }
+
     public async Task<Result<string, bool>> DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         try
