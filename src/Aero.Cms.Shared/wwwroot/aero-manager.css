@@ -933,3 +933,94 @@
     text-transform: uppercase;
     box-shadow: var(--pe-shadow-md);
 }
+
+/* -- Aero Features Editor ---------------------------------- */
+.pe-features-editor {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--pe-border);
+}
+
+.pe-label-mini {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--pe-text-muted);
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+.pe-features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pe-feature-item-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--pe-bg-tertiary);
+    padding: 6px 10px;
+    border-radius: var(--pe-radius-sm);
+    transition: all 0.2s ease;
+}
+
+.pe-feature-item-row:hover {
+    background: var(--pe-bg-hover);
+}
+
+.pe-mini-input {
+    flex: 1;
+    background: transparent !important;
+    border: none !important;
+    font-size: 13px !important;
+    padding: 2px 0 !important;
+    color: var(--pe-text-primary);
+}
+
+.pe-mini-input:focus {
+    outline: none !important;
+}
+
+.pe-btn-icon-red {
+    background: transparent;
+    border: none;
+    color: var(--pe-error);
+    opacity: 0.6;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.pe-btn-icon-red:hover {
+    opacity: 1;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.pe-btn-add-mini {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px;
+    background: var(--pe-bg-tertiary);
+    border: 1px dashed var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    color: var(--pe-text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+}
+
+.pe-btn-add-mini:hover {
+    background: var(--pe-bg-hover);
+    color: var(--pe-primary);
+    border-color: var(--pe-primary-light);
+}
+

@@ -1,3 +1,5 @@
+using Aero.Cms.Core.Blocks.Common;
+
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
 /// <summary>
@@ -41,8 +43,9 @@ public class EditorBlock
     // Video
     public string Url { get; set; } = string.Empty;
 
-    // Gallery
-    public List<GalleryImage> GalleryImages { get; set; } = [];
+    // Gallery / Features
+    public List<GalleryImage>   GalleryImages { get; set; } = [];
+    public List<AeroFeatureItem> FeatureItems  { get; set; } = [];
 
     // Reference blocks
     public string SelectedReferenceId { get; set; } = string.Empty;
@@ -59,6 +62,7 @@ public class EditorBlock
             })
             .ToList();
         copy.GalleryImages = GalleryImages.Select(g => new GalleryImage { Src = g.Src, Alt = g.Alt }).ToList();
+        copy.FeatureItems  = FeatureItems.Select(f => new AeroFeatureItem { Title = f.Title, Description = f.Description, Icon = f.Icon, ImageUrl = f.ImageUrl, LinkUrl = f.LinkUrl }).ToList();
         return copy;
     }
 }

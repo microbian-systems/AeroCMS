@@ -256,12 +256,8 @@
                 @if (CategoryAero)
                 {
                     <div class="pe-category-items">
-                        <SidebarBlockItem Label="Hero" @ondragstart='e => DragStart(e, "aero_hero")' OnClick='() => AddBlock("aero_hero")'>
-                            <rect x="3" y="3" width="18" height="12" rx="2"/>
-                            <path d="M3 15h18v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/>
-                            <line x1="7" y1="7" x2="11" y2="7"/>
-                            <line x1="7" y1="10" x2="17" y2="10"/>
-                        </SidebarBlockItem>
+                        <SidebarBlockItem Title="Hero" Icon="fa-solid fa-star" OnClick='() => CreateBlock("aero_hero")' />
+                        <SidebarBlockItem Title="Features" Icon="fa-solid fa-list-check" OnClick='() => CreateBlock("aero_features")' />
                     </div>
                 }
             </div>
@@ -437,7 +433,8 @@
     RenderFragment RenderBlock(EditorBlock block, bool isSelected) => block.Type switch
     {
         "hero" => RenderHeroBlock(block, isSelected),
-        "aero_hero" => RenderAeroHeroBlock(block, isSelected),
+        "aero_hero"     => RenderAeroHeroBlock(block, isSelected),
+        "aero_features" => RenderAeroFeaturesBlock(block, isSelected),
         "text" => RenderTextBlock(block),
         "content" => RenderContentBlock(block),
         "markdown" => RenderMarkdownBlock(block),
@@ -579,6 +576,71 @@
                      </div>
                  </div>
              }
+        </div>
+    };
+
+    // ── Aero Features ──────────────────────────────────────────
+    RenderFragment RenderAeroFeaturesBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroFeatures = new AeroFeaturesBlock
+        {
+            Title = b.MainText,
+            SubTitle = b.SubText,
+            Layout = Enum.TryParse<AeroFeaturesLayout>(b.AeroLayout, true, out var layout) ? layout : AeroFeaturesLayout.Simple,
+            Items = b.FeatureItems
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero Features</div>
+                
+            <AeroFeaturesRenderer Block="aeroFeatures" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-row">
+                            <div class="pe-control-group">
+                                <label>Section Title</label>
+                                <input @bind="b.MainText" @bind:event="oninput" placeholder="Enter title..." />
+                            </div>
+                            <div class="pe-control-group">
+                                <label>Layout</label>
+                                <select @bind="b.AeroLayout">
+                                    <option value="Simple">Simple</option>
+                                    <option value="Centered">Centered</option>
+                                    <option value="Cards">Cards</option>
+                                    <option value="GridList">Grid List</option>
+                                    <option value="Media">Media Grid</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.SubText" @bind:event="oninput" rows="2" placeholder="Enter description..."></textarea>
+                        </div>
+
+                        <div class="pe-features-editor">
+                            <label class="pe-label-mini">Feature Items (@b.FeatureItems.Count)</label>
+                            <div class="pe-features-list">
+                                @foreach (var item in b.FeatureItems)
+                                {
+                                    <div class="pe-feature-item-row">
+                                        <input @bind="item.Title" placeholder="Feature Title" class="pe-mini-input" />
+                                        <button class="pe-btn-icon-red" @onclick="() => b.FeatureItems.Remove(item)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                }
+                                <button class="pe-btn-add-mini" @onclick='() => b.FeatureItems.Add(new AeroFeatureItem { Title = "New Feature", Description = "Description..." })'>
+                                    <i class="fa-solid fa-plus mr-1"></i> Add Feature
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     };
 

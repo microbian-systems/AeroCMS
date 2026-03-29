@@ -1,0 +1,89 @@
+@using Aero.Cms.Core.Blocks.Common
+@inject NavigationManager Navigation
+
+<section class="bg-white dark:bg-gray-900">
+    <div class="container px-6 py-10 mx-auto">
+        @if (!string.IsNullOrEmpty(Block.Title) || !string.IsNullOrEmpty(Block.SubTitle))
+        {
+            <div class="@(Block.Layout == AeroFeaturesLayout.Centered ? "text-center" : "")">
+                @if (!string.IsNullOrEmpty(Block.Title))
+                {
+                    <h1 class="text-2xl font-semibold text-gray-800 capitalize lg:text-3xl dark:text-white">@Block.Title</h1>
+                }
+                @if (!string.IsNullOrEmpty(Block.SubTitle))
+                {
+                    <p class="mt-4 text-gray-500 @(Block.Layout == AeroFeaturesLayout.Centered ? "max-w-2xl mx-auto" : "") dark:text-gray-300">
+                        @Block.SubTitle
+                    </p>
+                }
+            </div>
+        }
+
+        <div class="grid grid-cols-1 gap-8 mt-8 @GetGridClasses() md:grid-cols-2">
+            @foreach (var item in Block.Items ?? new())
+            {
+                <div class="@GetItemClasses()">
+                    @if (!string.IsNullOrEmpty(item.Icon))
+                    {
+                        <span class="inline-block p-3 text-blue-500 bg-blue-100 rounded-full dark:text-white dark:bg-blue-500">
+                            @if (item.Icon.Trim().StartsWith("<svg"))
+                            {
+                                @((MarkupString)item.Icon)
+                            }
+                            else
+                            {
+                                <i class="@item.Icon"></i>
+                            }
+                        </span>
+                    }
+                    else if (!string.IsNullOrEmpty(item.ImageUrl))
+                    {
+                        <img class="object-cover w-full h-48 rounded-xl" src="@GetImageUrl(item.ImageUrl)" alt="@item.Title">
+                    }
+
+                    <h1 class="text-xl font-semibold text-gray-700 capitalize dark:text-white">@item.Title</h1>
+
+                    <p class="text-gray-500 dark:text-gray-300">
+                        @item.Description
+                    </p>
+
+                    @if (!string.IsNullOrEmpty(item.LinkUrl))
+                    {
+                        <a href="@item.LinkUrl" class="inline-flex items-center -mx-1 text-sm text-blue-500 capitalize transition-colors duration-300 transform dark:text-blue-400 hover:underline hover:text-blue-600 dark:hover:text-blue-500">
+                            <span class="mx-1">read more</span>
+                            <svg class="w-4 h-4 mx-1 rtl:-scale-x-100" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter] public AeroFeaturesBlock Block { get; set; } = null!;
+
+    private string GetGridClasses() => Block.Layout switch
+    {
+        AeroFeaturesLayout.GridList => "xl:mt-12 xl:gap-16 xl:grid-cols-3",
+        AeroFeaturesLayout.Cards => "lg:grid-cols-3",
+        AeroFeaturesLayout.Simple => "lg:grid-cols-3",
+        AeroFeaturesLayout.Media => "lg:grid-cols-3",
+        _ => "xl:mt-12 xl:gap-16"
+    };
+
+    private string GetItemClasses() => Block.Layout switch
+    {
+        AeroFeaturesLayout.GridList => "space-y-3",
+        AeroFeaturesLayout.Cards => "p-8 space-y-3 border-2 border-blue-400 dark:border-blue-300 rounded-xl",
+        AeroFeaturesLayout.Media => "space-y-3",
+        _ => ""
+    };
+
+    private string GetImageUrl(string src)
+    {
+        if (string.IsNullOrEmpty(src)) return "";
+        if (src.StartsWith("http") || src.StartsWith("/")) return src;
+        return $"/api/media/{src}";
+    }
+}

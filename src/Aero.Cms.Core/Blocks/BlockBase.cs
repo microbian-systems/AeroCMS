@@ -36,6 +36,7 @@ namespace Aero.Cms.Core.Blocks;
 [JsonDerivedType(typeof(AnalyticsBlock), "analytics_script")]
 [JsonDerivedType(typeof(NavigationBlock), "navigation")]
 [JsonDerivedType(typeof(AeroHeroBlock), "aero_hero")]
+[JsonDerivedType(typeof(AeroFeaturesBlock), "aero_features")]
 public abstract class BlockBase : Entity, IBlock
 {
     /// <summary>

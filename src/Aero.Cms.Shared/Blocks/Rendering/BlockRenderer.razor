@@ -54,6 +54,12 @@
                 <AeroHeroRenderer Block="@aeroHero" />
             }
             break;
+        case "aero_features":
+            {
+                var aeroFeatures = Block as AeroFeaturesBlock;
+                <AeroFeaturesRenderer Block="@aeroFeatures" />
+            }
+            break;
         default:
             <div class="p-4 border border-dashed border-gray-300 rounded text-gray-500 italic">
                 Unknown block type: @Block.BlockType (@Block.GetType().Name)
