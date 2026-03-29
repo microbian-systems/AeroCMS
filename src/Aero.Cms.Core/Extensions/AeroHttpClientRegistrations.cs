@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Core.Http.Clients;
 using Microsoft.Extensions.Configuration;
 
 
@@ -12,6 +12,7 @@ public static class AeroHttpClientExtensions
         var url = config["AeroHttpClientBaseAddress"] ?? "https://localhost:5555/api/v1";
         var uri = new Uri(url);
 
+        services.AddHttpClient<DocsClient>(c => c.BaseAddress = uri);
         services.AddHttpClient<BlogHttpClient>(c => c.BaseAddress = uri);
         services.AddHttpClient<CategoriesHttpClient>(c => c.BaseAddress = uri);
         services.AddHttpClient<DashboardHttpClient>(c => c.BaseAddress = uri);

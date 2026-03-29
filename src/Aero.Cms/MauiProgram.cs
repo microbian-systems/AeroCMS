@@ -48,7 +48,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
         
         // Load API base URL from configuration, fallback to default if not found
-        var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:49572/api/v1";
+        var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:333/api/v1";
         builder.Configuration["AeroHttpClientBaseAddress"] = apiBaseUrl;
         
         // Register all Aero HTTP clients
@@ -57,7 +57,6 @@ public static class MauiProgram
         builder.Services.AddScoped<IBlockService, HttpBlockService>();
         
         // Legacy registrations (ensure both class and interface work for transition)
-        builder.Services.AddScoped<DocsClient>();
         builder.Services.AddScoped<ManagerThemeService>();
 
         builder.Services.AddMauiBlazorWebView();

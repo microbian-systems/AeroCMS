@@ -17,7 +17,6 @@ builder.Configuration["AeroHttpClientBaseAddress"] = builder.HostEnvironment.Bas
 builder.Services.AddAeroHttpClients(builder.Configuration);
 
 // Legacy registrations
-builder.Services.AddScoped<DocsClient>();
 builder.Services.AddScoped<ManagerThemeService>();
 builder.Services.AddRadzenComponents();
 
