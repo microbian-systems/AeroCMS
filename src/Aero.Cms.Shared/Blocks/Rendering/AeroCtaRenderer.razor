@@ -1,0 +1,59 @@
+@using Aero.Cms.Core.Blocks.Common
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    @switch (Block.Layout)
+    {
+        case AeroCtaLayout.Card:
+            <section class="bg-gray-100 dark:bg-gray-800 lg:py-12 lg:flex lg:justify-center">
+                <div class="overflow-hidden bg-white dark:bg-gray-900 lg:mx-8 lg:flex lg:max-w-6xl lg:w-full lg:shadow-md lg:rounded-xl">
+                    <div class="lg:w-1/2">
+                        <div class="h-64 bg-cover lg:h-full" style="background-image:url('@(string.IsNullOrEmpty(Block.ImageUrl) ? "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80" : Block.ImageUrl)')"></div>
+                    </div>
+
+                    <div class="max-w-xl px-6 py-12 lg:max-w-5xl lg:w-1/2">
+                        <h2 class="text-2xl font-semibold text-gray-800 dark:text-white md:text-3xl">
+                            @Block.Title
+                        </h2>
+
+                        <p class="mt-4 text-gray-500 dark:text-gray-300">
+                            @Block.Description
+                        </p>
+
+                        <div class="inline-flex w-full mt-6 sm:w-auto">
+                            <a href="@Block.CtaUrl" class="inline-flex items-center justify-center w-full px-6 py-2 text-sm text-white duration-300 bg-gray-800 rounded-lg hover:bg-gray-700 focus:ring focus:ring-gray-300 focus:ring-opacity-80">
+                                @Block.CtaText
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            break;
+
+        default:
+            <section class="bg-white dark:bg-gray-900">
+                <div class="container flex flex-col items-center px-4 py-12 mx-auto text-center">
+                    <h2 class="text-2xl font-bold tracking-tight text-gray-800 xl:text-3xl dark:text-white">
+                        @Block.Title
+                    </h2>
+
+                    <p class="block max-w-4xl mt-4 text-gray-500 dark:text-gray-300">
+                        @Block.Description
+                    </p>
+
+                    <div class="mt-6">
+                        <a href="@Block.CtaUrl" class="inline-flex items-center justify-center w-full px-4 py-2.5 overflow-hidden text-sm text-white transition-colors duration-300 bg-blue-600 rounded-lg shadow sm:w-auto sm:mx-2 hover:bg-blue-500 focus:ring focus:ring-blue-300 focus:ring-opacity-80">
+                            <span class="mx-2">@Block.CtaText</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+            break;
+    }
+}
+
+@code {
+    [Parameter]
+    public AeroCtaBlock? Block { get; set; }
+}

@@ -1,0 +1,11 @@
+@using Aero.Cms.Core.Blocks.Common
+@namespace Aero.Cms.Shared.Blocks.Rendering
+
+@if (Block is not null)
+{
+    @((MarkupString)Block.Content)
+}
+
+@code {
+    [Parameter] public RawHtmlBlock Block { get; set; } = default!;
+}

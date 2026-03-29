@@ -220,6 +220,12 @@
                             <rect x="3" y="3" width="7" height="18"/>
                             <rect x="14" y="3" width="7" height="18"/>
                         </SidebarBlockItem>
+                        <SidebarBlockItem Label="HTML" @ondragstart='e => DragStart(e, "raw_html")' OnClick='() => AddBlock("raw_html")'>
+                            <IconContent>
+                                <polyline points="16 18 22 12 16 6"/>
+                                <polyline points="8 6 2 12 8 18"/>
+                            </IconContent>
+                        </SidebarBlockItem>
                         <SidebarBlockItem Label="Rich Text" @ondragstart='e => DragStart(e, "content")' OnClick='() => AddBlock("content")'>
                             <rect x="3" y="3" width="18" height="18" rx="2"/>
                             <line x1="3" y1="9" x2="21" y2="9"/>
@@ -256,8 +262,105 @@
                 @if (CategoryAero)
                 {
                     <div class="pe-category-items">
-                        <SidebarBlockItem Title="Hero" Icon="fa-solid fa-star" OnClick='() => CreateBlock("aero_hero")' />
-                        <SidebarBlockItem Title="Features" Icon="fa-solid fa-list-check" OnClick='() => CreateBlock("aero_features")' />
+                        <SidebarBlockItem Label="Hero" 
+                                          @ondragstart='e => DragStart(e, "aero_hero")'
+                                          OnClick='() => AddBlock("aero_hero")'>
+                            <IconContent>
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Features" 
+                                          @ondragstart='e => DragStart(e, "aero_features")'
+                                          OnClick='() => AddBlock("aero_features")'>
+                            <IconContent>
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="CTA" 
+                                          @ondragstart='e => DragStart(e, "aero_cta")'
+                                          OnClick='() => AddBlock("aero_cta")'>
+                            <IconContent>
+                                <path d="M11 5L6 9H2V15H6L11 19V5Z"/>
+                                <path d="M19.07 4.93C20.946 6.806 22 9.351 22 12C22 14.649 20.946 17.194 19.07 19.07"/>
+                                <path d="M15.54 8.46C16.477 9.398 17 10.669 17 12C17 13.331 16.477 14.602 15.54 15.54"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Blog" 
+                                          @ondragstart='e => DragStart(e, "aero_blog")'
+                                          OnClick='() => AddBlock("aero_blog")'>
+                            <IconContent>
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Pricing" 
+                                          @ondragstart='e => DragStart(e, "aero_pricing")'
+                                          OnClick='() => AddBlock("aero_pricing")'>
+                            <IconContent>
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                                <line x1="7" y1="7" x2="7.01" y2="7"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Teams" 
+                                          @ondragstart='e => DragStart(e, "aero_teams")'
+                                          OnClick='() => AddBlock("aero_teams")'>
+                            <IconContent>
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Testimonials" 
+                                          @ondragstart='e => DragStart(e, "aero_testimonials")'
+                                          OnClick='() => AddBlock("aero_testimonials")'>
+                            <IconContent>
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="FAQ" 
+                                          @ondragstart='e => DragStart(e, "aero_faq")'
+                                          OnClick='() => AddBlock("aero_faq")'>
+                            <IconContent>
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Portfolio" 
+                                          @ondragstart='e => DragStart(e, "aero_portfolio")'
+                                          OnClick='() => AddBlock("aero_portfolio")'>
+                            <IconContent>
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="3" y1="9" x2="21" y2="9"/>
+                                <line x1="9" y1="21" x2="9" y2="9"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Contact" 
+                                          @ondragstart='e => DragStart(e, "aero_contact")'
+                                          OnClick='() => AddBlock("aero_contact")'>
+                            <IconContent>
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Table" 
+                                          @ondragstart='e => DragStart(e, "aero_table")'
+                                          OnClick='() => AddBlock("aero_table")'>
+                            <IconContent>
+                                <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/>
+                            </IconContent>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Auth" 
+                                          @ondragstart='e => DragStart(e, "aero_auth")'
+                                          OnClick='() => AddBlock("aero_auth")'>
+                            <IconContent>
+                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
+                            </IconContent>
+                        </SidebarBlockItem>
                     </div>
                 }
             </div>
@@ -433,8 +536,18 @@
     RenderFragment RenderBlock(EditorBlock block, bool isSelected) => block.Type switch
     {
         "hero" => RenderHeroBlock(block, isSelected),
-        "aero_hero"     => RenderAeroHeroBlock(block, isSelected),
-        "aero_features" => RenderAeroFeaturesBlock(block, isSelected),
+        "aero_hero"         => RenderAeroHeroBlock(block, isSelected),
+        "aero_features"     => RenderAeroFeaturesBlock(block, isSelected),
+        "aero_cta"          => RenderAeroCtaBlock(block, isSelected),
+        "aero_blog"         => RenderAeroBlogBlock(block, isSelected),
+        "aero_pricing"      => RenderAeroPricingBlock(block, isSelected),
+        "aero_teams"        => RenderAeroTeamsBlock(block, isSelected),
+        "aero_testimonials" => RenderAeroTestimonialsBlock(block, isSelected),
+        "aero_faq"          => RenderAeroFaqBlock(block, isSelected),
+        "aero_portfolio"    => RenderAeroPortfolioBlock(block, isSelected),
+        "aero_contact"      => RenderAeroContactBlock(block, isSelected),
+        "aero_table"        => RenderAeroTableBlock(block, isSelected),
+        "aero_auth"         => RenderAeroAuthBlock(block, isSelected),
         "text" => RenderTextBlock(block),
         "content" => RenderContentBlock(block),
         "markdown" => RenderMarkdownBlock(block),
@@ -445,6 +558,7 @@
         "video" => RenderVideoBlock(block),
         "gallery" => RenderGalleryBlock(block),
         "audio" => RenderAudioBlock(block),
+        "raw_html" => RenderHtmlBlock(block),
         _ => RenderReferenceBlock(block),
     };
 
@@ -644,7 +758,463 @@
         </div>
     };
 
+    // ── Aero CTA ────────────────────────────────────────────────
+    RenderFragment RenderAeroCtaBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroCta = new AeroCtaBlock
+        {
+            Title = b.MainText,
+            Description = b.Description,
+            CtaText = b.CtaText,
+            CtaUrl = b.CtaUrl,
+            Layout = Enum.TryParse<AeroCtaLayout>(b.AeroLayout, true, out var layout) ? layout : AeroCtaLayout.Card
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero CTA</div>
+            <AeroCtaRenderer Block="aeroCta" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-group">
+                            <label>Headline</label>
+                            <input @bind="b.MainText" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
+                        </div>
+                        <div class="pe-control-row">
+                            <div class="pe-control-group">
+                                <label>Button Text</label>
+                                <input @bind="b.CtaText" @bind:event="oninput" />
+                            </div>
+                            <div class="pe-control-group">
+                                <label>Button URL</label>
+                                <input @bind="b.CtaUrl" @bind:event="oninput" />
+                            </div>
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Layout</label>
+                            <select @bind="b.AeroLayout">
+                                <option value="Simple">Simple</option>
+                                <option value="Card">Card</option>
+                                <option value="Split">Split</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Aero Blog ───────────────────────────────────────────────
+    RenderFragment RenderAeroBlogBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroBlog = new AeroBlogBlock
+        {
+            Title = b.SectionTitle,
+            Description = b.Description,
+            Posts = b.BlogPosts
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero Blog</div>
+            <AeroBlogRenderer Block="aeroBlog" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-group">
+                            <label>Section Title</label>
+                            <input @bind="b.SectionTitle" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
+                        </div>
+                        <div class="pe-list-editor">
+                            <label class="pe-label-mini">Posts (@b.BlogPosts.Count)</label>
+                            @foreach (var post in b.BlogPosts)
+                            {
+                                <div class="pe-list-item-row">
+                                    <input @bind="post.Title" placeholder="Post Title" class="pe-mini-input" />
+                                    <button class="pe-btn-icon-red" @onclick="() => b.BlogPosts.Remove(post)">
+                                        <IconContent><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></IconContent>
+                                    </button>
+                                </div>
+                            }
+                            <button class="pe-btn-add-mini" @onclick='() => b.BlogPosts.Add(new AeroBlogItem { Title = "New Post", Description = "Excerpt...", PublishedAt = "Oct 2025" })'>
+                                Add Post
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Aero Pricing ────────────────────────────────────────────
+    RenderFragment RenderAeroPricingBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroPricing = new AeroPricingBlock
+        {
+            Title = b.PageTitle,
+            Description = b.PageDescription,
+            Plans = b.PricingPlans
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero Pricing</div>
+            <AeroPricingRenderer Block="aeroPricing" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                         <div class="pe-control-group">
+                            <label>Page Title</label>
+                            <input @bind="b.PageTitle" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.PageDescription" @bind:event="oninput" rows="2"></textarea>
+                        </div>
+                        <div class="pe-list-editor">
+                            <label class="pe-label-mini">Plans (@b.PricingPlans.Count)</label>
+                            @foreach (var plan in b.PricingPlans)
+                            {
+                                <div class="pe-list-item-row">
+                                    <input @bind="plan.Name" class="pe-mini-input" />
+                                    <input @bind="plan.Price" style="width: 60px" class="pe-mini-input" />
+                                    <button class="pe-btn-icon-red" @onclick="() => b.PricingPlans.Remove(plan)">
+                                        <IconContent><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></IconContent>
+                                    </button>
+                                </div>
+                            }
+                            <button class="pe-btn-add-mini" @onclick='() => b.PricingPlans.Add(new AeroPricingPlan { Name = "New Plan", Price = "$9", Period = "mo" })'>
+                                Add Plan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Aero Teams ──────────────────────────────────────────────
+    RenderFragment RenderAeroTeamsBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroTeams = new AeroTeamsBlock
+        {
+            Title = b.SectionTitle,
+            Description = b.Description,
+            Members = b.TeamMembers
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero Teams</div>
+            <AeroTeamsRenderer Block="aeroTeams" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-group">
+                            <label>Section Title</label>
+                            <input @bind="b.SectionTitle" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
+                        </div>
+                        <div class="pe-list-editor">
+                            <label class="pe-label-mini">Members (@b.TeamMembers.Count)</label>
+                            @foreach (var member in b.TeamMembers)
+                            {
+                                <div class="pe-list-item-row">
+                                    <input @bind="member.Name" placeholder="Name" class="pe-mini-input" />
+                                    <input @bind="member.Role" placeholder="Role" class="pe-mini-input" />
+                                    <button class="pe-btn-icon-red" @onclick="() => b.TeamMembers.Remove(member)">
+                                        <IconContent><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></IconContent>
+                                    </button>
+                                </div>
+                            }
+                            <button class="pe-btn-add-mini" @onclick='() => b.TeamMembers.Add(new AeroTeamMember { Name = "John Smith", Role = "Team Member" })'>
+                                Add Member
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Aero Testimonials ──────────────────────────────────────
+    RenderFragment RenderAeroTestimonialsBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroTestimonials = new AeroTestimonialsBlock
+        {
+            Title = b.SectionTitle,
+            Description = b.Description,
+            Testimonials = b.Testimonials
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero Testimonials</div>
+            <AeroTestimonialsRenderer Block="aeroTestimonials" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-group">
+                            <label>Section Title</label>
+                            <input @bind="b.SectionTitle" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
+                        </div>
+                        <div class="pe-list-editor">
+                            <label class="pe-label-mini">Testimonials (@b.Testimonials.Count)</label>
+                            @foreach (var t in b.Testimonials)
+                            {
+                                <div class="pe-list-item-row">
+                                    <input @bind="t.AuthorName" class="pe-mini-input" />
+                                    <button class="pe-btn-icon-red" @onclick="() => b.Testimonials.Remove(t)">
+                                        <IconContent><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></IconContent>
+                                    </button>
+                                </div>
+                            }
+                            <button class="pe-btn-add-mini" @onclick='() => b.Testimonials.Add(new AeroTestimonialItem { AuthorName = "Happy Client", Content = "Great work!" })'>
+                                Add Testimonial
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Aero FAQ ──────────────────────────────────────────────
+    RenderFragment RenderAeroFaqBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroFaq = new AeroFaqBlock
+        {
+            Title = b.Title,
+            Description = b.Description,
+            Items = b.FaqItems
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero FAQ</div>
+            <AeroFaqRenderer Block="aeroFaq" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-group">
+                            <label>Title</label>
+                            <input @bind="b.Title" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
+                        </div>
+                        <div class="pe-list-editor">
+                            <label class="pe-label-mini">Questions (@b.FaqItems.Count)</label>
+                            @foreach (var item in b.FaqItems)
+                            {
+                                <div class="pe-list-item-row">
+                                    <input @bind="item.Question" placeholder="Question" class="pe-mini-input" />
+                                    <button class="pe-btn-icon-red" @onclick="() => b.FaqItems.Remove(item)">
+                                        <IconContent><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></IconContent>
+                                    </button>
+                                </div>
+                            }
+                            <button class="pe-btn-add-mini" @onclick='() => b.FaqItems.Add(new AeroFaqItem { Question = "New Question", Answer = "..." })'>
+                                Add Question
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Aero Portfolio ────────────────────────────────────────
+    RenderFragment RenderAeroPortfolioBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroPortfolio = new AeroPortfolioBlock
+        {
+            Title = b.Title,
+            Description = b.Description,
+            Items = b.PortfolioItems
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero Portfolio</div>
+            <AeroPortfolioRenderer Block="aeroPortfolio" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-group">
+                            <label>Title</label>
+                            <input @bind="b.Title" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
+                        </div>
+                        <div class="pe-list-editor">
+                            <label class="pe-label-mini">Projects (@b.PortfolioItems.Count)</label>
+                            @foreach (var item in b.PortfolioItems)
+                            {
+                                <div class="pe-list-item-row">
+                                    <input @bind="item.ProjectTitle" placeholder="Project Name" class="pe-mini-input" />
+                                    <button class="pe-btn-icon-red" @onclick="() => b.PortfolioItems.Remove(item)">
+                                        <IconContent><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></IconContent>
+                                    </button>
+                                </div>
+                            }
+                            <button class="pe-btn-add-mini" @onclick='() => b.PortfolioItems.Add(new AeroPortfolioItem { ProjectTitle = "Project X", ProjectDescription = "Detail..." })'>
+                                Add Project
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Aero Contact ──────────────────────────────────────────
+    RenderFragment RenderAeroContactBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroContact = new AeroContactBlock
+        {
+            Title = b.Title,
+            Description = b.Description,
+            Details = b.ContactDetails
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero Contact</div>
+            <AeroContactRenderer Block="aeroContact" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-group">
+                            <label>Title</label>
+                            <input @bind="b.Title" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
+                        </div>
+                        <div class="pe-list-editor">
+                            <label class="pe-label-mini">Details (@b.ContactDetails.Count)</label>
+                            @foreach (var d in b.ContactDetails)
+                            {
+                                <div class="pe-list-item-row">
+                                    <input @bind="d.Label" placeholder="Label" class="pe-mini-input" />
+                                    <input @bind="d.Value" placeholder="Value" class="pe-mini-input" />
+                                    <button class="pe-btn-icon-red" @onclick="() => b.ContactDetails.Remove(d)">
+                                        <IconContent><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></IconContent>
+                                    </button>
+                                </div>
+                            }
+                            <button class="pe-btn-add-mini" @onclick='() => b.ContactDetails.Add(new AeroContactDetail { Label = "Email", Value = "hello@example.com" })'>
+                                Add Detail
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Aero Table ────────────────────────────────────────────
+    RenderFragment RenderAeroTableBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroTable = new AeroTableBlock
+        {
+            Title = b.Title,
+            Description = b.Description,
+            Headers = b.TableHeaders,
+            Rows = b.TableRows
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero Table</div>
+            <AeroTableRenderer Block="aeroTable" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-group">
+                            <label>Title</label>
+                            <input @bind="b.Title" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Description</label>
+                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
+                        </div>
+                        <button class="pe-btn-add-mini" @onclick='() => { b.TableHeaders.Add(new AeroTableHeader { Label = "Header" }); b.TableRows.Add(new AeroTableRow { Cells = new List<string> { "Data" } }); }'>
+                            Setup Demo Table
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Aero Auth ─────────────────────────────────────────────
+    RenderFragment RenderAeroAuthBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var aeroAuth = new AeroAuthBlock
+        {
+            Title = b.Title,
+            Description = b.Description,
+            SubmitButtonText = b.CtaText,
+            AlternativeLinkText = b.AlternativeLinkText,
+            AlternativeLinkUrl = b.AlternativeLinkUrl
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
+            <div class="pe-aero-badge">Aero Auth</div>
+            <AeroAuthRenderer Block="aeroAuth" />
+
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-aero-controls">
+                    <div class="pe-aero-controls-grid">
+                        <div class="pe-control-group">
+                            <label>Title</label>
+                            <input @bind="b.Title" @bind:event="oninput" />
+                        </div>
+                        <div class="pe-control-group">
+                            <label>Cta Text</label>
+                            <input @bind="b.CtaText" @bind:event="oninput" />
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    };
+
+
     // ── Plain text ─────────────────────────────────────────────
+
     RenderFragment RenderTextBlock(EditorBlock b) => __builder =>
     {
         <div class="pe-text-block">
@@ -685,6 +1255,35 @@
             else
             {
                 <div class="pe-markdown-preview">@((MarkupString)RenderMarkdown(b.Content))</div>
+            }
+        </div>
+    };
+    
+    // ── HTML ───────────────────────────────────────────────────
+    RenderFragment RenderHtmlBlock(EditorBlock b) => __builder =>
+    {
+        <div class="pe-markdown-block">
+            <div class="pe-markdown-tabs">
+                <button class='pe-tab-btn @(b.MarkdownView == "edit" ? "active" : "")'
+                        @onclick='() => b.MarkdownView = "edit"'>
+                    Edit
+                </button>
+                <button class='pe-tab-btn @(b.MarkdownView == "preview" ? "active" : "")'
+                        @onclick='() => b.MarkdownView = "preview"'>
+                    Preview
+                </button>
+            </div>
+            @if (b.MarkdownView == "edit")
+            {
+                <textarea placeholder="<div class='custom'>Hello World</div>"
+                          @bind="b.Content"
+                          @onfocus="() => SelectBlock(b.EditorId)"></textarea>
+            }
+            else
+            {
+                <div class="pe-markdown-preview">
+                    <RawHtmlRenderer Block="@(new RawHtmlBlock { Content = b.Content })" />
+                </div>
             }
         </div>
     };

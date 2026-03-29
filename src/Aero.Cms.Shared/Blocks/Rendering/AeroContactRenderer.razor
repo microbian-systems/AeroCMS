@@ -1,0 +1,67 @@
+@using Aero.Cms.Core.Blocks.Common
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    @switch (Block.Layout)
+    {
+        case AeroContactLayout.Card:
+            <section class="bg-gray-100 dark:bg-gray-800 lg:py-12 lg:flex lg:justify-center">
+                <div class="overflow-hidden bg-white dark:bg-gray-900 lg:mx-8 lg:flex lg:max-w-6xl lg:w-full lg:shadow-md lg:rounded-xl">
+                    <div class="lg:w-1/2">
+                        <div class="h-64 bg-cover lg:h-full" style="background-image:url('@(string.IsNullOrEmpty(Block.ImageUrl) ? "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80" : Block.ImageUrl)')"></div>
+                    </div>
+
+                    <div class="max-w-xl px-6 py-12 lg:max-w-5xl lg:w-1/2">
+                        <h2 class="text-2xl font-semibold text-gray-800 dark:text-white md:text-3xl">@Block.Title</h2>
+                        <p class="mt-4 text-gray-500 dark:text-gray-300">@Block.Description</p>
+
+                        <div class="mt-8">
+                            @foreach (var detail in Block.Details ?? new())
+                            {
+                                <div class="flex items-center mt-4 text-gray-600 dark:text-gray-400">
+                                    <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z"/>
+                                    </svg>
+                                    <span class="mx-3">@detail.Label: @detail.Value</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </section>
+            break;
+
+        default:
+            <section class="bg-white dark:bg-gray-900">
+                <div class="container px-6 py-12 mx-auto">
+                    <div class="text-center">
+                        <p class="font-medium text-blue-500 dark:text-blue-400">Contact us</p>
+                        <h1 class="mt-2 text-2xl font-semibold text-gray-800 md:text-3xl dark:text-white">@Block.Title</h1>
+                        <p class="mt-3 text-gray-500 dark:text-gray-300">@Block.Description</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-12 mt-10 md:grid-cols-2 lg:grid-cols-3">
+                        @foreach (var detail in Block.Details ?? new())
+                        {
+                            <div class="flex flex-col items-center justify-center text-center">
+                                <span class="p-3 text-blue-500 rounded-full bg-blue-100/80 dark:bg-gray-800">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                    </svg>
+                                </span>
+                                
+                                <h2 class="mt-4 text-lg font-medium text-gray-800 dark:text-white">@detail.Label</h2>
+                                <p class="mt-2 text-blue-500 dark:text-blue-400">@detail.Value</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+            break;
+    }
+}
+
+@code {
+    [Parameter] public AeroContactBlock? Block { get; set; }
+}

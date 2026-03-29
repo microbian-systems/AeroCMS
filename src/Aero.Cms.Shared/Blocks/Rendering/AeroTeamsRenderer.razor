@@ -1,0 +1,48 @@
+@using Aero.Cms.Core.Blocks.Common
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    <section class="bg-white dark:bg-gray-900">
+        <div class="container px-6 py-10 mx-auto">
+            <h1 class="text-3xl font-semibold text-center text-gray-800 capitalize lg:text-4xl dark:text-white">@Block.Title</h1>
+
+            <p class="max-w-2xl mx-auto my-6 text-center text-gray-500 dark:text-gray-300">
+                @Block.Description
+            </p>
+
+            <div class="grid grid-cols-1 gap-8 mt-8 xl:mt-16 md:grid-cols-2 lg:grid-cols-3">
+                @if (Block.Members != null)
+                {
+                    @foreach (var member in Block.Members)
+                    {
+                        <div class="flex flex-col items-center p-8 transition-colors duration-300 transform border cursor-pointer rounded-xl hover:border-transparent group hover:bg-blue-600 dark:border-gray-700 dark:hover:border-transparent">
+                            <img class="object-cover w-32 h-32 rounded-full ring-4 ring-gray-300" src="@(string.IsNullOrEmpty(member.AvatarUrl) ? "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=880&q=80" : member.AvatarUrl)" alt="">
+
+                            <h1 class="mt-4 text-2xl font-semibold text-gray-700 capitalize dark:text-white group-hover:text-white">@member.Name</h1>
+
+                            <p class="mt-2 text-gray-500 capitalize dark:text-gray-300 group-hover:text-gray-300">@member.Role</p>
+
+                            <div class="flex mt-3 -mx-2">
+                                @if (!string.IsNullOrEmpty(member.LinkedInUrl))
+                                {
+                                    <a href="@member.LinkedInUrl" class="mx-2 text-gray-600 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-300 group-hover:text-white" aria-label="LinkedIn">
+                                        <svg class="w-6 h-6 fill-currentColor" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M15.235 5.117C15.235 6.327 14.159 7.307 12.83 7.307C11.501 7.307 10.426 6.327 10.426 5.117C10.426 3.907 11.501 2.926 12.83 2.926C14.159 2.926 15.235 3.907 15.235 5.117Z"/>
+                                            <path d="M10.748 8.825H14.912V21.074H10.748V8.825Z"/>
+                                        </svg>
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public AeroTeamsBlock? Block { get; set; }
+}

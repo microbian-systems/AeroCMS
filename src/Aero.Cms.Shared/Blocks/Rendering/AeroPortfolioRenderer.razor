@@ -1,0 +1,36 @@
+@using Aero.Cms.Core.Blocks.Common
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    <section class="bg-white dark:bg-gray-900">
+        <div class="container px-6 py-10 mx-auto">
+            <h1 class="text-3xl font-semibold text-center text-gray-800 capitalize lg:text-4xl dark:text-white">@Block.Title</h1>
+            @if (!string.IsNullOrEmpty(Block.Description))
+            {
+                <p class="max-w-2xl mx-auto my-6 text-center text-gray-500 dark:text-gray-300">@Block.Description</p>
+            }
+
+            <div class="grid grid-cols-1 gap-8 mt-8 xl:mt-12 md:grid-cols-2 lg:grid-cols-3">
+                @foreach (var item in Block.Items)
+                {
+                    <div class="overflow-hidden bg-white rounded-lg shadow-lg dark:bg-gray-800 transition-transform duration-300 hover:scale-105">
+                        <img class="object-cover object-center w-full h-56" src="@(string.IsNullOrEmpty(item.ProjectImageUrl) ? "https://images.unsplash.com/photo-1517404215738-15263e9f9178?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" : item.ProjectImageUrl)" alt="avatar">
+                        
+                        <div class="px-6 py-4">
+                            <h1 class="text-xl font-semibold text-gray-800 dark:text-white">@item.ProjectTitle</h1>
+                            <p class="py-2 text-gray-700 dark:text-gray-400">@item.ProjectDescription</p>
+                            <div class="flex items-center mt-4 text-gray-700 dark:text-gray-200">
+                                <span class="px-3 py-1 text-xs text-blue-800 uppercase bg-blue-200 rounded-full dark:bg-blue-300 dark:text-blue-900">@item.ProjectCategory</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public AeroPortfolioBlock? Block { get; set; }
+}

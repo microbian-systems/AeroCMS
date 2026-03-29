@@ -1,0 +1,43 @@
+@using Aero.Cms.Core.Blocks.Common
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    <section class="bg-white dark:bg-gray-900">
+        <div class="container px-6 py-10 mx-auto">
+            <h1 class="text-3xl font-semibold text-center text-gray-800 capitalize lg:text-4xl dark:text-white">@Block.Title</h1>
+
+            <p class="max-w-2xl mx-auto my-6 text-center text-gray-500 dark:text-gray-300">
+                @Block.Description
+            </p>
+
+            <div class="grid grid-cols-1 gap-8 mt-8 xl:mt-12 lg:grid-cols-2">
+                @if (Block.Testimonials != null)
+                {
+                    @foreach (var t in Block.Testimonials)
+                    {
+                        <div class="p-8 border rounded-lg dark:border-gray-700">
+                            <p class="leading-loose text-gray-500 dark:text-gray-400">
+                                "@t.Content"
+                            </p>
+
+                            <div class="flex items-center mt-8 -mx-2">
+                                <img class="object-cover mx-2 rounded-full w-14 h-14 ring-4 ring-gray-300 dark:ring-gray-700" src="@(string.IsNullOrEmpty(t.AuthorImage) ? "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&auto=format&fit=crop&w=880&q=80" : t.AuthorImage)" alt="">
+
+                                <div class="mx-2">
+                                    <h1 class="font-semibold text-gray-800 dark:text-white">@t.AuthorName</h1>
+                                    <span class="text-sm text-gray-500">@t.AuthorRole, @t.CompanyName</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public AeroTestimonialsBlock? Block { get; set; }
+}

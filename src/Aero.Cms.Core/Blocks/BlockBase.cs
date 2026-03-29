@@ -37,6 +37,16 @@ namespace Aero.Cms.Core.Blocks;
 [JsonDerivedType(typeof(NavigationBlock), "navigation")]
 [JsonDerivedType(typeof(AeroHeroBlock), "aero_hero")]
 [JsonDerivedType(typeof(AeroFeaturesBlock), "aero_features")]
+[JsonDerivedType(typeof(AeroCtaBlock), "aero_cta")]
+[JsonDerivedType(typeof(AeroBlogBlock), "aero_blog")]
+[JsonDerivedType(typeof(AeroPricingBlock), "aero_pricing")]
+[JsonDerivedType(typeof(AeroTeamsBlock), "aero_teams")]
+[JsonDerivedType(typeof(AeroTestimonialsBlock), "aero_testimonials")]
+[JsonDerivedType(typeof(AeroFaqBlock), "aero_faq")]
+[JsonDerivedType(typeof(AeroPortfolioBlock), "aero_portfolio")]
+[JsonDerivedType(typeof(AeroContactBlock), "aero_contact")]
+[JsonDerivedType(typeof(AeroTableBlock), "aero_table")]
+[JsonDerivedType(typeof(AeroAuthBlock), "aero_auth")]
 public abstract class BlockBase : Entity, IBlock
 {
     /// <summary>

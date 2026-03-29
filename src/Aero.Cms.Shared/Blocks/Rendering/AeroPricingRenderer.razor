@@ -1,0 +1,55 @@
+@using Aero.Cms.Core.Blocks.Common
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    <section class="bg-white dark:bg-gray-900">
+        <div class="container px-6 py-10 mx-auto">
+            <h1 class="text-3xl font-semibold text-center text-gray-800 capitalize lg:text-4xl dark:text-white">@Block.Title</h1>
+
+            <p class="max-w-2xl mx-auto mt-4 text-center text-gray-500 xl:mt-6 dark:text-gray-300">
+                @Block.Description
+            </p>
+
+            <div class="grid grid-cols-1 gap-8 mt-6 xl:mt-12 xl:gap-12 md:grid-cols-2 lg:grid-cols-3">
+                @if (Block.Plans != null)
+                {
+                    @foreach (var plan in Block.Plans)
+                    {
+                        <div class="px-6 py-8 transition-colors duration-300 transform rounded-xl border @(plan.IsPopular ? "border-blue-500 dark:border-blue-400" : "border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400")">
+                            <h2 class="text-xl font-medium text-gray-800 capitalize dark:text-white">@plan.Name</h2>
+
+                            <p class="mt-4 text-gray-500 dark:text-gray-300">
+                                @plan.Description
+                            </p>
+
+                            <h4 class="mt-4 text-4xl font-semibold text-gray-800 dark:text-white">@plan.Price<span class="text-base font-normal text-gray-500 dark:text-gray-400">/@plan.Period</span></h4>
+
+                            <div class="mt-8 space-y-4">
+                                @foreach (var feature in plan.Features)
+                                {
+                                    <div class="flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                        </svg>
+
+                                        <span class="mx-4 text-gray-700 dark:text-gray-300">@feature</span>
+                                    </div>
+                                }
+                            </div>
+
+                            <a href="@plan.CtaUrl" class="w-full px-4 py-3 mt-10 font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-600 rounded-md hover:bg-blue-500 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-80 block text-center">
+                                @plan.CtaText
+                            </a>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public AeroPricingBlock? Block { get; set; }
+}

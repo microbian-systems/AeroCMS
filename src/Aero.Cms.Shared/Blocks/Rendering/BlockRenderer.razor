@@ -60,6 +60,66 @@
                 <AeroFeaturesRenderer Block="@aeroFeatures" />
             }
             break;
+        case "aero_cta":
+            {
+                var aeroCta = Block as AeroCtaBlock;
+                <AeroCtaRenderer Block="@aeroCta" />
+            }
+            break;
+        case "aero_blog":
+            {
+                var aeroBlog = Block as AeroBlogBlock;
+                <AeroBlogRenderer Block="@aeroBlog" />
+            }
+            break;
+        case "aero_pricing":
+            {
+                var aeroPricing = Block as AeroPricingBlock;
+                <AeroPricingRenderer Block="@aeroPricing" />
+            }
+            break;
+        case "aero_teams":
+            {
+                var aeroTeams = Block as AeroTeamsBlock;
+                <AeroTeamsRenderer Block="@aeroTeams" />
+            }
+            break;
+        case "aero_testimonials":
+            {
+                var aeroTestimonials = Block as AeroTestimonialsBlock;
+                <AeroTestimonialsRenderer Block="@aeroTestimonials" />
+            }
+            break;
+        case "aero_faq":
+            {
+                var aeroFaq = Block as AeroFaqBlock;
+                <AeroFaqRenderer Block="@aeroFaq" />
+            }
+            break;
+        case "aero_portfolio":
+            {
+                var aeroPortfolio = Block as AeroPortfolioBlock;
+                <AeroPortfolioRenderer Block="@aeroPortfolio" />
+            }
+            break;
+        case "aero_contact":
+            {
+                var aeroContact = Block as AeroContactBlock;
+                <AeroContactRenderer Block="@aeroContact" />
+            }
+            break;
+        case "aero_table":
+            {
+                var aeroTable = Block as AeroTableBlock;
+                <AeroTableRenderer Block="@aeroTable" />
+            }
+            break;
+        case "aero_auth":
+            {
+                var aeroAuth = Block as AeroAuthBlock;
+                <AeroAuthRenderer Block="@aeroAuth" />
+            }
+            break;
         default:
             <div class="p-4 border border-dashed border-gray-300 rounded text-gray-500 italic">
                 Unknown block type: @Block.BlockType (@Block.GetType().Name)

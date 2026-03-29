@@ -1,8 +1,15 @@
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System;
+using System.IO;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Blocks.Common;
 using Aero.Core.Railway;
 using Radzen;
 
@@ -169,7 +176,103 @@ public partial class PageEditor : ComponentBase, IDisposable
                 block.Button2Style    = "Secondary";
                 block.BackgroundImage = "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800";
                 break;
-
+            case "aero_features":
+                block.MainText        = "Everything you need to build";
+                block.SubText         = "Focus on your business and let us handle the technical complexities.";
+                block.AeroLayout      = "Simple";
+                block.FeatureItems    = new List<AeroFeatureItem>
+                {
+                    new() { Title = "Fast & Reliable", Description = "Built for performance.", Icon = "M13 10V3L4 14h7v7l9-11h-7z" },
+                    new() { Title = "Modular Design", Description = "Customizable UI.", Icon = "M19 11H5m14 0V9a2-2 0 00-2-2M5 11V9a2 2 0 012-2" }
+                };
+                break;
+            case "aero_cta":
+                block.MainText    = "Build Your New Idea";
+                block.Description = "Lorem, ipsum dolor sit amet consectetur adipisicing elit. Quidem modi reprehenderit vitae exercitationem aliquid dolores ullam temporibus enim expedita aperiam.";
+                block.CtaText     = "Start Now";
+                block.CtaUrl      = "#";
+                block.AeroLayout  = "Card";
+                break;
+            case "aero_blog":
+                block.SectionTitle = "From the blog";
+                block.Description  = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Iure veritatis sint autem nesciunt.";
+                block.BlogPosts    = new List<AeroBlogItem>
+                {
+                    new() { Title = "All the features you want to know", Description = "Lorem ipsum dolor sit amet...", PublishedAt = "21 Oct 2025", Category = "Product", ImageUrl = "https://images.unsplash.com/photo-1644018335954-ab54c83e007f?w=800" },
+                    new() { Title = "Sticky note for problem solving", Description = "Lorem ipsum dolor sit amet...", PublishedAt = "20 Oct 2025", Category = "Design", ImageUrl = "https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?w=800" }
+                };
+                break;
+            case "aero_pricing":
+                block.PageTitle       = "Pricing Plans";
+                block.PageDescription = "Choose the plan that's right for you.";
+                block.PricingPlans    = new List<AeroPricingPlan>
+                {
+                    new() { Name = "Free", Price = "$0", Period = "mo", Description = "Essential features", Features = ["Basic Analytics", "1 Project"], CtaText = "Free trial", CtaUrl = "#" },
+                    new() { Name = "Pro", Price = "$29", Period = "mo", Description = "For growing teams", Features = ["Advanced Analytics", "10 Projects", "24/7 Support"], CtaText = "Get Pro", CtaUrl = "#", IsPopular = true }
+                };
+                break;
+            case "aero_teams":
+                block.SectionTitle = "Our Executive Team";
+                block.Description  = "Lorem ipsum dolor sit amet consectetur adipisicing elit.";
+                block.TeamMembers  = new List<AeroTeamMember>
+                {
+                    new() { Name = "Arthur Melo", Role = "Design Director", AvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400" },
+                    new() { Name = "Alice Williams", Role = "Senior Developer", AvatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400" }
+                };
+                break;
+            case "aero_testimonials":
+                block.SectionTitle = "What our clients say";
+                block.Description  = "Lorem ipsum dolor sit amet consectetur adipisicing elit.";
+                block.Testimonials  = new List<AeroTestimonialItem>
+                {
+                    new() { AuthorName = "John Doe", AuthorRole = "CEO", CompanyName = "Tech Corp", Content = "Excellent service and results." },
+                    new() { AuthorName = "Jane Smith", AuthorRole = "Product Manager", CompanyName = "Scale Up", Content = "Aero CMS transformed our workflow." }
+                };
+                break;
+            case "aero_faq":
+                block.Title = "Frequently Asked Questions";
+                block.Description = "Everything you need to know about the product and billing.";
+                block.FaqItems = new List<AeroFaqItem>
+                {
+                    new() { Question = "What is Aero CMS?", Answer = "Aero CMS is a modern, block-based content management system built with .NET." },
+                    new() { Question = "How do I get started?", Answer = "Simply drag and drop blocks from the sidebar to compose your page." }
+                };
+                break;
+            case "aero_portfolio":
+                block.Title = "Our Recent Work";
+                block.Description = "Explore some of the projects we've completed for our valued clients.";
+                block.PortfolioItems = new List<AeroPortfolioItem>
+                {
+                    new() { ProjectTitle = "Project One", ProjectDescription = "A brief description of this amazing project.", ProjectImageUrl = "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800", ProjectCategory = "Web Design" },
+                    new() { ProjectTitle = "Project Two", ProjectDescription = "Another great project with a different focus.", ProjectImageUrl = "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800", ProjectCategory = "Development" }
+                };
+                break;
+            case "aero_contact":
+                block.Title = "Get in Touch";
+                block.Description = "Our friendly team is always here to chat.";
+                block.ContactDetails = new List<AeroContactDetail>
+                {
+                    new() { Label = "Email", Value = "hello@aerocms.com", Icon = "M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2m20 0v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6m20 0l-10 7L2 6" },
+                    new() { Label = "Phone", Value = "+1 (555) 000-0000", Icon = "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" }
+                };
+                break;
+            case "aero_table":
+                block.Title = "Resource List";
+                block.Description = "A summary of available resources and their status.";
+                block.TableHeaders = new List<AeroTableHeader> { new() { Label = "Name" }, new() { Label = "Status" }, new() { Label = "Date" } };
+                block.TableRows = new List<AeroTableRow>
+                {
+                    new() { Cells = new List<string> { "Resource A", "Active", "2025-01-01" } },
+                    new() { Cells = new List<string> { "Resource B", "Pending", "2025-01-15" } }
+                };
+                break;
+            case "aero_auth":
+                block.Title = "Sign in to your account";
+                block.CtaText = "Sign in";
+                break;
+            case "raw_html":
+                block.Content = "<!-- Custom HTML -->\n<div class=\"p-4 bg-gray-100\">Hello World</div>";
+                break;
             case "text":
                 block.Content = string.Empty;
                 break;
@@ -498,8 +601,9 @@ public partial class PageEditor : ComponentBase, IDisposable
             using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
             using var ms     = new MemoryStream();
             await stream.CopyToAsync(ms);
-            var base64 = Convert.ToBase64String(ms.ToArray());
-            var dataUrl = $"data:{file.ContentType};base64,{base64}";
+            var bytes = ms.ToArray();
+            var b64   = Convert.ToBase64String(bytes);
+            var dataUrl = $"data:{file.ContentType};base64,{b64}";
 
             var newItem = new MediaItem(MediaLibrary.Max(i => i.Id) + 1, dataUrl, file.Name);
             MediaLibrary.Insert(0, newItem);
