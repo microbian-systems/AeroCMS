@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="WolverineFx.Marten" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Banners\Aero.Cms.Banners.csproj" />
     <ProjectReference Include="..\Aero.Cms.CookiePolicy\Aero.Cms.CookiePolicy.csproj" />
@@ -261,6 +262,10 @@
     <None Include="wwwroot\lib\Swiper\swiper-bundle.min.mjs" />
     <None Include="wwwroot\lib\Swiper\swiper-bundle.min.mjs.map" />
     <None Include="wwwroot\lib\Swiper\swiper-bundle.mjs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
   </ItemGroup>
 
 </Project>

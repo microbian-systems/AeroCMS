@@ -12,6 +12,7 @@
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Markdig" />
     <PackageReference Include="Marten" />
+    <PackageReference Include="WolverineFx" />
   </ItemGroup>
 
   <ItemGroup>

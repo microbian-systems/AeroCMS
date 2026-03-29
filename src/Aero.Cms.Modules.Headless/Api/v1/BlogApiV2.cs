@@ -15,7 +15,7 @@ public static class BlogApiV2
     /// <summary>
     /// Maps the Blog API endpoints.
     /// </summary>
-    public static void MapBlogApi(this IEndpointRouteBuilder app)
+    public static void MapBlogApiV2(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/v1/blog/posts", ListPosts)
             .WithName("ListPosts")

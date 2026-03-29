@@ -5,6 +5,13 @@
 @inject IPagesHttpClient PagesApi
 @inject DialogService DialogService
 
+<style>
+    .rz-datatable-row:hover {
+        cursor: pointer !important;
+        background-color: rgba(0, 0, 0, 0.02) !important;
+    }
+</style>
+
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <div>
@@ -90,16 +97,10 @@
         }
     }
 
-    async Task OnRowClick(DataGridRowMouseEventArgs<PageSummary> args)
+    void OnRowClick(DataGridRowMouseEventArgs<PageSummary> args)
     {
         if (args.Data == null) return;
         
-        var pageId = args.Data.Id;
-        // The user wants a popup with details.
-        // For now, we'll fetch the full page and show it in a dialog.
-        
-        await DialogService.OpenAsync<PageDetailPopup>("Page Details",
-            new Dictionary<string, object?> { { "PageId", pageId } },
-            new DialogOptions() { Width = "700px", Resizable = true, Draggable = true });
+        Navigation.NavigateTo($"/manager/pages/detail/{args.Data.Id}");
     }
 }

@@ -1,4 +1,5 @@
 using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Blocks.Common;
 using Marten;
 
 namespace Aero.Cms.Web.Core.Blocks;
@@ -17,6 +18,19 @@ public sealed class BlockMartenConfiguration : IConfigureMarten
             typeof(CtaBlock),
             typeof(QuoteBlock),
             typeof(EmbedBlock),
-            typeof(NavigationBlock));
+            typeof(NavigationBlock),
+            typeof(RawHtmlBlock),
+            typeof(AeroAuthBlock),
+            typeof(AeroBlogBlock),
+            typeof(AeroContactBlock),
+            typeof(AeroCtaBlock),
+            typeof(AeroFaqBlock),
+            typeof(AeroFeaturesBlock),
+            typeof(AeroHeroBlock),
+            typeof(AeroPortfolioBlock),
+            typeof(AeroPricingBlock),
+            typeof(AeroTableBlock),
+            typeof(AeroTeamsBlock),
+            typeof(AeroTestimonialsBlock));
     }
 }

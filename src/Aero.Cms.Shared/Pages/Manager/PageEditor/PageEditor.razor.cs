@@ -7,18 +7,17 @@ using System.IO;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
+using Aero.Cms.Core;
 using Aero.Cms.Core.Http.Clients;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Common;
 using Aero.Core.Railway;
+using Aero.Cms.Core.Blocks.Layout;
 using Radzen;
+using CmsPageDetail = Aero.Cms.Core.Http.Clients.PageDetail;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
-/// <summary>
-/// Code-behind for the Blazor port of the Alpine.js CMS Page Editor.
-/// All state and logic is a close 1-to-1 translation of <c>aero-cms/app.js</c>.
-/// </summary>
 public partial class PageEditor : ComponentBase, IDisposable
 {
     // ──────────────────────────────────────────────────────────
@@ -29,6 +28,13 @@ public partial class PageEditor : ComponentBase, IDisposable
     [Parameter] public long? Id { get; set; }
 
     [Inject] protected DocsClient DocsClient { get; set; } = default!;
+    [Inject] protected IPagesHttpClient PagesClient { get; set; } = default!;
+    [Inject] protected IMediaHttpClient MediaClient { get; set; } = default!;
+    [Inject] protected IBlogHttpClient BlogClient { get; set; } = default!;
+    [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
+    [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
+    [Inject] protected IUsersHttpClient UsersClient { get; set; } = default!;
+    [Inject] protected NavigationManager NavManager { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
@@ -61,6 +67,20 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool CategoryReferences { get; set; } = true;
     protected bool CategorySettings   { get; set; } = true;
     protected bool CategoryAero       { get; set; } = true;
+    protected bool CategoryPageSettings { get; set; } = true;
+
+    // Page Settings
+    private string PageSlug { get; set; } = string.Empty;
+    private string Summary { get; set; } = string.Empty;
+
+    // Redundant ID removed to avoid ambiguity with ManagerComponent Base.Id
+    // public string Id { get; set; } = string.Empty; 
+
+    private string SeoTitle { get; set; } = string.Empty;
+    protected string SeoDescription { get; set; } = string.Empty;
+    protected bool   ShowInNavMenu { get; set; } = true;
+    protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+
     protected IReadOnlyList<DocsSummary>? DocsCategories { get; set; }
 
     // Media modal
@@ -70,26 +90,8 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string?      MediaContext     { get; set; }   // "background" | "nested"
     protected NestedBlock? NestedMediaTarget { get; set; }
 
-    // Mocked media library (replace with real API call later)
-    protected List<MediaItem> MediaLibrary { get; set; } =
-    [
-        new(1, "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400", "Mountain landscape"),
-        new(2, "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400", "Nature scene"),
-        new(3, "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=400", "Forest path"),
-        new(4, "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=400", "Waterfall"),
-        new(5, "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400", "Lake view"),
-        new(6, "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400", "Foggy mountains"),
-    ];
-
-    // Mocked reference data (replace with real API call later)
-    private readonly Dictionary<string, List<ReferenceItem>> _referenceData = new()
-    {
-        ["pages"]      = [new("1", "About Us"), new("2", "Contact"), new("3", "Services"), new("4", "Portfolio")],
-        ["posts"]      = [new("1", "Getting Started with Aero CMS"), new("2", "Best Practices"), new("3", "SEO Tips")],
-        ["categories"] = [new("1", Name: "Technology"), new("2", Name: "Design"), new("3", Name: "Business"), new("4", Name: "Lifestyle")],
-        ["tags"]       = [new("1", Name: "cms"), new("2", Name: "webdev"), new("3", Name: "design"), new("4", Name: "tutorial")],
-        ["authors"]    = [new("1", Name: "John Doe"), new("2", Name: "Jane Smith"), new("3", Name: "Mike Johnson")],
-    };
+    protected List<MediaItem> MediaLibrary { get; set; } = [];
+    private Dictionary<string, List<ReferenceItem>> _referenceData = new();
 
     // Toasts
     protected List<ToastMessage> Toasts { get; set; } = [];
@@ -103,10 +105,17 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected override async Task OnInitializedAsync()
     {
-        UpdateLastSaved();
+        if (Id.HasValue)
+        {
+            await LoadPageAsync(Id.Value);
+        }
+        else
+        {
+            UpdateLastSaved();
+        }
 
         _autoSaveTimer = new System.Timers.Timer(30_000);
-        _autoSaveTimer.Elapsed += async (_, _) => await AutoSaveAsync();
+        _autoSaveTimer.Elapsed += async (_, _) => await InvokeAsync(AutoSaveAsync);
         _autoSaveTimer.AutoReset = true;
         _autoSaveTimer.Start();
 
@@ -116,6 +125,71 @@ public partial class PageEditor : ComponentBase, IDisposable
         {
             DocsCategories = ok.Value;
         }
+    }
+
+    private async Task LoadPageAsync(long id)
+    {
+        await LoadReferenceDataAsync();
+
+        var result = await PagesClient.GetByIdAsync(id);
+        if (result is Result<string, CmsPageDetail>.Ok ok)
+        {
+            var page = ok.Value;
+            PageTitle = page.Title;
+            PageSlug = page.Slug;
+            SeoTitle = page.SeoTitle ?? string.Empty;
+            SeoDescription = page.SeoDescription ?? string.Empty;
+            PublicationState = page.PublicationState;
+            ShowInNavMenu = page.ShowInNavMenu; 
+            
+            // Load blocks if available in API
+            if (page.Blocks?.Any() == true)
+            {
+                Blocks = page.Blocks.ToList();
+            }
+
+            UpdateLastSaved();
+        }
+        else
+        {
+            ShowToast("Error loading page", "error");
+        }
+    }
+
+    private async Task LoadReferenceDataAsync()
+    {
+        // Media Gallery
+        var mediaResult = await MediaClient.GetAllAsync(take: 50);
+        if (mediaResult is Result<string, PagedResult<MediaSummary>>.Ok mediaOk)
+        {
+            MediaLibrary = mediaOk.Value.Items
+                .Select(m => new MediaItem(m.Id, m.Url, m.FileName))
+                .ToList();
+        }
+
+        // Reference Picker data
+        var pagesTask = PagesClient.GetAllAsync(take: 50);
+        var blogsTask = BlogClient.GetAllAsync(take: 50);
+        var catsTask = CategoriesClient.GetAllAsync();
+        var tagsTask = TagsClient.GetAllAsync();
+        var usersTask = UsersClient.GetAllAsync(take: 50);
+
+        await Task.WhenAll(pagesTask, blogsTask, catsTask, tagsTask, usersTask);
+
+        if (pagesTask.Result is Result<string, PagedResult<PageSummary>>.Ok pagesOk)
+            _referenceData["pages"] = pagesOk.Value.Items.Select(p => new ReferenceItem(p.Id.ToString(), p.Title)).ToList();
+        
+        if (blogsTask.Result is Result<string, PagedResult<BlogSummary>>.Ok blogsOk)
+            _referenceData["posts"] = blogsOk.Value.Items.Select(p => new ReferenceItem(p.Id.ToString(), p.Title)).ToList();
+            
+        if (catsTask.Result is Result<string, IReadOnlyList<CategorySummary>>.Ok catsOk)
+            _referenceData["categories"] = catsOk.Value.Select(c => new ReferenceItem(c.Id.ToString(), Name: c.Name)).ToList();
+            
+        if (tagsTask.Result is Result<string, IReadOnlyList<TagSummary>>.Ok tagsOk)
+            _referenceData["tags"] = tagsOk.Value.Select(t => new ReferenceItem(t.Id.ToString(), Name: t.Name)).ToList();
+            
+        if (usersTask.Result is Result<string, PagedResult<UserSummary>>.Ok usersOk)
+            _referenceData["authors"] = usersOk.Value.Items.Select(u => new ReferenceItem(u.Id.ToString(), Name: u.DisplayName)).ToList();
     }
 
     public void Dispose()
@@ -558,26 +632,29 @@ public partial class PageEditor : ComponentBase, IDisposable
         ShowToast("Audio added", "success");
     }
 
-    protected void OnConfirmMediaSelection(List<MediaItem> selected)
+    private async Task OnConfirmMediaSelection(List<MediaItem> items)
     {
-        if (MediaContext == "background" && selected.Count > 0)
+        await AutoSaveAsync();
+        if (items == null || !items.Any()) return;
+
+        if (MediaContext == "background" && CurrentMediaBlock != null)
         {
-            CurrentMediaBlock!.BackgroundImage = selected[0].Src;
+            CurrentMediaBlock.BackgroundImage = items.First().Src;
         }
-        else if (MediaContext == "nested" && NestedMediaTarget is not null && selected.Count > 0)
+        else if (MediaContext == "nested" && NestedMediaTarget is not null)
         {
-            NestedMediaTarget.Src = selected[0].Src;
-            NestedMediaTarget.Alt = selected[0].Alt;
+            NestedMediaTarget.Src = items.First().Src;
+            NestedMediaTarget.Alt = items.First().Alt;
         }
-        else if (IsGalleryMode)
+        else if (IsGalleryMode && CurrentMediaBlock != null)
         {
-            CurrentMediaBlock!.GalleryImages.AddRange(
-                selected.Select(img => new GalleryImage { Src = img.Src, Alt = img.Alt }));
+            CurrentMediaBlock.GalleryImages.AddRange(
+                items.Select(img => new GalleryImage { Src = img.Src, Alt = img.Alt }));
         }
-        else if (selected.Count > 0)
+        else if (CurrentMediaBlock != null)
         {
-            CurrentMediaBlock!.Src = selected[0].Src;
-            CurrentMediaBlock.Alt  = selected[0].Alt;
+            CurrentMediaBlock.Src = items.First().Src;
+            CurrentMediaBlock.Alt = items.First().Alt;
         }
 
         MediaModalOpen = false;
@@ -605,7 +682,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             var b64   = Convert.ToBase64String(bytes);
             var dataUrl = $"data:{file.ContentType};base64,{b64}";
 
-            var newItem = new MediaItem(MediaLibrary.Max(i => i.Id) + 1, dataUrl, file.Name);
+            var newItem = new MediaItem(MediaLibrary.Any() ? MediaLibrary.Max(i => i.Id) + 1 : 1, dataUrl, file.Name);
             MediaLibrary.Insert(0, newItem);
         }
 
@@ -684,36 +761,107 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Save / Publish  (mirrors savePage / publishPage)
     // ──────────────────────────────────────────────────────────
 
-    protected async Task SavePage()
+    private async Task AutoSaveAsync()
+    {
+        // One-shot save implementation handles both create and update
+        if (Id == 0 || Id is null) return;
+        
+        await SavePage();
+    }
+
+    private async Task SavePage()
     {
         if (IsSaving) return;
         IsSaving = true;
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
 
         try
         {
-            // TODO: wire up to PageContentService / MediatR command
-            await Task.Delay(800); // simulate network lag
-            UpdateLastSaved();
-            ShowToast("Page saved successfully", "success");
+            if (Id.HasValue)
+            {
+                var request = new UpdatePageRequest(
+                    PageTitle,
+                    PageSlug,
+                    Summary,
+                    SeoTitle,
+                    SeoDescription,
+                    PublicationState,
+                    null, // LayoutRegions are mapped on backend from EditorBlocks
+                    ShowInNavMenu,
+                    Blocks
+                );
+
+                var result = await PagesClient.UpdateAsync(Id.Value, request);
+                if (result is Result<string, CmsPageDetail>.Ok)
+                {
+                    UpdateLastSaved();
+                    ShowToast("Page saved successfully", "success");
+                }
+                else
+                {
+                    ShowToast($"Error saving: {result}", "error");
+                }
+            }
+            else
+            {
+                var request = new CreatePageRequest(
+                    PageTitle,
+                    PageSlug,
+                    Summary,
+                    SeoTitle,
+                    SeoDescription,
+                    PublicationState,
+                    null,
+                    ShowInNavMenu,
+                    Blocks
+                );
+
+                var result = await PagesClient.CreateAsync(request);
+                if (result is Result<string, CmsPageDetail>.Ok createOk)
+                {
+                    Id = createOk.Value.Id;
+                    UpdateLastSaved();
+                    ShowToast("Page created successfully", "success");
+                    // Update URL without refreshing
+                    // NavManager.NavigateTo($"/manager/page/editor/{Id}", false); 
+                }
+                else
+                {
+                    ShowToast($"Error creating: {result}", "error");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Save failed: {ex.Message}", "error");
         }
         finally
         {
             IsSaving = false;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
-    }
-
-    protected async Task AutoSaveAsync()
-    {
-        if (Blocks.Count == 0) return;
-        await InvokeAsync(SavePage);
     }
 
     protected async Task PublishPage()
     {
-        await SavePage();
-        ShowToast("Page published!", "success");
+        if (!Id.HasValue)
+        {
+            await SavePage();
+        }
+
+        if (Id.HasValue)
+        {
+            var result = await PagesClient.PublishAsync(Id.Value);
+            if (result is Result<string, CmsPageDetail>.Ok ok)
+            {
+                PublicationState = ok.Value.PublicationState;
+                ShowToast("Page published!", "success");
+            }
+            else
+            {
+                ShowToast("Failed to publish", "error");
+            }
+        }
     }
 
     protected void UpdateLastSaved()
@@ -745,9 +893,3 @@ public partial class PageEditor : ComponentBase, IDisposable
 // ──────────────────────────────────────────────────────────────
 // Supporting types
 // ──────────────────────────────────────────────────────────────
-
-/// <summary>An item in the media library picker.</summary>
-public record MediaItem(int Id, string Src, string Alt);
-
-/// <summary>An item in the reference selector (pages, posts, etc.).</summary>
-public record ReferenceItem(string Id, string? Title = null, string? Name = null);

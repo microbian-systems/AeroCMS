@@ -1,4 +1,4 @@
-namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
+namespace Aero.Cms.Core.Blocks;
 
 /// <summary>A single image in a gallery block.</summary>
 public class GalleryImage

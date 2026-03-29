@@ -14,4 +14,12 @@ public interface IBlockService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The block if found, otherwise null.</returns>
     Task<BlockBase?> GetByIdAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Saves a block to the persistent store.
+    /// </summary>
+    /// <param name="block">The block to save.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The saved block.</returns>
+    Task<BlockBase> SaveAsync(BlockBase block, CancellationToken ct = default);
 }

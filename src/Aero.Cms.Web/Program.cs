@@ -6,6 +6,10 @@ using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Services;
 using Aero.Cms.Core.Extensions;
 using Radzen;
+using Microsoft.AspNetCore.Components.Sections;
+using Wolverine;
+using Wolverine.Marten;
+using Aero.Cms.Modules.Aliases.Handlers;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -13,6 +17,12 @@ var config = builder.Configuration;
 var env = builder.Environment;
 
 builder.AddServiceDefaults();
+
+builder.Host.UseWolverine(opts => 
+{
+    // Auto-discover handlers in modules
+    opts.Discovery.IncludeAssembly(typeof(SlugUpdatedHandler).Assembly);
+});
 
 // Add services to the container.
 services.AddControllersWithViews();

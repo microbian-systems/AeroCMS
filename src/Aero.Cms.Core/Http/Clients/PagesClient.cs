@@ -1,7 +1,9 @@
-namespace Aero.Cms.Core.Http.Clients;
-
+using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Blocks.Layout;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
+
+namespace Aero.Cms.Core.Http.Clients;
 
 public interface IPagesHttpClient
 {
@@ -29,7 +31,7 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
 
     public Task<Result<string, PageDetail>> GetByIdAsync(long id, CancellationToken ct = default)
     {
-        return GetResultAsync<PageDetail>($"details/{id}", ct);
+        return GetResultAsync<PageDetail>(id.ToString(), ct);
     }
 
     public Task<Result<string, PageDetail>> GetBySlugAsync(string slug, CancellationToken ct = default)
@@ -83,25 +85,19 @@ public record PageDetail(
     DateTime UpdatedAt, 
     DateTime? PublishedAt, 
     ContentPublicationState PublicationState,
-    int BlockCount);
+    int BlockCount,
+    bool ShowInNavMenu,
+    IReadOnlyList<EditorBlock>? Blocks);
 
-public record CreatePageRequest(string Title, string Slug, string Content, string? Excerpt, IReadOnlyList<long> BlockIds)
-{
-    public string Summary { get; set; } = string.Empty;
-    public string SeoTitle { get; set; } = string.Empty;
-    public string SeoDescription { get; set; } = string.Empty;
-    public ContentPublicationState PublicationState { get; set; }
-}
+public record CreatePageRequest(string Title, string Slug, string? Summary, string? SeoTitle, string? SeoDescription, ContentPublicationState PublicationState, IReadOnlyList<LayoutRegion>? LayoutRegions = null, bool ShowInNavMenu = false, IReadOnlyList<EditorBlock>? EditorBlocks = null);
 
 public record UpdatePageRequest(
     string Title,
     string Slug,
-    string Content,
     string? Summary,
     string? SeoTitle,
     string? SeoDescription,
-    string? Excerpt,
-    IReadOnlyList<long> BlockIds)
-{
-    public ContentPublicationState PublicationState { get; set; }
-}
+    ContentPublicationState PublicationState,
+    IReadOnlyList<LayoutRegion>? LayoutRegions = null,
+    bool ShowInNavMenu = false,
+    IReadOnlyList<EditorBlock>? EditorBlocks = null);

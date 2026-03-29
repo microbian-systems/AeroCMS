@@ -1,4 +1,4 @@
-namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
+namespace Aero.Cms.Core.Blocks;
 
 /// <summary>A simplified nested block (text / image / video / button) inside a column.</summary>
 public class NestedBlock

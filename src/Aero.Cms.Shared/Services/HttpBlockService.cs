@@ -26,4 +26,13 @@ public sealed class HttpBlockService : IBlockService
             return null;
         }
     }
+
+    public async Task<BlockBase> SaveAsync(BlockBase block, CancellationToken ct = default)
+    {
+        // On the client side, we usually save blocks as part of the page in a "one-shot" save.
+        // However, we implement this to satisfy the interface.
+        var response = await _httpClient.PostAsJsonAsync("/api/v1/blocks", block, ct);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<BlockBase>(cancellationToken: ct))!;
+    }
 }

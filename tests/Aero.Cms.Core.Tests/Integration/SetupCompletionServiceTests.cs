@@ -1,3 +1,4 @@
+using Aero.Cms.Core.Blocks;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
@@ -5,6 +6,7 @@ using Aero.Cms.Services;
 using Aero.Cms.Web.Core.Modules;
 using FluentAssertions;
 using NSubstitute;
+using Wolverine;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -42,7 +44,8 @@ public class SetupCompletionServiceTests
             "cms/posts/getting-started-with-aero-cms",
             "cms/posts/shaping-your-homepage-message",
             "cms/posts/publishing-your-first-update");
-        harness.BlogPosts.Values.Should().OnlyContain(post => post.PublicationState == ContentPublicationState.Published);
+        harness.BlogPosts.Values.Should()
+            .OnlyContain(post => post.PublicationState == ContentPublicationState.Published);
     }
 
     [Test]
@@ -109,11 +112,13 @@ public class SetupCompletionServiceTests
         harness.BlogPosts.Should().BeEmpty();
     }
 
-    private static SetupCompletionService CreateService(InMemoryCmsDocumentSessionHarness harness, ISetupIdentityBootstrapper identityBootstrapper)
+    private static SetupCompletionService CreateService(InMemoryCmsDocumentSessionHarness harness,
+        ISetupIdentityBootstrapper identityBootstrapper)
         => new(
             harness.Session,
             identityBootstrapper,
-            new MartenPageContentService(harness.Session),
+            new MartenPageContentService(harness.Session, Substitute.For<IBlockService>(),
+                Substitute.For<IMessageBus>()),
             new MartenBlogPostContentService(harness.Session),
             Substitute.For<IStaticPhotosClient>(),
             Substitute.For<IModuleDiscoveryService>(),

@@ -138,7 +138,10 @@ public static class PagesApi
                 request.Summary,
                 request.SeoTitle,
                 request.SeoDescription,
-                request.PublicationState
+                request.PublicationState,
+                request.LayoutRegions,
+                request.ShowInNavMenu,
+                request.EditorBlocks
             );
 
             var result = await pageService.CreateAsync(moduleRequest, cancellationToken);
@@ -149,10 +152,12 @@ public static class PagesApi
 
             if (result is Result<string, PageDocument>.Failure failure)
             {
+                logger.LogWarning("Failed to create page. Error: {Error}. Request: {@Request}", failure.Error, request);
                 return TypedResults.BadRequest(new ProblemDetails
                 {
                     Title = "Failed to create page",
-                    Detail = failure.Error
+                    Detail = failure.Error,
+                    Status = StatusCodes.Status400BadRequest
                 });
             }
 
@@ -160,7 +165,7 @@ public static class PagesApi
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creating page");
+            logger.LogError(ex, "Error creating page. Request: {@Request}", request);
             return TypedResults.Problem(ex.Message);
         }
     }
@@ -182,7 +187,10 @@ public static class PagesApi
                 request.Summary,
                 request.SeoTitle,
                 request.SeoDescription,
-                request.PublicationState
+                request.PublicationState,
+                request.LayoutRegions,
+                request.ShowInNavMenu,
+                request.EditorBlocks
             );
 
             var result = await pageService.UpdateAsync(id, moduleRequest, cancellationToken);
@@ -193,10 +201,12 @@ public static class PagesApi
 
             if (result is Result<string, PageDocument>.Failure failure)
             {
+                logger.LogWarning("Failed to update page {Id}. Error: {Error}. Request: {@Request}", id, failure.Error, request);
                 return TypedResults.BadRequest(new ProblemDetails
                 {
                     Title = "Failed to update page",
-                    Detail = failure.Error
+                    Detail = failure.Error,
+                    Status = StatusCodes.Status400BadRequest
                 });
             }
 
@@ -204,7 +214,7 @@ public static class PagesApi
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error updating page for id={Id}", id);
+            logger.LogError(ex, "Error updating page for id={Id}. Request: {@Request}", id, request);
             return TypedResults.Problem(ex.Message);
         }
     }

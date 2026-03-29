@@ -1,10 +1,19 @@
 using Aero.Cms.Core;
+using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Blocks.Common;
+using Aero.Cms.Core.Blocks.Layout;
+using Aero.Cms.Modules.Pages.Requests;
 using Aero.Cms.Modules.Pages.Validators;
 using Aero.Core;
+using Aero.Core.Extensions;
 using Aero.Core.Railway;
 using FlakeId;
 using Marten;
 using Marten.Linq;
+using Microsoft.Extensions.Logging;
+using Wolverine;
+using Aero.Cms.Core.Messaging;
+
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -21,7 +30,7 @@ public interface IPageContentService
     Task<Result<string, bool>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenPageContentService(IDocumentSession session) : IPageContentService
+public sealed class MartenPageContentService(IDocumentSession session, IBlockService blockService, IMessageBus bus) : IPageContentService
 {
     public async Task<Result<string, PageDocument?>> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
@@ -56,7 +65,6 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
                 var s = search.ToLower();
                 filteredQuery = query.Where(x => x.Title.ToLower().Contains(s) || x.Slug.ToLower().Contains(s));
             }
-
             var stats = new global::Marten.Linq.QueryStatistics();
             var pages = await ((global::Marten.Linq.IMartenQueryable<PageDocument>)filteredQuery)
                 .OrderBy(x => x.Title)
@@ -102,12 +110,24 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
         {
             Id = Snowflake.NewId(),
             Title = request.Title,
-            Slug = request.Slug,
+            Slug = string.IsNullOrEmpty(request.Slug)
+                ? request.Title.GenerateSlug()
+                : request.Slug,
             Summary = request.Summary,
             SeoTitle = request.SeoTitle,
             SeoDescription = request.SeoDescription,
-            PublicationState = request.PublicationState
+            PublicationState = request.PublicationState,
+            ShowInNavMenu = request.ShowInNavMenu
         };
+
+        if (request.EditorBlocks is { Count: > 0 })
+        {
+            page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
+        }
+        else
+        {
+            page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
+        }
 
         return await SaveAsync(page, cancellationToken);
     }
@@ -124,6 +144,14 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
             page.SeoTitle = request.SeoTitle;
             page.SeoDescription = request.SeoDescription;
             page.PublicationState = request.PublicationState;
+            if (request.EditorBlocks is { Count: > 0 })
+            {
+                page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
+            }
+            else
+            {
+                page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
+            }
 
             return await SaveAsync(page, cancellationToken);
         }
@@ -180,7 +208,13 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
             session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 
+            if (page.PublicationState == ContentPublicationState.Published)
+            {
+                await bus.PublishAsync(new SlugUpdated(page.Id, "Page", page.Slug, existingPage?.Slug));
+            }
+
             return Prelude.Ok<string, PageDocument>(page);
+
         }
         catch (ArgumentException ex)
         {
@@ -190,6 +224,190 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
         {
             return Prelude.Fail<string, PageDocument>(ex.Message);
         }
+    }
+
+    private async Task<List<LayoutRegion>> MapEditorBlocksToLayoutRegions(IReadOnlyList<EditorBlock> editorBlocks, CancellationToken cancellationToken)
+    {
+        var placements = new List<BlockPlacement>();
+        int order = 0;
+
+        foreach (var eb in editorBlocks)
+        {
+            var block = MapEditorBlock(eb);
+            if (block != null)
+            {
+                await blockService.SaveAsync(block, cancellationToken);
+                placements.Add(new BlockPlacement
+                {
+                    BlockId = block.Id,
+                    Order = order++
+                });
+            }
+        }
+
+        // For now, put all editor blocks in a single column in one "Main" region
+        var column = new LayoutColumn
+        {
+            Width = 12, // full width
+            Blocks = placements
+        };
+
+        return [
+            new LayoutRegion
+            {
+                Name = "Main",
+                Order = 0,
+                Columns = [column]
+            }
+        ];
+    }
+
+    private BlockBase? MapEditorBlock(EditorBlock eb)
+    {
+        return eb.Type switch
+        {
+            "aero_hero" => new AeroHeroBlock
+            {
+                Title = eb.MainText,
+                Description = eb.SubText,
+                BackgroundImage = eb.BackgroundImage,
+                Layout = Enum.TryParse<AeroHeroLayout>(eb.AeroLayout, true, out var layout) ? layout : AeroHeroLayout.SideImage,
+                Buttons = new List<AeroButton>
+                {
+                    new AeroButton { Text = eb.CtaText, Url = eb.CtaUrl, Style = AeroButtonStyle.Primary },
+                    new AeroButton { Text = eb.CtaText2, Url = eb.CtaUrl2, Style = AeroButtonStyle.Secondary }
+                }
+            },
+            "aero_features" => new AeroFeaturesBlock
+            {
+                Title = eb.MainText,
+                SubTitle = eb.SubText,
+                Layout = Enum.TryParse<AeroFeaturesLayout>(eb.AeroLayout, true, out var layout) ? layout : AeroFeaturesLayout.Simple,
+                Items = eb.FeatureItems.Select(f => new AeroFeatureItem
+                {
+                    Title = f.Title,
+                    Description = f.Description,
+                    Icon = f.Icon,
+                    ImageUrl = f.ImageUrl,
+                    LinkUrl = f.LinkUrl
+                }).ToList()
+            },
+            "aero_cta" => new AeroCtaBlock
+            {
+                Title = eb.MainText,
+                Description = eb.SubText,
+                CtaText = eb.CtaText,
+                CtaUrl = eb.CtaUrl,
+                Layout = Enum.TryParse<AeroCtaLayout>(eb.AeroLayout, true, out var layout) ? layout : AeroCtaLayout.Card
+            },
+            "aero_blog" => new AeroBlogBlock
+            {
+                Title = eb.MainText,
+                Description = eb.SubText,
+                Posts = eb.BlogPosts.Select(p => new AeroBlogItem
+                {
+                    Title = p.Title,
+                    Description = p.Description,
+                    ImageUrl = p.ImageUrl,
+                    AuthorName = p.AuthorName,
+                    PublishedAt = p.PublishedAt,
+                    Category = p.Category,
+                    PostUrl = p.PostUrl
+                }).ToList()
+            },
+            "aero_pricing" => new AeroPricingBlock
+            {
+                Title = eb.MainText,
+                Description = eb.SubText,
+                Plans = eb.PricingPlans.Select(p => new AeroPricingPlan
+                {
+                    Name = p.Name,
+                    Price = p.Price,
+                    Period = p.Period,
+                    Description = p.Description,
+                    Features = p.Features,
+                    CtaText = p.CtaText,
+                    CtaUrl = p.CtaUrl,
+                    IsPopular = p.IsPopular
+                }).ToList()
+            },
+            "aero_teams" => new AeroTeamsBlock
+            {
+                Title = eb.MainText,
+                Description = eb.SubText,
+                Members = eb.TeamMembers.Select(m => new AeroTeamMember
+                {
+                    Name = m.Name,
+                    Role = m.Role,
+                    AvatarUrl = m.AvatarUrl,
+                    Description = m.Description,
+                    LinkedInUrl = m.LinkedInUrl
+                }).ToList()
+            },
+            "aero_testimonials" => new AeroTestimonialsBlock
+            {
+                Title = eb.MainText,
+                Description = eb.SubText,
+                Testimonials = eb.Testimonials.Select(t => new AeroTestimonialItem
+                {
+                    AuthorName = t.AuthorName,
+                    AuthorRole = t.AuthorRole,
+                    AuthorImage = t.AuthorImage,
+                    Content = t.Content,
+                    StarRating = t.StarRating,
+                    CompanyName = t.CompanyName
+                }).ToList()
+            },
+            "aero_faq" => new AeroFaqBlock
+            {
+                Title = eb.MainText,
+                Description = eb.SubText,
+                Items = eb.FaqItems.Select(f => new AeroFaqItem
+                {
+                    Question = f.Question,
+                    Answer = f.Answer
+                }).ToList()
+            },
+            "raw_html" => new RawHtmlBlock
+            {
+                Content = eb.Content
+            },
+            "rich_text" => new RichTextBlock
+            {
+                Content = eb.Content
+            },
+            "heading" => new HeadingBlock
+            {
+                Text = eb.Title,
+                Level = 2 // default
+            },
+            "quote" => new QuoteBlock
+            {
+                Content = eb.Content,
+                Author = eb.Author
+            },
+            "image" => new ImageBlock
+            {
+                AltText = eb.Alt,
+                Caption = eb.Caption,
+                // If it's a URL, we might not have a MediaId, but ImageBlock currently only has MediaId.
+                // We'll leave it as 0 for now or if we had a way to map URL to ID.
+            },
+            "video" => new EmbedBlock
+            {
+                SourceUrl = eb.Url,
+                EmbedType = "video"
+            },
+            "gallery" => new CarouselBlock
+            {
+                Items = eb.GalleryImages.Select(g => new CarouselItem
+                {
+                    AltText = g.Alt,
+                    Caption = g.Src // using Src as caption for now if needed, or mapping correctly
+                }).ToList()
+            },
+            _ => null
+        };
     }
 
     private static async Task ValidatePage(PageDocument page)

@@ -25,6 +25,7 @@
     <PackageVersion Include="Marten.AspNetCore" Version="8.26.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Html.Abstractions" Version="2.3.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Rewrite" Version="2.3.9" />
     <PackageVersion Include="Microsoft.AspNetCore.Routing.Abstractions" Version="2.3.9" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
@@ -79,9 +80,12 @@
     <PackageVersion Include="TickerQ.EntityFrameworkCore" Version="10.2.5" />
     <PackageVersion Include="TickerQ.Instrumentation.OpenTelemetry" Version="10.2.5" />
     <PackageVersion Include="TickerQ.Utilities" Version="10.2.5" />
-    <PackageVersion Include="WolverineFx" Version="5.23.0" />
-    <PackageVersion Include="WolverineFx.Marten" Version="5.23.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="5.23.0" />
+    <PackageVersion Include="WolverineFx" Version="5.25.0" />
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="5.25.0" />
+    <PackageVersion Include="WolverineFx.FluentValidation" Version="5.25.0" />
+    <PackageVersion Include="WolverineFx.Marten" Version="5.25.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="5.25.0" />
+    <PackageVersion Include="WolverineFx.RabbitMQ" Version="5.25.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache" Version="2.6.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0" />
   </ItemGroup>

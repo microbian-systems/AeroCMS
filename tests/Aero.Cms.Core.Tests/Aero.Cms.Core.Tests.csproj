@@ -22,6 +22,7 @@
     </PackageReference>
     <PackageReference Include="TUnit" Version="1.21.20" />
     <PackageReference Include="Alba" Version="8.5.1" />
+    <PackageReference Include="WolverineFx" Version="5.25.0" />
   </ItemGroup>
 
   <ItemGroup>

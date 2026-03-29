@@ -17,7 +17,7 @@ namespace Aero.Cms.Modules.Headless.Api.v1;
 /// <param name="Title">The page title.</param>
 /// <param name="Summary">The page summary.</param>
 /// <param name="PublishedOn">When the page was published.</param>
-public record PageSummary(long Id, string Slug, string Title, string? Summary, DateTimeOffset? PublishedOn);
+public record PageSummaryV2(long Id, string Slug, string Title, string? Summary, DateTimeOffset? PublishedOn);
 
 
 [Obsolete("only here for ref purposes", true)]
@@ -26,7 +26,7 @@ public static class PagesApiV2
     /// <summary>
     /// Maps the Pages API endpoints.
     /// </summary>
-    public static void MapPagesApi(this IEndpointRouteBuilder app)
+    public static void MapPagesApiV2(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/v1/pages/{culture}/{slug}", GetPageByCultureAndSlug)
             .WithName("GetPageByCultureAndSlug")
@@ -87,7 +87,7 @@ public static class PagesApiV2
         // Query published pages directly using the service's session-like pattern
         // For now, return empty array - the service doesn't have a list method
         // This would need to be extended to query all pages and filter by PublicationState
-        return Results.Ok(Array.Empty<PageSummary>());
+        return Results.Ok(Array.Empty<PageSummaryV2>());
     }
 
     private static async Task<IResult> CreatePage(

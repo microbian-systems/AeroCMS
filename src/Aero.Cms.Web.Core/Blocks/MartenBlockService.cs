@@ -19,4 +19,11 @@ public sealed class MartenBlockService : IBlockService
     {
         return _session.LoadAsync<BlockBase>(id, ct);
     }
+
+    public async Task<BlockBase> SaveAsync(BlockBase block, CancellationToken ct = default)
+    {
+        _session.Store(block);
+        await _session.SaveChangesAsync(ct);
+        return block;
+    }
 }

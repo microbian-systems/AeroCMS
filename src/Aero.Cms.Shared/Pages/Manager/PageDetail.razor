@@ -1,13 +1,28 @@
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core.Railway
 @inject IPagesHttpClient PagesApi
-@inject DialogService DialogService
 @inject NavigationManager Navigation
+@page "/manager/pages/detail/{PageId:long}"
 
 <div class="p-6 space-y-4">
+    <div class="mb-4">
+        <RadzenButton Icon="arrow_back" Text="Back to Pages" ButtonStyle="ButtonStyle.Light" Click='() => Navigation.NavigateTo("/manager/pages")' />
+    </div>
     @if (pageDetail == null)
     {
-        <div class="flex items-center justify-center py-20">
-            <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+        <div class="flex flex-col items-center justify-center py-20 gap-4">
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter">
+                    @errorMessage
+                </RadzenAlert>
+                <RadzenButton Text="Go Back" Click="@(() => Navigation.NavigateTo("/manager/pages"))" ButtonStyle="ButtonStyle.Secondary" />
+            }
+            else
+            {
+                <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+                <span class="text-gray-500">Loading page details...</span>
+            }
         </div>
     }
     else
@@ -78,20 +93,25 @@
 @code {
     [Parameter] public long PageId { get; set; }
     
-    private PageDetail? pageDetail;
+    private Core.Http.Clients.PageDetail? pageDetail;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
         var result = await PagesApi.GetByIdAsync(PageId);
-        if (result is Result<string, PageDetail>.Ok ok)
+        if (result is Result<string, Core.Http.Clients.PageDetail>.Ok ok)
         {
-             pageDetail = ok.Value;
+            pageDetail = ok.Value;
+        }
+        else if (result is Result<string, Core.Http.Clients.PageDetail>.Failure failure)
+        {
+            errorMessage = failure.Error;
         }
     }
 
     void OnEdit()
     {
-        DialogService.Close();
-        Navigation.NavigateTo($"/manager/page/editor?id={PageId}");
+        Navigation.NavigateTo($"/manager/page/editor/{PageId}");
     }
+
 }

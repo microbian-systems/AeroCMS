@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Aero.Cms.Core.Blocks.Common;
 
-namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
+namespace Aero.Cms.Core.Blocks;
 
 /// <summary>
 /// A flat "bag of properties" representing any block being edited
