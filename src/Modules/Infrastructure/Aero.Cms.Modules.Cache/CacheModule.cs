@@ -36,9 +36,9 @@ public class CacheModule : AeroModuleBase
             .WithSerializer(new FusionCacheSystemTextJsonSerializer());
 
         // Register the caching hooks
-        // services.AddScoped<PageCacheHook>();
-        // services.AddScoped<PageCacheStoreHook>();
-        // services.AddScoped<PageCacheInvalidatorHook>();
+        services.AddScoped<PageCacheHook>();
+        services.AddScoped<PageCacheStoreHook>();
+        services.AddScoped<PageCacheInvalidatorHook>();
     }
 
     public override async Task RunAsync(IEndpointRouteBuilder endpoints)
@@ -49,8 +49,8 @@ public class CacheModule : AeroModuleBase
     public override void Configure(IModuleBuilder builder)
     {
         // Registration with the global hook system will happen here
-        // builder.AddPageReadHook<PageCacheHook>();
-        // builder.AddPageReadHook<PageCacheStoreHook>();
-        // builder.AddPageSaveHook<PageCacheInvalidatorHook>();
+        // builder.addpagereadhook<pagecachehook>();
+        // builder.addpagereadhook<pagecachestorehook>();
+        // builder.addpagesavehook<pagecacheinvalidatorhook>();
     }
 }
