@@ -1,10 +1,23 @@
+@using Aero.Cms.Shared.Services
+@inject IFormFactor FormFactor
+@inject NavigationManager Navigation
+
 <Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="new[] { typeof(Aero.Cms.Shared._Imports).Assembly }">
     <Found Context="routeData">
         <RouteView RouteData="@routeData" DefaultLayout="@typeof(DarkModeLayout)" />
     </Found>
     <NotFound>
-        <LayoutView Layout="@typeof(Aero.Cms.Shared.Layout.MainLayout)">
-            <p>Sorry, there's nothing at this address.</p>
-        </LayoutView>
+        @if (FormFactor.GetFormFactor() != "Web")
+        {
+            @* Directly perform the redirect for the MAUI client to start at the manager *@
+           Navigation.NavigateTo("/manager"); 
+        }
+        else
+        {
+            <LayoutView Layout="@typeof(Aero.Cms.Shared.Layout.MainLayout)">
+                <p>Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        }
     </NotFound>
 </Router>
+
