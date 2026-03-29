@@ -8,44 +8,26 @@ public static class AeroHttpClientExtensions
 {
     public static IServiceCollection AddAeroHttpClients(this IServiceCollection services, IConfiguration config)
     {
-        // todo - implement this in the settings class in db
         var url = config["AeroHttpClientBaseAddress"] ?? "https://localhost:5555/api/v1";
         var uri = new Uri(url);
 
+        services.AddHttpClient<IBlogHttpClient, BlogHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<ICategoriesHttpClient, CategoriesHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IDashboardHttpClient, DashboardHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IFilesHttpClient, FilesHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IMediaHttpClient, MediaHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IModulesHttpClient, ModulesHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<INavigationsHttpClient, NavigationsHttpClient>(c => c.BaseAddress = uri); 
+        services.AddHttpClient<IPagesHttpClient, PagesHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IProfileHttpClient, ProfileHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<ISettingsHttpClient, SettingsHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<ITagsHttpClient, TagsHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IThemesHttpClient, ThemesHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IUsersHttpClient, UsersHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IBlocksHttpClient, BlocksHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IPublishHttpClient, PublishHttpClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IPreviewHttpClient, PreviewHttpClient>(c => c.BaseAddress = uri);
         services.AddHttpClient<DocsClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<BlogHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<CategoriesHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<DashboardHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<FilesHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<MediaHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<ModulesHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<NavigationsHttpClient>(c => c.BaseAddress = uri); 
-        services.AddHttpClient<PagesHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<ProfileHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<SettingsHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<TagsHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<ThemesHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<UsersHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<BlocksHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<PublishHttpClient>(c => c.BaseAddress = uri);
-        services.AddHttpClient<PreviewHttpClient>(c => c.BaseAddress = uri);
-
-        services.AddTransient<IBlogHttpClient, BlogHttpClient>();
-        services.AddTransient<ICategoriesHttpClient, CategoriesHttpClient>();
-        services.AddTransient<IDashboardHttpClient, DashboardHttpClient>();
-        services.AddTransient<IFilesHttpClient, FilesHttpClient>(); 
-        services.AddTransient<IMediaHttpClient, MediaHttpClient>();
-        services.AddTransient<IModulesHttpClient, ModulesHttpClient>();
-        services.AddTransient<INavigationsHttpClient, NavigationsHttpClient>();
-        services.AddTransient<IPagesHttpClient, PagesHttpClient>();
-        services.AddTransient<IProfileHttpClient, ProfileHttpClient>();
-        services.AddTransient<ISettingsHttpClient, SettingsHttpClient>();
-        services.AddTransient<ITagsHttpClient, TagsHttpClient>();
-        services.AddTransient<IThemesHttpClient, ThemesHttpClient>();
-        services.AddTransient<IUsersHttpClient, UsersHttpClient>();
-        services.AddTransient<IBlocksHttpClient, BlocksHttpClient>();
-        services.AddTransient<IPublishHttpClient, PublishHttpClient>();
-        services.AddTransient<IPreviewHttpClient, PreviewHttpClient>();
 
         return services;
     }

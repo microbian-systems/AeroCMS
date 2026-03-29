@@ -1,25 +1,114 @@
 @page "/manager/users"
 @page "/manager/users/general"
+@using Aero.Cms.Core.Http.Clients
+@inject IUsersHttpClient UsersApi
+@inject DialogService DialogService
 
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Users</h1>
-            <p class="mt-1 text-sm text-gray-500">Manage user accounts, roles, and permissions.</p>
+            <h1 class="text-2xl font-bold text-gray-900">User Directory</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage user accounts, roles, and administrative permissions.</p>
         </div>
-        <RadzenButton Icon="person_add" Text="Invite User" ButtonStyle="ButtonStyle.Primary" />
+        <div class="flex space-x-3">
+             <RadzenTextBox Placeholder="Search users..." 
+                            Value="@searchText" 
+                            ValueChanged="@(args => OnSearch(args))" 
+                            class="w-64" />
+            <RadzenButton Icon="person_add" Text="Invite User" ButtonStyle="ButtonStyle.Primary" />
+        </div>
     </div>
 
-    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
+    <RadzenDataGrid @ref="grid"
+                    Data="@users" 
+                    TItem="UserSummary" 
+                    Count="@count"
+                    LoadData="@LoadData"
+                    IsLoading="@isLoading"
+                    AllowPaging="true" 
+                    PageSize="10" 
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    ShowPagingSummary="true"
+                    RowClick="@(args => OnRowClick(args.Data))"
+                    class="aero-grid cursor-pointer"
                     EmptyText="No users found. Admin is solitary for now.">
         <Columns>
-            <RadzenDataGridColumn TItem="object" Property="Email" Title="Email" />
-            <RadzenDataGridColumn TItem="object" Property="Name" Title="Full Name" />
-            <RadzenDataGridColumn TItem="object" Property="Role" Title="Role" />
-            <RadzenDataGridColumn TItem="object" Property="Status" Title="Status" />
+            <RadzenDataGridColumn TItem="UserSummary" Property="DisplayName" Title="Name">
+                <Template Context="user">
+                    <div class="flex items-center gap-3">
+                         <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs uppercase">
+                              @GetInitials(user.DisplayName)
+                         </div>
+                         <div class="flex flex-col">
+                              <span class="font-medium text-gray-900">@user.DisplayName</span>
+                              <span class="text-[10px] text-gray-500 font-mono">ID: @user.Id</span>
+                         </div>
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="UserSummary" Property="Email" Title="Email" />
+            <RadzenDataGridColumn TItem="UserSummary" Property="UserName" Title="Username" />
+            <RadzenDataGridColumn TItem="UserSummary" Property="IsEnabled" Title="Status">
+                <Template Context="user">
+                    @if (user.IsEnabled)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Active" class="px-2 py-1" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="Disabled" class="px-2 py-1" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="UserSummary" Property="CreatedAt" Title="Joined">
+                 <Template Context="user">
+                      <span class="text-sm text-gray-600">@user.CreatedAt.ToShortDateString()</span>
+                 </Template>
+            </RadzenDataGridColumn>
         </Columns>
     </RadzenDataGrid>
 </div>
 
 @code {
+    RadzenDataGrid<UserSummary>? grid;
+    IEnumerable<UserSummary>? users;
+    int count;
+    bool isLoading = true;
+    string searchText = "";
+
+    async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        
+        var result = await UsersApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchText);
+        
+        if (result is Result<string, PagedResult<UserSummary>>.Ok ok)
+        {
+            users = ok.Value.Items;
+            count = (int)ok.Value.TotalCount;
+        }
+        
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    void OnSearch(string text)
+    {
+        searchText = text;
+        grid?.Reload();
+    }
+
+    async Task OnRowClick(UserSummary? user)
+    {
+        if (user == null) return;
+        // TODO: Open User Detail Popup
+    }
+
+    string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "??";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}";
+        return name.Substring(0, Math.Min(2, name.Length));
+    }
 }

@@ -1,10 +1,12 @@
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Pages.Validators;
 using Aero.Core;
+using Aero.Core.Railway;
+using FlakeId;
+using Marten;
+using Marten.Linq;
 
 namespace Aero.Cms.Modules.Pages;
-
-using Aero.Core.Railway;
 
 public interface IPageContentService
 {
@@ -12,7 +14,7 @@ public interface IPageContentService
     Task<Result<string, PageDocument?>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<Result<string, PageDocument?>> LoadHomepageAsync(CancellationToken cancellationToken = default);
     Task<Result<string, PageDocument?>> LoadBlogListingAsync(CancellationToken cancellationToken = default);
-    Task<Result<string, IReadOnlyList<PageDocument>>> GetAllPagesAsync(CancellationToken cancellationToken = default);
+    Task<Result<string, (IReadOnlyList<PageDocument> Items, long TotalCount)>> GetAllPagesAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
     Task<Result<string, PageDocument>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
     Task<Result<string, PageDocument>> CreateAsync(Requests.CreatePageRequest request, CancellationToken cancellationToken = default);
     Task<Result<string, PageDocument>> UpdateAsync(long id, Requests.UpdatePageRequest request, CancellationToken cancellationToken = default);
@@ -42,19 +44,32 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
     public Task<Result<string, PageDocument?>> LoadBlogListingAsync(CancellationToken cancellationToken = default)
         => FindBySlugAsync("blog", cancellationToken);
 
-    public async Task<Result<string, IReadOnlyList<PageDocument>>> GetAllPagesAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<string, (IReadOnlyList<PageDocument> Items, long TotalCount)>> GetAllPagesAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
     {
         try
         {
-            var pages = await session.Query<PageDocument>()
+            var query = session.Query<PageDocument>();
+
+            IQueryable<PageDocument> filteredQuery = query;
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.ToLower();
+                filteredQuery = query.Where(x => x.Title.ToLower().Contains(s) || x.Slug.ToLower().Contains(s));
+            }
+
+            var stats = new global::Marten.Linq.QueryStatistics();
+            var pages = await ((global::Marten.Linq.IMartenQueryable<PageDocument>)filteredQuery)
                 .OrderBy(x => x.Title)
+                .Stats(out stats)
+                .Skip(skip)
+                .Take(take)
                 .ToListAsync(token: cancellationToken);
 
-            return Prelude.Ok<string, IReadOnlyList<PageDocument>>(pages);
+            return Prelude.Ok<string, (IReadOnlyList<PageDocument> Items, long TotalCount)>((pages, stats.TotalResults));
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, IReadOnlyList<PageDocument>>(ex.Message);
+            return Prelude.Fail<string, (IReadOnlyList<PageDocument> Items, long TotalCount)>(ex.Message);
         }
     }
 
@@ -155,8 +170,8 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
                 cancellationToken);
 
             var now = DateTimeOffset.UtcNow;
-            var existingCreatedAtUtc = existingPage?.CreatedOn;
-            page.CreatedOn = existingCreatedAtUtc is null || existingCreatedAtUtc == default ? now : existingCreatedAtUtc.Value;
+            var existingCreatedOn = existingPage?.CreatedOn;
+            page.CreatedOn = existingCreatedOn is null || existingCreatedOn == default ? now : existingCreatedOn.Value;
             page.ModifiedOn = now;
             page.PublishedOn = page.PublicationState == ContentPublicationState.Published
                 ? existingPage?.PublishedOn ?? now
@@ -184,9 +199,7 @@ public sealed class MartenPageContentService(IDocumentSession session) : IPageCo
 
         if (valid.Errors.Any())
         {
-            // todo - return a Result<T> here and avoid throwing an exception
-            throw new ArgumentException($"page errors: {valid.Errors}");
+            throw new ArgumentException($"page errors: {string.Join(", ", valid.Errors.Select(e => e.ErrorMessage))}");
         }
     }
-
 }

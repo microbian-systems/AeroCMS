@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Aero.Cms.Core.Http.Clients;
 using Aero.Cms.Core.Audit;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Blog.Requests;
@@ -41,23 +42,35 @@ public static class BlogApi
     private static async Task<IResult> ListPosts(
         [FromServices] IBlogPostContentService blogService,
         [FromServices] ILoggerFactory loggerFactory,
-        int count = 20,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 10,
+        [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(BlogApi));
         try
         {
-            var result = await blogService.GetLatestPostsAsync(count, cancellationToken);
+            var result = await blogService.GetAllPostsAsync(skip, take, search, cancellationToken);
 
-            if (result is Result<string, IReadOnlyList<BlogPostDocument>>.Failure failure)
+            if (result is Result<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>.Failure failure)
             {
                 logger.LogWarning("Failed to retrieve blog posts: {Error}", failure.Error);
-                return TypedResults.NotFound();
+                return TypedResults.Problem(failure.Error);
             }
 
-            if (result is Result<string, IReadOnlyList<BlogPostDocument>>.Ok ok)
+            if (result is Result<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>.Ok ok)
             {
-                return TypedResults.Ok(ok.Value);
+                var summaries = ok.Value.Items.Select(p => new BlogSummary(
+                    p.Id,
+                    p.Title,
+                    p.Slug,
+                    p.CreatedOn.DateTime,
+                    p.PublishedOn?.DateTime,
+                    p.Excerpt,
+                    p.ImageUrl
+                )).ToList();
+
+                return TypedResults.Ok(new PagedResult<BlogSummary>(summaries, ok.Value.TotalCount, skip, take));
             }
 
             return TypedResults.NotFound();
@@ -65,7 +78,7 @@ public static class BlogApi
         catch (Exception ex)
         {
             logger.LogError(ex, "Error retrieving blog posts");
-            return TypedResults.NotFound();
+            return TypedResults.Problem(ex.Message);
         }
     }
 

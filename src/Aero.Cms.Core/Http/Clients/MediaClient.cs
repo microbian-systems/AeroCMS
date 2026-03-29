@@ -1,26 +1,34 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 public interface IMediaHttpClient
 {
-    Task<Result<string, IReadOnlyList<MediaSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, PagedResult<MediaSummary>>> GetAllAsync(long? parentId = null, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
     Task<Result<string, MediaDetail>> GetByIdAsync(long id, CancellationToken ct = default);
     Task<Result<string, MediaDetail>> UploadAsync(UploadMediaRequest request, CancellationToken ct = default);
+    Task<Result<string, MediaDetail>> UpdateAsync(long id, UploadMediaRequest request, CancellationToken ct = default);
+    Task<Result<string, MediaDetail>> CreateFolderAsync(CreateFolderRequest request, CancellationToken ct = default);
     Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Typed client for media endpoints (stub implementation).
+/// Typed client for media endpoints.
 /// </summary>
-public class MediaHttpClient(HttpClient httpClient, ILogger<MediaHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IMediaHttpClient
+public class MediaHttpClient(System.Net.Http.HttpClient httpClient, ILogger<MediaHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IMediaHttpClient
 {
     protected override string ResourceName => "media";
 
-    public Task<Result<string, IReadOnlyList<MediaSummary>>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, PagedResult<MediaSummary>>> GetAllAsync(long? parentId = null, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)
     {
-        return GetResultAsync<IReadOnlyList<MediaSummary>>(string.Empty, ct);
+        var url = $"?skip={skip}&take={take}";
+        if (parentId.HasValue) url += $"&parentId={parentId}";
+        if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+        return GetResultAsync<PagedResult<MediaSummary>>(url, ct);
     }
 
     public Task<Result<string, MediaDetail>> GetByIdAsync(long id, CancellationToken ct = default)
@@ -33,6 +41,16 @@ public class MediaHttpClient(HttpClient httpClient, ILogger<MediaHttpClient> log
         return PostResultAsync<UploadMediaRequest, MediaDetail>(string.Empty, request, ct);
     }
 
+    public Task<Result<string, MediaDetail>> UpdateAsync(long id, UploadMediaRequest request, CancellationToken ct = default)
+    {
+        return PutResultAsync<UploadMediaRequest, MediaDetail>(id.ToString(), request, ct);
+    }
+
+    public Task<Result<string, MediaDetail>> CreateFolderAsync(CreateFolderRequest request, CancellationToken ct = default)
+    {
+        return PostResultAsync<CreateFolderRequest, MediaDetail>("folder", request, ct);
+    }
+
     public Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default)
     {
         return DeleteResultAsync(id.ToString(), ct);
@@ -42,6 +60,7 @@ public class MediaHttpClient(HttpClient httpClient, ILogger<MediaHttpClient> log
 #pragma warning disable SA1402 // File may only contain a single type
 #pragma warning disable SA1649 // File name should match first type name
 
-public record MediaSummary(long Id, string FileName, string Url, string MimeType, long FileSize, DateTime CreatedAt);
-public record MediaDetail(long Id, string FileName, string Url, string MimeType, long FileSize, DateTime CreatedAt, int Width, int Height, string? AltText, string? Description);
-public record UploadMediaRequest(string FileName, string MimeType, long FileSize, string? AltText, string? Description);
+public record MediaSummary(long Id, string FileName, string Url, string MimeType, long FileSize, DateTime CreatedAt, bool IsFolder = false, long? ParentId = null);
+public record MediaDetail(long Id, string FileName, string Url, string MimeType, long FileSize, DateTime CreatedAt, int Width, int Height, string? AltText, string? Description, bool IsFolder = false, long? ParentId = null);
+public record UploadMediaRequest(string FileName, string MimeType, long FileSize, string? AltText = null, string? Description = null, long? ParentId = null, string? Base64Data = null);
+public record CreateFolderRequest(string Name, long? ParentId = null);

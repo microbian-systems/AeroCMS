@@ -44,15 +44,26 @@ public static class PagesApi
     private static async Task<IResult> ListPages(
         [FromServices] IPageContentService pageService,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 20,
+        [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var result = await pageService.GetAllPagesAsync(cancellationToken);
-            if (result is Result<string, IReadOnlyList<PageDocument>>.Ok ok)
+            var result = await pageService.GetAllPagesAsync(skip, take, search, cancellationToken);
+            if (result is Result<string, (IReadOnlyList<PageDocument> Items, long TotalCount)>.Ok ok)
             {
-                return TypedResults.Ok(ok.Value);
+                var summary = ok.Value.Items.Select(p => new PageSummary(
+                    p.Id, 
+                    p.Title, 
+                    p.Slug, 
+                    p.CreatedOn.DateTime, 
+                    p.PublishedOn?.DateTime, 
+                    p.Summary)).ToList();
+
+                return TypedResults.Ok(new PagedResult<PageSummary>(summary, ok.Value.TotalCount, skip, take));
             }
 
             return TypedResults.Problem("Failed to list pages");

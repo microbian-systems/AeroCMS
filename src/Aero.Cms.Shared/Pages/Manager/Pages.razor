@@ -1,6 +1,9 @@
 @page "/manager/pages"
 @page "/manager/pages/general"
+@using Aero.Cms.Core.Http.Clients
 @inject NavigationManager Navigation
+@inject IPagesHttpClient PagesApi
+@inject DialogService DialogService
 
 <div class="space-y-6">
     <div class="flex items-center justify-between">
@@ -8,19 +11,95 @@
             <h1 class="text-2xl font-bold text-gray-900">Pages</h1>
             <p class="mt-1 text-sm text-gray-500">Manage your static and landing pages.</p>
         </div>
-        <RadzenButton Icon="add" Text="Create Page" ButtonStyle="ButtonStyle.Primary" Click='() => Navigation.NavigateTo("/manager/page/editor")' />
+        <div class="flex gap-4">
+             <RadzenTextBox Placeholder="Search pages..." @bind-Value="@searchTerm" Change="@OnSearch" class="w-64" />
+             <RadzenButton Icon="add" Text="Create Page" ButtonStyle="ButtonStyle.Primary" Click='() => Navigation.NavigateTo("/manager/page/editor")' />
+        </div>
     </div>
 
-    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
-                    EmptyText="No pages found. Start building!">
+    <RadzenDataGrid @ref="grid" Data="@pages" TItem="PageSummary" LoadData="@LoadData" Count="@count" 
+                    IsLoading="@isLoading" AllowPaging="true" PageSize="10" 
+                    AllowSorting="true" EmptyText="No pages found. Start building!"
+                    RowClick="@OnRowClick">
         <Columns>
-            <RadzenDataGridColumn TItem="object" Property="Title" Title="Title" />
-            <RadzenDataGridColumn TItem="object" Property="Path" Title="URL Path" />
-            <RadzenDataGridColumn TItem="object" Property="Template" Title="Template" />
-            <RadzenDataGridColumn TItem="object" Property="Status" Title="Status" />
+            <RadzenDataGridColumn TItem="PageSummary" Property="Title" Title="Title" />
+            <RadzenDataGridColumn TItem="PageSummary" Property="Slug" Title="Slug">
+                <Template Context="p">
+                    <span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded">@p.Slug</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="PageSummary" Property="Excerpt" Title="Summary" />
+            <RadzenDataGridColumn TItem="PageSummary" Property="CreatedAt" Title="Created">
+                <Template Context="p">
+                    @p.CreatedAt.ToString("MMM dd, yyyy")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="PageSummary" Title="Status">
+                <Template Context="p">
+                    @if (p.PublishedAt.HasValue)
+                    {
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Published
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Draft
+                        </span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
         </Columns>
     </RadzenDataGrid>
 </div>
 
 @code {
+    RadzenDataGrid<PageSummary>? grid;
+    IEnumerable<PageSummary>? pages;
+    int count;
+    bool isLoading = true;
+    string? searchTerm;
+
+    async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        
+        var result = await PagesApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchTerm);
+        
+        if (result is Result<string, PagedResult<PageSummary>>.Ok ok)
+        {
+            pages = ok.Value.Items;
+            count = (int)ok.Value.TotalCount;
+        }
+        else
+        {
+            pages = Enumerable.Empty<PageSummary>();
+            count = 0;
+        }
+        
+        isLoading = false;
+    }
+
+    async Task OnSearch(string value)
+    {
+        searchTerm = value;
+        if (grid != null)
+        {
+            await grid.FirstPage();
+        }
+    }
+
+    async Task OnRowClick(DataGridRowMouseEventArgs<PageSummary> args)
+    {
+        if (args.Data == null) return;
+        
+        var pageId = args.Data.Id;
+        // The user wants a popup with details.
+        // For now, we'll fetch the full page and show it in a dialog.
+        
+        await DialogService.OpenAsync<PageDetailPopup>("Page Details",
+            new Dictionary<string, object?> { { "PageId", pageId } },
+            new DialogOptions() { Width = "700px", Resizable = true, Draggable = true });
+    }
 }

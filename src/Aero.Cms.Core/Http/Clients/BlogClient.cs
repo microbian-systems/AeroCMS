@@ -5,11 +5,11 @@ using Microsoft.Extensions.Logging;
 
 public interface IBlogHttpClient
 {
-    Task<Result<string, IReadOnlyList<BlogSummary>>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<string, PagedResult<BlogSummary>>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
     Task<Result<string, BlogDetail>> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Result<string, IReadOnlyList<BlogSummary>>> GetPublishedAsync(CancellationToken ct = default);
+    Task<Result<string, PagedResult<BlogSummary>>> GetPublishedAsync(int skip = 0, int take = 10, CancellationToken ct = default);
     Task<Result<string, IReadOnlyList<BlogSummary>>> GetByCategoryAsync(long categoryId, CancellationToken ct = default);
-    Task<Result<string, IReadOnlyList<BlogSummary>>> SearchAsync(string query, CancellationToken ct = default);
+    Task<Result<string, PagedResult<BlogSummary>>> SearchAsync(string query, int skip = 0, int take = 10, CancellationToken ct = default);
     Task<Result<string, BlogDetail>> CreateAsync(CreateBlogRequest request, CancellationToken ct = default);
     Task<Result<string, BlogDetail>> UpdateAsync(long id, UpdateBlogRequest request, CancellationToken ct = default);
     Task<Result<string, bool>> DeleteAsync(long id, CancellationToken ct = default);
@@ -21,9 +21,11 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
 {
     protected override string ResourceName => "blogs";
 
-    public Task<Result<string, IReadOnlyList<BlogSummary>>> GetAllAsync(CancellationToken ct = default)
+    public Task<Result<string, PagedResult<BlogSummary>>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)
     {
-        return GetResultAsync<IReadOnlyList<BlogSummary>>(string.Empty, ct);
+        var url = $"?skip={skip}&take={take}";
+        if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+        return GetResultAsync<PagedResult<BlogSummary>>(url, ct);
     }
 
     public Task<Result<string, BlogDetail>> GetByIdAsync(long id, CancellationToken ct = default)
@@ -31,9 +33,9 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
         return GetResultAsync<BlogDetail>($"details/{id}", ct);
     }
 
-    public Task<Result<string, IReadOnlyList<BlogSummary>>> GetPublishedAsync(CancellationToken ct = default)
+    public Task<Result<string, PagedResult<BlogSummary>>> GetPublishedAsync(int skip = 0, int take = 10, CancellationToken ct = default)
     {
-        return GetResultAsync<IReadOnlyList<BlogSummary>>("published", ct);
+        return GetResultAsync<PagedResult<BlogSummary>>($"published?skip={skip}&take={take}", ct);
     }
 
     public Task<Result<string, IReadOnlyList<BlogSummary>>> GetByCategoryAsync(long categoryId, CancellationToken ct = default)
@@ -41,9 +43,9 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
         return GetResultAsync<IReadOnlyList<BlogSummary>>($"category/{categoryId}", ct);
     }
 
-    public Task<Result<string, IReadOnlyList<BlogSummary>>> SearchAsync(string query, CancellationToken ct = default)
+    public Task<Result<string, PagedResult<BlogSummary>>> SearchAsync(string query, int skip = 0, int take = 10, CancellationToken ct = default)
     {
-        return GetResultAsync<IReadOnlyList<BlogSummary>>($"search?q={Uri.EscapeDataString(query)}", ct);
+        return GetResultAsync<PagedResult<BlogSummary>>($"search?q={Uri.EscapeDataString(query)}&skip={skip}&take={take}", ct);
     }
 
     public Task<Result<string, BlogDetail>> CreateAsync(CreateBlogRequest request, CancellationToken ct = default)

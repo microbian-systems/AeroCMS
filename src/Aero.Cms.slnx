@@ -36,6 +36,7 @@
     <Project Path="Aero.Cms.Modules.ContentCreator/Aero.Cms.Modules.ContentCreator.csproj" Id="07f195da-d213-4220-a988-bbad2b4dbc4e" />
     <Project Path="Aero.Cms.Modules.Crm/Aero.Cms.Modules.Crm.csproj" Id="f0a088cb-18fe-4ef2-9318-744abdbee4a9" />
     <Project Path="Aero.Cms.Modules.Docs/Aero.Cms.Modules.Docs.csproj" Id="7a333011-7319-49e2-8229-cbbd89599c77" />
+    <Project Path="Aero.Cms.Modules.Export/Aero.Cms.Modules.Export.csproj" Id="beeaf44c-2bf2-4029-8c00-e2a91a6384f4" />
     <Project Path="Aero.Cms.Modules.Forum/Aero.Cms.Modules.Forum.csproj" Id="39ddd553-2b71-4b37-8290-22685fcbda29" />
     <Project Path="Aero.Cms.Modules.Garnet/Aero.Cms.Modules.Garnet.csproj" Id="70a44903-21e8-4852-94fa-d2ed26a545fd" />
     <Project Path="Aero.Cms.Modules.GlobalExceptionFilter/Aero.Cms.Modules.GlobalExceptionFilter.csproj" Id="d7bbaa97-afc2-4e7b-95c5-4932a0c97a24" />
@@ -72,6 +73,7 @@
     <Project Path="Aero.Cms.Modules.Theming/Aero.Cms.Modules.Theming.csproj" Id="ead1f5f7-414b-421f-b109-c8ee24eb91c8" />
     <Project Path="Aero.Cms.Modules.Users/Aero.Cms.Modules.Users.csproj" Id="dcf96479-4111-449f-ae62-50dd93bd74c1" />
     <Project Path="Aero.Cms.Modules.WebOptimizer/Aero.Cms.Modules.WebOptimizer.csproj" Id="def8edd8-5697-461d-beb8-ff67e23d7f68" />
+    <Project Path="Aero.Cms.Modules.WorkOS/Aero.Cms.Modules.WorkOS.csproj" Id="015567b9-7218-42e3-8b1a-e06133b7a2f2" />
     <Project Path="Modules/Analytics/Aero.Cms.Modules.Analytics/Aero.Cms.Modules.Analytics.csproj" />
     <Project Path="Modules/Infrastructure/Aero.Cms.Modules.Cache/Aero.Cms.Modules.Cache.csproj" />
     <Project Path="Modules/Infrastructure/Aero.Cms.Modules.RateLimiting/Aero.Cms.Modules.RateLimiting.csproj" />

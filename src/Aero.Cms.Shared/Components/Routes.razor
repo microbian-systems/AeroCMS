@@ -1,6 +1,8 @@
 @using Aero.Cms.Shared.Services
+@using Aero.Cms.Shared.Layout
+@using Microsoft.AspNetCore.Components.Routing
+@inject NavigationManager NavigationManager
 @inject IFormFactor FormFactor
-@inject NavigationManager Navigation
 
 <Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="new[] { typeof(Aero.Cms.Shared._Imports).Assembly }">
     <Found Context="routeData">
@@ -10,7 +12,7 @@
         @if (FormFactor.GetFormFactor() != "Web")
         {
             @* Directly perform the redirect for the MAUI client to start at the manager *@
-           Navigation.NavigateTo("/manager"); 
+           NavigationManager.NavigateTo("/manager"); 
         }
         else
         {
@@ -21,3 +23,22 @@
     </NotFound>
 </Router>
 
+@code {
+    protected override void OnInitialized()
+    {
+        // On MAUI (non-web), the app starts at / by default.
+        // We want to redirect those clients automatically to the manager startup page.
+        // This prevents shadowing the Web application's actual home page at /.
+        if (FormFactor.GetFormFactor() != "Web" && IsAtRoot())
+        {
+            NavigationManager.NavigateTo("/manager/start", true);
+        }
+    }
+
+    private bool IsAtRoot()
+    {
+        var uri = NavigationManager.Uri.TrimEnd('/');
+        var baseUri = NavigationManager.BaseUri.TrimEnd('/');
+        return string.Equals(uri, baseUri, StringComparison.OrdinalIgnoreCase);
+    }
+}

@@ -89,8 +89,6 @@
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--pe-primary);
-    border: 1px solid transparent;
-    background-clip: content-box;
 }
 
 /* Specific overrides for containers */
@@ -105,7 +103,7 @@
 .pe-blocks-container::-webkit-scrollbar-thumb:hover,
 .pe-sidebar-content::-webkit-scrollbar-thumb:hover,
 .pe-modal-body::-webkit-scrollbar-thumb:hover {
-    background-color: var(--pe-primary-light);
+    background-color: var(--pe-primary);
 }
 
 /* ── Full-screen shell ──────────────────────────────────── */
@@ -221,8 +219,19 @@
     cursor: pointer; transition: all .2s;
 }
 .pe-category-header:hover { background: var(--pe-bg-tertiary); color: var(--pe-text-primary); }
-.pe-category-header svg:not(.pe-chevron) { color: var(--pe-primary); }
-.pe-category-header svg.pe-chevron { margin-left: auto; transition: transform .3s; }
+.pe-category-header svg:not(.pe-chevron) {
+    width: 18px;
+    height: 18px;
+    color: var(--pe-primary);
+    flex-shrink: 0;
+}
+.pe-category-header svg.pe-chevron { 
+    width: 14px; 
+    height: 14px; 
+    margin-left: auto; 
+    transition: transform .3s; 
+    flex-shrink: 0;
+}
 .pe-category-header svg.pe-chevron.rotated { transform: rotate(180deg); }
 
 .pe-category-items { display: flex; flex-direction: column; padding: 4px; gap: 4px; }
@@ -238,12 +247,13 @@
     background: var(--pe-bg-tertiary); border-radius: var(--pe-radius-sm); color: var(--pe-primary);
     flex-shrink: 0;
 }
+.pe-block-item .pe-block-icon svg { width: 18px; height: 18px; }
 .pe-block-item:hover .pe-block-icon { background: var(--pe-bg-secondary); }
 
 /* Collapsed Sidebar overrides */
-.pe-sidebar.collapsed .pe-category-header { justify-content: center; padding: 12px 0; }
-.pe-sidebar.collapsed .pe-block-item { justify-content: center; padding: 8px 0; }
-.pe-sidebar.collapsed .pe-category-header svg:not(.pe-chevron) { width: 20px; height: 20px; }
+.pe-sidebar.collapsed .pe-category-header { justify-content: center; padding: 12px 14px; }
+.pe-sidebar.collapsed .pe-block-item { justify-content: center; padding: 10px 0; }
+.pe-sidebar.collapsed .pe-category-header svg:not(.pe-chevron) { width: 22px; height: 22px; }
 
 /* ── Sidebar Navigation ─────────────────────────────────── */
 .pe-nav-vertical {
@@ -443,7 +453,7 @@
     right: 20px;
     display: flex;
     gap: 4px;
-    background: #1e1b4b; /* Deep Indigo for better contrast with white icons */
+    background: #0f172a; /* Slate-900 for better contrast with icons */
     padding: 4px;
     border-radius: var(--pe-radius-md);
     z-index: 100;
@@ -677,8 +687,14 @@
 }
 .pe-add-gallery-item {
     aspect-ratio: 1; border: 2px dashed var(--pe-border); border-radius: var(--pe-radius-md);
-    background: transparent; color: var(--pe-text-muted); display: flex;
+    background: transparent; color: var(--pe-text-secondary); display: flex;
     align-items: center; justify-content: center; cursor: pointer;
+    transition: all .2s;
+}
+.pe-add-gallery-item:hover {
+    border-color: var(--pe-primary);
+    color: var(--pe-primary);
+    background: rgba(99, 102, 241, 0.05);
 }
 
 /* ── Preview Mode Headers ──────────────────────────────── */
@@ -805,19 +821,23 @@
 
 .pe-toast.success {
     border-left-color: var(--pe-success);
-    background: linear-gradient(to right, rgba(34, 197, 94, 0.15), var(--pe-bg-secondary));
+    background: linear-gradient(to right, rgba(34, 197, 94, 0.2), var(--pe-bg-secondary));
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15), var(--pe-shadow-md);
 }
 .pe-toast.success svg { color: var(--pe-success); }
+.pe-toast.success span { color: var(--pe-text-primary); }
 
 .pe-toast.error {
     border-left-color: var(--pe-error);
-    background: linear-gradient(to right, rgba(239, 68, 68, 0.15), var(--pe-bg-secondary));
+    background: linear-gradient(to right, rgba(239, 68, 68, 0.2), var(--pe-bg-secondary));
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15), var(--pe-shadow-md);
 }
 .pe-toast.error svg { color: var(--pe-error); }
 
 .pe-toast.info {
     border-left-color: var(--pe-info);
-    background: linear-gradient(to right, rgba(59, 130, 246, 0.15), var(--pe-bg-secondary));
+    background: linear-gradient(to right, rgba(59, 130, 246, 0.2), var(--pe-bg-secondary));
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15), var(--pe-shadow-md);
 }
 .pe-toast.info svg { color: var(--pe-info); }
 

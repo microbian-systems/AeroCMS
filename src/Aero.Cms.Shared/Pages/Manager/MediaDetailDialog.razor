@@ -1,0 +1,186 @@
+@using Aero.Cms.Core.Http.Clients
+@using Aero.Core.Railway
+@inject IMediaHttpClient MediaClient
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
+
+<div class="media-detail-dialog bg-white dark:bg-gray-900 overflow-hidden">
+    @if (media == null)
+    {
+        <div class="h-96 flex items-center justify-center">
+            <RadzenProgressBar Circular="true" Value="100" Mode="ProgressBarMode.Indeterminate" Style="@("width: 32px; height: 32px")" />
+        </div>
+    }
+    else
+    {
+        <div class="flex h-[600px]">
+            <!-- Left: Preview -->
+            <div class="w-1/2 bg-gray-50 dark:bg-gray-950 flex flex-col border-r border-gray-100 dark:border-gray-800">
+                <div class="flex-1 flex items-center justify-center p-8 overflow-hidden">
+                    @if (IsImage(media.MimeType))
+                    {
+                        <img src="@media.Url" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/10 transition-transform hover:scale-105 duration-500" alt="@media.AltText" />
+                    }
+                    else
+                    {
+                        <div class="flex flex-col items-center gap-4">
+                            <div class="w-24 h-24 bg-white dark:bg-gray-900 rounded-3xl shadow-xl flex items-center justify-center">
+                                <RadzenIcon Icon="@("insert_drive_file")" class="w-12 h-12 text-gray-300" />
+                            </div>
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">@media.MimeType</span>
+                        </div>
+                    }
+                </div>
+                
+                <div class="p-6 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border-t border-gray-100 dark:border-gray-800">
+                     <div class="flex items-center justify-between mb-4">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">File Info</span>
+                            <span class="text-xs font-bold text-gray-900 dark:text-gray-100 mt-1">@media.FileName</span>
+                        </div>
+                        <div class="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-full border border-indigo-100 dark:border-indigo-900/30">
+                            <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">@FormatSize(media.FileSize)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Metadata & Actions -->
+            <div class="w-1/2 flex flex-col bg-white dark:bg-gray-900">
+                <div class="p-8 flex-1 overflow-y-auto space-y-8 scrollbar-thin">
+                    <div class="space-y-6">
+                        <div class="space-y-2">
+                             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Public Access URL</label>
+                             <div class="flex items-center gap-2">
+                                 <RadzenTextBox Value="@media.Url" ReadOnly="true" class="flex-1 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-xs font-mono" />
+                                 <RadzenButton Icon="@("link")" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" class="rounded-xl" Click="@(() => OpenUrl(media.Url))" />
+                                 <RadzenButton Icon="@("content_copy")" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" class="rounded-xl" Click="@(() => CopyToClipboard(media.Url))" />
+                             </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Display Name</label>
+                                <RadzenTextBox @bind-Value="@fileName" class="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm px-4 py-2" />
+                            </div>
+
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Alt Text (SEO)</label>
+                                <RadzenTextBox @bind-Value="@altText" Placeholder="@("Describe this asset for accessibility...")" class="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm px-4 py-2" />
+                            </div>
+
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</label>
+                                <RadzenTextArea @bind-Value="@description" Rows="4" Placeholder="@("Internal notes or context...")" class="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm px-4 py-2" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-8 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                    <RadzenButton Text="@("Delete Asset")" Icon="@("delete")" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text" Click="@OnDelete" class="text-xs font-bold" />
+                    
+                    <div class="flex items-center gap-3">
+                        <RadzenButton Text="@("Discard")" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@(() => DialogService.Close())" class="text-xs font-bold px-4" />
+                        <RadzenButton Text="@("Apply Changes")" Icon="@("save")" ButtonStyle="ButtonStyle.Primary" Variant="Variant.Filled" 
+                                     Click="@OnUpdate" class="rounded-xl px-6 shadow-xl shadow-indigo-500/20 text-xs font-bold py-2.5" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// The ID of the media asset to display details for.
+    /// </summary>
+    [Parameter] public long MediaId { get; set; }
+
+    MediaDetail? media;
+
+    // Local mutable state for record binding
+    string? fileName;
+    string? altText;
+    string? description;
+
+    /// <summary>
+    /// Initializes the component by loading media details.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await MediaClient.GetByIdAsync(MediaId);
+        if (result is Result<string, MediaDetail>.Ok ok)
+        {
+            media = ok.Value;
+            fileName = media.FileName;
+            altText = media.AltText;
+            description = media.Description;
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", "Could not load media details");
+            DialogService.Close();
+        }
+    }
+
+    async Task OnUpdate()
+    {
+        if (media == null) return;
+
+        var req = new UploadMediaRequest(fileName ?? media.FileName, media.MimeType, media.FileSize, altText, description, media.ParentId);
+        var res = await MediaClient.UpdateAsync(MediaId, req);
+
+        if (res is Result<string, MediaDetail>.Ok)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Updated", "Media metadata saved successfully");
+            DialogService.Close(true);
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Fail", "Failed to update media record");
+        }
+    }
+
+    async Task OnDelete()
+    {
+        var confirm = await DialogService.Confirm("Permanently delete this asset? This cannot be undone.", "Delete Media", 
+            new ConfirmOptions { OkButtonText = "Delete Forever", CancelButtonText = "Keep Asset" });
+
+        if (confirm == true)
+        {
+            var res = await MediaClient.DeleteAsync(MediaId);
+            if (res is Result<string, bool>.Ok)
+            {
+                NotificationService.Notify(NotificationSeverity.Success, "Deleted", "Asset removed from library");
+                DialogService.Close(true);
+            }
+        }
+    }
+
+    async Task CopyToClipboard(string text)
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+        NotificationService.Notify(NotificationSeverity.Info, "Copied", "URL copied to clipboard");
+    }
+
+    async Task OpenUrl(string url)
+    {
+        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    bool IsImage(string mimeType) => mimeType?.StartsWith("image/") == true;
+
+    string FormatSize(long bytes)
+    {
+        string[] suffix = { "B", "KB", "MB", "GB", "TB" };
+        int i;
+        double dblSByte = bytes;
+        for (i = 0; i < suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+        {
+            dblSByte = bytes / 1024.0;
+        }
+        return $"{dblSByte:0.##} {suffix[i]}";
+    }
+}
