@@ -1,0 +1,111 @@
+@using Aero.Cms.Core.Blocks.Common
+@using Aero.Cms.Core.Blocks
+
+@if (Block != null)
+{
+    @switch (Block.Layout)
+    {
+        case AeroHeroLayout.SideImage:
+        case AeroHeroLayout.SideImageReversed:
+            <header class="bg-white dark:bg-gray-900 lg:flex @(Block.Layout == AeroHeroLayout.SideImageReversed ? "flex-row-reverse" : "")">
+                <div class="flex items-center justify-center w-full px-6 py-8 lg:h-[32rem] lg:w-1/2">
+                    <div class="max-w-xl">
+                        <h2 class="text-3xl font-semibold text-gray-800 dark:text-white lg:text-4xl">@Block.Title</h2>
+                        @if (!string.IsNullOrEmpty(Block.Description))
+                        {
+                            <p class="mt-4 text-sm text-gray-500 dark:text-gray-400 lg:text-base">@Block.Description</p>
+                        }
+                        <div class="flex flex-col mt-6 space-y-3 lg:space-y-0 lg:flex-row">
+                            @if (Block.Buttons != null)
+                            {
+                                @for (int i = 0; i < Block.Buttons.Count; i++)
+                                {
+                                    var btn = Block.Buttons[i];
+                                    <a href="@btn.Url" class="block px-5 py-2 text-sm font-medium tracking-wider text-center transition-colors duration-300 transform rounded-md @GetButtonClasses(btn.Style) @(i > 0 ? "lg:mx-4" : "")">
+                                        @btn.Text
+                                    </a>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full h-64 lg:w-1/2 lg:h-auto">
+                    <div class="w-full h-full bg-cover" style="background-image: url('@GetImageUrl()')">
+                        <div class="w-full h-full bg-black opacity-25"></div>
+                    </div>
+                </div>
+            </header>
+            break;
+
+        case AeroHeroLayout.CenterContent:
+            <section class="bg-white dark:bg-gray-900 container px-6 py-16 mx-auto text-center">
+                <div class="max-w-lg mx-auto">
+                    <h1 class="text-3xl font-semibold text-gray-800 dark:text-white lg:text-4xl">@Block.Title</h1>
+                    @if (!string.IsNullOrEmpty(Block.Description))
+                    {
+                        <p class="mt-6 text-gray-500 dark:text-gray-300">@Block.Description</p>
+                    }
+                    <div class="flex justify-center mt-6 space-x-4">
+                        @if (Block.Buttons != null)
+                        {
+                            @foreach (var btn in Block.Buttons)
+                            {
+                                <a href="@btn.Url" class="px-5 py-2 text-sm font-medium text-white capitalize rounded-lg transition-colors duration-300 transform @GetButtonClasses(btn.Style)">
+                                    @btn.Text
+                                </a>
+                            }
+                        }
+                    </div>
+                </div>
+                @if (Block.ImageId.HasValue)
+                {
+                    <div class="flex justify-center mt-10">
+                        <img class="object-cover w-full h-96 rounded-xl lg:w-4/5" src="@GetImageUrl()" alt="Hero image" />
+                    </div>
+                }
+            </section>
+            break;
+
+        case AeroHeroLayout.BackgroundImage:
+            <section class="w-full bg-center bg-cover h-[38rem]" style="background-image: url('@GetImageUrl()');">
+                <div class="flex items-center justify-center w-full h-full bg-gray-900/40">
+                    <div class="text-center px-6">
+                        <h1 class="text-3xl font-semibold text-white lg:text-4xl">@Block.Title</h1>
+                        @if (!string.IsNullOrEmpty(Block.Description))
+                        {
+                            <p class="mt-4 text-white max-w-xl mx-auto">@Block.Description</p>
+                        }
+                        <div class="flex justify-center mt-6 space-x-4">
+                            @if (Block.Buttons != null)
+                            {
+                                @foreach (var btn in Block.Buttons)
+                                {
+                                    <a href="@btn.Url" class="px-5 py-2 text-sm font-medium text-white capitalize transition-colors duration-300 transform rounded-md hover:opacity-90 @GetButtonClasses(btn.Style)">
+                                        @btn.Text
+                                    </a>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            </section>
+            break;
+    }
+}
+
+@code {
+    [Parameter]
+    public AeroHeroBlock? Block { get; set; }
+
+    private string GetImageUrl() => Block?.ImageId.HasValue == true 
+        ? $"/api/media/{Block.ImageId}" 
+        : "https://images.unsplash.com/photo-1508394522741-82ac9c15ba69?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=748&q=80";
+
+    private string GetButtonClasses(AeroButtonStyle style) => style switch
+    {
+        AeroButtonStyle.Primary => "bg-blue-600 text-white hover:bg-blue-500",
+        AeroButtonStyle.Secondary => "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600",
+        AeroButtonStyle.Ghost => "bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800",
+        _ => "bg-gray-900 text-white hover:bg-gray-700"
+    };
+}

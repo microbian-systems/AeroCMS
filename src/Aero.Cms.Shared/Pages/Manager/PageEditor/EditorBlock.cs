@@ -11,12 +11,17 @@ public class EditorBlock
     public string EditorId { get; set; } = Guid.NewGuid().ToString();
     public string Type     { get; set; } = string.Empty;
 
-    // Hero
+    // Hero / Aero Hero
     public string MainText        { get; set; } = string.Empty;
     public string SubText         { get; set; } = string.Empty;
     public string CtaText         { get; set; } = string.Empty;
     public string CtaUrl          { get; set; } = string.Empty;
+    public string CtaText2        { get; set; } = string.Empty;
+    public string CtaUrl2         { get; set; } = string.Empty;
     public string BackgroundImage { get; set; } = string.Empty;
+    public string AeroLayout      { get; set; } = "side_image";
+    public string Button1Style    { get; set; } = "primary";
+    public string Button2Style    { get; set; } = "secondary";
 
     // Text / Quote / Markdown / Rich Text
     public string Content      { get; set; } = string.Empty;

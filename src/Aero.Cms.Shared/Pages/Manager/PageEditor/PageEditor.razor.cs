@@ -53,6 +53,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool CategoryMedia      { get; set; } = true;
     protected bool CategoryReferences { get; set; } = true;
     protected bool CategorySettings   { get; set; } = true;
+    protected bool CategoryAero       { get; set; } = true;
     protected IReadOnlyList<DocsSummary>? DocsCategories { get; set; }
 
     // Media modal
@@ -127,6 +128,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             case "media":      CategoryMedia      = !CategoryMedia;      break;
             case "references": CategoryReferences = !CategoryReferences; break;
             case "settings":   CategorySettings   = !CategorySettings;   break;
+            case "aero":       CategoryAero       = !CategoryAero;       break;
         }
     }
 
@@ -154,6 +156,18 @@ public partial class PageEditor : ComponentBase, IDisposable
                 block.CtaText  = string.Empty;
                 block.CtaUrl   = string.Empty;
                 block.BackgroundImage = string.Empty;
+                break;
+            case "aero_hero":
+                block.MainText        = "Building Your Next Idea";
+                block.SubText         = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.";
+                block.CtaText         = "Get Started";
+                block.CtaUrl          = "#";
+                block.CtaText2        = "Learn More";
+                block.CtaUrl2         = "#";
+                block.AeroLayout      = "SideImage";
+                block.Button1Style    = "Primary";
+                block.Button2Style    = "Secondary";
+                block.BackgroundImage = "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800";
                 break;
 
             case "text":

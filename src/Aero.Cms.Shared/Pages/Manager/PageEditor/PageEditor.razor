@@ -4,6 +4,7 @@
 @* @layout _PageEditorLayout *@
 @using Aero.Cms.Core.Blocks
 @using Aero.Cms.Core.Blocks.Common
+@using Aero.Cms.Shared.Blocks.Rendering
 @using Aero.Cms.Shared.Layout
 @using Aero.Cms.Core.Http.Clients
 @using Aero.Core.Railway
@@ -237,6 +238,33 @@
                     </div>
                 }
             </div>
+ 
+            @* Aero Meraki category *@
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("aero")'>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @:Aero UX
+                        <svg class="pe-chevron @(CategoryAero ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryAero)
+                {
+                    <div class="pe-category-items">
+                        <SidebarBlockItem Label="Hero" @ondragstart='e => DragStart(e, "aero_hero")' OnClick='() => AddBlock("aero_hero")'>
+                            <rect x="3" y="3" width="18" height="12" rx="2"/>
+                            <path d="M3 15h18v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/>
+                            <line x1="7" y1="7" x2="11" y2="7"/>
+                            <line x1="7" y1="10" x2="17" y2="10"/>
+                        </SidebarBlockItem>
+                    </div>
+                }
+            </div>
 
             @* Media category *@
             <div class="pe-category">
@@ -409,6 +437,7 @@
     RenderFragment RenderBlock(EditorBlock block, bool isSelected) => block.Type switch
     {
         "hero" => RenderHeroBlock(block, isSelected),
+        "aero_hero" => RenderAeroHeroBlock(block, isSelected),
         "text" => RenderTextBlock(block),
         "content" => RenderContentBlock(block),
         "markdown" => RenderMarkdownBlock(block),
@@ -472,6 +501,84 @@
                     }
                 </div>
             </div>
+        </div>
+    };
+ 
+    // ── Aero Hero ──────────────────────────────────────────────
+    RenderFragment RenderAeroHeroBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var model = new AeroHeroBlock
+        {
+            Title = b.MainText,
+            Description = b.SubText,
+            Layout = Enum.TryParse<AeroHeroLayout>(b.AeroLayout, true, out var layout) ? layout : AeroHeroLayout.SideImage,
+            Buttons = new List<AeroButton>
+            {
+                new() { Text = b.CtaText, Url = b.CtaUrl, Style = Enum.TryParse<AeroButtonStyle>(b.Button1Style, true, out var s1) ? s1 : AeroButtonStyle.Primary },
+                new() { Text = b.CtaText2, Url = b.CtaUrl2, Style = Enum.TryParse<AeroButtonStyle>(b.Button2Style, true, out var s2) ? s2 : AeroButtonStyle.Secondary }
+            },
+            BackgroundImage = b.BackgroundImage
+        };
+
+        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick:stopPropagation>
+             <AeroHeroRenderer Block="model" />
+             
+             @if (sel && !PreviewMode)
+             {
+                 <div class="pe-aero-controls">
+                     <div class="pe-aero-controls-grid">
+                         <div class="pe-control-group">
+                             <label>Headline</label>
+                             <input type="text" @bind="b.MainText" @bind:event="oninput" placeholder="Main Headline" />
+                         </div>
+                         <div class="pe-control-group">
+                             <label>Description</label>
+                             <textarea @bind="b.SubText" @bind:event="oninput" placeholder="Description text..." rows="2"></textarea>
+                         </div>
+                         <div class="pe-control-group">
+                             <label>Layout</label>
+                             <select @bind="b.AeroLayout">
+                                 <option value="SideImage">Side Image (Left)</option>
+                                 <option value="CenterContent">Center Content</option>
+                                 <option value="BackgroundImage">Background Image</option>
+                             </select>
+                         </div>
+                          <div class="pe-control-group">
+                             <label>Background Image</label>
+                             <div class="pe-input-with-btn">
+                                 <input type="text" @bind="b.BackgroundImage" placeholder="Image URL..." />
+                                 <button class="pe-btn pe-btn-sm" @onclick='() => OpenMediaSelector(b, false, "background")'>
+                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                                     </svg>
+                                 </button>
+                             </div>
+                         </div>
+                         <div class="pe-control-row">
+                             <div class="pe-control-group">
+                                 <label>Primary Button</label>
+                                 <input type="text" @bind="b.CtaText" placeholder="Label" />
+                                 <input type="text" @bind="b.CtaUrl" placeholder="URL (#)" />
+                                 <select @bind="b.Button1Style">
+                                     <option value="Primary">Primary</option>
+                                     <option value="Secondary">Secondary</option>
+                                     <option value="Outline">Outline</option>
+                                 </select>
+                             </div>
+                             <div class="pe-control-group">
+                                 <label>Secondary Button</label>
+                                 <input type="text" @bind="b.CtaText2" placeholder="Label" />
+                                 <input type="text" @bind="b.CtaUrl2" placeholder="URL (#)" />
+                                 <select @bind="b.Button2Style">
+                                     <option value="Primary">Primary</option>
+                                     <option value="Secondary">Secondary</option>
+                                     <option value="Outline">Outline</option>
+                                 </select>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+             }
         </div>
     };
 
