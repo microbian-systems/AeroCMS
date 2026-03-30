@@ -1,5 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Core.Entities;
+using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Layout;
 
 namespace Aero.Cms.Modules.Pages;
@@ -26,6 +27,12 @@ public sealed class PageDocument : Entity
     /// Gets or sets the block-based layout regions for this page.
     /// </summary>
     public List<LayoutRegion> LayoutRegions { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the original editor blocks used to construct this page.
+    /// Used natively by the page editor for state recovery.
+    /// </summary>
+    public List<EditorBlock> Blocks { get; set; } = [];
 
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset? PublishedOn { get; set; } = null;

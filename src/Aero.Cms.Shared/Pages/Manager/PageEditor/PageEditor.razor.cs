@@ -139,18 +139,20 @@ public partial class PageEditor : ComponentBase, IDisposable
             LoadedPage = page;
             PageTitle = page.Title;
             PageSlug = page.Slug;
+            Summary = page.Excerpt ?? string.Empty;
             SeoTitle = page.SeoTitle ?? string.Empty;
             SeoDescription = page.SeoDescription ?? string.Empty;
             PublicationState = page.PublicationState;
             ShowInNavMenu = page.ShowInNavMenu; 
             
             // Load blocks if available in API
-            if (page.Blocks?.Any() == true)
+            if (page.Blocks != null)
             {
                 Blocks = page.Blocks.ToList();
             }
 
             UpdateLastSaved();
+            await InvokeAsync(StateHasChanged);
         }
         else
         {

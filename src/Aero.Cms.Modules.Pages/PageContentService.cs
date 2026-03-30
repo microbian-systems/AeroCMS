@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Common;
@@ -13,6 +18,7 @@ using Marten.Linq;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 using Aero.Cms.Core.Messaging;
+using Aero.Cms.Core.Blocks.Layout;
 
 
 namespace Aero.Cms.Modules.Pages;
@@ -122,10 +128,12 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
 
         if (request.EditorBlocks is { Count: > 0 })
         {
+            page.Blocks = request.EditorBlocks.ToList();
             page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
         }
         else
         {
+            page.Blocks = new List<EditorBlock>();
             page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
         }
 
@@ -146,10 +154,12 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             page.PublicationState = request.PublicationState;
             if (request.EditorBlocks is { Count: > 0 })
             {
+                page.Blocks = request.EditorBlocks.ToList();
                 page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
             }
             else
             {
+                page.Blocks = new List<EditorBlock>();
                 page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
             }
 

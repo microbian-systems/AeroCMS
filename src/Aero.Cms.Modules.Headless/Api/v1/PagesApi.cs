@@ -87,7 +87,7 @@ public static class PagesApi
             var result = await pageService.LoadAsync(id, cancellationToken);
             if (result is Result<string, PageDocument?>.Ok { Value: not null } ok)
             {
-                return TypedResults.Ok(ok.Value);
+                return TypedResults.Ok(MapToDetail(ok.Value));
             }
 
             return TypedResults.NotFound();
@@ -111,7 +111,7 @@ public static class PagesApi
             var result = await pageService.FindBySlugAsync(slug, cancellationToken);
             if (result is Result<string, PageDocument?>.Ok { Value: not null } ok)
             {
-                return TypedResults.Ok(ok.Value);
+                return TypedResults.Ok(MapToDetail(ok.Value));
             }
 
             return TypedResults.NotFound();
@@ -147,7 +147,7 @@ public static class PagesApi
             var result = await pageService.CreateAsync(moduleRequest, cancellationToken);
             if (result is Result<string, PageDocument>.Ok ok)
             {
-                return TypedResults.Created($"/api/v1/admin/pages/{ok.Value.Id}", ok.Value);
+                return TypedResults.Created($"/api/v1/admin/pages/{ok.Value.Id}", MapToDetail(ok.Value));
             }
 
             if (result is Result<string, PageDocument>.Failure failure)
@@ -196,7 +196,7 @@ public static class PagesApi
             var result = await pageService.UpdateAsync(id, moduleRequest, cancellationToken);
             if (result is Result<string, PageDocument>.Ok ok)
             {
-                return TypedResults.Ok(ok.Value);
+                return TypedResults.Ok(MapToDetail(ok.Value));
             }
 
             if (result is Result<string, PageDocument>.Failure failure)
@@ -245,5 +245,24 @@ public static class PagesApi
                 Detail = ex.Message
             });
         }
+    }
+
+    private static PageDetail MapToDetail(PageDocument p)
+    {
+        return new PageDetail(
+            p.Id,
+            p.Title,
+            p.Slug,
+            p.Summary,
+            p.SeoTitle,
+            p.SeoDescription,
+            p.CreatedOn.DateTime,
+            p.ModifiedOn.Value.DateTime,
+            p.PublishedOn?.DateTime,
+            p.PublicationState,
+            p.Blocks.Count,
+            p.ShowInNavMenu,
+            p.Blocks
+        );
     }
 }
