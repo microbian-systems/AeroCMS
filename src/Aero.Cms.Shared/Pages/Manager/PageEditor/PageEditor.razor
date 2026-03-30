@@ -7,11 +7,25 @@
 @using Aero.Cms.Shared.Blocks.Rendering
 @using Aero.Cms.Shared.Layout
 @using Microsoft.AspNetCore.Components.Sections
+@using Aero.Cms.Core
 
 @* ── Editor area (Content) ───────────────────────────── *@
 @* Note: .pe-editor-area is now provided by ManagerShellLayout *@
 @* We just need to handle the internal page header and block container *@
 
+<div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
+    <button class="pe-tab-btn @(ActiveTab == "editor" ? "active" : "")" 
+            @onclick='() => ActiveTab = "editor"'>
+        Content Editor
+    </button>
+    <button class="pe-tab-btn @(ActiveTab == "metadata" ? "active" : "")" 
+            @onclick='() => ActiveTab = "metadata"'>
+        Metadata
+    </button>
+</div>
+
+@if (ActiveTab == "editor")
+{
 @* Page header (edit mode) *@
 @if (!PreviewMode)
 {
@@ -178,6 +192,88 @@
         </div>
     }
 </div>
+}
+else if (ActiveTab == "metadata")
+{
+    <div class="p-6 rounded-lg shadow-sm m-4 space-y-6 max-w-4xl" style="background: var(--pe-bg-secondary); color: var(--pe-text-primary);">
+        <h2 class="text-xl font-semibold mb-4" style="color: var(--pe-text-primary);">Page Metadata</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Page Title</label>
+                    <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
+                           style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                           @bind="PageTitle" placeholder="e.g. About Us" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">URL Slug</label>
+                    <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
+                           style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
+                           @bind="PageSlug" placeholder="e.g. about-us" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Summary / Excerpt</label>
+                    <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
+                              style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                              @bind="Summary" placeholder="Brief description..."></textarea>
+                </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="metaChkNav" @bind="ShowInNavMenu" class="h-4 w-4 rounded" 
+                           style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
+                    <label for="metaChkNav" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Show in Navigation Menu</label>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">SEO Meta Title</label>
+                    <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
+                           style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                           @bind="SeoTitle" placeholder="Custom Browser Title" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">SEO Meta Description</label>
+                    <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
+                              style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                              @bind="SeoDescription" placeholder="Description for search engines..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 pt-6 border-t" style="border-top-color: var(--pe-border);">
+            <h3 class="text-lg font-medium mb-4" style="color: var(--pe-text-primary);">Publishing &amp; History</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-md border" 
+                 style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                <div>
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">Status</span>
+                    @if (PublicationState == ContentPublicationState.Published)
+                    {
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
+                              style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">
+                            Published
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
+                              style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                            Draft
+                        </span>
+                    }
+                </div>
+                <div>
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">Date Created</span>
+                    <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@(LoadedPage?.CreatedAt.ToShortDateString() ?? "-")</span>
+                </div>
+                <div>
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">Date Modified</span>
+                    <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@(LoadedPage?.UpdatedAt.ToShortDateString() ?? "-")</span>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @* Right sidebar content *@
 <SectionContent SectionName="RightSidebar">
@@ -450,48 +546,7 @@
                 }
             </div>
 
-            @* Page Settings category *@
-            <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("page_settings")'>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                    @if (!RightSidebarCollapsed)
-                    {
-                        @:Page Settings
-                        <svg class="pe-chevron @(CategoryPageSettings ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    }
-                </button>
-                @if (CategoryPageSettings)
-                {
-                    <div class="pe-settings-panel">
-                        <div class="pe-setting-group">
-                            <label>URL Slug</label>
-                            <input type="text" @bind="PageSlug" placeholder="home-page" />
-                        </div>
-                        <div class="pe-setting-group">
-                            <label>Summary / Excerpt</label>
-                            <textarea @bind="Summary" rows="3" placeholder="Brief description..."></textarea>
-                        </div>
-                        <div class="pe-setting-group pe-checkbox-group">
-                            <input type="checkbox" id="chkNavMenu" @bind="ShowInNavMenu" />
-                            <label for="chkNavMenu">Show in Navigation Menu</label>
-                        </div>
-                        <div class="pe-setting-divider">SEO</div>
-                        <div class="pe-setting-group">
-                            <label>Meta Title</label>
-                            <input type="text" @bind="SeoTitle" placeholder="Custom Browser Title" />
-                        </div>
-                        <div class="pe-setting-group">
-                            <label>Meta Description</label>
-                            <textarea @bind="SeoDescription" rows="3" placeholder="Description for search engines..."></textarea>
-                        </div>
-                    </div>
-                }
-            </div>
+
         </div>
     </AeroSidebar>
 </SectionContent>

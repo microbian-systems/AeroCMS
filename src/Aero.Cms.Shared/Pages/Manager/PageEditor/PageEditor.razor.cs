@@ -13,7 +13,6 @@ using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Common;
 using Aero.Core.Railway;
 using Aero.Cms.Core.Blocks.Layout;
-using Radzen;
 using CmsPageDetail = Aero.Cms.Core.Http.Clients.PageDetail;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
@@ -60,6 +59,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string PreviewDevice    { get; set; } = "desktop";
     protected bool   RightSidebarCollapsed { get; set; } = true;
     protected bool   IsSaving              { get; set; }
+    protected string ActiveTab             { get; set; } = "editor";
 
     // Sidebar category toggles
     protected bool CategoryContent    { get; set; } = true;
@@ -67,11 +67,10 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool CategoryReferences { get; set; } = true;
     protected bool CategorySettings   { get; set; } = true;
     protected bool CategoryAero       { get; set; } = true;
-    protected bool CategoryPageSettings { get; set; } = true;
 
     // Page Settings
-    private string PageSlug { get; set; } = string.Empty;
-    private string Summary { get; set; } = string.Empty;
+    protected string PageSlug { get; set; } = string.Empty;
+    protected string Summary { get; set; } = string.Empty;
 
     // Redundant ID removed to avoid ambiguity with ManagerComponent Base.Id
     // public string Id { get; set; } = string.Empty; 
@@ -80,6 +79,8 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string SeoDescription { get; set; } = string.Empty;
     protected bool   ShowInNavMenu { get; set; } = true;
     protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+
+    protected CmsPageDetail? LoadedPage { get; set; }
 
     protected IReadOnlyList<DocsSummary>? DocsCategories { get; set; }
 
@@ -135,6 +136,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         if (result is Result<string, CmsPageDetail>.Ok ok)
         {
             var page = ok.Value;
+            LoadedPage = page;
             PageTitle = page.Title;
             PageSlug = page.Slug;
             SeoTitle = page.SeoTitle ?? string.Empty;
@@ -174,7 +176,11 @@ public partial class PageEditor : ComponentBase, IDisposable
         var tagsTask = TagsClient.GetAllAsync();
         var usersTask = UsersClient.GetAllAsync(take: 50);
 
-        await Task.WhenAll(pagesTask, blogsTask, catsTask, tagsTask, usersTask);
+        await pagesTask;
+        await blogsTask;
+        await catsTask;
+        await tagsTask;
+        await usersTask;
 
         if (pagesTask.Result is Result<string, PagedResult<PageSummary>>.Ok pagesOk)
             _referenceData["pages"] = pagesOk.Value.Items.Select(p => new ReferenceItem(p.Id.ToString(), p.Title)).ToList();
@@ -416,7 +422,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         Blocks.RemoveAt(index);
         SelectedBlockId = null;
-        ShowToast("Block deleted", "info");
+        ShowToast("Block deleted");
     }
 
     protected void DuplicateBlock(int index)
@@ -518,7 +524,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             {
                 // In Blazor we can't show a JS confirm() — show a toast warning instead.
                 // A future iteration can use RadzenDialogService.
-                ShowToast("Some columns have content; reduce columns in the settings panel to confirm.", "info");
+                ShowToast("Some columns have content; reduce columns in the settings panel to confirm.");
                 return;
             }
 
@@ -555,7 +561,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             "text"  => "text",
             "image" => "image",
             "video" => "video",
-            _       => (string?)null,
+            _       => null,
         };
 
         if (mapped is not null)
@@ -635,7 +641,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     private async Task OnConfirmMediaSelection(List<MediaItem> items)
     {
         await AutoSaveAsync();
-        if (items == null || !items.Any()) return;
+        if (!items.Any()) return;
 
         if (MediaContext == "background" && CurrentMediaBlock != null)
         {
@@ -695,7 +701,7 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected void LoadVideo(EditorBlock block)
     {
-        var url      = block.Url ?? string.Empty;
+        var url      = block.Url;
         var embedUrl = ResolveVideoEmbed(url);
 
         if (!string.IsNullOrEmpty(embedUrl))
@@ -711,7 +717,7 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected void LoadNestedVideo(NestedBlock nb)
     {
-        var url      = nb.Url ?? string.Empty;
+        var url      = nb.Url;
         var embedUrl = ResolveVideoEmbed(url);
         if (!string.IsNullOrEmpty(embedUrl))
             nb.Src = embedUrl;
@@ -797,9 +803,9 @@ public partial class PageEditor : ComponentBase, IDisposable
                     UpdateLastSaved();
                     ShowToast("Page saved successfully", "success");
                 }
-                else
+                else if (result is Result<string, CmsPageDetail>.Failure err)
                 {
-                    ShowToast($"Error saving: {result}", "error");
+                    ShowToast($"Error saving: {err.Error}", "error");
                 }
             }
             else
@@ -825,9 +831,9 @@ public partial class PageEditor : ComponentBase, IDisposable
                     // Update URL without refreshing
                     // NavManager.NavigateTo($"/manager/page/editor/{Id}", false); 
                 }
-                else
+                else if (result is Result<string, CmsPageDetail>.Failure err)
                 {
-                    ShowToast($"Error creating: {result}", "error");
+                    ShowToast($"Error creating: {err.Error}", "error");
                 }
             }
         }

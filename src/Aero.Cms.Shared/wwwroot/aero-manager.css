@@ -1038,9 +1038,31 @@
     margin-top: 4px;
 }
 
-.pe-btn-add-mini:hover {
+.pe-tab-btn-mini:hover {
     background: var(--pe-bg-hover);
     color: var(--pe-primary);
     border-color: var(--pe-primary-light);
+}
+
+/* ── Page Editor Tabs ───────────────────────────────────── */
+.pe-tab-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--pe-text-secondary);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pe-tab-btn:hover {
+    color: var(--pe-primary);
+}
+
+.pe-tab-btn.active {
+    color: var(--pe-primary);
+    border-bottom-color: var(--pe-primary);
 }
 
