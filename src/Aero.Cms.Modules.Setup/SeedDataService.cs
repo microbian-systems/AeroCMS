@@ -12,7 +12,7 @@ using Marten;
 
 namespace Aero.Cms.Modules.Setup;
 
-public sealed record SetupCompletionRequest(
+public sealed record SeedDatabaseRequest(
     string AdminUserName,
     string AdminEmail,
     string Password,
@@ -20,7 +20,7 @@ public sealed record SetupCompletionRequest(
     string HomepageTitle,
     string BlogName);
 
-public sealed class SetupCompletionResult
+public sealed class SeedDatabaseResult
 {
     public bool Succeeded => Errors.Count == 0;
     public bool AlreadyComplete { get; init; }
@@ -28,39 +28,44 @@ public sealed class SetupCompletionResult
     public bool CreatedRoles { get; init; }
     public List<string> Errors { get; } = [];
 
-    public static SetupCompletionResult Failure(params string[] errors)
+    public static SeedDatabaseResult Failure(params string[] errors)
         => Failure(errors.AsEnumerable());
 
-    public static SetupCompletionResult Failure(IEnumerable<string> errors)
+    public static SeedDatabaseResult Failure(IEnumerable<string> errors)
     {
-        var result = new SetupCompletionResult();
+        var result = new SeedDatabaseResult();
         result.Errors.AddRange(errors.Where(error => !string.IsNullOrWhiteSpace(error)));
         return result;
     }
 }
 
-public interface ISetupCompletionService
+public interface ISeedDatabaseService
 {
-    Task<SetupCompletionResult> CompleteAsync(SetupCompletionRequest request, CancellationToken cancellationToken = default);
+    Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
 }
 
-public sealed class SetupCompletionService(
+/// <summary>
+/// Alias for backwards compatibility. ISeedDatabaseService was previously named ISetupCompletionService.
+/// </summary>
+public interface ISetupCompletionService : ISeedDatabaseService { }
+
+public sealed class SeedDatabaseService(
     IDocumentSession session,
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
     IBlogPostContentService blogPostContentService,
     IStaticPhotosClient staticPhotosClient,
     IModuleDiscoveryService moduleDiscoveryService,
-    IModuleStateStore moduleStateStore) : ISetupCompletionService
+    IModuleStateStore moduleStateStore) : ISeedDatabaseService, ISetupCompletionService
 {
-    public async Task<SetupCompletionResult> CompleteAsync(SetupCompletionRequest request, CancellationToken cancellationToken = default)
+    public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         var existingState = await session.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId, cancellationToken);
         if (existingState?.IsComplete == true)
         {
-            return new SetupCompletionResult
+            return new SeedDatabaseResult
             {
                 AlreadyComplete = true
             };
@@ -75,7 +80,7 @@ public sealed class SetupCompletionService(
 
         if (!identityResult.Succeeded)
         {
-            return SetupCompletionResult.Failure(identityResult.Errors.Select(error => error.Description));
+            return SeedDatabaseResult.Failure(identityResult.Errors.Select(error => error.Description));
         }
 
         try
@@ -84,7 +89,7 @@ public sealed class SetupCompletionService(
         }
         catch (Exception ex)
         {
-            return SetupCompletionResult.Failure(ex.Message);
+            return SeedDatabaseResult.Failure(ex.Message);
         }
 
         var completedAtUtc = existingState?.CompletedAtUtc ?? DateTimeOffset.UtcNow;
@@ -99,14 +104,14 @@ public sealed class SetupCompletionService(
         // Discover and save all available modules
         await SaveModuleStateAsync(cancellationToken);
 
-        return new SetupCompletionResult
+        return new SeedDatabaseResult
         {
             CreatedAdmin = identityResult.CreatedAdmin,
             CreatedRoles = identityResult.CreatedRoles
         };
     }
 
-    private async Task SeedStarterContentAsync(SetupCompletionRequest request, CancellationToken cancellationToken)
+    private async Task SeedStarterContentAsync(SeedDatabaseRequest request, CancellationToken cancellationToken)
     {
         // Build pages first to get their IDs for navigation items
         var (homepage, homepageBlocks) = BuildHomepage(request);
@@ -173,7 +178,7 @@ public sealed class SetupCompletionService(
         await moduleStateStore.SaveAllAsync(moduleStates, cancellationToken);
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SetupCompletionRequest request)
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SeedDatabaseRequest request)
     {
         var headingBlock = new HeadingBlock
         {
@@ -282,7 +287,7 @@ public sealed class SetupCompletionService(
         );
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildBlogListingPage(SetupCompletionRequest request)
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildBlogListingPage(SeedDatabaseRequest request)
     {
         var headingBlock = new HeadingBlock
         {
@@ -451,7 +456,7 @@ public sealed class SetupCompletionService(
         );
     }
 
-    private static (IReadOnlyList<BlogPostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SetupCompletionRequest request, IStaticPhotosClient staticPhotosClient)
+    private static (IReadOnlyList<BlogPostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request, IStaticPhotosClient staticPhotosClient)
     {
         var random = new Random();
         var tags = CreateTags();
@@ -674,12 +679,12 @@ public sealed class SetupCompletionService(
         }).ToList();
     }
 
-    private List<MarkdownPage> BuildStarterDocsContent()
+    private List<DocsPage> BuildStarterDocsContent()
     {
-        var docs = new List<MarkdownPage>();
+        var docs = new List<DocsPage>();
         
         // 1. Root Documentation Page
-        var rootDoc = new MarkdownPage
+        var rootDoc = new DocsPage
         {
             Id = Snowflake.NewId(),
             Title = "Aero CMS Documentation",
@@ -707,7 +712,7 @@ Technical documentation for integrating with the Aero CMS core services.",
         docs.Add(rootDoc);
 
         // 2. Getting Started Chapter
-        var gettingStarted = new MarkdownPage
+        var gettingStarted = new DocsPage
         {
             Id = Snowflake.NewId(),
             ParentId = rootDoc.Id,
@@ -722,7 +727,7 @@ Technical documentation for integrating with the Aero CMS core services.",
         docs.Add(gettingStarted);
 
         // 3. Installation Section
-        docs.Add(new MarkdownPage
+        docs.Add(new DocsPage
         {
             Id = Snowflake.NewId(),
             ParentId = gettingStarted.Id,
@@ -736,7 +741,7 @@ Technical documentation for integrating with the Aero CMS core services.",
         });
 
         // 4. Configuration Section
-        docs.Add(new MarkdownPage
+        docs.Add(new DocsPage
         {
             Id = Snowflake.NewId(),
             ParentId = gettingStarted.Id,
@@ -750,7 +755,7 @@ Technical documentation for integrating with the Aero CMS core services.",
         });
 
         // 5. Guides Chapter
-        var guides = new MarkdownPage
+        var guides = new DocsPage
         {
             Id = Snowflake.NewId(),
             ParentId = rootDoc.Id,
@@ -765,7 +770,7 @@ Technical documentation for integrating with the Aero CMS core services.",
         docs.Add(guides);
 
         // 6. Theming Section
-        docs.Add(new MarkdownPage
+        docs.Add(new DocsPage
         {
             Id = Snowflake.NewId(),
             ParentId = guides.Id,
@@ -779,7 +784,7 @@ Technical documentation for integrating with the Aero CMS core services.",
         });
 
         // 7. Localization Section
-        docs.Add(new MarkdownPage
+        docs.Add(new DocsPage
         {
             Id = Snowflake.NewId(),
             ParentId = guides.Id,
@@ -793,7 +798,7 @@ Technical documentation for integrating with the Aero CMS core services.",
         });
 
         // 8. API Reference Chapter
-        var api = new MarkdownPage
+        var api = new DocsPage
         {
             Id = Snowflake.NewId(),
             ParentId = rootDoc.Id,
@@ -808,7 +813,7 @@ Technical documentation for integrating with the Aero CMS core services.",
         docs.Add(api);
 
         // 9. Authentication Section
-        docs.Add(new MarkdownPage
+        docs.Add(new DocsPage
         {
             Id = Snowflake.NewId(),
             ParentId = api.Id,
@@ -822,7 +827,7 @@ Technical documentation for integrating with the Aero CMS core services.",
         });
 
         // 10. Content Management Section
-        docs.Add(new MarkdownPage
+        docs.Add(new DocsPage
         {
             Id = Snowflake.NewId(),
             ParentId = api.Id,

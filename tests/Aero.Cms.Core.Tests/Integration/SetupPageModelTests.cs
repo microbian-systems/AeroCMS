@@ -21,7 +21,7 @@ public class SetupPageModelTests
 
         await Assert.That(result).IsTypeOf<PageResult>();
         await completionService.DidNotReceive()
-            .CompleteAsync(Arg.Any<SetupCompletionRequest>(), Arg.Any<CancellationToken>());
+            .CompleteAsync(Arg.Any<SeedDatabaseRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -84,8 +84,8 @@ public class SetupPageModelTests
     public async Task Bootstrap_failures_are_returned_to_the_page()
     {
         var completionService = Substitute.For<ISetupCompletionService>();
-        completionService.CompleteAsync(Arg.Any<SetupCompletionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(SetupCompletionResult.Failure("Password policy failed."));
+        completionService.CompleteAsync(Arg.Any<SeedDatabaseRequest>(), Arg.Any<CancellationToken>())
+            .Returns(SeedDatabaseResult.Failure("Password policy failed."));
 
         var model = CreateValidModel(completionService);
 
@@ -100,8 +100,8 @@ public class SetupPageModelTests
         if (completionService == null)
         {
             completionService = Substitute.For<ISetupCompletionService>();
-            completionService.CompleteAsync(Arg.Any<SetupCompletionRequest>(), Arg.Any<CancellationToken>())
-                .Returns(new SetupCompletionResult { CreatedAdmin = true });
+            completionService.CompleteAsync(Arg.Any<SeedDatabaseRequest>(), Arg.Any<CancellationToken>())
+                .Returns(new SeedDatabaseResult { CreatedAdmin = true });
         }
 
         return new SetupModel(completionService)

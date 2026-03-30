@@ -1,9 +1,14 @@
-using Aero.Cms.Core;
+﻿using Aero.Cms.Abstractions.Enums;
 using Aero.Core.Entities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Aero.Cms.Modules.Docs;
+namespace Aero.Cms.Abstractions.Models;
 
-public sealed class MarkdownPage : Entity
+public sealed class DocViewModel : Entity
 {
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
@@ -11,7 +16,7 @@ public sealed class MarkdownPage : Entity
     public string? MarkdownContent { get; set; }
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
-    
+
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset? PublishedOn { get; set; } = null;
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;

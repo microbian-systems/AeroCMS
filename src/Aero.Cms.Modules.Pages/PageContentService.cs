@@ -422,7 +422,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
 
     private static async Task ValidatePage(PageDocument page)
     {
-        var validator = new PageModelValidator();
+        var validator = new PageDocumentValidator();
         var valid = await validator.ValidateAsync(page);
 
         if (valid.Errors.Any())

@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core;
+namespace Aero.Cms.Abstractions.Enums;
 
 public enum ContentPublicationState
 {

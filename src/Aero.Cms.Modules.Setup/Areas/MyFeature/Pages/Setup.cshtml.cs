@@ -39,7 +39,7 @@ public sealed class SetupModel(ISetupCompletionService setupCompletionService) :
         }
 
         var completionResult = await setupCompletionService.CompleteAsync(
-            new SetupCompletionRequest(
+            new SeedDatabaseRequest(
                 Input.AdminUserName,
                 Input.AdminEmail,
                 Input.Password,

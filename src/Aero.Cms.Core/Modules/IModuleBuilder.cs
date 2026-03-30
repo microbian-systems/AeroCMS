@@ -87,6 +87,17 @@ public interface IModuleBuilder
     /// Gets the registered search indexer types.
     /// </summary>
     IReadOnlyList<Type> SearchIndexers { get; }
+
+    /// <summary>
+    /// Gets the registered Marten configuration contributor types.
+    /// </summary>
+    IReadOnlyList<Type> MartenConfigurations { get; }
+
+    /// <summary>
+    /// Registers a Marten schema configuration contributor type.
+    /// The type must implement <see cref="global::Marten.IConfigureMarten"/>.
+    /// </summary>
+    void AddMartenConfiguration<T>() where T : class, global::Marten.IConfigureMarten;
 }
 
 /// <summary>
@@ -132,6 +143,7 @@ public class ModuleBuilder : IModuleBuilder
     private readonly List<Type> _contentParts = new();
     private readonly List<Type> _fieldEditors = new();
     private readonly List<Type> _searchIndexers = new();
+    private readonly List<Type> _martenConfigurations = new();
 
     /// <summary>
     /// The service collection for DI registrations.
@@ -181,6 +193,9 @@ public class ModuleBuilder : IModuleBuilder
 
     /// <inheritdoc/>
     public IReadOnlyList<Type> SearchIndexers => _searchIndexers.AsReadOnly();
+
+    /// <inheritdoc/>
+    public IReadOnlyList<Type> MartenConfigurations => _martenConfigurations.AsReadOnly();
 
     /// <inheritdoc/>
     public void AddPermission(string permission)
@@ -280,5 +295,18 @@ public class ModuleBuilder : IModuleBuilder
 
         _searchIndexers.Add(type);
         Services.AddScoped<TIndexer>();
+    }
+
+    /// <inheritdoc/>
+    public void AddMartenConfiguration<T>() where T : class, global::Marten.IConfigureMarten
+    {
+        var type = typeof(T);
+        if (_martenConfigurations.Contains(type))
+        {
+            throw new InvalidOperationException($"Marten configuration contributor '{type.FullName}' has already been registered.");
+        }
+
+        _martenConfigurations.Add(type);
+        Services.AddSingleton<global::Marten.IConfigureMarten, T>();
     }
 }

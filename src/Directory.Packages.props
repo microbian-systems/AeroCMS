@@ -35,12 +35,14 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.4.0" />
     <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.4.0" />
     <PackageVersion Include="Microsoft.Garnet" Version="1.1.1" />
     <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.50" />
     <PackageVersion Include="MagicOnion.Server" Version="7.10.0" />
+    <PackageVersion Include="Microsoft.Orleans.Sdk" Version="10.0.1" />
     <PackageVersion Include="Microsoft.TypeScript.MSBuild" Version="5.9.3" />
     <PackageVersion Include="MimeKit" Version="4.15.1" />
     <PackageVersion Include="MiniProfiler" Version="4.5.4" />

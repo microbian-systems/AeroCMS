@@ -7,12 +7,12 @@ namespace Aero.Cms.Modules.Docs.Areas.Docs.Pages;
 
 public class DocsIndexModel(IQuerySession session) : PageModel
 {
-    public IReadOnlyList<MarkdownPage> Chapters { get; private set; } = [];
-    public Dictionary<long, List<MarkdownPage>> Sections { get; private set; } = [];
+    public IReadOnlyList<DocsPage> Chapters { get; private set; } = [];
+    public Dictionary<long, List<DocsPage>> Sections { get; private set; } = [];
 
     public async Task OnGetAsync(CancellationToken cancellationToken = default)
     {
-        var allPages = await session.Query<MarkdownPage>()
+        var allPages = await session.Query<DocsPage>()
             .Where(p => p.PublicationState == ContentPublicationState.Published)
             .OrderBy(p => p.Order)
             .ToListAsync(cancellationToken);

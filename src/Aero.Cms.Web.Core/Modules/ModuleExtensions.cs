@@ -43,13 +43,17 @@ public static class ModuleExtensions
         _ = config.AddConfiguration<T>(env);
         var log = await services.ConfigureLogging(config);
 
-        services.AddAeroDataLayer(config, env);
 
         // Register module system services
         services.AddModuleSystemServices();
 
         // Configure modules using the new discovery/graph services
         await services.AddAeroModulesAsync(config, env);
+
+        // Wire the data layer AFTER modules have registered their IConfigureMarten contributions.
+        // AddMarten() auto-discovers all IConfigureMarten registrations from DI, so module-level
+        // schema contributions (BlockMartenConfiguration, DocsMartenConfiguration, etc.) all apply.
+        services.AddAeroDataLayer(config, env);
 
         return (builder, log);
     }

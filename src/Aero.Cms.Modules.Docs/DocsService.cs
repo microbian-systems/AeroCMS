@@ -6,59 +6,59 @@ namespace Aero.Cms.Modules.Docs;
 
 public sealed class DocsService(IDocumentSession session) : IDocsService
 {
-    public async Task<Result<string, IReadOnlyList<MarkdownPage>>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<string, IReadOnlyList<DocsPage>>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var docs = await session.Query<MarkdownPage>()
+            var docs = await session.Query<DocsPage>()
                 .OrderBy(x => x.Order)
                 .ToListAsync(cancellationToken);
-            return Ok<string, IReadOnlyList<MarkdownPage>>(docs);
+            return Ok<string, IReadOnlyList<DocsPage>>(docs);
         }
         catch (Exception ex)
         {
-            return Fail<string, IReadOnlyList<MarkdownPage>>(ex.Message);
+            return Fail<string, IReadOnlyList<DocsPage>>(ex.Message);
         }
     }
 
-    public async Task<Result<string, MarkdownPage?>> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public async Task<Result<string, DocsPage?>> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         try
         {
-            var doc = await session.Query<MarkdownPage>()
+            var doc = await session.Query<DocsPage>()
                 .FirstOrDefaultAsync(x => x.Slug == slug, cancellationToken);
-            return Ok<string, MarkdownPage?>(doc);
+            return Ok<string, DocsPage?>(doc);
         }
         catch (Exception ex)
         {
-            return Fail<string, MarkdownPage?>(ex.Message);
+            return Fail<string, DocsPage?>(ex.Message);
         }
     }
 
-    public async Task<Result<string, MarkdownPage?>> GetByIdAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<Result<string, DocsPage?>> GetByIdAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
-            var doc = await session.LoadAsync<MarkdownPage>(id, cancellationToken);
-            return Ok<string, MarkdownPage?>(doc);
+            var doc = await session.LoadAsync<DocsPage>(id, cancellationToken);
+            return Ok<string, DocsPage?>(doc);
         }
         catch (Exception ex)
         {
-            return Fail<string, MarkdownPage?>(ex.Message);
+            return Fail<string, DocsPage?>(ex.Message);
         }
     }
 
-    public async Task<Result<string, MarkdownPage>> SaveAsync(MarkdownPage page, CancellationToken cancellationToken = default)
+    public async Task<Result<string, DocsPage>> SaveAsync(DocsPage page, CancellationToken cancellationToken = default)
     {
         try
         {
             session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
-            return Ok<string, MarkdownPage>(page);
+            return Ok<string, DocsPage>(page);
         }
         catch (Exception ex)
         {
-            return Fail<string, MarkdownPage>(ex.Message);
+            return Fail<string, DocsPage>(ex.Message);
         }
     }
 
@@ -66,7 +66,7 @@ public sealed class DocsService(IDocumentSession session) : IDocsService
     {
         try
         {
-            session.Delete<MarkdownPage>(id);
+            session.Delete<DocsPage>(id);
             await session.SaveChangesAsync(cancellationToken);
             return Ok<string, bool>(true);
         }
@@ -76,46 +76,46 @@ public sealed class DocsService(IDocumentSession session) : IDocsService
         }
     }
 
-    public async Task<Result<string, IReadOnlyList<MarkdownPage>>> GetChildrenAsync(long parentId, CancellationToken cancellationToken = default)
+    public async Task<Result<string, IReadOnlyList<DocsPage>>> GetChildrenAsync(long parentId, CancellationToken cancellationToken = default)
     {
         try
         {
-            var children = await session.Query<MarkdownPage>()
+            var children = await session.Query<DocsPage>()
                 .Where(x => x.ParentId == parentId)
                 .OrderBy(x => x.Order)
                 .ToListAsync(cancellationToken);
-            return Ok<string, IReadOnlyList<MarkdownPage>>(children);
+            return Ok<string, IReadOnlyList<DocsPage>>(children);
         }
         catch (Exception ex)
         {
-            return Fail<string, IReadOnlyList<MarkdownPage>>(ex.Message);
+            return Fail<string, IReadOnlyList<DocsPage>>(ex.Message);
         }
     }
 
-    public async Task<Result<string, IReadOnlyList<MarkdownPage>>> GetTopLevelCategoriesAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<string, IReadOnlyList<DocsPage>>> GetTopLevelCategoriesAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             // First find root "docs" page
-            var rootDoc = await session.Query<MarkdownPage>()
+            var rootDoc = await session.Query<DocsPage>()
                 .FirstOrDefaultAsync(x => x.Slug == "docs", cancellationToken);
             
             if (rootDoc == null)
             {
-                return Ok<string, IReadOnlyList<MarkdownPage>>([]);
+                return Ok<string, IReadOnlyList<DocsPage>>([]);
             }
 
             // Find children of root "docs"
-            var children = await session.Query<MarkdownPage>()
+            var children = await session.Query<DocsPage>()
                 .Where(x => x.ParentId == rootDoc.Id)
                 .OrderBy(x => x.Order)
                 .ToListAsync(cancellationToken);
 
-            return Ok<string, IReadOnlyList<MarkdownPage>>(children);
+            return Ok<string, IReadOnlyList<DocsPage>>(children);
         }
         catch (Exception ex)
         {
-            return Fail<string, IReadOnlyList<MarkdownPage>>(ex.Message);
+            return Fail<string, IReadOnlyList<DocsPage>>(ex.Message);
         }
     }
 }

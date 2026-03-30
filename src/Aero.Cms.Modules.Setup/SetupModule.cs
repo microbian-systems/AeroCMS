@@ -12,6 +12,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup;
 
+
+// todo - after setup runs it should autodisable itslf by setting hte Enabled = false and disable the aspnet core FeatureFlag and save to db
+
 /// <summary>
 /// Aero CMS infrastructure setup (database, caching, etc)
 /// </summary>
@@ -43,7 +46,7 @@ public sealed class SetupModule : AeroModuleBase
         services.TryAddScoped<ISetupStateStore, MartenSetupStateStore>();
         services.TryAddScoped<ISetupInitializationService, SetupInitializationService>();
         services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
-        services.TryAddScoped<ISetupCompletionService, SetupCompletionService>();
+        services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
         services.TryAddScoped<IModuleStateStore, ModuleStateStore>();
         services.TryAddSingleton<SetupPathAllowlist>();
         services.TryAddTransient<SetupGateMiddleware>();

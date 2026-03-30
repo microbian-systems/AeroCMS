@@ -112,7 +112,7 @@ public class SetupCompletionServiceTests
         harness.BlogPosts.Should().BeEmpty();
     }
 
-    private static SetupCompletionService CreateService(InMemoryCmsDocumentSessionHarness harness,
+    private static SeedDatabaseService CreateService(InMemoryCmsDocumentSessionHarness harness,
         ISetupIdentityBootstrapper identityBootstrapper)
         => new(
             harness.Session,
@@ -124,7 +124,7 @@ public class SetupCompletionServiceTests
             Substitute.For<IModuleDiscoveryService>(),
             Substitute.For<IModuleStateStore>());
 
-    private static SetupCompletionRequest CreateRequest()
+    private static SeedDatabaseRequest CreateRequest()
         => new(
             "admin.user",
             "admin@example.com",

@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Pages;
 
-public sealed class PagesModule : AeroModuleBase
+public sealed class PagesModule : AeroModuleBase, IConfigureMarten
 {
     public override string Name => nameof(PagesModule);
     public override string Version => AeroVersion.Version;
@@ -41,5 +41,15 @@ public sealed class PagesModule : AeroModuleBase
         {
             options.Conventions.AddAreaPageRoute("Cms", "/Page", "/{slug?}");
         });
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
+        //opts.Schema.For<PageDocument>().Duplicate(x => x.Title); // todo - find out what the marten For<T>().Duplicate() method does and if it is needed here
+        opts.Schema.For<PageDocument>().Index(x => x.Slug);
+        opts.Schema.For<PageDocument>().Index(x => x.PublishedOn);
+        opts.Schema.For<PageDocument>().Index(x => x.CreatedOn);
+        opts.Schema.For<PageDocument>().Index(x => x.ModifiedOn);
     }
 }

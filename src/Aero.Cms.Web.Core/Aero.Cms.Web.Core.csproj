@@ -11,7 +11,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Web\Aero.Web.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 
 </Project>

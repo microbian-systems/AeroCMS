@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <EnableTestingPlatform>true</EnableTestingPlatform>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />

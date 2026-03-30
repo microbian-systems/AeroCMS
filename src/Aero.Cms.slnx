@@ -67,8 +67,10 @@
     <Project Path="Aero.Cms.Modules.Settings/Aero.Cms.Modules.Settings.csproj" Id="f0fac740-d6b0-43da-8208-0c63c5983a3a" />
     <Project Path="Aero.Cms.Modules.Setup/Aero.Cms.Modules.Setup.csproj" Id="93154661-c5ce-4976-b071-1052434782f0" />
     <Project Path="Aero.Cms.Modules.SiteMap/Aero.Cms.Modules.SiteMap.csproj" Id="ad9f5134-2c9f-47d5-bb80-ca4ca27db91b" />
+    <Project Path="Aero.Cms.Modules.Sites/Aero.Cms.Modules.Sites.csproj" Id="6e468d22-9e16-4d8a-8fe3-d1d7fa709217" />
     <Project Path="Aero.Cms.Modules.Static/Aero.Cms.Modules.Static.csproj" Id="d30eaa74-d0b8-4804-be5a-792845942c94" />
     <Project Path="Aero.Cms.Modules.Tcp/Aero.Cms.Modules.Tcp.csproj" />
+    <Project Path="Aero.Cms.Modules.Tenant/Aero.Cms.Modules.Tenant.csproj" Id="1c8bcfc9-83b8-4f9c-943e-67be580a29d2" />
     <Project Path="Aero.Cms.Modules.Testing/Aero.Cms.Modules.Testing.csproj" Id="bc8b2764-df6d-44a4-a875-bd5df8290409" />
     <Project Path="Aero.Cms.Modules.Theming/Aero.Cms.Modules.Theming.csproj" Id="ead1f5f7-414b-421f-b109-c8ee24eb91c8" />
     <Project Path="Aero.Cms.Modules.Users/Aero.Cms.Modules.Users.csproj" Id="dcf96479-4111-449f-ae62-50dd93bd74c1" />
@@ -84,9 +86,9 @@
   <Folder Name="/Tests/">
     <Project Path="../tests/Aero.Cms.Core.Tests/Aero.Cms.Core.Tests.csproj" />
   </Folder>
+  <Project Path="Aero.Cms.Abstractions/Aero.Cms.Abstractions.csproj" Id="4164242f-b26c-4206-a16b-4cf5c0a54d6e" />
   <Project Path="Aero.Cms.AppHost/Aero.Cms.AppHost.csproj" />
   <Project Path="Aero.Cms.Core/Aero.Cms.Core.csproj" Id="ff176115-2d03-4287-8d16-def80bd19295" />
-  <Project Path="Aero.Cms.Events/Aero.Cms.Events.csproj" Id="924d986e-d109-438e-aeec-84ac497c12c3" />
   <Project Path="Aero.Cms.Marten.Identity/Aero.Cms.Marten.Identity.csproj" />
   <Project Path="Aero.Cms.Repositories/Aero.Cms.Repositories.csproj" Id="291895fb-20c0-485f-b360-491a1f2c04e4" />
   <Project Path="Aero.Cms.ServiceDefaults/Aero.Cms.ServiceDefaults.csproj" />

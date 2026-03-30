@@ -2,17 +2,9 @@ using Aero.Cms.Core;
 using Aero.Core.Entities;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Layout;
+using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Modules.Pages;
-
-public enum PageKind
-{
-    Standard = 0,
-    Homepage = 1,
-    BlogListing = 2,
-    Markdown = 3,
-    Razor = 4
-}
 
 public sealed class PageDocument : Entity
 {
