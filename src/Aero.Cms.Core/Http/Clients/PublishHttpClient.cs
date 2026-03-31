@@ -1,5 +1,6 @@
 namespace Aero.Cms.Core.Http.Clients;
 
+using Aero.Cms.Abstractions.Enums;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 

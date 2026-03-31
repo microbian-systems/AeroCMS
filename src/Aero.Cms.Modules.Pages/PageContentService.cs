@@ -19,6 +19,8 @@ using Microsoft.Extensions.Logging;
 using Wolverine;
 using Aero.Cms.Core.Messaging;
 using Aero.Cms.Core.Blocks.Layout;
+using Aero.Cms.Abstractions.Enums;
+using static Aero.Cms.Events.AeroEvent<T>;
 
 
 namespace Aero.Cms.Modules.Pages;

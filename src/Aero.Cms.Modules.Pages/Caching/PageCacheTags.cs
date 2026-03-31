@@ -1,3 +1,5 @@
+using Aero.Cms.Abstractions.Enums;
+
 namespace Aero.Cms.Modules.Pages.Caching;
 
 /// <summary>

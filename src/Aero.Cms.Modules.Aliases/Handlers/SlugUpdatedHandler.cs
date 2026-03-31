@@ -1,5 +1,5 @@
-using Aero.Cms.Core.Messaging;
 using Microsoft.Extensions.Logging;
+using Aero.Cms.Events;
 
 namespace Aero.Cms.Modules.Aliases.Handlers;
 

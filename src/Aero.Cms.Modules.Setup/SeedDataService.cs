@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Layout;

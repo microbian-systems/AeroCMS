@@ -5,19 +5,17 @@ namespace Aero.Cms.Events;
 
 public abstract record AeroEvent(string message);
 
+/// <summary>
+/// Event fired when a content's slug has been updated and published.
+/// </summary>
+public record SlugUpdated(
+    long ContentId,
+    string ContentType,
+    string NewSlug,
+    string? OldSlug = null) : AeroEvent($"{OldSlug}->{NewSlug}");
 
-public abstract record AeroEvent<T>(T record, string? msg = null) : AeroEvent(msg ?? $"Event for {typeof(T).Name} with ID: {GetId(record)}")
+public abstract record AeroEvent<T>(T record, string? msg = null) : AeroEvent(msg)
 {
-    // content events
-    /// <summary>
-    /// Event fired when a content's slug has been updated and published.
-    /// </summary>
-    public record SlugUpdated(
-        long ContentId,
-        string ContentType,
-        string NewSlug,
-        string? OldSlug = null) : AeroEvent($"{OldSlug}->{NewSlug}");
-
     // alias events
     public sealed record AliasCreated(AliasViewModel alias, string msg) : AeroEvent<AliasViewModel>(alias, msg);
     public sealed record AliasUpdated(AliasViewModel alias, string msg) : AeroEvent<AliasViewModel>(alias, msg);

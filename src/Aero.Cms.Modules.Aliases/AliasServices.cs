@@ -67,15 +67,75 @@ public interface IAliasService
     Task<Result<AliasError, AliasDocument>> GetByIdAsync(long id, CancellationToken ct);
     Task<Result<AliasError, AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken ct);
     Task<Result<AliasError, AliasDocument>> GetByOldPathAsync(string oldPath, CancellationToken ct);
-    Task<IEnumerable<AliasDocument>> GetAllAsync(long siteId, int page=1, int rows=10, CancellationToken ct);
+    Task<IEnumerable<AliasDocument>> GetAllAsync(long siteId, int page=1, int rows=10, CancellationToken ct = default);
     Task<Result<AliasError, AliasDocument>> GeByPathAsync(long siteId, string path, CancellationToken ct);
-    Task<Result<AliasError, AliasDocument>> GetSiteId(long siteId, int page = 1, int rows = 10, CancellationToken ct);
-    Task<Result<AliasError, AliasDocument>> Find(Expression<Func<AliasDocument, bool>> predicate, int page =1, int rows=10, CancellationToken ct);
+    Task<Result<AliasError, AliasDocument>> GetSiteId(long siteId, int page = 1, int rows = 10, CancellationToken ct = default);
+    Task<Result<AliasError, AliasDocument>> Find(Expression<Func<AliasDocument, bool>> predicate, int page =1, int rows=10, CancellationToken ct= default);
 }
 
 public class AliasService(IAliasRepository db) : IAliasService
 {
+    public async Task<Result<AliasError, AliasDocument>> CreateAsync(CreateAliasRequest request, CancellationToken ct)
+    {
+        return await db.InsertAsync(new AliasDocument
+        {
+            SiteId = request.siteId,
+            OldPath = request.OldPath,
+            NewPath = request.NewPath,
+            Notes = request.notes
+        }, ct);
+    }
 
+    public async Task<Result<AliasError, AliasDocument>> DeleteAsync(DeleteAliasRequest request, CancellationToken ct)
+    {
+        var res = await db.DeleteAsync(request.id, ct);
+
+        return res switch
+        {
+            true => new Result<AliasError, AliasDocument>.Ok { Value = null! },
+            false => new Result<AliasError, AliasDocument>.Failure { Error = new AliasError() }
+        };
+    }
+
+    public async Task<Result<AliasError, AliasDocument>> Find(Expression<Func<AliasDocument, bool>> predicate, int page = 1, int rows = 10, CancellationToken ct = default)
+    {
+        var results = await db.FindAsync(predicate, ct);
+    }
+
+    public Task<Result<AliasError, AliasDocument>> GeByPathAsync(long siteId, string path, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<IEnumerable<AliasDocument>> GetAllAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
+    {
+        var records = await db.GetAllAsync(page, rows, ct);
+    }
+
+    public Task<Result<AliasError, AliasDocument>> GetByIdAsync(long id, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<Result<AliasError, AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<Result<AliasError, AliasDocument>> GetByOldPathAsync(string oldPath, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<Result<AliasError, AliasDocument>> GetSiteId(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<Result<AliasError, AliasDocument>> UpdateAsync(UpdateAliasRequest request, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
 }
 
 

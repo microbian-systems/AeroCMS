@@ -14,6 +14,7 @@ using Aero.Cms.Core.Blocks.Common;
 using Aero.Core.Railway;
 using Aero.Cms.Core.Blocks.Layout;
 using CmsPageDetail = Aero.Cms.Core.Http.Clients.PageDetail;
+using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
