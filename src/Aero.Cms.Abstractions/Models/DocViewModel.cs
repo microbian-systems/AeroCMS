@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Aero.Cms.Abstractions.Models;
 
-public sealed class DocViewModel : Entity
+public sealed record DocViewModel : EntityViewModel
 {
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;

@@ -1,6 +1,7 @@
-﻿namespace Aero.Cms.Abstractions.Models
+namespace Aero.Cms.Abstractions.Models;
+
+public record TagViewModel : EntityViewModel
 {
-    public class TagViewModel
-    {
-    }
+    public string Name { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
 }

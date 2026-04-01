@@ -1,17 +1,10 @@
-﻿using System.Net;
-
 namespace Aero.Cms.Abstractions.Models;
 
 public record SiteViewModel : EntityViewModel
 {
-    public string? Name { get; set; }
-    public IList<SiteHostViewModel> Hosts { get; set; } = [];
-
-    public record SiteHostViewModel : EntityViewModel
-    {
-        public long SiteId { get; set; }
-        public (string name, IPAddress addr) Host { get; set; }
-    }
+    public string Name { get; set; } = null!;
+    public string PrimaryHost { get; set; } = null!;
+    public List<string> Hosts { get; set; } = [];
+    public bool IsEnabled { get; set; } = true;
+    public string? DefaultCulture { get; set; }
 }
-
-

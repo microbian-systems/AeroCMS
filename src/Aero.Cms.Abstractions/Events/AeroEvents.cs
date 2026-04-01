@@ -9,6 +9,7 @@ public abstract record AeroEvent(string message);
 /// Event fired when a content's slug has been updated and published.
 /// </summary>
 public record SlugUpdated(
+    long SiteId,
     long ContentId,
     string ContentType,
     string NewSlug,

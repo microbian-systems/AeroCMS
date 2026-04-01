@@ -1,11 +1,7 @@
-﻿using Aero.Core.Entities;
-
 namespace Aero.Cms.Abstractions.Models;
 
-public record MediaViewModel
+public record MediaViewModel : EntityViewModel
 {
-    public long Id { get; set; }
-    public long SiteId { get; set; }
     public string? Title { get; set; }
     public string? Url { get; set; }
     public string? ThumbnailUrl { get; set; }
@@ -19,6 +15,5 @@ public record MediaViewModel
     public bool IsFolder { get; set; }
     public long? ParentId { get; set; }
     public byte[]? Content { get; set; }
-    public Dictionary<string, object> MetaData{ get; } = [];
-
+    public Dictionary<string, object> MetaData { get; } = [];
 }

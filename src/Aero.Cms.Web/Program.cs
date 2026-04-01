@@ -1,7 +1,6 @@
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Shared.Services;
-using Aero.Cms.Web.Components;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Services;
 using Aero.Cms.Core.Extensions;
@@ -10,11 +9,14 @@ using Microsoft.AspNetCore.Components.Sections;
 using Wolverine;
 using Wolverine.Marten;
 using Aero.Cms.Modules.Aliases.Handlers;
+using Aero.Cms.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 var config = builder.Configuration;
 var env = builder.Environment;
+
+
 
 builder.AddServiceDefaults();
 

@@ -1,14 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
-    <PackageReference Include="Microsoft.Orleans.Core" />
-    <PackageReference Include="Microsoft.Orleans.Sdk" />
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" />
     <PackageReference Include="Microsoft.Orleans.Serialization" />
     <PackageReference Include="Microsoft.Orleans.Server" />
@@ -19,7 +15,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 
 

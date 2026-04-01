@@ -7,7 +7,13 @@
 
   <ItemGroup>
     <PackageReference Include="Marten" />
+    <PackageReference Include="Microsoft.Orleans.Core" />
+    <PackageReference Include="Microsoft.Orleans.Core.Abstractions" />
+    <PackageReference Include="Microsoft.Orleans.OrleansProviders" />
+    <PackageReference Include="Microsoft.Orleans.Runtime.Abstractions" />
+    <PackageReference Include="Microsoft.Orleans.Sdk" />
     <PackageReference Include="Scrutor.AspNetCore" />
+	  
   </ItemGroup>
 
   <ItemGroup>

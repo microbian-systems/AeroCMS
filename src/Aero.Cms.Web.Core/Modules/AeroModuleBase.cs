@@ -7,12 +7,19 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Routing;
 using Serilog;
 using ILogger = Serilog.ILogger;
+using Marten;
 
 /// <summary>
 /// A base class for Aero.Cms modules that provides default implementations.
 /// </summary>
-public abstract class AeroModuleBase : IAeroModule, IDisposable
+public abstract class AeroModuleBase : IAeroModule, IConfigureMarten, IDisposable
 {
+    /// <summary>
+    /// Provides access to the logger instance used for logging diagnostic and operational information within the class.
+    /// </summary>
+    /// <remarks>Use this logger to record informational messages, warnings, errors, or other events relevant
+    /// to the class's operation. The logger is initialized from the application's global logging
+    /// configuration.</remarks>
     protected readonly ILogger log = Log.Logger;
 
     /// <inheritdoc/>

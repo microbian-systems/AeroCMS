@@ -15,9 +15,11 @@
   <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Sites\Aero.Cms.Modules.Sites.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
   </ItemGroup>

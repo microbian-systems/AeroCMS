@@ -1,25 +1,33 @@
-using Aero.Cms.Core;
+﻿using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Orleans.Configuration;
+using Marten;
 
-namespace Aero.Cms.Modules.Orleans;
+namespace Aero.Cms.Modules.Media;
 
-public class OrleansModule : AeroModuleBase
+public class MediaModule : AeroModuleBase, IConfigureMarten
 {
-    public override string Name => nameof(OrleansModule);
+    public override string Name => nameof(MediaModule);
     public override string Version => AeroVersion.Version;
     public override string Author => AeroConstants.Author;
-    public override string? Description => "Uses virtual grains (actors) for service communication";
     public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["aero"];
-    public override IReadOnlyList<string> Tags => ["aero", "services"];
+    public override IReadOnlyList<string> Category => [];
+    public override IReadOnlyList<string> Tags => [];
+
+    public void Configure(IServiceProvider services, StoreOptions options)
+    {
+        throw new NotImplementedException();
+    }
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
+
+        services.AddSingleton<IConfigureMarten, MediaModule>();
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)

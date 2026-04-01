@@ -3,7 +3,7 @@ using Aero.Core.Entities;
 
 namespace Aero.Cms.Abstractions.Models;
 
-public sealed class PostViewModel : Entity
+public sealed record PostViewModel : EntityViewModel
 {
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
