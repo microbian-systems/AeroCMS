@@ -10,5 +10,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [ ] **Track: AI Content Generation Integration**
   *Link: [./tracks/ai_content_gen_20260331/](./tracks/ai_content_gen_20260331/)*
 
-- [ ] **Track: Multi-Site Support (OSS)**
+- [~] **Track: Multi-Site Support (OSS)**
   *Link: [./tracks/multisite_20260331/](./tracks/multisite_20260331/)*

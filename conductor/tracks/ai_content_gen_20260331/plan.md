@@ -1,7 +1,7 @@
 # Implementation Plan: AI Content Generation Integration
 
 ## Phase 1: Infrastructure and Core Service
-- [ ] Task: Configure Microsoft Agent SDK and Tornado LLM in `Aero.Cms.Modules.Ai`.
+- [~] Task: Configure Microsoft Agent SDK and Tornado LLM in `Aero.Cms.Modules.Ai`.
     - [ ] Write unit tests for AI service configuration.
     - [ ] Implement service registration and configuration logic.
 - [ ] Task: Implement `IContentGenerationService` for blog and page content.
