@@ -8,24 +8,23 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Garnet" />
-    <PackageReference Include="Microsoft.Orleans.BroadcastChannel" />
-    <PackageReference Include="Microsoft.Orleans.Clustering.AdoNet" />
+    <PackageReference Include="Microsoft.Orleans.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Orleans.Clustering.Redis" />
-    <PackageReference Include="Microsoft.Orleans.Core" />
-    <PackageReference Include="Microsoft.Orleans.OrleansProviders" />
-    <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" />
+    <PackageReference Include="Microsoft.Orleans.GrainDirectory.Redis" />
     <PackageReference Include="Microsoft.Orleans.Persistence.Memory" />
     <PackageReference Include="Microsoft.Orleans.Persistence.Redis" />
     <PackageReference Include="Microsoft.Orleans.Reminders" />
-    <PackageReference Include="Microsoft.Orleans.Reminders.AdoNet" />
     <PackageReference Include="Microsoft.Orleans.Reminders.Redis" />
-    <PackageReference Include="Microsoft.Orleans.Sdk" />
     <PackageReference Include="Microsoft.Orleans.Server" />
     <PackageReference Include="Microsoft.Orleans.Streaming" />
     <PackageReference Include="Microsoft.Orleans.Transactions" />
     <PackageReference Include="MysticMind.PostgresEmbed" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="System.Numerics.Tensors" />
     <PackageReference Include="TickerQ" />
     <PackageReference Include="TickerQ.Caching.StackExchangeRedis" />
     <PackageReference Include="TickerQ.EntityFrameworkCore" />

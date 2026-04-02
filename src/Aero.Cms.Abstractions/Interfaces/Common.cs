@@ -36,25 +36,3 @@ public interface ICruddable<T, TKey>
     Task<Result<AeroError, bool>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
-
-public interface IContentGrain<T> :
-    IGrainWithIntegerKey,
-    ICruddable<T, long>,
-    ICanFindBySite<T, long>,
-    ICanFindBySlug<T, long>,
-    ICanFindBySlug<T, string>,
-    IHaveState<T>
-    where T : class, new()
-{
-}
-
-public interface IContentGrain<T, TKey> :
-    IGrainWithIntegerKey,
-    ICruddable<T, TKey>,
-    ICanFindBySite<T, TKey>,
-    ICanFindBySlug<T, string>,
-    IHaveState<T>
-    where T : class, new()
-    where TKey : IEquatable<TKey>, IComparable<TKey>
-{
-}

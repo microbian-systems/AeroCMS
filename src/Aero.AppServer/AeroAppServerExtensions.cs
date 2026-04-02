@@ -1,13 +1,16 @@
 ﻿using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Logging;
+using ImTools;
 using Marten;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Reflection;
 using TickerQ.DependencyInjection;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
+using Orleans.Hosting;
 
 namespace Aero.AppServer;
 
@@ -27,17 +30,19 @@ public static class AeroAppServerExtensions
         services.AddHostedService<AeroCacheService>();
         services.AddHostedService<AeroEmbeddedDbService>();
 
-        var connString = config.GetConnectionString("aero") 
+        var connString = config.GetConnectionString("aero")
             ?? AeroAppServerConstants.EmbedConnString;
 
-        var cacheString = config.GetConnectionString("cache") 
+        var cacheString = config.GetConnectionString("cache")
             ?? AeroAppServerConstants.CacheUrl;
 
         builder.UseOrleans(silo =>
         {
+            silo.UseLocalhostClustering();
+            
             // This tells Orleans: "Look at the assembly that started this process 
             // and find all Grains and Contracts there."
-            
+
             // same nuget pkg bullshit below - claims it can't find method
             //silo.ConfigureApplicationParts(parts =>
             //{
@@ -51,7 +56,7 @@ public static class AeroAppServerExtensions
 
         services.AddTickerQ(opts =>
         {
-            
+
         });
 
         // Marten
@@ -60,7 +65,50 @@ public static class AeroAppServerExtensions
             opts.Connection(connString);
         });
 
-        _ = services.AddWolverine(c => c.)
+
+        // For IHostApplicationBuilder, use AddWolverine on services
+        services.AddWolverine(ExtensionDiscovery.ManualOnly, opts =>
+        {
+            // 2. This disables the handler conventions (Handle/Consume naming rules)
+            opts.Discovery.DisableConventionalDiscovery();
+
+            // 3. Manually scan the AppDomain safely
+            var moduleAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => !a.IsDynamic)
+                .Where(a =>
+                {
+                    var name = a.GetName().Name;
+                    return name != null &&
+                           !name.StartsWith("Microsoft.") &&
+                           !name.StartsWith("System.") &&
+                           !name.StartsWith("Orleans.") &&
+                           !name.StartsWith("Radzen") &&
+                           !name.StartsWith("TickerQ") &&
+                           !name.StartsWith("Serilog") &&
+                           !name.StartsWith("Ziggy") &&
+                           !name.StartsWith("StackExchange") &&
+                           !name.StartsWith("Npgsql")
+                           ;
+                })
+                .ToList();
+
+            foreach (var assembly in moduleAssemblies)
+            {
+                try
+                {
+                    // Only include if it actually implements your marker interface
+                    if (assembly.GetTypes().Any(t => typeof(IAeroModule).IsAssignableFrom(t)))
+                    {
+                        opts.Discovery.IncludeAssembly(assembly);
+                    }
+                }
+                catch (ReflectionTypeLoadException) { /* Skip problematic DLLs */ }
+            }
+
+            // 4. Don't forget your Entry Assembly! 
+            opts.Discovery.IncludeAssembly(Assembly.GetEntryAssembly()!);
+
+        }); // <--- Use .None instead of .ManualOnly
 
         services.AddFusionCacheStackExchangeRedisBackplane(opts =>
         {

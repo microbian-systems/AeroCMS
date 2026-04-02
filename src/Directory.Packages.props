@@ -55,6 +55,7 @@
     <PackageVersion Include="Microsoft.Orleans.Clustering.Redis" Version="10.0.1" />
     <PackageVersion Include="Microsoft.Orleans.Core" Version="10.0.1" />
     <PackageVersion Include="Microsoft.Orleans.Core.Abstractions" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Orleans.GrainDirectory.Redis" Version="10.0.1" />
     <PackageVersion Include="Microsoft.Orleans.OrleansProviders" Version="3.8.0" />
     <PackageVersion Include="Microsoft.Orleans.Persistence.AdoNet" Version="10.0.1" />
     <PackageVersion Include="Microsoft.Orleans.Persistence.Memory" Version="10.0.1" />
@@ -100,6 +101,7 @@
     <PackageVersion Include="Serilog.Sinks.OpenObserve" Version="2.0.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
+    <PackageVersion Include="System.Numerics.Tensors" Version="10.0.5" />
     <PackageVersion Include="System.Threading" Version="10.0.3" />
     <PackageVersion Include="System.Threading.Channels" Version="10.0.3" />
     <PackageVersion Include="TickerQ" Version="10.2.5" />
@@ -124,3 +126,4 @@
     <PackageVersion Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0" />
   </ItemGroup>
 </Project>
+<!-- https://devblogs.microsoft.com/dotnet/introducing-central-package-management/  -->

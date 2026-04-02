@@ -18,9 +18,9 @@ public class MediaModule : AeroModuleBase, IConfigureMarten
     public override IReadOnlyList<string> Category => [];
     public override IReadOnlyList<string> Tags => [];
 
-    public void Configure(IServiceProvider services, StoreOptions options)
+    public override void Configure(IServiceProvider services, StoreOptions options)
     {
-        throw new NotImplementedException();
+        base.Configure(services, options);
     }
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)

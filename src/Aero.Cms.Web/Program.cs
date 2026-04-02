@@ -26,12 +26,6 @@ builder.AddAeroApplicationServer();
 
 builder.AddServiceDefaults();
 
-builder.Host.UseWolverine( opts => 
-{
-    // Auto-discover handlers in modules
-    // todo - use scrutor to scan or pass in calling assembly?
-    opts.Discovery.IncludeAssembly(typeof(SlugUpdatedHandler).Assembly); 
-});
 
 // Add services to the container.
 services.AddControllersWithViews();

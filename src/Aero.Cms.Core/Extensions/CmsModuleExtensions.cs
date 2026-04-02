@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Blocks;
 using Aero.Cms.Web.Core.Modules;
@@ -188,6 +188,17 @@ public static class CmsModuleExtensions
         if (typeof(IContentDefinitionModule).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IContentDefinitionModule), descriptor.ModuleType));
+        }
+
+        // Automatically register Marten configuration if implemented by the module
+        if (typeof(global::Marten.IConfigureMarten).IsAssignableFrom(descriptor.ModuleType))
+        {
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::Marten.IConfigureMarten), descriptor.ModuleType));
+        }
+
+        if (typeof(global::Marten.IAsyncConfigureMarten).IsAssignableFrom(descriptor.ModuleType))
+        {
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::Marten.IAsyncConfigureMarten), descriptor.ModuleType));
         }
     }
 

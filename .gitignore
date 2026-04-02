@@ -16,6 +16,7 @@
 .frolic*.json
 .idea/
 .sisyphus/
+pg_embed/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

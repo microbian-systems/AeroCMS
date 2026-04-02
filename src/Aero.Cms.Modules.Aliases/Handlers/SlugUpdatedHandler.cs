@@ -1,12 +1,13 @@
 using Microsoft.Extensions.Logging;
 using Aero.Cms.Events;
+using Wolverine;
 
 namespace Aero.Cms.Modules.Aliases.Handlers;
 
 /// <summary>
 /// Intercepts SlugUpdated messages from the Wolverine bus.
 /// </summary>
-public class SlugUpdatedHandler(ILogger<SlugUpdatedHandler> logger)
+public class SlugUpdatedHandler(ILogger<SlugUpdatedHandler> logger) : IWolverineHandler
 {
     private readonly ILogger<SlugUpdatedHandler> _logger = logger;
 
