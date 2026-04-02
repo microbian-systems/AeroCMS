@@ -22,7 +22,7 @@ public sealed class SetupModule : AeroModuleBase
 {
     public override string Name => nameof(SetupModule);
 
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
 
     public override string Author => AeroConstants.Author;
     public override short Order { get; } = -32768;
@@ -53,10 +53,8 @@ public sealed class SetupModule : AeroModuleBase
         services.AddAeroCaching(false);
     }
 
-    public override async Task RunAsync(IEndpointRouteBuilder builder)
+    public override async Task RunAsync(IServiceProvider sp)
     {
-        var scope = builder.ServiceProvider.CreateAsyncScope();
-        var sp = scope.ServiceProvider;
         var log = sp.GetRequiredService<ILogger<SetupModule>>();
         var setupInitService = sp.GetRequiredService<ISetupInitializationService>();
 

@@ -1,5 +1,5 @@
+using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Core.Blocks;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;

@@ -9,7 +9,7 @@ namespace Aero.Cms.Modules.WebOptimizer;
 public class WebOptimizerModule : AeroModuleBase
 {
     public override string Name { get; } = nameof(WebOptimizerModule);
-    public override string Version { get; } = AeroVersion.Version;
+    public override string Version { get; } = AeroConstants.Version;
     public override string Author { get; } = AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies { get; } = [];
     public override IReadOnlyList<string> Category { get; } = ["utilities", "web"];

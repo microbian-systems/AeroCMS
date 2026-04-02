@@ -10,7 +10,7 @@ namespace Aero.Cms.Modules.Orleans;
 public class OrleansModule : AeroModuleBase
 {
     public override string Name => nameof(OrleansModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override string? Description => "Uses virtual grains (actors) for service communication";
     public override IReadOnlyList<string> Dependencies => [];
@@ -20,10 +20,5 @@ public class OrleansModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
-    }
-
-    public override Task RunAsync(IEndpointRouteBuilder builder)
-    {
-        return base.RunAsync(builder);
     }
 }

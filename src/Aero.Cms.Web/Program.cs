@@ -9,6 +9,10 @@ using Microsoft.AspNetCore.Components.Sections;
 using Wolverine;
 using Wolverine.Marten;
 using Aero.Cms.Modules.Aliases.Handlers;
+using Aero.AppServer;
+using Aero.Core.Logging;
+using Aero.Cms.Web.Core.Eextensions;
+using Aero.Cms.Shared;
 using Aero.Cms.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,13 +21,16 @@ var config = builder.Configuration;
 var env = builder.Environment;
 
 
+builder.AddAeroApplicationServer();
+
 
 builder.AddServiceDefaults();
 
-builder.Host.UseWolverine(opts => 
+builder.Host.UseWolverine( opts => 
 {
     // Auto-discover handlers in modules
-    opts.Discovery.IncludeAssembly(typeof(SlugUpdatedHandler).Assembly);
+    // todo - use scrutor to scan or pass in calling assembly?
+    opts.Discovery.IncludeAssembly(typeof(SlugUpdatedHandler).Assembly); 
 });
 
 // Add services to the container.
@@ -58,6 +65,8 @@ var (_, log) = await builder.AddAeroCmsAsync<Program>();
 
 
 log.Information("building aero application services");
+
+
 var app = builder.Build();
 
 app.MapDefaultEndpoints();

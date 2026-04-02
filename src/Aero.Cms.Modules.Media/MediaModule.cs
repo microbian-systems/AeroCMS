@@ -12,7 +12,7 @@ namespace Aero.Cms.Modules.Media;
 public class MediaModule : AeroModuleBase, IConfigureMarten
 {
     public override string Name => nameof(MediaModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => [];
@@ -28,10 +28,5 @@ public class MediaModule : AeroModuleBase, IConfigureMarten
         base.ConfigureServices(services, config, env);
 
         services.AddSingleton<IConfigureMarten, MediaModule>();
-    }
-
-    public override Task RunAsync(IEndpointRouteBuilder builder)
-    {
-        return base.RunAsync(builder);
     }
 }

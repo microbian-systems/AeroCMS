@@ -7,12 +7,10 @@
 
   <ItemGroup>
     <PackageReference Include="Marten" />
-    <PackageReference Include="Microsoft.Orleans.Core" />
-    <PackageReference Include="Microsoft.Orleans.Core.Abstractions" />
-    <PackageReference Include="Microsoft.Orleans.OrleansProviders" />
-    <PackageReference Include="Microsoft.Orleans.Runtime.Abstractions" />
-    <PackageReference Include="Microsoft.Orleans.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Scrutor.AspNetCore" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
 	  
   </ItemGroup>
 
@@ -21,6 +19,7 @@
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Web\Aero.Web.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />

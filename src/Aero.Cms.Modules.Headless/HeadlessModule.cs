@@ -14,11 +14,11 @@ namespace Aero.Cms.Modules.Headless;
 /// <summary>
 /// Aero CMS Admin module - provides admin functionality for publishing and previewing content.
 /// </summary>
-public sealed class HeadlessModule : AeroModuleBase
+public sealed class HeadlessModule : AeroWebModule
 {
     public override string Name => nameof(HeadlessModule);
 
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
 
     public override string Author => AeroConstants.Author;
 
@@ -30,6 +30,8 @@ public sealed class HeadlessModule : AeroModuleBase
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        // todo - check settings if openapi should be publicly available
+        //if(env.IsDevelopment())
         services.AddOpenApi();
 
     }

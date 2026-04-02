@@ -1,3 +1,4 @@
+using Aero.Cms.Core.Extensions;
 using Aero.Cms.Core.Tests.TestModules;
 using Aero.Cms.Web.Core.Modules;
 using FluentAssertions;

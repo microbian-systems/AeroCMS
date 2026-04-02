@@ -3,7 +3,7 @@ using Aero.Core.Entities;
 
 namespace Aero.Cms.Abstractions.Models;
 
-public abstract record EntityViewModel : IEntity, ISiteOwned
+public abstract record EntityViewModel : IEntity
 {
     public long Id { get; set; }
     public long SiteId { get; set; }

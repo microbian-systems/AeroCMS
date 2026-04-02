@@ -11,6 +11,10 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="WorkOS.net" />
+  </ItemGroup>
+
 
 
 </Project>

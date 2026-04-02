@@ -9,6 +9,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Aero.Cms.Core;
+using Aero.Cms.Core.Extensions;
+
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -53,7 +56,7 @@ public class MartenSchemaCompositionTests
         services.AddSingleton<IAeroModule, TestMartenModule>();
         
         // 3. Build provider and call Configure/ConfigureServices
-        var moduleBuilder = new ModuleBuilder(services, configuration, environment);
+        var moduleBuilder = new AeroModuleBuilder(services, configuration, environment);
         using var provider = services.BuildServiceProvider();
         
         var testModule = provider.GetServices<IAeroModule>().OfType<TestMartenModule>().First();
@@ -104,7 +107,7 @@ public class MartenSchemaCompositionTests
         services.AddModuleSystemServices();
         services.AddSingleton<IAeroModule, TestMartenModule>();
         
-        var moduleBuilder = new ModuleBuilder(services, configuration, environment);
+        var moduleBuilder = new AeroModuleBuilder(services, configuration, environment);
         using var provider = services.BuildServiceProvider();
         
         var testModule = provider.GetServices<IAeroModule>().OfType<TestMartenModule>().First();
@@ -226,7 +229,7 @@ public class MartenSchemaCompositionTests
             services.AddSingleton<global::Marten.IConfigureMarten, TestMartenConfiguration>();
         }
 
-        public override Task RunAsync(IEndpointRouteBuilder builder) => Task.CompletedTask;
+        public override Task RunAsync(IServiceProvider builder) => Task.CompletedTask;
     }
 
     /// <summary>

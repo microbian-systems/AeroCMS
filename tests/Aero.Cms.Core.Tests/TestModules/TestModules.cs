@@ -15,7 +15,7 @@ public sealed class ExcludeFromAssemblyDiscoveryAttribute : Attribute
 /// <summary>
 /// A concrete test module with no dependencies for basic testing.
 /// </summary>
-public class SimpleTestModule : AeroModuleBase
+public class SimpleTestModule : AeroWebModule
 {
     public override string Name => "SimpleTest";
     public override string Version => "1.0.0";
@@ -29,7 +29,7 @@ public class SimpleTestModule : AeroModuleBase
     public bool RunWasCalled { get; private set; }
     public IServiceCollection? ServicesReceived { get; private set; }
 
-    public override void Configure(IModuleBuilder builder)
+    public override void Configure(IAeroModuleBuilder builder)
     {
         ConfigureWasCalled = true;
         base.Configure(builder);

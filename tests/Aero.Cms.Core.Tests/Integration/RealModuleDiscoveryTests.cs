@@ -1,4 +1,3 @@
-using Aero.Cms.Modules.Testing;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Identity;
 using Aero.Cms.Modules.Cache;
@@ -15,6 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using Aero.Cms.Core.Extensions;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -157,10 +157,9 @@ public class RealModuleDiscoveryTests
         // Arrange - Collect all real module types from actual project assemblies
         var realModuleTypes = new List<Type>
         {
-            typeof(TestModule),
             typeof(SetupModule),
             typeof(IdentityModule),
-            typeof(CacheModule),
+            typeof(CacheBusterModule),
             typeof(SecurityModule),
             typeof(SimpleSecurityModule),
             typeof(RewriteModule),
@@ -223,22 +222,13 @@ public class RealModuleDiscoveryTests
     public async Task DiscoverFromTypesAsync_WithRealModules_ShouldPopulateAllDescriptorFields()
     {
         // Arrange
-        var testModuleType = typeof(TestModule);
-        var cacheModuleType = typeof(CacheModule);
+        var cacheModuleType = typeof(CacheBusterModule);
 
         // Act
         var result = await _discoveryService.DiscoverFromTypesAsync(
-            new[] { testModuleType, cacheModuleType });
+            new[] {  cacheModuleType });
 
         // Assert
-        var testModule = result.Should().ContainSingle(m => m.Name == "TestModule").Subject;
-        testModule.Version.Should().NotBeNullOrEmpty();
-        testModule.Author.Should().Be("Microbian Systems");
-        testModule.ModuleType.Should().Be(typeof(TestModule));
-        testModule.AssemblyName.Should().Be("Aero.Cms.Modules.Testing");
-        testModule.Dependencies.Should().NotBeNull();
-        testModule.DisabledInProduction.Should().BeTrue();
-
         var cacheModule = result.Should().ContainSingle(m => m.Name == "CacheModule").Subject;
         cacheModule.Category.Should().Contain("Infrastructure");
         cacheModule.Tags.Should().Contain("cache");
@@ -250,7 +240,6 @@ public class RealModuleDiscoveryTests
         // Arrange
         var moduleTypes = new[]
         {
-            typeof(TestModule),
             typeof(AnalyticsModule)
         };
 
@@ -327,7 +316,6 @@ public class RealModuleDiscoveryTests
         // Arrange - Include a non-module type
         var moduleTypes = new List<Type>
         {
-            typeof(TestModule),
             typeof(string), // Not a module
             typeof(ModuleDiscoveryOptions) // Not a module
         };
@@ -348,10 +336,9 @@ public class RealModuleDiscoveryTests
         // Arrange - All known real modules
         var allKnownModules = new[]
         {
-            typeof(TestModule),
             typeof(SetupModule),
             typeof(IdentityModule),
-            typeof(CacheModule),
+            typeof(CacheBusterModule),
             typeof(SecurityModule),
             typeof(SimpleSecurityModule),
             typeof(RewriteModule),

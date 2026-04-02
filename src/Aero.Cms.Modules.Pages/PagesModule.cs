@@ -13,17 +13,13 @@ namespace Aero.Cms.Modules.Pages;
 public sealed class PagesModule : AeroModuleBase, IConfigureMarten
 {
     public override string Name => nameof(PagesModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["content", "pages"];
     public override IReadOnlyList<string> Tags => ["content", "pages", "cms"];
 
-    public override async Task RunAsync(IEndpointRouteBuilder builder)
-    {
 
-        await Task.CompletedTask;
-    }
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
@@ -43,7 +39,7 @@ public sealed class PagesModule : AeroModuleBase, IConfigureMarten
         });
     }
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+    public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
         //opts.Schema.For<PageDocument>().Duplicate(x => x.Title); // todo - find out what the marten For<T>().Duplicate() method does and if it is needed here

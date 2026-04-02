@@ -1,6 +1,6 @@
 using Aero.Cms.Core.Blocks;
 
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>
 /// Service for retrieving CMS blocks.

@@ -16,7 +16,7 @@ namespace Aero.Cms.Modules.Tenant;
 public class TenantModule : AeroModuleBase, IConfigureMarten
 {
     public override string Name => nameof(TenantModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => [];
@@ -37,10 +37,5 @@ public class TenantModule : AeroModuleBase, IConfigureMarten
 
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITenantService, TenantService>();
-    }
-
-    public override async Task RunAsync(IEndpointRouteBuilder builder)
-    {
-        await base.RunAsync(builder);
     }
 }

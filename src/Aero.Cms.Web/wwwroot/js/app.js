@@ -1,3 +1,5 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 document.addEventListener('alpine:init', () => {
     // Global store for UI state
     if (window.Alpine) {
@@ -18,4 +20,3 @@ document.body.addEventListener('htmx:afterRequest', (evt) => {
         window.Alpine?.store('blog')?.setLoading(false);
     }
 });
-export {};

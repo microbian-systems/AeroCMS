@@ -70,7 +70,7 @@ public interface IAliasService
     Task<IEnumerable<AliasDocument>> GetAllAsync(long siteId, int page=1, int rows=10, CancellationToken ct = default);
     Task<Result<AliasError, AliasDocument>> GeByPathAsync(long siteId, string path, CancellationToken ct);
     Task<Result<AliasError, AliasDocument>> GetSiteId(long siteId, int page = 1, int rows = 10, CancellationToken ct = default);
-    Task<Result<AliasError, AliasDocument>> Find(Expression<Func<AliasDocument, bool>> predicate, int page =1, int rows=10, CancellationToken ct= default);
+    Task<IEnumerable<AliasDocument>> FindAsync(Expression<Func<AliasDocument, bool>> predicate, int page =1, int rows=10, CancellationToken ct= default);
 }
 
 public class AliasService(IAliasRepository db) : IAliasService
@@ -90,16 +90,18 @@ public class AliasService(IAliasRepository db) : IAliasService
     {
         var res = await db.DeleteAsync(request.id, ct);
 
-        return res switch
-        {
-            true => new Result<AliasError, AliasDocument>.Ok { Value = null! },
-            false => new Result<AliasError, AliasDocument>.Failure { Error = new AliasError() }
-        };
+        throw new NotImplementedException();
+        //return res switch
+        //{
+        //    true => new Result<AliasError, AliasDocument>.Ok { Value = null! },
+        //    false => new Result<AliasError, AliasDocument>.Failure { Error = new AliasError() }
+        //};
     }
 
-    public async Task<Result<AliasError, AliasDocument>> Find(Expression<Func<AliasDocument, bool>> predicate, int page = 1, int rows = 10, CancellationToken ct = default)
+    public async Task<IEnumerable<AliasDocument>> FindAsync(Expression<Func<AliasDocument, bool>> predicate, int page = 1, int rows = 10, CancellationToken ct = default)
     {
         var results = await db.FindAsync(predicate, ct);
+        return results ??  [];
     }
 
     public Task<Result<AliasError, AliasDocument>> GeByPathAsync(long siteId, string path, CancellationToken ct)
@@ -109,7 +111,7 @@ public class AliasService(IAliasRepository db) : IAliasService
 
     public async Task<IEnumerable<AliasDocument>> GetAllAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
-        var records = await db.GetAllAsync(page, rows, ct);
+        throw new NotImplementedException() ;
     }
 
     public Task<Result<AliasError, AliasDocument>> GetByIdAsync(long id, CancellationToken ct)

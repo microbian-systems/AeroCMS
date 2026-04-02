@@ -1,71 +1,32 @@
-namespace Aero.Cms.Web.Core.Modules;
-
-using Aero.Cms.Core.Blocks;
+﻿using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Blocks;
-using Aero.Core.Extensions;
-using Aero.EfCore;
-using Aero.EfCore.Extensions;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore;
+using Aero.Cms.Web.Core.Modules;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Serilog.Extensions.Hosting;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
-using Marten;
+using Microsoft.FSharp.Collections;
+using System;
+using System.Collections.Generic;
+using System.Text;
 
-// todo - abstract/extract Aero modules into its own lib so it can be used in any type of app (host, console, web, etc)
+namespace Aero.Cms.Core.Extensions;
+
 
 /// <summary>
 /// Extension methods for module registration and initialization in ASP.NET Core applications.
 /// </summary>
-public static class ModuleExtensions
+public static class CmsModuleExtensions
 {
-    /// <summary>
-    /// Adds Aero CMS services to the web application builder with default arguments.
-    /// </summary>
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsAsync<T>(this WebApplicationBuilder builder)
-        where T : class => await builder.AddAeroCmsAsync<T>([]);
-
-    /// <summary>
-    /// Adds Aero CMS services to the web application builder.
-    /// </summary>
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsAsync<T>(this WebApplicationBuilder builder, string[] args)
-        where T : class
-    {
-        var config = builder.Configuration;
-        var services = builder.Services;
-        var env = builder.Environment;
-
-        _ = config.AddConfiguration<T>(env);
-        var log = await services.ConfigureLogging(config);
-
-
-        // Register module system services
-        services.AddModuleSystemServices();
-
-        // Configure modules using the new discovery/graph services
-        await services.AddAeroModulesAsync(config, env);
-
-        // Wire the data layer AFTER modules have registered their IConfigureMarten contributions.
-        // AddMarten() auto-discovers all IConfigureMarten registrations from DI, so module-level
-        // schema contributions (BlockMartenConfiguration, DocsMartenConfiguration, etc.) all apply.
-        services.AddAeroDataLayer(config, env);
-
-        return (builder, log);
-    }
-
     /// <summary>
     /// Registers core module system services (discovery, graph, etc.)
     /// </summary>
     public static IServiceCollection AddModuleSystemServices(this IServiceCollection services)
     {
         // Register block service
-        services.TryAddScoped<Aero.Cms.Core.Blocks.IBlockService, Aero.Cms.Web.Core.Blocks.MartenBlockService>();
-        services.AddSingleton<global::Marten.IConfigureMarten, Aero.Cms.Web.Core.Blocks.BlockMartenConfiguration>();
+        services.TryAddScoped<IBlockService, MartenBlockService>();
+        services.AddSingleton<global::Marten.IConfigureMarten, BlockMartenConfiguration>();
 
         // Register discovery service
         services.TryAddScoped<IModuleDiscoveryService, ModuleDiscoveryService>();
@@ -147,7 +108,7 @@ public static class ModuleExtensions
             string.Join(" -> ", graph.LoadOrder.Select(descriptor => descriptor.Name)));
 
         // Create module builder for composition
-        var moduleBuilder = new ModuleBuilder(services, configuration, environment);
+        var moduleBuilder = new AeroModuleBuilder(services, configuration, environment);
 
         // Register modules as singletons in dependency order
         foreach (var descriptor in graph.LoadOrder)
@@ -230,101 +191,6 @@ public static class ModuleExtensions
         }
     }
 
-    /// <summary>
-    /// Maps Aero module endpoints in dependency order.
-    /// </summary>
-    public static IEndpointRouteBuilder MapAeroModules(
-        this IEndpointRouteBuilder endpoints)
-    {
-        var graph = endpoints.ServiceProvider.GetService<ModuleGraph>();
-
-        if (graph != null)
-        {
-            // Use the graph's load order if available
-            foreach (var descriptor in graph.LoadOrder)
-            {
-                var module = endpoints.ServiceProvider.GetService(descriptor.ModuleType) as IAeroModule;
-                module?.Run(endpoints);
-            }
-        }
-        else
-        {
-            // Fallback: use traditional ordering
-            var modules = endpoints.ServiceProvider
-                .GetServices<IAeroModule>()
-                .OrderBy(m => m.Order)
-                .ToList();
-
-            foreach (var module in modules)
-            {
-                module.Run(endpoints);
-            }
-        }
-
-        return endpoints;
-    }
-
-    public static IApplicationBuilder UseAeroCmsModules(this IApplicationBuilder app)
-    {
-        if (app is IEndpointRouteBuilder endpoints)
-        {
-            endpoints.MapAeroModules();
-        }
-
-        return app;
-    }
-
-    /// <summary>
-    /// Initializes the Aero application asynchronously in dependency order.
-    /// </summary>
-    public static async Task<IEndpointRouteBuilder> MapAeroAppAsync(
-        this IEndpointRouteBuilder endpoints)
-    {
-        var scope = endpoints.ServiceProvider.CreateAsyncScope();
-        var services = scope.ServiceProvider;
-
-        var apiContext = services.GetRequiredService<AeroApiContext>();
-        var created = await apiContext.Database.EnsureCreatedAsync();
-        await apiContext.Database.MigrateAsync();
-
-        var dbContext = services.GetRequiredService<AeroDbContext>();
-        await dbContext.Database.MigrateAsync();
-
-        // Optional: Log success
-        var factory = services.GetRequiredService<ILoggerFactory>();
-        var logger = factory.CreateLogger<AeroDbContext>();
-        logger.LogInformation("Database migrations applied successfully");
-
-        var graph = endpoints.ServiceProvider.GetService<ModuleGraph>();
-
-        if (graph != null)
-        {
-            // Use the graph's load order if available
-            foreach (var descriptor in graph.LoadOrder)
-            {
-                var module = endpoints.ServiceProvider.GetService(descriptor.ModuleType) as IAeroModule;
-                if (module != null)
-                {
-                    await module.RunAsync(endpoints);
-                }
-            }
-        }
-        else
-        {
-            // Fallback: use traditional ordering
-            var modules = endpoints.ServiceProvider
-                .GetServices<IAeroModule>()
-                .OrderBy(m => m.Order)
-                .ToList();
-
-            foreach (var module in modules)
-            {
-                await module.RunAsync(endpoints);
-            }
-        }
-
-        return endpoints;
-    }
 
     // Helper methods to get specific module types
     public static IEnumerable<T> GetModules<T>(this IServiceProvider provider)
@@ -353,13 +219,4 @@ public static class ModuleExtensions
 
     public static IEnumerable<IContentDefinitionModule> GetContentDefinitionModules(this IServiceProvider provider)
         => provider.GetModules<IContentDefinitionModule>();
-}
-
-/// <summary>
-/// Exception thrown when the module system fails during startup.
-/// </summary>
-public class ModuleSystemStartupException : Exception
-{
-    public ModuleSystemStartupException(string message) : base(message) { }
-    public ModuleSystemStartupException(string message, Exception inner) : base(message, inner) { }
 }

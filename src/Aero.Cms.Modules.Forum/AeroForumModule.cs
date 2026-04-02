@@ -12,7 +12,7 @@ namespace Aero.Cms.Modules.Forum;
 public class AeroForumModule : AeroModuleBase
 {
     public override string Name { get; } = nameof(AeroForumModule);
-    public override string Version { get; } = AeroVersion.Version;
+    public override string Version { get; } = AeroConstants.Version;
     public override string Author { get; } = AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies { get; } = [];
     public override IReadOnlyList<string> Category { get; } = [];

@@ -11,7 +11,7 @@ namespace Aero.Cms.Modules.Blog;
 public sealed class BlogModule : AeroModuleBase, IUiModule
 {
     public override string Name => nameof(BlogModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [nameof(Pages.PagesModule)];
     public override IReadOnlyList<string> Category => ["content", "blog"];

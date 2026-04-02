@@ -48,3 +48,4 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
         };
     }
 }
+

@@ -8,10 +8,10 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Health;
 
-public class HealthModule : AeroModuleBase
+public sealed class HealthModule : AeroWebModule
 {
     public override string Name => nameof(HealthModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["Infrastructure", "Monitoring"];

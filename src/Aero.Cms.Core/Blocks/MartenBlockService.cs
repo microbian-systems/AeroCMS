@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Core.Blocks;
 using Marten;
 

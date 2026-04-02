@@ -10,7 +10,7 @@ namespace Aero.Cms.Modules.Manager;
 public class ManagerModule : AeroModuleBase
 {
     public override string Name { get; } = nameof(ManagerModule);
-    public override string Version { get; } = AeroVersion.Version;
+    public override string Version { get; } = AeroConstants.Version;
     public override string Author { get; } = AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies { get; } = [];
     public override IReadOnlyList<string> Category { get; } = [];
@@ -19,10 +19,5 @@ public class ManagerModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
-    }
-
-    public override Task RunAsync(IEndpointRouteBuilder builder)
-    {
-        return base.RunAsync(builder);
     }
 }

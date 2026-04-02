@@ -9,10 +9,10 @@ using Marten;
 
 namespace Aero.Cms.Modules.Docs;
 
-public sealed class DocsModule : AeroModuleBase, IConfigureMarten
+public sealed class DocsModule : AeroModuleBase
 {
     public override string Name => nameof(DocsModule);
-    public override string Version =>AeroVersion.Version;
+    public override string Version =>AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override short Order => 100;
 
@@ -20,12 +20,8 @@ public sealed class DocsModule : AeroModuleBase, IConfigureMarten
     public override IReadOnlyList<string> Category => ["documentation", "knowledge base"];
     public override IReadOnlyList<string> Tags => ["docs", "markdown", "kbase"];
 
-    public override void Configure(IModuleBuilder builder)
-    {
-        //builder.AddMartenConfiguration<DocsMartenConfiguration>();
-    }
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+    public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         opts.Schema.For<DocsPage>().DocumentAlias("docs");
         //opts.Schema.For<DocsPage>().Duplicate(x => x.Title);
@@ -42,8 +38,4 @@ public sealed class DocsModule : AeroModuleBase, IConfigureMarten
         services.AddScoped<IDocsService, DocsService>();
     }
 
-    public override async Task RunAsync(IEndpointRouteBuilder builder)
-    {
-        await Task.CompletedTask;
-    }
 }

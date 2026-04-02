@@ -7,6 +7,7 @@ public static class AeroConstants
     public const string AuthorShortName = "AeroCMS";
     public const string Copyright = "2020 - 2026";
     public const string ConnString = "aero";
+    public const string Version = "0.0.5.-alpha";
 }
 
 public static class Schemas

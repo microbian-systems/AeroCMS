@@ -11,13 +11,13 @@ namespace Aero.Cms.Modules.RateLimiting;
 public class RateLimitingModule : AeroModuleBase
 {
     public override string Name => nameof(RateLimitingModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["Security", "Infrastructure"];
     public override IReadOnlyList<string> Tags => ["ratelimit", "security", "throttling"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config = null, IHostEnvironment env = null)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // todo - enable database config to supply the type of rate limiting (sliding window, fixed, etc)
         services.AddRateLimiter(options =>

@@ -1,3 +1,4 @@
+using Aero.Cms.Core;
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Core.Pipelines;
@@ -11,40 +12,20 @@ namespace Aero.Cms.Modules.Analytics;
 public class AnalyticsModule : AeroModuleBase
 {
     public override string Name => nameof(AnalyticsModule);
-    public override string Version => "0.0.5-alpha";
-    public override string Author => "Microbians";
+    public override string Version => AeroConstants.Version;
+    public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["Marketing", "Tracking"];
     public override IReadOnlyList<string> Tags => ["analytics", "tracking", "metrics"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config = null, IHostEnvironment env = null)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddOptions<AnalyticsSettings>().BindConfiguration("AeroCms:Analytics");
         services.AddScoped<IPageReadHook, AnalyticsInjectionHook>();
     }
 
-    public override void Run(IEndpointRouteBuilder endpoints)
-    {
-    }
-
-    public override void Configure(IModuleBuilder builder)
+    public override void Configure(IAeroModuleBuilder builder)
     {
         // No specific builder registration needed for basic read hook if it's resolved via DI
     }
-}
-
-public class AnalyticsSettings
-{
-    public string? FacebookPixelId { get; set; }
-    public string? GoogleAnalyticsId { get; set; }
-    public string? LinkedInPartnerId { get; set; }
-    public string? PosthogApiKey { get; set; }
-    public string? PosthogHost { get; set; }
-    public string? MicrosoftClarityId { get; set; }
-
-    public bool HasFacebook => !string.IsNullOrWhiteSpace(FacebookPixelId);
-    public bool HasGoogle => !string.IsNullOrWhiteSpace(GoogleAnalyticsId);
-    public bool HasLinkedIn => !string.IsNullOrWhiteSpace(LinkedInPartnerId);
-    public bool HasPosthog => !string.IsNullOrWhiteSpace(PosthogApiKey);
-    public bool HasClarity => !string.IsNullOrWhiteSpace(MicrosoftClarityId);
 }

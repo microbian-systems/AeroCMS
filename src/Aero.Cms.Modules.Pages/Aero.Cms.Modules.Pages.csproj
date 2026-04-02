@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>

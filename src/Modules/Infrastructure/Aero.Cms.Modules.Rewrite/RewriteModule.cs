@@ -12,22 +12,15 @@ namespace Aero.Cms.Modules.Rewrite;
 public class RewriteModule : AeroModuleBase
 {
     public override string Name => nameof(RewriteModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["Infrastructure", "Routing"];
     public override IReadOnlyList<string> Tags => ["rewrite", "redirect", "routing", "url"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config = null, IHostEnvironment env = null)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IPageSaveHook, SlugRewriteHook>();
     }
 
-    public override void Run(IEndpointRouteBuilder endpoints)
-    {
-    }
-
-    public override void Configure(IModuleBuilder builder)
-    {
-    }
 }

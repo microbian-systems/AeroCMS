@@ -10,16 +10,16 @@ using Microsoft.Extensions.Hosting;
 /// <summary>
 /// Site alias management module for handling URL aliases and redirects.
 /// </summary>
-public class AliasModule : AeroModuleBase, IConfigureMarten
+public class AliasModule : AeroModuleBase
 {
     public override string Name => nameof(AliasModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => [];
     public override IReadOnlyList<string> Tags => [];
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+    public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         opts.Schema.For<AliasDocument>().DocumentAlias(Schemas.Tables.Aliases);
         opts.Schema.For<AliasDocument>().Identity(x => x.Id);
@@ -35,11 +35,6 @@ public class AliasModule : AeroModuleBase, IConfigureMarten
         base.ConfigureServices(services, config, env);
         services.AddScoped<IAliasRepository, AliasRepository>();
         services.AddScoped<IAliasService, AliasService>();
-    }
-
-    public override Task RunAsync(IEndpointRouteBuilder builder)
-    {
-        return base.RunAsync(builder);
     }
 }
 

@@ -1,10 +1,10 @@
 using Aero.Cms.Core.Http.Clients;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Client.Services;
 using Radzen;
+using Aero.Cms.Abstractions.Blocks;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 

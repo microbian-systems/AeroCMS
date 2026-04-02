@@ -3,11 +3,12 @@ using Aero.Cms.Web.Core.Modules;
 
 namespace Aero.Cms.Modules.ContentCreator;
 
+// todo - rename this to AiContentCreatorModule or something - the name is a bit too generic and could be confused with a service that creates content for Aero CMS itself, rather than an AI-powered content creation module that can be used by other modules and features in the system.
 public class AeroContentCreator : AeroModuleBase
 {
     public override string Name => nameof(AeroContentCreator);
 
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
 
     public override string Author => AeroConstants.Author;
 
