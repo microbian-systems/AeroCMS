@@ -6,9 +6,9 @@ using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Docs;
 using Aero.Cms.Modules.Pages;
-using Aero.Cms.Services;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
+using Aero.Services.Images;
 using Marten;
 
 namespace Aero.Cms.Modules.Setup;

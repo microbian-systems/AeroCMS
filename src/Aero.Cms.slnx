@@ -9,6 +9,7 @@
   <Folder Name="/Aero/">
     <File Path="../Aero/src/Directory.Build.props" />
     <File Path="../Aero/src/Directory.Packages.props" />
+    <Project Path="../Aero/src/Aero.Actors.Abstractions/Aero.Actors.Abstractions.csproj" />
     <Project Path="../Aero/src/Aero.Actors/Aero.Actors.csproj" />
     <Project Path="../Aero/src/Aero.Auth/Aero.Auth.csproj" />
     <Project Path="../Aero/src/Aero.Caching/Aero.Caching.csproj" />

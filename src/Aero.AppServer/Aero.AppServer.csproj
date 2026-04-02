@@ -40,6 +40,7 @@
     <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />

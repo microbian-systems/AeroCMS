@@ -1,5 +1,7 @@
 ﻿
 
+using Aero.Actors;
+
 namespace Aero.Cms.Abstractions.Interfaces;
 
 public interface IAeroAliasService : IAeroContentActor<AliasViewModel>;
@@ -11,8 +13,6 @@ public interface IAeroPageService : IAeroContentActor<PageViewModel>;
 public interface IAeroPostService : IAeroContentActor<PostViewModel>;
 public interface IAeroSiteService : IAeroContentActor<SiteViewModel>;
 public interface IAeroTagService : IAeroContentActor<TagViewModel>;
-
-public interface IAeroActor : IGrainWithIntegerKey;
 
 public interface IAeroContentActor<T> :
     IAeroActor,

@@ -39,19 +39,7 @@ public static class AeroAppServerExtensions
         builder.UseOrleans(silo =>
         {
             silo.UseLocalhostClustering();
-            
-            // This tells Orleans: "Look at the assembly that started this process 
-            // and find all Grains and Contracts there."
-
-            // same nuget pkg bullshit below - claims it can't find method
-            //silo.ConfigureApplicationParts(parts =>
-            //{
-            //    var entryAssembly = Assembly.GetEntryAssembly();
-            //    if (entryAssembly != null)
-            //    {
-            //        parts.AddApplicationPart(entryAssembly).WithReferences();
-            //    }
-            //});
+                
         });
 
         services.AddTickerQ(opts =>
