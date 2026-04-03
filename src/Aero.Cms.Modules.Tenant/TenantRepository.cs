@@ -1,4 +1,5 @@
-﻿using Aero.Marten.Optional;
+﻿using Aero.Cms.Core.Entities;
+using Aero.Marten.Optional;
 using Marten;
 using Microsoft.Extensions.Logging;
 

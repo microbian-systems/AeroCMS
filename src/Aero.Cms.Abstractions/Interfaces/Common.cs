@@ -1,38 +1,46 @@
-﻿namespace Aero.Cms.Abstractions.Interfaces;
+﻿using Aero.Core.Requests;
 
-public interface IHaveState<T> where T : class, new()
+
+namespace Aero.Cms.Abstractions.Interfaces;
+
+public interface IHaveState<T> where T : AeroEntityViewModel
 {
     Task<T> GetStateAsync(CancellationToken ct);
     Task UpdateStateAsync(T state, CancellationToken ct);
 }
 
+public interface ICanSearch
+{
+    Task SearchAsync(AeroSearchFilter filter, int page = 1, int rows = 10, CancellationToken ct = default);
+}
+
 public interface ICanFindBySite<T, TKey>
-    where T : class, new()
+    where T : AeroEntityViewModel
     where TKey : IEquatable<TKey>, IComparable<TKey>
 {
-    Task<Result<AeroError, List<PageViewModel>>> GetBySiteIdAsync(
+    Task<AeroRequestResponse<T>> GetBySiteIdAsync(
         TKey siteId,
-        Expression<Func<T, bool>> predicaate,
         int page = 1,
         int rows = 10,
         CancellationToken ct = default);
 }
 
 public interface ICanFindBySlug<T, TKey>
-    where T : class, new()
+    where T : AeroEntityViewModel
     where TKey : IEquatable<TKey>, IComparable<TKey>
 {
-    Task<Result<AeroError, T>> GetBySlugAsync(TKey siteId, string slug, CancellationToken ct = default);
+    Task<AeroRequestResponse<T>> GetBySlugAsync(TKey siteId, string slug, CancellationToken ct = default);
 }
 
 public interface ICruddable<T, TKey>
-    where T : class, new()
+    where T : AeroEntityViewModel
     where TKey : IEquatable<TKey>, IComparable<TKey>
 {
-    Task<Result<AeroError, T>> GetByIdAsync(TKey id, CancellationToken ct = default);
-    Task<Result<AeroError, T>> GetByIdsAsync(long[] ids, CancellationToken ct = default);
-    Task<Result<AeroError, T>> CreateAsync(long siteId, T page, CancellationToken ct = default);
-    Task<Result<AeroError, T>> UpdateAsync(T page, CancellationToken ct = default);
-    Task<Result<AeroError, bool>> DeleteAsync(long id, CancellationToken ct = default);
+    Task<AeroRequestResponse<T>> GetByIdAsync(TKey id, CancellationToken ct = default);
+    Task<AeroRequestResponse<T>> GetByIdsAsync(TKey[] ids, CancellationToken ct = default);
+    Task<AeroRequestResponse<T>> CreateAsync(IRequest request, CancellationToken ct = default);
+    Task<AeroRequestResponse<T>> UpdateAsync(IRequest request, CancellationToken ct = default);
+    Task<AeroRequestResponse<T>> DeleteAsync(IRequest request, CancellationToken ct = default);
 }
+
 

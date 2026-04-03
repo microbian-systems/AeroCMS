@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Routing;
+using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Pages;
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Aero.Cms.Core;
 using Marten;
+using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Docs;
 

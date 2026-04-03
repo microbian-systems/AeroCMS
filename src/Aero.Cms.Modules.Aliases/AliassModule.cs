@@ -1,6 +1,10 @@
-﻿using Aero.Cms.Core;
+﻿using Aero.Cms.Abstractions.Services;
+using Aero.Cms.Core;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Aliases;
+using Aero.Cms.Modules.Rewrite;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Cms.Web.Core.Pipelines;
 using Marten;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -34,7 +38,7 @@ public class AliasModule : AeroModuleBase
     {
         base.ConfigureServices(services, config, env);
         services.AddScoped<IAliasRepository, AliasRepository>();
-        services.AddScoped<IAliasService, AliasService>();
+        services.AddScoped<IPageSaveHook, SlugRewriteHook>();
     }
 }
 

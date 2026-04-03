@@ -14,6 +14,7 @@ public record SlugUpdated(
     string NewSlug,
     string? OldSlug = null) : AeroEvent($"{OldSlug}->{NewSlug}");
 
+
 public abstract record AeroEvent<T>(T record, string? msg = null) : AeroEvent(msg)
 {
     // alias events
@@ -46,10 +47,19 @@ public abstract record AeroEvent<T>(T record, string? msg = null) : AeroEvent(ms
     public sealed record PostUpdated(PostViewModel post, string msg) : AeroEvent<PostViewModel>(post, msg);
     public sealed record PostDeleted(PostViewModel post, string msg) : AeroEvent<PostViewModel>(post, msg);
 
+    // settings events
+    // todo - verify we won't be neediing created/deleted events as settings aren't supposed to be deleted or updated (the keys at least)
+    public sealed record SettingsUpdated(SettingsViewModel settings, string msg) : AeroEvent<SettingsViewModel>(settings, msg);
+
     // site events
     public sealed record SiteCreated(SiteViewModel site, string msg) : AeroEvent<SiteViewModel>(site, msg);
     public sealed record SiteUpdated(SiteViewModel site, string msg) : AeroEvent<SiteViewModel>(site, msg);
     public sealed record SiteDeleted(SiteViewModel site, string msg) : AeroEvent<SiteViewModel>(site, msg);
+
+    // tag events
+    public sealed record TagCreated(TagViewModel tag, string msg) : AeroEvent<TagViewModel>(tag, msg);
+    public sealed record TagUpdated(TagViewModel tag, string msg) : AeroEvent<TagViewModel>(tag, msg);
+    public sealed record TagDeleted(TagViewModel tag, string msg) : AeroEvent<TagViewModel>(tag, msg);
 
     // user events
     public sealed record UserCreated(AeroUser user, string msg) : AeroEvent<AeroUser>(user, msg);

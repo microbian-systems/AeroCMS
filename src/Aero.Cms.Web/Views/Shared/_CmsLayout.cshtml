@@ -11,7 +11,7 @@
     {
         // Load the pages referenced by the navigation items to check their ShowInNavMenu property
         var pageIds = navBlock.Items.Values.Where(i => i.PageId != 0).Select(i => i.PageId).ToList();
-        var pages = await MartenSession.LoadManyAsync<Aero.Cms.Modules.Pages.PageDocument>(pageIds);
+        var pages = await MartenSession.LoadManyAsync<PageDocument>(pageIds);
         
         // Find IDs that are explicitly hidden standard pages
         var hiddenPageIds = pages.Where(p => !p.ShowInNavMenu).Select(p => p.Id).ToHashSet();

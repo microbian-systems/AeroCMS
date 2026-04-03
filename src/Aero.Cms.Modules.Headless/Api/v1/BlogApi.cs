@@ -7,6 +7,7 @@ using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Headless.Api.v1;
 

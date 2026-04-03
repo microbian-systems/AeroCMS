@@ -1,3 +1,4 @@
+using Aero.Cms.Core.Entities;
 using Aero.Core.Railway;
 
 namespace Aero.Cms.Modules.Docs;

@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Pages;
 using Aero.Core.Railway;

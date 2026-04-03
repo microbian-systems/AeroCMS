@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages;
 

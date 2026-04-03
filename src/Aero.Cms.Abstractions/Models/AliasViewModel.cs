@@ -1,17 +1,30 @@
 namespace Aero.Cms.Abstractions.Models;
 
-public record AliasViewModel : EntityViewModel
+
+[Alias("AliasViewModel")]
+[GenerateSerializer]
+public record AliasViewModel : AeroEntityViewModel
 {
     /// <summary>
     /// Gets or sets the original file or directory path before a rename or move operation.
     /// </summary>
-    public string OldPath { get; set; } = null!;
+    [Id(0)]
+    public string? OldPath { get; set; }
+
     /// <summary>
     /// Gets or sets the new file or directory path to be used in the operation.
     /// </summary>
-    public string NewPath { get; set; } = null!;
+    [Id(1)]
+    public string? NewPath { get; set; }
+
     /// <summary>
     /// Gets or sets optional notes or comments associated with the object.
     /// </summary>
-    public string? Notes { get; set; } = null!;
+    [Id(2)]
+    public string? Notes { get; set; }
 }
+
+
+[GenerateSerializer]
+[Alias("AliasErrorViewModel")]
+public record AliasErrorViewModel : AeroErrorViewModel<AliasViewModel>;

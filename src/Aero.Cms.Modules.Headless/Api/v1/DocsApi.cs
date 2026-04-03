@@ -1,3 +1,4 @@
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Docs;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;

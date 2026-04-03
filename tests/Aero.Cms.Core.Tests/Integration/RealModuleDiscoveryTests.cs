@@ -162,7 +162,6 @@ public class RealModuleDiscoveryTests
             typeof(CacheBusterModule),
             typeof(SecurityModule),
             typeof(SimpleSecurityModule),
-            typeof(RewriteModule),
             typeof(RateLimitingModule),
             typeof(AnalyticsModule)
         };
@@ -341,7 +340,6 @@ public class RealModuleDiscoveryTests
             typeof(CacheBusterModule),
             typeof(SecurityModule),
             typeof(SimpleSecurityModule),
-            typeof(RewriteModule),
             typeof(RateLimitingModule),
             typeof(AnalyticsModule)
         };

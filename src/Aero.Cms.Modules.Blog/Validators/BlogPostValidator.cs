@@ -1,4 +1,6 @@
-﻿namespace Aero.Cms.Modules.Blog.Validators;
+﻿using Aero.Cms.Core.Entities;
+
+namespace Aero.Cms.Modules.Blog.Validators;
 
 internal class BlogPostValidator : AbstractValidator<BlogPostDocument>
 {

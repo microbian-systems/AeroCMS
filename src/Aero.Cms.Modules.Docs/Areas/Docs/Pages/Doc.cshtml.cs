@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Aero.Cms.Core;
 using Marten;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Docs.Areas.Docs.Pages;
 

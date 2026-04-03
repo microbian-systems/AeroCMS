@@ -41,7 +41,6 @@
     <ProjectReference Include="..\..\src\Modules\Infrastructure\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
     <ProjectReference Include="..\..\src\Modules\Security\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
     <ProjectReference Include="..\..\src\Modules\Security\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Infrastructure\Aero.Cms.Modules.Rewrite\Aero.Cms.Modules.Rewrite.csproj" />
     <ProjectReference Include="..\..\src\Modules\Infrastructure\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
     <ProjectReference Include="..\..\src\Modules\Analytics\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
   </ItemGroup>

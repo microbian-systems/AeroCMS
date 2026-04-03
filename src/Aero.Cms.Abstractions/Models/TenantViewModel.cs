@@ -1,15 +1,21 @@
 ﻿namespace Aero.Cms.Abstractions.Models;
 
 
-// todo - move this into a completely different private project ❗❗❗
-public class TenantViewModel
+[Alias("TenantViewModel")]
+[GenerateSerializer]
+public record TenantViewModel : AeroEntityViewModel
 {
-    public long Id { get; set; }
+    [Id(0)]
     public long AccountId { get; set; }
+    [Id(1)]
     public string? Name { get; set; }
+    [Id(2)]
     public string? Host { get; set; }
+    [Id(3)]
     public List<(long siteId, string siteName)> Settings { get; } = [];
-    public Dictionary<string, object> MetaData{ get; } = [];
-    public DateTimeOffset? Created { get; set; }
-    public DateTimeOffset? Updated { get; set; }
 }
+
+
+[GenerateSerializer]
+[Alias("TenantErrorViewModel")]
+public record TenantErrorViewModel : AeroErrorViewModel<TenantViewModel>;

@@ -1,3 +1,4 @@
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Web.Core.Pipelines;
 using Microsoft.Extensions.Logging;
 

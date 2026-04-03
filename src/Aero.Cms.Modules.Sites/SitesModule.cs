@@ -1,4 +1,6 @@
-﻿using Aero.Cms.Core;
+﻿using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Core;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Marten;
 using Marten;
@@ -24,13 +26,12 @@ public class SitesModule : AeroModuleBase, IConfigureMarten
 
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
-        opts.Schema.For<SitesModel>().Identity(x => x.Id);
+        Configure<SitesModel>(services, opts);
         //opts.Schema.For<SitesModel>().IdStrategy(new SnowflakeIdGeneration()); // todo - add snowflake id generation strategy globally
-        opts.Schema.For<SitesModel>().UniqueIndex(x => x.Name);
-        opts.Schema.For<SitesModel>().UniqueIndex(x => x.Hostname);
+        opts.Schema.For<SitesModel>().UniqueIndex(x => x.Name!);
+        opts.Schema.For<SitesModel>().UniqueIndex(x => x.Hostname!);
         opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
-        opts.Schema.For<SitesModel>().Index(x => x.CreatedOn);
-        opts.Schema.For<SitesModel>().Index(x => x.ModifiedOn);
+        opts.Schema.For<SitesModel>().ForeignKey<TenantModel>(x => x.TenantId);
     }
 }
 

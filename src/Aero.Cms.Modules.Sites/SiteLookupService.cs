@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Core.Entities;
 using Marten;
 
 namespace Aero.Cms.Modules.Sites;
@@ -11,7 +12,7 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
         CancellationToken cancellationToken = default)
     {
         var site = await session.Query<SitesModel>()
-            .Where(x => x.Hostname == host || x.SecondaryHosts.Contains(host))
+            .Where(x => x.Hostname == host)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (site is null)
@@ -38,7 +39,7 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
             Id = model.Id,
             Name = model.Name,
             PrimaryHost = model.Hostname,
-            Hosts = [model.Hostname, .. model.SecondaryHosts],
+            Hosts = [model.Hostname!],
             IsEnabled = model.IsEnabled,
             DefaultCulture = model.DefaultCulture,
             CreatedOn = model.CreatedOn,

@@ -18,9 +18,6 @@ public class RewriteModule : AeroModuleBase
     public override IReadOnlyList<string> Category => ["Infrastructure", "Routing"];
     public override IReadOnlyList<string> Tags => ["rewrite", "redirect", "routing", "url"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
-    {
-        services.AddScoped<IPageSaveHook, SlugRewriteHook>();
-    }
+
 
 }

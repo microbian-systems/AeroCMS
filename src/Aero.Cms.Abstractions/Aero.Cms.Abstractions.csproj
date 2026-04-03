@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
   </ItemGroup>
 

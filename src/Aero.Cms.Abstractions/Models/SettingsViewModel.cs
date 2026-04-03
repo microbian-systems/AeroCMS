@@ -1,11 +1,13 @@
 ﻿namespace Aero.Cms.Abstractions.Models;
 
-public class SettingsViewModel
+[Alias("SettingsViewModel")]
+[GenerateSerializer]
+public record SettingsViewModel : AeroEntityViewModel
 {
-    public long Id { get; set; }
-    public long SiteId { get; set; }
+    [Id(1)]
     public Dictionary<string, (string field, object value)> Settings { get; } = [];
-    public Dictionary<string, object> MetaData{ get; } = [];
-    public DateTimeOffset? Created { get; set; }
-    public DateTimeOffset? Updated { get; set; }
 }
+
+[GenerateSerializer]
+[Alias("SettingsErrorViewModel")]
+public record SettingsErrorViewModel : AeroErrorViewModel<SettingsViewModel>;

@@ -1,10 +1,8 @@
-using Aero.Cms.Core;
-using Aero.Core.Entities;
-using Aero.Cms.Core.Blocks;
-using Aero.Cms.Modules.Pages;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Core.Blocks;
+using Aero.Core.Entities;
 
-namespace Aero.Cms.Modules.Blog;
+namespace Aero.Cms.Core.Entities;
 
 public sealed class BlogPostDocument : Entity
 {

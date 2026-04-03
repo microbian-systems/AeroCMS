@@ -1,6 +1,6 @@
 ﻿using Aero.Core.Entities;
 
-namespace Aero.Cms.Modules.Tenant;
+namespace Aero.Cms.Core.Entities;
 
 public class TenantModel : Entity
 {

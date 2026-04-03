@@ -1,3 +1,4 @@
+using Aero.Cms.Core.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 

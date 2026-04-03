@@ -1,7 +1,15 @@
 namespace Aero.Cms.Abstractions.Models;
 
-public record TagViewModel : EntityViewModel
+[Alias("TagViewModel")]
+[GenerateSerializer]
+public record TagViewModel : AeroEntityViewModel
 {
-    public string Name { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
+    [Id(0)]
+    public string? Name { get; set; }
+    [Id(1)]
+    public string? Slug { get; set; }
 }
+
+[GenerateSerializer]
+[Alias("TagErrorViewModel")]
+public record TagErrorViewModel : AeroErrorViewModel<TagViewModel>;

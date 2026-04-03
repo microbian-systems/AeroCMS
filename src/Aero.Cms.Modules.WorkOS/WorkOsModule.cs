@@ -10,6 +10,7 @@ using Aero.Models.Entities;
 using Aero.Core.Http;
 using Microsoft.Extensions.Logging;
 using Polly;
+using Serilog;
 
 public class WorkOsModule : AeroModuleBase
 {
@@ -31,7 +32,7 @@ public class WorkOsModule : AeroModuleBase
         if (string.IsNullOrEmpty(apiKey))
             log.Warning("WorkOS API key not found in configuration. WorkOS module will not be fully configured.");
 
-        Wos.SetApiKey(apiKey);
+        Wos.SetApiKey(apiKey ?? "my-super-secret-key");
 
         var opts = new WorkOSOptions()
         {
@@ -39,11 +40,17 @@ public class WorkOsModule : AeroModuleBase
             HttpClient = new HttpClient() // todo - should we setup workos client w/ our AeroHttpClient? 
         };
 
-        var client = new WorkOSClient(opts);
-        services.AddSingleton(client);
-
-        // https://github.com/workos/workos-dotnet
-        Wos.WorkOSClient = client;
+        try
+        {
+            var client = new WorkOSClient(opts);
+            services.AddSingleton(client);
+            // https://github.com/workos/workos-dotnet
+            Wos.WorkOSClient = client;
+        }
+        catch(Exception ex)
+        {
+           log.Warning($"WorkOS Error: {ex.Message}");
+        }
     }
 }
 
@@ -68,7 +75,7 @@ public sealed class WorkOsService(WorkOSClient client)
 
 public sealed class WorkOsHttpClient : HttpClientBaseV2
 {
-    public WorkOsHttpClient(HttpClient httpClient, ILogger logger, ResiliencePipeline<HttpResponseMessage>? resiliencePipeline = null) 
+    public WorkOsHttpClient(HttpClient httpClient, ILogger<WorkOsHttpClient> logger, ResiliencePipeline<HttpResponseMessage>? resiliencePipeline = null) 
         : base(httpClient, logger, resiliencePipeline)
     {
     }

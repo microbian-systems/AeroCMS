@@ -5,6 +5,8 @@ using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Modules.Pages.Requests;
 
+[GenerateSerializer]
+[Alias("CreatePageRequest")]
 public record CreatePageRequest(
     string Title,
     string Slug,
@@ -15,8 +17,10 @@ public record CreatePageRequest(
     IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
     IReadOnlyList<EditorBlock>? EditorBlocks = null
-);
+) : IRequest;
 
+[GenerateSerializer]
+[Alias("UpdatePageRequest")]
 public record UpdatePageRequest(
     long Id,
     string Title,
@@ -28,9 +32,10 @@ public record UpdatePageRequest(
     IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
     IReadOnlyList<EditorBlock>? EditorBlocks = null
-);
+) : IRequest;
 
-
+[GenerateSerializer]
+[Alias("DeletePageRequest")]
 public record DeletePageRequest(
     long Id
-);
+) : IRequest;

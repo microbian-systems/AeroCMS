@@ -1,5 +1,6 @@
 namespace Aero.Cms.Modules.Pages;
 
+using Aero.Cms.Core.Entities;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;

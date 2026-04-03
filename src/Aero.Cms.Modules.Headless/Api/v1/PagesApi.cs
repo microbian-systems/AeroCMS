@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
-using Aero.Cms.Modules.Pages;
+using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Headless.Api.v1;
 

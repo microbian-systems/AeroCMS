@@ -1,4 +1,5 @@
-﻿using Aero.Core.Data.ActiveRecord;
+﻿using Aero.Cms.Core.Entities;
+using Aero.Core.Data.ActiveRecord;
 using Aero.Core.Extensions;
 using Aero.Core.Railway;
 using Marten;
