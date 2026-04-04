@@ -36,9 +36,11 @@ services:
       master:
         condition: service_healthy
     volumes:
-      - ./manager:/manager
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./Aero/manager:/manager
+      - healthcheck:/healthcheck
     healthcheck:
-      test: ["CMD-SHELL", "/bin/sh -c 'test -f /healthcheck/manager-ready'"]
+      test: ["CMD-SHELL", "test -f /healthcheck/manager-ready"]
       interval: 1s
       timeout: 1s
       start_period: 1s
@@ -50,6 +52,8 @@ services:
     image: aero-cms-worker
     # container_name: aero-cms-worker-1  <-- REMOVE THIS (names must be unique)
     command: /wait-for-manager.sh
+    labels:
+      com.citusdata.role: Worker
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "*strongPassword1"
@@ -59,10 +63,12 @@ services:
     depends_on:
       manager:
         condition: service_healthy
+    volumes:
+      - healthcheck:/healthcheck:ro
     # volumes:
     #   - worker_data:/var/lib/postgresql/14/main  <-- REMOVE THIS (shared volumes don't scale well in local dev)
     healthcheck:
-      test: ["CMD-SHELL", "./pg_healthcheck"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 4s
       timeout: 4s
       start_period: 6s
@@ -165,6 +171,7 @@ volumes:
   worker1_data:
   worker2_data:
   worker3_data:
+  healthcheck:
 
 networks:
   aero-net2:

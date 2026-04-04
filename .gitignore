@@ -17,6 +17,9 @@
 .idea/
 .sisyphus/
 pg_embed/
+*.sqlite-shm
+*.sqlite-wal
+openobserve_data/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -423,3 +426,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+openobserve_data/db/metadata.sqlite-shm
+openobserve_data/db/metadata.sqlite-wal
+openobserve_data/db/metadata.sqlite-wal
+openobserve_data/db/metadata.sqlite-shm
