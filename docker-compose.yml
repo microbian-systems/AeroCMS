@@ -1,0 +1,172 @@
+services:
+  # Citus PostgreSQL Cluster
+  master:
+    image: citusdata/citus:14.0.0
+    container_name: aero-cms_master_temp
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "*strongPassword1"
+      POSTGRES_HOST_AUTH_METHOD: trust
+      PGUSER: postgres
+      PGPASSWORD: "*strongPassword1"
+    ports:
+      - "5433:5432"
+    volumes:
+      - master_data:/var/lib/postgresql/14/main
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 4s
+      timeout: 4s
+      start_period: 6s
+      retries: 5
+    networks:
+      - aero-net2
+
+  manager:
+    image: aero-cms-manager
+    container_name: aero-cms_manager-temp
+    command: python -u /manager/manager.py
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "*strongPassword1"
+      PGUSER: postgres
+      PGPASSWORD: "*strongPassword1"
+      POSTGRES_HOST_AUTH_METHOD: trust
+    depends_on:
+      master:
+        condition: service_healthy
+    volumes:
+      - ./manager:/manager
+    healthcheck:
+      test: ["CMD-SHELL", "/bin/sh -c 'test -f /healthcheck/manager-ready'"]
+      interval: 1s
+      timeout: 1s
+      start_period: 1s
+      retries: 5
+    networks:
+      - aero-net2
+
+  worker:
+    image: aero-cms-worker
+    # container_name: aero-cms-worker-1  <-- REMOVE THIS (names must be unique)
+    command: /wait-for-manager.sh
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "*strongPassword1"
+      PGUSER: postgres
+      PGPASSWORD: "*strongPassword1"
+      POSTGRES_HOST_AUTH_METHOD: trust
+    depends_on:
+      manager:
+        condition: service_healthy
+    # volumes:
+    #   - worker_data:/var/lib/postgresql/14/main  <-- REMOVE THIS (shared volumes don't scale well in local dev)
+    healthcheck:
+      test: ["CMD-SHELL", "./pg_healthcheck"]
+      interval: 4s
+      timeout: 4s
+      start_period: 6s
+      retries: 5
+    networks:
+      - aero-net2
+
+  # Message Queue
+  lavinmq:
+    image: cloudamqp/lavinmq:latest
+    # container_name: ... (REMOVE THIS: must be unique for scaling)
+    command: 
+      - "--clustering"
+      - "--clustering-etcd-endpoints=http://etcd:2379"
+      # In Docker, the container hostname is dynamic. 
+      # LavinMQ can often auto-discover this if the advertised URI is omitted or set via script.
+    environment:
+      LAVINMQ_USER: admin
+      LAVINMQ_PASSWORD: "*strongPassword1"
+    # ports: 
+    #   - "5672"   # (REMOVE specific host ports like '5672:5672' or they will conflict)
+    #   - "15672"  # Let Docker assign random host ports or use a Load Balancer
+    depends_on:
+      - etcd
+    networks:
+      - aero-net2
+
+  # Graph Database
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j-temp
+    environment:
+      NEO4J_AUTH: neo4j/*strongPassword1
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    networks:
+      - aero-net2
+
+  # Observability
+  openobserve:
+    image: openobserve/openobserve:latest
+    container_name: openobserve-temp
+    ports:
+      - "5081:5080"
+      - "8000:8000"
+    environment:
+      ZO_ROOT_USER_EMAIL: aero@getaero.net
+      ZO_ROOT_USER_PASSWORD: "*strongPassword1"
+      ZO_DATA_DIR: /data
+    volumes:
+      - ./openobserve_data:/data
+    restart: always
+    networks:
+      - aero-net2
+
+  # Databases
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: surrealdb-temp
+    command: start --log info --user root --pass "*strongPassword1" file:/data/database.db
+    volumes:
+      - ./surrealdb_data:/data
+    ports:
+      - "8001:8000"
+    networks:
+      - aero-net2
+
+  # In-Memory Cache
+  garnet:
+    image: ghcr.io/microsoft/garnet:latest
+    container_name: garnet-temp
+    ports:
+      - "6363:6363"
+    networks:
+      - aero-net2
+
+  # Distributed Key-Value Store
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.6.5
+    container_name: etcd-temp
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-cluster=etcd=http://etcd:2380
+      - --initial-cluster-token=etcd-cluster
+      - --initial-cluster-state=new
+    networks:
+      - aero-net2
+
+volumes:
+  master_data:
+  worker1_data:
+  worker2_data:
+  worker3_data:
+
+networks:
+  aero-net2:
+    name: aero-net2
+

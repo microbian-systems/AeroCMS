@@ -897,8 +897,3 @@ public partial class PageEditor : ComponentBase, IDisposable
         => Toasts.RemoveAll(t => t.Id == id);
 }
 
-
-
-// ──────────────────────────────────────────────────────────────
-// Supporting types
-// ──────────────────────────────────────────────────────────────

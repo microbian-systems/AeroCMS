@@ -1,108 +1,65 @@
 ﻿using Aero.Cms.Core.Entities;
-using Aero.Core.Railway;
-using Aero.Marten;
-using Aero.Marten.Optional;
+using Aero.Cms.Data.Queries;
+using Aero.Cms.Data.Queries.Base;
+using Aero.Core.Entities;
+using JasperFx.Core;
 using Marten;
-using Microsoft.Extensions.Logging;
-using System.Linq.Expressions;
+using Marten.Linq;
+using static System.Collections.Specialized.BitVector32;
 
-namespace Aero.Cms.Modules.Aliases;
+namespace Aero.Cms.Data.Repositories;
 
-
-public interface IAliasRepository : IMartenGenericRepositoryOption<AliasDocument>
+public interface IAliasRepository : IMartenCompiledRepository<AliasDocument>
 {
-    // add specific alias methods here if needed
+    Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken cancellationToken = default);
+    Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken cancellationToken = default);
+    Task<AliasDocument?> GetByOldPathAsync(long siteId, string oldPath, CancellationToken cancellationToken = default);
+    Task<IList<AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken cancellationToken = default);
+    Task<IList<AliasDocument>> GetByNewPathAsync(long siteId, string newPath, CancellationToken cancellationToken = default);
+    Task<IList<AliasDocument>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default);
+    Task<IList<AliasDocument>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
+    Task<IList<AliasDocument>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// Provides data access and management operations for alias documents using a Marten document session.
-/// </summary>
-/// <param name="session">The document session used to interact with the underlying data store. Cannot be null.</param>
-/// <param name="log">The logger instance used for logging repository operations. Cannot be null.</param>
-public class AliasRepository(IDocumentSession session, ILogger<AliasRepository> log)
-    : MartenGenericRepositoryOption<AliasDocument>(session, log), IAliasRepository
+public sealed class AliasRepository : MartenCompiledRepository<AliasDocument>, IAliasRepository
 {
+    public AliasRepository(IDocumentSession session) : base(session)
+    {
+    }
 
+    protected override EntityByIdQuery<AliasDocument> CreateByIdQuery(long id)
+        => new AliasByIdQuery { Id = id };
+
+    protected override EntitiesByIdsQuery<AliasDocument> CreateByIdsQuery(IEnumerable<long> ids)
+    {
+        var query = new AliasesByIdsQuery()
+        {
+            Ids = ids
+        };
+        return query;
+    }
+
+    public async Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken cancellationToken = default)
+        => await Session.QueryAsync(new AliasesBySiteIdQuery { SiteId = siteId }, cancellationToken);
+
+    public Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken cancellationToken = default)
+        => Session.QueryAsync(new AliasByOldPathQuery { OldPath = oldPath }, cancellationToken);
+
+    public Task<AliasDocument?> GetByOldPathAsync(long siteId, string oldPath, CancellationToken cancellationToken = default)
+        => Session.QueryAsync(new AliasByOldPathAndSiteIdQuery { SiteId = siteId, OldPath = oldPath }, cancellationToken);
+
+    public async Task<IList<AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken cancellationToken = default)
+        => await Session.QueryAsync(new AliasesByNewPathQuery { NewPath = newPath }, cancellationToken);
+
+    public async Task<IList<AliasDocument>> GetByNewPathAsync(long siteId, string newPath, CancellationToken cancellationToken = default)
+        => await Session.QueryAsync(new AliasesBySiteIdAndNewPathQuery { SiteId = siteId, NewPath = newPath }, cancellationToken);
+
+    public async Task<IList<AliasDocument>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default)
+        => await Session.QueryAsync(new AliasesByNotesQuery { Notes = notes }, cancellationToken);
+
+    public async Task<IList<AliasDocument>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+        => await Session.QueryAsync(new AliasesCreatedInRangeQuery { From = from, To = to }, cancellationToken);
+
+    public async Task<IList<AliasDocument>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+        => await Session.QueryAsync(new AliasesModifiedInRangeQuery { From = from, To = to }, cancellationToken);
 }
-
-
-//public interface IAliasService
-//{
-//    Task<Result<AliasError, AliasDocument>> CreateAsync(CreateAliasRequest request, CancellationToken ct);
-//    Task<Result<AliasError, AliasDocument>> UpdateAsync(UpdateAliasRequest request, CancellationToken ct);
-//    Task<Result<AliasError, AliasDocument>> DeleteAsync(DeleteAliasRequest request, CancellationToken ct);
-//    Task<Result<AliasError, AliasDocument>> GetByIdAsync(long id, CancellationToken ct);
-//    Task<Result<AliasError, AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken ct);
-//    Task<Result<AliasError, AliasDocument>> GetByOldPathAsync(string oldPath, CancellationToken ct);
-//    Task<IEnumerable<AliasDocument>> GetAllAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default);
-//    Task<Result<AliasError, AliasDocument>> GeByPathAsync(long siteId, string path, CancellationToken ct);
-//    Task<Result<AliasError, AliasDocument>> GetSiteId(long siteId, int page = 1, int rows = 10, CancellationToken ct = default);
-//    Task<IEnumerable<AliasDocument>> FindAsync(Expression<Func<AliasDocument, bool>> predicate, int page = 1, int rows = 10, CancellationToken ct = default);
-//}
-
-//public class AliasService(IAliasRepository db) : IAliasService
-//{
-//    public async Task<Result<AliasError, AliasDocument>> CreateAsync(CreateAliasRequest request, CancellationToken ct)
-//    {
-//        return await db.InsertAsync(new AliasDocument
-//        {
-//            SiteId = request.siteId,
-//            OldPath = request.OldPath,
-//            NewPath = request.NewPath,
-//            Notes = request.notes
-//        }, ct);
-//    }
-
-//    public async Task<Result<AliasError, AliasDocument>> DeleteAsync(DeleteAliasRequest request, CancellationToken ct)
-//    {
-//        var res = await db.DeleteAsync(request.id, ct);
-
-//        throw new NotImplementedException();
-//        //return res switch
-//        //{
-//        //    true => new Result<AliasError, AliasDocument>.Ok { Value = null! },
-//        //    false => new Result<AliasError, AliasDocument>.Failure { Error = new AliasError() }
-//        //};
-//    }
-
-//    public async Task<IEnumerable<AliasDocument>> FindAsync(Expression<Func<AliasDocument, bool>> predicate, int page = 1, int rows = 10, CancellationToken ct = default)
-//    {
-//        var results = await db.FindAsync(predicate, ct);
-//        return results ?? [];
-//    }
-
-//    public Task<Result<AliasError, AliasDocument>> GeByPathAsync(long siteId, string path, CancellationToken ct)
-//    {
-//        throw new NotImplementedException();
-//    }
-
-//    public async Task<IEnumerable<AliasDocument>> GetAllAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
-//    {
-//        throw new NotImplementedException();
-//    }
-
-//    public Task<Result<AliasError, AliasDocument>> GetByIdAsync(long id, CancellationToken ct)
-//    {
-//        throw new NotImplementedException();
-//    }
-
-//    public Task<Result<AliasError, AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken ct)
-//    {
-//        throw new NotImplementedException();
-//    }
-
-//    public Task<Result<AliasError, AliasDocument>> GetByOldPathAsync(string oldPath, CancellationToken ct)
-//    {
-//        throw new NotImplementedException();
-//    }
-
-//    public Task<Result<AliasError, AliasDocument>> GetSiteId(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
-//    {
-//        throw new NotImplementedException();
-//    }
-
-//    public Task<Result<AliasError, AliasDocument>> UpdateAsync(UpdateAliasRequest request, CancellationToken ct)
-//    {
-//        throw new NotImplementedException();
-//    }
-//}

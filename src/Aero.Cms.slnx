@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/.global/">
     <File Path="../.gitignore" />
+    <File Path="../docker-compose.yml" />
     <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
@@ -64,6 +65,7 @@
     <Project Path="Aero.Cms.Modules.OutputCache/Aero.Cms.Modules.OutputCache.csproj" Id="f0fdb431-5819-4d64-8dec-8424eba6676f" />
     <Project Path="Aero.Cms.Modules.Pages/Aero.Cms.Modules.Pages.csproj" Id="964d0ec1-10bb-4ffe-9763-4e748145260c" />
     <Project Path="Aero.Cms.Modules.RequestLog/Aero.Cms.Modules.RequestLog.csproj" Id="d5384b04-0bab-4a96-bb5b-538053e2a60b" />
+    <Project Path="Aero.Cms.Modules.Scalar/Aero.Cms.Modules.Scalar.csproj" Id="d32f313d-75ea-4b95-a910-becb114d5e89" />
     <Project Path="Aero.Cms.Modules.Search/Aero.Cms.Modules.Search.csproj" Id="7460b858-daed-4e30-a537-28a4cd4b4465" />
     <Project Path="Aero.Cms.Modules.Settings/Aero.Cms.Modules.Settings.csproj" Id="f0fac740-d6b0-43da-8208-0c63c5983a3a" />
     <Project Path="Aero.Cms.Modules.Setup/Aero.Cms.Modules.Setup.csproj" Id="93154661-c5ce-4976-b071-1052434782f0" />

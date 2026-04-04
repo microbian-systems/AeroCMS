@@ -46,6 +46,7 @@ public static class AeroWebAppExtensions
 
         return (builder, log);
     }
+
     public static IApplicationBuilder UseAeroCmsModules(this IApplicationBuilder app)
     {
         if (app is IEndpointRouteBuilder endpoints)

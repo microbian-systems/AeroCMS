@@ -15,10 +15,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Caching\Aero.Caching.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Core.Ai\Aero.Core.Ai.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.SignalR\Aero.SignalR.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Validators\Aero.Validators.csproj" />
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Data\Aero.Cms.Data.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Services\Aero.Cms.Services.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 

@@ -7,7 +7,7 @@ public record TagViewModel : AeroEntityViewModel
     [Id(0)]
     public string? Name { get; set; }
     [Id(1)]
-    public string? Slug { get; set; }
+    public string? Description { get; set; }
 }
 
 [GenerateSerializer]

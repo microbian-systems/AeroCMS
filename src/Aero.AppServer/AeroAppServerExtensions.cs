@@ -85,7 +85,7 @@ public static class AeroAppServerExtensions
                 try
                 {
                     // Only include if it actually implements your marker interface
-                    if (assembly.GetTypes().Any(t => typeof(IAeroModule).IsAssignableFrom(t)))
+                    if (assembly.GetTypes().Any(@type => typeof(IAeroModule).IsAssignableFrom(@type)))
                     {
                         opts.Discovery.IncludeAssembly(assembly);
                     }
@@ -93,7 +93,7 @@ public static class AeroAppServerExtensions
                 catch (ReflectionTypeLoadException) { /* Skip problematic DLLs */ }
             }
 
-            // 4. Don't forget your Entry Assembly! 
+            // 4. Don't forget entry assembly! 
             opts.Discovery.IncludeAssembly(Assembly.GetEntryAssembly()!);
 
         }); // <--- Use .None instead of .ManualOnly

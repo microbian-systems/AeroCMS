@@ -9,15 +9,15 @@ using System.Threading.Tasks;
 namespace Aero.Cms.Data.Queries;
 
 
-public sealed class PostByIdQuery : BaseQuries<BlogPostDocument>;
+public sealed class PostByIdQuery : EntityByIdQuery<BlogPostDocument>;
 
 public sealed class PostsByIdsQuery : EntitiesByIdsQuery<BlogPostDocument>;
 
 public sealed class PostsByCreatedByQuery : EntitiesByCreatedByQuery<BlogPostDocument>;
 
-public sealed class PostsCreatedInRangeQuery : EntitiesCreatedOnRangeQuery<BlogPostDocument>;
+public sealed class PostsCreatedInRangeQuery : EntitiesCreatedInRangeQuery<BlogPostDocument>;
 
-public sealed class PostsModifiedInRangeQuery : EntitiesModifiedOnRangeQuery<BlogPostDocument>;
+public sealed class PostsModifiedInRangeQuery : EntitiesModifiedInRangeQuery<BlogPostDocument>;
 
 //public sealed class PostsByCreatedByInCreatedRangeQuery
-//    : EntitiesByCreatedByOnCreatedRangeQuery<BlogPostDocument>;
+//    : EntitiesByCreatedByInCreatedRangeQuery<BlogPostDocument>;
