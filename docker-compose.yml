@@ -109,16 +109,19 @@ services:
   # - stable AMQP endpoint: localhost:5672
   # - stable dashboard:     http://localhost:15672
   # --------------------------------------------------------------------------
-  lavinmq-proxy:
+  ha-proxy:
     image: haproxy:3.0-alpine
-    container_name: lavinmq-proxy
+    container_name: ha-proxy
     depends_on:
       - lavinmq
+      - surrealdb
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672"    # LavinMQ AMQP
+      - "15672:15672"  # LavinMQ UI
+      - "8000:8000"    # <--- Add this for SurrealDB
     volumes:
       - ./manager/lavinmq-haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      #- ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     networks:
       - aero-net
 
@@ -144,7 +147,7 @@ services:
     container_name: openobserve
     ports:
       - "5081:5080"
-      - "8000:8000"
+      - "8001:8000"
     environment:
       ZO_ROOT_USER_EMAIL: aero@getaero.net
       ZO_ROOT_USER_PASSWORD: "*strongPassword1"
@@ -154,11 +157,6 @@ services:
     restart: always
     networks:
       - aero-net
-
-  # --------------------------------------------------------------------------
-  # surreal
-  # --------------------------------------------------------------------------
-
 
   # --------------------------------------------------------------------------
   # In-Memory Cache
@@ -203,6 +201,55 @@ services:
     environment:
       - ETCDCTL_API=3
 
+
+  # --------------------------------------------------------------------------
+  # surreal
+  # --------------------------------------------------------------------------
+
+  # SurrealDB Compute Layer
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    restart: always
+    command: start tikv:pd:2395 --log trace --unauthenticated  #--user aero --pass *strongPassword1 
+      # - start
+      # - --log=trace
+      # - --user=aero
+      # - --pass="*strongPassword1"
+      # - tikv:pd:2395
+    # No ports exposed directly to the host
+    depends_on:
+      - pd
+
+  # Storage Layer (PD & TiKV)
+  pd:
+    image: pingcap/pd:latest
+    command:
+      - --name=pd
+      - --data-dir=/data/pd
+      - --client-urls=http://0.0.0.0:2395
+      - --advertise-client-urls=http://pd:2395
+      - --peer-urls=http://0.0.0.0:2381
+      - --advertise-peer-urls=http://pd:2381
+      - --initial-cluster=pd=http://pd:2381
+    expose:
+      - "2395"
+      - "2381"
+    volumes:
+      - pd_data:/data
+
+  tikv:
+    image: pingcap/tikv:latest
+    depends_on:
+      - pd
+    command:
+      - --pd-endpoints=pd:2395
+      - --addr=0.0.0.0:20160
+      - --advertise-addr=tikv:20160
+      - --data-dir=/data/tikv
+    volumes:
+      - tikv_data:/data
+
+
 configs:
   lavinmq_config:
     content: |
@@ -223,6 +270,10 @@ volumes:
   neo4j-data:
   healthcheck-volume:
   healthcheck:
+  data: {}
+  logs: {}
+  pd_data:
+  tikv_data:
 
 networks:
   aero-net:
