@@ -8,11 +8,10 @@ services:
     environment: &pg-auth
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "*strongPassword1"
+      POSTGRES_DB: aero
       POSTGRES_HOST_AUTH_METHOD: trust
-      PGUSER: postgres
-      PGPASSWORD: "*strongPassword1"
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - master_data:/var/lib/postgresql/14/main
     healthcheck:
@@ -106,8 +105,8 @@ services:
 
   # --------------------------------------------------------------------------
   # HAProxy in front of LavinMQ
-  # - stable AMQP endpoint: localhost:5672
-  # - stable dashboard:     http://localhost:15672
+  # - lavinmq stable AMQP endpoint: localhost:5672
+  # - lavinmq stable dashboard:     http://localhost:15672
   # --------------------------------------------------------------------------
   ha-proxy:
     image: haproxy:3.0-alpine
@@ -165,7 +164,7 @@ services:
     image: ghcr.io/microsoft/garnet:latest
     container_name: garnet
     ports:
-      - "6363:6363"
+      - "6379:6379"
     networks:
       - aero-net
 
@@ -210,7 +209,7 @@ services:
   surrealdb:
     image: surrealdb/surrealdb:latest
     restart: always
-    command: start tikv:pd:2395 --log trace --unauthenticated  #--user aero --pass *strongPassword1 
+    command: start tikv:pd:2395 --log trace --user aero --pass *strongPassword1 
       # - start
       # - --log=trace
       # - --user=aero
@@ -219,6 +218,8 @@ services:
     # No ports exposed directly to the host
     depends_on:
       - pd
+    networks:
+      - aero-net
 
   # Storage Layer (PD & TiKV)
   pd:
@@ -236,6 +237,8 @@ services:
       - "2381"
     volumes:
       - pd_data:/data
+    networks:
+      - aero-net
 
   tikv:
     image: pingcap/tikv:latest
@@ -248,7 +251,8 @@ services:
       - --data-dir=/data/tikv
     volumes:
       - tikv_data:/data
-
+    networks:
+      - aero-net
 
 configs:
   lavinmq_config:
@@ -272,8 +276,9 @@ volumes:
   healthcheck:
   data: {}
   logs: {}
-  pd_data:
   tikv_data:
+  pd_data:
+  posthog_clickhouse_data:
 
 networks:
   aero-net:
