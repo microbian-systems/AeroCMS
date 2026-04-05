@@ -14,6 +14,7 @@ using Aero.Core.Logging;
 using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Shared;
 using Aero.Cms.Web.Components;
+using Aero.Web.Exceptions;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -54,6 +55,15 @@ builder.Configuration["AeroHttpClientBaseAddress"] = apiBaseUrl;
 // Register all Aero HTTP clients
 services.AddAeroHttpClients(config);
 services.AddScoped<ManagerThemeService>();
+services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Extensions["traceId"] =
+            context.HttpContext.TraceIdentifier;
+    };
+});
+services.AddExceptionHandler<AeroGlobalExceptionHandler>();
 
 var (_, log) = await builder.AddAeroCmsAsync<Program>();
 
@@ -62,6 +72,8 @@ log.Information("building aero application services");
 
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 app.MapDefaultEndpoints();
 
