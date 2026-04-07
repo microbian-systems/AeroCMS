@@ -9,9 +9,8 @@ namespace Aero.Cms.Core.Http.Clients;
 
 public abstract class AeroCmsClientBase(
     HttpClient httpClient,
-    ILogger logger,
-    Polly.ResiliencePipeline<HttpResponseMessage>? resiliencePipeline = null) 
-    : HttpClientBaseV2(httpClient, logger, resiliencePipeline)
+    ILogger<AeroCmsClientBase> logger) 
+    : HttpClientBase(httpClient, logger)
 {
     protected abstract string ResourceName { get; }
 
