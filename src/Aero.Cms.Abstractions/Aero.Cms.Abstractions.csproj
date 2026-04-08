@@ -20,8 +20,4 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Http\" />
-  </ItemGroup>
-
 </Project>
