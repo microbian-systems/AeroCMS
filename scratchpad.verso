@@ -1,0 +1,23 @@
+{
+  "verso": "1.0",
+  "metadata": {
+    "defaultKernel": "csharp",
+    "activeLayout": "notebook"
+  },
+  "cells": [
+    {
+      "id": "6a1bcf63-dd8a-42fb-97bd-e17ca69cda22",
+      "type": "code",
+      "language": "csharp",
+      "source": "using System.Linq;\r\nusing System;\r\n\r\n\r\nvar x = 5 * 10;\r\nvar rng = new RandomNumberGenerator();\r\n\r\n\r\n\r\nConsole.WriteLine(x);",
+      "outputs": [
+        {
+          "mimeType": "text/plain",
+          "content": "(5,15): error CS0246: The type or namespace name \u0027RandomNumberGenerator\u0027 could not be found (are you missing a using directive or an assembly reference?)",
+          "isError": true,
+          "errorName": "CompilationError"
+        }
+      ]
+    }
+  ]
+}

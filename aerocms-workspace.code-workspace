@@ -1,0 +1,35 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"dbcode.connections": [
+			{
+				"connectionId": "HpdsQBBlgCRPh_SwWRgGE",
+				"name": "aero",
+				"driver": "postgres",
+				"color": "#33B8FF",
+				"connectionType": "host",
+				"host": "localhost",
+				"port": 5432,
+				"ssl": false,
+				"authMethod": "password",
+				"username": "aero",
+				"password": "",
+				"savePassword": "secretStorage",
+				"database": "aero",
+				"readOnly": false,
+				"role": "development",
+				"postConnectionSqlType": "inline",
+				"connectionTimeout": 30,
+				"pinnedConnectionTimeout": "0",
+				"introspection": {
+					"progressive": false
+				}
+			}
+		],
+		"deepscan.enable": true
+	}
+}
