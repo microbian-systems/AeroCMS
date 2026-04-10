@@ -1,6 +1,7 @@
 namespace Aero.Cms.Modules.Pages;
 
 using Aero.Cms.Core.Entities;
+using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -30,12 +31,12 @@ public static class PageRouteHandler
     {
         var result = await pageService.LoadHomepageAsync(cancellationToken);
 
-        if (result is Result<string, PageDocument?>.Failure failure)
+        if (result is Result<PageDocument?, AeroError>.Failure failure)
         {
             return Results.NotFound(new { error = failure.Error });
         }
 
-        if (result is Result<string, PageDocument?>.Ok { Value: not null } ok)
+        if (result is Result<PageDocument?, AeroError>.Ok { Value: not null } ok)
         {
             return Results.Ok(ok.Value);
         }
@@ -53,12 +54,12 @@ public static class PageRouteHandler
 
         var result = await pageService.FindBySlugAsync(normalizedSlug, cancellationToken);
 
-        if (result is Result<string, PageDocument?>.Failure failure)
+        if (result is Result<PageDocument?, AeroError>.Failure failure)
         {
             return Results.NotFound(new { error = failure.Error });
         }
 
-        if (result is Result<string, PageDocument?>.Ok { Value: not null } ok)
+        if (result is Result<PageDocument?, AeroError>.Ok { Value: not null } ok)
         {
             return Results.Ok(ok.Value);
         }

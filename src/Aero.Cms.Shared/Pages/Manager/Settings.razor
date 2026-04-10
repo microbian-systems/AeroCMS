@@ -1,5 +1,6 @@
 @page "/manager/settings"
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core
 @using Aero.Core.Railway
 @inject ISettingsHttpClient SettingsClient
 @inject NotificationService NotificationService
@@ -65,7 +66,7 @@
     private async Task LoadSettings()
     {
         var result = await SettingsClient.GetByCategoryAsync("Security");
-        if (result is Result<string, IReadOnlyList<SettingDetail>>.Ok ok)
+        if (result is Result<IReadOnlyList<SettingDetail>, AeroError>.Ok ok)
         {
             disablePublicAccess = ok.Value.FirstOrDefault(s => s.Key == "Manager.DisablePublicAccess")?.Value == "true";
             requireWasmInstall = ok.Value.FirstOrDefault(s => s.Key == "Manager.RequireWasmInstall")?.Value == "true";
@@ -80,7 +81,7 @@
             var r1 = await SettingsClient.SetAsync(new SetSettingRequest("Manager.DisablePublicAccess", disablePublicAccess.ToString().ToLower(), "Security", "bool"));
             var r2 = await SettingsClient.SetAsync(new SetSettingRequest("Manager.RequireWasmInstall", requireWasmInstall.ToString().ToLower(), "Security", "bool"));
 
-            if (r1.IsSuccess && r2.IsSuccess)
+            if (r1 is Result<SettingDetail, AeroError>.Ok && r2 is Result<SettingDetail, AeroError>.Ok)
             {
                 NotificationService.Notify(new NotificationMessage
                 {
@@ -92,11 +93,14 @@
             }
             else
             {
+                var error = r1 is Result<SettingDetail, AeroError>.Failure f1 ? f1.Error.ToString()
+                    : r2 is Result<SettingDetail, AeroError>.Failure f2 ? f2.Error.ToString()
+                    : "Could not save one or more settings.";
                 NotificationService.Notify(new NotificationMessage
                 {
                     Severity = NotificationSeverity.Error,
                     Summary = "Save Failed",
-                    Detail = "Could not save one or more settings.",
+                    Detail = error,
                     Duration = 4000
                 });
             }

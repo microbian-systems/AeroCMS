@@ -7,6 +7,7 @@ using System.IO;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
+using Aero.Core;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Http.Clients;
 using Aero.Cms.Core.Blocks;
@@ -27,7 +28,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     /// <summary>Optional ID of an existing page to edit.</summary>
     [Parameter] public long? Id { get; set; }
 
-    [Inject] protected DocsClient DocsClient { get; set; } = default!;
+    [Inject] protected IDocsHttpClient DocsClient { get; set; } = default!;
     [Inject] protected IPagesHttpClient PagesClient { get; set; } = default!;
     [Inject] protected IMediaHttpClient MediaClient { get; set; } = default!;
     [Inject] protected IBlogHttpClient BlogClient { get; set; } = default!;
@@ -123,7 +124,7 @@ public partial class PageEditor : ComponentBase, IDisposable
 
         var result = await DocsClient.GetCategoriesAsync();
 
-        if (result is Result<string, IReadOnlyList<DocsSummary>>.Ok ok)
+        if (result is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok ok)
         {
             DocsCategories = ok.Value;
         }
@@ -134,7 +135,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         await LoadReferenceDataAsync();
 
         var result = await PagesClient.GetByIdAsync(id);
-        if (result is Result<string, CmsPageDetail>.Ok ok)
+        if (result is Result<CmsPageDetail, AeroError>.Ok ok)
         {
             var page = ok.Value;
             LoadedPage = page;
@@ -165,7 +166,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         // Media Gallery
         var mediaResult = await MediaClient.GetAllAsync(take: 50);
-        if (mediaResult is Result<string, PagedResult<MediaSummary>>.Ok mediaOk)
+        if (mediaResult is Result<PagedResult<MediaSummary>, AeroError>.Ok mediaOk)
         {
             MediaLibrary = mediaOk.Value.Items
                 .Select(m => new MediaItem(m.Id, m.Url, m.FileName))
@@ -185,19 +186,19 @@ public partial class PageEditor : ComponentBase, IDisposable
         await tagsTask;
         await usersTask;
 
-        if (pagesTask.Result is Result<string, PagedResult<PageSummary>>.Ok pagesOk)
+        if (pagesTask.Result is Result<PagedResult<PageSummary>, AeroError>.Ok pagesOk)
             _referenceData["pages"] = pagesOk.Value.Items.Select(p => new ReferenceItem(p.Id.ToString(), p.Title)).ToList();
         
-        if (blogsTask.Result is Result<string, PagedResult<BlogSummary>>.Ok blogsOk)
+        if (blogsTask.Result is Result<PagedResult<BlogSummary>, AeroError>.Ok blogsOk)
             _referenceData["posts"] = blogsOk.Value.Items.Select(p => new ReferenceItem(p.Id.ToString(), p.Title)).ToList();
             
-        if (catsTask.Result is Result<string, IReadOnlyList<CategorySummary>>.Ok catsOk)
+        if (catsTask.Result is Result<IReadOnlyList<CategorySummary>, AeroError>.Ok catsOk)
             _referenceData["categories"] = catsOk.Value.Select(c => new ReferenceItem(c.Id.ToString(), Name: c.Name)).ToList();
             
-        if (tagsTask.Result is Result<string, IReadOnlyList<TagSummary>>.Ok tagsOk)
+        if (tagsTask.Result is Result<IReadOnlyList<TagSummary>, AeroError>.Ok tagsOk)
             _referenceData["tags"] = tagsOk.Value.Select(t => new ReferenceItem(t.Id.ToString(), Name: t.Name)).ToList();
             
-        if (usersTask.Result is Result<string, PagedResult<UserSummary>>.Ok usersOk)
+        if (usersTask.Result is Result<PagedResult<UserSummary>, AeroError>.Ok usersOk)
             _referenceData["authors"] = usersOk.Value.Items.Select(u => new ReferenceItem(u.Id.ToString(), Name: u.DisplayName)).ToList();
     }
 
@@ -801,12 +802,12 @@ public partial class PageEditor : ComponentBase, IDisposable
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
-                if (result is Result<string, CmsPageDetail>.Ok)
+                if (result is Result<CmsPageDetail, AeroError>.Ok)
                 {
                     UpdateLastSaved();
                     ShowToast("Page saved successfully", "success");
                 }
-                else if (result is Result<string, CmsPageDetail>.Failure err)
+                else if (result is Result<CmsPageDetail, AeroError>.Failure err)
                 {
                     ShowToast($"Error saving: {err.Error}", "error");
                 }
@@ -826,7 +827,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                 );
 
                 var result = await PagesClient.CreateAsync(request);
-                if (result is Result<string, CmsPageDetail>.Ok createOk)
+                if (result is Result<CmsPageDetail, AeroError>.Ok createOk)
                 {
                     Id = createOk.Value.Id;
                     UpdateLastSaved();
@@ -834,7 +835,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                     // Update URL without refreshing
                     // NavManager.NavigateTo($"/manager/page/editor/{Id}", false); 
                 }
-                else if (result is Result<string, CmsPageDetail>.Failure err)
+                else if (result is Result<CmsPageDetail, AeroError>.Failure err)
                 {
                     ShowToast($"Error creating: {err.Error}", "error");
                 }
@@ -861,7 +862,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         if (Id.HasValue)
         {
             var result = await PagesClient.PublishAsync(Id.Value);
-            if (result is Result<string, CmsPageDetail>.Ok ok)
+            if (result is Result<CmsPageDetail, AeroError>.Ok ok)
             {
                 PublicationState = ok.Value.PublicationState;
                 ShowToast("Page published!", "success");

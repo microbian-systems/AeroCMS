@@ -1,4 +1,5 @@
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core
 @using Aero.Core.Railway
 @using Radzen
 @using Radzen.Blazor
@@ -133,15 +134,15 @@
                 Logger.LogInformation("Invoking MediaClient.UploadAsync for {FileName}...", file.Name);
                 var result = await MediaClient.UploadAsync(req);
 
-                if (result is Result<string, MediaDetail>.Ok ok)
+                if (result is Result<MediaDetail, AeroError>.Ok ok)
                 {
                     Logger.LogInformation("Successfully uploaded {FileName}. Assigned ID: {Id}", file.Name, ok.Value.Id);
                     successCount++;
                     selectedFiles.Remove(file);
                 }
-                else if (result is Result<string, MediaDetail>.Failure fail)
+                else if (result is Result<MediaDetail, AeroError>.Failure fail)
                 {
-                    Logger.LogError("API Error during upload of {FileName}: {Error}", file.Name, fail.Error);
+                    Logger.LogError("API Error during upload of {FileName}: {Error}", file.Name, fail.Error.ToString());
                     NotificationService.Notify(NotificationSeverity.Error, "Upload Failed", $"API Error: {fail.Error}");
                 }
             }

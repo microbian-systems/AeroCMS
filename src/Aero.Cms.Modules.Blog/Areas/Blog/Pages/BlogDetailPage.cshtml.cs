@@ -1,5 +1,7 @@
-using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Core.Entities;
+using Aero.Core;
+using Aero.Core.Railway;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -28,7 +30,7 @@ public class BlogDetailPageModel(IBlogPostContentService blogService) : PageMode
 
         var post = result switch
         {
-            global::Aero.Core.Railway.Result<string, BlogPostDocument?>.Ok(var foundPost) => foundPost,
+            Result<BlogPostDocument?, AeroError>.Ok(var foundPost) => foundPost,
             _ => (BlogPostDocument?)null
         };
 
@@ -39,7 +41,7 @@ public class BlogDetailPageModel(IBlogPostContentService blogService) : PageMode
 
         TagNames = tagsResult switch
         {
-            global::Aero.Core.Railway.Result<string, IReadOnlyList<Tag>>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
+            Result<IReadOnlyList<Tag>, AeroError>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
             _ => []
         };
 

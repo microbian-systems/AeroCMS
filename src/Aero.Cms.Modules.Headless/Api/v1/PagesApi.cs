@@ -53,7 +53,7 @@ public static class PagesApi
         try
         {
             var result = await pageService.GetAllPagesAsync(skip, take, search, cancellationToken);
-            if (result is Result<string, (IReadOnlyList<PageDocument> Items, long TotalCount)>.Ok ok)
+            if (result is Result<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>.Ok ok)
             {
                 var summary = ok.Value.Items.Select(p => new PageSummary(
                     p.Id, 
@@ -85,7 +85,7 @@ public static class PagesApi
         try
         {
             var result = await pageService.LoadAsync(id, cancellationToken);
-            if (result is Result<string, PageDocument?>.Ok { Value: not null } ok)
+            if (result is Result<PageDocument?, AeroError>.Ok { Value: not null } ok)
             {
                 return TypedResults.Ok(MapToDetail(ok.Value));
             }
@@ -109,7 +109,7 @@ public static class PagesApi
         try
         {
             var result = await pageService.FindBySlugAsync(slug, cancellationToken);
-            if (result is Result<string, PageDocument?>.Ok { Value: not null } ok)
+            if (result is Result<PageDocument?, AeroError>.Ok { Value: not null } ok)
             {
                 return TypedResults.Ok(MapToDetail(ok.Value));
             }
@@ -145,18 +145,18 @@ public static class PagesApi
             );
 
             var result = await pageService.CreateAsync(moduleRequest, cancellationToken);
-            if (result is Result<string, PageDocument>.Ok ok)
+            if (result is Result<PageDocument, AeroError>.Ok ok)
             {
                 return TypedResults.Created($"/api/v1/admin/pages/{ok.Value.Id}", MapToDetail(ok.Value));
             }
 
-            if (result is Result<string, PageDocument>.Failure failure)
+            if (result is Result<PageDocument, AeroError>.Failure failure)
             {
                 logger.LogWarning("Failed to create page. Error: {Error}. Request: {@Request}", failure.Error, request);
                 return TypedResults.BadRequest(new ProblemDetails
                 {
                     Title = "Failed to create page",
-                    Detail = failure.Error,
+                    Detail = failure.Error.ToString(),
                     Status = StatusCodes.Status400BadRequest
                 });
             }
@@ -194,18 +194,18 @@ public static class PagesApi
             );
 
             var result = await pageService.UpdateAsync(id, moduleRequest, cancellationToken);
-            if (result is Result<string, PageDocument>.Ok ok)
+            if (result is Result<PageDocument, AeroError>.Ok ok)
             {
                 return TypedResults.Ok(MapToDetail(ok.Value));
             }
 
-            if (result is Result<string, PageDocument>.Failure failure)
+            if (result is Result<PageDocument, AeroError>.Failure failure)
             {
                 logger.LogWarning("Failed to update page {Id}. Error: {Error}. Request: {@Request}", id, failure.Error, request);
                 return TypedResults.BadRequest(new ProblemDetails
                 {
                     Title = "Failed to update page",
-                    Detail = failure.Error,
+                    Detail = failure.Error.ToString(),
                     Status = StatusCodes.Status400BadRequest
                 });
             }
@@ -229,7 +229,7 @@ public static class PagesApi
         try
         {
             var result = await pageService.DeleteAsync(id, cancellationToken);
-            if (result is Result<string, bool>.Ok { Value: true })
+            if (result is Result<bool, AeroError>.Ok { Value: true })
             {
                 return TypedResults.Ok(true);
             }

@@ -99,7 +99,18 @@ public sealed class DocsHttpClient(HttpClient httpClient, ILogger<DocsHttpClient
 
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
-        => DeleteAsync($"{id}", ct);
+        => MapBoolResult(base.DeleteAsync($"{id}", ct));
+
+    private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
+    {
+        var response = await task;
+        return response switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok => true,
+            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
+            _ => AeroError.CreateError("Unexpected result from HTTP operation")
+        };
+    }
 }
 
 #pragma warning disable SA1402 // File may only contain a single type

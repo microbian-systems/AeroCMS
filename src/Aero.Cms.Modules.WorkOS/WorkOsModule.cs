@@ -73,10 +73,10 @@ public sealed class WorkOsService(WorkOSClient client)
 }
 
 
-public sealed class WorkOsHttpClient : HttpClientBaseV2
+public sealed class WorkOsHttpClient : HttpClientBase
 {
-    public WorkOsHttpClient(HttpClient httpClient, ILogger<WorkOsHttpClient> logger, ResiliencePipeline<HttpResponseMessage>? resiliencePipeline = null) 
-        : base(httpClient, logger, resiliencePipeline)
+    public WorkOsHttpClient(HttpClient httpClient, ILogger<HttpClientBase> logger)
+        : base(httpClient, logger)
     {
     }
 }

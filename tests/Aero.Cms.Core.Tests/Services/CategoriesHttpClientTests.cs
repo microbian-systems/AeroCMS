@@ -38,8 +38,8 @@ public class CategoriesHttpClientTests
         var result = await client.GetAllAsync();
 
         // Assert
-        result.Should().BeOfType<Result<string, IReadOnlyList<CategorySummary>>.Ok>();
-        var ok = (Result<string, IReadOnlyList<CategorySummary>>.Ok)result;
+        result.Should().BeOfType<Result<IReadOnlyList<CategorySummary>, global::Aero.Core.AeroError>.Ok>();
+        var ok = (Result<IReadOnlyList<CategorySummary>, global::Aero.Core.AeroError>.Ok)result;
         ok.Value.Count.Should().Be(1);
         ok.Value[0].Name.Should().Be("Test Category");
     }

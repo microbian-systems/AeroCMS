@@ -80,13 +80,24 @@ public class FilesHttpClient(HttpClient httpClient, ILogger<FilesHttpClient> log
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return MapBoolResult(base.DeleteAsync(id.ToString(), ct));
     }
 
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> MoveAsync(long id, string destinationFolder, CancellationToken ct = default)
     {
-        return PostAsync<object, bool>($"{id}/move?folder={Uri.EscapeDataString(destinationFolder)}", new object(), ct);
+        return MapBoolResult(base.PostAsync<object, HttpResponseMessage>($"{id}/move?folder={Uri.EscapeDataString(destinationFolder)}", new object(), ct));
+    }
+
+    private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
+    {
+        var response = await task;
+        return response switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok => true,
+            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
+            _ => AeroError.CreateError("Unexpected result from HTTP operation")
+        };
     }
 }
 

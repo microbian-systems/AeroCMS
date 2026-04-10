@@ -1,4 +1,6 @@
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
 @inject IBlogHttpClient BlogApi
 @inject DialogService DialogService
 @inject NavigationManager Navigation
@@ -94,7 +96,7 @@
     protected override async Task OnInitializedAsync()
     {
         var result = await BlogApi.GetByIdAsync(PostId);
-        if (result is Result<string, BlogDetail>.Ok ok)
+        if (result is Result<BlogDetail, AeroError>.Ok ok)
         {
              post = ok.Value;
         }

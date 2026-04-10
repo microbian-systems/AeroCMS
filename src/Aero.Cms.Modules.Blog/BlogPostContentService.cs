@@ -3,6 +3,7 @@ using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Pages;
+using Aero.Core;
 using Aero.Core.Railway;
 using FlakeId;
 using Marten;
@@ -15,23 +16,23 @@ namespace Aero.Cms.Modules.Blog;
 
 public interface IBlogPostContentService
 {
-    Task<Result<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
-    Task<Result<string, BlogPostDocument?>> LoadAsync(long id, CancellationToken cancellationToken = default);
-    Task<Result<string, BlogPostDocument?>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
-    Task<Result<string, IReadOnlyList<BlogPostDocument>>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
-    Task<Result<string, BlogPostDocument>> SaveAsync(BlogPostDocument post, CancellationToken cancellationToken = default);
-    Task<Result<string, IReadOnlyList<BlogPostDocument>>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default);
-    Task<Result<string, IReadOnlyList<BlogPostDocument>>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default);
-    Task<Result<string, IPagedList<BlogPostDocument>>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default);
-    Task<Result<string, IReadOnlyList<Tag>>> GetAllTagsAsync(CancellationToken cancellationToken = default);
-    Task<Result<string, IReadOnlyList<Category>>> GetAllCategoriesAsync(CancellationToken cancellationToken = default);
-    Task<Result<string, BlogAuthor?>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default);
-    Task<Result<string, bool>> DeleteAsync(long id, CancellationToken cancellationToken = default);
+    Task<Result<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
+    Task<Result<BlogPostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
+    Task<Result<BlogPostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<BlogPostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
+    Task<Result<BlogPostDocument, AeroError>> SaveAsync(BlogPostDocument post, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<BlogPostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<BlogPostDocument>, AeroError>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default);
+    Task<Result<IPagedList<BlogPostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<Tag>, AeroError>> GetAllTagsAsync(CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAsync(CancellationToken cancellationToken = default);
+    Task<Result<BlogAuthor?, AeroError>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default);
+    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
 public sealed class MartenBlogPostContentService(IDocumentSession session) : IBlogPostContentService
 {
-    public async Task<Result<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
+    public async Task<Result<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -52,15 +53,15 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
                 .Take(take)
                 .ToListAsync(token: cancellationToken);
 
-            return Prelude.Ok<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>((posts, stats.TotalResults));
+            return Prelude.Ok<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>((posts, stats.TotalResults));
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>(ex.Message);
+            return Prelude.Fail<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, bool>> DeleteAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -75,31 +76,31 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
 
             session.Delete<BlogPostDocument>(id);
             await session.SaveChangesAsync(cancellationToken);
-            return Prelude.Ok<string, bool>(true);
+            return Prelude.Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, bool>(ex.Message);
+            return Prelude.Fail<bool, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, BlogPostDocument?>> LoadAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<Result<BlogPostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
             ValidateId(id);
             var document = await session.LoadAsync<BlogPostDocument>(id, cancellationToken);
             return document is null
-                ? Prelude.Fail<string, BlogPostDocument?>($"Blog post with id '{id}' not found")
-                : Prelude.Ok<string, BlogPostDocument?>(document);
+                ? Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError($"Blog post with id '{id}' not found"))
+                : Prelude.Ok<BlogPostDocument?, AeroError>(document);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, BlogPostDocument?>(ex.Message);
+            return Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, BlogPostDocument?>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public async Task<Result<BlogPostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -109,21 +110,21 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
 
             if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.BlogPost)
             {
-                return Prelude.Fail<string, BlogPostDocument?>($"Blog post with slug '{slug}' not found");
+                return Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError($"Blog post with slug '{slug}' not found"));
             }
 
             var document = await session.LoadAsync<BlogPostDocument>(reservation.OwnerId, cancellationToken);
             return document is null
-                ? Prelude.Fail<string, BlogPostDocument?>($"Blog post with id '{reservation.OwnerId}' not found")
-                : Prelude.Ok<string, BlogPostDocument?>(document);
+                ? Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError($"Blog post with id '{reservation.OwnerId}' not found"))
+                : Prelude.Ok<BlogPostDocument?, AeroError>(document);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, BlogPostDocument?>(ex.Message);
+            return Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, IReadOnlyList<BlogPostDocument>>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<BlogPostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -133,15 +134,15 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
                 .Take(count)
                 .ToListAsync(token: cancellationToken);
 
-            return Prelude.Ok<string, IReadOnlyList<BlogPostDocument>>(latest);
+            return Prelude.Ok<IReadOnlyList<BlogPostDocument>, AeroError>(latest);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, IReadOnlyList<BlogPostDocument>>(ex.Message);
+            return Prelude.Fail<IReadOnlyList<BlogPostDocument>, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, BlogPostDocument>> SaveAsync(BlogPostDocument post, CancellationToken cancellationToken = default)
+    public async Task<Result<BlogPostDocument, AeroError>> SaveAsync(BlogPostDocument post, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -168,19 +169,19 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
             session.Store(post);
             await session.SaveChangesAsync(cancellationToken);
 
-            return Prelude.Ok<string, BlogPostDocument>(post);
+            return Prelude.Ok<BlogPostDocument, AeroError>(post);
         }
         catch (ArgumentException ex)
         {
-            return Prelude.Fail<string, BlogPostDocument>(ex.Message);
+            return Prelude.Fail<BlogPostDocument, AeroError>(AeroError.CreateError(ex.Message));
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, BlogPostDocument>(ex.Message);
+            return Prelude.Fail<BlogPostDocument, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, IReadOnlyList<BlogPostDocument>>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<BlogPostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -189,15 +190,15 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
                 .OrderByDescending(x => x.PublishedOn)
                 .ToListAsync(token: cancellationToken);
 
-            return Prelude.Ok<string, IReadOnlyList<BlogPostDocument>>(posts);
+            return Prelude.Ok<IReadOnlyList<BlogPostDocument>, AeroError>(posts);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, IReadOnlyList<BlogPostDocument>>(ex.Message);
+            return Prelude.Fail<IReadOnlyList<BlogPostDocument>, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, IReadOnlyList<BlogPostDocument>>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<BlogPostDocument>, AeroError>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -206,15 +207,15 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
                 .OrderByDescending(x => x.PublishedOn)
                 .ToListAsync(token: cancellationToken);
 
-            return Prelude.Ok<string, IReadOnlyList<BlogPostDocument>>(posts);
+            return Prelude.Ok<IReadOnlyList<BlogPostDocument>, AeroError>(posts);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, IReadOnlyList<BlogPostDocument>>(ex.Message);
+            return Prelude.Fail<IReadOnlyList<BlogPostDocument>, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, IPagedList<BlogPostDocument>>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default)
+    public async Task<Result<IPagedList<BlogPostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -224,15 +225,15 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
                 .Skip(skip)
                 .ToPagedListAsync(pageNumber, pageSize, cancellationToken);
 
-            return Prelude.Ok<string, IPagedList<BlogPostDocument>>(pagedList);
+            return Prelude.Ok<IPagedList<BlogPostDocument>, AeroError>(pagedList);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, IPagedList<BlogPostDocument>>(ex.Message);
+            return Prelude.Fail<IPagedList<BlogPostDocument>, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, IReadOnlyList<Tag>>> GetAllTagsAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<Tag>, AeroError>> GetAllTagsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -240,15 +241,15 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
                 .OrderBy(x => x.Name)
                 .ToListAsync(token: cancellationToken);
 
-            return Prelude.Ok<string, IReadOnlyList<Tag>>(tags);
+            return Prelude.Ok<IReadOnlyList<Tag>, AeroError>(tags);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, IReadOnlyList<Tag>>(ex.Message);
+            return Prelude.Fail<IReadOnlyList<Tag>, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, IReadOnlyList<Category>>> GetAllCategoriesAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -256,27 +257,27 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
                 .OrderBy(x => x.Name)
                 .ToListAsync(token: cancellationToken);
 
-            return Prelude.Ok<string, IReadOnlyList<Category>>(categories);
+            return Prelude.Ok<IReadOnlyList<Category>, AeroError>(categories);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, IReadOnlyList<Category>>(ex.Message);
+            return Prelude.Fail<IReadOnlyList<Category>, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 
-    public async Task<Result<string, BlogAuthor?>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default)
+    public async Task<Result<BlogAuthor?, AeroError>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default)
     {
         try
         {
             ValidateId(authorId);
             var author = await session.LoadAsync<BlogAuthor>(authorId, cancellationToken);
             return author is null
-                ? Prelude.Fail<string, BlogAuthor?>($"Author with id '{authorId}' not found")
-                : Prelude.Ok<string, BlogAuthor?>(author);
+                ? Prelude.Fail<BlogAuthor?, AeroError>(AeroError.CreateError($"Author with id '{authorId}' not found"))
+                : Prelude.Ok<BlogAuthor?, AeroError>(author);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<string, BlogAuthor?>(ex.Message);
+            return Prelude.Fail<BlogAuthor?, AeroError>(AeroError.CreateError(ex.Message));
         }
     }
 

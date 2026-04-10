@@ -1,5 +1,6 @@
 using Aero.Cms.Core.Http.Clients;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 
 namespace Aero.Cms.Core.Extensions;

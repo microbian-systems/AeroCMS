@@ -11,6 +11,8 @@ public sealed class BlockEditingService
 {
     private static readonly List<BlockTypeInfo> BlockTypes;
 
+    // todo - we should abstract the scanning logic of block types from this service
+    // - add error logging (ILogger<T> injected)
     static BlockEditingService()
     {
         BlockTypes = ScanBlockTypes();
@@ -42,14 +44,14 @@ public sealed class BlockEditingService
     /// <param name="blockTypeName">The name of the block type to create.</param>
     /// <param name="order">The display order for the new block.</param>
     /// <returns>A Result containing the created block or an error message.</returns>
-    public Result<string, BlockBase> CreateBlock(string blockTypeName, int order = 0)
+    public Result<BlockBase, AeroError> CreateBlock(string blockTypeName, int order = 0)
     {
         var blockTypeInfo = GetBlockTypeInfo(blockTypeName);
         
         return blockTypeInfo switch
         {
             Option<BlockTypeInfo>.Some(var info) => CreateBlockInstance(info.Type, order),
-            _ => $"Block type '{blockTypeName}' not found."
+            _ => AeroError.NotFoundError($"Block type '{blockTypeName}' not found.")
         };
     }
 
@@ -59,11 +61,11 @@ public sealed class BlockEditingService
     /// <param name="sourceBlock">The block to duplicate.</param>
     /// <param name="newOrder">The display order for the new block.</param>
     /// <returns>A Result containing the duplicated block or an error message.</returns>
-    public Result<string, BlockBase> DuplicateBlock(BlockBase sourceBlock, int newOrder)
+    public Result<BlockBase, AeroError> DuplicateBlock(BlockBase sourceBlock, int newOrder)
     {
         if (sourceBlock is null)
         {
-            return "Source block cannot be null.";
+            return AeroError.CreateError("Source block cannot be null.");
         }
 
         var json = System.Text.Json.JsonSerializer.Serialize(sourceBlock, sourceBlock.GetType());
@@ -71,7 +73,7 @@ public sealed class BlockEditingService
         
         if (duplicate is null)
         {
-            return "Failed to duplicate block.";
+            return AeroError.CreateError("Failed to duplicate block.");
         }
 
         duplicate.Id = Snowflake.NewId();
@@ -122,11 +124,11 @@ public sealed class BlockEditingService
     /// </summary>
     /// <param name="block">The block to validate.</param>
     /// <returns>A Result indicating success or containing validation errors.</returns>
-    public Result<string[], bool> ValidateBlock(BlockBase block)
+    public Result<bool, AeroError> ValidateBlock(BlockBase block)
     {
         if (block is null)
         {
-            return new[] { "Block cannot be null." };
+            return AeroError.ValidationError( [ "Block cannot be null." ] );
         }
 
         var errors = new List<string>();
@@ -196,7 +198,7 @@ public sealed class BlockEditingService
                 break;
         }
 
-        return errors.Count == 0 ? true : errors.ToArray();
+        return errors.Count == 0 ? true : AeroError.ValidationError(errors);
     }
 
     /// <summary>
@@ -363,14 +365,14 @@ public sealed class BlockEditingService
         return types;
     }
 
-    private static Result<string, BlockBase> CreateBlockInstance(Type blockType, int order)
+    private static Result<BlockBase, AeroError> CreateBlockInstance(Type blockType, int order)
     {
         try
         {
             var instance = Activator.CreateInstance(blockType) as BlockBase;
             if (instance is null)
             {
-                return $"Failed to create instance of {blockType.Name}.";
+                return AeroError.CreateError($"Failed to create instance of {blockType.Name}.");
             }
 
             instance.Id = Snowflake.NewId();
@@ -380,7 +382,8 @@ public sealed class BlockEditingService
         }
         catch (Exception ex)
         {
-            return $"Error creating block: {ex.Message}";
+            
+            return AeroError.CreateError($"Error creating block: {ex.Message}");
         }
     }
 }

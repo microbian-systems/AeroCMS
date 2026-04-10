@@ -27,13 +27,13 @@ public static class DocsApi
     private static async Task<IResult> ListDocs(IDocsService docsService, CancellationToken ct)
     {
         var result = await docsService.GetAllAsync(ct);
-        return result.Match<string, IReadOnlyList<DocsPage>, IResult>(v => TypedResults.Ok(v), e => TypedResults.BadRequest(e));
+        return result.Match<IReadOnlyList<DocsPage>, AeroError, IResult>(v => TypedResults.Ok(v), e => TypedResults.BadRequest(e));
     }
 
     private static async Task<IResult> GetDocById(long id, IDocsService docsService, CancellationToken ct)
     {
         var result = await docsService.GetByIdAsync(id, ct);
-        return result.Match<string, DocsPage?, IResult>(
+        return result.Match<DocsPage?, AeroError, IResult>(
             ok => ok is not null ? TypedResults.Ok(ok) : (IResult)TypedResults.NotFound(),
             error => TypedResults.BadRequest(error));
     }
@@ -41,7 +41,7 @@ public static class DocsApi
     private static async Task<IResult> GetDocBySlug(string slug, IDocsService docsService, CancellationToken ct)
     {
         var result = await docsService.GetBySlugAsync(slug, ct);
-        return result.Match<string, DocsPage?, IResult>(
+        return result.Match<DocsPage?, AeroError, IResult>(
             ok => ok is not null ? TypedResults.Ok(ok) : (IResult)TypedResults.NotFound(),
             error => TypedResults.BadRequest(error));
     }
@@ -49,24 +49,24 @@ public static class DocsApi
     private static async Task<IResult> GetCategories(IDocsService docsService, CancellationToken ct)
     {
         var result = await docsService.GetTopLevelCategoriesAsync(ct);
-        return result.Match<string, IReadOnlyList<DocsPage>, IResult>(v => TypedResults.Ok(v), e => TypedResults.BadRequest(e));
+        return result.Match<IReadOnlyList<DocsPage>, AeroError, IResult>(v => TypedResults.Ok(v), e => TypedResults.BadRequest(e));
     }
 
     private static async Task<IResult> GetChildren(long parentId, IDocsService docsService, CancellationToken ct)
     {
         var result = await docsService.GetChildrenAsync(parentId, ct);
-        return result.Match<string, IReadOnlyList<DocsPage>, IResult>(v => TypedResults.Ok(v), e => TypedResults.BadRequest(e));
+        return result.Match<IReadOnlyList<DocsPage>, AeroError, IResult>(v => TypedResults.Ok(v), e => TypedResults.BadRequest(e));
     }
 
     private static async Task<IResult> SaveDoc(DocsPage page, IDocsService docsService, CancellationToken ct)
     {
         var result = await docsService.SaveAsync(page, ct);
-        return result.Match<string, DocsPage, IResult>(v => TypedResults.Ok(v), e => TypedResults.BadRequest(e));
+        return result.Match<DocsPage, AeroError, IResult>(v => TypedResults.Ok(v), e => TypedResults.BadRequest(e));
     }
 
     private static async Task<IResult> DeleteDoc(long id, IDocsService docsService, CancellationToken ct)
     {
         var result = await docsService.DeleteAsync(id, ct);
-        return result.Match<string, bool, IResult>(_ => TypedResults.NoContent(), e => TypedResults.BadRequest(e));
+        return result.Match<bool, AeroError, IResult>(_ => TypedResults.NoContent(), e => TypedResults.BadRequest(e));
     }
 }

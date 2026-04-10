@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" />
     <ProjectReference Include="..\..\Aero\src\Aero.Actors.Abstractions\Aero.Actors.Abstractions.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Actors\Aero.Actors.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Caching\Aero.Caching.csproj" />

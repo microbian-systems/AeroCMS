@@ -70,7 +70,7 @@ public class ProfileHttpClient(HttpClient httpClient, ILogger<ProfileHttpClient>
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> ChangePasswordAsync(ChangeProfilePasswordRequest request, CancellationToken ct = default)
     {
-        return PostAsync<ChangeProfilePasswordRequest, bool>("password", request, ct);
+        return MapBoolResult(base.PostAsync<ChangeProfilePasswordRequest, HttpResponseMessage>("password", request, ct));
     }
 
     /// <inheritdoc />
@@ -82,7 +82,18 @@ public class ProfileHttpClient(HttpClient httpClient, ILogger<ProfileHttpClient>
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> DeleteAvatarAsync(CancellationToken ct = default)
     {
-        return base.DeleteAsync("avatar", ct);
+        return MapBoolResult(base.DeleteAsync("avatar", ct));
+    }
+
+    private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
+    {
+        var response = await task;
+        return response switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok => true,
+            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
+            _ => AeroError.CreateError("Unexpected result from HTTP operation")
+        };
     }
 }
 

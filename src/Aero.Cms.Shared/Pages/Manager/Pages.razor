@@ -1,6 +1,8 @@
 @page "/manager/pages"
 @page "/manager/pages/general"
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
 @inject NavigationManager Navigation
 @inject IPagesHttpClient PagesApi
 @inject DialogService DialogService
@@ -74,7 +76,7 @@
         
         var result = await PagesApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchTerm);
         
-        if (result is Result<string, PagedResult<PageSummary>>.Ok ok)
+        if (result is Result<PagedResult<PageSummary>, AeroError>.Ok ok)
         {
             pages = ok.Value.Items;
             count = (int)ok.Value.TotalCount;

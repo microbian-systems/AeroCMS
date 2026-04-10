@@ -53,13 +53,13 @@ public static class BlogApi
         {
             var result = await blogService.GetAllPostsAsync(skip, take, search, cancellationToken);
 
-            if (result is Result<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>.Failure failure)
+            if (result is Result<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>.Failure failure)
             {
                 logger.LogWarning("Failed to retrieve blog posts: {Error}", failure.Error);
-                return TypedResults.Problem(failure.Error);
+                return TypedResults.Problem(failure.Error.ToString());
             }
 
-            if (result is Result<string, (IReadOnlyList<BlogPostDocument> Items, long TotalCount)>.Ok ok)
+            if (result is Result<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>.Ok ok)
             {
                 var summaries = ok.Value.Items.Select(p => new BlogSummary(
                     p.Id,
@@ -94,13 +94,13 @@ public static class BlogApi
         {
             var result = await blogService.FindBySlugAsync(slug, cancellationToken);
 
-            if (result is Result<string, BlogPostDocument?>.Failure failure)
+            if (result is Result<BlogPostDocument?, AeroError>.Failure failure)
             {
                 logger.LogWarning("Blog post not found for slug={Slug}: {Error}", slug, failure.Error);
                 return TypedResults.NotFound();
             }
 
-            if (result is Result<string, BlogPostDocument?>.Ok { Value: not null } ok)
+            if (result is Result<BlogPostDocument?, AeroError>.Ok { Value: not null } ok)
             {
                 return TypedResults.Ok(ok.Value);
             }
@@ -137,13 +137,13 @@ public static class BlogApi
             // Then get posts by tag ID
             var result = await blogService.GetByTagAsync(tagDocument.Id, cancellationToken);
 
-            if (result is Result<string, IReadOnlyList<BlogPostDocument>>.Failure failure)
+            if (result is Result<IReadOnlyList<BlogPostDocument>, AeroError>.Failure failure)
             {
                 logger.LogWarning("Failed to retrieve posts for tag={Tag}: {Error}", tag, failure.Error);
                 return TypedResults.NotFound();
             }
 
-            if (result is Result<string, IReadOnlyList<BlogPostDocument>>.Ok ok)
+            if (result is Result<IReadOnlyList<BlogPostDocument>, AeroError>.Ok ok)
             {
                 return TypedResults.Ok(ok.Value);
             }
@@ -195,12 +195,12 @@ public static class BlogApi
 
             var result = await blogService.SaveAsync(post, cancellationToken);
 
-            if (result is Result<string, BlogPostDocument>.Failure failure)
+            if (result is Result<BlogPostDocument, AeroError>.Failure failure)
             {
                 return TypedResults.BadRequest(new { error = failure.Error });
             }
 
-            if (result is Result<string, BlogPostDocument>.Ok ok)
+            if (result is Result<BlogPostDocument, AeroError>.Ok ok)
             {
                 var userId = GetUserId(httpContextAccessor);
                 var auditEvent = BlogPostCreatedEvent.Create(userId, post.Id, post.Title, post.Slug, null);
@@ -242,17 +242,17 @@ public static class BlogApi
 
             var loadResult = await blogService.LoadAsync(id, cancellationToken);
 
-            if (loadResult is Result<string, BlogPostDocument?>.Failure failure)
+            if (loadResult is Result<BlogPostDocument?, AeroError>.Failure failure)
             {
                 return TypedResults.NotFound(new { error = failure.Error });
             }
 
-            if (loadResult is Result<string, BlogPostDocument?>.Ok { Value: null })
+            if (loadResult is Result<BlogPostDocument?, AeroError>.Ok { Value: null })
             {
                 return TypedResults.NotFound(new { error = $"Blog post with id '{id}' not found" });
             }
 
-            if (loadResult is not Result<string, BlogPostDocument?>.Ok { Value: not null } ok)
+            if (loadResult is not Result<BlogPostDocument?, AeroError>.Ok { Value: not null } ok)
             {
                 return TypedResults.NotFound(new { error = $"Blog post with id '{id}' not found" });
             }
@@ -269,12 +269,12 @@ public static class BlogApi
 
             var saveResult = await blogService.SaveAsync(existingPost, cancellationToken);
 
-            if (saveResult is Result<string, BlogPostDocument>.Failure saveFailure)
+            if (saveResult is Result<BlogPostDocument, AeroError>.Failure saveFailure)
             {
                 return TypedResults.BadRequest(new { error = saveFailure.Error });
             }
 
-            if (saveResult is Result<string, BlogPostDocument>.Ok saveOk)
+            if (saveResult is Result<BlogPostDocument, AeroError>.Ok saveOk)
             {
                 var userId = GetUserId(httpContextAccessor);
                 var auditEvent = BlogPostUpdatedEvent.Create(userId, existingPost.Id, existingPost.Title, existingPost.Slug);
@@ -301,13 +301,13 @@ public static class BlogApi
         {
             var result = await blogService.LoadAsync(id, cancellationToken);
 
-            if (result is Result<string, BlogPostDocument?>.Failure failure)
+            if (result is Result<BlogPostDocument?, AeroError>.Failure failure)
             {
                 logger.LogWarning("Blog post not found for id={Id}: {Error}", id, failure.Error);
                 return TypedResults.NotFound();
             }
 
-            if (result is Result<string, BlogPostDocument?>.Ok { Value: not null } ok)
+            if (result is Result<BlogPostDocument?, AeroError>.Ok { Value: not null } ok)
             {
                 return TypedResults.Ok(ok.Value);
             }
@@ -333,12 +333,12 @@ public static class BlogApi
         try
         {
             var loadResult = await blogService.LoadAsync(id, cancellationToken);
-            if (loadResult is Result<string, BlogPostDocument?>.Ok { Value: not null } ok)
+            if (loadResult is Result<BlogPostDocument?, AeroError>.Ok { Value: not null } ok)
             {
                 var post = ok.Value;
                 var result = await blogService.DeleteAsync(id, cancellationToken);
 
-                if (result is Result<string, bool>.Ok { Value: true })
+                if (result is Result<bool, AeroError>.Ok { Value: true })
                 {
                     var userId = GetUserId(httpContextAccessor);
                     var auditEvent = BlogPostDeletedEvent.Create(userId, post.Id, post.Title);

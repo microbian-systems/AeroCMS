@@ -1,8 +1,9 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
+using Aero.Core;
 using Aero.Core.Data.ActiveRecord;
 using Aero.Core.Extensions;
 using Aero.Core.Railway;
-using Marten;
+using FluentValidation;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
 
@@ -13,7 +14,7 @@ namespace Aero.Cms.Modules.Tenant;
 
 public interface ITenantService
 {
-    Task<Result<string, TenantModel>> CreateTenantAsync(TenantModel tenant, CancellationToken ct = default);
+    Task<Result<TenantModel, AeroError>> CreateTenantAsync(TenantModel tenant, CancellationToken ct = default);
     Task DeleteTenantAsync(long id, CancellationToken ct = default);
     Task<IEnumerable<TenantModel>> GetAllTenantsAsync(int page = 1, int num = 10, CancellationToken ct = default);
     Task<Option<TenantModel>> GetTenantByIdAsync(long id, CancellationToken ct = default);
@@ -36,7 +37,7 @@ public class TenantService(ITenantRepository repo, ILogger<TenantService> log) :
 
     }
 
-    public async Task<Result<string, TenantModel>> CreateTenantAsync(TenantModel tenant, CancellationToken ct = default)
+    public async Task<Result<TenantModel, AeroError>> CreateTenantAsync(TenantModel tenant, CancellationToken ct = default)
     {
         var validator = new TenantValidator();
         var result = validator.Validate(tenant);
@@ -44,7 +45,7 @@ public class TenantService(ITenantRepository repo, ILogger<TenantService> log) :
         return result.IsValid switch
         {
             true => tenant,
-            _ => result.Errors.ConcatenateLines(e => e.ErrorMessage)
+            _ => AeroError.CreateError(result.Errors.ConcatenateLines(e => e.ErrorMessage))
         };
     }
 

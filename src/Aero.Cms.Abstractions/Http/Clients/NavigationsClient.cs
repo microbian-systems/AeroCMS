@@ -85,7 +85,18 @@ public class NavigationsHttpClient(HttpClient httpClient, ILogger<NavigationsHtt
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        return MapBoolResult(base.DeleteAsync(id.ToString(), ct));
+    }
+
+    private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
+    {
+        var response = await task;
+        return response switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok => true,
+            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
+            _ => AeroError.CreateError("Unexpected result from HTTP operation")
+        };
     }
 }
 

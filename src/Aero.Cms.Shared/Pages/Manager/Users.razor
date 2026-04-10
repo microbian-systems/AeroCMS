@@ -1,6 +1,8 @@
 @page "/manager/users"
 @page "/manager/users/general"
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
 @inject IUsersHttpClient UsersApi
 @inject DialogService DialogService
 
@@ -82,7 +84,7 @@
         
         var result = await UsersApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchText);
         
-        if (result is Result<string, PagedResult<UserSummary>>.Ok ok)
+        if (result is Result<PagedResult<UserSummary>, AeroError>.Ok ok)
         {
             users = ok.Value.Items;
             count = (int)ok.Value.TotalCount;

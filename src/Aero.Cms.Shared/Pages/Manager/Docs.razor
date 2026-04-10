@@ -2,8 +2,9 @@
 @page "/manager/docs/general"
 @page "/manager/docs/categories/{slug}"
 
+@using Aero.Core
 @using Aero.Cms.Core.Http.Clients
-@inject DocsClient DocsClient
+@inject IDocsHttpClient DocsClient
 @inject NavigationManager NavigationManager
 
 <div class="space-y-6">
@@ -69,13 +70,13 @@
     protected override async Task OnInitializedAsync()
     {
         var result = await DocsClient.GetCategoriesAsync();
-        if (result is Result<string, IReadOnlyList<DocsSummary>>.Ok ok)
+        if (result is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok ok)
         {
             categories = ok.Value;
         }
-        else if (result is Result<string, IReadOnlyList<DocsSummary>>.Failure failure)
+        else if (result is Result<IReadOnlyList<DocsSummary>, AeroError>.Failure failure)
         {
-            ShowError("Failed to load categories", failure.Error);
+            ShowError("Failed to load categories", failure.Error.ToString());
         }
     }
 
@@ -84,35 +85,35 @@
         if (!string.IsNullOrEmpty(slug) && slug != "general")
         {
             var categoryResult = await DocsClient.GetBySlugAsync(slug);
-            if (categoryResult is Result<string, DocsDetail>.Ok ok && ok.Value != null)
+            if (categoryResult is Result<DocsDetail, AeroError>.Ok ok && ok.Value != null)
             {
                 selectedCategory = ok.Value;
                 var childrenResult = await DocsClient.GetChildrenAsync(selectedCategory.Id);
-                if (childrenResult is Result<string, IReadOnlyList<DocsSummary>>.Ok childrenOk)
+                if (childrenResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok childrenOk)
                 {
                     articles = childrenOk.Value;
                 }
-                else if (childrenResult is Result<string, IReadOnlyList<DocsSummary>>.Failure childrenFailure)
+                else if (childrenResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Failure childrenFailure)
                 {
-                    ShowError("Failed to load articles", childrenFailure.Error);
+                    ShowError("Failed to load articles", childrenFailure.Error.ToString());
                 }
             }
-            else if (categoryResult is Result<string, DocsDetail>.Failure failure)
+            else if (categoryResult is Result<DocsDetail, AeroError>.Failure failure)
             {
-                ShowError("Failed to load category", failure.Error);
+                ShowError("Failed to load category", failure.Error.ToString());
             }
         }
         else
         {
             selectedCategory = null;
             var allResult = await DocsClient.GetAllAsync();
-            if (allResult is Result<string, IReadOnlyList<DocsSummary>>.Ok ok)
+            if (allResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok ok)
             {
                 articles = ok.Value;
             }
-            else if (allResult is Result<string, IReadOnlyList<DocsSummary>>.Failure failure)
+            else if (allResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Failure failure)
             {
-                ShowError("Failed to load articles", failure.Error);
+                ShowError("Failed to load articles", failure.Error.ToString());
             }
         }
     }

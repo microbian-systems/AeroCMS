@@ -85,7 +85,18 @@ public class ModulesHttpClient(HttpClient httpClient, ILogger<ModulesHttpClient>
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> UninstallAsync(string id, CancellationToken ct = default)
     {
-        return DeleteAsync(id, ct);
+        return MapBoolResult(base.DeleteAsync(id, ct));
+    }
+
+    private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
+    {
+        var response = await task;
+        return response switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok => true,
+            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
+            _ => AeroError.CreateError("Unexpected result from HTTP operation")
+        };
     }
 
     /// <inheritdoc />

@@ -148,9 +148,15 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
     }
 
     /// <inheritdoc />
-    public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+    public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
-        return DeleteAsync(id.ToString(), ct);
+        var response = await base.DeleteAsync(id.ToString(), ct);
+        return response switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok => true,
+            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
+            _ => AeroError.CreateError("Unexpected result from DeleteAsync")
+        };
     }
 
     /// <inheritdoc />

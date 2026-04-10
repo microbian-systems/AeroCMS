@@ -1,5 +1,6 @@
 @page
 @using Aero.Cms.Modules.Blog.Models
+@using Aero.Core
 @using Aero.Core.Railway
 @using Aero.Services.Images
 
@@ -54,7 +55,7 @@
             @if (post.AuthorId.HasValue)
             {
                 var authorResult = await BlogService.GetAuthorAsync(post.AuthorId.Value);
-                if (authorResult is Result<string, BlogAuthor?>.Ok { Value: not null } okResult)
+                if (authorResult is Result<BlogAuthor?, AeroError>.Ok { Value: not null } okResult)
                 {
                     var author = okResult.Value;
                     <div class="flex items-center gap-3">

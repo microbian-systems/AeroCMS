@@ -1,6 +1,8 @@
 @page "/manager/posts"
 @page "/manager/posts/general"
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
 @inject IBlogHttpClient BlogApi
 @inject DialogService DialogService
 
@@ -83,7 +85,7 @@
         
         var result = await BlogApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchText);
         
-        if (result is Result<string, PagedResult<BlogSummary>>.Ok ok)
+        if (result is Result<PagedResult<BlogSummary>, AeroError>.Ok ok)
         {
             posts = ok.Value.Items;
             count = (int)ok.Value.TotalCount;

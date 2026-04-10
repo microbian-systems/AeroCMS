@@ -14,7 +14,7 @@ public interface IAuditService
     /// <param name="auditEvent">The audit event to record.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A result indicating success or failure.</returns>
-    Task<Result<string, NoneType>> LogAsync<TEvent>(
+    Task<Result<bool, AeroError>> LogAsync<TEvent>(
         TEvent auditEvent,
         CancellationToken cancellationToken = default) where TEvent : AuditEvent;
 }

@@ -1,4 +1,5 @@
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core
 @using Aero.Core.Railway
 @inject IMediaHttpClient MediaClient
 @inject NotificationService NotificationService
@@ -111,7 +112,7 @@
     protected override async Task OnInitializedAsync()
     {
         var result = await MediaClient.GetByIdAsync(MediaId);
-        if (result is Result<string, MediaDetail>.Ok ok)
+        if (result is Result<MediaDetail, AeroError>.Ok ok)
         {
             media = ok.Value;
             fileName = media.FileName;
@@ -132,7 +133,7 @@
         var req = new UploadMediaRequest(fileName ?? media.FileName, media.MimeType, media.FileSize, altText, description, media.ParentId);
         var res = await MediaClient.UpdateAsync(MediaId, req);
 
-        if (res is Result<string, MediaDetail>.Ok)
+        if (res is Result<MediaDetail, AeroError>.Ok)
         {
             NotificationService.Notify(NotificationSeverity.Success, "Updated", "Media metadata saved successfully");
             DialogService.Close(true);
@@ -151,7 +152,7 @@
         if (confirm == true)
         {
             var res = await MediaClient.DeleteAsync(MediaId);
-            if (res is Result<string, bool>.Ok)
+            if (res is Result<bool, AeroError>.Ok)
             {
                 NotificationService.Notify(NotificationSeverity.Success, "Deleted", "Asset removed from library");
                 DialogService.Close(true);

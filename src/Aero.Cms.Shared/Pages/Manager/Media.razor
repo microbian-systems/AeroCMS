@@ -1,6 +1,7 @@
 @page "/manager/media"
 @page "/manager/media/general"
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core
 @using Aero.Core.Railway
 @inject IMediaHttpClient MediaClient
 @inject DialogService DialogService
@@ -262,7 +263,7 @@
         
         // 1. Load current items
         var result = await MediaClient.GetAllAsync(currentFolderId, currentPage * pageSize, pageSize, searchText);
-        if (result is Result<string, PagedResult<MediaSummary>>.Ok ok)
+        if (result is Result<PagedResult<MediaSummary>, AeroError>.Ok ok)
         {
             mediaItems = ok.Value.Items;
             totalCount = (int)ok.Value.TotalCount;
@@ -270,7 +271,7 @@
         
         // 2. Load side folders (for the sidebar)
         var folderResult = await MediaClient.GetAllAsync(null, 0, 100); 
-        if (folderResult is Result<string, PagedResult<MediaSummary>>.Ok fok)
+        if (folderResult is Result<PagedResult<MediaSummary>, AeroError>.Ok fok)
         {
             availableFolders = fok.Value.Items.Where(x => x.IsFolder).ToList();
         }
@@ -365,7 +366,7 @@
         if (confirm == true)
         {
             var res = await MediaClient.DeleteAsync(item.Id);
-            if (res is Result<string, bool>.Ok)
+            if (res is Result<bool, AeroError>.Ok)
             {
                 NotificationService.Notify(NotificationSeverity.Success, "Deleted", "Media asset removed successfully");
                 await LoadMedia();

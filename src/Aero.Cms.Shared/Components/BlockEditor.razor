@@ -1,5 +1,7 @@
 @using Aero.Cms.Core.Blocks
 @using Aero.Cms.Core.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
 @inject BlockEditingService BlockService
 @inject NavigationsHttpClient NavClient
 
@@ -380,7 +382,7 @@
     protected override async Task OnInitializedAsync()
     {
         var result = await NavClient.GetAllAsync();
-        if (result is Result<string, IReadOnlyList<NavigationSummary>>.Ok ok && ok.Value != null)
+        if (result is Result<IReadOnlyList<NavigationSummary>, AeroError>.Ok ok && ok.Value != null)
         {
             AvailableNavigations = ok.Value;
         }
@@ -418,7 +420,7 @@
         }
 
         var validationResult = BlockService.ValidateBlock(Block);
-        if (validationResult is Result<string[], bool>.Ok)
+        if (validationResult is Result<bool, AeroError>.Ok)
         {
             await OnSave.InvokeAsync(Block);
             ShowValidationErrors = false;

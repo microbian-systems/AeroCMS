@@ -1,83 +1,83 @@
 using Aero.Cms.Core.Entities;
-using Aero.Core.Railway;
+using Aero.Core;
 using Marten;
-using static Aero.Core.Railway.Prelude;
+using static global::Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Modules.Docs;
 
 public sealed class DocsService(IDocumentSession session) : IDocsService
 {
-    public async Task<Result<string, IReadOnlyList<DocsPage>>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var docs = await session.Query<DocsPage>()
                 .OrderBy(x => x.Order)
                 .ToListAsync(cancellationToken);
-            return Ok<string, IReadOnlyList<DocsPage>>(docs);
+            return Ok<IReadOnlyList<DocsPage>, AeroError>(docs);
         }
         catch (Exception ex)
         {
-            return Fail<string, IReadOnlyList<DocsPage>>(ex.Message);
+            return AeroError.CreateError(ex.Message);
         }
     }
 
-    public async Task<Result<string, DocsPage?>> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public async Task<global::Aero.Core.Railway.Result<DocsPage?, AeroError>> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
         try
         {
             var doc = await session.Query<DocsPage>()
                 .FirstOrDefaultAsync(x => x.Slug == slug, cancellationToken);
-            return Ok<string, DocsPage?>(doc);
+            return Ok<DocsPage?, AeroError>(doc);
         }
         catch (Exception ex)
         {
-            return Fail<string, DocsPage?>(ex.Message);
+            return AeroError.CreateError(ex.Message);
         }
     }
 
-    public async Task<Result<string, DocsPage?>> GetByIdAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<global::Aero.Core.Railway.Result<DocsPage?, AeroError>> GetByIdAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
             var doc = await session.LoadAsync<DocsPage>(id, cancellationToken);
-            return Ok<string, DocsPage?>(doc);
+            return Ok<DocsPage?, AeroError>(doc);
         }
         catch (Exception ex)
         {
-            return Fail<string, DocsPage?>(ex.Message);
+            return AeroError.CreateError(ex.Message);
         }
     }
 
-    public async Task<Result<string, DocsPage>> SaveAsync(DocsPage page, CancellationToken cancellationToken = default)
+    public async Task<global::Aero.Core.Railway.Result<DocsPage, AeroError>> SaveAsync(DocsPage page, CancellationToken cancellationToken = default)
     {
         try
         {
             session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
-            return Ok<string, DocsPage>(page);
+            return Ok<DocsPage, AeroError>(page);
         }
         catch (Exception ex)
         {
-            return Fail<string, DocsPage>(ex.Message);
+            return AeroError.CreateError(ex.Message);
         }
     }
 
-    public async Task<Result<string, bool>> DeleteAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<global::Aero.Core.Railway.Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
             session.Delete<DocsPage>(id);
             await session.SaveChangesAsync(cancellationToken);
-            return Ok<string, bool>(true);
+            return Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
         {
-            return Fail<string, bool>(ex.Message);
+            return AeroError.CreateError(ex.Message);
         }
     }
 
-    public async Task<Result<string, IReadOnlyList<DocsPage>>> GetChildrenAsync(long parentId, CancellationToken cancellationToken = default)
+    public async Task<global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -85,15 +85,15 @@ public sealed class DocsService(IDocumentSession session) : IDocsService
                 .Where(x => x.ParentId == parentId)
                 .OrderBy(x => x.Order)
                 .ToListAsync(cancellationToken);
-            return Ok<string, IReadOnlyList<DocsPage>>(children);
+            return Ok<IReadOnlyList<DocsPage>, AeroError>(children);
         }
         catch (Exception ex)
         {
-            return Fail<string, IReadOnlyList<DocsPage>>(ex.Message);
+            return AeroError.CreateError(ex.Message);
         }
     }
 
-    public async Task<Result<string, IReadOnlyList<DocsPage>>> GetTopLevelCategoriesAsync(CancellationToken cancellationToken = default)
+    public async Task<global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>> GetTopLevelCategoriesAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -103,7 +103,7 @@ public sealed class DocsService(IDocumentSession session) : IDocsService
             
             if (rootDoc == null)
             {
-                return Ok<string, IReadOnlyList<DocsPage>>([]);
+                return Ok<IReadOnlyList<DocsPage>, AeroError>([]);
             }
 
             // Find children of root "docs"
@@ -112,11 +112,11 @@ public sealed class DocsService(IDocumentSession session) : IDocsService
                 .OrderBy(x => x.Order)
                 .ToListAsync(cancellationToken);
 
-            return Ok<string, IReadOnlyList<DocsPage>>(children);
+            return Ok<IReadOnlyList<DocsPage>, AeroError>(children);
         }
         catch (Exception ex)
         {
-            return Fail<string, IReadOnlyList<DocsPage>>(ex.Message);
+            return AeroError.CreateError(ex.Message);
         }
     }
 }

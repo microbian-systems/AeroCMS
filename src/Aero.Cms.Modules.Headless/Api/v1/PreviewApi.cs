@@ -37,13 +37,13 @@ public static class PreviewApi
         {
             var result = await pageService.LoadAsync(id, cancellationToken);
 
-            if (result is Result<string, PageDocument?>.Failure failure)
+            if (result is Result<PageDocument?, AeroError>.Failure failure)
             {
                 logger.LogWarning("Failed to preview page id={Id}: {Error}", id, failure.Error);
                 return TypedResults.NotFound(new { error = failure.Error });
             }
 
-            if (result is Result<string, PageDocument?>.Ok { Value: not null } ok)
+            if (result is Result<PageDocument?, AeroError>.Ok { Value: not null } ok)
             {
                 return TypedResults.Ok(new PreviewResponse<PageDocument>(ok.Value, "page"));
             }
@@ -68,13 +68,13 @@ public static class PreviewApi
         {
             var result = await blogService.LoadAsync(id, cancellationToken);
 
-            if (result is Result<string, BlogPostDocument?>.Failure failure)
+            if (result is Result<BlogPostDocument?, AeroError>.Failure failure)
             {
                 logger.LogWarning("Failed to preview blog post id={Id}: {Error}", id, failure.Error);
                 return TypedResults.NotFound(new { error = failure.Error });
             }
 
-            if (result is Result<string, BlogPostDocument?>.Ok { Value: not null } ok)
+            if (result is Result<BlogPostDocument?, AeroError>.Ok { Value: not null } ok)
             {
                 return TypedResults.Ok(new PreviewResponse<BlogPostDocument>(ok.Value, "blog-post"));
             }

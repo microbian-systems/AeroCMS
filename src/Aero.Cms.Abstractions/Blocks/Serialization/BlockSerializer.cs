@@ -43,18 +43,18 @@ public static class BlockSerializer
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized block, or an error result if deserialization fails.</returns>
-    public static Result<string, BlockBase> Deserialize(string json)
+    public static Result<BlockBase, AeroError> Deserialize(string json)
     {
         try
         {
             var block = JsonSerializer.Deserialize<BlockBase>(json, Options);
             return block is null
-                ? new Result<string, BlockBase>.Failure("Deserialization returned null")
+                ? AeroError.CreateError("JSON Deserialization returned null")
                 : block;
         }
         catch (JsonException ex)
         {
-            return new Result<string, BlockBase>.Failure($"Failed to deserialize block: {ex.Message}");
+            return AeroError.CreateError($"Failed to deserialize block: {ex.Message}");
         }
     }
 
@@ -63,18 +63,18 @@ public static class BlockSerializer
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized blocks, or an error result if deserialization fails.</returns>
-    public static Result<string, IReadOnlyList<BlockBase>> DeserializeMany(string json)
+    public static Result<IReadOnlyList<BlockBase>, AeroError> DeserializeMany(string json)
     {
         try
         {
             var blocks = JsonSerializer.Deserialize<List<BlockBase>>(json, Options);
             return blocks is null
-                ? new Result<string, IReadOnlyList<BlockBase>>.Failure("Deserialization returned null")
+                ? AeroError.CreateError("Deserialization returned null")
                 : blocks;
         }
         catch (JsonException ex)
         {
-            return new Result<string, IReadOnlyList<BlockBase>>.Failure($"Failed to deserialize blocks: {ex.Message}");
+            return AeroError.CreateError($"Failed to deserialize blocks: {ex.Message}");
         }
     }
 
@@ -84,18 +84,18 @@ public static class BlockSerializer
     /// <typeparam name="T">The expected block type.</typeparam>
     /// <param name="json">The JSON string to deserialize.</param>
     /// <returns>The deserialized block, or an error result if deserialization fails.</returns>
-    public static Result<string, T> Deserialize<T>(string json) where T : BlockBase
+    public static Result<T, AeroError> Deserialize<T>(string json) where T : BlockBase
     {
         try
         {
             var block = JsonSerializer.Deserialize<T>(json, Options);
             return block is null
-                ? new Result<string, T>.Failure("Deserialization returned null")
+                ? AeroError.CreateError("Deserialization returned null")
                 : block;
         }
         catch (JsonException ex)
         {
-            return new Result<string, T>.Failure($"Failed to deserialize {typeof(T).Name}: {ex.Message}");
+            return AeroError.CreateError($"Failed to deserialize {typeof(T).Name}: {ex.Message}");
         }
     }
 
@@ -132,18 +132,18 @@ public static class BlockSerializer
     /// </summary>
     /// <param name="utf8Bytes">The UTF-8 bytes to deserialize.</param>
     /// <returns>The deserialized block, or an error result if deserialization fails.</returns>
-    public static Result<string, BlockBase> DeserializeFromBytes(byte[] utf8Bytes)
+    public static Result<BlockBase, AeroError> DeserializeFromBytes(byte[] utf8Bytes)
     {
         try
         {
             var block = JsonSerializer.Deserialize<BlockBase>(utf8Bytes, Options);
             return block is null
-                ? new Result<string, BlockBase>.Failure("Deserialization returned null")
+                ? AeroError.CreateError("Deserialization returned null")
                 : block;
         }
         catch (JsonException ex)
         {
-            return new Result<string, BlockBase>.Failure($"Failed to deserialize block: {ex.Message}");
+            return AeroError.CreateError($"Failed to deserialize block: {ex.Message}");
         }
     }
 

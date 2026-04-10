@@ -1,4 +1,5 @@
 using Aero.Cms.Core.Entities;
+using Aero.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -13,7 +14,7 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
-        Result<string, PageDocument?> result;
+        Result<PageDocument?, AeroError> result;
 
         // If no slug provided, load the homepage
         if (string.IsNullOrWhiteSpace(Slug))
@@ -29,8 +30,8 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
 
         var page = result switch
         {
-            global::Aero.Core.Railway.Result<string, PageDocument?>.Ok(var foundPage) => foundPage,
-            global::Aero.Core.Railway.Result<string, PageDocument?>.Failure => (PageDocument?)null,
+            global::Aero.Core.Railway.Result<PageDocument?, AeroError>.Ok(var foundPage) => foundPage,
+            global::Aero.Core.Railway.Result<PageDocument?, AeroError>.Failure => (PageDocument?)null,
             _ => (PageDocument?)null
         };
 
