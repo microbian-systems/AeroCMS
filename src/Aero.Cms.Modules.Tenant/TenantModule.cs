@@ -23,13 +23,11 @@ public class TenantModule : AeroModuleBase, IConfigureMarten
     public override IReadOnlyList<string> Category => [];
     public override IReadOnlyList<string> Tags => [];
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+    public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         opts.Schema.For<TenantModel>().DocumentAlias(Schemas.Tables.Tenants);
-        opts.Schema.For<TenantModel>().Index(x => x.Name);
-        opts.Schema.For<TenantModel>().Index(x => x.Hostname);
-        opts.Schema.For<TenantModel>().Index(x => x.CreatedOn);
-        opts.Schema.For<TenantModel>().Index(x => x.ModifiedOn);
+        
+        base.Configure(services, opts);
     }
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
