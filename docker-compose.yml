@@ -2,78 +2,78 @@ services:
   # --------------------------------------------------------------------------
   # Citus PostgreSQL Cluster
   # --------------------------------------------------------------------------
-  master:
-    image: citusdata/citus:14.0.0
-    container_name: aero-cms_master
-    environment: &pg-auth
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "*strongPassword1"
-      #POSTGRES_DB: aero
-      POSTGRES_HOST_AUTH_METHOD: trust
-    ports:
-      - "5432:5432"
-    volumes:
-      - master_data:/var/lib/postgresql/14/main
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 4s
-      timeout: 4s
-      start_period: 6s
-      retries: 5
-    labels:
-      com.citusdata.role: Master
-    networks:
-      - aero-net
+  # master:
+  #   image: citusdata/citus:14.0.0
+  #   container_name: aero-cms_master
+  #   environment: &pg-auth
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: "*strongPassword1"
+  #     POSTGRES_DB: aero
+  #     POSTGRES_HOST_AUTH_METHOD: trust
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - master_data:/var/lib/postgresql/14/main
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 4s
+  #     timeout: 4s
+  #     start_period: 6s
+  #     retries: 5
+  #   labels:
+  #     com.citusdata.role: Master
+  #   networks:
+  #     - aero-net
 
-  manager:
-    # image: aero-cms-manager
-    build:
-      context: ./manager
-      dockerfile: Dockerfile
-    container_name: aero-cms-manager
-    command: python -u /manager/manager.py
-    environment:
-      <<: *pg-auth
-      CITUS_HOST: master
-    depends_on:
-      master:
-        condition: service_healthy
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./manager:/manager
-      - healthcheck:/healthcheck
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /healthcheck/manager-ready"]
-      interval: 1s
-      timeout: 1s
-      start_period: 1s
-      retries: 10
-    networks:
-      - aero-net
+  # manager:
+  #   # image: aero-cms-manager
+  #   build:
+  #     context: ./manager
+  #     dockerfile: Dockerfile
+  #   container_name: aero-cms-manager
+  #   command: python -u /manager/manager.py
+  #   environment:
+  #     <<: *pg-auth
+  #     CITUS_HOST: master
+  #   depends_on:
+  #     master:
+  #       condition: service_healthy
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./manager:/manager
+  #     - healthcheck:/healthcheck
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "test -f /healthcheck/manager-ready"]
+  #     interval: 1s
+  #     timeout: 1s
+  #     start_period: 1s
+  #     retries: 10
+  #   networks:
+  #     - aero-net
 
-  worker:
-    image: aero-cms-worker
-    build:
-      context: ./manager
-      dockerfile: Dockerfile.worker
-    command: /wait-for-manager.sh
-    labels:
-      com.citusdata.role: Worker
-    environment:
-      <<: *pg-auth
-    depends_on:
-      manager:
-        condition: service_healthy
-    volumes:
-      - healthcheck:/healthcheck:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 4s
-      timeout: 4s
-      start_period: 6s
-      retries: 5
-    networks:
-      - aero-net
+  # worker:
+  #   image: aero-cms-worker
+  #   build:
+  #     context: ./manager
+  #     dockerfile: Dockerfile.worker
+  #   command: /wait-for-manager.sh
+  #   labels:
+  #     com.citusdata.role: Worker
+  #   environment:
+  #     <<: *pg-auth
+  #   depends_on:
+  #     manager:
+  #       condition: service_healthy
+  #   volumes:
+  #     - healthcheck:/healthcheck:ro
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 4s
+  #     timeout: 4s
+  #     start_period: 6s
+  #     retries: 5
+  #   networks:
+  #     - aero-net
 
   # --------------------------------------------------------------------------
   # LavinMQ cluster nodes (internal only; scaled with --scale lavinmq=3)

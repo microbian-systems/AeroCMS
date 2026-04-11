@@ -22,6 +22,7 @@
     <Project Path="../Aero/src/Aero.Marten/Aero.Marten.csproj" />
     <Project Path="../Aero/src/Aero.Models/Aero.Models.csproj" />
     <Project Path="../Aero/src/Aero.Modular/Aero.Modular.csproj" />
+    <Project Path="../Aero/src/Aero.Secrets/Aero.Secrets.csproj" />
     <Project Path="../Aero/src/Aero.Services/Aero.Services.csproj" />
     <Project Path="../Aero/src/Aero.SignalR/Aero.SignalR.csproj" />
     <Project Path="../Aero/src/Aero.Social/Aero.Social.csproj" />
@@ -67,6 +68,7 @@
     <Project Path="Aero.Cms.Modules.RequestLog/Aero.Cms.Modules.RequestLog.csproj" Id="d5384b04-0bab-4a96-bb5b-538053e2a60b" />
     <Project Path="Aero.Cms.Modules.Scalar/Aero.Cms.Modules.Scalar.csproj" Id="d32f313d-75ea-4b95-a910-becb114d5e89" />
     <Project Path="Aero.Cms.Modules.Search/Aero.Cms.Modules.Search.csproj" Id="7460b858-daed-4e30-a537-28a4cd4b4465" />
+    <Project Path="Aero.Cms.Modules.Secrets/Aero.Cms.Modules.Secrets.csproj" Id="65aabc32-bc3d-4758-a61f-c4e507525733" />
     <Project Path="Aero.Cms.Modules.Settings/Aero.Cms.Modules.Settings.csproj" Id="f0fac740-d6b0-43da-8208-0c63c5983a3a" />
     <Project Path="Aero.Cms.Modules.Setup/Aero.Cms.Modules.Setup.csproj" Id="93154661-c5ce-4976-b071-1052434782f0" />
     <Project Path="Aero.Cms.Modules.SiteMap/Aero.Cms.Modules.SiteMap.csproj" Id="ad9f5134-2c9f-47d5-bb80-ca4ca27db91b" />
