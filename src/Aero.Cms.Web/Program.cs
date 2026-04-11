@@ -15,13 +15,31 @@ using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Shared;
 using Aero.Cms.Web.Components;
 using Aero.Web.Exceptions;
+using Aero.Cms.Modules.Setup.Bootstrap;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 var config = builder.Configuration;
 var env = builder.Environment;
 
+var bootstrapSection = config.GetSection("AeroCms:Bootstrap");
+var bootstrapState = bootstrapSection["State"];
+if (string.IsNullOrWhiteSpace(bootstrapState))
+{
+    var setupComplete = bootstrapSection.GetValue<bool?>("SetupComplete") ?? false;
+    var seedComplete = bootstrapSection.GetValue<bool?>("SeedComplete") ?? false;
+    bootstrapState = setupComplete && seedComplete
+        ? BootstrapStates.Running
+        : bootstrapSection.Exists()
+            ? BootstrapStates.Configured
+            : BootstrapStates.Setup;
+}
 
+var runtimeMode = string.Equals(bootstrapState, BootstrapStates.Configured, StringComparison.OrdinalIgnoreCase)
+    || string.Equals(bootstrapState, BootstrapStates.Running, StringComparison.OrdinalIgnoreCase);
+
+// Always add application server - InfrastructureConnectionStringResolver returns embedded defaults in Setup mode
+// This enables in-process runtime activation after setup configuration
 builder.AddAeroApplicationServer();
 
 
@@ -65,7 +83,14 @@ services.AddProblemDetails(options =>
 });
 services.AddExceptionHandler<AeroGlobalExceptionHandler>();
 
-var (_, log) = await builder.AddAeroCmsAsync<Program>();
+var (_, log) = runtimeMode
+    ? await builder.AddAeroCmsRuntimeAsync<Program>()
+    : await builder.AddAeroCmsBootstrapAsync<Program>();
+
+if (!runtimeMode)
+{
+    new SetupModule().ConfigureServices(services, config, env);
+}
 
 
 log.Information("building aero application services");
@@ -107,11 +132,20 @@ app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(
         typeof(Aero.Cms.Shared._Imports).Assembly,
-        typeof(Aero.Cms.Web.Client._Imports).Assembly);
+        typeof(Aero.Cms.Web.Client._Imports).Assembly,
+        typeof(SetupModule).Assembly);  // Include Setup module for Blazor routing
 
 try
 {
     log.Information("starting aero application...");
+    if (runtimeMode)
+    {
+        var initializer = app.Services.GetService<IRuntimeBootstrapInitializer>();
+        if (initializer != null)
+        {
+            await initializer.InitializeAsync();
+        }
+    }
     await app.MapAeroAppAsync();
     app.Run();
 }

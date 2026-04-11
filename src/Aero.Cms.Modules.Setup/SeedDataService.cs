@@ -10,6 +10,7 @@ using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
 using Aero.Services.Images;
 using Marten;
+using Aero.Cms.Web.Core.Blocks;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -57,7 +58,8 @@ public sealed class SeedDatabaseService(
     IBlogPostContentService blogPostContentService,
     IStaticPhotosClient staticPhotosClient,
     IModuleDiscoveryService moduleDiscoveryService,
-    IModuleStateStore moduleStateStore) : ISeedDatabaseService, ISetupCompletionService
+    IModuleStateStore moduleStateStore,
+    IBootstrapCompletionWriter bootstrapCompletionWriter) : ISeedDatabaseService, ISetupCompletionService
 {
     public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
     {
@@ -104,6 +106,7 @@ public sealed class SeedDatabaseService(
 
         // Discover and save all available modules
         await SaveModuleStateAsync(cancellationToken);
+        await bootstrapCompletionWriter.MarkCompleteAsync(cancellationToken);
 
         return new SeedDatabaseResult
         {

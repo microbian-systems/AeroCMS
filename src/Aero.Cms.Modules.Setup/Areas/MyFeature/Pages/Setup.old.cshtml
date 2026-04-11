@@ -1,5 +1,6 @@
-@page
-@model global::Aero.Cms.Modules.Setup.Areas.MyFeature.Pages.SetupModel
+@page "/setup-old"
+@using Aero.Cms.Modules.Setup.Areas.MyFeature.Pages
+@model SetupModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
     Layout = null;
@@ -54,6 +55,57 @@
             opacity: 0.58;
         }
     </style>
+    <script>
+        document.addEventListener('alpine:init', () => {
+            window.Alpine.data('setupPage', () => ({
+                showConnectionString: false,
+                showCacheConnectionString: false,
+                showInfisicalFields: false,
+                postgresReady: false,
+                garnetReady: false,
+                databaseMode: 'Embedded',
+                cacheMode: 'Memory',
+                initSetupPage() {
+                    this.syncModes();
+                    this.pollSetupStatus();
+                    window.setInterval(() => this.pollSetupStatus(), 3000);
+                },
+                syncModes() {
+                    this.databaseMode = document.querySelector('[name="Input.DatabaseMode"]')?.value ?? 'Embedded';
+                    this.cacheMode = document.querySelector('[name="Input.CacheMode"]')?.value ?? 'Memory';
+                    const secretProvider = document.querySelector('[name="Input.SecretProvider"]')?.value ?? 'Local Certificate';
+
+                    this.showConnectionString = this.databaseMode === 'Server';
+                    this.showCacheConnectionString = this.cacheMode === 'Server';
+                    this.showInfisicalFields = secretProvider === 'Infisical';
+                },
+                get requiresPostgres() {
+                    return this.databaseMode === 'Embedded';
+                },
+                get requiresGarnet() {
+                    return this.cacheMode === 'Embedded';
+                },
+                get isReady() {
+                    return (!this.requiresPostgres || this.postgresReady) && (!this.requiresGarnet || this.garnetReady);
+                },
+                async pollSetupStatus() {
+                    try {
+                        const response = await fetch('/setup/status', { headers: { 'Accept': 'application/json' } });
+                        if (!response.ok) return;
+
+                        const status = await response.json();
+                        this.postgresReady = !!status.postgresReady;
+                        this.garnetReady = !!status.garnetReady;
+                        this.databaseMode = status.databaseMode ?? this.databaseMode;
+                        this.cacheMode = status.cacheMode ?? this.cacheMode;
+                    } catch {
+                        this.postgresReady = false;
+                        this.garnetReady = false;
+                    }
+                }
+            }));
+        });
+    </script>
 </head>
 <body class="min-h-full font-sans text-slate-900 border-t-4 border-indigo-600">
 @* Large decorative background image *@
@@ -140,8 +192,85 @@
                         </div>
                     }
 
-                    <form method="post" novalidate class="space-y-10 cursor-default">
+                    <form method="post" novalidate class="space-y-10 cursor-default" x-data="setupPage()">
                         <input asp-for="ReturnUrl" type="hidden"/>
+
+                        @* Infrastructure Section *@
+                        <div class="space-y-6" x-init="initSetupPage($el)">
+                            <div class="flex items-center gap-4">
+                                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Infrastructure</h3>
+                                <div class="h-px flex-1 bg-slate-100"></div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-2">
+                                    <label asp-for="Input.DatabaseMode" class="text-xs font-bold text-slate-700">Database</label>
+                                    <select asp-for="Input.DatabaseMode" @@change="syncModes()" class="@FieldClass("Input.DatabaseMode") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all">
+                                        <option value="Embedded">Embedded</option>
+                                        <option value="Server">Server</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-2">
+                                    <label asp-for="Input.CacheMode" class="text-xs font-bold text-slate-700">Cache</label>
+                                    <select asp-for="Input.CacheMode" @@change="syncModes()" class="@FieldClass("Input.CacheMode") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all">
+                                        <option value="Memory">Memory</option>
+                                        <option value="Embedded">Embedded</option>
+                                        <option value="Server">Server</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-2">
+                                    <label asp-for="Input.SecretProvider" class="text-xs font-bold text-slate-700">Secret provider</label>
+                                    <select asp-for="Input.SecretProvider" @@change="syncModes()" class="@FieldClass("Input.SecretProvider") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all">
+                                        <option value="Local Certificate">Local Certificate (Recommended)</option>
+                                        <option value="Infisical">Infisical</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2" x-show="showConnectionString" x-cloak>
+                                    <label asp-for="Input.ConnectionString" class="text-xs font-bold text-slate-700">Database connection string</label>
+                                    <input asp-for="Input.ConnectionString" class="@FieldClass("Input.ConnectionString") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all placeholder:text-slate-300" placeholder="Host=...;Database=..."/>
+                                </div>
+                                <div class="space-y-2" x-show="showCacheConnectionString" x-cloak>
+                                    <label asp-for="Input.CacheConnectionString" class="text-xs font-bold text-slate-700">Cache connection string</label>
+                                    <input asp-for="Input.CacheConnectionString" class="@FieldClass("Input.CacheConnectionString") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all placeholder:text-slate-300" placeholder="cache-host=..."/>
+                                </div>
+                                <div class="space-y-2" x-show="showInfisicalFields" x-cloak>
+                                    <label asp-for="Input.InfisicalMachineId" class="text-xs font-bold text-slate-700">Infisical machine id</label>
+                                    <input asp-for="Input.InfisicalMachineId" class="@FieldClass("Input.InfisicalMachineId") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all placeholder:text-slate-300" placeholder="Machine ID"/>
+                                </div>
+                                <div class="space-y-2" x-show="showInfisicalFields" x-cloak>
+                                    <label asp-for="Input.InfisicalClientSecret" class="text-xs font-bold text-slate-700">Infisical client secret</label>
+                                    <input asp-for="Input.InfisicalClientSecret" class="@FieldClass("Input.InfisicalClientSecret") h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all placeholder:text-slate-300" placeholder="Client secret"/>
+                                </div>
+                            </div>
+
+                            <div class="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5">
+                                <div class="flex items-start gap-4">
+                                    <div class="h-10 w-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <div class="space-y-2 text-sm">
+                                        <p class="text-sm font-bold text-emerald-900">Local services readiness</p>
+                                        <p class="text-emerald-800" x-show="requiresPostgres" x-cloak>
+                                            Postgres: <span class="font-bold" :class="postgresReady ? 'text-emerald-700' : 'text-amber-700'" x-text="postgresReady ? 'Ready' : 'Waiting'"></span>
+                                        </p>
+                                        <p class="text-emerald-800" x-show="!requiresPostgres" x-cloak>
+                                            Postgres: <span class="font-bold text-slate-500">Not required</span>
+                                        </p>
+                                        <p class="text-emerald-800" x-show="requiresGarnet" x-cloak>
+                                            Garnet: <span class="font-bold" :class="garnetReady ? 'text-emerald-700' : 'text-amber-700'" x-text="garnetReady ? 'Ready' : 'Waiting'"></span>
+                                        </p>
+                                        <p class="text-emerald-800" x-show="!requiresGarnet" x-cloak>
+                                            Garnet: <span class="font-bold text-slate-500">Informational only</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         @* Account Section *@
                         <div class="space-y-6">
@@ -221,7 +350,7 @@
                         </div>
 
                         <div class="pt-6">
-                            <button type="submit" class="group relative w-full h-14 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-2xl transition-all hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0">
+                            <button type="submit" :disabled="!isReady" class="group relative w-full h-14 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-2xl transition-all hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0">
                                 <span>Initialize System</span>
                                 <svg class="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>

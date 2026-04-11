@@ -29,6 +29,7 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<IPublishHttpClient, PublishHttpClient>(c => c.BaseAddress = uri);
         services.AddHttpClient<IPreviewHttpClient, PreviewHttpClient>(c => c.BaseAddress = uri);
         // todo - add DocsHttpClient - services.AddHttpClient<DocsClient>(c => c.BaseAddress = uri);
+        services.AddHttpClient<IDocsHttpClient, DocsHttpClient>(c => c.BaseAddress = uri);
 
         return services;
     }

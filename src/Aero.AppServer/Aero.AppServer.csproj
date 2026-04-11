@@ -44,5 +44,6 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Secrets\Aero.Secrets.csproj" />
   </ItemGroup>
 </Project>

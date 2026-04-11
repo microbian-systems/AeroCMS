@@ -1,14 +1,17 @@
-﻿using Microsoft.Extensions.Configuration;
+using System.Net.Sockets;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MysticMind.PostgresEmbed;
+using Aero.AppServer.Startup;
 
 namespace Aero.AppServer;
 
 public class AeroEmbeddedDbService(
     IConfiguration config,
     ILogger<AeroEmbeddedDbService> log,
-    IHostApplicationLifetime lifetime) : BackgroundService
+    IInfrastructureReadinessSnapshot readiness,
+    IMultiStartupSignal startupSignal) : BackgroundService
 {
     PgServer? server;
 
@@ -25,6 +28,20 @@ public class AeroEmbeddedDbService(
 
         server = new PgServer(pgVersion, port: pgPort);
         server.Start();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var tcp = new TcpClient();
+                await tcp.ConnectAsync("127.0.0.1", pgPort, cancellationToken);
+                readiness.PostgresReady = true;
+                startupSignal.MarkReady(StartupServiceNames.Postgres);
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning(ex, "Aero embedded PostgreSQL readiness check failed.");
+            }
+        }, cancellationToken);
 
         return base.StartAsync(cancellationToken);
     }

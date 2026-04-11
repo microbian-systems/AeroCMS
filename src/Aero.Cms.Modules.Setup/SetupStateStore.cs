@@ -1,4 +1,5 @@
 using Marten;
+using Aero.Cms.Modules.Setup.Bootstrap;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -15,18 +16,25 @@ public sealed class MartenSetupStateStore(IQuerySession querySession) : ISetupSt
 
 public interface ISetupInitializationService
 {
+    BootstrapState GetBootstrapState();
+    bool HasBootstrapConfig();
     Task<SetupStateDocument?> GetStateAsync(CancellationToken cancellationToken = default);
     Task<bool> IsSetupCompleteAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed class SetupInitializationService(ISetupStateStore setupStateStore) : ISetupInitializationService
+public sealed class SetupInitializationService(
+    IBootstrapStateProvider bootstrapStateProvider) : ISetupInitializationService
 {
-    public Task<SetupStateDocument?> GetStateAsync(CancellationToken cancellationToken = default)
-        => setupStateStore.LoadAsync(cancellationToken);
+    public BootstrapState GetBootstrapState() => bootstrapStateProvider.GetState();
 
-    public async Task<bool> IsSetupCompleteAsync(CancellationToken cancellationToken = default)
+    public bool HasBootstrapConfig() => GetBootstrapState().HasBootstrapConfig;
+
+    public Task<SetupStateDocument?> GetStateAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<SetupStateDocument?>(null);
+
+    public Task<bool> IsSetupCompleteAsync(CancellationToken cancellationToken = default)
     {
-        var state = await setupStateStore.LoadAsync(cancellationToken);
-        return state?.IsComplete == true;
+        var bootstrapState = GetBootstrapState();
+        return Task.FromResult(bootstrapState.IsRunningMode || bootstrapState.SetupComplete);
     }
 }

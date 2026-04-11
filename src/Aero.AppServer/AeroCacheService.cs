@@ -1,14 +1,19 @@
-﻿using Garnet;
+using Garnet;
+using Aero.AppServer.Startup;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Net.Sockets;
+using Garnet.server;
+using System.Net;
 
 namespace Aero.AppServer;
 
 internal sealed class AeroCacheService(
         IConfiguration config,
         ILogger<AeroCacheService> log,
-        IHostApplicationLifetime lifetime) : BackgroundService
+        IInfrastructureReadinessSnapshot readiness,
+        IMultiStartupSignal startupSignal) : BackgroundService
 {
     private GarnetServer? server;
 
@@ -23,11 +28,53 @@ internal sealed class AeroCacheService(
 
     public override Task StartAsync(CancellationToken cancellationToken)
     {
-        var port = config.GetValue<int>("Aero:Cache:Port", AeroAppServerConstants.CachePort);
-        server = new GarnetServer(["--port", port.ToString()]);
+        var port = config.GetValue("Aero:Cache:Port", AeroAppServerConstants.CachePort);
+
+        // 1. Define your limits in bytes/counts
+        var indexSize = 128 * 1024 * 1024;       // 128 MB (Main Index)
+        var memorySize = 128 * 1024 * 1024;     // 128 MB (Main Log)
+        var objIndexSize = 32 * 1024 * 1024;    // 32 MB (Object Index)
+        var objLogSize = 32 * 1024 * 1024;      // 32 MB (Object Log)
+        var objHeapSize = 32 * 1024 * 1024;     // 32 MB (Object Heap)
+
+        // 2. Configure the server options
+        var options = new GarnetServerOptions
+        {
+            IndexSize = indexSize.ToString(),
+            IndexMaxSize = (indexSize * 2).ToString(),
+            MemorySize = memorySize.ToString(),
+            ObjectStoreIndexSize = objIndexSize.ToString(),
+            // Log memory for objects is defined by size in bytes
+            ObjectStoreLogMemorySize = objLogSize.ToString(), 
+            ObjectStoreHeapMemorySize = objHeapSize.ToString(),
+            
+            // Optional: Smaller page size helps rotation in low-memory environments
+            PageSize = "4m", 
+            ObjectStorePageSize = "4m",
+            
+            // If you don't need complex types (Lists, Sets), uncomment the next line:
+            // DisableObjects = true 
+            EndPoints = new IPEndPoint[] { new IPEndPoint(IPAddress.Loopback, 6380) }
+        };
+
+        server = new GarnetServer(options);
 
         log.LogInformation("Starting Aero cache server on port {port}...", port);
         server.Start();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var client = new TcpClient();
+                await client.ConnectAsync(AeroAppServerConstants.CacheHost, port);
+                readiness.GarnetReady = true;
+                startupSignal.MarkReady(StartupServiceNames.Garnet);
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning(ex, "Aero cache readiness check failed.");
+            }
+        }, cancellationToken);
         return base.StartAsync(cancellationToken);
     }
 

@@ -14,5 +14,5 @@ public static class AeroAppServerConstants
     public const int CachePort = 33333;
     public const string PgVersion = "18.3.0";
     public const int PgPort = 5433;
-    public const string EmbedConnString = "Host=localhost;Port=5433;Username=aero;Password=*aeroLocal1;Database=aero;";
+    public const string EmbedConnString = "Host=localhost;Port=5433;Username=aero;Password=*strongPassword1;Database=aero;";
 }

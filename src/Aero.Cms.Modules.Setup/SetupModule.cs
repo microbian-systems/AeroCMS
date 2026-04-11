@@ -1,14 +1,19 @@
 using Aero.Caching.Extensions;
+using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Setup.Configuration;
+using Aero.Cms.Modules.Setup.Endpoints;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Web.Core.Modules;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Routing;
+using Aero.Secrets;
+using Aero.Secrets.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -39,18 +44,55 @@ public sealed class SetupModule : AeroModuleBase
         ["website"] = new Uri($"https://aerocms.io/modules/{nameof(SetupModule)}")
     };
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
-        services.Configure<RazorPagesOptions>(options =>
-            options.Conventions.AddAreaPageRoute("MyFeature", "/Setup", SetupPathAllowlist.SetupPath));
-        services.TryAddScoped<ISetupStateStore, MartenSetupStateStore>();
+        var bootstrapState = new AppSettingsBootstrapStateProvider(config ?? new ConfigurationBuilder().Build()).GetState();
+        var runtimeMode = bootstrapState.IsConfiguredMode || bootstrapState.IsRunningMode;
+
+        // Note: Setup page is now a Blazor component (Setup.razor) with @page "/setup"
+        // The route is discovered via AddAdditionalAssemblies in Program.cs
+        services.TryAddSingleton<IEnvironmentAppSettingsWriter, EnvironmentAppSettingsWriter>();
+        services.TryAddSingleton<InfisicalBootstrapSettingsProvider>();
+        services.TryAddSingleton<IDataProtectionCertificateSettingsProvider, ConfigurationDataProtectionCertificateSettingsProvider>();
+        services.TryAddSingleton<IBootstrapStateProvider, AppSettingsBootstrapStateProvider>();
         services.TryAddScoped<ISetupInitializationService, SetupInitializationService>();
-        services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
-        services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
-        services.TryAddScoped<IModuleStateStore, ModuleStateStore>();
+        services.TryAddScoped<IDatabaseBootstrapService, DatabaseBootstrapService>();
+        services.TryAddScoped<ICacheBootstrapService, CacheBootstrapService>();
+        services.TryAddScoped<IBootstrapCompletionWriter, BootstrapCompletionWriter>();
+        services.TryAddScoped<IBootstrapPendingSetupRequestStore, BootstrapPendingSetupRequestStore>();
         services.TryAddSingleton<SetupPathAllowlist>();
         services.TryAddTransient<SetupGateMiddleware>();
+        services.TryAddSingleton<ISecretManager>(sp =>
+        {
+            var settings = sp.GetRequiredService<IDataProtectionCertificateSettingsProvider>().GetSettings();
+            if (settings.HasValue && File.Exists(settings.CertificatePath!))
+            {
+                var cert = string.IsNullOrWhiteSpace(settings.CertificatePassword)
+                    ? X509CertificateLoader.LoadPkcs12FromFile(settings.CertificatePath!, string.Empty, X509KeyStorageFlags.DefaultKeySet)
+                    : X509CertificateLoader.LoadPkcs12FromFile(settings.CertificatePath!, settings.CertificatePassword, X509KeyStorageFlags.DefaultKeySet);
+                return new DataProtectionCertificateSecretManager(cert);
+            }
+
+            return new LocalSecretManager();
+        });
+
+        services.AddTransient<IStartupFilter, SetupStatusStartupFilter>();
         services.AddAeroCaching(false);
+
+        if (runtimeMode)
+        {
+            // These services depend on Identity and Marten, which are only available in runtime mode
+            services.TryAddScoped<ISetupStateStore, MartenSetupStateStore>();
+            services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
+            services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
+            services.TryAddScoped<IModuleStateStore, ModuleStateStore>();
+            services.TryAddScoped<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();
+        }
+        else
+        {
+            // In bootstrap mode, we can't activate runtime in-process because Identity/Marten aren't available
+            // The setup POST will persist config and require a restart
+        }
     }
 
     public override async Task RunAsync(IServiceProvider sp)
@@ -75,4 +117,5 @@ public sealed class SetupModule : AeroModuleBase
 
         await Task.CompletedTask;
     }
+
 }

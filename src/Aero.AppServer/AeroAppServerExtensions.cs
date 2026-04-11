@@ -1,5 +1,6 @@
-﻿using Aero.Cms.Web.Core.Modules;
+using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Logging;
+using Aero.AppServer.Startup;
 using ImTools;
 using Marten;
 using Microsoft.Extensions.Configuration;
@@ -27,19 +28,29 @@ public static class AeroAppServerExtensions
         builder.AddAeroLogging();
 
         services.AddHostedService<AeroLifetimeObserver>();
-        services.AddHostedService<AeroCacheService>();
-        services.AddHostedService<AeroEmbeddedDbService>();
+        services.AddSingleton<IInfrastructureReadinessSnapshot, InfrastructureReadinessSnapshot>();
+        services.AddSingleton<IMultiStartupSignal, MultiStartupSignal>();
 
-        var connString = config.GetConnectionString("aero")
-            ?? AeroAppServerConstants.EmbedConnString;
+        var resolver = new InfrastructureConnectionStringResolver(config);
+        var resolved = resolver.Resolve();
+        services.AddSingleton(resolved);
 
-        var cacheString = config.GetConnectionString("cache")
-            ?? AeroAppServerConstants.CacheUrl;
-
-        builder.UseOrleans(silo =>
+        if (resolved.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
         {
-            silo.UseLocalhostClustering();
-                
+            services.AddHostedService<AeroEmbeddedDbService>();
+        }
+
+        if (resolved.CacheMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHostedService<AeroCacheService>();
+        }
+
+        var connString = resolved.DatabaseConnectionString;
+        var cacheString = resolved.CacheConnectionString;
+
+        services.AddOrleans(opts =>
+        {
+            opts.UseLocalhostClustering();
         });
 
         services.AddTickerQ(opts =>
@@ -98,23 +109,28 @@ public static class AeroAppServerExtensions
 
         }); // <--- Use .None instead of .ManualOnly
 
-        services.AddFusionCacheStackExchangeRedisBackplane(opts =>
+        if (!string.IsNullOrWhiteSpace(cacheString))
         {
-            opts.Configuration = cacheString;
-        });
+            services.AddFusionCacheStackExchangeRedisBackplane(opts =>
+            {
+                opts.Configuration = cacheString;
+            });
+        }
 
         // FusionCache
-        services.AddFusionCache() // todo - add abiity to pass in fusion cache options from config / or parameter
+        var cacheBuilder = services.AddFusionCache() // todo - add abiity to pass in fusion cache options from config / or parameter
             .WithDefaultEntryOptions(new FusionCacheEntryOptions
             {
                 Duration = TimeSpan.FromMinutes(5) // todo - make cache expiration default configurable
             })
             // Set Redis as the distributed cache layer
-            .WithRegisteredDistributedCache()
+            .WithRegisteredDistributedCache();
+
+        if (!string.IsNullOrWhiteSpace(cacheString))
+        {
             // And use it as a backplane to invalidate L1 memory caches
-            .WithBackplane(
-                new RedisBackplane(new RedisBackplaneOptions { Configuration = cacheString })
-            );
+            cacheBuilder.WithBackplane(new RedisBackplane(new RedisBackplaneOptions { Configuration = cacheString }));
+        }
 
         return builder;
     }

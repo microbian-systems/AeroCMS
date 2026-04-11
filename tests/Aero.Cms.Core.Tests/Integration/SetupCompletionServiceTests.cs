@@ -1,8 +1,10 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
+using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Services.Images;
 using FluentAssertions;
@@ -59,9 +61,9 @@ public class SetupCompletionServiceTests
 
         harness.OnStore = stored =>
         {
-            //if (stored is BlogPostDocument { Id: "cms/posts/publishing-your-first-update" })
+            if (stored is BlogPostDocument { Slug: "publishing-your-first-update" })
             {
-                //throw new InvalidOperationException("Simulated seed failure.");
+                throw new InvalidOperationException("Simulated seed failure.");
             }
         };
 
@@ -123,7 +125,8 @@ public class SetupCompletionServiceTests
             new MartenBlogPostContentService(harness.Session),
             Substitute.For<IStaticPhotosClient>(),
             Substitute.For<IModuleDiscoveryService>(),
-            Substitute.For<IModuleStateStore>());
+            Substitute.For<IModuleStateStore>(),
+            Substitute.For<IBootstrapCompletionWriter>());
 
     private static SeedDatabaseRequest CreateRequest()
         => new(

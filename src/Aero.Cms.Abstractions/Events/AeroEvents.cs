@@ -15,7 +15,7 @@ public record SlugUpdated(
     string? OldSlug = null) : AeroEvent($"{OldSlug}->{NewSlug}");
 
 
-public abstract record AeroEvent<T>(T record, string? msg = null) : AeroEvent(msg)
+public abstract record AeroEvent<T>(T record, string? msg = null) : AeroEvent(msg!)
 {
     // alias events
     public sealed record AliasCreated(AliasViewModel alias, string msg) : AeroEvent<AliasViewModel>(alias, msg);

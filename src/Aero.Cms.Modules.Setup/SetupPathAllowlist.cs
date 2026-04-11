@@ -21,11 +21,13 @@ public sealed class SetupPathAllowlist
         "/site.webmanifest"
     ];
 
-    private static readonly string[] PrefixPaths =
+private static readonly string[] PrefixPaths =
     [
+        SetupPath,
         "/setup/",
         "/_framework",
         "/_content",
+        "/_blazor",  // Blazor Server SignalR
         "/css",
         "/js",
         "/images"

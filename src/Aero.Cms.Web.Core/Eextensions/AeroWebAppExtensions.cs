@@ -3,6 +3,7 @@ using Aero.EfCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog.Extensions.Hosting;
@@ -15,15 +16,15 @@ namespace Aero.Cms.Web.Core.Eextensions;
 public static class AeroWebAppExtensions
 {
     /// <summary>
-    /// Adds Aero CMS services to the web application builder with default arguments.
+    /// Adds bootstrap-safe Aero CMS services to the web application builder with default arguments.
     /// </summary>
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsAsync<T>(this WebApplicationBuilder builder)
-        where T : class => await builder.AddAeroCmsAsync<T>([]);
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsBootstrapAsync<T>(this WebApplicationBuilder builder)
+        where T : class => await builder.AddAeroCmsBootstrapAsync<T>([]);
 
     /// <summary>
-    /// Adds Aero CMS services to the web application builder.
+    /// Adds bootstrap-safe Aero CMS services to the web application builder.
     /// </summary>
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsAsync<T>(this WebApplicationBuilder builder, string[] args)
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsBootstrapAsync<T>(this WebApplicationBuilder builder, string[] args)
         where T : class
     {
         var config = builder.Configuration;
@@ -34,14 +35,24 @@ public static class AeroWebAppExtensions
         var log = await services.ConfigureLogging(config);
 
 
-        // Register module system services
-        services.AddModuleSystemServices();
-        // Configure modules using the new discovery/graph services
-        await services.AddAeroModulesAsync(config, env);
+        return (builder, log);
+    }
 
-        // Wire the data layer AFTER modules have registered their IConfigureMarten contributions.
-        // AddMarten() auto-discovers all IConfigureMarten registrations from DI, so module-level
-        // schema contributions (BlockMartenConfiguration, DocsMartenConfiguration, etc.) all apply.
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(this WebApplicationBuilder builder)
+        where T : class => await builder.AddAeroCmsRuntimeAsync<T>([]);
+
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(this WebApplicationBuilder builder, string[] args)
+        where T : class
+    {
+        var config = builder.Configuration;
+        var services = builder.Services;
+        var env = builder.Environment;
+
+        _ = config.AddConfiguration<T>(env);
+        var log = await services.ConfigureLogging(config);
+
+        services.AddModuleSystemServices();
+        await services.AddAeroModulesAsync(config, env);
         services.AddAeroDataLayer(config, env);
 
         return (builder, log);
@@ -65,6 +76,24 @@ public static class AeroWebAppExtensions
     {
         var scope = endpoints.ServiceProvider.CreateAsyncScope();
         var services = scope.ServiceProvider;
+
+        var configuration = services.GetRequiredService<IConfiguration>();
+        var bootstrapSection = configuration.GetSection("AeroCms:Bootstrap");
+        var state = bootstrapSection["State"];
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            var setupComplete = bootstrapSection.GetValue<bool?>("SetupComplete") ?? false;
+            var seedComplete = bootstrapSection.GetValue<bool?>("SeedComplete") ?? false;
+            state = setupComplete && seedComplete ? "Running" : bootstrapSection.Exists() ? "Configured" : "Setup";
+        }
+
+        if (string.Equals(state, "Setup", StringComparison.OrdinalIgnoreCase))
+        {
+            var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+            var startupLogger = loggerFactory.CreateLogger("AeroStartup");
+            startupLogger.LogInformation("Bootstrap mode detected. Skipping database migrations and module runtime initialization so the setup page can run first.");
+            return endpoints;
+        }
 
         var apiContext = services.GetRequiredService<AeroApiContext>();
         var created = await apiContext.Database.EnsureCreatedAsync();
