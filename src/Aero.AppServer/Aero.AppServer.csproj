@@ -1,5 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+  <!-- todo move the blazor server stuff to Aero.AppServer.Web to separate concerns. this is to enable blazor server functionality just for the setup process -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="JoeShook.ZiggyCreatures.FusionCache.Metrics.Core" />
     <PackageReference Include="Marten" />
     <PackageReference Include="Marten.AspNetCore" />

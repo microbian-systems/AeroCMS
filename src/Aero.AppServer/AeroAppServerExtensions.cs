@@ -1,9 +1,7 @@
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Logging;
 using Aero.AppServer.Startup;
-using ImTools;
 using Marten;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Reflection;
@@ -11,7 +9,6 @@ using TickerQ.DependencyInjection;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
-using Orleans.Hosting;
 
 namespace Aero.AppServer;
 
@@ -19,8 +16,25 @@ namespace Aero.AppServer;
 
 public static class AeroAppServerExtensions
 {
-    public static IHostApplicationBuilder AddAeroApplicationServer(this IHostApplicationBuilder builder)
+    public static async Task<IHostApplicationBuilder> AddAeroApplicationServer(this IHostApplicationBuilder builder)
     {
+        // setup application
+        var settings = new HostApplicationBuilderSettings()
+        {
+            ApplicationName = "Aero.AppServer",
+            ContentRootPath = AppContext.BaseDirectory,
+            Args = []
+        };
+
+        var setup = new HostApplicationBuilder(settings);
+        setup.AddBlazorServers();
+        var i = setup.Build();
+        await i.StartAsync();
+
+        await i.WaitForShutdownAsync();
+                 
+
+
         var services = builder.Services;
         var config = builder.Configuration;
         var env = builder.Environment;

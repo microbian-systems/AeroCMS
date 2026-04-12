@@ -1,18 +1,11 @@
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Shared.Services;
-using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Services;
 using Aero.Cms.Core.Extensions;
 using Radzen;
-using Microsoft.AspNetCore.Components.Sections;
-using Wolverine;
-using Wolverine.Marten;
-using Aero.Cms.Modules.Aliases.Handlers;
 using Aero.AppServer;
-using Aero.Core.Logging;
 using Aero.Cms.Web.Core.Eextensions;
-using Aero.Cms.Shared;
 using Aero.Cms.Web.Components;
 using Aero.Web.Exceptions;
 using Aero.Cms.Modules.Setup.Bootstrap;
@@ -40,7 +33,7 @@ var runtimeMode = string.Equals(bootstrapState, BootstrapStates.Configured, Stri
 
 // Always add application server - InfrastructureConnectionStringResolver returns embedded defaults in Setup mode
 // This enables in-process runtime activation after setup configuration
-builder.AddAeroApplicationServer();
+await builder.AddAeroApplicationServer();
 
 
 builder.AddServiceDefaults();

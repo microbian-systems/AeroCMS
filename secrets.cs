@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 
 // --- CONFIGURATION ---
-const string pfxPath = "dpapi.pfx";
+const string pfxPath = "dp.pfx";
 const string pfxPassword = "YourSecurePassword123!"; // Use the same password from your cert
 const string appName = "AeroCMS-Vault";             // Must match your main app's Purpose string
 
