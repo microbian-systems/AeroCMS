@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,9 @@ namespace Aero.Cms.Modules.Setup.Areas.MyFeature.Pages;
 
 public partial class Setup : ComponentBase
 {
+    [Inject]
+    private ISetupBootstrapHandoffService SetupBootstrapHandoffService { get; set; } = default!;
+
     [Inject]
     private ILogger<Setup> Logger { get; set; } = default!;
 
@@ -54,7 +58,9 @@ public partial class Setup : ComponentBase
             AdminEmail = "hello@aerocms.com",
             SiteName = "Aero CMS",
             HomepageTitle = "Welcome to Aero CMS",
-            BlogName = "Aero Blog"
+            BlogName = "Aero Blog",
+            Hostname = "localhost",
+            DefaultCulture = "en-US"
         };
 
 #if DEBUG
@@ -125,11 +131,64 @@ public partial class Setup : ComponentBase
     {
         HasValidationErrors = false;
 
-        // TODO: Implement actual form submission
-        // This would call the setup service to initialize the system
+        var secretProvider = NormalizeMode(Input.SecretProvider, "Local Certificate");
+        var databaseMode = NormalizeMode(Input.DatabaseMode, "Embedded");
+        var cacheMode = NormalizeMode(Input.CacheMode, "Memory");
 
-        await Task.CompletedTask;
+        if (databaseMode.Equals("Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.ConnectionString))
+        {
+            HasValidationErrors = true;
+            StatusMessage = "A database connection string is required when Database is set to Server.";
+            return;
+        }
+
+        if (cacheMode.Equals("Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.CacheConnectionString))
+        {
+            HasValidationErrors = true;
+            StatusMessage = "A cache connection string is required when Cache is set to Server.";
+            return;
+        }
+
+        // Show transition message before calling handoff service
+        StatusMessage = "Setup complete! Starting main application...";
+        Logger.LogInformation("Setup form submitted. Triggering bootstrap handoff...");
+        
+        // Force UI update to show the message before the async operation
+        await InvokeAsync(StateHasChanged);
+
+        // Create the seed request with all setup configuration
+        var seedRequest = new SeedDatabaseRequest(
+            databaseMode,
+            cacheMode,
+            secretProvider,
+            Input.AdminUserName,
+            Input.AdminEmail,
+            Input.Password,
+            Input.SiteName,
+            Input.HomepageTitle,
+            Input.BlogName,
+            Input.Hostname,
+            Input.DefaultCulture);
+
+        // Call the handoff service which will:
+        // 1. Persist bootstrap configuration
+        // 2. Save pending seed request
+        // 3. Mark bootstrap as Configured
+        // 4. Trigger StopApplication() to transition to main app
+        var result = await SetupBootstrapHandoffService.CompleteAndHandoffAsync(seedRequest);
+
+        if (!result.Succeeded)
+        {
+            HasValidationErrors = true;
+            StatusMessage = $"Setup failed: {string.Join("; ", result.Errors)}";
+            Logger.LogError("Setup bootstrap handoff failed: {Errors}", string.Join("; ", result.Errors));
+        }
+        // If successful, the app will shut down and the main app will start automatically
+        // The user will see the "Setup complete! Starting main application..." message
     }
+
+    private static string NormalizeMode(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value;
 }
 
 public class SetupInput
@@ -178,4 +237,12 @@ public class SetupInput
     [Required]
     [StringLength(100)]
     public string BlogName { get; set; } = "Journal";
+
+    [Required]
+    [StringLength(256)]
+    public string Hostname { get; set; } = "localhost";
+
+    [Required]
+    [StringLength(10)]
+    public string DefaultCulture { get; set; } = "en-US";
 }

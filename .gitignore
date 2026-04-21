@@ -430,3 +430,5 @@ openobserve_data/db/metadata.sqlite-shm
 openobserve_data/db/metadata.sqlite-wal
 openobserve_data/db/metadata.sqlite-wal
 openobserve_data/db/metadata.sqlite-shm
+
+.fake

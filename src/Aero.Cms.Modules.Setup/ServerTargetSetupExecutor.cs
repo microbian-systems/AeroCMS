@@ -3,6 +3,8 @@ using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
+using Aero.Cms.Modules.Sites;
+using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Web.Core.Blocks;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Data;
@@ -69,6 +71,9 @@ public sealed class ServerTargetSetupExecutor(
         var staticPhotosClient = rootServiceProvider.GetRequiredService<IStaticPhotosClient>();
         var moduleDiscoveryService = rootServiceProvider.GetRequiredService<IModuleDiscoveryService>();
 
+        var tenantService = rootServiceProvider.GetRequiredService<ITenantService>();
+        var siteService = rootServiceProvider.GetRequiredService<ISiteService>();
+
         var seedService = new SeedDatabaseService(
             session,
             identityBootstrapper,
@@ -77,7 +82,9 @@ public sealed class ServerTargetSetupExecutor(
             staticPhotosClient,
             moduleDiscoveryService,
             moduleStateStore,
-            bootstrapCompletionWriter);
+            bootstrapCompletionWriter,
+            tenantService,
+            siteService);
 
         var result = await seedService.CompleteAsync(request, cancellationToken);
         if (!result.Succeeded)

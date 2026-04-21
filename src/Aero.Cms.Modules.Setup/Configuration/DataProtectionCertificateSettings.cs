@@ -6,5 +6,7 @@ public sealed record DataProtectionCertificateSettings
 
     public string? CertificatePassword { get; init; }
 
+    public string? KeyRingPath { get; init; }
+
     public bool HasValue => !string.IsNullOrWhiteSpace(CertificatePath);
 }

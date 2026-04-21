@@ -321,6 +321,40 @@
                                     <ValidationMessage For="() => Input.BlogName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
                                 </div>
                             </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2">
+                                    <label for="Input_Hostname" class="text-xs font-bold text-slate-700">Hostname</label>
+                                    <InputText @bind-Value="Input.Hostname" class="@GetFieldClass("Input.Hostname")" placeholder="localhost"/>
+                                    <p class="text-[10px] text-slate-500">Default: localhost for development</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <label for="Input_DefaultCulture" class="text-xs font-bold text-slate-700">Default Culture</label>
+                                    <InputSelect @bind-Value="Input.DefaultCulture" class="@GetFieldClass("Input.DefaultCulture")">
+                                        <option value="en-US">🇺🇸 English (United States)</option>
+                                        <option value="en-GB">🇬🇧 English (United Kingdom)</option>
+                                        <option value="fr-FR">🇫🇷 Français</option>
+                                        <option value="de-DE">🇩🇪 Deutsch</option>
+                                        <option value="es-ES">🇪🇸 Español</option>
+                                        <option value="it-IT">🇮🇹 Italiano</option>
+                                        <option value="pt-BR">🇧🇷 Português (Brasil)</option>
+                                        <option value="nl-NL">🇳🇱 Nederlands</option>
+                                        <option value="pl-PL">🇵🇱 Polski</option>
+                                        <option value="ru-RU">🇷🇺 Русский</option>
+                                        <option value="zh-CN">🇨🇳 中文 (简体)</option>
+                                        <option value="ja-JP">🇯🇵 日本語</option>
+                                        <option value="ko-KR">🇰🇷 한국어</option>
+                                        <option value="ar-SA">🇸🇦 العربية</option>
+                                        <option value="hi-IN">🇮🇳 हिन्दी</option>
+                                        <option value="tr-TR">🇹🇷 Türkçe</option>
+                                        <option value="sv-SE">🇸🇪 Svenska</option>
+                                        <option value="cs-CZ">🇨🇿 Čeština</option>
+                                        <option value="el-GR">🇬🇷 Ελληνικά</option>
+                                        <option value="he-IL">🇮🇱 עברית</option>
+                                        <option value="th-TH">🇹🇭 ไทย</option>
+                                    </InputSelect>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="pt-6">

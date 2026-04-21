@@ -1,13 +1,15 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries;
 using Aero.Cms.Data.Queries.Base;
+using Aero.Marten.Optional;
 using JasperFx.Core;
 using Marten;
 using Marten.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Data.Repositories;
 
-public interface ISiteRepository : IMartenCompiledRepository<SitesModel>
+public interface ISiteRepository : IMartenGenericRepositoryOption<SitesModel>
 {
     Task<IList<SitesModel>> GetByTenantIdAsync(long tenantId, CancellationToken cancellationToken = default);
     Task<SitesModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default);
@@ -19,45 +21,36 @@ public interface ISiteRepository : IMartenCompiledRepository<SitesModel>
     Task<IList<SitesModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
 }
 
-public sealed class SiteRepository : MartenCompiledRepository<SitesModel>, ISiteRepository
+public sealed class SiteRepository : MartenGenericRepositoryOption<SitesModel>, ISiteRepository
 {
-    public SiteRepository(IDocumentSession session) : base(session)
-    {
-    }
+    private readonly IDocumentSession _session;
 
-    protected override EntityByIdQuery<SitesModel> CreateByIdQuery(long id)
-        => new SiteByIdQuery { Id = id };
-
-    protected override EntitiesByIdsQuery<SitesModel> CreateByIdsQuery(IEnumerable<long> ids)
+    public SiteRepository(IDocumentSession session, ILogger<SiteRepository> log) : base(session, log)
     {
-        var query = new SitesByIdsQuery()
-        {
-            Ids = ids
-        };
-        return query;
+        _session = session;
     }
 
     public async Task<IList<SitesModel>> GetByTenantIdAsync(long tenantId, CancellationToken cancellationToken = default)
-        => await Session.QueryAsync(new SitesByTenantIdQuery { TenantId = tenantId }, cancellationToken);
+        => await _session.QueryAsync(new SitesByTenantIdQuery { TenantId = tenantId }, cancellationToken);
 
     public Task<SitesModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default)
-        => Session.QueryAsync(new SiteByHostnameQuery { hostname = hostname }, cancellationToken);
+        => _session.QueryAsync(new SiteByHostnameQuery { hostname = hostname }, cancellationToken);
 
     public async Task<IList<SitesModel>> GetByNameAsync(string name, CancellationToken cancellationToken = default)
-        => await Session.QueryAsync(new SitesByNameQuery { Name = name }, cancellationToken);
+        => await _session.QueryAsync(new SitesByNameQuery { Name = name }, cancellationToken);
 
     public async Task<IList<SitesModel>> GetEnabledAsync(CancellationToken cancellationToken = default)
-        => await Session.QueryAsync(new EnabledSitesQuery(), cancellationToken);
+        => await _session.QueryAsync(new EnabledSitesQuery(), cancellationToken);
 
     public async Task<IList<SitesModel>> GetDisabledAsync(CancellationToken cancellationToken = default)
-        => await Session.QueryAsync(new DisabledSitesQuery(), cancellationToken);
+        => await _session.QueryAsync(new DisabledSitesQuery(), cancellationToken);
 
     public async Task<IList<SitesModel>> GetByDefaultCultureAsync(string defaultCulture, CancellationToken cancellationToken = default)
-        => await Session.QueryAsync(new SitesByDefaultCultureQuery { DefaultCulture = defaultCulture }, cancellationToken);
+        => await _session.QueryAsync(new SitesByDefaultCultureQuery { DefaultCulture = defaultCulture }, cancellationToken);
 
     public async Task<IList<SitesModel>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
-        => await Session.QueryAsync(new SitesCreatedInRangeQuery { From = from, To = to }, cancellationToken);
+        => await _session.QueryAsync(new SitesCreatedInRangeQuery { From = from, To = to }, cancellationToken);
 
     public async Task<IList<SitesModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
-        => await Session.QueryAsync(new SitesModifiedInRangeQuery { From = from, To = to }, cancellationToken);
+        => await _session.QueryAsync(new SitesModifiedInRangeQuery { From = from, To = to }, cancellationToken);
 }

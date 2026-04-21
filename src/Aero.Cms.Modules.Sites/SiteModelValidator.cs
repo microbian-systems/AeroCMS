@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
 using Aero.Validators.Extensions;
 using FluentValidation;
 
@@ -13,8 +13,8 @@ public sealed class SiteModelValidator : AbstractValidator<SitesModel>
             .WithMessage(x => $"site requuires a valid id");
 
         RuleFor(x => x.TenantId)
-            .LessThanOrEqualTo(0)
-            .WithMessage(x => $"site {x.Id} requuires a tenant id" );
+            .GreaterThan(0)
+            .WithMessage(x => $"site {x.Id} requires a valid tenant id" );
 
         RuleFor(x => x.Name)
             .NotNullOrEmpty()

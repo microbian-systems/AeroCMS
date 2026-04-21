@@ -3,7 +3,8 @@ using System.IO;
 using Aero.Secrets;
 using Aero.Secrets.Models;
 using Microsoft.Extensions.Configuration;
-using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Aero.AppServer.Startup;
 
@@ -54,7 +55,7 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
                 "Local Certificate");
         }
 
-        var secretManager = CreateSecretManager();
+        var secretManager = DataProtectionCertificateBootstrapper.CreateSecretManager(configuration);
         var db = ResolveDatabase(databaseMode, secretProvider, bootstrap, hasBootstrap, secretManager);
         var cache = ResolveCache(cacheMode, secretProvider, bootstrap, hasBootstrap, secretManager);
         return new ResolvedInfrastructureSettings(db, cache, databaseMode, cacheMode, secretProvider);
@@ -92,22 +93,36 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
             return infisical.Read(new StoredSecretReference(SecretProviderType.Infisical, connectionName, null, reference));
         }
 
-        return secretManager.Read(new StoredSecretReference(SecretProviderType.Local, connectionName, reference));
+        var resolved = secretManager.Read(new StoredSecretReference(SecretProviderType.Local, connectionName, reference));
+        TryUpgradePlaintextLocalSecret(referenceKey, connectionName, reference, resolved, secretManager);
+        return resolved;
     }
 
-    private ISecretManager CreateSecretManager()
+    private void TryUpgradePlaintextLocalSecret(string referenceKey, string connectionName, string storedValue, string resolvedValue, ISecretManager secretManager)
     {
-        var certPath = configuration["DataProtection:CertificatePath"];
-        var certPassword = configuration["DataProtection:CertificatePassword"];
-        if (!string.IsNullOrWhiteSpace(certPath) && File.Exists(certPath))
+        if (string.IsNullOrWhiteSpace(storedValue) || string.Equals(storedValue, resolvedValue, StringComparison.Ordinal) is false)
         {
-            var cert = string.IsNullOrWhiteSpace(certPassword)
-                ? X509CertificateLoader.LoadPkcs12FromFile(certPath, string.Empty, X509KeyStorageFlags.DefaultKeySet)
-                : X509CertificateLoader.LoadPkcs12FromFile(certPath, certPassword, X509KeyStorageFlags.DefaultKeySet);
-            return new DataProtectionCertificateSecretManager(cert);
+            return;
         }
 
-        return new LocalSecretManager();
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+        var path = ResolveAppSettingsPath(env);
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        var root = JsonNode.Parse(File.ReadAllText(path))?.AsObject();
+        if (root is null)
+        {
+            return;
+        }
+
+        var stored = secretManager.Store(resolvedValue, $"ConnectionStrings:{connectionName}");
+        var bootstrap = GetOrCreateObject(root, "AeroCms", "Bootstrap");
+        bootstrap[referenceKey] = stored.Value;
+        GetOrCreateObject(root, "ConnectionStrings")[connectionName] = stored.Value;
+        File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
     private InfisicalSecretManager CreateInfisicalManager(string machineId, string clientSecret)
@@ -133,5 +148,27 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
 
         return (secretManager.Read(new StoredSecretReference(SecretProviderType.Local, "AeroCms:Bootstrap:Infisical:MachineId", machineRef)),
             secretManager.Read(new StoredSecretReference(SecretProviderType.Local, "AeroCms:Bootstrap:Infisical:ClientSecret", clientRef)));
+    }
+
+    private static string ResolveAppSettingsPath(string environmentName)
+    {
+        var fileName = environmentName.Equals("Production", StringComparison.OrdinalIgnoreCase)
+            ? "appsettings.json"
+            : $"appsettings.{environmentName}.json";
+
+        return Path.Combine(Directory.GetCurrentDirectory(), fileName);
+    }
+
+    private static JsonObject GetOrCreateObject(JsonNode root, params string[] path)
+    {
+        JsonNode current = root;
+        foreach (var segment in path)
+        {
+            var next = current[segment] as JsonObject ?? new JsonObject();
+            current[segment] = next;
+            current = next;
+        }
+
+        return (JsonObject)current;
     }
 }

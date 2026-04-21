@@ -76,12 +76,17 @@ public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken
 
         await pendingSetupRequestStore.SaveAsync(
             new SeedDatabaseRequest(
+                databaseMode,
+                cacheMode,
+                secretProvider,
                 Input.AdminUserName,
                 Input.AdminEmail,
                 Input.Password,
                 Input.SiteName,
                 Input.HomepageTitle,
-                Input.BlogName),
+                Input.BlogName,
+                "localhost",
+                "en-US"),
             cancellationToken);
 
         StatusMessage = "Configuration saved. Restart the application to complete initialization.";

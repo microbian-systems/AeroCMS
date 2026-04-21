@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Aero.AppServer.Startup;
 
 namespace Aero.Cms.Modules.Setup.Configuration;
 
@@ -6,19 +7,13 @@ public sealed class ConfigurationDataProtectionCertificateSettingsProvider(IConf
 {
     public DataProtectionCertificateSettings GetSettings()
     {
-        static string? GetEnv(string name)
-            => Environment.GetEnvironmentVariable(name)
-               ?? Environment.GetEnvironmentVariable(name.Replace(":", "__"));
-
-        var path = GetEnv("DataProtection:CertificatePath")
-            ?? configuration["DataProtection:CertificatePath"];
-        var password = GetEnv("DataProtection:CertificatePassword")
-            ?? configuration["DataProtection:CertificatePassword"];
+        var settings = DataProtectionCertificateBootstrapper.ResolveSettings(configuration);
 
         return new DataProtectionCertificateSettings
         {
-            CertificatePath = path,
-            CertificatePassword = password
+            CertificatePath = settings.CertificatePath,
+            CertificatePassword = settings.CertificatePassword,
+            KeyRingPath = settings.KeyRingPath
         };
     }
 }

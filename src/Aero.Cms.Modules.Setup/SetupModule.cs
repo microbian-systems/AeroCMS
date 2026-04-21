@@ -4,6 +4,7 @@ using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Cms.Modules.Setup.Endpoints;
 using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
+using Aero.AppServer.Startup;
 using Aero.Secrets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +12,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -58,21 +58,10 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.TryAddScoped<ICacheBootstrapService, CacheBootstrapService>();
         services.TryAddScoped<IBootstrapCompletionWriter, BootstrapCompletionWriter>();
         services.TryAddScoped<IBootstrapPendingSetupRequestStore, BootstrapPendingSetupRequestStore>();
+        services.TryAddScoped<ISetupBootstrapHandoffService, SetupBootstrapHandoffService>();
         services.TryAddSingleton<SetupPathAllowlist>();
         services.TryAddTransient<SetupGateMiddleware>();
-        services.TryAddSingleton<ISecretManager>(sp =>
-        {
-            var settings = sp.GetRequiredService<IDataProtectionCertificateSettingsProvider>().GetSettings();
-            if (settings.HasValue && File.Exists(settings.CertificatePath!))
-            {
-                var cert = string.IsNullOrWhiteSpace(settings.CertificatePassword)
-                    ? X509CertificateLoader.LoadPkcs12FromFile(settings.CertificatePath!, string.Empty, X509KeyStorageFlags.DefaultKeySet)
-                    : X509CertificateLoader.LoadPkcs12FromFile(settings.CertificatePath!, settings.CertificatePassword, X509KeyStorageFlags.DefaultKeySet);
-                return new DataProtectionCertificateSecretManager(cert);
-            }
-
-            return new LocalSecretManager();
-        });
+        services.TryAddSingleton<ISecretManager>(sp => DataProtectionCertificateBootstrapper.CreateSecretManager(sp.GetService<IConfiguration>()));
 
         services.AddTransient<IStartupFilter, SetupStatusStartupFilter>();
         services.AddAeroCaching(false);

@@ -57,7 +57,7 @@
 - Do not use newtonsoft.json (use system.text.json)
 - all models to be saved to the database should make use of hte IEntity<long> or Entity (which inherits from IEntity<long>)
 - FluentValidatino is to be usd for validation of all models
-- primary keys should be of type long unless explictly needed ohterwise.  The primary key can be generated using Snowflake.NewId()
+- primary keys should be of type long unless explicitly needed otherwise.  The primary key can be generated using Snowflake.NewId()
 - always use SOLID principles in the design of the code
 - Use Railway Oriented Programming for all code that handles business logic and data access (Aero.Core has the Result<T> and Option<T> types along with Bind<T> and Map<T>)
 - if something is unclear always refer to the ../docs documentation for clarity 

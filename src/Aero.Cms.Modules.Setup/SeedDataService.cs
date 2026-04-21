@@ -6,6 +6,8 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Pages;
+using Aero.Cms.Modules.Sites;
+using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
 using Aero.Services.Images;
@@ -15,12 +17,40 @@ using Aero.Cms.Web.Core.Blocks;
 namespace Aero.Cms.Modules.Setup;
 
 public sealed record SeedDatabaseRequest(
+    string DatabaseMode,
+    string CacheMode,
+    string SecretProvider,
     string AdminUserName,
     string AdminEmail,
     string Password,
     string SiteName,
     string HomepageTitle,
-    string BlogName);
+    string BlogName,
+    string Hostname,
+    string DefaultCulture)
+{
+    public SeedDatabaseRequest(
+        string AdminUserName,
+        string AdminEmail,
+        string Password,
+        string SiteName,
+        string HomepageTitle,
+        string BlogName)
+        : this(
+            "Embedded",
+            "Memory",
+            "Local Certificate",
+            AdminUserName,
+            AdminEmail,
+            Password,
+            SiteName,
+            HomepageTitle,
+            BlogName,
+            "localhost",
+            "en-US")
+    {
+    }
+}
 
 public sealed class SeedDatabaseResult
 {
@@ -28,6 +58,10 @@ public sealed class SeedDatabaseResult
     public bool AlreadyComplete { get; init; }
     public bool CreatedAdmin { get; init; }
     public bool CreatedRoles { get; init; }
+    public bool CreatedTenant { get; init; }
+    public bool CreatedSite { get; init; }
+    public long? TenantId { get; init; }
+    public long? SiteId { get; init; }
     public List<string> Errors { get; } = [];
 
     public static SeedDatabaseResult Failure(params string[] errors)
@@ -59,7 +93,9 @@ public sealed class SeedDatabaseService(
     IStaticPhotosClient staticPhotosClient,
     IModuleDiscoveryService moduleDiscoveryService,
     IModuleStateStore moduleStateStore,
-    IBootstrapCompletionWriter bootstrapCompletionWriter) : ISeedDatabaseService, ISetupCompletionService
+    IBootstrapCompletionWriter bootstrapCompletionWriter,
+    ITenantService tenantService,
+    ISiteService siteService) : ISeedDatabaseService, ISetupCompletionService
 {
     public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
     {
@@ -86,6 +122,26 @@ public sealed class SeedDatabaseService(
             return SeedDatabaseResult.Failure(identityResult.Errors.Select(error => error.Description));
         }
 
+        // Create tenant and site for multi-tenant foundation
+        var (tenantResult, siteResult) = await CreateTenantAndSiteAsync(request, cancellationToken);
+        if (tenantResult.IsFailure || siteResult.IsFailure)
+        {
+            var errors = new List<string>();
+            if (tenantResult is Result<TenantModel, AeroError>.Failure tenantFail)
+                errors.Add(tenantFail.Error is AeroError.Error te ? te.msg : "Failed to create tenant");
+            if (siteResult is Result<SitesModel, AeroError>.Failure siteFail)
+                errors.Add(siteFail.Error is AeroError.Error se ? se.msg : "Failed to create site");
+            return SeedDatabaseResult.Failure(errors);
+        }
+
+        var tenant = tenantResult is Result<TenantModel, AeroError>.Ok tenantOk ? tenantOk.Value : null;
+        var site = siteResult is Result<SitesModel, AeroError>.Ok siteOk ? siteOk.Value : null;
+        
+        if (tenant == null || site == null)
+        {
+            return SeedDatabaseResult.Failure("Failed to create tenant or site");
+        }
+
         try
         {
             await SeedStarterContentAsync(request, cancellationToken);
@@ -100,7 +156,18 @@ public sealed class SeedDatabaseService(
         {
             Id = SetupStateDocument.FixedId,
             IsComplete = true,
-            CompletedAtUtc = completedAtUtc
+            CompletedAtUtc = completedAtUtc,
+            DatabaseMode = request.DatabaseMode,
+            CacheMode = request.CacheMode,
+            SecretProvider = request.SecretProvider,
+            AdminEmail = request.AdminEmail,
+            SiteName = request.SiteName,
+            HomepageTitle = request.HomepageTitle,
+            BlogName = request.BlogName,
+            CreatedTenantId = tenant.Id,
+            CreatedSiteId = site.Id,
+            Hostname = request.Hostname,
+            DefaultCulture = request.DefaultCulture
         });
         await session.SaveChangesAsync(cancellationToken);
 
@@ -111,8 +178,56 @@ public sealed class SeedDatabaseService(
         return new SeedDatabaseResult
         {
             CreatedAdmin = identityResult.CreatedAdmin,
-            CreatedRoles = identityResult.CreatedRoles
+            CreatedRoles = identityResult.CreatedRoles,
+            CreatedTenant = true,
+            CreatedSite = true,
+            TenantId = tenant.Id,
+            SiteId = site.Id
         };
+    }
+
+    private async Task<(Result<TenantModel, AeroError> Tenant, Result<SitesModel, AeroError> Site)> CreateTenantAndSiteAsync(
+        SeedDatabaseRequest request, 
+        CancellationToken cancellationToken)
+    {
+        // Create tenant with SiteName as the tenant name
+        var tenant = new TenantModel
+        {
+            Id = Snowflake.NewId(),
+            Name = request.SiteName,
+            Hostname = request.Hostname,
+            Notes = $"Default tenant created during setup on {DateTimeOffset.UtcNow:yyyy-MM-dd}"
+        };
+
+        var tenantResult = await tenantService.CreateTenantAsync(tenant, cancellationToken);
+        
+        if (tenantResult.IsFailure)
+        {
+            var tenantError = tenantResult is Result<TenantModel, AeroError>.Failure tf 
+                ? (tf.Error is AeroError.Error te ? te.msg : "Failed to create tenant")
+                : "Failed to create tenant";
+            return (tenantResult, new Result<SitesModel, AeroError>.Failure(AeroError.CreateError(tenantError)));
+        }
+
+        // Get the created tenant's ID
+        var createdTenantId = tenantResult is Result<TenantModel, AeroError>.Ok to 
+            ? to.Value.Id 
+            : tenant.Id;
+
+        // Create site linked to the tenant
+        var site = new SitesModel
+        {
+            Id = Snowflake.NewId(),
+            TenantId = createdTenantId,
+            Name = request.SiteName,
+            Hostname = request.Hostname,
+            IsEnabled = true,
+            DefaultCulture = request.DefaultCulture
+        };
+
+        var siteResult = await siteService.CreateSiteAsync(site, cancellationToken);
+        
+        return (tenantResult, siteResult);
     }
 
     private async Task SeedStarterContentAsync(SeedDatabaseRequest request, CancellationToken cancellationToken)

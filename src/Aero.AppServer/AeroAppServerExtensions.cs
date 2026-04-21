@@ -1,6 +1,7 @@
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Logging;
 using Aero.AppServer.Startup;
+using Aero.Secrets;
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -16,34 +17,18 @@ namespace Aero.AppServer;
 
 public static class AeroAppServerExtensions
 {
-    public static async Task<IHostApplicationBuilder> AddAeroApplicationServer(this IHostApplicationBuilder builder)
+    public static Task<IHostApplicationBuilder> AddAeroApplicationServer(this IHostApplicationBuilder builder)
     {
-        // setup application
-        var settings = new HostApplicationBuilderSettings()
-        {
-            ApplicationName = "Aero.AppServer",
-            ContentRootPath = AppContext.BaseDirectory,
-            Args = []
-        };
-
-        var setup = new HostApplicationBuilder(settings);
-        setup.AddBlazorServers();
-        var i = setup.Build();
-        await i.StartAsync();
-
-        await i.WaitForShutdownAsync();
-                 
-
-
         var services = builder.Services;
         var config = builder.Configuration;
-        var env = builder.Environment;
 
         builder.AddAeroLogging();
 
         services.AddHostedService<AeroLifetimeObserver>();
         services.AddSingleton<IInfrastructureReadinessSnapshot, InfrastructureReadinessSnapshot>();
         services.AddSingleton<IMultiStartupSignal, MultiStartupSignal>();
+        services.AddSingleton(DataProtectionCertificateBootstrapper.ResolveSettings(config));
+        services.AddSingleton<ISecretManager>(_ => DataProtectionCertificateBootstrapper.CreateSecretManager(config));
 
         var resolver = new InfrastructureConnectionStringResolver(config);
         var resolved = resolver.Resolve();
@@ -146,6 +131,6 @@ public static class AeroAppServerExtensions
             cacheBuilder.WithBackplane(new RedisBackplane(new RedisBackplaneOptions { Configuration = cacheString }));
         }
 
-        return builder;
+        return Task.FromResult(builder);
     }
 }
