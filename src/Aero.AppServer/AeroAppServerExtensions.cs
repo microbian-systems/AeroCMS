@@ -27,6 +27,7 @@ public static class AeroAppServerExtensions
         services.AddHostedService<AeroLifetimeObserver>();
         services.AddSingleton<IInfrastructureReadinessSnapshot, InfrastructureReadinessSnapshot>();
         services.AddSingleton<IMultiStartupSignal, MultiStartupSignal>();
+        services.AddSingleton<IRuntimeStartupCoordinator, RuntimeStartupCoordinator>();
         services.AddSingleton(DataProtectionCertificateBootstrapper.ResolveSettings(config));
         services.AddSingleton<ISecretManager>(_ => DataProtectionCertificateBootstrapper.CreateSecretManager(config));
 

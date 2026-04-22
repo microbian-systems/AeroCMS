@@ -11,9 +11,7 @@ public static class AppSettingsPathResolver
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
 
-        var fileName = environmentName.Equals("Production", StringComparison.OrdinalIgnoreCase)
-            ? "appsettings.json"
-            : $"appsettings.{environmentName}.json";
+        var fileName = $"appsettings.{environmentName}.json";
 
         return Path.Combine(GetWebProjectPath(baseDirectory), fileName);
     }

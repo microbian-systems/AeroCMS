@@ -1,13 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using System.Net.Http.Json;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Logging;
-using Microsoft.JSInterop;
 
 namespace Aero.Cms.Modules.Setup.Areas.MyFeature.Pages;
 
-public partial class Setup : ComponentBase
+public partial class Setup : ComponentBase, IAsyncDisposable
 {
     [Inject]
     private ISetupBootstrapHandoffService SetupBootstrapHandoffService { get; set; } = default!;
@@ -16,7 +16,7 @@ public partial class Setup : ComponentBase
     private ILogger<Setup> Logger { get; set; } = default!;
 
     [Inject]
-    private IJSRuntime JSRuntime { get; set; } = default!;
+    private NavigationManager NavigationManager { get; set; } = default!;
 
     [Parameter]
     public string? ReturnUrl { get; set; }
@@ -41,10 +41,14 @@ public partial class Setup : ComponentBase
     public bool RequiresPostgres => Input.DatabaseMode == "Embedded";
     public bool RequiresGarnet => Input.CacheMode == "Embedded";
 
-    // IsReady should be true by default since user hasn't selected Embedded yet
-    public bool IsReady => true;
+    public bool IsReady => (!RequiresPostgres || PostgresReady) && (!RequiresGarnet || GarnetReady);
+    public bool IsSubmitting { get; set; }
+    public string ReadinessMessage => BuildReadinessMessage();
 
     public bool HasValidationErrors { get; set; }
+
+    private PeriodicTimer? _statusTimer;
+    private CancellationTokenSource? _pollingCts;
 
     protected override void OnInitialized()
     {
@@ -74,18 +78,55 @@ public partial class Setup : ComponentBase
     {
         if (firstRender)
         {
-            // Start polling for service status
-            _ = PollSetupStatus();
+            await StartPollingAsync();
         }
     }
 
-    private async Task PollSetupStatus()
+    private async Task StartPollingAsync()
     {
-        // TODO: Implement status polling via HTTP client
-        // For now, assume services are ready
-        PostgresReady = true;
-        GarnetReady = true;
-        await InvokeAsync(StateHasChanged);
+        _pollingCts = new CancellationTokenSource();
+        _statusTimer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+
+        await RefreshSetupStatusAsync(_pollingCts.Token);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (_statusTimer != null && await _statusTimer.WaitForNextTickAsync(_pollingCts.Token))
+                {
+                    await RefreshSetupStatusAsync(_pollingCts.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, _pollingCts.Token);
+    }
+
+    private async Task RefreshSetupStatusAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(NavigationManager.BaseUri) };
+            var status = await client.GetFromJsonAsync<SetupStatusResponse>("setup/status", cancellationToken);
+
+            if (status is null)
+            {
+                return;
+            }
+
+            PostgresReady = status.PostgresReady;
+            GarnetReady = status.GarnetReady;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Failed to refresh setup readiness status.");
+        }
     }
 
     public void TogglePassword()
@@ -103,28 +144,6 @@ public partial class Setup : ComponentBase
         // For now, return default styling
         // TODO: Add validation state tracking
         return "h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all";
-    }
-
-    /// <summary>
-    /// Test method to verify Blazor interactivity is working
-    /// </summary>
-    public async Task TestButtonClick()
-    {
-        // Log to server
-        Logger.LogInformation("Test button clicked! Blazor interactivity is working.");
-        Logger.LogInformation("DatabaseMode: {DatabaseMode}, CacheMode: {CacheMode}, SecretProvider: {SecretProvider}", 
-            Input.DatabaseMode, Input.CacheMode, Input.SecretProvider);
-        Logger.LogInformation("ShowConnectionString: {ShowConnectionString}, ShowCacheConnectionString: {ShowCacheConnectionString}, ShowInfisicalFields: {ShowInfisicalFields}",
-            ShowConnectionString, ShowCacheConnectionString, ShowInfisicalFields);
-
-        // Log to browser console
-        await JSRuntime.InvokeVoidAsync("console.log", "Test button clicked! Blazor interactivity is working.");
-        await JSRuntime.InvokeVoidAsync("console.log", $"DatabaseMode: {Input.DatabaseMode}");
-        await JSRuntime.InvokeVoidAsync("console.log", $"CacheMode: {Input.CacheMode}");
-        await JSRuntime.InvokeVoidAsync("console.log", $"SecretProvider: {Input.SecretProvider}");
-        await JSRuntime.InvokeVoidAsync("console.log", $"ShowConnectionString: {ShowConnectionString}");
-        await JSRuntime.InvokeVoidAsync("console.log", $"ShowCacheConnectionString: {ShowCacheConnectionString}");
-        await JSRuntime.InvokeVoidAsync("console.log", $"ShowInfisicalFields: {ShowInfisicalFields}");
     }
 
     protected async Task HandleSubmit()
@@ -149,7 +168,15 @@ public partial class Setup : ComponentBase
             return;
         }
 
+        if (!IsReady)
+        {
+            HasValidationErrors = true;
+            StatusMessage = ReadinessMessage;
+            return;
+        }
+
         // Show transition message before calling handoff service
+        IsSubmitting = true;
         StatusMessage = "Setup complete! Starting main application...";
         Logger.LogInformation("Setup form submitted. Triggering bootstrap handoff...");
         
@@ -161,6 +188,10 @@ public partial class Setup : ComponentBase
             databaseMode,
             cacheMode,
             secretProvider,
+            Input.ConnectionString,
+            Input.CacheConnectionString,
+            Input.InfisicalMachineId,
+            Input.InfisicalClientSecret,
             Input.AdminUserName,
             Input.AdminEmail,
             Input.Password,
@@ -179,6 +210,7 @@ public partial class Setup : ComponentBase
 
         if (!result.Succeeded)
         {
+            IsSubmitting = false;
             HasValidationErrors = true;
             StatusMessage = $"Setup failed: {string.Join("; ", result.Errors)}";
             Logger.LogError("Setup bootstrap handoff failed: {Errors}", string.Join("; ", result.Errors));
@@ -189,6 +221,51 @@ public partial class Setup : ComponentBase
 
     private static string NormalizeMode(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value;
+
+    private string BuildReadinessMessage()
+    {
+        var waitingOn = new List<string>();
+
+        if (RequiresPostgres && !PostgresReady)
+        {
+            waitingOn.Add("embedded PostgreSQL");
+        }
+
+        if (RequiresGarnet && !GarnetReady)
+        {
+            waitingOn.Add("embedded Garnet cache");
+        }
+
+        return waitingOn.Count == 0
+            ? "Required local services are ready."
+            : $"Waiting for {string.Join(" and ", waitingOn)} to become ready.";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_pollingCts is not null)
+            {
+                await _pollingCts.CancelAsync();
+                _pollingCts.Dispose();
+            }
+        }
+        catch
+        {
+        }
+
+        _statusTimer?.Dispose();
+    }
+}
+
+public sealed class SetupStatusResponse
+{
+    public bool PostgresReady { get; set; }
+    public bool GarnetReady { get; set; }
+    public bool RequiresPostgres { get; set; }
+    public bool RequiresGarnet { get; set; }
+    public bool IsReady { get; set; }
 }
 
 public class SetupInput

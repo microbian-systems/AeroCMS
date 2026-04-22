@@ -7,6 +7,8 @@ public sealed class AppSettingsBootstrapStateProvider(IConfiguration configurati
     public BootstrapState GetState()
     {
         var section = configuration.GetSection("AeroCms:Bootstrap");
+        var hasBootstrapConfig = section.GetValue<bool?>("HasBootstrapConfig")
+            ?? (section.Exists() && !string.IsNullOrWhiteSpace(section["DatabaseMode"]));
         var setupComplete = section.GetValue<bool?>("SetupComplete") ?? false;
         var seedComplete = section.GetValue<bool?>("SeedComplete") ?? false;
         var state = section["State"];
@@ -15,14 +17,14 @@ public sealed class AppSettingsBootstrapStateProvider(IConfiguration configurati
         {
             state = setupComplete && seedComplete
                 ? BootstrapStates.Running
-                : section.Exists()
+                : hasBootstrapConfig
                     ? BootstrapStates.Configured
                     : BootstrapStates.Setup;
         }
 
         return new BootstrapState
         {
-            HasBootstrapConfig = section.Exists(),
+            HasBootstrapConfig = hasBootstrapConfig,
             State = state,
             SetupComplete = setupComplete,
             SeedComplete = seedComplete,

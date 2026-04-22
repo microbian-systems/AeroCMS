@@ -32,11 +32,25 @@ public class AeroEmbeddedDbService(
         {
             try
             {
-                using var tcp = new TcpClient();
-                await tcp.ConnectAsync("127.0.0.1", pgPort, cancellationToken);
-                readiness.PostgresReady = true;
-                startupSignal.MarkReady(StartupServiceNames.Postgres);
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        using var tcp = new TcpClient();
+                        await tcp.ConnectAsync("127.0.0.1", pgPort, cancellationToken);
+                        readiness.PostgresReady = true;
+                        startupSignal.MarkReady(StartupServiceNames.Postgres);
+                        log.LogInformation("Embedded PostgreSQL is ready on port {Port}.", pgPort);
+                        return;
+                    }
+                    catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        log.LogDebug(ex, "Embedded PostgreSQL not ready yet on port {Port}.", pgPort);
+                        await Task.Delay(500, cancellationToken);
+                    }
+                }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
             catch (Exception ex)
             {
                 log.LogWarning(ex, "Aero embedded PostgreSQL readiness check failed.");

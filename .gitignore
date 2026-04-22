@@ -20,6 +20,7 @@ pg_embed/
 *.sqlite-shm
 *.sqlite-wal
 openobserve_data/
+*.lscache
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

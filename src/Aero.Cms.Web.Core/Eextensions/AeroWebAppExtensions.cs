@@ -71,7 +71,7 @@ public static class AeroWebAppExtensions
     /// <summary>
     /// Initializes the Aero application asynchronously in dependency order.
     /// </summary>
-    public static async Task<IEndpointRouteBuilder> MapAeroAppAsync(
+    public static async Task<IEndpointRouteBuilder> InitializeAeroAppAsync(
         this IEndpointRouteBuilder endpoints)
     {
         var scope = endpoints.ServiceProvider.CreateAsyncScope();
@@ -118,8 +118,6 @@ public static class AeroWebAppExtensions
                 if (module != null)
                 {
                     await module.RunAsync(services);
-                    if(module is IAeroWebModule webModule)
-                        await webModule.RunAsync(endpoints);
                 }
             }
         }
@@ -135,8 +133,6 @@ public static class AeroWebAppExtensions
             foreach (var module in modules)
             {
                 await module.RunAsync(services);
-                if (module is IAeroWebModule webModule)
-                    await webModule.RunAsync(endpoints);
             }
         }
 

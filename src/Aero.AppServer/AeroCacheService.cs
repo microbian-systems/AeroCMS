@@ -54,7 +54,7 @@ internal sealed class AeroCacheService(
             
             // If you don't need complex types (Lists, Sets), uncomment the next line:
             // DisableObjects = true 
-            EndPoints = new IPEndPoint[] { new IPEndPoint(IPAddress.Loopback, 6380) }
+            EndPoints = new IPEndPoint[] { new IPEndPoint(IPAddress.Loopback, port) }
         };
 
         server = new GarnetServer(options);
@@ -65,11 +65,25 @@ internal sealed class AeroCacheService(
         {
             try
             {
-                using var client = new TcpClient();
-                await client.ConnectAsync(AeroAppServerConstants.CacheHost, port);
-                readiness.GarnetReady = true;
-                startupSignal.MarkReady(StartupServiceNames.Garnet);
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        using var client = new TcpClient();
+                        await client.ConnectAsync(AeroAppServerConstants.CacheHost, port, cancellationToken);
+                        readiness.GarnetReady = true;
+                        startupSignal.MarkReady(StartupServiceNames.Garnet);
+                        log.LogInformation("Embedded Garnet cache is ready on port {Port}.", port);
+                        return;
+                    }
+                    catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        log.LogDebug(ex, "Embedded Garnet cache not ready yet on port {Port}.", port);
+                        await Task.Delay(500, cancellationToken);
+                    }
+                }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
             catch (Exception ex)
             {
                 log.LogWarning(ex, "Aero cache readiness check failed.");

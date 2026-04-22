@@ -3,8 +3,10 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
+using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Services.Images;
 using FluentAssertions;
@@ -117,7 +119,16 @@ public class SetupCompletionServiceTests
 
     private static SeedDatabaseService CreateService(InMemoryCmsDocumentSessionHarness harness,
         ISetupIdentityBootstrapper identityBootstrapper)
-        => new(
+    {
+        var tenantService = Substitute.For<ITenantService>();
+        tenantService.CreateTenantAsync(Arg.Any<TenantModel>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<TenantModel>());
+
+        var siteService = Substitute.For<ISiteService>();
+        siteService.CreateSiteAsync(Arg.Any<SitesModel>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<SitesModel>());
+
+        return new SeedDatabaseService(
             harness.Session,
             identityBootstrapper,
             new MartenPageContentService(harness.Session, Substitute.For<IBlockService>(),
@@ -126,7 +137,10 @@ public class SetupCompletionServiceTests
             Substitute.For<IStaticPhotosClient>(),
             Substitute.For<IModuleDiscoveryService>(),
             Substitute.For<IModuleStateStore>(),
-            Substitute.For<IBootstrapCompletionWriter>());
+            Substitute.For<IBootstrapCompletionWriter>(),
+            tenantService,
+            siteService);
+    }
 
     private static SeedDatabaseRequest CreateRequest()
         => new(

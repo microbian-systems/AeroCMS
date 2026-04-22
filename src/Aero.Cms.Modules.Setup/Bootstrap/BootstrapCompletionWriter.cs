@@ -37,6 +37,7 @@ public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appS
         aeroCms["Bootstrap"] = bootstrap;
 
         bootstrap["State"] = BootstrapStates.Running;
+        bootstrap["HasBootstrapConfig"] = true;
         bootstrap["SetupComplete"] = true;
         bootstrap["SeedComplete"] = true;
 
@@ -65,10 +66,11 @@ public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appS
         var bootstrap = aeroCms["Bootstrap"] as JsonObject ?? new JsonObject();
         aeroCms["Bootstrap"] = bootstrap;
 
-        // Mark as Configured - seeding will happen in main app via RuntimeBootstrapInitializer
+        // Mark as Configured - runtime bootstrap still pending.
         bootstrap["State"] = BootstrapStates.Configured;
-        bootstrap["SetupComplete"] = true;
-        // SeedComplete remains false until runtime initialization completes
+        bootstrap["HasBootstrapConfig"] = true;
+        bootstrap["SetupComplete"] = false;
+        bootstrap["SeedComplete"] = false;
 
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }

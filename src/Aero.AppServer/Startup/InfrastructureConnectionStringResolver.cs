@@ -20,7 +20,8 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
     public ResolvedInfrastructureSettings Resolve()
     {
         var bootstrap = configuration.GetSection("AeroCms:Bootstrap");
-        var hasBootstrap = bootstrap.Exists();
+        var hasBootstrap = bootstrap.GetValue<bool?>("HasBootstrapConfig")
+            ?? (bootstrap.Exists() && !string.IsNullOrWhiteSpace(bootstrap["DatabaseMode"]));
         var state = bootstrap["State"];
         if (string.IsNullOrWhiteSpace(state))
         {
@@ -33,15 +34,13 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
                     : "Setup";
         }
 
-        // In Setup mode, return embedded defaults to allow the app to start
-        // This enables in-process runtime activation after setup configuration
+        // In Setup mode, return embedded defaults so the main app can still boot its hosted infra safely.
         var isSetupMode = string.Equals(state, "Setup", StringComparison.OrdinalIgnoreCase);
 
         var databaseMode = bootstrap["DatabaseMode"] ?? "Embedded";
         var cacheMode = bootstrap["CacheMode"] ?? "Memory";
         var secretProvider = bootstrap["SecretProvider"] ?? "Local Certificate";
 
-        // If in Setup mode, always use embedded defaults
         if (isSetupMode)
         {
             var cacheConn = cacheMode.Equals("Memory", StringComparison.OrdinalIgnoreCase)
@@ -152,11 +151,15 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
 
     private static string ResolveAppSettingsPath(string environmentName)
     {
-        var fileName = environmentName.Equals("Production", StringComparison.OrdinalIgnoreCase)
-            ? "appsettings.json"
-            : $"appsettings.{environmentName}.json";
+        ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
 
-        return Path.Combine(Directory.GetCurrentDirectory(), fileName);
+        var webProjectPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "src", "Aero.Cms.Web"));
+        if (!Directory.Exists(webProjectPath))
+        {
+            webProjectPath = Directory.GetCurrentDirectory();
+        }
+
+        return Path.Combine(webProjectPath, $"appsettings.{environmentName}.json");
     }
 
     private static JsonObject GetOrCreateObject(JsonNode root, params string[] path)

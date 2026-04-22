@@ -6,8 +6,6 @@
 @layout EmptyLayout
 @rendermode InteractiveServer
 
-@inject NavigationManager NavigationManager
-
 @* <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-50">
 <head>
@@ -229,6 +227,7 @@
                                                 Garnet: <span class="font-bold text-slate-500">Informational only</span>
                                             </p>
                                         }
+                                        <p class="text-xs font-medium @(IsReady ? "text-emerald-700" : "text-amber-700")">@ReadinessMessage</p>
                                     </div>
                                 </div>
                             </div>
@@ -358,13 +357,8 @@
                         </div>
 
                         <div class="pt-6">
-                            @* Test button for debugging Blazor interactivity *@
-                            <button type="button" @onclick="TestButtonClick" class="mb-4 w-full h-10 flex items-center justify-center rounded-xl bg-amber-500 text-white font-bold text-sm tracking-wide shadow-lg transition-all hover:bg-amber-600">
-                                <span>🧪 Test Blazor Interactivity</span>
-                            </button>
-                            
-                            <button type="submit" disabled="@(!IsReady)" class="group relative w-full h-14 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-2xl transition-all hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0">
-                                <span>Initialize System</span>
+                            <button type="submit" disabled="@(!IsReady || IsSubmitting)" class="group relative w-full h-14 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-2xl transition-all hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0">
+                                <span>@(IsSubmitting ? "Starting main application..." : "Initialize System")</span>
                                 <svg class="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                 </svg>

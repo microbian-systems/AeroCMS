@@ -1,4 +1,5 @@
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.AppServer.Startup;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -14,23 +15,27 @@ public static class SetupStatusEndpoints
         endpoints.MapGet("/setup/status", async (IServiceProvider sp, CancellationToken cancellationToken) =>
         {
             var setup = sp.GetRequiredService<ISetupInitializationService>();
-            var readinessType = Type.GetType("Aero.AppServer.Startup.InfrastructureReadinessSnapshot, Aero.AppServer");
-            var readiness = readinessType is null ? null : sp.GetService(readinessType);
             var bootstrap = setup.GetBootstrapState();
-
-            bool GetBool(string name)
-                => readiness?.GetType().GetProperty(name)?.GetValue(readiness) as bool? ?? false;
+            var readiness = sp.GetService<IInfrastructureReadinessSnapshot>();
+            var postgresReady = readiness?.PostgresReady ?? false;
+            var garnetReady = readiness?.GarnetReady ?? false;
+            var requiresPostgres = string.Equals(bootstrap.DatabaseMode, "Embedded", StringComparison.OrdinalIgnoreCase);
+            var requiresGarnet = string.Equals(bootstrap.CacheMode, "Embedded", StringComparison.OrdinalIgnoreCase);
 
             return Results.Ok(new
             {
+                bootstrap.State,
                 bootstrap.SetupComplete,
                 bootstrap.SeedComplete,
                 bootstrap.DatabaseMode,
                 bootstrap.CacheMode,
                 bootstrap.SecretProvider,
                 bootstrap.HasBootstrapConfig,
-                PostgresReady = GetBool("PostgresReady"),
-                GarnetReady = GetBool("GarnetReady")
+                PostgresReady = postgresReady,
+                GarnetReady = garnetReady,
+                RequiresPostgres = requiresPostgres,
+                RequiresGarnet = requiresGarnet,
+                IsReady = (!requiresPostgres || postgresReady) && (!requiresGarnet || garnetReady)
             });
         });
 

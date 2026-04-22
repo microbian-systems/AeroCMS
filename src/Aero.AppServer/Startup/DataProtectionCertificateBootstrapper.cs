@@ -43,14 +43,25 @@ public static class DataProtectionCertificateBootstrapper
 
         var contentRoot = Directory.GetCurrentDirectory();
         var secretsRoot = Path.Combine(contentRoot, ".aero");
-        var certPath = Get(configuration, "DataProtection:CertificatePath")
+        var certPath = Get(configuration,
+                "AeroCms:DataProtection:Certificate:Path",
+                "DataProtection:CertificatePath")
             ?? Path.Combine(secretsRoot, "aero.pfx");
-        var keyRingPath = Get(configuration, "DataProtection:KeyRingPath")
+        var keyRingPath = Get(configuration,
+                "AeroCms:DataProtection:KeyStoragePath",
+                "DataProtection:KeyRingPath")
             ?? Path.Combine(secretsRoot, "keys");
-        var certificatePassword = Get(configuration, "AERO_CERT_PASSWORD", "DataProtection:CertificatePassword");
-        var applicationName = Get(configuration, "DataProtection:ApplicationName")
+        var certificatePassword = Get(configuration,
+            "AERO_CERT_PASSWORD",
+            "AeroCms:DataProtection:Certificate:Password",
+            "DataProtection:CertificatePassword");
+        var applicationName = Get(configuration,
+                "AeroCms:DataProtection:ApplicationName",
+                "DataProtection:ApplicationName")
             ?? DefaultApplicationName;
-        var protectorPurpose = Get(configuration, "DataProtection:ProtectorPurpose")
+        var protectorPurpose = Get(configuration,
+                "AeroCms:DataProtection:ProtectorPurpose",
+                "DataProtection:ProtectorPurpose")
             ?? DefaultProtectorPurpose;
 
         return new DataProtectionBootstrapSettings(certPath, keyRingPath, certificatePassword, applicationName, protectorPurpose);
@@ -73,11 +84,18 @@ public static class DataProtectionCertificateBootstrapper
         var password = EnsureCertificatePassword(settings);
         if (File.Exists(settings.CertificatePath))
         {
-            return X509CertificateLoader.LoadPkcs12FromFile(settings.CertificatePath, password, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
+            var existing = X509CertificateLoader.LoadPkcs12FromFile(settings.CertificatePath, password, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
+            if (IsSupportedForDataProtection(existing))
+            {
+                return existing;
+            }
+
+            existing.Dispose();
+            BackupIncompatibleCertificate(settings.CertificatePath);
         }
 
-        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var request = new CertificateRequest("CN=Aero CMS Data Protection", ecdsa, HashAlgorithmName.SHA256);
+        using var rsa = RSA.Create(2048);
+        var request = new CertificateRequest("CN=Aero CMS Data Protection", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
         request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyEncipherment | X509KeyUsageFlags.DigitalSignature, false));
         request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
@@ -86,6 +104,18 @@ public static class DataProtectionCertificateBootstrapper
         File.WriteAllBytes(settings.CertificatePath, certificate.Export(X509ContentType.Pfx, password));
 
         return X509CertificateLoader.LoadPkcs12FromFile(settings.CertificatePath, password, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.DefaultKeySet);
+    }
+
+    private static bool IsSupportedForDataProtection(X509Certificate2 certificate)
+        => certificate.GetRSAPublicKey() is not null && certificate.GetRSAPrivateKey() is not null;
+
+    private static void BackupIncompatibleCertificate(string certificatePath)
+    {
+        var backupPath = Path.Combine(
+            Path.GetDirectoryName(certificatePath) ?? Directory.GetCurrentDirectory(),
+            $"{Path.GetFileNameWithoutExtension(certificatePath)}.unsupported-{DateTime.UtcNow:yyyyMMddHHmmss}{Path.GetExtension(certificatePath)}");
+
+        File.Move(certificatePath, backupPath, overwrite: true);
     }
 
     private static string EnsureCertificatePassword(DataProtectionBootstrapSettings settings)

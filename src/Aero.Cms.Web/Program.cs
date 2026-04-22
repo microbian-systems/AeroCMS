@@ -5,6 +5,7 @@ using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Web.Services;
 using Aero.Cms.Web.Setup;
 using Aero.AppServer;
+using Aero.AppServer.Startup;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Components;
@@ -214,24 +215,37 @@ static async Task RunMainAppAsync(string[] args, IConfiguration earlyConfig, Boo
             typeof(Aero.Cms.Web.Client._Imports).Assembly,
             typeof(SetupModule).Assembly);
 
+    app.MapAeroCmsEndpoints();
+
     try
     {
-        log.Information("Starting main Aero application...");
+        log.Information("Starting main Aero application host...");
+        await app.StartAsync();
 
-        // If in Configured mode, run the runtime bootstrap initializer
-        if (bootstrapState.IsConfiguredMode)
+        try
         {
-            var initializer = app.Services.GetService<IRuntimeBootstrapInitializer>();
-            if (initializer != null)
-            {
-                log.Information("Running runtime bootstrap initializer...");
-                await initializer.InitializeAsync();
-                log.Information("Runtime bootstrap initialization completed.");
-            }
-        }
+            await WaitForRequiredInfrastructureAsync(app, bootstrapState, log);
 
-        await app.MapAeroAppAsync();
-        await app.RunAsync();
+            log.Information("Initializing runtime services...");
+            await app.InitializeAeroAppAsync();
+
+            if (bootstrapState.IsConfiguredMode)
+            {
+                var initializer = app.Services.GetService<IRuntimeBootstrapInitializer>();
+                if (initializer != null)
+                {
+                    log.Information("Running runtime bootstrap initializer...");
+                    await initializer.InitializeAsync();
+                    log.Information("Runtime bootstrap initialization completed.");
+                }
+            }
+
+            await app.WaitForShutdownAsync();
+        }
+        finally
+        {
+            await app.StopAsync();
+        }
     }
     catch (Exception ex)
     {
@@ -242,4 +256,24 @@ static async Task RunMainAppAsync(string[] args, IConfiguration earlyConfig, Boo
     {
         log.Information("Main application exiting");
     }
+}
+
+static async Task WaitForRequiredInfrastructureAsync(WebApplication app, BootstrapState bootstrapState, Serilog.ILogger log)
+{
+    if (!bootstrapState.IsConfiguredMode && !bootstrapState.IsRunningMode)
+    {
+        return;
+    }
+
+    var resolvedInfrastructure = app.Services.GetRequiredService<ResolvedInfrastructureSettings>();
+    var startupCoordinator = app.Services.GetRequiredService<IRuntimeStartupCoordinator>();
+
+    using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+
+    log.Information(
+        "Waiting for required infrastructure. DatabaseMode={DatabaseMode}, CacheMode={CacheMode}",
+        resolvedInfrastructure.DatabaseMode,
+        resolvedInfrastructure.CacheMode);
+
+    await startupCoordinator.WaitForInfrastructureAsync(resolvedInfrastructure, cts.Token);
 }

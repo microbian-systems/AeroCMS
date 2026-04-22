@@ -60,20 +60,20 @@ public sealed class SetupBootstrapHandoffService(
             logger.LogInformation("Persisting database bootstrap configuration...");
             await databaseBootstrapService.PersistAsync(new DatabaseBootstrapModel(
                 request.DatabaseMode,
-                null, // Connection string is handled separately in the bootstrap config
+                request.ConnectionString,
                 request.SecretProvider,
-                null, // InfisicalMachineId
-                null  // InfisicalClientSecret
+                request.InfisicalMachineId,
+                request.InfisicalClientSecret
             ), cancellationToken);
 
             // Step 2: Persist cache bootstrap configuration
             logger.LogInformation("Persisting cache bootstrap configuration...");
             await cacheBootstrapService.PersistAsync(new CacheBootstrapModel(
                 request.CacheMode,
-                null, // Connection string is handled separately
+                request.CacheConnectionString,
                 request.SecretProvider,
-                null,
-                null
+                request.InfisicalMachineId,
+                request.InfisicalClientSecret
             ), cancellationToken);
 
             // Step 3: Save the pending seed request for runtime initialization

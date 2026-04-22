@@ -2,95 +2,200 @@
 
 ## Executive Summary
 
-This document outlines the implementation of a two-stage WebApplication startup pattern for Aero CMS where:
+This document defines the approved startup architecture for Aero CMS:
 
-1. **Setup App** runs first (if needed) with a minimal DI container - only Razor Components, Data Protection, and setup services
-2. **Main App** runs after setup completes with full DI container - Marten, Orleans, Identity, all modules
-3. **No manual restart required** - uses `IHostApplicationLifetime.StopApplication()` to transition between apps
+1. **Setup App** runs first when bootstrap state is `Setup`
+2. **Main App** runs after setup app exits and configuration is re-read
+3. **No manual restart required** - the setup app uses `IHostApplicationLifetime.StopApplication()` to hand off to the main app
+4. **`Configured` is not traffic-ready** - it means configuration is saved but runtime bootstrap is still pending
+5. **`Running` is the only normal-traffic-ready state**
 
-This approach follows the specification in `aero-cms-startup-spec.md` and uses Microsoft's recommended patterns for ASP.NET Core host lifecycle management.
+This is the chosen finish line for bootstrap work so the team can move on to higher-value CMS work like the block editor.
+
+---
+
+## Approved Architecture
+
+### Phase 1 - Setup Host
+
+- Build early configuration
+- Read `AeroCms:Bootstrap`
+- If bootstrap state is `Setup`:
+  - create a **minimal setup WebApplication**
+  - register only setup-safe services
+  - show setup UI
+  - on successful submit:
+    - persist bootstrap configuration
+    - persist pending seed/bootstrap request
+    - mark bootstrap as `Configured`
+    - call `StopApplication()`
+
+### Phase 2 - Main Host
+
+- Re-read configuration after setup app exits
+- Build the **full runtime WebApplication**
+- Start the host with `StartAsync()` so hosted services can begin
+- Wait for required infrastructure readiness using a **timeout `CancellationTokenSource`**
+- Run runtime bootstrap/initialization
+- Mark bootstrap as `Running`
+- Only then allow normal traffic/readiness to go healthy
+
+---
+
+## Lifecycle Model
+
+### Bootstrap States
+
+- `Setup`
+  - Setup UI is shown
+  - Normal traffic is blocked
+- `Configured`
+  - Setup app has completed
+  - Main host must still finish runtime bootstrap
+  - Normal traffic is still blocked
+- `Running`
+  - Runtime bootstrap succeeded
+  - Normal traffic is allowed
+- `Failed`
+  - Runtime bootstrap failed or timed out
+  - Normal traffic remains blocked until corrected/retried
+
+### Important Rule
+
+`Configured` is **not** equivalent to ready.
+
+That distinction is required to avoid serving requests before:
+
+- embedded services are ready
+- seeding completes
+- migrations/module runtime initialization completes
 
 ---
 
 ## Architecture Overview
 
-```
+```text
 Program.cs Entry
     ↓
-Check Bootstrap State (appsettings.json)
+Build early configuration
     ↓
-IF State = "Setup":
+Read AeroCms:Bootstrap
+    ↓
+IF State = Setup:
     Create Setup WebApplication
-        - Minimal services (Razor, Data Protection, Secrets)
-        - Map Setup.razor page
+        - minimal DI only
+        - Data Protection shared with main app
+        - setup UI + setup status endpoint
         - await app.StartAsync()
-        - await app.WaitForShutdownAsync()  ← Blocks here until setup complete
+        - await app.WaitForShutdownAsync()
         - await app.StopAsync()
     ↓
-    Re-verify configuration
+    Re-read configuration
     ↓
 Create Main WebApplication
-    - Full services (Marten, Orleans, Identity, etc.)
-    - If Embedded mode: Start services, wait for ready via TaskCompletionSource
-    - await app.RunAsync()
+    - full runtime DI
+    - await app.StartAsync()
+    - await WaitForRequiredInfrastructureAsync(cts.Token)
+    - await RunRuntimeBootstrapAsync()
+    - mark bootstrap Running
+    - await app.WaitForShutdownAsync()
 ```
 
 ---
 
-## Key Technical Requirements
+## Key Technical Decisions
 
-### 1. Data Protection Sharing (Critical)
+### 1. Shared Data Protection (Required)
 
-Both apps MUST use identical Data Protection configuration:
+Both setup and main app must use identical Data Protection configuration:
 
 ```csharp
 services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(keyPath))
     .ProtectKeysWithCertificate(certificate)
-    .SetApplicationName("AeroCMS");  // Same name in both apps
+    .SetApplicationName("AeroCMS");
 ```
 
-**Rationale**: According to Microsoft Learn, the application discriminator (SetApplicationName) ensures both apps use the same key ring, enabling the main app to decrypt values encrypted by the setup app.
+The setup app may encrypt values that the main app must later decrypt.
 
-### 2. Background Service Coordination (for Embedded Mode)
+### 2. Readiness Model: Snapshot + Barrier
 
-Embedded PostgreSQL and Garnet services must implement:
+The approved readiness pattern is:
 
-```csharp
-public interface IEmbeddedServiceHealth
-{
-    bool IsReady { get; }
-    Task WaitForReadyAsync(CancellationToken cancellationToken = default);
-}
-```
+- **snapshot** of current readiness state for UI/status reporting
+- **awaitable barrier** for startup coordination
 
-The main app will wait for all embedded services:
+This is preferred over introducing a separate `IEmbeddedServiceHealth` contract.
+
+#### Snapshot responsibilities
+
+- expose current `PostgresReady`
+- expose current `GarnetReady`
+- support `/setup/status`
+- support setup UI polling
+
+#### Barrier responsibilities
+
+- await required services based on selected modes
+- use timeout via `CancellationTokenSource`
+- fail startup clearly if required infra does not become ready
+
+### 3. Timeout-Based Readiness Wait
+
+The main app should use a real wait barrier with timeout:
 
 ```csharp
 await app.StartAsync();
-await Task.WhenAll(
-    postgres.WaitForReadyAsync(cts.Token),
-    garnet.WaitForReadyAsync(cts.Token)
-);
+
+using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+
+await runtimeStartupCoordinator.WaitForInfrastructureAsync(
+    databaseMode,
+    cacheMode,
+    cts.Token);
 ```
 
-### 3. Configuration Persistence
+Rules:
 
-- Setup saves to `appsettings.{Environment}.json`
-- Both apps read from the same file
-- State transitions: Setup → Configured → Running
+- `DatabaseMode = Embedded` → wait for Postgres
+- `DatabaseMode = Server` → no embedded Postgres wait
+- `CacheMode = Memory` → no cache wait
+- `CacheMode = Embedded` → wait for Garnet
+- `CacheMode = Server` → no embedded Garnet wait
+
+### 4. Blazor Server Only for Setup UI
+
+Setup interactivity is implemented in **Blazor Server only**.
+
+This means:
+
+- no setup-specific TypeScript work is required
+- readiness polling and conditional UI behavior should live in `Setup.razor` / `Setup.razor.cs`
+- old plan references to client TS setup behavior are superseded
+
+### 5. Runtime Bootstrap Happens Only in Main Host
+
+Setup app responsibilities end after configuration persistence and handoff.
+
+Runtime-only work must happen after the main host starts:
+
+- migrations
+- seeding
+- module runtime initialization
+- final bootstrap completion (`Running`)
 
 ---
 
 ## Configuration Schema
 
-Add to all environment-specific appsettings files:
+Environment-specific appsettings files should contain:
 
 ```json
 {
   "AeroCms": {
     "DataProtection": {
       "KeyStoragePath": "keys",
+      "ApplicationName": "AeroCMS",
       "Certificate": {
         "Path": "certs/aero-cms.pfx",
         "Password": null
@@ -108,356 +213,142 @@ Add to all environment-specific appsettings files:
 }
 ```
 
-**Environment-Specific Values:**
+Environment-specific values:
 
-- **Development**: `KeyStoragePath: "keys"` (relative to project)
-- **Production/Docker**: `KeyStoragePath: "/app/keys"` (volume mount)
-
----
-
-## New Files to Create
-
-### 1. `src/Aero.Cms.Web/Setup/SetupWebApplication.cs`
-
-**Purpose**: Factory class for creating the setup-specific WebApplication
-
-**Key Responsibilities**:
-- Configure Data Protection with shared key storage
-- Register only setup-required services (no Marten, Orleans, Identity)
-- Build and return WebApplication ready for `StartAsync()`
-
-**Service Registration** (Setup App Only):
-- `AddRazorComponents().AddInteractiveServerComponents()`
-- `AddRadzenComponents()`
-- Data Protection (shared configuration)
-- `IEnvironmentAppSettingsWriter`
-- `ISecretManager`
-- `ISetupCompletionService`
-- `SetupPathAllowlist`
-- `ISetupInitializationService`
-- Memory caching
-
-**Pipeline Configuration**:
-- HTTPS redirection
-- Static files
-- Routing
-- Antiforgery
-- Razor Components (Setup page only)
-
-### 2. `src/Aero.Cms.Web/Setup/SetupCompletionService.cs`
-
-**Purpose**: Service that handles setup form submission and triggers application shutdown
-
-**Interface**:
-```csharp
-public interface ISetupCompletionService
-{
-    Task CompleteSetupAsync(SetupConfiguration config);
-}
-```
-
-**Implementation Flow**:
-1. Validate configuration
-2. Encrypt connection strings/secrets
-3. Save to `appsettings.{Environment}.json`
-4. Update Bootstrap state to "Configured"
-5. Call `_lifetime.StopApplication()`
-
-**Important**: No database operations in setup app - embedded DB not running yet
-
-### 3. `src/Aero.AppServer/Startup/IEmbeddedServiceHealth.cs`
-
-**Purpose**: Interface for embedded services to signal readiness
-
-```csharp
-public interface IEmbeddedServiceHealth
-{
-    bool IsReady { get; }
-    Task WaitForReadyAsync(CancellationToken cancellationToken = default);
-}
-```
+- Development: relative key ring path
+- Production/Docker: mounted volume path like `/app/keys`
 
 ---
 
-## Modified Files
+## Current Status Summary
 
-### 4. `src/Aero.Cms.Web/Program.cs` (Complete Rewrite)
+### Implemented
 
-**New Structure**:
+- Two-app orchestration exists in `src/Aero.Cms.Web/Program.cs`
+- Setup app factory exists in `src/Aero.Cms.Web/Setup/SetupWebApplication.cs`
+- Bootstrap handoff service exists
+- Bootstrap state/provider exists
+- Setup UI exists in Blazor
+- Setup status endpoint exists
+- Readiness snapshot/signal types exist
 
-```csharp
-public class Program
-{
-    public static async Task Main(string[] args)
-    {
-        try
-        {
-            // Phase 1: Check if setup needed
-            var setupResult = await CheckSetupAsync(args);
-            
-            // Phase 2: Run Setup App if needed
-            if (setupResult.NeedsSetup)
-            {
-                await RunSetupAppAsync(args);
-                setupResult = await CheckSetupAsync(args); // Re-verify
-            }
-            
-            // Phase 3: Create Main Application
-            await RunMainAppAsync(args, setupResult);
-        }
-        catch (Exception ex)
-        {
-            Log.Fatal(ex, "Application terminated unexpectedly");
-            Environment.Exit(1);
-        }
-    }
-    
-    private static async Task RunSetupAppAsync(string[] args)
-    {
-        var earlyConfig = BuildEarlyConfiguration(args);
-        var setupApp = await SetupWebApplication.CreateAsync(args, earlyConfig);
-        
-        await setupApp.StartAsync();
-        
-        try
-        {
-            // Block until IHostApplicationLifetime.StopApplication() called
-            await setupApp.WaitForShutdownAsync();
-        }
-        finally
-        {
-            await setupApp.StopAsync();
-        }
-    }
-    
-    private static async Task RunMainAppAsync(string[] args, SetupResult setupResult)
-    {
-        var builder = WebApplication.CreateBuilder(args);
-        
-        // Configure Data Protection with SAME settings as setup app
-        ConfigureDataProtection(builder.Services, builder.Configuration);
-        
-        // Full service registration
-        builder.AddServiceDefaults();
-        await builder.AddAeroApplicationServer();
-        await builder.AddAeroCmsRuntimeAsync<Program>();
-        
-        var app = builder.Build();
-        
-        // If embedded mode, start and wait for services
-        if (setupResult.Mode == SecretsMode.Embedded)
-        {
-            await app.StartAsync();
-            await WaitForEmbeddedServicesAsync(app);
-        }
-        
-        await app.MapAeroAppAsync();
-        await app.RunAsync();
-    }
-}
-```
+### Not Yet Complete
 
-### 5. `src/Aero.Cms.Modules.Setup/Areas/MyFeature/Pages/Setup.razor.cs`
-
-**Changes**:
-- Inject `ISetupCompletionService`
-- Modify `HandleSubmit()` to call completion service
-- Remove "restart required" message
-- Show "Setup complete, starting main application..."
-
-```csharp
-[Inject]
-private ISetupCompletionService SetupCompletionService { get; set; } = default!;
-
-protected async Task HandleSubmit()
-{
-    // ... validation logic ...
-    
-    var config = new SetupConfiguration(
-        DatabaseMode: databaseMode,
-        CacheMode: cacheMode,
-        SecretProvider: secretProvider,
-        // ... other fields
-    );
-    
-    StatusMessage = "Setup complete! Starting main application...";
-    StateHasChanged();
-    
-    await SetupCompletionService.CompleteSetupAsync(config);
-    
-    // App will shut down and main app will start automatically
-}
-```
-
-### 6. `src/Aero.AppServer/Startup/AeroEmbeddedDbService.cs`
-
-**Changes**: Implement `IEmbeddedServiceHealth`
-
-```csharp
-public class AeroEmbeddedDbService : BackgroundService, IEmbeddedServiceHealth
-{
-    private readonly TaskCompletionSource _readyTcs = 
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
-    
-    public bool IsReady { get; private set; }
-    
-    public Task WaitForReadyAsync(CancellationToken cancellationToken = default)
-        => _readyTcs.Task.WaitAsync(cancellationToken);
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        // Start PostgreSQL process
-        _postgresProcess = StartPostgresProcess();
-        
-        // Poll until ready
-        var timeout = DateTime.UtcNow.AddMinutes(2);
-        while (DateTime.UtcNow < timeout && !stoppingToken.IsCancellationRequested)
-        {
-            if (await TryConnectAsync())
-            {
-                IsReady = true;
-                _readyTcs.TrySetResult();
-                break;
-            }
-            await Task.Delay(500, stoppingToken);
-        }
-        
-        if (!IsReady)
-            _readyTcs.TrySetException(new TimeoutException("PostgreSQL failed to start"));
-        
-        // Keep running
-        await Task.Delay(Timeout.Infinite, stoppingToken);
-    }
-}
-```
-
-### 7. `src/Aero.AppServer/Startup/AeroCacheService.cs`
-
-**Changes**: Implement `IEmbeddedServiceHealth` (same pattern as above)
-
-### 8. `appsettings.Development.json` and `appsettings.Production.json`
-
-**Add Section**:
-```json
-{
-  "AeroCms": {
-    "DataProtection": {
-      "KeyStoragePath": "keys",
-      "Certificate": {
-        "Path": "certs/aero-cms.pfx",
-        "Password": null
-      }
-    }
-  }
-}
-```
+- `Configured` is still treated too much like ready in current behavior
+- main-host readiness barrier is not yet an awaited timeout-based coordinator
+- setup UI readiness polling is still placeholder/stubbed
+- setup submit gating is not yet based on real readiness
+- full server/Infisical persistence path needs completion
+- appsettings schema is not fully normalized
 
 ---
 
-## Docker Configuration
+## Required File Changes
 
-### `docker-compose.yml`
+### Primary Runtime/Bootstrap Files
 
-```yaml
-services:
-  aero-cms:
-    image: aero-cms:latest
-    volumes:
-      - aero-keys:/app/keys        # Data Protection key ring
-      - aero-certs:/app/certs      # X.509 certificate
-      - aero-postgres:/app/embedded/postgres/data
-      - aero-garnet:/app/embedded/garnet/data
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-    ports:
-      - "5000:8080"
+1. `src/Aero.Cms.Web/Program.cs`
+2. `src/Aero.Cms.Web.Core/Eextensions/AeroWebAppExtensions.cs`
+3. `src/Aero.Cms.Modules.Setup/SetupStateStore.cs`
+4. `src/Aero.Cms.Modules.Setup/Bootstrap/RuntimeBootstrapInitializer.cs`
+5. `src/Aero.Cms.Modules.Setup/Bootstrap/BootstrapCompletionWriter.cs`
 
-volumes:
-  aero-keys:
-  aero-certs:
-  aero-postgres:
-  aero-garnet:
-```
+### Setup Input / Persistence Files
 
-### Certificate Management
+6. `src/Aero.Cms.Modules.Setup/Areas/MyFeature/Pages/Setup.razor.cs`
+7. `src/Aero.Cms.Modules.Setup/Areas/MyFeature/Pages/Setup.razor`
+8. `src/Aero.Cms.Modules.Setup/Bootstrap/SetupBootstrapHandoffService.cs`
+9. `src/Aero.Cms.Modules.Setup/Bootstrap/DatabaseBootstrapService.cs`
+10. `src/Aero.Cms.Modules.Setup/Bootstrap/CacheBootstrapService.cs`
+11. `src/Aero.Cms.Modules.Setup/Bootstrap/BootstrapPersistenceModels.cs`
 
-**Auto-Generation** (if certificate doesn't exist):
-- Algorithm: ECDSA with nistP256 curve
-- Validity: 10 years
-- Subject: `CN=Aero CMS Data Protection`
-- Password: Random 32-byte Base64, saved to `{certPath}.key`
+### Readiness / Infra Coordination Files
 
-**BYOK (Bring Your Own Key)**:
-User can provide their own `.pfx` file at configured path
+12. `src/Aero.AppServer/AeroEmbeddedDbService.cs`
+13. `src/Aero.AppServer/AeroCacheService.cs`
+14. `src/Aero.AppServer/Startup/IMultiStartupSignal.cs`
+15. `src/Aero.AppServer/Startup/MultiStartupSignal.cs`
+16. `src/Aero.AppServer/Startup/IInfrastructureReadinessSnapshot.cs`
+17. `src/Aero.AppServer/Startup/InfrastructureReadinessSnapshot.cs`
 
----
+### Config Files
 
-## Error Handling Strategy
+18. `src/Aero.Cms.Web/appsettings.json`
+19. `src/Aero.Cms.Web/appsettings.Development.json`
+20. `src/Aero.Cms.Web/appsettings.Staging.json`
+21. `src/Aero.Cms.Web/appsettings.Production.json`
 
-### Setup App Errors
+### Tests
 
-| Scenario | Behavior |
-|----------|----------|
-| Configuration validation fails | Show inline errors, do not call StopApplication() |
-| File write fails (permissions) | Log error, show error message, stay in setup |
-| Exception during RunAsync | Catch, log fatal, exit process with code 1 |
-
-### Main App Errors
-
-| Scenario | Behavior |
-|----------|----------|
-| Setup claims complete but config missing | Throw InvalidOperationException, exit |
-| Embedded service timeout | Throw TimeoutException, exit |
-| Certificate cannot be loaded | Throw exception, exit |
-
-### Recovery Procedures
-
-**Reset to Fresh Install**:
-1. Delete `appsettings.{Environment}.json`
-2. Delete Data Protection keys directory
-3. Restart application
-
-**Retry Setup**:
-- If setup fails, user can retry without restart
-- Setup app stays running until successful completion
+22. `tests/Aero.Cms.Core.Tests/Integration/SetupPageModelTests.cs`
+23. `tests/Aero.Cms.Core.Tests/Integration/BootstrapCompletionWriterTests.cs`
+24. new or updated bootstrap/readiness integration tests
 
 ---
 
-## Testing Strategy
+## Concrete Implementation Sequence
 
-### Unit Tests
+### Step 1 - Finish persistence contract
 
-- **SetupVerifier**: Returns correct state based on configuration
-- **SetupCompletionService**: Saves configuration correctly
-- **Embedded Services**: WaitForReadyAsync completes when healthy
+- carry full setup inputs through handoff:
+  - `ConnectionString`
+  - `CacheConnectionString`
+  - `InfisicalMachineId`
+  - `InfisicalClientSecret`
+- ensure selected secret provider is respected
 
-### Integration Tests
+### Step 2 - Normalize appsettings schema
 
-- **Two-App Flow**: Setup app runs, completes, main app starts
-- **Data Protection**: Encrypted values from setup readable by main app
-- **Embedded Services**: PostgreSQL accepts connections after WaitForReadyAsync
+- add/normalize `AeroCms:Bootstrap`
+- add/normalize `AeroCms:DataProtection`
+- ensure setup and runtime read the same keys
 
-### Manual Testing Checklist
+### Step 3 - Fix startup state semantics
 
-- [ ] Fresh install → Setup UI appears
-- [ ] Embedded mode → Setup completes, main app starts, services ready
-- [ ] Server mode → Setup completes, main app starts, external DB connects
-- [ ] Invalid configuration → Setup shows validation errors
-- [ ] Certificate rotation → New setup required (old encrypted values fail)
-- [ ] Docker restart → Application starts without setup (config persisted)
+- `Setup` = setup only
+- `Configured` = bootstrap pending, traffic blocked
+- `Running` = ready
+- optionally use `Failed` for startup/bootstrap failure
+
+### Step 4 - Add real runtime startup barrier
+
+- start main host first
+- await required infra with timeout CTS
+- fail startup if required infra does not become ready
+
+### Step 5 - Separate route mapping from runtime initialization
+
+- route mapping should not hide migrations/bootstrap side effects
+- runtime initialization should be a deliberate startup phase
+
+### Step 6 - Wire real setup readiness UI
+
+- implement polling in Blazor page model
+- consume `/setup/status`
+- compute readiness based on chosen modes
+- disable submit until required services are ready
+
+### Step 7 - Add targeted end-to-end tests
+
+- setup → configured → running happy path
+- infra timeout / bootstrap failure path
+- persistence coverage for server/Infisical fields
 
 ---
 
-## Implementation Order
+## Acceptance Criteria
 
-1. **Configuration**: Add DataProtection section to appsettings files
-2. **Interface**: Create `IEmbeddedServiceHealth`
-3. **Setup Factory**: Create `SetupWebApplication`
-4. **Completion Service**: Create `SetupCompletionService`
-5. **Embedded Services**: Implement `IEmbeddedServiceHealth`
-6. **Program.cs**: Rewrite for two-app orchestration
-7. **Setup Page**: Modify to use completion service
-8. **Docker**: Update compose file with volumes
+The bootstrap work is considered complete when all of the following are true:
+
+1. Fresh install shows setup UI without requiring runtime-only services to be initialized first
+2. Setup submit transitions automatically to the main app with no manual restart
+3. Main host starts and waits for required embedded services using a timeout barrier
+4. `Configured` does not allow normal traffic
+5. `Running` is only written after runtime bootstrap succeeds
+6. Setup UI shows real readiness state in Blazor and prevents premature submit
+7. Server DB/cache and Infisical setup inputs persist correctly
+8. Shared Data Protection works across setup and main app
+9. Happy-path and failure-path bootstrap tests pass
 
 ---
 
@@ -465,10 +356,11 @@ User can provide their own `.pfx` file at configured path
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Data Protection misconfiguration | High - cannot decrypt values | Use identical config, validate on startup |
-| File locking on appsettings.json | Medium - setup cannot save | Use file locking with retry, or temp file swap |
-| Embedded service startup timeout | Medium - app fails to start | Configurable timeout, clear error messages |
-| Certificate expiration | Low - values become unreadable | 10-year validity, monitoring alerts |
+| Shared Data Protection mismatch | High | Centralize DP registration and verify cross-app decrypt |
+| `Configured` treated as ready | High | Gate normal traffic until `Running` only |
+| Embedded infra never becomes ready | Medium | Timeout CTS + clear failure state/logging |
+| Hidden bootstrap side effects in route mapping | Medium | Separate initialization from endpoint mapping |
+| Partial persistence of server/Infisical fields | Medium | Complete persistence contract and add tests |
 
 ---
 
@@ -485,6 +377,9 @@ User can provide their own `.pfx` file at configured path
 
 ## Approval
 
-This plan has been reviewed and approved for implementation.
+This plan reflects the currently approved direction:
 
-Date: 2026-04-15
+- two-app startup remains
+- readiness uses snapshot + barrier
+- setup UI is Blazor Server only
+- bootstrap work should finish cleanly so focus can shift to the block editor
