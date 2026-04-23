@@ -57,6 +57,19 @@ public static class SetupWebApplication
         // Add memory cache for bootstrap operations
         services.AddMemoryCache();
 
+        services.AddAntiforgery(options =>
+        {
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Allow HTTP in dev
+        });
+
+        services.Configure<CookiePolicyOptions>(options =>
+        {
+            options.MinimumSameSitePolicy = SameSiteMode.Lax;
+            options.Secure = CookieSecurePolicy.SameAsRequest;
+        });
+
+
+
         // Add HTTP context accessor for setup operations
         services.AddHttpContextAccessor();
 
@@ -97,7 +110,7 @@ public static class SetupWebApplication
         services.AddSingleton<InfisicalBootstrapSettingsProvider>();
 
         // Secret management
-        services.AddSingleton<ISecretManager>(sp => 
+        services.AddSingleton<ISecretManager>(sp =>
             DataProtectionCertificateBootstrapper.CreateSecretManager(sp.GetService<IConfiguration>()));
 
         // Bootstrap services
@@ -132,8 +145,10 @@ public static class SetupWebApplication
         // HTTPS redirection
         app.UseHttpsRedirection();
 
-        // Static files
-        app.UseStaticFiles();
+        app.UseCookiePolicy();
+
+        // Static assets
+        app.MapStaticAssets();
 
         // Routing
         app.UseRouting();
@@ -144,7 +159,9 @@ public static class SetupWebApplication
         // Setup gate middleware - ensures only setup paths are accessible
         app.UseCmsSetupGate();
 
-        // Map Razor Components
+        // Map Razor Components.
+        // SetupRoot is in Aero.Cms.Modules.Setup, so all components in that assembly
+        // (including Setup.razor and SetupRoutes.razor) are already discovered by the endpoint.
         app.MapRazorComponents<SetupRoot>()
             .AddInteractiveServerRenderMode();
     }

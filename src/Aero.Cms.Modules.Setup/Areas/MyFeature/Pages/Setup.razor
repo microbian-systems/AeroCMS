@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Aero.Cms.Shared.Layout
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
+@rendermode InteractiveServer
 @layout EmptyLayout
 
 <div class="fixed inset-0 pointer-events-none bg-aero"></div>
@@ -79,7 +80,17 @@
                         </div>
                     }
 
-                    <EditForm Model="@Input" OnValidSubmit="HandleSubmit" novalidate>
+                    @* --- INTERACTIVITY PROBE - remove after debugging --- *@
+                    <div style="background:yellow;padding:8px;margin-bottom:8px;font-weight:bold;">
+                        Probe: @_probeCount clicks
+                        <button type="button" @onclick="() => _probeCount++" style="margin-left:8px;padding:4px 8px;cursor:pointer;">
+                            Click Me
+                        </button>
+                    </div>
+                    @* --- END PROBE --- *@
+
+                    <EditForm Model="@Input" OnValidSubmit="HandleSubmit" FormName="setup-wizard" novalidate>
+
                         <DataAnnotationsValidator/>
 
                         @if (HasValidationErrors)
@@ -404,12 +415,12 @@
                         }
 
                         <div class="pt-8 space-y-4 border-t border-slate-100 mt-10">
-                            <button type="button" @onclick="@ShowTestAlert" class="w-full h-11 rounded-2xl border border-amber-200 bg-amber-50 text-amber-800 text-sm font-bold transition hover:bg-amber-100 cursor-pointer">
+                            <button type="button" @onclick="ShowTestAlert" class="w-full h-11 rounded-2xl border border-amber-200 bg-amber-50 text-amber-800 text-sm font-bold transition hover:bg-amber-100 cursor-pointer">
                                 Test Blazor Click
                             </button>
 
                             <div class="flex items-center justify-between gap-4">
-                            <button type="button" @onclick="@PreviousStep" disabled="@(CurrentStep == 1 || IsSubmitting)" class="h-12 px-5 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button type="button" @onclick="PreviousStep" disabled="@(CurrentStep == 1 || IsSubmitting)" class="h-12 px-5 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                                 Back
                             </button>
 
@@ -422,7 +433,7 @@
 
                             @if (!IsLastStep)
                             {
-                                <button type="button" @onclick="@NextStep" disabled="@(IsSubmitting)" class="group relative h-12 px-6 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-xl transition-all hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">
+                                <button type="button" @onclick="NextStep" disabled="@(IsSubmitting)" class="group relative h-12 px-6 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-xl transition-all hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">
                                     <span>Next</span>
                                     <svg class="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>

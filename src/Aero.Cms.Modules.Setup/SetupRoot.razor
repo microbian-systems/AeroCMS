@@ -1,5 +1,5 @@
 @using Microsoft.AspNetCore.Components.Web
-@using Aero.Cms.Modules.Setup.Areas.MyFeature.Pages
+@using Aero.Cms.Shared.Layout
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 
 <!DOCTYPE html>
@@ -15,12 +15,12 @@
     <link rel="icon" type="image/png" href="_content/Aero.Cms.Shared/favicon.png" />
     <script src="https://cdn.jsdelivr.net/npm/@@tailwindcss/browser@@4"></script>
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
-    <HeadOutlet @rendermode="InteractiveServer" />
+    <HeadOutlet @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
 </head>
 
 <body>
-    <Setup @rendermode="InteractiveServer" />
-    <script src="_framework/blazor.web.js"></script>
+    <SetupRoutes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 
 </html>

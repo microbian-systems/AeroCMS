@@ -27,7 +27,6 @@ public partial class Setup : ComponentBase, IAsyncDisposable
     [Parameter]
     public string? ReturnUrl { get; set; }
 
-    [SupplyParameterFromForm]
     public SetupInput Input { get; set; } = new();
 
     public string? StatusMessage { get; set; }
@@ -49,6 +48,10 @@ public partial class Setup : ComponentBase, IAsyncDisposable
 
     public bool IsReady => (!RequiresPostgres || PostgresReady) && (!RequiresGarnet || GarnetReady);
     public bool IsSubmitting { get; set; }
+
+    // Debug probe - remove after confirming interactivity works
+    private int _probeCount;
+
     public string ReadinessMessage => BuildReadinessMessage();
     public int CurrentStep { get; set; } = 1;
     public bool IsLastStep => CurrentStep == TotalSteps;
