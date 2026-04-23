@@ -9,6 +9,8 @@ namespace Aero.Cms.Modules.Setup.Areas.MyFeature.Pages;
 
 public partial class Setup : ComponentBase, IAsyncDisposable
 {
+    private const int TotalSteps = 5;
+
     [Inject]
     private ISetupBootstrapHandoffService SetupBootstrapHandoffService { get; set; } = default!;
 
@@ -44,6 +46,12 @@ public partial class Setup : ComponentBase, IAsyncDisposable
     public bool IsReady => (!RequiresPostgres || PostgresReady) && (!RequiresGarnet || GarnetReady);
     public bool IsSubmitting { get; set; }
     public string ReadinessMessage => BuildReadinessMessage();
+    public int CurrentStep { get; set; } = 1;
+    public bool IsLastStep => CurrentStep == TotalSteps;
+    public bool CanMoveNext => ValidateCurrentStep(false);
+    public double ProgressPercent => CurrentStep * 100d / TotalSteps;
+    public string CurrentStepTitle => GetStepName(CurrentStep);
+    public string CurrentStepDescription => GetStepSummary(CurrentStep);
 
     public bool HasValidationErrors { get; set; }
 
@@ -139,6 +147,31 @@ public partial class Setup : ComponentBase, IAsyncDisposable
         ShowConfirmPassword = !ShowConfirmPassword;
     }
 
+    public void NextStep()
+    {
+        if (!ValidateCurrentStep(true))
+        {
+            return;
+        }
+
+        if (CurrentStep < TotalSteps)
+        {
+            CurrentStep++;
+            HasValidationErrors = false;
+            StatusMessage = null;
+        }
+    }
+
+    public void PreviousStep()
+    {
+        if (CurrentStep > 1)
+        {
+            CurrentStep--;
+            HasValidationErrors = false;
+            StatusMessage = null;
+        }
+    }
+
     public string GetFieldClass(string key)
     {
         // For now, return default styling
@@ -149,6 +182,11 @@ public partial class Setup : ComponentBase, IAsyncDisposable
     protected async Task HandleSubmit()
     {
         HasValidationErrors = false;
+
+        if (!ValidateCurrentStep(true))
+        {
+            return;
+        }
 
         var secretProvider = NormalizeMode(Input.SecretProvider, "Local Certificate");
         var databaseMode = NormalizeMode(Input.DatabaseMode, "Embedded");
@@ -221,6 +259,69 @@ public partial class Setup : ComponentBase, IAsyncDisposable
 
     private static string NormalizeMode(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value;
+
+    private bool ValidateCurrentStep(bool showMessage)
+    {
+        string? error = CurrentStep switch
+        {
+            1 when string.IsNullOrWhiteSpace(Input.SiteName) => "Site name is required.",
+            1 when string.IsNullOrWhiteSpace(Input.HomepageTitle) => "Homepage title is required.",
+            1 when string.IsNullOrWhiteSpace(Input.BlogName) => "Blog name is required.",
+            1 when string.IsNullOrWhiteSpace(Input.Hostname) => "Hostname is required.",
+            1 when string.IsNullOrWhiteSpace(Input.DefaultCulture) => "Default culture is required.",
+            2 when string.Equals(Input.DatabaseMode, "Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.ConnectionString)
+                => "A database connection string is required when Database is set to Server.",
+            3 when string.Equals(Input.CacheMode, "Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.CacheConnectionString)
+                => "A cache connection string is required when Cache is set to Server.",
+            3 when string.Equals(Input.CacheMode, "Embedded", StringComparison.OrdinalIgnoreCase) && !GarnetReady
+                => "Wait for embedded Garnet cache to become ready before continuing.",
+            4 when string.Equals(Input.SecretProvider, "Infisical", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.InfisicalMachineId)
+                => "Infisical machine id is required.",
+            4 when string.Equals(Input.SecretProvider, "Infisical", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.InfisicalClientSecret)
+                => "Infisical client secret is required.",
+            5 when string.IsNullOrWhiteSpace(Input.AdminUserName) => "Admin username is required.",
+            5 when string.IsNullOrWhiteSpace(Input.AdminEmail) => "Admin email is required.",
+            5 when string.IsNullOrWhiteSpace(Input.Password) => "Admin password is required.",
+            5 when string.IsNullOrWhiteSpace(Input.ConfirmPassword) => "Please confirm the admin password.",
+            5 when !string.Equals(Input.Password, Input.ConfirmPassword, StringComparison.Ordinal) => "Passwords must match.",
+            _ => null
+        };
+
+        if (!showMessage)
+        {
+            return error is null;
+        }
+
+        if (error is null)
+        {
+            HasValidationErrors = false;
+            return true;
+        }
+
+        HasValidationErrors = true;
+        StatusMessage = error;
+        return false;
+    }
+
+    public string GetStepName(int step) => step switch
+    {
+        1 => "CMS Info",
+        2 => "Database",
+        3 => "Cache",
+        4 => "Secrets",
+        5 => "Admin",
+        _ => "Setup"
+    };
+
+    public string GetStepSummary(int step) => step switch
+    {
+        1 => "Site name, culture, homepage, and blog metadata.",
+        2 => "Embedded or server database connectivity.",
+        3 => "Memory, embedded, or server cache configuration.",
+        4 => "Local Certificate or Infisical secret handling.",
+        5 => "Create the initial CMS administrator account.",
+        _ => string.Empty
+    };
 
     private string BuildReadinessMessage()
     {

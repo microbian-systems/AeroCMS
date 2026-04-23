@@ -6,18 +6,13 @@
 @layout EmptyLayout
 @rendermode InteractiveServer
 
-@* Large decorative background image *@
 <div class="fixed inset-0 pointer-events-none bg-aero"></div>
-
-@* Subtle gradients for depth *@
 <div class="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_70%_20%,_rgba(79,70,229,0.03),_transparent_40%),radial-gradient(circle_at_20%_80%,_rgba(16,185,129,0.03),_transparent_40%)]"></div>
 
 <div class="relative min-h-screen flex flex-col items-center justify-center p-6 lg:p-12">
     <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
-
-        @* Left Side - Context *@
         <div class="lg:col-span-5 order-2 lg:order-1">
-            <div class="h-full bg-white/40 backdrop-blur-xl border border-white/40 rounded-[2.5rem] shadow-premium p-8 sm:p-12 space-y-10">
+            <div class="h-full bg-white/40 backdrop-blur-xl border border-white/40 rounded-[2.5rem] shadow-premium p-8 sm:p-12 space-y-8">
                 <div class="space-y-4">
                     <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-indigo-50 text-indigo-600 border border-indigo-100">
                         System Setup
@@ -26,52 +21,55 @@
                         Welcome to <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">Aero CMS</span>
                     </h1>
                     <p class="text-lg text-slate-600 leading-relaxed font-medium">
-                        You're just a few steps away from your new high-performance content platform. Let's configure the foundational administrative access and site identity.
+                        Let's walk through a simpler setup flow and prepare your content platform one step at a time.
                     </p>
                 </div>
 
-                <div class="grid gap-6">
-                    <div class="group flex gap-4 p-4 rounded-3xl transition-colors hover:bg-white/40">
-                        <div class="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-accent transition-transform group-hover:scale-110">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-bold text-slate-900">Secure Access</h3>
-                            <p class="text-sm text-slate-500 mt-1">We'll bootstrap your primary administrative account using industry-standard Identity managers.</p>
-                        </div>
+                <div class="space-y-4">
+                    <div class="h-2 rounded-full bg-white/70 overflow-hidden">
+                        <div class="h-full rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 transition-all duration-300" style="width:@($"{ProgressPercent}%")"></div>
                     </div>
 
-                    <div class="group flex gap-4 p-4 rounded-3xl transition-colors hover:bg-white/40">
-                        <div class="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 transition-transform group-hover:scale-110">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-bold text-slate-900">Deterministic Seeding</h3>
-                            <p class="text-sm text-slate-500 mt-1">Your site structure, homepage, and blog listing will be seeded based on the metadata you provide now.</p>
-                        </div>
+                    <div class="space-y-3">
+                        @for (var step = 1; step <= 5; step++)
+                        {
+                            var isActive = CurrentStep == step;
+                            var isComplete = CurrentStep > step;
+
+                            <div class="flex items-start gap-4 p-4 rounded-3xl border transition-all @(isActive ? "bg-white border-indigo-200 shadow-sm" : "bg-white/40 border-white/30")">
+                                <div class="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-2xl font-bold text-sm @(isComplete ? "bg-emerald-500 text-white" : isActive ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-500")">
+                                    @if (isComplete)
+                                    {
+                                        <span>✓</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@step</span>
+                                    }
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-slate-900">@GetStepName(step)</h3>
+                                    <p class="text-sm text-slate-500 mt-1">@GetStepSummary(step)</p>
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
         </div>
 
-        @* Right Side - Form *@
         <div class="lg:col-span-7 order-1 lg:order-2">
             <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-premium p-8 sm:p-12 relative overflow-hidden">
-                @* Glass background element *@
                 <div class="absolute -right-16 -top-16 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-60"></div>
 
                 <div class="relative">
                     <div class="flex items-center justify-between border-b border-slate-100 pb-8 mb-8">
                         <div>
-                            <h2 class="text-2xl font-bold text-slate-950">Foundation Config</h2>
-                            <p class="text-sm text-slate-500 mt-1">Configure your workspace defaults</p>
+                            <h2 class="text-2xl font-bold text-slate-950">@CurrentStepTitle</h2>
+                            <p class="text-sm text-slate-500 mt-1">@CurrentStepDescription</p>
                         </div>
-                        <div class="h-12 w-12 flex items-center justify-center rounded-2xl bg-slate-50 border border-slate-100 italic font-display font-bold text-slate-400">
-                            0.1
+                        <div class="h-12 min-w-12 px-4 flex items-center justify-center rounded-2xl bg-slate-50 border border-slate-100 font-display font-bold text-slate-500">
+                            @CurrentStep / 5
                         </div>
                     </div>
 
@@ -95,239 +93,297 @@
 
                         <input type="hidden" name="ReturnUrl" value="@ReturnUrl"/>
 
-                        @* Infrastructure Section *@
-                        <div class="space-y-6">
-                            <div class="flex items-center gap-4">
-                                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Infrastructure</h3>
-                                <div class="h-px flex-1 bg-slate-100"></div>
-                            </div>
+                        @if (CurrentStep == 1)
+                        {
+                            <div class="space-y-6">
+                                <div class="flex items-center gap-4">
+                                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">CMS Main Info</h3>
+                                    <div class="h-px flex-1 bg-slate-100"></div>
+                                </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div class="space-y-2">
-                                    <label for="Input_DatabaseMode" class="text-xs font-bold text-slate-700">Database</label>
-                                    <InputSelect @bind-Value="Input.DatabaseMode" class="@GetFieldClass("Input.DatabaseMode")">
-                                        <option value="Embedded">Embedded</option>
-                                        <option value="Server">Server</option>
-                                    </InputSelect>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">Site Name</label>
+                                        <InputText @bind-Value="Input.SiteName" autocomplete="organization" class="@GetFieldClass("Input.SiteName")" placeholder="Aero CMS"/>
+                                        <ValidationMessage For="() => Input.SiteName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">Home Title</label>
+                                        <InputText @bind-Value="Input.HomepageTitle" class="@GetFieldClass("Input.HomepageTitle")" placeholder="Welcome"/>
+                                        <ValidationMessage For="() => Input.HomepageTitle" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">Blog Name</label>
+                                        <InputText @bind-Value="Input.BlogName" class="@GetFieldClass("Input.BlogName")" placeholder="Journal"/>
+                                        <ValidationMessage For="() => Input.BlogName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
+                                    </div>
                                 </div>
-                                <div class="space-y-2">
-                                    <label for="Input_CacheMode" class="text-xs font-bold text-slate-700">Cache</label>
-                                    <InputSelect @bind-Value="Input.CacheMode" class="@GetFieldClass("Input.CacheMode")">
-                                        <option value="Memory">Memory</option>
-                                        <option value="Embedded">Embedded</option>
-                                        <option value="Server">Server</option>
-                                    </InputSelect>
-                                </div>
-                                <div class="space-y-2">
-                                    <label for="Input_SecretProvider" class="text-xs font-bold text-slate-700">Secret provider</label>
-                                    <InputSelect @bind-Value="Input.SecretProvider" class="@GetFieldClass("Input.SecretProvider")">
-                                        <option value="Local Certificate">Local Certificate (Recommended)</option>
-                                        <option value="Infisical">Infisical</option>
-                                    </InputSelect>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">Hostname</label>
+                                        <InputText @bind-Value="Input.Hostname" class="@GetFieldClass("Input.Hostname")" placeholder="localhost"/>
+                                        <p class="text-[10px] text-slate-500">Default: localhost for development</p>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">Default Culture</label>
+                                        <InputSelect @bind-Value="Input.DefaultCulture" class="@GetFieldClass("Input.DefaultCulture")">
+                                            <option value="en-US">🇺🇸 English (United States)</option>
+                                            <option value="en-GB">🇬🇧 English (United Kingdom)</option>
+                                            <option value="fr-FR">🇫🇷 Français</option>
+                                            <option value="de-DE">🇩🇪 Deutsch</option>
+                                            <option value="es-ES">🇪🇸 Español</option>
+                                            <option value="it-IT">🇮🇹 Italiano</option>
+                                            <option value="pt-BR">🇧🇷 Português (Brasil)</option>
+                                            <option value="nl-NL">🇳🇱 Nederlands</option>
+                                            <option value="pl-PL">🇵🇱 Polski</option>
+                                            <option value="ru-RU">🇷🇺 Русский</option>
+                                            <option value="zh-CN">🇨🇳 中文 (简体)</option>
+                                            <option value="ja-JP">🇯🇵 日本語</option>
+                                            <option value="ko-KR">🇰🇷 한국어</option>
+                                            <option value="ar-SA">🇸🇦 العربية</option>
+                                            <option value="hi-IN">🇮🇳 हिन्दी</option>
+                                            <option value="tr-TR">🇹🇷 Türkçe</option>
+                                            <option value="sv-SE">🇸🇪 Svenska</option>
+                                            <option value="cs-CZ">🇨🇿 Čeština</option>
+                                            <option value="el-GR">🇬🇷 Ελληνικά</option>
+                                            <option value="he-IL">🇮🇱 עברית</option>
+                                            <option value="th-TH">🇹🇭 ไทย</option>
+                                        </InputSelect>
+                                    </div>
                                 </div>
                             </div>
+                        }
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                @if (ShowConnectionString)
-                                {
+                        @if (CurrentStep == 2)
+                        {
+                            <div class="space-y-6">
+                                <div class="flex items-center gap-4">
+                                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Database Setup</h3>
+                                    <div class="h-px flex-1 bg-slate-100"></div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div class="space-y-2">
-                                        <label for="Input_ConnectionString" class="text-xs font-bold text-slate-700">Database connection string</label>
-                                        <InputText @bind-Value="Input.ConnectionString" class="@GetFieldClass("Input.ConnectionString")" placeholder="Host=...;Database=..."/>
+                                        <label class="text-xs font-bold text-slate-700">Database Mode</label>
+                                        <InputSelect @bind-Value="Input.DatabaseMode" class="@GetFieldClass("Input.DatabaseMode")">
+                                            <option value="Embedded">Embedded</option>
+                                            <option value="Server">Server</option>
+                                        </InputSelect>
                                     </div>
-                                }
-                                @if (ShowCacheConnectionString)
-                                {
+
+                                    @if (ShowConnectionString)
+                                    {
+                                        <div class="space-y-2">
+                                            <label class="text-xs font-bold text-slate-700">Database connection string</label>
+                                            <InputText @bind-Value="Input.ConnectionString" class="@GetFieldClass("Input.ConnectionString")" placeholder="Host=...;Database=..."/>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @if (CurrentStep == 3)
+                        {
+                            <div class="space-y-6">
+                                <div class="flex items-center gap-4">
+                                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Cache Setup</h3>
+                                    <div class="h-px flex-1 bg-slate-100"></div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div class="space-y-2">
-                                        <label for="Input_CacheConnectionString" class="text-xs font-bold text-slate-700">Cache connection string</label>
-                                        <InputText @bind-Value="Input.CacheConnectionString" class="@GetFieldClass("Input.CacheConnectionString")" placeholder="cache-host=..."/>
+                                        <label class="text-xs font-bold text-slate-700">Cache Mode</label>
+                                        <InputSelect @bind-Value="Input.CacheMode" class="@GetFieldClass("Input.CacheMode")">
+                                            <option value="Memory">Memory</option>
+                                            <option value="Embedded">Embedded</option>
+                                            <option value="Server">Server</option>
+                                        </InputSelect>
                                     </div>
-                                }
+
+                                    @if (ShowCacheConnectionString)
+                                    {
+                                        <div class="space-y-2">
+                                            <label class="text-xs font-bold text-slate-700">Cache connection string</label>
+                                            <InputText @bind-Value="Input.CacheConnectionString" class="@GetFieldClass("Input.CacheConnectionString")" placeholder="cache-host=..."/>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5">
+                                    <div class="flex items-start gap-4">
+                                        <div class="h-10 w-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center">
+                                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                        <div class="space-y-2 text-sm">
+                                            <p class="text-sm font-bold text-emerald-900">Local services readiness</p>
+                                            @if (RequiresPostgres)
+                                            {
+                                                <p class="text-emerald-800">Postgres: <span class="font-bold @(PostgresReady ? "text-emerald-700" : "text-amber-700")">@(PostgresReady ? "Ready" : "Waiting")</span></p>
+                                            }
+                                            else
+                                            {
+                                                <p class="text-emerald-800">Postgres: <span class="font-bold text-slate-500">Not required</span></p>
+                                            }
+
+                                            @if (RequiresGarnet)
+                                            {
+                                                <p class="text-emerald-800">Garnet: <span class="font-bold @(GarnetReady ? "text-emerald-700" : "text-amber-700")">@(GarnetReady ? "Ready" : "Waiting")</span></p>
+                                            }
+                                            else
+                                            {
+                                                <p class="text-emerald-800">Garnet: <span class="font-bold text-slate-500">Informational only</span></p>
+                                            }
+
+                                            <p class="text-xs font-medium @(IsReady ? "text-emerald-700" : "text-amber-700")">@ReadinessMessage</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (CurrentStep == 4)
+                        {
+                            <div class="space-y-6">
+                                <div class="flex items-center gap-4">
+                                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Secrets Setup</h3>
+                                    <div class="h-px flex-1 bg-slate-100"></div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div class="space-y-2 md:col-span-1">
+                                        <label class="text-xs font-bold text-slate-700">Secret provider</label>
+                                        <InputSelect @bind-Value="Input.SecretProvider" class="@GetFieldClass("Input.SecretProvider")">
+                                            <option value="Local Certificate">Local Certificate (Recommended)</option>
+                                            <option value="Infisical">Infisical</option>
+                                        </InputSelect>
+                                    </div>
+                                </div>
+
                                 @if (ShowInfisicalFields)
                                 {
-                                    <div class="space-y-2">
-                                        <label for="Input_InfisicalMachineId" class="text-xs font-bold text-slate-700">Infisical machine id</label>
-                                        <InputText @bind-Value="Input.InfisicalMachineId" class="@GetFieldClass("Input.InfisicalMachineId")" placeholder="Machine ID"/>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div class="space-y-2">
+                                            <label class="text-xs font-bold text-slate-700">Infisical machine id</label>
+                                            <InputText @bind-Value="Input.InfisicalMachineId" class="@GetFieldClass("Input.InfisicalMachineId")" placeholder="Machine ID"/>
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label class="text-xs font-bold text-slate-700">Infisical client secret</label>
+                                            <InputText @bind-Value="Input.InfisicalClientSecret" class="@GetFieldClass("Input.InfisicalClientSecret")" placeholder="Client secret"/>
+                                        </div>
                                     </div>
-                                    <div class="space-y-2">
-                                        <label for="Input_InfisicalClientSecret" class="text-xs font-bold text-slate-700">Infisical client secret</label>
-                                        <InputText @bind-Value="Input.InfisicalClientSecret" class="@GetFieldClass("Input.InfisicalClientSecret")" placeholder="Client secret"/>
+                                }
+                                else
+                                {
+                                    <div class="rounded-3xl border border-indigo-100 bg-indigo-50/70 p-5 text-sm text-indigo-800">
+                                        Local Certificate keeps setup simple and stores protected values on the host with shared ASP.NET Core Data Protection.
                                     </div>
                                 }
                             </div>
+                        }
 
-                            <div class="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5">
-                                <div class="flex items-start gap-4">
-                                    <div class="h-10 w-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center">
-                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                        </svg>
+                        @if (CurrentStep == 5)
+                        {
+                            <div class="space-y-6">
+                                <div class="flex items-center gap-4">
+                                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Admin Identity</h3>
+                                    <div class="h-px flex-1 bg-slate-100"></div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">Username</label>
+                                        <InputText @bind-Value="Input.AdminUserName" autocomplete="username" class="@GetFieldClass("Input.AdminUserName")" placeholder="e.g. founder"/>
+                                        <ValidationMessage For="() => Input.AdminUserName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
                                     </div>
-                                    <div class="space-y-2 text-sm">
-                                        <p class="text-sm font-bold text-emerald-900">Local services readiness</p>
-                                        @if (RequiresPostgres)
-                                        {
-                                            <p class="text-emerald-800">
-                                                Postgres: <span class="font-bold @(PostgresReady ? "text-emerald-700" : "text-amber-700")">@(PostgresReady ? "Ready" : "Waiting")</span>
-                                            </p>
-                                        }
-                                        else
-                                        {
-                                            <p class="text-emerald-800">
-                                                Postgres: <span class="font-bold text-slate-500">Not required</span>
-                                            </p>
-                                        }
-                                        @if (RequiresGarnet)
-                                        {
-                                            <p class="text-emerald-800">
-                                                Garnet: <span class="font-bold @(GarnetReady ? "text-emerald-700" : "text-amber-700")">@(GarnetReady ? "Ready" : "Waiting")</span>
-                                            </p>
-                                        }
-                                        else
-                                        {
-                                            <p class="text-emerald-800">
-                                                Garnet: <span class="font-bold text-slate-500">Informational only</span>
-                                            </p>
-                                        }
-                                        <p class="text-xs font-medium @(IsReady ? "text-emerald-700" : "text-amber-700")">@ReadinessMessage</p>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">Email Address</label>
+                                        <InputText @bind-Value="Input.AdminEmail" autocomplete="email" class="@GetFieldClass("Input.AdminEmail")" placeholder="admin@domain.com"/>
+                                        <ValidationMessage For="() => Input.AdminEmail" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">Password</label>
+                                        <div class="relative">
+                                            <InputText type="@(ShowPassword ? "text" : "password")" @bind-Value="Input.Password" autocomplete="new-password" class="@GetFieldClass("Input.Password")" placeholder="Password"/>
+                                            <button type="button" @onclick="TogglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-indigo-600 transition-colors">
+                                                @if (!ShowPassword)
+                                                {
+                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                    </svg>
+                                                }
+                                                else
+                                                {
+                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057-5.064-7 9.542-7 1.225 0 2.392.27 3.435.748M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                    </svg>
+                                                }
+                                            </button>
+                                        </div>
+                                        <ValidationMessage For="() => Input.Password" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold text-slate-700">Confirm Password</label>
+                                        <div class="relative">
+                                            <InputText type="@(ShowConfirmPassword ? "text" : "password")" @bind-Value="Input.ConfirmPassword" autocomplete="new-password" class="@GetFieldClass("Input.ConfirmPassword")" placeholder="Confirm"/>
+                                            <button type="button" @onclick="ToggleConfirmPassword" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-indigo-600 transition-colors">
+                                                @if (!ShowConfirmPassword)
+                                                {
+                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                    </svg>
+                                                }
+                                                else
+                                                {
+                                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057-5.064-7 9.542-7 1.225 0 2.392.27 3.435.748M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                    </svg>
+                                                }
+                                            </button>
+                                        </div>
+                                        <ValidationMessage For="() => Input.ConfirmPassword" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        }
 
-                        @* Account Section *@
-                        <div class="space-y-6 mt-10">
-                            <div class="flex items-center gap-4">
-                                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Admin Identity</h3>
-                                <div class="h-px flex-1 bg-slate-100"></div>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="space-y-2">
-                                    <label for="Input_AdminUserName" class="text-xs font-bold text-slate-700">Username</label>
-                                    <InputText @bind-Value="Input.AdminUserName" autocomplete="username" class="@GetFieldClass("Input.AdminUserName")" placeholder="e.g. founder"/>
-                                    <ValidationMessage For="() => Input.AdminUserName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
-                                </div>
-                                <div class="space-y-2">
-                                    <label for="Input_AdminEmail" class="text-xs font-bold text-slate-700">Email Address</label>
-                                    <InputText @bind-Value="Input.AdminEmail" autocomplete="email" class="@GetFieldClass("Input.AdminEmail")" placeholder="admin@domain.com"/>
-                                    <ValidationMessage For="() => Input.AdminEmail" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
-                                </div>
-                                <div class="space-y-2">
-                                    <label for="Input_Password" class="text-xs font-bold text-slate-700">Password</label>
-                                    <div class="relative">
-                                        <InputText type="@(ShowPassword ? "text" : "password")" @bind-Value="Input.Password" autocomplete="new-password" class="@GetFieldClass("Input.Password")" placeholder="Password"/>
-                                        <button type="button" @onclick="TogglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-indigo-600 transition-colors">
-                                            @if (!ShowPassword)
-                                            {
-                                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                                </svg>
-                                            }
-                                            else
-                                            {
-                                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 1.225 0 2.392.27 3.435.748M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>
-                                            }
-                                        </button>
-                                    </div>
-                                    <ValidationMessage For="() => Input.Password" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
-                                </div>
-                                <div class="space-y-2">
-                                    <label for="Input_ConfirmPassword" class="text-xs font-bold text-slate-700">Confirm Password</label>
-                                    <div class="relative">
-                                        <InputText type="@(ShowConfirmPassword ? "text" : "password")" @bind-Value="Input.ConfirmPassword" autocomplete="new-password" class="@GetFieldClass("Input.ConfirmPassword")" placeholder="Confirm"/>
-                                        <button type="button" @onclick="ToggleConfirmPassword" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-indigo-600 transition-colors">
-                                            @if (!ShowConfirmPassword)
-                                            {
-                                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                                </svg>
-                                            }
-                                            else
-                                            {
-                                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 1.225 0 2.392.27 3.435.748M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>
-                                            }
-                                        </button>
-                                    </div>
-                                    <ValidationMessage For="() => Input.ConfirmPassword" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
-                                </div>
-                            </div>
-                        </div>
-
-                        @* Site Content Section *@
-                        <div class="space-y-6 mt-10">
-                            <div class="flex items-center gap-4">
-                                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Content Model Seed</h3>
-                                <div class="h-px flex-1 bg-slate-100"></div>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div class="space-y-2">
-                                    <label for="Input_SiteName" class="text-xs font-bold text-slate-700">Site Name</label>
-                                    <InputText @bind-Value="Input.SiteName" autocomplete="organization" class="@GetFieldClass("Input.SiteName")" placeholder="Aero CMS"/>
-                                    <ValidationMessage For="() => Input.SiteName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
-                                </div>
-                                <div class="space-y-2">
-                                    <label for="Input_HomepageTitle" class="text-xs font-bold text-slate-700">Home Title</label>
-                                    <InputText @bind-Value="Input.HomepageTitle" class="@GetFieldClass("Input.HomepageTitle")" placeholder="Welcome"/>
-                                    <ValidationMessage For="() => Input.HomepageTitle" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
-                                </div>
-                                <div class="space-y-2">
-                                    <label for="Input_BlogName" class="text-xs font-bold text-slate-700">Blog Name</label>
-                                    <InputText @bind-Value="Input.BlogName" class="@GetFieldClass("Input.BlogName")" placeholder="Journal"/>
-                                    <ValidationMessage For="() => Input.BlogName" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight"/>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="space-y-2">
-                                    <label for="Input_Hostname" class="text-xs font-bold text-slate-700">Hostname</label>
-                                    <InputText @bind-Value="Input.Hostname" class="@GetFieldClass("Input.Hostname")" placeholder="localhost"/>
-                                    <p class="text-[10px] text-slate-500">Default: localhost for development</p>
-                                </div>
-                                <div class="space-y-2">
-                                    <label for="Input_DefaultCulture" class="text-xs font-bold text-slate-700">Default Culture</label>
-                                    <InputSelect @bind-Value="Input.DefaultCulture" class="@GetFieldClass("Input.DefaultCulture")">
-                                        <option value="en-US">🇺🇸 English (United States)</option>
-                                        <option value="en-GB">🇬🇧 English (United Kingdom)</option>
-                                        <option value="fr-FR">🇫🇷 Français</option>
-                                        <option value="de-DE">🇩🇪 Deutsch</option>
-                                        <option value="es-ES">🇪🇸 Español</option>
-                                        <option value="it-IT">🇮🇹 Italiano</option>
-                                        <option value="pt-BR">🇧🇷 Português (Brasil)</option>
-                                        <option value="nl-NL">🇳🇱 Nederlands</option>
-                                        <option value="pl-PL">🇵🇱 Polski</option>
-                                        <option value="ru-RU">🇷🇺 Русский</option>
-                                        <option value="zh-CN">🇨🇳 中文 (简体)</option>
-                                        <option value="ja-JP">🇯🇵 日本語</option>
-                                        <option value="ko-KR">🇰🇷 한국어</option>
-                                        <option value="ar-SA">🇸🇦 العربية</option>
-                                        <option value="hi-IN">🇮🇳 हिन्दी</option>
-                                        <option value="tr-TR">🇹🇷 Türkçe</option>
-                                        <option value="sv-SE">🇸🇪 Svenska</option>
-                                        <option value="cs-CZ">🇨🇿 Čeština</option>
-                                        <option value="el-GR">🇬🇷 Ελληνικά</option>
-                                        <option value="he-IL">🇮🇱 עברית</option>
-                                        <option value="th-TH">🇹🇭 ไทย</option>
-                                    </InputSelect>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="pt-6">
-                            <button type="submit" disabled="@(!IsReady || IsSubmitting)" class="group relative w-full h-14 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-2xl transition-all hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0">
-                                <span>@(IsSubmitting ? "Starting main application..." : "Initialize System")</span>
-                                <svg class="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                                </svg>
+                        <div class="pt-8 flex items-center justify-between gap-4 border-t border-slate-100 mt-10">
+                            <button type="button" @onclick="PreviousStep" disabled="@(CurrentStep == 1 || IsSubmitting)" class="h-12 px-5 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                Back
                             </button>
-                            <p class="text-center text-[11px] text-slate-400 mt-4 font-medium uppercase tracking-[0.15em]">
-                                Identity Managers &bull; Content Seeding &bull; Deterministic Reset
-                            </p>
+
+                            <div class="flex items-center gap-3">
+                                @for (var step = 1; step <= 5; step++)
+                                {
+                                    <span class="h-2.5 w-2.5 rounded-full @(CurrentStep == step ? "bg-indigo-600" : CurrentStep > step ? "bg-emerald-500" : "bg-slate-200")"></span>
+                                }
+                            </div>
+
+                            @if (!IsLastStep)
+                            {
+                                <button type="button" @onclick="NextStep" disabled="@(!CanMoveNext || IsSubmitting)" class="group relative h-12 px-6 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-xl transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+                                    <span>Next</span>
+                                    <svg class="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                    </svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="submit" disabled="@(!IsReady || IsSubmitting)" class="group relative h-12 px-6 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-xl transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+                                    <span>@(IsSubmitting ? "Starting main application..." : "Initialize System")</span>
+                                    <svg class="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                    </svg>
+                                </button>
+                            }
                         </div>
+
+                        <p class="text-center text-[11px] text-slate-400 mt-4 font-medium uppercase tracking-[0.15em]">
+                            Identity Managers &bull; Content Seeding &bull; Deterministic Reset
+                        </p>
                     </EditForm>
                 </div>
             </div>
