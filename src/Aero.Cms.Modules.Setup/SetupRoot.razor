@@ -1,6 +1,4 @@
 @using Microsoft.AspNetCore.Components.Web
-@using Microsoft.AspNetCore.Components.Routing
-@using Aero.Cms.Shared.Components
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 
 <!DOCTYPE html>
@@ -12,16 +10,15 @@
     <base href="/" />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/app.css" />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/aero-manager.css" />
-    <link rel="stylesheet" href="Aero.Cms.Web.styles.css" />
-    <link rel="icon" type="image/png" href="_content/Aero.Cms.Shared/favicon.png" />
     <link rel="stylesheet" href="_content/Radzen.Blazor/css/standard-base.css" />
+    <link rel="icon" type="image/png" href="_content/Aero.Cms.Shared/favicon.png" />
     <script src="https://cdn.jsdelivr.net/npm/@@tailwindcss/browser@@4"></script>
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <SetupRoutes @rendermode="InteractiveServer" />
     <script src="_framework/blazor.server.js"></script>
 </body>
 

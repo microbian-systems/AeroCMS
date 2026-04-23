@@ -2,9 +2,6 @@ using Aero.AppServer.Startup;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Setup.Configuration;
-using Aero.Cms.Shared.Services;
-using Aero.Cms.Web.Components;
-using Aero.Cms.Web.Services;
 using Aero.Secrets;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
@@ -49,8 +46,6 @@ public static class SetupWebApplication
             logging.AddDebug();
             logging.SetMinimumLevel(LogLevel.Information);
         });
-
-        services.AddTransient<IFormFactor, FormFactor>();
 
         // Add Razor Components for setup UI
         services.AddRazorComponents()
@@ -150,8 +145,7 @@ public static class SetupWebApplication
         app.UseCmsSetupGate();
 
         // Map Razor Components
-        app.MapRazorComponents<SetupApp>()
-            .AddInteractiveServerRenderMode()
-            .AddAdditionalAssemblies(typeof(SetupModule).Assembly);
+        app.MapRazorComponents<SetupRoot>()
+            .AddInteractiveServerRenderMode();
     }
 }
