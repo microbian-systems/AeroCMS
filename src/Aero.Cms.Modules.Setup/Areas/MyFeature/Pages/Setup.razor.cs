@@ -3,13 +3,14 @@ using System.Net.Http.Json;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.JSInterop;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup.Areas.MyFeature.Pages;
 
 public partial class Setup : ComponentBase, IAsyncDisposable
 {
-    private const int TotalSteps = 5;
+    private const int TotalSteps = 6;
 
     [Inject]
     private ISetupBootstrapHandoffService SetupBootstrapHandoffService { get; set; } = default!;
@@ -19,6 +20,9 @@ public partial class Setup : ComponentBase, IAsyncDisposable
 
     [Inject]
     private NavigationManager NavigationManager { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = default!;
 
     [Parameter]
     public string? ReturnUrl { get; set; }
@@ -52,6 +56,9 @@ public partial class Setup : ComponentBase, IAsyncDisposable
     public double ProgressPercent => CurrentStep * 100d / TotalSteps;
     public string CurrentStepTitle => GetStepName(CurrentStep);
     public string CurrentStepDescription => GetStepSummary(CurrentStep);
+    public string EffectiveDatabaseMode => NormalizeMode(Input.DatabaseMode, "Embedded");
+    public string EffectiveCacheMode => NormalizeMode(Input.CacheMode, "Memory");
+    public string EffectiveSecretProvider => NormalizeMode(Input.SecretProvider, "Local Certificate");
 
     public bool HasValidationErrors { get; set; }
 
@@ -70,7 +77,7 @@ public partial class Setup : ComponentBase, IAsyncDisposable
             AdminEmail = "hello@aerocms.com",
             SiteName = "Aero CMS",
             HomepageTitle = "Welcome to Aero CMS",
-            BlogName = "Aero Blog",
+            BlogName = "Blog",
             Hostname = "localhost",
             DefaultCulture = "en-US"
         };
@@ -147,7 +154,14 @@ public partial class Setup : ComponentBase, IAsyncDisposable
         ShowConfirmPassword = !ShowConfirmPassword;
     }
 
-    public void NextStep()
+    public async Task ShowTestAlert()
+    {
+        StatusMessage = "Test button clicked.";
+        await JSRuntime.InvokeVoidAsync("alert", "Blazor click handler is working.");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task NextStep()
     {
         if (!ValidateCurrentStep(true))
         {
@@ -159,16 +173,18 @@ public partial class Setup : ComponentBase, IAsyncDisposable
             CurrentStep++;
             HasValidationErrors = false;
             StatusMessage = null;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
-    public void PreviousStep()
+    public async Task PreviousStep()
     {
         if (CurrentStep > 1)
         {
             CurrentStep--;
             HasValidationErrors = false;
             StatusMessage = null;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -310,6 +326,7 @@ public partial class Setup : ComponentBase, IAsyncDisposable
         3 => "Cache",
         4 => "Secrets",
         5 => "Admin",
+        6 => "Review",
         _ => "Setup"
     };
 
@@ -320,6 +337,7 @@ public partial class Setup : ComponentBase, IAsyncDisposable
         3 => "Memory, embedded, or server cache configuration.",
         4 => "Local Certificate or Infisical secret handling.",
         5 => "Create the initial CMS administrator account.",
+        6 => "Review your selections before initialization.",
         _ => string.Empty
     };
 
@@ -414,7 +432,7 @@ public class SetupInput
 
     [Required]
     [StringLength(100)]
-    public string BlogName { get; set; } = "Journal";
+    public string BlogName { get; set; } = "Blog";
 
     [Required]
     [StringLength(256)]

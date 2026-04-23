@@ -42,11 +42,24 @@ public class TenantService(ITenantRepository repo, ILogger<TenantService> log) :
         var validator = new TenantValidator();
         var result = validator.Validate(tenant);
 
-        return result.IsValid switch
+        if (!result.IsValid)
         {
-            true => tenant,
-            _ => AeroError.CreateError(result.Errors.ConcatenateLines(e => e.ErrorMessage))
-        };
+            var error = AeroError.CreateError(result.Errors.ConcatenateLines(e => e.ErrorMessage));
+            log.LogWarning("Tenant validation failed: {ValidationErrors}", error.msg);
+            return error;
+        }
+
+        try
+        {
+            var created = await repo.InsertAsync(tenant, ct);
+            log.LogInformation("Created tenant {TenantId} with hostname {Hostname}", created.Id, created.Hostname);
+            return created;
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Failed to create tenant {TenantName}", tenant.Name);
+            return AeroError.CreateError($"Failed to create tenant: {ex.Message}");
+        }
     }
 
     public async Task<TenantModel> UpdateTenantAsync(TenantModel tenant, CancellationToken ct = default)

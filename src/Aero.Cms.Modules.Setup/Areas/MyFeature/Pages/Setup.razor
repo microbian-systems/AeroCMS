@@ -4,7 +4,6 @@
 @using Aero.Cms.Shared.Layout
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 @layout EmptyLayout
-@rendermode InteractiveServer
 
 <div class="fixed inset-0 pointer-events-none bg-aero"></div>
 <div class="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_70%_20%,_rgba(79,70,229,0.03),_transparent_40%),radial-gradient(circle_at_20%_80%,_rgba(16,185,129,0.03),_transparent_40%)]"></div>
@@ -31,7 +30,7 @@
                     </div>
 
                     <div class="space-y-3">
-                        @for (var step = 1; step <= 5; step++)
+                        @for (var step = 1; step <= TotalSteps; step++)
                         {
                             var isActive = CurrentStep == step;
                             var isComplete = CurrentStep > step;
@@ -69,7 +68,7 @@
                             <p class="text-sm text-slate-500 mt-1">@CurrentStepDescription</p>
                         </div>
                         <div class="h-12 min-w-12 px-4 flex items-center justify-center rounded-2xl bg-slate-50 border border-slate-100 font-display font-bold text-slate-500">
-                            @CurrentStep / 5
+                            @CurrentStep / @TotalSteps
                         </div>
                     </div>
 
@@ -349,13 +348,73 @@
                             </div>
                         }
 
-                        <div class="pt-8 flex items-center justify-between gap-4 border-t border-slate-100 mt-10">
-                            <button type="button" @onclick="PreviousStep" disabled="@(CurrentStep == 1 || IsSubmitting)" class="h-12 px-5 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        @if (CurrentStep == 6)
+                        {
+                            <div class="space-y-6">
+                                <div class="flex items-center gap-4">
+                                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Review</h3>
+                                    <div class="h-px flex-1 bg-slate-100"></div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="rounded-3xl border border-slate-200 bg-slate-50/70 p-5 space-y-3">
+                                        <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">CMS</h4>
+                                        <div class="text-sm text-slate-600 space-y-2">
+                                            <p><span class="font-semibold text-slate-900">Site:</span> @Input.SiteName</p>
+                                            <p><span class="font-semibold text-slate-900">Homepage:</span> @Input.HomepageTitle</p>
+                                            <p><span class="font-semibold text-slate-900">Blog:</span> @Input.BlogName</p>
+                                            <p><span class="font-semibold text-slate-900">Hostname:</span> @Input.Hostname</p>
+                                            <p><span class="font-semibold text-slate-900">Culture:</span> @Input.DefaultCulture</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-3xl border border-slate-200 bg-slate-50/70 p-5 space-y-3">
+                                        <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Infrastructure</h4>
+                                        <div class="text-sm text-slate-600 space-y-2">
+                                            <p><span class="font-semibold text-slate-900">Database:</span> @EffectiveDatabaseMode</p>
+                                            @if (ShowConnectionString)
+                                            {
+                                                <p><span class="font-semibold text-slate-900">DB Connection:</span> Provided</p>
+                                            }
+                                            <p><span class="font-semibold text-slate-900">Cache:</span> @EffectiveCacheMode</p>
+                                            @if (ShowCacheConnectionString)
+                                            {
+                                                <p><span class="font-semibold text-slate-900">Cache Connection:</span> Provided</p>
+                                            }
+                                            <p><span class="font-semibold text-slate-900">Secrets:</span> @EffectiveSecretProvider</p>
+                                            @if (ShowInfisicalFields)
+                                            {
+                                                <p><span class="font-semibold text-slate-900">Infisical:</span> Configured</p>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-3xl border border-slate-200 bg-slate-50/70 p-5 space-y-3 md:col-span-2">
+                                        <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Administrator</h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600">
+                                            <p><span class="font-semibold text-slate-900">Username:</span> @Input.AdminUserName</p>
+                                            <p><span class="font-semibold text-slate-900">Email:</span> @Input.AdminEmail</p>
+                                        </div>
+                                        <div class="rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs font-medium text-indigo-700">
+                                            Review these settings, then initialize the system. Tenant and default site provisioning will happen after the main app starts.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="pt-8 space-y-4 border-t border-slate-100 mt-10">
+                            <button type="button" @onclick="@ShowTestAlert" class="w-full h-11 rounded-2xl border border-amber-200 bg-amber-50 text-amber-800 text-sm font-bold transition hover:bg-amber-100 cursor-pointer">
+                                Test Blazor Click
+                            </button>
+
+                            <div class="flex items-center justify-between gap-4">
+                            <button type="button" @onclick="@PreviousStep" disabled="@(CurrentStep == 1 || IsSubmitting)" class="h-12 px-5 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                                 Back
                             </button>
 
                             <div class="flex items-center gap-3">
-                                @for (var step = 1; step <= 5; step++)
+                                @for (var step = 1; step <= TotalSteps; step++)
                                 {
                                     <span class="h-2.5 w-2.5 rounded-full @(CurrentStep == step ? "bg-indigo-600" : CurrentStep > step ? "bg-emerald-500" : "bg-slate-200")"></span>
                                 }
@@ -363,7 +422,7 @@
 
                             @if (!IsLastStep)
                             {
-                                <button type="button" @onclick="NextStep" disabled="@(!CanMoveNext || IsSubmitting)" class="group relative h-12 px-6 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-xl transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+                                <button type="button" @onclick="@NextStep" disabled="@(IsSubmitting)" class="group relative h-12 px-6 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-xl transition-all hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">
                                     <span>Next</span>
                                     <svg class="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
@@ -372,13 +431,14 @@
                             }
                             else
                             {
-                                <button type="submit" disabled="@(!IsReady || IsSubmitting)" class="group relative h-12 px-6 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-xl transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+                                <button type="submit" disabled="@(!IsReady || IsSubmitting)" class="group relative h-12 px-6 flex items-center justify-center rounded-2xl bg-slate-950 text-white font-bold text-sm tracking-wide shadow-xl transition-all hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">
                                     <span>@(IsSubmitting ? "Starting main application..." : "Initialize System")</span>
                                     <svg class="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
                                     </svg>
                                 </button>
                             }
+                            </div>
                         </div>
 
                         <p class="text-center text-[11px] text-slate-400 mt-4 font-medium uppercase tracking-[0.15em]">
