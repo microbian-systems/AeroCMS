@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Data.Repositories;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Marten;
 using Marten;
@@ -22,7 +23,7 @@ public class SitesModule : AeroModuleBase, IConfigureMarten
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
-        
+        services.AddScoped<ISiteRepository, SiteRepository>();
         services.AddScoped<ISiteService, SiteService>();
     }
 

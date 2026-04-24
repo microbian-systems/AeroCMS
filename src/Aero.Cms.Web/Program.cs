@@ -34,7 +34,7 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .Enrich.FromLogContext()
     .WriteTo.File(
-        Path.Combine(webProjectPath, "logs", "aero-cms-.log"),
+        Path.Combine(webProjectPath, "logs", "aero-.log"),
         outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}",
         rollingInterval: RollingInterval.Day,
         buffered: true,
@@ -203,6 +203,17 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
     // Add Aero Application Server (Orleans, Marten, etc.)
     await builder.AddAeroApplicationServer();
+
+    // Keep the web data layer aligned with the resolved infrastructure settings.
+    // AddAeroDataLayer currently reads ConnectionStrings:aero from configuration,
+    // so stamp the resolved value back into configuration before runtime services register.
+    var resolvedInfrastructure = new InfrastructureConnectionStringResolver(config).Resolve();
+    config["ConnectionStrings:aero"] = resolvedInfrastructure.DatabaseConnectionString;
+
+    if (!string.IsNullOrWhiteSpace(resolvedInfrastructure.CacheConnectionString))
+    {
+        config["ConnectionStrings:cache"] = resolvedInfrastructure.CacheConnectionString;
+    }
 
     // Add MVC and Razor Components
     services.AddControllersWithViews();
