@@ -136,32 +136,29 @@ public static class SetupWebApplication
     private static void ConfigureSetupPipeline(WebApplication app)
     {
         // Exception handling
-        if (!app.Environment.IsDevelopment())
+        if (app.Environment.IsDevelopment())
         {
-            app.UseExceptionHandler("/error");
+            app.UseDeveloperExceptionPage();
+        }
+        else
+        {
+            app.UseExceptionHandler("/error", createScopeForErrors: true);
             app.UseHsts();
         }
 
-        // HTTPS redirection
         app.UseHttpsRedirection();
-
-        app.UseCookiePolicy();
-
-        // Static assets
+        
+        // Static assets must be mapped before Antiforgery/Routing
         app.MapStaticAssets();
-
-        // Routing
-        app.UseRouting();
-
-        // Antiforgery
+        
         app.UseAntiforgery();
 
         // Setup gate middleware - ensures only setup paths are accessible
         app.UseCmsSetupGate();
 
         // Map Razor Components.
-        // SetupRoot is in Aero.Cms.Modules.Setup, so all components in that assembly
-        // (including Setup.razor and SetupRoutes.razor) are already discovered by the endpoint.
+        // NOTE: Do NOT call AddAdditionalAssemblies with SetupRoot's own assembly —
+        // MapRazorComponents already registers the root component's assembly automatically.
         app.MapRazorComponents<SetupRoot>()
             .AddInteractiveServerRenderMode();
     }
