@@ -19,6 +19,7 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
 {
     public ResolvedInfrastructureSettings Resolve()
     {
+        var embedded = AeroDbOptions.FromConfiguration(configuration);
         var bootstrap = configuration.GetSection("AeroCms:Bootstrap");
         var hasBootstrap = bootstrap.GetValue<bool?>("HasBootstrapConfig")
             ?? (bootstrap.Exists() && !string.IsNullOrWhiteSpace(bootstrap["DatabaseMode"]));
@@ -47,7 +48,7 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
                 ? null
                 : AeroAppServerConstants.CacheUrl;
             return new ResolvedInfrastructureSettings(
-                AeroAppServerConstants.EmbedConnString,
+                embedded.ConnectionString,
                 cacheConn,
                 "Embedded",
                 cacheMode,
@@ -63,7 +64,7 @@ public sealed class InfrastructureConnectionStringResolver(IConfiguration config
     private string ResolveDatabase(string databaseMode, string secretProvider, IConfigurationSection bootstrap, bool hasBootstrap, ISecretManager secretManager)
     {
         if (!hasBootstrap || databaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
-            return AeroAppServerConstants.EmbedConnString;
+            return AeroDbOptions.FromConfiguration(configuration).ConnectionString;
 
         return ResolveServerValue("aero", "DatabaseConnectionStringReference", bootstrap, secretProvider, "database", secretManager);
     }

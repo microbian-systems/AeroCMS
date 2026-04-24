@@ -4,6 +4,7 @@ using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Cms.Modules.Setup.Endpoints;
 using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
+using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Secrets;
 using Microsoft.Extensions.Configuration;
@@ -49,9 +50,12 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 
         // Note: Setup page is now a Blazor component (Setup.razor) with @page "/setup"
         // The route is discovered via AddAdditionalAssemblies in Program.cs
+        services.AddOptions<AeroDbOptions>()
+            .BindConfiguration("Aero:Embedded");
         services.TryAddSingleton<IEnvironmentAppSettingsWriter, EnvironmentAppSettingsWriter>();
         services.TryAddSingleton<InfisicalBootstrapSettingsProvider>();
         services.TryAddSingleton<IDataProtectionCertificateSettingsProvider, ConfigurationDataProtectionCertificateSettingsProvider>();
+        services.TryAddTransient<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();
         services.TryAddSingleton<IBootstrapStateProvider, AppSettingsBootstrapStateProvider>();
         services.TryAddScoped<ISetupInitializationService, SetupInitializationService>();
         services.TryAddScoped<IDatabaseBootstrapService, DatabaseBootstrapService>();

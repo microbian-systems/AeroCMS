@@ -208,38 +208,6 @@
                                         </div>
                                     }
                                 </div>
-
-                                <div class="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5">
-                                    <div class="flex items-start gap-4">
-                                        <div class="h-10 w-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center">
-                                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        </div>
-                                        <div class="space-y-2 text-sm">
-                                            <p class="text-sm font-bold text-emerald-900">Local services readiness</p>
-                                            @if (RequiresPostgres)
-                                            {
-                                                <p class="text-emerald-800">Postgres: <span class="font-bold @(PostgresReady ? "text-emerald-700" : "text-amber-700")">@(PostgresReady ? "Ready" : "Waiting")</span></p>
-                                            }
-                                            else
-                                            {
-                                                <p class="text-emerald-800">Postgres: <span class="font-bold text-slate-500">Not required</span></p>
-                                            }
-
-                                            @if (RequiresGarnet)
-                                            {
-                                                <p class="text-emerald-800">Garnet: <span class="font-bold @(GarnetReady ? "text-emerald-700" : "text-amber-700")">@(GarnetReady ? "Ready" : "Waiting")</span></p>
-                                            }
-                                            else
-                                            {
-                                                <p class="text-emerald-800">Garnet: <span class="font-bold text-slate-500">Informational only</span></p>
-                                            }
-
-                                            <p class="text-xs font-medium text-emerald-700">@ReadinessMessage</p>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         }
 

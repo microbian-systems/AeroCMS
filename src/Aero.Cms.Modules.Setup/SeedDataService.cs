@@ -31,34 +31,7 @@ public sealed record SeedDatabaseRequest(
     string HomepageTitle,
     string BlogName,
     string Hostname,
-    string DefaultCulture)
-{
-    public SeedDatabaseRequest(
-        string AdminUserName,
-        string AdminEmail,
-        string Password,
-        string SiteName,
-        string HomepageTitle,
-        string BlogName)
-        : this(
-            "Embedded",
-            "Memory",
-            "Local Certificate",
-            null,
-            null,
-            null,
-            null,
-            AdminUserName,
-            AdminEmail,
-            Password,
-            SiteName,
-            HomepageTitle,
-            BlogName,
-            "localhost",
-            "en-US")
-    {
-    }
-}
+    string DefaultCulture);
 
 public sealed class SeedDatabaseResult
 {

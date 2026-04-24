@@ -13,6 +13,7 @@ public static class AeroConstants
 public static class Schemas
 {
     public const string Database = "aero";
+    public const string EmbeddedUser = "aero";
     public static class Tables
     {
         public const string Aliases = "aliases";

@@ -12,6 +12,9 @@ using Serilog;
 
 namespace Aero.Cms.Web.Setup;
 
+
+// todo - move this (SetupWebApplication.cs) to the aero.cms.modules.setup csproj
+
 /// <summary>
 /// Factory class for creating the setup-specific WebApplication with minimal services.
 /// </summary>
@@ -165,7 +168,7 @@ public static class SetupWebApplication
         // Map Razor Components.
         // NOTE: Do NOT call AddAdditionalAssemblies with SetupRoot's own assembly —
         // MapRazorComponents already registers the root component's assembly automatically.
-        app.MapRazorComponents<SetupRoot>()
+        app.MapRazorComponents<Aero.Cms.Modules.Setup.Areas.Setup.Pages.SetupRoot>()
             .AddInteractiveServerRenderMode();
     }
 }

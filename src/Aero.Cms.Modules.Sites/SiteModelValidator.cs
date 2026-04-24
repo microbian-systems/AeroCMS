@@ -9,7 +9,7 @@ public sealed class SiteModelValidator : AbstractValidator<SitesModel>
     public SiteModelValidator()
     {
         RuleFor(x => x.Id)
-            .LessThanOrEqualTo(0)
+            .GreaterThan(0)
             .WithMessage(x => $"site requuires a valid id");
 
         RuleFor(x => x.TenantId)

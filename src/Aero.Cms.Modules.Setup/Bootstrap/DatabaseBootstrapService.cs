@@ -1,15 +1,18 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Aero.AppServer;
 using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Secrets;
 using Aero.Secrets.Models;
+using Microsoft.Extensions.Options;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
 public sealed class DatabaseBootstrapService(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager,
+    IOptionsMonitor<AeroDbOptions> embeddedOptions,
     InfisicalBootstrapSettingsProvider infisicalSettingsProvider) : IDatabaseBootstrapService
 {
     public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken cancellationToken = default)
@@ -32,7 +35,12 @@ public sealed class DatabaseBootstrapService(
             PersistInfisicalAuth(bootstrap, model);
         }
 
-        if (!string.IsNullOrWhiteSpace(model.ConnectionString) && model.DatabaseMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
+        if (model.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
+        {
+            bootstrap.Remove("DatabaseConnectionStringReference");
+            SetConnectionString(root, "aero", embeddedOptions.CurrentValue.ConnectionString);
+        }
+        else if (!string.IsNullOrWhiteSpace(model.ConnectionString) && model.DatabaseMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
         {
             var stored = StoreConnectionString(model.ConnectionString, "AeroCms:Database:ConnectionString", model);
             bootstrap["DatabaseConnectionStringReference"] = stored.Metadata ?? stored.Value;
@@ -102,7 +110,10 @@ public sealed class DatabaseBootstrapService(
     }
 
     private static void SetConnectionString(JsonNode root, string key, StoredSecretReference reference)
-        => GetOrCreateObject(root, "ConnectionStrings")[key] = reference.Value;
+        => SetConnectionString(root, key, reference.Value);
+
+    private static void SetConnectionString(JsonNode root, string key, string value)
+        => GetOrCreateObject(root, "ConnectionStrings")[key] = value;
 
     private static async Task<JsonObject> ReadOrCreateAsync(string env, CancellationToken cancellationToken)
     {

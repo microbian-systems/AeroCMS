@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
   <!-- todo move the blazor server stuff to Aero.AppServer.Web to separate concerns. this is to enable blazor server functionality just for the setup process -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
@@ -49,5 +49,6 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Secrets\Aero.Secrets.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
   </ItemGroup>
 </Project>

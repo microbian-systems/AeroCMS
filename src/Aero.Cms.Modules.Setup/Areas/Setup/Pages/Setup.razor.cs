@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Logging;
 
-namespace Aero.Cms.Modules.Setup.Areas.MyFeature.Pages;
+namespace Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 
 public partial class Setup : ComponentBase
 {

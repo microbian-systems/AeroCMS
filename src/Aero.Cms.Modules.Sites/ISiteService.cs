@@ -53,7 +53,7 @@ public class SiteService(
     public async Task<Result<SitesModel, AeroError>> CreateSiteAsync(SitesModel site, CancellationToken ct = default)
     {
         var validator = new SiteModelValidator();
-        var result = validator.Validate(site);
+        var result = await validator.ValidateAsync(site);
         
         if (!result.IsValid)
         {
@@ -79,7 +79,7 @@ public class SiteService(
     public async Task<Result<SitesModel, AeroError>> UpdateSiteAsync(SitesModel site, CancellationToken ct = default)
     {
         var validator = new SiteModelValidator();
-        var result = validator.Validate(site);
+        var result = await validator.ValidateAsync(site);
         
         if (!result.IsValid)
         {

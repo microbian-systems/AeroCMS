@@ -24,6 +24,9 @@ public static class AeroAppServerExtensions
 
         builder.AddAeroLogging();
 
+        services.AddOptions<AeroDbOptions>()
+            .BindConfiguration("Aero:Embedded");
+
         services.AddHostedService<AeroLifetimeObserver>();
         services.AddSingleton<IInfrastructureReadinessSnapshot, InfrastructureReadinessSnapshot>();
         services.AddSingleton<IMultiStartupSignal, MultiStartupSignal>();

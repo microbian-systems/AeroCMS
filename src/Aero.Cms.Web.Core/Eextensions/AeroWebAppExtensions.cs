@@ -18,13 +18,15 @@ public static class AeroWebAppExtensions
     /// <summary>
     /// Adds bootstrap-safe Aero CMS services to the web application builder with default arguments.
     /// </summary>
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsBootstrapAsync<T>(this WebApplicationBuilder builder)
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsBootstrapAsync<T>(
+        this WebApplicationBuilder builder)
         where T : class => await builder.AddAeroCmsBootstrapAsync<T>([]);
 
     /// <summary>
     /// Adds bootstrap-safe Aero CMS services to the web application builder.
     /// </summary>
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsBootstrapAsync<T>(this WebApplicationBuilder builder, string[] args)
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsBootstrapAsync<T>(
+        this WebApplicationBuilder builder, string[] args)
         where T : class
     {
         var config = builder.Configuration;
@@ -38,10 +40,12 @@ public static class AeroWebAppExtensions
         return (builder, log);
     }
 
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(this WebApplicationBuilder builder)
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
+        this WebApplicationBuilder builder)
         where T : class => await builder.AddAeroCmsRuntimeAsync<T>([]);
 
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(this WebApplicationBuilder builder, string[] args)
+    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
+        this WebApplicationBuilder builder, string[] args)
         where T : class
     {
         var config = builder.Configuration;
@@ -91,20 +95,22 @@ public static class AeroWebAppExtensions
         {
             var loggerFactory = services.GetRequiredService<ILoggerFactory>();
             var startupLogger = loggerFactory.CreateLogger("AeroStartup");
-            startupLogger.LogInformation("Bootstrap mode detected. Skipping database migrations and module runtime initialization so the setup page can run first.");
+            startupLogger.LogInformation(
+                "Bootstrap mode detected. Skipping database migrations and module runtime initialization so the setup page can run first.");
             return endpoints;
         }
 
-        var apiContext = services.GetRequiredService<AeroApiContext>();
-        _ = await apiContext.Database.EnsureCreatedAsync();
-        await apiContext.Database.MigrateAsync();
-
-        var dbContext = services.GetRequiredService<AeroDbContext>();
-        await dbContext.Database.MigrateAsync();
-
-        // Optional: Log success
         var factory = services.GetRequiredService<ILoggerFactory>();
         var logger = factory.CreateLogger<AeroDbContext>();
+        var apiContext = services.GetRequiredService<AeroApiContext>();
+        var aeroContext = services.GetRequiredService<AeroDbContext>();
+
+        await apiContext.Database.MigrateAsync();
+
+        await aeroContext.Database.MigrateAsync();
+
+        // Optional: Log success
+
         logger.LogInformation("Database migrations applied successfully");
 
         return endpoints;
@@ -133,7 +139,8 @@ public static class AeroWebAppExtensions
         {
             var loggerFactory = services.GetRequiredService<ILoggerFactory>();
             var startupLogger = loggerFactory.CreateLogger("AeroStartup");
-            startupLogger.LogInformation("Bootstrap mode detected. Skipping module runtime initialization so the setup page can run first.");
+            startupLogger.LogInformation(
+                "Bootstrap mode detected. Skipping module runtime initialization so the setup page can run first.");
             return endpoints;
         }
 

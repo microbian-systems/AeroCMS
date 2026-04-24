@@ -256,7 +256,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     // Add full Aero CMS runtime services
     var (_, log) = await builder.AddAeroCmsRuntimeAsync<Program>();
 
-    log.Information("Building main Aero application...");
+    log.Information("Building main Aero CMS app...");
 
     var app = builder.Build();
 
@@ -308,7 +308,8 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
             if (bootstrapState.IsConfiguredMode)
             {
-                var initializer = app.Services.GetService<IRuntimeBootstrapInitializer>();
+                await using var runtimeBootstrapScope = app.Services.CreateAsyncScope();
+                var initializer = runtimeBootstrapScope.ServiceProvider.GetService<IRuntimeBootstrapInitializer>();
                 if (initializer != null)
                 {
                     log.Information("Running runtime bootstrap initializer...");
