@@ -13,7 +13,7 @@ public class SetupPageModelTests
         model.Input.SiteName = string.Empty;
         model.Input.HomepageTitle = string.Empty;
 
-        model.NextStep();
+        await model.NextStep();
 
         await Assert.That(model.CurrentStep).IsEqualTo(1);
         model.StatusMessage.Should().Be("Site name is required.");
@@ -28,11 +28,25 @@ public class SetupPageModelTests
         model.Input.DatabaseMode = "Server";
         model.Input.ConnectionString = string.Empty;
 
-        model.NextStep();
+        await model.NextStep();
 
         await Assert.That(model.CurrentStep).IsEqualTo(2);
         model.StatusMessage.Should().Be("A database connection string is required when Database is set to Server.");
         model.HasValidationErrors.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Embedded_cache_mode_does_not_block_step_3_progression_on_readiness()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 3;
+        model.Input.CacheMode = "Embedded";
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(4);
+        model.StatusMessage.Should().BeNull();
+        model.HasValidationErrors.Should().BeFalse();
     }
 
     [Test]
@@ -44,7 +58,7 @@ public class SetupPageModelTests
         model.Input.InfisicalMachineId = string.Empty;
         model.Input.InfisicalClientSecret = string.Empty;
 
-        model.NextStep();
+        await model.NextStep();
 
         await Assert.That(model.CurrentStep).IsEqualTo(4);
         model.StatusMessage.Should().Be("Infisical machine id is required.");
@@ -60,7 +74,7 @@ public class SetupPageModelTests
         model.Input.InfisicalMachineId = "machine-id";
         model.Input.InfisicalClientSecret = string.Empty;
 
-        model.NextStep();
+        await model.NextStep();
 
         await Assert.That(model.CurrentStep).IsEqualTo(4);
         model.StatusMessage.Should().Be("Infisical client secret is required.");

@@ -10,6 +10,7 @@ public interface IBootstrapCompletionWriter
 {
     Task MarkCompleteAsync(CancellationToken cancellationToken = default);
     Task MarkConfiguredAsync(CancellationToken cancellationToken = default);
+    Task MarkFailedAsync(CancellationToken cancellationToken = default);
 }
 
 public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appSettingsWriter) : IBootstrapCompletionWriter
@@ -68,6 +69,36 @@ public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appS
 
         // Mark as Configured - runtime bootstrap still pending.
         bootstrap["State"] = BootstrapStates.Configured;
+        bootstrap["HasBootstrapConfig"] = true;
+        bootstrap["SetupComplete"] = false;
+        bootstrap["SeedComplete"] = false;
+
+        await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
+    }
+
+    public async Task MarkFailedAsync(CancellationToken cancellationToken = default)
+    {
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+        var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+        JsonObject root;
+
+        if (File.Exists(path))
+        {
+            var text = await File.ReadAllTextAsync(path, cancellationToken);
+            root = JsonNode.Parse(text)?.AsObject() ?? new JsonObject();
+        }
+        else
+        {
+            root = new JsonObject();
+        }
+
+        var aeroCms = root["AeroCms"] as JsonObject ?? new JsonObject();
+        root["AeroCms"] = aeroCms;
+
+        var bootstrap = aeroCms["Bootstrap"] as JsonObject ?? new JsonObject();
+        aeroCms["Bootstrap"] = bootstrap;
+
+        bootstrap["State"] = BootstrapStates.Failed;
         bootstrap["HasBootstrapConfig"] = true;
         bootstrap["SetupComplete"] = false;
         bootstrap["SeedComplete"] = false;

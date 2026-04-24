@@ -30,7 +30,13 @@ public static class SetupWebApplication
     /// <returns>Configured WebApplication ready to start.</returns>
     public static async Task<WebApplication> CreateAsync(string[] args, IConfiguration earlyConfig)
     {
-        var builder = WebApplication.CreateBuilder(args);
+        var webProjectPath = AppSettingsPathResolver.GetWebProjectPath();
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            Args = args,
+            ContentRootPath = webProjectPath,
+            EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Development
+        });
         var services = builder.Services;
         var config = builder.Configuration;
         var env = builder.Environment;

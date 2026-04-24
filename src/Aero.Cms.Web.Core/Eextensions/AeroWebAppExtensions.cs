@@ -69,9 +69,9 @@ public static class AeroWebAppExtensions
     }
 
     /// <summary>
-    /// Initializes the Aero application asynchronously in dependency order.
+    /// Applies database migrations and other runtime preparation.
     /// </summary>
-    public static async Task<IEndpointRouteBuilder> InitializeAeroAppAsync(
+    public static async Task<IEndpointRouteBuilder> PrepareAeroAppAsync(
         this IEndpointRouteBuilder endpoints)
     {
         var scope = endpoints.ServiceProvider.CreateAsyncScope();
@@ -96,7 +96,7 @@ public static class AeroWebAppExtensions
         }
 
         var apiContext = services.GetRequiredService<AeroApiContext>();
-        var created = await apiContext.Database.EnsureCreatedAsync();
+        _ = await apiContext.Database.EnsureCreatedAsync();
         await apiContext.Database.MigrateAsync();
 
         var dbContext = services.GetRequiredService<AeroDbContext>();
@@ -106,6 +106,36 @@ public static class AeroWebAppExtensions
         var factory = services.GetRequiredService<ILoggerFactory>();
         var logger = factory.CreateLogger<AeroDbContext>();
         logger.LogInformation("Database migrations applied successfully");
+
+        return endpoints;
+    }
+
+    /// <summary>
+    /// Initializes module runtime services in dependency order.
+    /// </summary>
+    public static async Task<IEndpointRouteBuilder> InitializeAeroAppAsync(
+        this IEndpointRouteBuilder endpoints)
+    {
+        var scope = endpoints.ServiceProvider.CreateAsyncScope();
+        var services = scope.ServiceProvider;
+
+        var configuration = services.GetRequiredService<IConfiguration>();
+        var bootstrapSection = configuration.GetSection("AeroCms:Bootstrap");
+        var state = bootstrapSection["State"];
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            var setupComplete = bootstrapSection.GetValue<bool?>("SetupComplete") ?? false;
+            var seedComplete = bootstrapSection.GetValue<bool?>("SeedComplete") ?? false;
+            state = setupComplete && seedComplete ? "Running" : bootstrapSection.Exists() ? "Configured" : "Setup";
+        }
+
+        if (string.Equals(state, "Setup", StringComparison.OrdinalIgnoreCase))
+        {
+            var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+            var startupLogger = loggerFactory.CreateLogger("AeroStartup");
+            startupLogger.LogInformation("Bootstrap mode detected. Skipping module runtime initialization so the setup page can run first.");
+            return endpoints;
+        }
 
         var graph = endpoints.ServiceProvider.GetService<ModuleGraph>();
 

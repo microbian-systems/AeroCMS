@@ -13,6 +13,8 @@ using Aero.Web.Exceptions;
 using Radzen;
 using Serilog;
 using Serilog.Events;
+using System.IO;
+using System.Text.Json;
 
 
 // Implements a two-stage startup pattern:
@@ -25,10 +27,18 @@ using Serilog.Events;
 
 
 // Configure Serilog early for startup logging
+var webProjectPath = Aero.Cms.Modules.Setup.Configuration.AppSettingsPathResolver.GetWebProjectPath();
+
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .Enrich.FromLogContext()
+    .WriteTo.File(
+        Path.Combine(webProjectPath, "logs", "aero-cms-.log"),
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}",
+        rollingInterval: RollingInterval.Day,
+        buffered: true,
+        flushToDiskInterval: TimeSpan.FromSeconds(15))
     .WriteTo.Console()
     .CreateLogger();
 
@@ -37,7 +47,7 @@ try
     Log.Information("Aero CMS starting up...");
 
     // Phase 1: Build early configuration and check bootstrap state
-    var earlyConfig = BuildEarlyConfiguration(args);
+    var earlyConfig = BuildEarlyConfiguration(args, webProjectPath);
     var bootstrapState = GetBootstrapState(earlyConfig);
 
     Log.Information("Bootstrap state: {State}", bootstrapState.State);
@@ -50,8 +60,7 @@ try
 
         // Re-read configuration after setup app exits
         Log.Information("Setup application completed. Re-reading configuration...");
-        earlyConfig = BuildEarlyConfiguration(args);
-        bootstrapState = GetBootstrapState(earlyConfig);
+        (earlyConfig, bootstrapState) = await ReloadBootstrapStateAfterSetupAsync(args, webProjectPath);
 
         Log.Information("Post-setup bootstrap state: {State}", bootstrapState.State);
     }
@@ -60,7 +69,7 @@ try
     if (bootstrapState.IsConfiguredMode || bootstrapState.IsRunningMode)
     {
         Log.Information("Starting main application...");
-        await RunMainAppAsync(args, earlyConfig, bootstrapState);
+        await RunMainAppAsync(args, webProjectPath, earlyConfig, bootstrapState);
     }
     else
     {
@@ -71,7 +80,6 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application terminated unexpectedly");
-    Environment.Exit(1);
 }
 finally
 {
@@ -81,10 +89,11 @@ finally
 
 
 
-static IConfiguration BuildEarlyConfiguration(string[] args)
+static IConfiguration BuildEarlyConfiguration(string[] args, string webProjectPath)
 {
     var configBuilder = new ConfigurationBuilder();
 
+    configBuilder.SetBasePath(webProjectPath);
     configBuilder.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
 
     var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
@@ -94,6 +103,58 @@ static IConfiguration BuildEarlyConfiguration(string[] args)
     configBuilder.AddCommandLine(args);
 
     return configBuilder.Build();
+}
+
+static async Task<(IConfiguration Config, BootstrapState State)> ReloadBootstrapStateAfterSetupAsync(string[] args, string webProjectPath)
+{
+    var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+    var envPath = Path.Combine(webProjectPath, $"appsettings.{env}.json");
+
+    for (var attempt = 1; attempt <= 10; attempt++)
+    {
+        var config = BuildEarlyConfiguration(args, webProjectPath);
+        var state = GetBootstrapState(config);
+
+        Log.Information(
+            "Bootstrap reread attempt {Attempt}. Environment={Environment}, File={FilePath}, State={State}",
+            attempt,
+            env,
+            envPath,
+            state.State);
+
+        if (!state.IsSetupMode)
+        {
+            return (config, state);
+        }
+
+        if (File.Exists(envPath))
+        {
+            try
+            {
+                var json = await File.ReadAllTextAsync(envPath);
+                using var document = JsonDocument.Parse(json);
+
+                if (document.RootElement.TryGetProperty("AeroCms", out var aeroCms) &&
+                    aeroCms.TryGetProperty("Bootstrap", out var bootstrap) &&
+                    bootstrap.TryGetProperty("State", out var rawState))
+                {
+                    Log.Warning(
+                        "Bootstrap file still reports State={RawState} on reread attempt {Attempt}.",
+                        rawState.GetString(),
+                        attempt);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed reading bootstrap file directly during reread attempt {Attempt}.", attempt);
+            }
+        }
+
+        await Task.Delay(200);
+    }
+
+    var finalConfig = BuildEarlyConfiguration(args, webProjectPath);
+    return (finalConfig, GetBootstrapState(finalConfig));
 }
 
 
@@ -125,9 +186,14 @@ static async Task RunSetupAppAsync(string[] args, IConfiguration earlyConfig)
 }
 
 
-static async Task RunMainAppAsync(string[] args, IConfiguration earlyConfig, BootstrapState bootstrapState)
+static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfiguration earlyConfig, BootstrapState bootstrapState)
 {
-    var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+    {
+        Args = args,
+        ContentRootPath = webProjectPath,
+        EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Development
+    });
     var services = builder.Services;
     var config = builder.Configuration;
     var env = builder.Environment;
@@ -226,8 +292,8 @@ static async Task RunMainAppAsync(string[] args, IConfiguration earlyConfig, Boo
         {
             await WaitForRequiredInfrastructureAsync(app, bootstrapState, log);
 
-            log.Information("Initializing runtime services...");
-            await app.InitializeAeroAppAsync();
+            log.Information("Applying runtime preparation...");
+            await app.PrepareAeroAppAsync();
 
             if (bootstrapState.IsConfiguredMode)
             {
@@ -240,7 +306,15 @@ static async Task RunMainAppAsync(string[] args, IConfiguration earlyConfig, Boo
                 }
             }
 
+            log.Information("Initializing runtime services...");
+            await app.InitializeAeroAppAsync();
+
             await app.WaitForShutdownAsync();
+        }
+        catch (Exception ex) when (bootstrapState.IsConfiguredMode)
+        {
+            await TryMarkBootstrapFailedAsync(app, log);
+            throw;
         }
         finally
         {
@@ -276,4 +350,23 @@ static async Task WaitForRequiredInfrastructureAsync(WebApplication app, Bootstr
         resolvedInfrastructure.CacheMode);
 
     await startupCoordinator.WaitForInfrastructureAsync(resolvedInfrastructure, cts.Token);
+}
+
+static async Task TryMarkBootstrapFailedAsync(WebApplication app, Serilog.ILogger log)
+{
+    try
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var writer = scope.ServiceProvider.GetService<IBootstrapCompletionWriter>();
+
+        if (writer != null)
+        {
+            await writer.MarkFailedAsync();
+            log.Warning("Bootstrap state marked as Failed.");
+        }
+    }
+    catch (Exception markFailedEx)
+    {
+        log.Error(markFailedEx, "Failed to persist bootstrap Failed state.");
+    }
 }

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Aero.Cms.Modules.Setup.Configuration;
+using System.IO;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
@@ -83,6 +85,10 @@ public sealed class SetupBootstrapHandoffService(
             // Step 4: Mark bootstrap as Configured (not Running yet - that happens after seeding)
             logger.LogInformation("Marking bootstrap state as Configured...");
             await MarkConfiguredAsync(cancellationToken);
+
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+            var targetPath = AppSettingsPathResolver.GetAppSettingsFilePath(env);
+            logger.LogInformation("Bootstrap state persisted for environment {Environment} at {Path}. Exists={Exists}", env, targetPath, File.Exists(targetPath));
 
             logger.LogInformation("Setup bootstrap handoff completed successfully. Shutting down setup app to transition to main app...");
 

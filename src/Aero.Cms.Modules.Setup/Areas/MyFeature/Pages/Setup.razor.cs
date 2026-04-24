@@ -1,14 +1,12 @@
 using System.ComponentModel.DataAnnotations;
-using System.Net.Http.Json;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
-using Microsoft.JSInterop;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup.Areas.MyFeature.Pages;
 
-public partial class Setup : ComponentBase, IAsyncDisposable
+public partial class Setup : ComponentBase
 {
     private const int TotalSteps = 6;
 
@@ -20,9 +18,6 @@ public partial class Setup : ComponentBase, IAsyncDisposable
 
     [Inject]
     private NavigationManager NavigationManager { get; set; } = default!;
-
-    [Inject]
-    private IJSRuntime JSRuntime { get; set; } = default!;
 
     [Parameter]
     public string? ReturnUrl { get; set; }
@@ -46,11 +41,8 @@ public partial class Setup : ComponentBase, IAsyncDisposable
     public bool RequiresPostgres => Input.DatabaseMode == "Embedded";
     public bool RequiresGarnet => Input.CacheMode == "Embedded";
 
-    public bool IsReady => (!RequiresPostgres || PostgresReady) && (!RequiresGarnet || GarnetReady);
+    public bool IsReady => true;
     public bool IsSubmitting { get; set; }
-
-    // Debug probe - remove after confirming interactivity works
-    private int _probeCount;
 
     public string ReadinessMessage => BuildReadinessMessage();
     public int CurrentStep { get; set; } = 1;
@@ -64,9 +56,6 @@ public partial class Setup : ComponentBase, IAsyncDisposable
     public string EffectiveSecretProvider => NormalizeMode(Input.SecretProvider, "Local Certificate");
 
     public bool HasValidationErrors { get; set; }
-
-    private PeriodicTimer? _statusTimer;
-    private CancellationTokenSource? _pollingCts;
 
     protected override void OnInitialized()
     {
@@ -92,61 +81,6 @@ public partial class Setup : ComponentBase, IAsyncDisposable
 #endif
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await StartPollingAsync();
-        }
-    }
-
-    private async Task StartPollingAsync()
-    {
-        _pollingCts = new CancellationTokenSource();
-        _statusTimer = new PeriodicTimer(TimeSpan.FromSeconds(2));
-
-        await RefreshSetupStatusAsync(_pollingCts.Token);
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                while (_statusTimer != null && await _statusTimer.WaitForNextTickAsync(_pollingCts.Token))
-                {
-                    await RefreshSetupStatusAsync(_pollingCts.Token);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }, _pollingCts.Token);
-    }
-
-    private async Task RefreshSetupStatusAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(NavigationManager.BaseUri) };
-            var status = await client.GetFromJsonAsync<SetupStatusResponse>("setup/status", cancellationToken);
-
-            if (status is null)
-            {
-                return;
-            }
-
-            PostgresReady = status.PostgresReady;
-            GarnetReady = status.GarnetReady;
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
-            Logger.LogDebug(ex, "Failed to refresh setup readiness status.");
-        }
-    }
-
     public void TogglePassword()
     {
         ShowPassword = !ShowPassword;
@@ -155,13 +89,6 @@ public partial class Setup : ComponentBase, IAsyncDisposable
     public void ToggleConfirmPassword()
     {
         ShowConfirmPassword = !ShowConfirmPassword;
-    }
-
-    public async Task ShowTestAlert()
-    {
-        StatusMessage = "Test button clicked.";
-        await JSRuntime.InvokeVoidAsync("alert", "Blazor click handler is working.");
-        await InvokeAsync(StateHasChanged);
     }
 
     public async Task NextStep()
@@ -225,13 +152,6 @@ public partial class Setup : ComponentBase, IAsyncDisposable
             return;
         }
 
-        if (!IsReady)
-        {
-            HasValidationErrors = true;
-            StatusMessage = ReadinessMessage;
-            return;
-        }
-
         // Show transition message before calling handoff service
         IsSubmitting = true;
         StatusMessage = "Setup complete! Starting main application...";
@@ -292,8 +212,6 @@ public partial class Setup : ComponentBase, IAsyncDisposable
                 => "A database connection string is required when Database is set to Server.",
             3 when string.Equals(Input.CacheMode, "Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.CacheConnectionString)
                 => "A cache connection string is required when Cache is set to Server.",
-            3 when string.Equals(Input.CacheMode, "Embedded", StringComparison.OrdinalIgnoreCase) && !GarnetReady
-                => "Wait for embedded Garnet cache to become ready before continuing.",
             4 when string.Equals(Input.SecretProvider, "Infisical", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.InfisicalMachineId)
                 => "Infisical machine id is required.",
             4 when string.Equals(Input.SecretProvider, "Infisical", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.InfisicalClientSecret)
@@ -346,39 +264,9 @@ public partial class Setup : ComponentBase, IAsyncDisposable
 
     private string BuildReadinessMessage()
     {
-        var waitingOn = new List<string>();
-
-        if (RequiresPostgres && !PostgresReady)
-        {
-            waitingOn.Add("embedded PostgreSQL");
-        }
-
-        if (RequiresGarnet && !GarnetReady)
-        {
-            waitingOn.Add("embedded Garnet cache");
-        }
-
-        return waitingOn.Count == 0
-            ? "Required local services are ready."
-            : $"Waiting for {string.Join(" and ", waitingOn)} to become ready.";
+        return "Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app.";
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        try
-        {
-            if (_pollingCts is not null)
-            {
-                await _pollingCts.CancelAsync();
-                _pollingCts.Dispose();
-            }
-        }
-        catch
-        {
-        }
-
-        _statusTimer?.Dispose();
-    }
 }
 
 public sealed class SetupStatusResponse

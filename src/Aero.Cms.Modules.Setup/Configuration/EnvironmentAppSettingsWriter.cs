@@ -17,7 +17,7 @@ public sealed class EnvironmentAppSettingsWriter : IEnvironmentAppSettingsWriter
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
         ArgumentException.ThrowIfNullOrEmpty(json);
 
-        var targetFile = AppSettingsPathResolver.GetAppSettingsFilePath(environmentName, _webProjectPath);
+        var targetFile = Path.Combine(_webProjectPath, $"appsettings.{environmentName}.json");
 
         var directory = Path.GetDirectoryName(targetFile) ?? _webProjectPath;
         Directory.CreateDirectory(directory);
