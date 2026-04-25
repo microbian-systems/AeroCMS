@@ -144,10 +144,19 @@ public class SetupCompletionServiceTests
 
     private static SeedDatabaseRequest CreateRequest()
         => new(
+            "embedded",
+            "memory",
+            "environment",
+            null,
+            null,
+            null,
+            null,
             "admin.user",
             "admin@example.com",
             "CorrectHorseBattery1!",
             "Aero CMS",
             "Welcome to Aero CMS",
-            "Field Notes");
+            "Field Notes",
+            "localhost",
+            "en-US");
 }

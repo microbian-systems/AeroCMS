@@ -30,6 +30,9 @@
 				}
 			}
 		],
-		"deepscan.enable": true
+		"deepscan.enable": true,
+		"dotrush.roslyn.projectOrSolutionFiles": [
+			"c:\\Users\\bbqch\\proj\\microbians\\AeroCMS\\src\\Aero.Cms.slnx"
+		]
 	}
 }
