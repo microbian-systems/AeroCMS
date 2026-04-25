@@ -46,6 +46,10 @@ public static class MauiProgram
 
         // Add device-specific services used by the Aero.Cms.Shared project
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
+        builder.Services.AddScoped(_ => new HttpClient
+        {
+            BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:333")
+        });
         
         // Register all Aero HTTP clients
         builder.Services.AddAeroHttpClients(builder.Configuration);

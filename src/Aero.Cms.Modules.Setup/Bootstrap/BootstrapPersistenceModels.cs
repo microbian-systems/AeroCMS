@@ -4,6 +4,7 @@ public sealed record DatabaseBootstrapModel(
     string DatabaseMode,
     string? ConnectionString,
     string SecretProvider,
+    string AuthenticationMode,
     string? InfisicalMachineId = null,
     string? InfisicalClientSecret = null,
     string? InfisicalMachineIdReference = null,

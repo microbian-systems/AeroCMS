@@ -147,6 +147,7 @@ public class SetupCompletionServiceTests
             "embedded",
             "memory",
             "environment",
+            "Local",
             null,
             null,
             null,

@@ -64,6 +64,7 @@ public sealed class SetupBootstrapHandoffService(
                 request.DatabaseMode,
                 request.ConnectionString,
                 request.SecretProvider,
+                request.AuthenticationMode,
                 request.InfisicalMachineId,
                 request.InfisicalClientSecret
             ), cancellationToken);

@@ -11,6 +11,10 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 // Add device-specific services used by the Aero.Cms.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddScoped<IBlockService, HttpBlockService>();
+builder.Services.AddScoped(_ => new HttpClient
+{
+    BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? builder.HostEnvironment.BaseAddress)
+});
 
 // Register all Aero HTTP clients
 builder.Services.AddAeroHttpClients(builder.Configuration);

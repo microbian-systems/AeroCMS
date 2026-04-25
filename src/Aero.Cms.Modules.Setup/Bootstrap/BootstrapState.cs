@@ -16,6 +16,7 @@ public sealed class BootstrapState
     public string? DatabaseMode { get; set; }
     public string? CacheMode { get; set; }
     public string? SecretProvider { get; set; }
+    public string? AuthenticationMode { get; set; }
     public bool HasBootstrapConfig { get; set; }
 
     public bool IsSetupMode => string.Equals(State, BootstrapStates.Setup, StringComparison.OrdinalIgnoreCase);

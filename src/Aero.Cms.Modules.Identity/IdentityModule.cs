@@ -1,7 +1,7 @@
 using Aero.Cms.Core;
+using Aero.Cms.Marten.Identity;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Identity;
-using Aero.MartenDB.Identity;
 using Aero.Models.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -10,7 +10,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Identity;
 
-public class IdentityModule : AeroModuleBase
+public class IdentityModule : AeroWebModule
 {
     public override string Name => nameof(IdentityModule);
     public override string Version => AeroConstants.Version;
@@ -23,9 +23,8 @@ public class IdentityModule : AeroModuleBase
     {
         services.AddIdentityCore<AeroUser>()
             .AddRoles<AeroRole>()
-            .AddDefaultTokenProviders();
-
-        services.AddScoped<IUserStore<AeroUser>, UserStore<AeroUser, AeroRole>>();
-        services.AddScoped<IRoleStore<AeroRole>, RoleStore<AeroRole>>();
+            .AddSignInManager()
+            .AddDefaultTokenProviders()
+            .AddMartenStores();
     }
 }

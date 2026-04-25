@@ -20,6 +20,7 @@ public sealed record SeedDatabaseRequest(
     string DatabaseMode,
     string CacheMode,
     string SecretProvider,
+    string AuthenticationMode,
     string? ConnectionString,
     string? CacheConnectionString,
     string? InfisicalMachineId,

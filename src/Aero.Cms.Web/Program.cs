@@ -1,5 +1,6 @@
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Identity;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Web.Services;
@@ -10,6 +11,8 @@ using Aero.Cms.Core.Extensions;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Components;
 using Aero.Web.Exceptions;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Radzen;
 using Serilog;
 using Serilog.Events;
@@ -217,8 +220,26 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
     // Add MVC and Razor Components
     services.AddControllersWithViews();
-    services.AddAuthentication();
+    services.AddAuthentication(options =>
+        {
+            options.DefaultScheme = IdentityConstants.ApplicationScheme;
+            options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
+            options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+            options.DefaultSignInScheme = IdentityConstants.ApplicationScheme;
+        })
+        .AddCookie(IdentityConstants.ApplicationScheme, options =>
+        {
+            options.Cookie.Name = ".AeroCms.Auth";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.LoginPath = "/manager/login";
+            options.AccessDeniedPath = "/manager/login";
+            options.SlidingExpiration = true;
+            options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        });
     services.AddAuthorization();
+    services.AddHttpContextAccessor();
     services.AddRadzenComponents();
 
     services.AddRazorPages()
@@ -288,6 +309,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
             typeof(Aero.Cms.Web.Client._Imports).Assembly,
             typeof(SetupModule).Assembly);
 
+    app.MapIdentityApi();
     app.MapAeroCmsEndpoints();
 
     try

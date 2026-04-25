@@ -30,7 +30,8 @@ public sealed class AppSettingsBootstrapStateProvider(IConfiguration configurati
             SeedComplete = seedComplete,
             DatabaseMode = section["DatabaseMode"],
             CacheMode = section["CacheMode"],
-            SecretProvider = section["SecretProvider"]
+            SecretProvider = section["SecretProvider"],
+            AuthenticationMode = section["AuthenticationMode"]
         };
     }
 }

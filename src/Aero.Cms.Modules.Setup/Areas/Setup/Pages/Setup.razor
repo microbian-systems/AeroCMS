@@ -1,4 +1,6 @@
 @page "/setup"
+@using Radzen
+@using Radzen.Blazor
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
 @using Aero.Cms.Shared.Layout
@@ -259,6 +261,17 @@
                                     <div class="h-px flex-1 bg-slate-100"></div>
                                 </div>
 
+                                <div class="space-y-2 max-w-md">
+                                    <label class="text-xs font-bold text-slate-700">Authentication Provider</label>
+                                    <InputSelect @bind-Value="Input.AuthenticationMode" class="@GetFieldClass("Input.AuthenticationMode")">
+                                        <option value="Local">Local (Marten Identity)</option>
+                                    </InputSelect>
+                                </div>
+
+                                <div class="rounded-3xl border border-indigo-100 bg-indigo-50/70 p-5 text-sm text-indigo-800 max-w-2xl">
+                                    Local authentication is the only enabled option right now. WorkOS will be added to this setup flow later.
+                                </div>
+
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div class="space-y-2">
                                         <label class="text-xs font-bold text-slate-700">Username</label>
@@ -350,6 +363,7 @@
                                                 <p><span class="font-semibold text-slate-900">Cache Connection:</span> Provided</p>
                                             }
                                             <p><span class="font-semibold text-slate-900">Secrets:</span> @EffectiveSecretProvider</p>
+                                            <p><span class="font-semibold text-slate-900">Authentication:</span> @EffectiveAuthenticationMode</p>
                                             @if (ShowInfisicalFields)
                                             {
                                                 <p><span class="font-semibold text-slate-900">Infisical:</span> Configured</p>

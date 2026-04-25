@@ -26,6 +26,7 @@ public sealed class DatabaseBootstrapService(
         bootstrap["State"] = BootstrapStates.Configured;
         bootstrap["DatabaseMode"] = model.DatabaseMode;
         bootstrap["SecretProvider"] = model.SecretProvider;
+        bootstrap["AuthenticationMode"] = model.AuthenticationMode;
         bootstrap["HasBootstrapConfig"] = model.HasBootstrapConfig;
         bootstrap["SetupComplete"] = false;
         bootstrap["SeedComplete"] = false;

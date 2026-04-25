@@ -54,6 +54,7 @@ public partial class Setup : ComponentBase
     public string EffectiveDatabaseMode => NormalizeMode(Input.DatabaseMode, "Embedded");
     public string EffectiveCacheMode => NormalizeMode(Input.CacheMode, "Memory");
     public string EffectiveSecretProvider => NormalizeMode(Input.SecretProvider, "Local Certificate");
+    public string EffectiveAuthenticationMode => NormalizeMode(Input.AuthenticationMode, "Local");
 
     public bool HasValidationErrors { get; set; }
 
@@ -65,6 +66,7 @@ public partial class Setup : ComponentBase
             DatabaseMode = "Embedded",
             CacheMode = "Memory",
             SecretProvider = "Local Certificate",
+            AuthenticationMode = "Local",
             AdminUserName = "admin",
             AdminEmail = "hello@aerocms.com",
             SiteName = "Aero CMS",
@@ -128,6 +130,7 @@ public partial class Setup : ComponentBase
     protected async Task HandleSubmit()
     {
         HasValidationErrors = false;
+        Input.AuthenticationMode = "Local";
 
         if (!ValidateCurrentStep(true))
         {
@@ -137,6 +140,7 @@ public partial class Setup : ComponentBase
         var secretProvider = NormalizeMode(Input.SecretProvider, "Local Certificate");
         var databaseMode = NormalizeMode(Input.DatabaseMode, "Embedded");
         var cacheMode = NormalizeMode(Input.CacheMode, "Memory");
+        var authenticationMode = NormalizeMode(Input.AuthenticationMode, "Local");
 
         if (databaseMode.Equals("Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.ConnectionString))
         {
@@ -165,6 +169,7 @@ public partial class Setup : ComponentBase
             databaseMode,
             cacheMode,
             secretProvider,
+            authenticationMode,
             Input.ConnectionString,
             Input.CacheConnectionString,
             Input.InfisicalMachineId,
@@ -246,7 +251,7 @@ public partial class Setup : ComponentBase
         2 => "Database",
         3 => "Cache",
         4 => "Secrets",
-        5 => "Admin",
+        5 => "Authentication",
         6 => "Review",
         _ => "Setup"
     };
@@ -257,7 +262,7 @@ public partial class Setup : ComponentBase
         2 => "Embedded or server database connectivity.",
         3 => "Memory, embedded, or server cache configuration.",
         4 => "Local Certificate or Infisical secret handling.",
-        5 => "Create the initial CMS administrator account.",
+        5 => "Choose the auth mode and create the initial CMS administrator account.",
         6 => "Review your selections before initialization.",
         _ => string.Empty
     };
@@ -288,6 +293,9 @@ public class SetupInput
 
     [Required]
     public string SecretProvider { get; set; } = "Local Certificate";
+
+    [Required]
+    public string AuthenticationMode { get; set; } = "Local";
 
     public string? ConnectionString { get; set; }
 

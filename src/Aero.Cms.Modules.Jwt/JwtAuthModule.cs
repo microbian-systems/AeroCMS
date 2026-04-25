@@ -26,7 +26,7 @@ public class JwtAuthModule : AeroWebModule
     {
         var key = Encoding.UTF8.GetBytes("super-secret-key");
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        services.AddAuthentication()
             .AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters
