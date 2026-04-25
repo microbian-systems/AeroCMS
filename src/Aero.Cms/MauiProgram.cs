@@ -47,10 +47,6 @@ public static class MauiProgram
         // Add device-specific services used by the Aero.Cms.Shared project
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
         
-        // Load API base URL from configuration, fallback to default if not found
-        var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:333/api/v1";
-        builder.Configuration["AeroHttpClientBaseAddress"] = apiBaseUrl;
-        
         // Register all Aero HTTP clients
         builder.Services.AddAeroHttpClients(builder.Configuration);
         

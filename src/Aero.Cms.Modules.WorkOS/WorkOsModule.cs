@@ -4,8 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WorkOS;
-using Wos = WorkOS.WorkOS;
-using WorkOS = global::WorkOS.WorkOS;
+using Wos = WorkOS;
+using WorkOS = global::WorkOS;
 using Aero.Models.Entities;
 using Aero.Core.Http;
 using Microsoft.Extensions.Logging;
@@ -31,8 +31,7 @@ public class WorkOsModule : AeroModuleBase
         var apiKey = config?.GetValue<string>("WorkOs:ApiKey");
         if (string.IsNullOrEmpty(apiKey))
             log.Warning("WorkOS API key not found in configuration. WorkOS module will not be fully configured.");
-
-        Wos.SetApiKey(apiKey ?? "my-super-secret-key");
+        //Workos.SetApiKey(apiKey ?? "my-super-secret-key");
 
         var opts = new WorkOSOptions()
         {
@@ -45,7 +44,7 @@ public class WorkOsModule : AeroModuleBase
             var client = new WorkOSClient(opts);
             services.AddSingleton(client);
             // https://github.com/workos/workos-dotnet
-            Wos.WorkOSClient = client;
+            //Wos.WorkOSClient = client;
         }
         catch(Exception ex)
         {

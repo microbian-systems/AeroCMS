@@ -13,7 +13,6 @@ builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddScoped<IBlockService, HttpBlockService>();
 
 // Register all Aero HTTP clients
-builder.Configuration["AeroHttpClientBaseAddress"] = builder.HostEnvironment.BaseAddress + "api/v1";
 builder.Services.AddAeroHttpClients(builder.Configuration);
 
 // Legacy registrations

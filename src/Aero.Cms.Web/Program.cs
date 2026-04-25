@@ -236,10 +236,6 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     // Add device-specific services
     services.AddSingleton<IFormFactor, FormFactor>();
 
-    // Load API base URL from configuration
-    var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:333";
-    builder.Configuration["AeroHttpClientBaseAddress"] = apiBaseUrl;
-
     // Register all Aero HTTP clients
     services.AddAeroHttpClients(config);
     services.AddScoped<ManagerThemeService>();
