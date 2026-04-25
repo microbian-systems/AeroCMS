@@ -345,7 +345,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
             await app.WaitForShutdownAsync();
         }
-        catch (Exception ex) when (bootstrapState.IsConfiguredMode)
+        catch (Exception) when (bootstrapState.IsConfiguredMode)
         {
             await TryMarkBootstrapFailedAsync(app, log);
             throw;

@@ -111,7 +111,7 @@ public sealed class DatabaseBootstrapService(
     }
 
     private static void SetConnectionString(JsonNode root, string key, StoredSecretReference reference)
-        => SetConnectionString(root, key, reference.Value);
+        => SetConnectionString(root, key, reference.Value ?? string.Empty);
 
     private static void SetConnectionString(JsonNode root, string key, string value)
         => GetOrCreateObject(root, "ConnectionStrings")[key] = value;

@@ -3,6 +3,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Aero.Cms.Core.Entities\Aero.Cms.Core.Entities.csproj" />
     <ProjectReference Include="..\..\..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\Aero\src\Aero.Auth\Aero.Auth.csproj" />
+    <ProjectReference Include="..\..\..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
+    <ProjectReference Include="..\..\..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
   </ItemGroup>
 
 

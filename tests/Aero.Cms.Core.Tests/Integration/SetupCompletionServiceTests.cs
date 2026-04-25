@@ -1,6 +1,8 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core.Entities;
+using Aero.Models.Entities;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
@@ -23,7 +25,12 @@ public class SetupCompletionServiceTests
         var harness = new InMemoryCmsDocumentSessionHarness();
         var identityBootstrapper = Substitute.For<ISetupIdentityBootstrapper>();
         identityBootstrapper.BootstrapAsync(Arg.Any<SetupIdentityBootstrapRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SetupIdentityBootstrapResult { CreatedAdmin = true, CreatedRoles = true });
+            .Returns(new SetupIdentityBootstrapResult 
+            { 
+                CreatedAdmin = true, 
+                CreatedRoles = true,
+                AdminUser = new AeroUser { Id = 12345 } 
+            });
 
         var service = CreateService(harness, identityBootstrapper);
 
@@ -59,7 +66,11 @@ public class SetupCompletionServiceTests
         var harness = new InMemoryCmsDocumentSessionHarness();
         var identityBootstrapper = Substitute.For<ISetupIdentityBootstrapper>();
         identityBootstrapper.BootstrapAsync(Arg.Any<SetupIdentityBootstrapRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SetupIdentityBootstrapResult { CreatedAdmin = true });
+            .Returns(new SetupIdentityBootstrapResult 
+            { 
+                CreatedAdmin = true,
+                AdminUser = new AeroUser { Id = 12345 } 
+            });
 
         harness.OnStore = stored =>
         {
@@ -128,6 +139,10 @@ public class SetupCompletionServiceTests
         siteService.CreateSiteAsync(Arg.Any<SitesModel>(), Arg.Any<CancellationToken>())
             .Returns(call => call.Arg<SitesModel>());
 
+        var apiKeyService = Substitute.For<IApiKeyService>();
+        apiKeyService.CreateKeyAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult("mock-key"));
+
         return new SeedDatabaseService(
             harness.Session,
             identityBootstrapper,
@@ -139,7 +154,8 @@ public class SetupCompletionServiceTests
             Substitute.For<IModuleStateStore>(),
             Substitute.For<IBootstrapCompletionWriter>(),
             tenantService,
-            siteService);
+            siteService,
+            apiKeyService);
     }
 
     private static SeedDatabaseRequest CreateRequest()

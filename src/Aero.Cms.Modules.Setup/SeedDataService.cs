@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Blocks.Layout;
@@ -77,7 +78,8 @@ public sealed class SeedDatabaseService(
     IModuleStateStore moduleStateStore,
     IBootstrapCompletionWriter bootstrapCompletionWriter,
     ITenantService tenantService,
-    ISiteService siteService) : ISeedDatabaseService, ISetupCompletionService
+    ISiteService siteService,
+    IApiKeyService apiKeyService) : ISeedDatabaseService, ISetupCompletionService
 {
     public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
     {
@@ -103,6 +105,11 @@ public sealed class SeedDatabaseService(
         {
             return SeedDatabaseResult.Failure(identityResult.Errors.Select(error => error.Description));
         }
+
+        // Create default admin API key
+        // TODO: Remove this pre-defined key later once stable
+        const string defaultAdminApiKey = "aero-admin-default-key-2025";
+        await apiKeyService.CreateKeyAsync(identityResult.AdminUser!.Id, request.AdminEmail, defaultAdminApiKey, cancellationToken);
 
         // Create tenant and site for multi-tenant foundation
         var (tenantResult, siteResult) = await CreateTenantAndSiteAsync(request, cancellationToken);

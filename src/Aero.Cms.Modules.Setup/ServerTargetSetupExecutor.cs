@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Entities;
@@ -73,6 +74,7 @@ public sealed class ServerTargetSetupExecutor(
 
         var tenantService = rootServiceProvider.GetRequiredService<ITenantService>();
         var siteService = rootServiceProvider.GetRequiredService<ISiteService>();
+        var apiKeyService = rootServiceProvider.GetRequiredService<IApiKeyService>();
 
         var seedService = new SeedDatabaseService(
             session,
@@ -84,7 +86,8 @@ public sealed class ServerTargetSetupExecutor(
             moduleStateStore,
             bootstrapCompletionWriter,
             tenantService,
-            siteService);
+            siteService,
+            apiKeyService);
 
         var result = await seedService.CompleteAsync(request, cancellationToken);
         if (!result.Succeeded)
