@@ -1,8 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using System.Net;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading.Tasks;
+using Aero.Cms.Core.Http.Clients;
+using Aero.Core.Http;
 using Microsoft.AspNetCore.Components;
 
 namespace Aero.Cms.Shared.Pages.Manager;
@@ -10,7 +9,10 @@ namespace Aero.Cms.Shared.Pages.Manager;
 public abstract class LoginBase : ComponentBase
 {
     [Inject]
-    private HttpClient Http { get; set; } = default!;
+    private IAuthClient AuthClient { get; set; } = default!;
+
+    [Inject]
+    private InMemoryTokenProvider TokenProvider { get; set; } = default!;
 
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
@@ -25,32 +27,27 @@ public abstract class LoginBase : ComponentBase
     protected async Task HandleSubmit()
     {
         ErrorMessage = null;
-
         IsSubmitting = true;
 
         try
         {
-            var response = await Http.PostAsJsonAsync("api/v1/admin/auth/login",
-                new LocalLoginRequest(Model.EmailOrUserName, Model.Password, Model.RememberMe));
+            var response = await AuthClient.LoginAsync(
+                new LoginRequest(Model.EmailOrUserName, Model.Password));
 
-            if (response.IsSuccessStatusCode)
+            if (!string.IsNullOrEmpty(response.AccessToken))
             {
+                TokenProvider.SetToken(response.AccessToken);
+                // Note: Refresh token handled in memory only for now as per spec
+                
                 Navigation.NavigateTo(string.IsNullOrWhiteSpace(ReturnUrl) ? "/manager" : ReturnUrl!, forceLoad: true);
                 return;
             }
 
-            if (response.StatusCode == HttpStatusCode.Forbidden)
-            {
-                ErrorMessage = "This account doesn't have an Aero CMS role and can't access the manager.";
-                return;
-            }
-
-            var payload = await response.Content.ReadFromJsonAsync<LocalLoginResponse>();
-            ErrorMessage = payload?.Message ?? "Login failed.";
+            ErrorMessage = "Login failed: Invalid credentials or insufficient permissions.";
         }
-        catch
+        catch (Exception ex)
         {
-            ErrorMessage = "Login failed due to an unexpected error.";
+            ErrorMessage = $"Login failed: {ex.Message}";
         }
         finally
         {
@@ -68,8 +65,4 @@ public abstract class LoginBase : ComponentBase
 
         public bool RememberMe { get; set; }
     }
-
-    private sealed record LocalLoginRequest(string EmailOrUserName, string Password, bool RememberMe);
-
-    private sealed record LocalLoginResponse(bool Succeeded, string Message);
 }

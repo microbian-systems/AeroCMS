@@ -2,6 +2,7 @@ using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Identity;
 using Aero.Cms.ServiceDefaults;
+using Aero.Cms.Web.Components;
 using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Web.Services;
 using Aero.Cms.Web.Setup;
@@ -9,7 +10,6 @@ using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Shared.Services;
-using Aero.Cms.Web.Components;
 using Aero.Web.Exceptions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -258,6 +258,10 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     services.AddSingleton<IFormFactor, FormFactor>();
 
     // Register all Aero HTTP clients
+    services.AddHttpContextAccessor();
+    services.AddSingleton<Aero.Core.Http.ISiteContext, Aero.Cms.Web.Infrastructure.DefaultSiteContext>();
+    services.AddSingleton<Aero.Core.Http.ICorrelationIdAccessor, Aero.Cms.Web.Infrastructure.DefaultCorrelationIdAccessor>();
+
     services.AddAeroHttpClients(config);
     services.AddScoped<ManagerThemeService>();
 
