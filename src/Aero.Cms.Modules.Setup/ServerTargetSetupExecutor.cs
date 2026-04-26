@@ -102,13 +102,7 @@ public sealed class ServerTargetSetupExecutor(
 
     private async Task MigrateAsync(string connectionString, CancellationToken cancellationToken)
     {
-        var apiOptions = new DbContextOptionsBuilder<AeroApiContext>().UseNpgsql(connectionString).Options;
         var dbOptions = new DbContextOptionsBuilder<AeroDbContext>().UseNpgsql(connectionString).Options;
-
-        await using (var apiContext = new AeroApiContext(apiOptions))
-        {
-            await apiContext.Database.MigrateAsync(cancellationToken);
-        }
 
         await using (var dbContext = new AeroDbContext(dbOptions))
         {

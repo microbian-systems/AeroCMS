@@ -40,7 +40,8 @@ Log.Logger = new LoggerConfiguration()
         Path.Combine(webProjectPath, "logs", "aero-.log"),
         outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}",
         rollingInterval: RollingInterval.Day,
-        buffered: true,
+        buffered: false,
+        shared: true,
         flushToDiskInterval: TimeSpan.FromSeconds(15))
     .WriteTo.Console()
     .CreateLogger();

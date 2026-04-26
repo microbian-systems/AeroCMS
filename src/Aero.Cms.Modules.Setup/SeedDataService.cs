@@ -81,11 +81,11 @@ public sealed class SeedDatabaseService(
     ISiteService siteService,
     IApiKeyService apiKeyService) : ISeedDatabaseService, ISetupCompletionService
 {
-    public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
+    public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var existingState = await session.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId, cancellationToken);
+        var existingState = await session.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId, ct);
         if (existingState?.IsComplete == true)
         {
             return new SeedDatabaseResult
@@ -99,7 +99,7 @@ public sealed class SeedDatabaseService(
                 request.AdminUserName,
                 request.AdminEmail,
                 request.Password),
-            cancellationToken);
+            ct);
 
         if (!identityResult.Succeeded)
         {
@@ -108,11 +108,10 @@ public sealed class SeedDatabaseService(
 
         // Create default admin API key
         // TODO: Remove this pre-defined key later once stable
-        const string defaultAdminApiKey = "aero-admin-default-key-2025";
-        await apiKeyService.CreateKeyAsync(identityResult.AdminUser!.Id, request.AdminEmail, defaultAdminApiKey, cancellationToken);
+        var apiKey = await apiKeyService.CreateKeyAsync(identityResult.AdminUser!.Id, request.AdminEmail, cancellationToken: ct);
 
         // Create tenant and site for multi-tenant foundation
-        var (tenantResult, siteResult) = await CreateTenantAndSiteAsync(request, cancellationToken);
+        var (tenantResult, siteResult) = await CreateTenantAndSiteAsync(request, ct);
         if (tenantResult.IsFailure || siteResult.IsFailure)
         {
             var errors = new List<string>();
@@ -133,7 +132,7 @@ public sealed class SeedDatabaseService(
 
         try
         {
-            await SeedStarterContentAsync(request, cancellationToken);
+            await SeedStarterContentAsync(request, ct);
         }
         catch (Exception ex)
         {
@@ -158,11 +157,11 @@ public sealed class SeedDatabaseService(
             Hostname = request.Hostname,
             DefaultCulture = request.DefaultCulture
         });
-        await session.SaveChangesAsync(cancellationToken);
+        await session.SaveChangesAsync(ct);
 
         // Discover and save all available modules
-        await SaveModuleStateAsync(cancellationToken);
-        await bootstrapCompletionWriter.MarkCompleteAsync(cancellationToken);
+        await SaveModuleStateAsync(ct);
+        await bootstrapCompletionWriter.MarkCompleteAsync(ct);
 
         return new SeedDatabaseResult
         {

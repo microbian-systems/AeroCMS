@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Aero.Auth.Services;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Aero.Core.Extensions;
 
 namespace Aero.Cms.Modules.Security;
 
@@ -14,7 +16,8 @@ namespace Aero.Cms.Modules.Security;
 public sealed class ApiKeyService(
     AeroDbContext dbContext, 
     IApiKeyFactory apiKeyFactory,
-    IApiKeyGenerator apiKeyGenerator) : IApiKeyService
+    IApiKeyGenerator apiKeyGenerator,
+    ILogger<ApiKeyService> log) : IApiKeyService
 {
     public async Task<long?> ValidateAsync(string apiKey, CancellationToken cancellationToken = default)
     {
@@ -34,7 +37,7 @@ public sealed class ApiKeyService(
         return null;
     }
 
-    public async Task<string> CreateKeyAsync(long userId, string email, string? apiKey = null, CancellationToken cancellationToken = default)
+    public async Task<string> CreateKeyAsync(long userId, string email, string? apiKey = null, CancellationToken ct = default)
     {
         string finalApiKey;
         string secretHash;
@@ -52,33 +55,36 @@ public sealed class ApiKeyService(
             finalApiKey = apiKey;
             secretHash = HashKey(finalApiKey);
         }
-        
+
         var account = new ApiAccountModel
         {
             Id = userId,
             ApiKey = secretHash, // Store the hash
             Email = email,
             Enabled = true,
-            RefreshToken = Guid.NewGuid().ToString("N"),
+            RefreshToken = Guid.NewGuid().ToString("N"), // todo - verify Guid.NewGuid() is ok for a refresh token
             RefreshTokenExpiry = DateTimeOffset.UtcNow.AddDays(30),
-            CreateDate = DateTimeOffset.UtcNow,
-            ModifiedDate = DateTimeOffset.UtcNow
+            CreatedBy = userId.ToString(),
+            CreatedOn = DateTimeOffset.UtcNow,
+            ModifiedBy = userId.ToString(),
+            ModifiedOn = DateTimeOffset.UtcNow
         };
 
         // Check if account already exists to avoid unique constraint violations during re-seeding
-        var existing = await dbContext.ApiAccounts.FindAsync([userId], cancellationToken);
+        var existing = await dbContext.ApiAccounts.FindAsync([userId], ct);
         if (existing != null)
         {
             existing.ApiKey = secretHash;
-            existing.ModifiedDate = DateTimeOffset.UtcNow;
+            existing.ModifiedOn = DateTimeOffset.UtcNow;
             dbContext.ApiAccounts.Update(existing);
         }
         else
         {
+            log.LogDebug("creating new api account: {a}", account.ToJson());
             dbContext.ApiAccounts.Add(account);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.SaveChangesAsync(ct);
 
         // Return the RAW key only once
         return finalApiKey;

@@ -102,10 +102,7 @@ public static class AeroWebAppExtensions
 
         var factory = services.GetRequiredService<ILoggerFactory>();
         var logger = factory.CreateLogger<AeroDbContext>();
-        var apiContext = services.GetRequiredService<AeroApiContext>();
         var aeroContext = services.GetRequiredService<AeroDbContext>();
-
-        await apiContext.Database.MigrateAsync();
 
         await aeroContext.Database.MigrateAsync();
 
