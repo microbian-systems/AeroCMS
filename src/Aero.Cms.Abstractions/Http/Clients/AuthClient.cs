@@ -1,6 +1,7 @@
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
+using System.Net.Http.Json;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
@@ -47,5 +48,20 @@ public sealed class AuthClient(
     {
         return await PostAsync<RefreshTokenRequest, JwtTokenResponse>(
             $"{HttpConstants.ApiPrefix}jwt/refresh", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// POSTs credentials to the Identity cookie login endpoint.
+    /// On success, the server response includes a Set-Cookie header for .AeroCms.Auth.
+    /// In InteractiveWebAssembly mode, the browser stores this cookie automatically.
+    /// </summary>
+    public async Task<HttpResponseMessage> LoginWithCookieAsync(
+        LoginRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await client.PostAsJsonAsync(
+            $"{HttpConstants.ApiPrefix}{Path}/login/cookie",
+            request,
+            cancellationToken);
     }
 }

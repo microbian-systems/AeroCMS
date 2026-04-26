@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
-internal class HttpConstants
+public class HttpConstants
 {
     public const string ApiPrefix = "api/v1/";
 }

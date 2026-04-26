@@ -1,12 +1,29 @@
 @using Aero.Cms.Shared.Services
 @using Aero.Cms.Shared.Layout
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Routing
 @inject NavigationManager NavigationManager
 @inject IFormFactor FormFactor
 
 <Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="new[] { typeof(Aero.Cms.Shared._Imports).Assembly }">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(DarkModeLayout)" />
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(DarkModeLayout)">
+            <NotAuthorized>
+                @{
+                    var returnUrl = Uri.EscapeDataString(NavigationManager.ToBaseRelativePath(NavigationManager.Uri));
+                    NavigationManager.NavigateTo(
+                        string.IsNullOrWhiteSpace(returnUrl) || returnUrl == "/"
+                            ? "/manager/login"
+                            : $"/manager/login?returnUrl={returnUrl}",
+                        forceLoad: true);
+                }
+            </NotAuthorized>
+            <Authorizing>
+                <div class="min-h-screen flex items-center justify-center">
+                    <p class="text-gray-500">Checking authentication...</p>
+                </div>
+            </Authorizing>
+        </AuthorizeRouteView>
     </Found>
     <NotFound>
         @if (FormFactor.GetFormFactor() != "Web")

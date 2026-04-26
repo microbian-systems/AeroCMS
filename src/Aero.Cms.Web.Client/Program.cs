@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Shared.Services;
@@ -8,6 +9,15 @@ using Radzen;
 using Aero.Cms.Abstractions.Blocks;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+// Add authentication state provider for InteractiveWebAssembly.
+// The ServerAuthenticationStateProvider calls the Identity API's /me endpoint,
+// which reads the .AeroCms.Auth cookie sent automatically by the browser.
+// This provides AuthenticationState to [Authorize] and AuthorizeView components.
+builder.Services.AddAuthorizationCore();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
+builder.Services.AddScoped<ServerAuthenticationStateProvider>(); // Allow explicit cache invalidation
 
 // Add device-specific services used by the Aero.Cms.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();

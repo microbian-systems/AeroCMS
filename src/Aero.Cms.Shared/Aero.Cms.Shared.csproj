@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Blazor.Radzen.Theming" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
     <PackageReference Include="Radzen.Blazor" />
     <PackageReference Include="Serilog.Sinks.OpenObserve" />

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
@@ -22,6 +23,9 @@ public abstract class LoginBase : ComponentBase
 
     [Inject]
     protected IConfiguration Configuration { get; set; } = default!;
+
+    [Inject]
+    private IHttpClientFactory HttpClientFactory { get; set; } = default!;
 
     [SupplyParameterFromQuery(Name = "returnUrl")]
     protected string? ReturnUrl { get; set; }
@@ -52,13 +56,24 @@ public abstract class LoginBase : ComponentBase
 
         try
         {
+            // Step 1: Login via JWT/API key exchange (provides API access tokens)
             var result = await AuthClient.LoginAsync(
                 new LoginRequest(Model.EmailOrUserName, Model.Password));
 
             if (result is Result<JwtTokenResponse, AeroError>.Ok(var response))
             {
                 TokenProvider.SetToken(response.AccessToken);
-                // Note: Refresh token handled in memory only for now as per spec
+
+                // Step 2: Login via ASP.NET Core Identity cookie endpoint.
+                // This sets the .AeroCms.Auth cookie so that UseAuthentication()
+                // middleware recognizes the user on subsequent HTTP requests and
+                // the AuthenticationStateProvider reports IsAuthenticated=true.
+                // Per MS Learn, cookie auth is the primary mechanism for Blazor Web Apps.
+                var identityResult = await LoginViaCookieAsync();
+                if (!identityResult)
+                {
+                    return; // ErrorMessage already set by LoginViaCookieAsync
+                }
 
                 Navigation.NavigateTo(string.IsNullOrWhiteSpace(ReturnUrl) ? "/manager" : ReturnUrl!, forceLoad: true);
                 return;
@@ -73,6 +88,34 @@ public abstract class LoginBase : ComponentBase
         finally
         {
             IsSubmitting = false;
+        }
+    }
+
+    /// <summary>
+    /// Calls the ASP.NET Core Identity cookie login endpoint to establish the auth session.
+    /// This is required in addition to JWT auth so that the Blazor Web App's
+    /// AuthenticationStateProvider correctly reports the user as authenticated.
+    /// </summary>
+    private async Task<bool> LoginViaCookieAsync()
+    {
+        try
+        {
+            var request = new LoginRequest(Model.EmailOrUserName, Model.Password, Model.RememberMe);
+            var cookieResponse = await AuthClient.LoginWithCookieAsync(request);
+                
+            if (cookieResponse.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            var errorBody = await cookieResponse.Content.ReadAsStringAsync();
+            ErrorMessage = $"Login failed: {errorBody}";
+            return false;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Login failed: {ex.Message}";
+            return false;
         }
     }
 

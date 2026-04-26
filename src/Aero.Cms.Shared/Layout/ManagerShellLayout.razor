@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @using Aero.Cms.Shared.Services
 @using Aero.Cms.Shared.Layout
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Sections
 @inject ManagerThemeService ThemeService
 @inject NavigationManager Navigation
@@ -35,12 +36,25 @@
         ThemeService.OnThemeChanged += StateHasChanged;
     }
 
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
         if (relative.StartsWith("manager/login", StringComparison.OrdinalIgnoreCase))
         {
             return;
+        }
+
+        // Skip redirect if user is already authenticated (cookie present)
+        if (AuthenticationState is not null)
+        {
+            var authState = await AuthenticationState;
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                return;
+            }
         }
 
         redirectTarget = string.IsNullOrWhiteSpace(relative) || relative.Equals("manager", StringComparison.OrdinalIgnoreCase)
