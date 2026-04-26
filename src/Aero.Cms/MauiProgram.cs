@@ -52,7 +52,8 @@ public static class MauiProgram
         });
         
         // Register all Aero HTTP clients
-        builder.Services.AddAeroHttpClients(builder.Configuration);
+        var baseUrl = builder.Configuration["ApiSettings:BaseUrl"];
+        builder.Services.AddAeroHttpClients(baseUrl is not null ? new Uri(baseUrl) : null);
         
         builder.Services.AddScoped<IBlockService, HttpBlockService>();
         

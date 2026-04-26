@@ -4,6 +4,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Components;
 
 namespace Aero.Cms.Shared.Pages.Manager;
@@ -19,12 +20,28 @@ public abstract class LoginBase : ComponentBase
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
+    [Inject]
+    protected IConfiguration Configuration { get; set; } = default!;
+
     [SupplyParameterFromQuery(Name = "returnUrl")]
     protected string? ReturnUrl { get; set; }
 
     protected readonly LoginModel Model = new();
     protected string? ErrorMessage;
     protected bool IsSubmitting { get; set; }
+    protected bool ShowPassword { get; set; }
+
+    protected override void OnInitialized()
+    {
+        var env = Configuration["ASPNETCORE_ENVIRONMENT"] ?? Configuration["Environment"];
+        if (env == "Development")
+        {
+            Model.EmailOrUserName = "admin";
+            Model.Password = "*strongPassword1";
+        }
+    }
+
+    protected void TogglePasswordVisibility() => ShowPassword = !ShowPassword;
 
     protected async Task HandleSubmit()
     {

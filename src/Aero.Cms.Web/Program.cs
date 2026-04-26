@@ -259,7 +259,8 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     services.AddSingleton<IFormFactor, FormFactor>();
 
     // Register all Aero HTTP clients
-    services.AddAeroHttpClients(config);
+    var baseUrl = config["ApiSettings:BaseUrl"];
+    services.AddAeroHttpClients(baseUrl is not null ? new Uri(baseUrl) : null);
     services.AddScoped<ManagerThemeService>();
 
     services.AddProblemDetails(options =>

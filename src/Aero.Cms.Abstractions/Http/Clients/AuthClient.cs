@@ -15,20 +15,24 @@ public sealed class AuthClient(
         LoginRequest request,
         CancellationToken cancellationToken = default)
     {
+        var test = this.client.BaseAddress;
+        log.LogDebug("base url is {u}", test);
         // Step 1: POST /api/v1/auth/login → AuthLoginResponse (user info + raw API key)
         var loginResult = await PostAsync<LoginRequest, AuthLoginResponse>(
-            "/api/v1/auth/login", request, cancellationToken);
+            $"{HttpConstants.ApiPrefix}{Path}/login", request, cancellationToken);
 
         // Step 2: Exchange the API key for a JWT via /api/v1/jwt/token
-        return await loginResult.BindAsync(async authResponse =>
+        var result = await loginResult.BindAsync(async authResponse =>
         {
             var tokenResult = await PostAsync<ApiKeyLoginRequest, JwtTokenResponse>(
-                "/api/v1/jwt/token",
+                $"{HttpConstants.ApiPrefix}jwt/token",
                 new ApiKeyLoginRequest(authResponse.ApiKey),
                 cancellationToken);
 
             return tokenResult;
         });
+
+        return result;
     }
 
     public async Task<Result<JwtTokenResponse, AeroError>> LoginWithApiKeyAsync(
@@ -36,7 +40,7 @@ public sealed class AuthClient(
         CancellationToken cancellationToken = default)
     {
         return await PostAsync<ApiKeyLoginRequest, JwtTokenResponse>(
-            "/api/v1/jwt/token", request, cancellationToken);
+            $"{HttpConstants.ApiPrefix}jwt/token", request, cancellationToken);
     }
 
     public async Task<Result<JwtTokenResponse, AeroError>> RefreshAsync(
@@ -44,6 +48,6 @@ public sealed class AuthClient(
         CancellationToken cancellationToken = default)
     {
         return await PostAsync<RefreshTokenRequest, JwtTokenResponse>(
-            "/api/v1/jwt/refresh", request, cancellationToken);
+            $"{HttpConstants.ApiPrefix}jwt/refresh", request, cancellationToken);
     }
 }

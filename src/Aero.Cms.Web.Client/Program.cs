@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Aero.Cms.Core.Extensions;
@@ -11,13 +12,20 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 // Add device-specific services used by the Aero.Cms.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
 builder.Services.AddScoped<IBlockService, HttpBlockService>();
+
+// Override HttpClient BaseAddress to the host origin for all Aero typed clients.
+// This follows the official Blazor WASM pattern documented at:
+// https://learn.microsoft.com/aspnet/core/blazor/call-web-api#typed-httpclient
+// On the WASM side, builder.HostEnvironment.BaseAddress (derived from <base href>)
+// is the correct server URL. On the server side, config-based fallback is used instead.
+var uri = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? builder.HostEnvironment.BaseAddress);
 builder.Services.AddScoped(_ => new HttpClient
 {
-    BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? builder.HostEnvironment.BaseAddress)
+    BaseAddress = uri
 });
 
 // Register all Aero HTTP clients
-builder.Services.AddAeroHttpClients(builder.Configuration);
+builder.Services.AddAeroHttpClients(uri);
 
 // Legacy registrations
 builder.Services.AddScoped<ManagerThemeService>();

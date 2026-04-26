@@ -3,13 +3,19 @@ using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Core.Identity;
+using Aero.Models.Entities;
 using Marten;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 using Aero.Auth.Services;
 using Aero.Common.Web.Infrastructure;
+using System.Security.Cryptography;
 
 namespace Aero.Cms.Modules.Security;
 
@@ -34,6 +40,13 @@ public class SecurityModule : AeroModuleBase
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IAuthenticationStrategy, ApiKeyAuthenticationStrategy>();
+
+        // JWT token services — required by HeadlessModule JWT API endpoints
+        services.AddMemoryCache();
+        services.AddSingleton<IJwtSigningKeyPersistence, InMemoryJwtSigningKeyPersistence>();
+        services.AddScoped<IJwtSigningKeyStore, JwtSigningKeyStore>();
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
     }
 
     public override void Configure(IAeroModuleBuilder builder)
@@ -41,7 +54,7 @@ public class SecurityModule : AeroModuleBase
         // Admin UI registration
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public override void Configure(IServiceProvider services, global::Marten.StoreOptions opts)
     {
         opts.Schema.For<ApiKeyDocument>().Index(x => x.SecretHash);
         opts.Schema.For<ApiKeyDocument>().Index(x => x.UserId);

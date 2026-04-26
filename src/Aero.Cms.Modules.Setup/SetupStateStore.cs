@@ -35,6 +35,6 @@ public sealed class SetupInitializationService(
     public Task<bool> IsSetupCompleteAsync(CancellationToken cancellationToken = default)
     {
         var bootstrapState = GetBootstrapState();
-        return Task.FromResult(bootstrapState.IsRunningMode);
+        return Task.FromResult(bootstrapState.IsRunningMode || bootstrapState.IsConfiguredMode);
     }
 }

@@ -1,24 +1,37 @@
 @page "/manager/login"
 @namespace Aero.Cms.Shared.Pages.Manager
 @inherits LoginBase
-@using Radzen
-@using Radzen.Blazor
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.Extensions.Configuration
 @attribute [AllowAnonymous]
 @layout EmptyLayout
+@rendermode InteractiveAuto
 
 <div class="min-h-screen flex items-center justify-center bg-slate-100 px-6 py-12">
     <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl space-y-6">
         <div class="space-y-2 text-center">
             <h1 class="text-3xl font-bold text-slate-950">Manager Login</h1>
             <p class="text-sm text-slate-500">Sign in with a CMS account that has one of the Aero CMS roles.</p>
+
+            @if (Configuration["ASPNETCORE_ENVIRONMENT"] == "Development" || Configuration["Environment"] == "Development")
+            {
+                <div class="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                    Development Mode
+                </div>
+            }
         </div>
 
         @if (!string.IsNullOrWhiteSpace(ErrorMessage))
         {
-            <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" AllowClose="false">
-                @ErrorMessage
-            </RadzenAlert>
+            <div class="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300">
+                <div class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                    </svg>
+                    @ErrorMessage
+                </div>
+            </div>
         }
 
         <EditForm Model="Model" OnValidSubmit="HandleSubmit" class="space-y-4">
@@ -32,7 +45,24 @@
 
             <div class="space-y-2">
                 <label class="text-xs font-bold text-slate-700">Password</label>
-                <InputText @bind-Value="Model.Password" type="password" class="h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all" />
+                <div class="relative">
+                    <InputText @bind-Value="Model.Password" type="@(ShowPassword ? "text" : "password")" class="h-12 w-full px-4 pr-12 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all" />
+                    <button type="button" @onclick="TogglePasswordVisibility" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none" aria-label="Toggle password visibility">
+                        @if (ShowPassword)
+                        {
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                            </svg>
+                        }
+                        else
+                        {
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                        }
+                    </button>
+                </div>
                 <ValidationMessage For="() => Model.Password" class="text-[11px] font-bold text-rose-500 uppercase tracking-tight" />
             </div>
 

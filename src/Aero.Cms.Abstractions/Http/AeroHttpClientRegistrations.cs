@@ -4,23 +4,19 @@ using Aero.Core.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
-using ThrowGuard;
 
 namespace Aero.Cms.Core.Extensions;
 
 public static class AeroHttpClientExtensions
 {
     public static IServiceCollection AddAeroHttpClients(
-        this IServiceCollection services,
-        IConfiguration config)
+        this IServiceCollection services, Uri? baseAddress = null)
     {
         services.TryAddSingleton<ISiteContext, NoopSiteContext>();
         services.TryAddSingleton<ICorrelationIdAccessor, NoopCorrelationIdAccessor>();
-
-        services.Configure<AeroHttpClientOptions>(
-            config.GetSection("Aero:HttpClient"));
 
         services.AddTransient<TenantIdHandler>();
         services.AddTransient<CorrelationIdHandler>();
@@ -33,6 +29,19 @@ public static class AeroHttpClientExtensions
 
         services.ConfigureHttpClientDefaults(builder =>
         {
+            builder.AddDefaultLogger(); ;
+            builder.Services.AddRedaction();
+            builder.AddExtendedHttpClientLogging();
+
+            // TODO - verify base address is configured in program.cs or wherver the caller sets it or defaults to <base href /> for wasm clients
+            // we don't configure base address here as each platform has a diff mechanism for obtaining the base address and configuring httpclient
+            if(baseAddress is not null)
+            {
+                builder.ConfigureHttpClient(client =>
+                {
+                    client.BaseAddress = baseAddress;
+                });
+            }
             builder
                 .AddHttpMessageHandler<CorrelationIdHandler>()
                 .AddHttpMessageHandler<TenantIdHandler>()
@@ -42,54 +51,25 @@ public static class AeroHttpClientExtensions
                 .AddStandardResilienceHandler();
         });
 
-        services.AddAeroTypedHttpClient<IBlogHttpClient, BlogHttpClient>();
-        services.AddAeroTypedHttpClient<ICategoriesHttpClient, CategoriesHttpClient>();
-        services.AddAeroTypedHttpClient<IDashboardHttpClient, DashboardHttpClient>();
-        services.AddAeroTypedHttpClient<IFilesHttpClient, FilesHttpClient>();
-        services.AddAeroTypedHttpClient<IMediaHttpClient, MediaHttpClient>();
-        services.AddAeroTypedHttpClient<IModulesHttpClient, ModulesHttpClient>();
-        services.AddAeroTypedHttpClient<INavigationsHttpClient, NavigationsHttpClient>();
-        services.AddAeroTypedHttpClient<IPagesHttpClient, PagesHttpClient>();
-        services.AddAeroTypedHttpClient<IProfileHttpClient, ProfileHttpClient>();
-        services.AddAeroTypedHttpClient<ISettingsHttpClient, SettingsHttpClient>();
-        services.AddAeroTypedHttpClient<ITagsHttpClient, TagsHttpClient>();
-        services.AddAeroTypedHttpClient<IThemesHttpClient, ThemesHttpClient>();
-        services.AddAeroTypedHttpClient<IUsersHttpClient, UsersHttpClient>();
-        services.AddAeroTypedHttpClient<IBlocksHttpClient, BlocksHttpClient>();
-        services.AddAeroTypedHttpClient<IPublishHttpClient, PublishHttpClient>();
-        services.AddAeroTypedHttpClient<IPreviewHttpClient, PreviewHttpClient>();
-        services.AddAeroTypedHttpClient<IDocsHttpClient, DocsHttpClient>();
-        services.AddAeroTypedHttpClient<IAuthClient, AuthClient>();
+        services.AddHttpClient<IBlogHttpClient, BlogHttpClient>();
+        services.AddHttpClient<ICategoriesHttpClient, CategoriesHttpClient>();
+        services.AddHttpClient<IDashboardHttpClient, DashboardHttpClient>();
+        services.AddHttpClient<IFilesHttpClient, FilesHttpClient>();
+        services.AddHttpClient<IMediaHttpClient, MediaHttpClient>();
+        services.AddHttpClient<IModulesHttpClient, ModulesHttpClient>();
+        services.AddHttpClient<INavigationsHttpClient, NavigationsHttpClient>();
+        services.AddHttpClient<IPagesHttpClient, PagesHttpClient>();
+        services.AddHttpClient<IProfileHttpClient, ProfileHttpClient>();
+        services.AddHttpClient<ISettingsHttpClient, SettingsHttpClient>();
+        services.AddHttpClient<ITagsHttpClient, TagsHttpClient>();
+        services.AddHttpClient<IThemesHttpClient, ThemesHttpClient>();
+        services.AddHttpClient<IUsersHttpClient, UsersHttpClient>();
+        services.AddHttpClient<IBlocksHttpClient, BlocksHttpClient>();
+        services.AddHttpClient<IPublishHttpClient, PublishHttpClient>();
+        services.AddHttpClient<IPreviewHttpClient, PreviewHttpClient>();
+        services.AddHttpClient<IDocsHttpClient, DocsHttpClient>();
+        services.AddHttpClient<IAuthClient, AuthClient>();
 
         return services;
-    }
-
-    private static IHttpClientBuilder AddAeroTypedHttpClient<TClient, TImplementation>(
-        this IServiceCollection services)
-        where TClient : class
-        where TImplementation : class, TClient
-    {
-        return services.AddHttpClient<TClient, TImplementation>((sp, client) =>
-        {
-            var options = sp
-                .GetRequiredService<IOptionsMonitor<AeroHttpClientOptions>>()
-                .CurrentValue;
-
-            var url = options.BaseUrl;
-
-            // Backward compatibility / Fallback
-            if (string.IsNullOrEmpty(url))
-            {
-                var config = sp.GetRequiredService<IConfiguration>();
-                url = config["ApiSettings:BaseUrl"] ?? config["AeroHttpClientBaseAddress"];
-            }
-
-            ThrowGuard.Throw.IfNullOrEmpty(
-                url,
-                msg: "httpclient url must be valid",
-                argName: nameof(options.BaseUrl));
-
-            client.BaseAddress = new Uri(url);
-        });
     }
 }

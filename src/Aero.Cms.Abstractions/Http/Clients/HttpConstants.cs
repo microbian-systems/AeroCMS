@@ -6,5 +6,5 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 
 internal class HttpConstants
 {
-    public const string ApiPrefix = "/api/v1/";
+    public const string ApiPrefix = "api/v1/";
 }
