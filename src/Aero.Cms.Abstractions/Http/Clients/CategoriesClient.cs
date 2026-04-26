@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -56,7 +56,7 @@ public class CategoriesHttpClient(HttpClient httpClient, ILogger<CategoriesHttpC
     : AeroCmsClientBase(httpClient, logger), ICategoriesHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "categories";
+    public override string Path => "categories";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<CategorySummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

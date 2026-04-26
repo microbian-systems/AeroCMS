@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -62,7 +62,7 @@ public interface IModulesHttpClient
 public class ModulesHttpClient(HttpClient httpClient, ILogger<ModulesHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IModulesHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "modules";
+    public override string Path => "modules";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<ModuleSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

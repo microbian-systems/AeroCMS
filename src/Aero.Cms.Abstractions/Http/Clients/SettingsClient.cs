@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -61,7 +61,7 @@ public interface ISettingsHttpClient
 public class SettingsHttpClient(HttpClient httpClient, ILogger<SettingsHttpClient> logger) : AeroCmsClientBase(httpClient, logger), ISettingsHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "settings";
+    public override string Path => "settings";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<SettingSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

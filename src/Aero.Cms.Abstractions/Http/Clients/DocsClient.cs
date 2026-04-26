@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Cms.Abstractions.Enums;
 using Aero.Core.Railway;
@@ -71,7 +71,7 @@ public sealed class DocsHttpClient(HttpClient httpClient, ILogger<DocsHttpClient
     : AeroCmsClientBase(httpClient, logger), IDocsHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "docs";
+    public override string Path => "docs";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<DocsSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

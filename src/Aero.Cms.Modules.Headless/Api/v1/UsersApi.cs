@@ -1,4 +1,4 @@
-using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Identity;
 using Aero.Models.Entities;
 using Microsoft.AspNetCore.Builder;

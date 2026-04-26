@@ -1,5 +1,5 @@
 using Aero.Cms.Core.Extensions;
-using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;

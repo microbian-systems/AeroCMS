@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -56,7 +56,7 @@ public class TagsHttpClient(HttpClient httpClient, ILogger<TagsHttpClient> logge
     : AeroCmsClientBase(httpClient, logger), ITagsHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "tags";
+    public override string Path => "tags";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<TagSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

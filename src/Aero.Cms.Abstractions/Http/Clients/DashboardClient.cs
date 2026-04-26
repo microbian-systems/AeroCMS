@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core;
 using Aero.Core.Railway;
@@ -32,7 +32,7 @@ public class DashboardHttpClient(HttpClient httpClient, ILogger<DashboardHttpCli
     : AeroCmsClientBase(httpClient, logger), IDashboardHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "dashboard";
+    public override string Path => "dashboard";
 
     /// <inheritdoc />
     public Task<Result<DashboardStats, AeroError>> GetStatsAsync(CancellationToken ct = default)

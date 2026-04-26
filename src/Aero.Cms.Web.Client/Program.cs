@@ -1,4 +1,4 @@
-using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Abstractions.Http.Clients;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Shared.Services;

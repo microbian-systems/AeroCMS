@@ -1,7 +1,7 @@
-﻿using TUnit.Core;
+using TUnit.Core;
 using System.Net;
 using System.Net.Http.Json;
-using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using FluentAssertions;

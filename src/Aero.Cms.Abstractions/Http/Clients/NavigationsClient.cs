@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -56,7 +56,7 @@ public class NavigationsHttpClient(HttpClient httpClient, ILogger<NavigationsHtt
     : AeroCmsClientBase(httpClient, logger), INavigationsHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "navigations";
+    public override string Path => "navigations";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<NavigationSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

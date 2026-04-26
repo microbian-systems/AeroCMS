@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -56,7 +56,7 @@ public interface IFilesHttpClient
 public class FilesHttpClient(HttpClient httpClient, ILogger<FilesHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IFilesHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "files";
+    public override string Path => "files";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<FileSummary>, AeroError>> GetAllAsync(string? folder = null, CancellationToken ct = default)

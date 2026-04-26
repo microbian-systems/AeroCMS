@@ -1,5 +1,5 @@
 using Aero.Cms.Core;
-using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Core.Railway;
 using Marten;

@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -32,7 +32,7 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
     : AeroCmsClientBase(httpClient, logger), IPreviewHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "preview";
+    public override string Path => "preview";
 
     /// <inheritdoc />
     public Task<Result<object, AeroError>> PreviewPageAsync(long id, CancellationToken ct = default)

@@ -1,4 +1,4 @@
-using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -124,7 +124,7 @@ public static class PagesApi
     }
 
     private static async Task<IResult> CreatePage(
-        [FromBody] Aero.Cms.Core.Http.Clients.CreatePageRequest request,
+        [FromBody] Aero.Cms.Abstractions.Http.Clients.CreatePageRequest request,
         [FromServices] IPageContentService pageService,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
@@ -172,7 +172,7 @@ public static class PagesApi
 
     private static async Task<IResult> UpdatePage(
         long id,
-        [FromBody] Aero.Cms.Core.Http.Clients.UpdatePageRequest request,
+        [FromBody] Aero.Cms.Abstractions.Http.Clients.UpdatePageRequest request,
         [FromServices] IPageContentService pageService,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)

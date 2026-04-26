@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -53,7 +53,7 @@ public interface IProfileHttpClient
 public class ProfileHttpClient(HttpClient httpClient, ILogger<ProfileHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IProfileHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "profile";
+    public override string Path => "profile";
 
     /// <inheritdoc />
     public Task<Result<UserProfile, AeroError>> GetCurrentAsync(CancellationToken ct = default)

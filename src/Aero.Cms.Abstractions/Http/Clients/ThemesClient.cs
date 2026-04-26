@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -62,7 +62,7 @@ public class ThemesHttpClient(HttpClient httpClient, ILogger<ThemesHttpClient> l
     : AeroCmsClientBase(httpClient, logger), IThemesHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "themes";
+    public override string Path => "themes";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<ThemeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

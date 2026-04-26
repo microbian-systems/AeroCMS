@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Blocks;
@@ -94,7 +94,7 @@ public interface IPagesHttpClient
 public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IPagesHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "pages";
+    public override string Path => "pages";
 
     /// <inheritdoc />
     public Task<Result<PagedResult<PageSummary>, AeroError>> GetAllAsync(int skip = 0, int take = 20, string? search = null, CancellationToken ct = default)

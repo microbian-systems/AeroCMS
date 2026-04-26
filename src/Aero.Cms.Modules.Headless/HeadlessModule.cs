@@ -59,6 +59,7 @@ public sealed class HeadlessModule : AeroWebModule
         builder.MapProfileApi();
         builder.MapBlocksApi();
         builder.MapJwtApi();
+        builder.MapAuthApi();
 
         // todo - put scalar behind a gated login (auth filter)
         builder.MapOpenApi();

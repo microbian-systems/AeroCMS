@@ -1,6 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
-using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Abstractions.Http.Clients;
 using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;

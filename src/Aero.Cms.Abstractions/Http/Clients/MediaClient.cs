@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core;
 using Aero.Core.Railway;
@@ -68,7 +68,7 @@ public interface IMediaHttpClient
 public class MediaHttpClient(HttpClient httpClient, ILogger<MediaHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IMediaHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "media";
+    public override string Path => "media";
 
     /// <inheritdoc />
     public Task<Result<PagedResult<MediaSummary>, AeroError>> GetAllAsync(long? parentId = null, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)

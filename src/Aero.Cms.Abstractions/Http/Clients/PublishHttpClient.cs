@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Cms.Abstractions.Enums;
 using Aero.Core.Railway;
@@ -49,7 +49,7 @@ public class PublishHttpClient(HttpClient httpClient, ILogger<PublishHttpClient>
     : AeroCmsClientBase(httpClient, logger), IPublishHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "publish";
+    public override string Path => "publish";
 
     /// <inheritdoc />
     public Task<Result<PublishResponse, AeroError>> PublishPageAsync(long id, CancellationToken ct = default)

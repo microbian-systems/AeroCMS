@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
-using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Core;
 using Aero.Core.Http;
+using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
 
 namespace Aero.Cms.Shared.Pages.Manager;
@@ -31,14 +33,14 @@ public abstract class LoginBase : ComponentBase
 
         try
         {
-            var response = await AuthClient.LoginAsync(
+            var result = await AuthClient.LoginAsync(
                 new LoginRequest(Model.EmailOrUserName, Model.Password));
 
-            if (!string.IsNullOrEmpty(response.AccessToken))
+            if (result is Result<JwtTokenResponse, AeroError>.Ok(var response))
             {
                 TokenProvider.SetToken(response.AccessToken);
                 // Note: Refresh token handled in memory only for now as per spec
-                
+
                 Navigation.NavigateTo(string.IsNullOrWhiteSpace(ReturnUrl) ? "/manager" : ReturnUrl!, forceLoad: true);
                 return;
             }

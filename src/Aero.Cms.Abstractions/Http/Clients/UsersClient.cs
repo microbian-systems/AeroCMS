@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -68,7 +68,7 @@ public class UsersHttpClient(HttpClient httpClient, ILogger<UsersHttpClient> log
     : AeroCmsClientBase(httpClient, logger), IUsersHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "users";
+    public override string Path => "users";
 
     /// <inheritdoc />
     public Task<Result<PagedResult<UserSummary>, AeroError>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)

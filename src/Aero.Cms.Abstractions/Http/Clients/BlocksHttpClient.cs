@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Http.Clients;
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Core.Blocks;
@@ -43,7 +43,7 @@ public class BlocksHttpClient(HttpClient httpClient, ILogger<BlocksHttpClient> l
     : AeroCmsClientBase(httpClient, logger), IBlocksHttpClient
 {
     /// <inheritdoc />
-    protected override string ResourceName => "blocks";
+    public override string Path => "blocks";
 
     /// <inheritdoc />
     public Task<Result<BlockBase, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
