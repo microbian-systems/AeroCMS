@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Modules;
 using FluentAssertions;
@@ -159,5 +160,5 @@ public class ModuleGraphTests
         graph.LoadOrder[0].Name.Should().Be("B");
         graph.LoadOrder[1].Name.Should().Be("A");
         await Task.CompletedTask;
-    }
+}
 }

@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Aero.Auth.Services;
+using Aero.Common.Web.Infrastructure;
 
 namespace Aero.Cms.Modules.Security;
 
@@ -22,6 +24,13 @@ public class SecurityModule : AeroModuleBase
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        if (config != null)
+        {
+            services.Configure<ApiKeyOptions>(config.GetSection("Aero:Security:ApiKeys"));
+        }
+
+        services.AddScoped<IApiKeyFactory, DefaultApiKeyFactory>();
+        services.AddScoped<IApiKeyGenerator, HashedApiKeyGenerator>();
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IAuthenticationStrategy, ApiKeyAuthenticationStrategy>();

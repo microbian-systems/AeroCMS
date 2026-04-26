@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Core.Blocks;
@@ -37,7 +38,7 @@ public class MartenSchemaCompositionTests
     ///
     /// EXPECTED TO FAIL initially: The test module registers an IConfigureMarten
     /// via ConfigureServices(), but AddAeroDataLayer() is never called from the CMS
-    /// startup chain (Program.cs → AddAeroCmsAsync → AddAeroModulesAsync).
+    /// startup chain (Program.cs â†’ AddAeroCmsAsync â†’ AddAeroModulesAsync).
     /// Until AddAeroDataLayer() is wired in, no DocumentStore will be created.
     /// </summary>
     [Test]
@@ -86,7 +87,7 @@ public class MartenSchemaCompositionTests
     /// module ConfigureServices() registrations complete.
     ///
     /// This test FAILS currently because AddAeroDataLayer() is not called from
-    /// Program.cs → AddAeroCmsAsync → AddAeroModulesAsync.
+    /// Program.cs â†’ AddAeroCmsAsync â†’ AddAeroModulesAsync.
     ///
     /// After fix: this test will pass, confirming AddAeroDataLayer() is wired.
     /// </summary>
@@ -252,6 +253,6 @@ public class MartenSchemaCompositionTests
         public void Configure(IServiceProvider services, StoreOptions options)
         {
             onConfigure(options);
-        }
+}
     }
 }

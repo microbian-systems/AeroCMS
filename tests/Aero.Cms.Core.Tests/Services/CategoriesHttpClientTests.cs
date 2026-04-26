@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using System.Net;
 using System.Text.Json;
 using Aero.Cms.Core.Http.Clients;
@@ -49,6 +50,6 @@ public class CategoriesHttpClientTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             return Task.FromResult(response);
-        }
+}
     }
 }

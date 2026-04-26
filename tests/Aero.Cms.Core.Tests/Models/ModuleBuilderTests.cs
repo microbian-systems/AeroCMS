@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Core.Modules;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;

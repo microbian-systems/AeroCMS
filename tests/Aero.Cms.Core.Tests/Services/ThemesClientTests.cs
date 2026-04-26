@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using System.Net;
 using System.Net.Http.Json;
 using Aero.Cms.Core.Http.Clients;
@@ -6,8 +7,6 @@ using Aero.Core.Railway;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using TUnit.Core;
-
 namespace Aero.Cms.Core.Tests.Services;
 
 public class ThemesClientTests

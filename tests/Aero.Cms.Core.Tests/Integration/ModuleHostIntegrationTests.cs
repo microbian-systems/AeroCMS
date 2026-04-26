@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Core.Tests.TestModules;
 using Aero.Cms.Web.Core.Modules;
@@ -293,6 +294,6 @@ public class ModuleHostIntegrationTests
         public IApplicationBuilder CreateApplicationBuilder()
         {
             throw new NotImplementedException();
-        }
+}
     }
 }

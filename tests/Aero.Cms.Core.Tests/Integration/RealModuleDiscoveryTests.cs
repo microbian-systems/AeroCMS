@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Identity;
 using Aero.Cms.Modules.Cache;
@@ -412,5 +413,5 @@ public class RealModuleDiscoveryTests
         // Final assertion
         pass.Should().BeTrue();
         discoveredModules.Should().HaveCount(allKnownModules.Length);
-    }
+}
 }

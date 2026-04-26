@@ -5,6 +5,7 @@ using Aero.Models.Entities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 
@@ -28,10 +29,10 @@ public static class JwtApi
     }
 
     private static async Task<IResult> CreateToken(
-        ApiKeyAuthRequestModel request,
+        [FromBody] ApiKeyAuthRequestModel request,
         IAuthenticationService authService,
-        IJwtTokenService jwtService,
-        IRefreshTokenService refreshTokenService,
+        [FromServices] IJwtTokenService jwtService,
+        [FromServices] IRefreshTokenService refreshTokenService,
         UserManager<AeroUser> userManager,
         IHttpContextAccessor httpContextAccessor,
         ILoggerFactory loggerFactory,
@@ -77,8 +78,8 @@ public static class JwtApi
 
     private static async Task<IResult> RefreshToken(
         HeadlessRefreshTokenRequest request,
-        IJwtTokenService jwtService,
-        IRefreshTokenService refreshTokenService,
+        [FromServices] IJwtTokenService jwtService,
+        [FromServices] IRefreshTokenService refreshTokenService,
         UserManager<AeroUser> userManager,
         IHttpContextAccessor httpContextAccessor,
         ILoggerFactory loggerFactory,

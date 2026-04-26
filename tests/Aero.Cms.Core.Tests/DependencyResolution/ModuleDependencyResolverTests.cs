@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Core.Modules;
 using Aero.Cms.Core.Tests.Services;
 using Aero.Cms.Core.Tests.TestModules;
@@ -311,5 +312,5 @@ public class ModuleDependencyResolverTests
             Tags = instance.Tags,
             DisabledInProduction = instance.DisabledInProduction
         };
-    }
+}
 }

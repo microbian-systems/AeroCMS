@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Core.Tests.TestModules;
 using Aero.Cms.Web.Core.Modules;
@@ -208,5 +209,5 @@ public class ModuleExtensionsTests
         public override IReadOnlyList<string> Dependencies => Array.Empty<string>();
         public override IReadOnlyList<string> Category => Array.Empty<string>();
         public override IReadOnlyList<string> Tags => Array.Empty<string>();
-    }
+}
 }

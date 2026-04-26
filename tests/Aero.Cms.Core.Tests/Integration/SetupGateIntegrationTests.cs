@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
@@ -222,5 +223,5 @@ public class SetupGateIntegrationTests
         await app.StartAsync();
 
         return app;
-    }
+}
 }

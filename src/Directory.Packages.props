@@ -4,6 +4,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="TUnit" Version="1.39.0" />
     <PackageVersion Include="AngleSharp" Version="1.4.0" />
     <PackageVersion Include="AngleSharp.Css" Version="0.17.0" />
     <PackageVersion Include="Blazor.Radzen.Theming" Version="10.2.3" />

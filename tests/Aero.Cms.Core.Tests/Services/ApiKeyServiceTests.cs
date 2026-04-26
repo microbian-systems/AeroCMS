@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Modules.Security;
 using Aero.EfCore;
@@ -6,14 +7,13 @@ using Microsoft.EntityFrameworkCore;
 using Aero.Auth.Services;
 using FluentAssertions;
 using NSubstitute;
-using TUnit.Core;
-
 namespace Aero.Cms.Core.Tests.Services;
 
 public class ApiKeyServiceTests
 {
     private AeroDbContext _dbContext = null!;
     private IApiKeyFactory _apiKeyFactory = null!;
+    private IApiKeyGenerator _apiKeyGenerator = null!;
     private ApiKeyService _service = null!;
 
     [Before(Test)]
@@ -25,7 +25,8 @@ public class ApiKeyServiceTests
 
         _dbContext = new AeroDbContext(options);
         _apiKeyFactory = Substitute.For<IApiKeyFactory>();
-        _service = new ApiKeyService(_dbContext, _apiKeyFactory);
+        _apiKeyGenerator = Substitute.For<IApiKeyGenerator>();
+        _service = new ApiKeyService(_dbContext, _apiKeyFactory, _apiKeyGenerator);
     }
 
     [After(Test)]
@@ -38,12 +39,13 @@ public class ApiKeyServiceTests
     }
 
     [Test]
-    public async Task CreateKeyAsync_Should_Create_And_Store_Key()
+    public async Task CreateKeyAsync_Should_Create_And_Store_Hashed_Key()
     {
         // Arrange
         long userId = 1;
         string email = "admin@aero.com";
         string apiKey = "test-api-key";
+        var expectedHash = HashKey(apiKey);
 
         // Act
         var result = await _service.CreateKeyAsync(userId, email, apiKey);
@@ -52,7 +54,7 @@ public class ApiKeyServiceTests
         result.Should().Be(apiKey);
         var account = await _dbContext.ApiAccounts.FirstOrDefaultAsync(x => x.Id == userId);
         account.Should().NotBeNull();
-        account!.ApiKey.Should().Be(apiKey);
+        account!.ApiKey.Should().Be(expectedHash);
         account.Email.Should().Be(email);
         account.Enabled.Should().BeTrue();
     }
@@ -63,8 +65,11 @@ public class ApiKeyServiceTests
         // Arrange
         long userId = 2;
         string email = "user@aero.com";
-        string generatedKey = "generated-key";
-        _apiKeyFactory.GenerateApiKey().Returns(generatedKey);
+        string generatedKey = "sk_live_abc123";
+        string generatedHash = HashKey(generatedKey);
+        
+        _apiKeyGenerator.Generate(ApiKeyEnvironment.Live)
+            .Returns(new GeneratedApiKey("abc123", generatedKey, generatedHash));
 
         // Act
         var result = await _service.CreateKeyAsync(userId, email, null);
@@ -73,7 +78,7 @@ public class ApiKeyServiceTests
         result.Should().Be(generatedKey);
         var account = await _dbContext.ApiAccounts.FirstOrDefaultAsync(x => x.Id == userId);
         account.Should().NotBeNull();
-        account!.ApiKey.Should().Be(generatedKey);
+        account!.ApiKey.Should().Be(generatedHash);
     }
 
     [Test]
@@ -82,10 +87,12 @@ public class ApiKeyServiceTests
         // Arrange
         long userId = 3;
         string apiKey = "valid-key";
+        string hash = HashKey(apiKey);
+        
         _dbContext.ApiAccounts.Add(new ApiAccountModel
         {
             Id = userId,
-            ApiKey = apiKey,
+            ApiKey = hash, // Store hash
             Email = "test@test.com",
             Enabled = true,
             RefreshToken = "token",
@@ -98,6 +105,12 @@ public class ApiKeyServiceTests
 
         // Assert
         result.Should().Be(userId);
+    }
+
+    private static string HashKey(string apiKey)
+    {
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(apiKey));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
     [Test]

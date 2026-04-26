@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Headless.Api.v1;
 using Alba;
@@ -51,5 +52,5 @@ public class CategoriesApiTests
             s.Get.Url("/api/v1/admin/categories");
             // If it fails with 500 but because of Marten mock, we at least know the route works.
         });
-    }
+}
 }

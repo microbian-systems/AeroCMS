@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 using FluentAssertions;
 
@@ -116,5 +117,5 @@ public class SetupPageModelTests
                 DefaultCulture = "en-US"
             }
         };
-    }
+}
 }

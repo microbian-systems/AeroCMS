@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using System.Text.Json.Nodes;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
@@ -145,7 +146,7 @@ public class BootstrapCompletionWriterTests
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
-            }
+}
         }
     }
 }
