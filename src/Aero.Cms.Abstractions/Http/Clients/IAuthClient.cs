@@ -7,7 +7,7 @@ public sealed record LoginRequest(
     string UserName,
     string Password);
 
-public sealed record ApiKeyLoginRequest(
+public sealed record ApiKeyAuthRequest(
     string ApiKey);
 
 public sealed record RefreshTokenRequest(
@@ -32,11 +32,11 @@ public interface IAuthClient
         LoginRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Result<JwtTokenResponse, AeroError>> LoginWithApiKeyAsync(
-        ApiKeyLoginRequest request,
+    Task<Result<JwtTokenResponse, AeroError>> AuthWithApiKeyAsync(
+        ApiKeyAuthRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Result<JwtTokenResponse, AeroError>> RefreshAsync(
+    Task<Result<JwtTokenResponse, AeroError>> RefreshJwtTokenAsync(
         RefreshTokenRequest request,
         CancellationToken cancellationToken = default);
 }

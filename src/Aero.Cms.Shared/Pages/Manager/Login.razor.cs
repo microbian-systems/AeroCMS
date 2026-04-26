@@ -34,7 +34,9 @@ public abstract class LoginBase : ComponentBase
     protected override void OnInitialized()
     {
         var env = Configuration["ASPNETCORE_ENVIRONMENT"] ?? Configuration["Environment"];
-        if (env == "Development")
+        var isDev = env == "Development" || Navigation.BaseUri.Contains("localhost") || Navigation.BaseUri.Contains("127.0.0.1");
+
+        if (isDev)
         {
             Model.EmailOrUserName = "admin";
             Model.Password = "*strongPassword1";

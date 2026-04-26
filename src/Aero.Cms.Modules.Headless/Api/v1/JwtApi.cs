@@ -29,7 +29,7 @@ public static class JwtApi
     }
 
     private static async Task<IResult> CreateToken(
-        [FromBody] ApiKeyAuthRequestModel request,
+        [FromBody] ApiKeyAuthRequest request,
         IAuthenticationService authService,
         [FromServices] IJwtTokenService jwtService,
         [FromServices] IRefreshTokenService refreshTokenService,

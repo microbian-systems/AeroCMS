@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Services;
 using Aero.Models;
 using Aero.Models.Entities;
@@ -21,9 +22,9 @@ public sealed class ApiKeyAuthenticationStrategy : IAuthenticationStrategy
 
     public string AuthType => "ApiKey";
 
-    public async Task<AeroUser?> AuthenticateAsync(IAuthRequestModel request, CancellationToken cancellationToken = default)
+    public async Task<AeroUser?> AuthenticateAsync(ApiKeyAuthRequest request, CancellationToken cancellationToken = default)
     {
-        if (request is not IApiKeyAuthRequestModel apiKeyRequest)
+        if (request is not ApiKeyAuthRequest apiKeyRequest)
         {
             return null;
         }

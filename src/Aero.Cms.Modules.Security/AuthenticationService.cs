@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Services;
 using Aero.Models;
 using Aero.Models.Entities;
@@ -16,7 +17,7 @@ public sealed class AuthenticationService : IAuthenticationService
         _strategies = strategies;
     }
 
-    public async Task<AeroUser?> AuthenticateAsync(IAuthRequestModel request, CancellationToken cancellationToken = default)
+    public async Task<AeroUser?> AuthenticateAsync(ApiKeyAuthRequest request, CancellationToken cancellationToken = default)
     {
         // Try each strategy in order
         foreach (var strategy in _strategies)

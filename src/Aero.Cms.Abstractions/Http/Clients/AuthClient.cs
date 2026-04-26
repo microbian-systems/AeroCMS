@@ -24,10 +24,8 @@ public sealed class AuthClient(
         // Step 2: Exchange the API key for a JWT via /api/v1/jwt/token
         var result = await loginResult.BindAsync(async authResponse =>
         {
-            var tokenResult = await PostAsync<ApiKeyLoginRequest, JwtTokenResponse>(
-                $"{HttpConstants.ApiPrefix}jwt/token",
-                new ApiKeyLoginRequest(authResponse.ApiKey),
-                cancellationToken);
+            var tokenRequest = new ApiKeyAuthRequest(authResponse.ApiKey);
+            var tokenResult = await AuthWithApiKeyAsync(tokenRequest, cancellationToken);
 
             return tokenResult;
         });
@@ -35,15 +33,15 @@ public sealed class AuthClient(
         return result;
     }
 
-    public async Task<Result<JwtTokenResponse, AeroError>> LoginWithApiKeyAsync(
-        ApiKeyLoginRequest request,
+    public async Task<Result<JwtTokenResponse, AeroError>> AuthWithApiKeyAsync(
+        ApiKeyAuthRequest request,
         CancellationToken cancellationToken = default)
     {
-        return await PostAsync<ApiKeyLoginRequest, JwtTokenResponse>(
+        return await PostAsync<ApiKeyAuthRequest, JwtTokenResponse>(
             $"{HttpConstants.ApiPrefix}jwt/token", request, cancellationToken);
     }
 
-    public async Task<Result<JwtTokenResponse, AeroError>> RefreshAsync(
+    public async Task<Result<JwtTokenResponse, AeroError>> RefreshJwtTokenAsync(
         RefreshTokenRequest request,
         CancellationToken cancellationToken = default)
     {

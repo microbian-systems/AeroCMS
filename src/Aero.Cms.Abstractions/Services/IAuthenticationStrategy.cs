@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Models;
 using Aero.Models.Entities;
 
@@ -19,5 +20,5 @@ public interface IAuthenticationStrategy
     /// <param name="request">The authentication request.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The authenticated user or null if authentication fails.</returns>
-    Task<AeroUser?> AuthenticateAsync(IAuthRequestModel request, CancellationToken cancellationToken = default);
+    Task<AeroUser?> AuthenticateAsync(ApiKeyAuthRequest request, CancellationToken cancellationToken = default);
 }
