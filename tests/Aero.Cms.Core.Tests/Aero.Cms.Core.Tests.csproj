@@ -29,22 +29,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
-    <!-- Real project module assemblies for integration testing -->
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Infrastructure\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Security\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Security\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Infrastructure\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Analytics\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
   </ItemGroup>
 
 </Project>

@@ -316,11 +316,11 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.SiteMap\Aero.Cms.Modules.SiteMap.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Theming\Aero.Cms.Modules.Theming.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.WebOptimizer\Aero.Cms.Modules.WebOptimizer.csproj" />
-	  <ProjectReference Include="..\Modules\Analytics\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
-	  <ProjectReference Include="..\Modules\Infrastructure\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
-	  <ProjectReference Include="..\Modules\Infrastructure\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
-	  <ProjectReference Include="..\Modules\Security\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
-	  <ProjectReference Include="..\Modules\Security\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
   </ItemGroup>

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Aero.Auth.Services;
 using FluentAssertions;
 using NSubstitute;
+using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Core.Tests.Services;
 
 public class ApiKeyServiceTests
@@ -23,10 +24,13 @@ public class ApiKeyServiceTests
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
+        var factory = new LoggerFactory();
+        var log = factory.CreateLogger<ApiKeyService>();
+
         _dbContext = new AeroDbContext(options);
         _apiKeyFactory = Substitute.For<IApiKeyFactory>();
         _apiKeyGenerator = Substitute.For<IApiKeyGenerator>();
-        _service = new ApiKeyService(_dbContext, _apiKeyFactory, _apiKeyGenerator);
+        _service = new ApiKeyService(_dbContext, _apiKeyFactory, _apiKeyGenerator, log);
     }
 
     [After(Test)]

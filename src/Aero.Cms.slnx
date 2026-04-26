@@ -80,11 +80,11 @@
     <Project Path="Aero.Cms.Modules.Users/Aero.Cms.Modules.Users.csproj" Id="dcf96479-4111-449f-ae62-50dd93bd74c1" />
     <Project Path="Aero.Cms.Modules.WebOptimizer/Aero.Cms.Modules.WebOptimizer.csproj" Id="def8edd8-5697-461d-beb8-ff67e23d7f68" />
     <Project Path="Aero.Cms.Modules.WorkOS/Aero.Cms.Modules.WorkOS.csproj" Id="015567b9-7218-42e3-8b1a-e06133b7a2f2" />
-    <Project Path="Modules/Analytics/Aero.Cms.Modules.Analytics/Aero.Cms.Modules.Analytics.csproj" />
-    <Project Path="Modules/Infrastructure/Aero.Cms.Modules.Cache/Aero.Cms.Modules.Cache.csproj" />
-    <Project Path="Modules/Infrastructure/Aero.Cms.Modules.RateLimiting/Aero.Cms.Modules.RateLimiting.csproj" />
-    <Project Path="Modules/Security/Aero.Cms.Modules.Security/Aero.Cms.Modules.Security.csproj" />
-    <Project Path="Modules/Security/Aero.Cms.Modules.SimpleSecurity/Aero.Cms.Modules.SimpleSecurity.csproj" />
+    <Project Path="Aero.Cms.Modules.Analytics/Aero.Cms.Modules.Analytics.csproj" />
+    <Project Path="Aero.Cms.Modules.Cache/Aero.Cms.Modules.Cache.csproj" />
+    <Project Path="Aero.Cms.Modules.RateLimiting/Aero.Cms.Modules.RateLimiting.csproj" />
+    <Project Path="Aero.Cms.Modules.Security/Aero.Cms.Modules.Security.csproj" />
+    <Project Path="Aero.Cms.Modules.SimpleSecurity/Aero.Cms.Modules.SimpleSecurity.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="../tests/Aero.Cms.Core.Tests/Aero.Cms.Core.Tests.csproj" />
