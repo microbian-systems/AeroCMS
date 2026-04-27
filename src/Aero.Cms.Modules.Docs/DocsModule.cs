@@ -1,4 +1,3 @@
-using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Modules;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
@@ -7,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Aero.Cms.Core;
 using Marten;
 using Aero.Cms.Core.Entities;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Docs;
 

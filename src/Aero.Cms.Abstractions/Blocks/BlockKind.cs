@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>
 /// Defines the type discriminators for block types in the CMS.

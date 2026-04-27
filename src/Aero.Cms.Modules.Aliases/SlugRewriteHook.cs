@@ -1,7 +1,7 @@
 using Aero.Cms.Web.Core.Pipelines;
 using Microsoft.Extensions.Logging;
 
-namespace Aero.Cms.Modules.Rewrite;
+namespace Aero.Cms.Modules.Aliases;
 
 public class SlugRewriteHook(ILogger<SlugRewriteHook> logger) : IPageSaveHook
 {

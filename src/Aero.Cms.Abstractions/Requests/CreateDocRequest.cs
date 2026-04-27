@@ -1,6 +1,6 @@
 using Aero.Cms.Abstractions.Enums;
 
-namespace Aero.Cms.Modules.Pages.Requests;
+namespace Aero.Cms.Abstractions.Requests;
 
 [GenerateSerializer]
 [Alias("CreateDocRequest")]

@@ -1,4 +1,4 @@
-namespace Aero.Cms.Modules.Pages.Requests;
+namespace Aero.Cms.Abstractions.Requests;
 
 [GenerateSerializer]
 [Alias("CreateTagRequest")]

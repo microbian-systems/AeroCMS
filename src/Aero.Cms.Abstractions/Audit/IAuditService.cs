@@ -1,6 +1,4 @@
-namespace Aero.Cms.Core.Audit;
-
-using Aero.Core.Railway;
+namespace Aero.Cms.Abstractions.Audit;
 
 /// <summary>
 /// Interface for the audit logging service that records all CMS events.

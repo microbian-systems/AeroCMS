@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Aero.Cms.Core.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Common;
 
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>
 /// A flat "bag of properties" representing any block being edited

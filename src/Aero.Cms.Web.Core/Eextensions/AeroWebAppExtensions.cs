@@ -10,6 +10,7 @@ using Serilog.Extensions.Hosting;
 using Aero.EfCore.Extensions;
 using Aero.Core.Extensions;
 using Aero.Cms.Core.Extensions;
+using Aero.Modular;
 
 namespace Aero.Cms.Web.Core.Eextensions;
 

@@ -6,6 +6,7 @@ using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
 using Aero.AppServer;
 using Aero.AppServer.Startup;
+using Aero.Modular;
 using Aero.Secrets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

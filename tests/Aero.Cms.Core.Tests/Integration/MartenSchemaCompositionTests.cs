@@ -1,7 +1,5 @@
 ﻿using TUnit.Core;
-using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Modules;
-using Aero.Cms.Web.Core.Blocks;
 using Aero.EfCore.Extensions;
 using FluentAssertions;
 using Marten;
@@ -11,7 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Aero.Cms.Core;
+using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Extensions;
+using Aero.Modular;
 
 
 namespace Aero.Cms.Core.Tests.Integration;

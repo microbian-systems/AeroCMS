@@ -1,9 +1,8 @@
-using Aero.Cms.Core.Blocks.Layout;
-using Aero.Cms.Core;
-using Aero.Cms.Core.Blocks;
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 
-namespace Aero.Cms.Modules.Pages.Requests;
+namespace Aero.Cms.Abstractions.Requests;
 
 [GenerateSerializer]
 [Alias("CreatePageRequest")]

@@ -20,4 +20,10 @@
 
 
 
+  <ItemGroup>
+    <Folder Include="Areas\Content\Pages\" />
+  </ItemGroup>
+
+
+
 </Project>

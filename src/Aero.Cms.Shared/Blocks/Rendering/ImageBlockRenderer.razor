@@ -1,3 +1,4 @@
+@using Aero.Cms.Abstractions.Blocks
 @using Aero.Cms.Core.Blocks
 
 @if (Block != null)
@@ -19,5 +20,5 @@
 
 @code {
     [Parameter]
-    public Aero.Cms.Core.Blocks.ImageBlock? Block { get; set; }
+    public ImageBlock? Block { get; set; }
 }

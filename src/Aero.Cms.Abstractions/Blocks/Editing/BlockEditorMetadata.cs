@@ -1,4 +1,4 @@
- namespace Aero.Cms.Core.Blocks.Editing;
+ namespace Aero.Cms.Abstractions.Blocks.Editing;
 
 /// <summary>
 /// Provides metadata about a block type for the admin UI editor.

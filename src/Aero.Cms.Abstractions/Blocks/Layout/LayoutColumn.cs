@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Blocks.Layout;
+namespace Aero.Cms.Abstractions.Blocks.Layout;
 
 /// <summary>
 /// Represents a column within a layout region that holds block placements.

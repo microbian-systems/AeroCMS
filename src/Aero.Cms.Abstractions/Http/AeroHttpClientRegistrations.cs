@@ -1,14 +1,9 @@
-using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Http.Resilience;
-using Microsoft.Extensions.Options;
 
-namespace Aero.Cms.Core.Extensions;
+namespace Aero.Cms.Abstractions.Http;
 
 public static class AeroHttpClientExtensions
 {

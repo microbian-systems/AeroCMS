@@ -1,5 +1,5 @@
+using Aero.Cms.Abstractions.Events;
 using Microsoft.Extensions.Logging;
-using Aero.Cms.Events;
 using Wolverine;
 
 namespace Aero.Cms.Modules.Aliases.Handlers;

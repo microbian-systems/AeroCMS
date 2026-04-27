@@ -1,4 +1,4 @@
-namespace Aero.Cms.Marten.Identity;
+namespace Aero.Cms.Marten.Identity.Deprecated;
 
 // public class IdentityUser
 // {

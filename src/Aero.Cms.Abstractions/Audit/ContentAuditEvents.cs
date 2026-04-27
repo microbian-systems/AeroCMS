@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Audit;
+namespace Aero.Cms.Abstractions.Audit;
 
 /// <summary>
 /// Audit events for Page content operations.

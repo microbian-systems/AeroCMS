@@ -21,4 +21,8 @@
     <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <UpToDateCheckInput Remove="Areas\MyFeature\Pages\Page1.cshtml" />
+  </ItemGroup>
+
 </Project>

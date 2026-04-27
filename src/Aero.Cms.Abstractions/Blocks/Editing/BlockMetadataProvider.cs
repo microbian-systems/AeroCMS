@@ -1,10 +1,9 @@
-using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using Aero.Core.Entities;
 
-namespace Aero.Cms.Core.Blocks.Editing;
+namespace Aero.Cms.Abstractions.Blocks.Editing;
 
 /// <summary>
 /// Default implementation of <see cref="IBlockMetadataProvider"/> that provides

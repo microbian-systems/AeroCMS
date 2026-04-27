@@ -1,8 +1,9 @@
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core;
-using Aero.Cms.Core.Blocks;
-using Aero.Cms.Core.Blocks.Layout;
+
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Blog.Models;
@@ -13,8 +14,8 @@ using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
 using Aero.Services.Images;
 using Marten;
-using Aero.Cms.Web.Core.Blocks;
 using Aero.Cms.Modules.Modules.Services;
+using Aero.Cms.Modules.Setup.Bootstrap;
 
 namespace Aero.Cms.Modules.Setup;
 

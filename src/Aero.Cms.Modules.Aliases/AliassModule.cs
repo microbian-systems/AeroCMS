@@ -1,16 +1,14 @@
-﻿using Aero.Cms.Abstractions.Services;
-using Aero.Cms.Core;
+﻿using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Repositories;
-using Aero.Cms.Modules.Aliases;
-using Aero.Cms.Modules.Rewrite;
-using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Core.Pipelines;
+using Aero.Modular;
 using Marten;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+
+namespace Aero.Cms.Modules.Aliases;
 
 /// <summary>
 /// Site alias management module for handling URL aliases and redirects.
@@ -42,4 +40,3 @@ public class AliasModule : AeroModuleBase
         services.AddScoped<IPageSaveHook, SlugRewriteHook>();
     }
 }
-

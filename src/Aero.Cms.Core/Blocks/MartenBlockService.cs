@@ -1,8 +1,7 @@
 using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Core.Blocks;
 using Marten;
 
-namespace Aero.Cms.Web.Core.Blocks;
+namespace Aero.Cms.Core.Blocks;
 
 /// <summary>
 /// Marten-backed implementation of <see cref="IBlockService"/>.

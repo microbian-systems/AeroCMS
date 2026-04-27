@@ -1,8 +1,7 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using Aero.Cms.Core.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Common;
 
-namespace Aero.Cms.Core.Blocks.Serialization;
+namespace Aero.Cms.Abstractions.Blocks.Serialization;
 
 /// <summary>
 /// Source-generated JSON serializer context for AOT-compatible block serialization.

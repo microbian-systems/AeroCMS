@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>Column within a Columns block in the editor.</summary>
 public class EditorColumn

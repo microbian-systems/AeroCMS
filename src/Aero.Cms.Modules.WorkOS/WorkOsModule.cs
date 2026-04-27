@@ -1,16 +1,14 @@
 ﻿using Aero.Cms.Core;
-using Aero.Cms.Web.Core.Modules;
+using Aero.Core.Http;
+using Aero.Models.Entities;
+using Aero.Modular;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using WorkOS;
-using Wos = WorkOS;
-using WorkOS = global::WorkOS;
-using Aero.Models.Entities;
-using Aero.Core.Http;
 using Microsoft.Extensions.Logging;
-using Polly;
-using Serilog;
+using WorkOS;
+
+namespace Aero.Cms.Modules.WorkOS;
 
 public class WorkOsModule : AeroModuleBase
 {
@@ -36,7 +34,7 @@ public class WorkOsModule : AeroModuleBase
         var opts = new WorkOSOptions()
         {
             ApiKey = apiKey,
-            HttpClient = new HttpClient() // todo - should we setup workos client w/ our AeroHttpClient? 
+            HttpClient = new HttpClient() // todo - should we setup workos client w/ our AeroHttpClient?
         };
 
         try
@@ -48,7 +46,7 @@ public class WorkOsModule : AeroModuleBase
         }
         catch(Exception ex)
         {
-           log.Warning($"WorkOS Error: {ex.Message}");
+            log.Warning($"WorkOS Error: {ex.Message}");
         }
     }
 }

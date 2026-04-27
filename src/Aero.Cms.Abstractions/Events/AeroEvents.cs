@@ -1,7 +1,6 @@
-﻿using Aero.Core.Entities;
-using Aero.Models.Entities;
+﻿using Aero.Models.Entities;
 
-namespace Aero.Cms.Events;
+namespace Aero.Cms.Abstractions.Events;
 
 public abstract record AeroEvent(string message);
 

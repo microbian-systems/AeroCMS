@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Audit;
+namespace Aero.Cms.Abstractions.Audit;
 
 /// <summary>
 /// Base class for all CMS audit events containing common properties.

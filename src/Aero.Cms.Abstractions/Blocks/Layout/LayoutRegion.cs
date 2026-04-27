@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Blocks.Layout;
+namespace Aero.Cms.Abstractions.Blocks.Layout;
 
 /// <summary>
 /// Represents a content region within a page layout that contains a collection of columns.

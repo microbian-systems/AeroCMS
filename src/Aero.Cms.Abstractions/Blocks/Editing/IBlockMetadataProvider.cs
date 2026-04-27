@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Blocks.Editing;
+namespace Aero.Cms.Abstractions.Blocks.Editing;
 
 /// <summary>
 /// Defines the contract for providing block metadata to the admin UI.

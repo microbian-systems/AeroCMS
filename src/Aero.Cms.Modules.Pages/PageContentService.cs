@@ -1,13 +1,14 @@
-using Aero.Cms.Core.Blocks;
-using Aero.Cms.Core.Blocks.Common;
-using Aero.Cms.Core.Blocks.Layout;
+
 using Aero.Cms.Modules.Pages.Validators;
 using Aero.Core;
 using Aero.Core.Extensions;
 using Wolverine;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Events;
+using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Core.Railway;
 
@@ -22,8 +23,8 @@ public interface IPageContentService
     Task<Result<PageDocument?, AeroError>> LoadBlogListingAsync(CancellationToken cancellationToken = default);
     Task<Result<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>> GetAllPagesAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
-    Task<Result<PageDocument, AeroError>> CreateAsync(Requests.CreatePageRequest request, CancellationToken cancellationToken = default);
-    Task<Result<PageDocument, AeroError>> UpdateAsync(long id, Requests.UpdatePageRequest request, CancellationToken cancellationToken = default);
+    Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default);
+    Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default);
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
@@ -101,7 +102,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
         }
     }
 
-    public async Task<Result<PageDocument, AeroError>> CreateAsync(Requests.CreatePageRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default)
     {
         var page = new PageDocument
         {
@@ -131,7 +132,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
         return await SaveAsync(page, cancellationToken);
     }
 
-    public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, Requests.UpdatePageRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default)
     {
         var loadResult = await LoadAsync(id, cancellationToken);
         if (loadResult is Result<PageDocument?, AeroError>.Ok { Value: not null } ok)

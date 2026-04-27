@@ -24,6 +24,10 @@
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Areas\Optimizer\Pages\" />
+  </ItemGroup>
+
 
 
 </Project>

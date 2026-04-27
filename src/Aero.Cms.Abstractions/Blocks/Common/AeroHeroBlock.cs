@@ -1,7 +1,6 @@
-using Aero.Cms.Core.Blocks;
 using Microsoft.AspNetCore.Html;
 
-namespace Aero.Cms.Core.Blocks.Common;
+namespace Aero.Cms.Abstractions.Blocks.Common;
 
 /// <summary>
 /// A high-level Hero block based on Meraki UI components.

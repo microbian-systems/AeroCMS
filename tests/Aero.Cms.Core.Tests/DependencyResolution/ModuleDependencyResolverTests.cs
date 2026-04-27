@@ -1,8 +1,8 @@
 ﻿using TUnit.Core;
-using Aero.Cms.Core.Modules;
 using Aero.Cms.Core.Tests.Services;
 using Aero.Cms.Core.Tests.TestModules;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
 using FluentAssertions;
 
 namespace Aero.Cms.Core.Tests.DependencyResolution;

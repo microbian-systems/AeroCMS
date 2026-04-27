@@ -15,11 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Api\v1\BlogApiV2.cs" />
-    <None Include="Api\v1\PagesApiV2.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Scalar.AspNetCore.Microsoft" />
   </ItemGroup>
@@ -29,6 +24,19 @@
     <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Areas\Api\v1\BlogApiV2.cs" />
+    <None Include="Areas\Api\v1\PagesApiV2.cs" />
+    <Compile Remove="Areas\Api\v1\BlogApiV2.cs" />
+    <None Include="Areas\Api\v1\BlogApiV2.cs" />
+    <Compile Remove="Areas\Api\v1\PagesApiV2.cs" />
+    <None Include="Areas\Api\v1\PagesApiV2.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <UpToDateCheckInput Remove="Areas\MyFeature\Pages\Page1.cshtml" />
   </ItemGroup>
 
 

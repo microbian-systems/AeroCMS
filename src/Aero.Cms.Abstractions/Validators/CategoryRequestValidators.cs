@@ -1,4 +1,4 @@
-using Aero.Cms.Modules.Pages.Requests;
+using Aero.Cms.Abstractions.Requests;
 using FluentValidation;
 
 namespace Aero.Cms.Abstractions.Validators;

@@ -3,7 +3,7 @@ using Aero.Models.Entities;
 using Marten;
 using Microsoft.Extensions.Logging;
 
-namespace Aero.Cms.Repositories;
+namespace Aero.Cms.Data.Repositories;
 
 public class UserProfileRepository(IDocumentSession session, ILogger<UserProfileRepository> log)
     : GenericMartenRepository<AeroUserProfile>(session, log), IUserProfileRepository

@@ -1,8 +1,8 @@
-using Aero.Cms.Core.Blocks;
-using Aero.Cms.Core.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Common;
 using Marten;
 
-namespace Aero.Cms.Web.Core.Blocks;
+namespace Aero.Cms.Core.Blocks;
 
 /// <summary>
 /// Central Marten configuration for CMS block polymorphic serialization.

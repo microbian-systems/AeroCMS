@@ -1,3 +1,4 @@
+@using Aero.Cms.Abstractions.Blocks
 @using Aero.Cms.Core.Blocks
 
 @if (Block != null)
@@ -31,5 +32,5 @@
 
 @code {
     [Parameter]
-    public Aero.Cms.Core.Blocks.QuoteBlock? Block { get; set; }
+    public QuoteBlock? Block { get; set; }
 }

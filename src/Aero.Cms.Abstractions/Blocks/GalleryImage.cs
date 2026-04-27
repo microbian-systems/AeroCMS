@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>A single image in a gallery block.</summary>
 public class GalleryImage

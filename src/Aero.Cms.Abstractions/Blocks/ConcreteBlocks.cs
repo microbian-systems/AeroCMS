@@ -1,7 +1,7 @@
 using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>
 /// Represents a rich text content block with HTML content.

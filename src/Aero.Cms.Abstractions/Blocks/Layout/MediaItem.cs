@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Blocks.Layout;
+namespace Aero.Cms.Abstractions.Blocks.Layout;
 
 /// <summary>
 /// A lightweight representation of a media item for selection in the UI.

@@ -1,8 +1,6 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using Aero.Core.Railway;
 
-namespace Aero.Cms.Core.Blocks.Serialization;
+namespace Aero.Cms.Abstractions.Blocks.Serialization;
 
 /// <summary>
 /// Provides AOT-compatible JSON serialization for CMS blocks using System.Text.Json.

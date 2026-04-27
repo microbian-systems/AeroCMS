@@ -1,4 +1,3 @@
-using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Logging;
 using Aero.AppServer.Startup;
 using Aero.Secrets;
@@ -6,6 +5,7 @@ using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Reflection;
+using Aero.Modular;
 using TickerQ.DependencyInjection;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;

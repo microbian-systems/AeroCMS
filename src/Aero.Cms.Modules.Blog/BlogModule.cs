@@ -1,5 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
 using Aero.Services.Images;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;

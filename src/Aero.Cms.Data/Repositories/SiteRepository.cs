@@ -1,7 +1,7 @@
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries;
 using Aero.Cms.Data.Queries.Base;
-using Aero.Marten.Optional;
+using Aero.Marten;
 using JasperFx.Core;
 using Marten;
 using Marten.Linq;

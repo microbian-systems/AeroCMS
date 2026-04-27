@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Html;
 
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>
 /// Defines a visitor interface for rendering CMS blocks.

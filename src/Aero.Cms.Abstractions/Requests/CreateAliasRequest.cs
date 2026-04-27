@@ -1,6 +1,4 @@
-using Aero.Core.Requests;
-
-namespace Aero.Cms.Modules.Pages.Requests;
+namespace Aero.Cms.Abstractions.Requests;
 
 [GenerateSerializer]
 [Alias("CreateAliasRequest")]

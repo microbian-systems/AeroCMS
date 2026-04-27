@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Html;
 using Aero.Cms.Abstractions.Http.Clients;
+using Microsoft.AspNetCore.Html;
 
-namespace Aero.Cms.Core.Blocks.Common;
+namespace Aero.Cms.Abstractions.Blocks.Common;
 
 /// <summary>
 /// Defines the types of fields available in the form editor.

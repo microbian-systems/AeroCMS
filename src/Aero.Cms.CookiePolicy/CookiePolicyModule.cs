@@ -1,5 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
 
 namespace Aero.Cms.CookiePolicy;
 

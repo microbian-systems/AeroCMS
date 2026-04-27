@@ -1,5 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;

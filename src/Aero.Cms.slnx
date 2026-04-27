@@ -54,7 +54,6 @@
     <Project Path="Aero.Cms.Modules.LettuceEncrypt/Aero.Cms.Modules.LettuceEncrypt.csproj" Id="cc3a324f-ac46-44a2-bc29-6cb31abd4f59" />
     <Project Path="Aero.Cms.Modules.Localization/Aero.Cms.Modules.Localization.csproj" Id="0ff447b6-dc00-4aaa-a8f8-4bbbb842cd65" />
     <Project Path="Aero.Cms.Modules.Logging/Aero.Cms.Modules.Logging.csproj" Id="bc96530e-bcc4-4cd5-bf2e-88b83f3f6d11" />
-    <Project Path="Aero.Cms.Modules.Logs/Aero.Cms.Modules.Logs.csproj" Id="8c646c3d-ebea-481d-97d0-e3605a69fe3c" />
     <Project Path="Aero.Cms.Modules.MagicLink/Aero.Cms.Modules.MagicLink.csproj" Id="98fcf8bf-e77f-4579-a652-54c4d02f7d1e" />
     <Project Path="Aero.Cms.Modules.Mail/Aero.Cms.Modules.Mail.csproj" Id="ad0acf0d-b39d-401e-bf14-df7c773bf9c7" />
     <Project Path="Aero.Cms.Modules.Mailer/Aero.Cms.Modules.Mailer.csproj" Id="a8c18fe3-a232-4333-ab3a-5f563160ecfc" />

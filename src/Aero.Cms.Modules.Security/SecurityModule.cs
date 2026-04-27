@@ -1,7 +1,6 @@
 using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
-using Aero.Cms.Core.Modules;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Identity;
 using Aero.Models.Entities;
@@ -14,8 +13,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Aero.Auth.Services;
-using Aero.Common.Web.Infrastructure;
 using System.Security.Cryptography;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Security;
 

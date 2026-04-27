@@ -31,6 +31,10 @@
     <ProjectReference Include="..\Aero.Cms.Services\Aero.Cms.Services.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Areas\Tenants\Pages\" />
+  </ItemGroup>
+
 
 
 </Project>

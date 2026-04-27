@@ -1,6 +1,6 @@
 using Aero.Core.Entities;
 
-namespace Aero.Cms.Core;
+namespace Aero.Cms.Core.Models;
 
 /// <summary>
 /// Represents a system or application setting.

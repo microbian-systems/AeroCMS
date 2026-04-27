@@ -5,6 +5,7 @@ using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core.Entities;
 using Aero.Models.Entities;
 using Aero.Cms.Modules.Blog;
+using Aero.Cms.Modules.Modules.Services;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Setup;
@@ -151,8 +152,7 @@ public class SetupCompletionServiceTests
                 Substitute.For<IMessageBus>()),
             new MartenBlogPostContentService(harness.Session),
             Substitute.For<IStaticPhotosClient>(),
-            Substitute.For<IModuleDiscoveryService>(),
-            Substitute.For<IModuleStateStore>(),
+            Substitute.For<IModuleInitializationService>(),
             Substitute.For<IBootstrapCompletionWriter>(),
             tenantService,
             siteService,

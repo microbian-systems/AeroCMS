@@ -4,7 +4,6 @@ using Aero.Cms.Modules.Identity;
 using Aero.Cms.Modules.Cache;
 using Aero.Cms.Modules.Security;
 using Aero.Cms.Modules.SimpleSecurity;
-using Aero.Cms.Modules.Rewrite;
 using Aero.Cms.Modules.RateLimiting;
 using Aero.Cms.Modules.Analytics;
 using Aero.Cms.Web.Core.Modules;
@@ -16,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Aero.Cms.Core.Extensions;
+using Aero.Modular;
 
 namespace Aero.Cms.Core.Tests.Integration;
 

@@ -15,6 +15,10 @@
     <PackageReference Include="WorkOS.net" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Areas\WorkOS\Pages\" />
+  </ItemGroup>
+
 
 
 </Project>

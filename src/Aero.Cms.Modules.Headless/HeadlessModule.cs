@@ -1,5 +1,5 @@
 using Aero.Cms.Core;
-using Aero.Cms.Modules.Headless.Api.v1;
+using Aero.Cms.Modules.Headless.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;

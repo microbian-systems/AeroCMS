@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Html;
 
-namespace Aero.Cms.Core.Blocks.Common;
+namespace Aero.Cms.Abstractions.Blocks.Common;
 
 /// <summary>
 /// A block that allows injecting raw HTML, CSS, or JavaScript directly into the page.

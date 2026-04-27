@@ -1,10 +1,9 @@
 using System.Text.Json.Serialization;
+using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
-using Aero.Cms.Core.Blocks.Common;
-
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>
 /// Represents the base class for all CMS blocks with AOT-compatible polymorphic serialization.

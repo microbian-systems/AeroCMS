@@ -1,5 +1,5 @@
-﻿using TUnit.Core;
-using Aero.Cms.Core.Modules;
+﻿using Aero.Modular;
+using TUnit.Core;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,10 +1,8 @@
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Setup.Configuration;
 
-namespace Aero.Cms.Modules.Setup;
+namespace Aero.Cms.Modules.Setup.Bootstrap;
 
 public interface IBootstrapCompletionWriter
 {

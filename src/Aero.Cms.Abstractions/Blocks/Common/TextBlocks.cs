@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Html;
 
-namespace Aero.Cms.Core.Blocks.Common;
+namespace Aero.Cms.Abstractions.Blocks.Common;
 
 /// <summary>
 /// A block that renders content from Markdown text.

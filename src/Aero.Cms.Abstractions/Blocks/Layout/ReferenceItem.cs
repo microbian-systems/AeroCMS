@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Blocks.Layout;
+namespace Aero.Cms.Abstractions.Blocks.Layout;
 
 /// <summary>
 /// A simple reference item for picking pages, posts, categories, etc. in the UI.

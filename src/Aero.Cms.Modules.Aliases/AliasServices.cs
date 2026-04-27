@@ -1,5 +1,4 @@
-﻿using Aero.Marten.Optional;
-using FluentValidation;
+﻿using FluentValidation;
 using Marten;
 using Microsoft.Extensions.Logging;
 using Aero.Core.Railway;

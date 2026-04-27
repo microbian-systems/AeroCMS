@@ -11,4 +11,4 @@ global using Aero.Cms.Abstractions.Models;
 global using Aero.Core;
 global using Aero.Core.Railway;
 global using static Aero.Core.Railway.Prelude;
-global using IRequest = Aero.Core.Requests.IRequest;
+global using IRequest = Aero.Core.Commands.IRequest;

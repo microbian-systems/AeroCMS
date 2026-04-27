@@ -1,5 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

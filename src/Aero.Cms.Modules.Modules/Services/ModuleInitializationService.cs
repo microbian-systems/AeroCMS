@@ -1,5 +1,5 @@
 using Aero.Cms.Web.Core.Modules;
-using Aero.Cms.Core.Modules;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Modules.Services;
 
@@ -26,7 +26,7 @@ public sealed class ModuleInitializationService : IModuleInitializationService
         var descriptors = await _moduleDiscoveryService.DiscoverAsync(ct);
         
         // Convert descriptors to state documents, marking them as built-in for the initial seed
-        var moduleStates = descriptors.Select(d => ModuleStateDocument.FromDescriptor(d, isBuiltIn: true));
+        var moduleStates = descriptors.Select(d => ModuleDocument.FromDescriptor(d, isBuiltIn: true));
         
         // Persist the initial state to the database
         await _moduleStateStore.SaveAllAsync(moduleStates, ct);

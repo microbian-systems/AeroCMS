@@ -33,6 +33,10 @@
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Areas\Media\Pages\" />
+  </ItemGroup>
+
 
 
 </Project>

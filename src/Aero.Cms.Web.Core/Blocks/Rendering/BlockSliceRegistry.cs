@@ -1,7 +1,7 @@
+using Aero.Cms.Abstractions.Blocks;
 using Microsoft.AspNetCore.Html;
-using Aero.Cms.Core.Blocks;
 
-namespace Aero.Cms.Core.Web.Blocks.Rendering;
+namespace Aero.Cms.Web.Core.Blocks.Rendering;
 
 /// <summary>
 /// A singleton registry that manages block slice renderers and implements the visitor pattern

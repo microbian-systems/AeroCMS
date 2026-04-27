@@ -1,7 +1,4 @@
 using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Core.Modules;
-using Aero.Cms.Web.Core.Blocks;
-using Aero.Cms.Web.Core.Modules;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -10,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Aero.Cms.Core.Blocks;
+using Aero.Modular;
 
 namespace Aero.Cms.Core.Extensions;
 

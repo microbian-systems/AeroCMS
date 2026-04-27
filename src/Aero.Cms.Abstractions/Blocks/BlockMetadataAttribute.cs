@@ -1,4 +1,4 @@
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>
 /// Marks a block type for registration in the CMS block system.

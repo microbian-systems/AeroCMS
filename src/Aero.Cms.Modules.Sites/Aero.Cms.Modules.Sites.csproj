@@ -18,4 +18,8 @@
     <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Areas\Sites\Pages\" />
+  </ItemGroup>
+
 </Project>

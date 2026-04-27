@@ -1,7 +1,7 @@
 using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
-namespace Aero.Cms.Core.Blocks.Common;
+namespace Aero.Cms.Abstractions.Blocks.Common;
 
 /// <summary>
 /// Displays a rotating carousel of images.

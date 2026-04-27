@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Html;
 
-namespace Aero.Cms.Core.Blocks;
+namespace Aero.Cms.Abstractions.Blocks;
 
 /// <summary>
 /// Defines the contract for a CMS block that can be visited and rendered.

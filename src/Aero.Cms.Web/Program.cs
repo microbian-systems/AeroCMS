@@ -18,6 +18,8 @@ using Serilog;
 using Serilog.Events;
 using System.IO;
 using System.Text.Json;
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Http;
 
 
 // Implements a two-stage startup pattern:
@@ -246,7 +248,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     services.AddRazorPages()
         .AddApplicationPart(typeof(SetupModule).Assembly)
         .AddApplicationPart(typeof(Aero.Cms.Modules.Docs.DocsModule).Assembly)
-        .AddApplicationPart(typeof(Aero.Cms.Core.Blocks.BlockBase).Assembly);
+        .AddApplicationPart(typeof(BlockBase).Assembly);
 
     services.AddRazorComponents()
         .AddInteractiveServerComponents()

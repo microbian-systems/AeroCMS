@@ -1,8 +1,9 @@
 ﻿
 
 using Aero.Actors;
+using Aero.Cms.Abstractions.Interfaces;
 
-namespace Aero.Cms.Abstractions.Interfaces;
+namespace Aero.Cms.Abstractions.Actors;
 
 public interface IAeroAliasActor : IAeroCmsContentActor<AliasViewModel>;
 public interface IAeroAuthorActor : IAeroCmsContentActor<AuthorViewModel>;
