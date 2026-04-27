@@ -12,6 +12,7 @@ using Aero.Cms.Core;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Extensions;
 using Aero.Modular;
+using Aero.Cms.Modules.Modules.Services;
 
 
 namespace Aero.Cms.Core.Tests.Integration;
@@ -50,8 +51,11 @@ public class MartenSchemaCompositionTests
         var environment = new FakeHostEnvironment();
 
         // Simulate what AddAeroModulesAsync does:
-        // 1. Register module system services (includes BlockMartenConfiguration)
+        // 1. Register block services (Marten serialization config)
+        services.AddBlockSystemServices();
+        // 2. Register module system services
         services.AddModuleSystemServices();
+    
         
         // 2. Register a test module that contributes IConfigureMarten (simulating DocsModule)
         services.AddSingleton<IAeroModule, TestMartenModule>();
@@ -105,6 +109,7 @@ public class MartenSchemaCompositionTests
         var environment = new FakeHostEnvironment();
 
         // Simulate full startup chain up to where AddAeroDataLayer() should be
+        services.AddBlockSystemServices();
         services.AddModuleSystemServices();
         services.AddSingleton<IAeroModule, TestMartenModule>();
         
@@ -181,6 +186,7 @@ public class MartenSchemaCompositionTests
         var configuration = new ConfigurationBuilder().Build();
         var environment = new FakeHostEnvironment();
 
+        services.AddBlockSystemServices();
         services.AddModuleSystemServices();
         services.AddSingleton<IAeroModule, TestMartenModule>();
         

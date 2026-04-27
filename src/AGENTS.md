@@ -26,7 +26,9 @@
     - alpinejs
     - preact
 
-## Architectural Patterns
+## Coding / Architectural Patterns
+- Use GoF patterns and SOLID
+    - Make use of Decorator, Visitor, Strategy, Observer and Factories abundantly but only where it makes sense to doo so
 - Entity : IEntity<long>; for database entities
     - IEntity<long> { long Id { get; set; } }
     - using Snowflake to assign IDs (Snowflake.NewId())
@@ -36,6 +38,9 @@
     - `Option<T>`
     - `Bind<T>`
     - `Map<T>`
+- Make use of DDD "lite" 
+    - We don't need to go all in but use the basics and foundations to help with clean architecture
+
 
 ## Testing
 - **Unit Testing**: TUnit
@@ -43,14 +48,22 @@
 - **Integration Testing Resource**: Investigate using [mysticmind-postgresembed](https://github.com/mysticmind/mysticmind-postgresembed) for embedded Postgres in tests.
 - Use Alba for any asp.net core integration testing
 - Use nsubstitute, autofixture and fakeiteasy for mocking (mainly nsubstitute, fakeiteasy when beneficial)
-- Use TUnit for unit testing
+- Use TUnit for unit testing ()
 - Use nuget pkg bogus for fake data
 - use embedded postgres for testing: 
     - https://github.com/mysticmind/mysticmind-postgresembed 
 
+
+## Git Submodules 
+- the ./Aero dir is a git submodule and requires its own Directory.Build.props and Directory.Packages.props
+
+
 ## Constraints & Rules
 - DO NOT COMMIT Changes to git unless explicitly told to do so
 - **DO NOT USE NPM**. All frontend dependencies should align with the CDN usage or libman`Microsoft.Typescript.Build` constraints.
+- Testing Constraints
+    - Do not use Moq
+    - Do not use XUnit, NUnit, MSTest unless explicitly directed to do so
 - Project includes a .NET MAUI hybrid web and mobile setup (newly created).
 - All APIs should make use of minimal apis over mvc
 - Avoid using Guids for primary keys, use Snowflake instead (where possible)

@@ -1,32 +1,22 @@
-using Aero.Cms.Abstractions.Blocks;
+using Aero.Modular;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-using Aero.Cms.Core.Blocks;
-using Aero.Modular;
-
-namespace Aero.Cms.Core.Extensions;
-
+namespace Aero.Cms.Modules.Modules.Services;
 
 /// <summary>
 /// Extension methods for module registration and initialization in ASP.NET Core applications.
 /// </summary>
-public static class CmsModuleExtensions
+public static class ModuleOrchestrationExtensions
 {
     /// <summary>
     /// Registers core module system services (discovery, graph, etc.)
     /// </summary>
     public static IServiceCollection AddModuleSystemServices(this IServiceCollection services)
     {
-        // Register block service
-        services.TryAddScoped<IBlockService, MartenBlockService>();
-        services.AddSingleton<global::Marten.IConfigureMarten, BlockMartenConfiguration>();
-
         // Register discovery service
         services.TryAddScoped<IModuleDiscoveryService, ModuleDiscoveryService>();
 
@@ -48,6 +38,9 @@ public static class CmsModuleExtensions
         IConfiguration config,
         IHostEnvironment env) => services.AddAeroModulesAsync(config, env).GetAwaiter().GetResult();
 
+    /// <summary>
+    /// Alias for <see cref="AddAeroModules"/>.
+    /// </summary>
     public static IServiceCollection AddAeroCmsModules(
         this IServiceCollection services,
         IConfiguration config,
@@ -122,8 +115,6 @@ public static class CmsModuleExtensions
         }
 
         // Now that all modules are registered, build a provider to get instances
-        // Note: This is still needed because modules need to be instantiated to call Configure
-        // However, we do it AFTER registration in the correct order, avoiding the ordering issues
         await using var moduleProvider = services.BuildServiceProvider();
 
         // Execute Configure on each module in dependency order
@@ -201,32 +192,5 @@ public static class CmsModuleExtensions
         }
     }
 
-
-    // Helper methods to get specific module types
-    public static IEnumerable<T> GetModules<T>(this IServiceProvider provider)
-        where T : IAeroModule
-    {
-        return provider.GetServices<T>().OrderBy(m => m.Order);
-    }
-
-    public static IEnumerable<IUiModule> GetUiModules(this IServiceProvider provider)
-        => provider.GetModules<IUiModule>();
-
-    public static IEnumerable<IApiModule> GetApiModules(this IServiceProvider provider)
-        => provider.GetModules<IApiModule>();
-
-    public static IEnumerable<IBackgroundModule> GetBackgroundModules(this IServiceProvider provider)
-        => provider.GetModules<IBackgroundModule>();
-
-    public static IEnumerable<IThemeModule> GetThemeModules(this IServiceProvider provider)
-        => provider.GetModules<IThemeModule>();
-
-    public static IEnumerable<IAdminModule> GetAdminModules(this IServiceProvider provider)
-        => provider.GetModules<IAdminModule>();
-
-    public static IEnumerable<IFilterModule> GetFilterModules(this IServiceProvider provider)
-        => provider.GetModules<IFilterModule>();
-
-    public static IEnumerable<IContentDefinitionModule> GetContentDefinitionModules(this IServiceProvider provider)
-        => provider.GetModules<IContentDefinitionModule>();
 }
+

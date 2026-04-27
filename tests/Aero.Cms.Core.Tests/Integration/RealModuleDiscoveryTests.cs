@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Aero.Cms.Core.Extensions;
+using Aero.Cms.Modules.Modules.Services;
 using Aero.Modular;
 
 namespace Aero.Cms.Core.Tests.Integration;

@@ -10,6 +10,7 @@ using Serilog.Extensions.Hosting;
 using Aero.EfCore.Extensions;
 using Aero.Core.Extensions;
 using Aero.Cms.Core.Extensions;
+using Aero.Cms.Modules.Modules.Services;
 using Aero.Modular;
 
 namespace Aero.Cms.Web.Core.Eextensions;
@@ -56,6 +57,7 @@ public static class AeroWebAppExtensions
         _ = config.AddConfiguration<T>(env);
         var log = await services.ConfigureLogging(config);
 
+        services.AddBlockSystemServices();
         services.AddModuleSystemServices();
         await services.AddAeroModulesAsync(config, env);
         services.AddAeroDataLayer(config, env);

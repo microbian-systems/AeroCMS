@@ -44,6 +44,7 @@
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />
   </ItemGroup>
 
 </Project>

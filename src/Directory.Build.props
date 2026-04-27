@@ -32,7 +32,7 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
 
-	<ItemGroup Condition="'$(MSBuildProjectName)' != 'Aero.Cms.Web.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Core' AND ($(MSBuildProjectName.StartsWith('Aero.Cms.Modules')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.Banners')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.CookiePolicy')))">
+	<ItemGroup Condition="'$(MSBuildProjectName)' != 'Aero.Cms.Web.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Modules.Modules' AND ($(MSBuildProjectName.StartsWith('Aero.Cms.Modules')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.Banners')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.CookiePolicy')))">
 		<ProjectReference Include="$(MSBuildThisFileDirectory)Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 	</ItemGroup>
 </Project>
