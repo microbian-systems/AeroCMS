@@ -56,7 +56,6 @@ public sealed class SetupModule : AeroModuleBase
         services.TryAddSingleton<IEnvironmentAppSettingsWriter, EnvironmentAppSettingsWriter>();
         services.TryAddSingleton<InfisicalBootstrapSettingsProvider>();
         services.TryAddSingleton<IDataProtectionCertificateSettingsProvider, ConfigurationDataProtectionCertificateSettingsProvider>();
-        services.TryAddTransient<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();
         services.TryAddSingleton<IBootstrapStateProvider, AppSettingsBootstrapStateProvider>();
         services.TryAddScoped<ISetupInitializationService, SetupInitializationService>();
         services.TryAddScoped<IDatabaseBootstrapService, DatabaseBootstrapService>();
@@ -69,7 +68,6 @@ public sealed class SetupModule : AeroModuleBase
         services.TryAddSingleton<ISecretManager>(sp => DataProtectionCertificateBootstrapper.CreateSecretManager(sp.GetService<IConfiguration>()));
 
         services.AddTransient<IStartupFilter, SetupStatusStartupFilter>();
-        services.AddAeroCaching(false);
 
         if (runtimeMode)
         {
@@ -78,6 +76,7 @@ public sealed class SetupModule : AeroModuleBase
             services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
             services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
             services.TryAddTransient<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();
+            services.AddAeroCaching(false);
         }
     }
 

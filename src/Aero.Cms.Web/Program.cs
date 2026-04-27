@@ -4,7 +4,6 @@ using Aero.Cms.Modules.Identity;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Web.Services;
-using Aero.Cms.Web.Setup;
 using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Core.Extensions;
@@ -173,7 +172,7 @@ static BootstrapState GetBootstrapState(IConfiguration config)
 
 static async Task RunSetupAppAsync(string[] args, IConfiguration earlyConfig)
 {
-    var setupApp = await SetupWebApplication.CreateAsync(args, earlyConfig);
+    var setupApp = await SetupAppFactory.CreateSetupAppAsync(args, earlyConfig);
 
     await setupApp.StartAsync();
 

@@ -1,19 +1,18 @@
 using Aero.AppServer.Startup;
-using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Secrets;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Radzen;
 using Serilog;
 
-namespace Aero.Cms.Web.Setup;
-
-
-// todo - move this (SetupWebApplication.cs) to the aero.cms.modules.setup csproj
+namespace Aero.Cms.Modules.Setup;
 
 /// <summary>
 /// Factory class for creating the setup-specific WebApplication with minimal services.
@@ -22,8 +21,10 @@ namespace Aero.Cms.Web.Setup;
 /// This factory creates a lightweight WebApplication that runs during the setup phase.
 /// It includes only the services needed for the setup UI and configuration persistence,
 /// without the full runtime services (Marten, Orleans, Identity, etc.).
+/// Service registration is delegated to <see cref="SetupModule.ConfigureServices"/>
+/// to eliminate duplication — configure in one place.
 /// </remarks>
-public static class SetupWebApplication
+public static class SetupAppFactory
 {
     /// <summary>
     /// Creates and configures a setup-specific WebApplication.
@@ -31,7 +32,7 @@ public static class SetupWebApplication
     /// <param name="args">Command line arguments.</param>
     /// <param name="earlyConfig">Early configuration for bootstrap state checking.</param>
     /// <returns>Configured WebApplication ready to start.</returns>
-    public static async Task<WebApplication> CreateAsync(string[] args, IConfiguration earlyConfig)
+    public static async Task<WebApplication> CreateSetupAppAsync(string[] args, IConfiguration earlyConfig)
     {
         var webProjectPath = AppSettingsPathResolver.GetWebProjectPath();
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -77,13 +78,14 @@ public static class SetupWebApplication
             options.Secure = CookieSecurePolicy.SameAsRequest;
         });
 
-
-
         // Add HTTP context accessor for setup operations
         services.AddHttpContextAccessor();
 
-        // Register bootstrap-safe setup services
-        RegisterBootstrapServices(services, config);
+        // Register all bootstrap-safe setup services via SetupModule.
+        // This avoids duplicating the 12+ registrations that were previously
+        // in RegisterBootstrapServices() — configure in one source of truth.
+        var setupModule = new SetupModule();
+        setupModule.ConfigureServices(services, config, env);
 
         // Configure minimal middleware pipeline
         var app = builder.Build();
@@ -104,39 +106,6 @@ public static class SetupWebApplication
             .PersistKeysToFileSystem(new DirectoryInfo(settings.KeyRingPath))
             .ProtectKeysWithCertificate(certificate)
             .SetApplicationName(settings.ApplicationName);
-    }
-
-    /// <summary>
-    /// Registers bootstrap-safe services that don't require runtime dependencies.
-    /// </summary>
-    private static void RegisterBootstrapServices(IServiceCollection services, IConfiguration config)
-    {
-        // Configuration and state providers
-        services.AddSingleton<IConfiguration>(config);
-        services.AddSingleton<IBootstrapStateProvider, AppSettingsBootstrapStateProvider>();
-        services.AddSingleton<IEnvironmentAppSettingsWriter, EnvironmentAppSettingsWriter>();
-        services.AddSingleton<IDataProtectionCertificateSettingsProvider, ConfigurationDataProtectionCertificateSettingsProvider>();
-        services.AddSingleton<InfisicalBootstrapSettingsProvider>();
-
-        // Secret management
-        services.AddSingleton<ISecretManager>(sp =>
-            DataProtectionCertificateBootstrapper.CreateSecretManager(sp.GetService<IConfiguration>()));
-
-        // Bootstrap services
-        services.AddScoped<IDatabaseBootstrapService, DatabaseBootstrapService>();
-        services.AddScoped<ICacheBootstrapService, CacheBootstrapService>();
-        services.AddScoped<IBootstrapPendingSetupRequestStore, BootstrapPendingSetupRequestStore>();
-        services.AddScoped<IBootstrapCompletionWriter, BootstrapCompletionWriter>();
-
-        // Setup handoff service - triggers shutdown after setup completion
-        services.AddScoped<ISetupBootstrapHandoffService, SetupBootstrapHandoffService>();
-
-        // Setup initialization service
-        services.AddScoped<ISetupInitializationService, SetupInitializationService>();
-
-        // Setup allowlist for path gating
-        services.AddSingleton<SetupPathAllowlist>();
-        services.AddTransient<SetupGateMiddleware>();
     }
 
     /// <summary>
@@ -168,7 +137,7 @@ public static class SetupWebApplication
         // Map Razor Components.
         // NOTE: Do NOT call AddAdditionalAssemblies with SetupRoot's own assembly —
         // MapRazorComponents already registers the root component's assembly automatically.
-        app.MapRazorComponents<Aero.Cms.Modules.Setup.Areas.Setup.Pages.SetupRoot>()
+        app.MapRazorComponents<Areas.Setup.Pages.SetupRoot>()
             .AddInteractiveServerRenderMode();
     }
 }
