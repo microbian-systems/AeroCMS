@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />

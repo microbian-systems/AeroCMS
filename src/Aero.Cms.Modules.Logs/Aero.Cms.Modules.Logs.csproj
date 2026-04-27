@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
   </PropertyGroup>
 
@@ -8,9 +11,6 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
-  </ItemGroup>
+
 
 </Project>

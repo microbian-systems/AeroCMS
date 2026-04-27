@@ -8,6 +8,7 @@ using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Web.Core.Blocks;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Cms.Modules.Modules.Services;
 using Aero.Core.Data;
 using Aero.MartenDB.Identity;
 using Aero.EfCore;
@@ -68,22 +69,23 @@ public sealed class ServerTargetSetupExecutor(
         var userStore = CreateUserStore(session, rootServiceProvider);
         var userManager = CreateUserManager(userStore, rootServiceProvider);
         var identityBootstrapper = new SetupIdentityBootstrapper(userManager);
-        var moduleStateStore = new ModuleStateStore(session);
+        
         var staticPhotosClient = rootServiceProvider.GetRequiredService<IStaticPhotosClient>();
-        var moduleDiscoveryService = rootServiceProvider.GetRequiredService<IModuleDiscoveryService>();
-
         var tenantService = rootServiceProvider.GetRequiredService<ITenantService>();
         var siteService = rootServiceProvider.GetRequiredService<ISiteService>();
         var apiKeyService = rootServiceProvider.GetRequiredService<IApiKeyService>();
 
+        var moduleInitializationService = new ModuleInitializationService(
+            rootServiceProvider.GetRequiredService<IModuleDiscoveryService>(),
+            new ModuleStateStore(session));
+            
         var seedService = new SeedDatabaseService(
             session,
             identityBootstrapper,
             pageContentService,
             blogPostContentService,
             staticPhotosClient,
-            moduleDiscoveryService,
-            moduleStateStore,
+            moduleInitializationService,
             bootstrapCompletionWriter,
             tenantService,
             siteService,

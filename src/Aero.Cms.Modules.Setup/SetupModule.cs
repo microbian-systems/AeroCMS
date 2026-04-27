@@ -43,7 +43,7 @@ public sealed class SetupModule : AeroModuleBase
         ["website"] = new Uri($"https://aerocms.io/modules/{nameof(SetupModule)}")
     };
 
-public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         var bootstrapState = new AppSettingsBootstrapStateProvider(config ?? new ConfigurationBuilder().Build()).GetState();
         var runtimeMode = bootstrapState.IsConfiguredMode || bootstrapState.IsRunningMode;
@@ -76,13 +76,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             services.TryAddScoped<ISetupStateStore, MartenSetupStateStore>();
             services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
             services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
-            services.TryAddScoped<IModuleStateStore, ModuleStateStore>();
-            services.TryAddScoped<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();
-        }
-        else
-        {
-            // In bootstrap mode, we can't activate runtime in-process because Identity/Marten aren't available
-            // The setup POST will persist config and require a restart
+            services.TryAddTransient<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();
         }
     }
 

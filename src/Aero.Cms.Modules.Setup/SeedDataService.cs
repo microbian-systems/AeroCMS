@@ -14,6 +14,7 @@ using Aero.Core;
 using Aero.Services.Images;
 using Marten;
 using Aero.Cms.Web.Core.Blocks;
+using Aero.Cms.Modules.Modules.Services;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -74,8 +75,7 @@ public sealed class SeedDatabaseService(
     IPageContentService pageContentService,
     IBlogPostContentService blogPostContentService,
     IStaticPhotosClient staticPhotosClient,
-    IModuleDiscoveryService moduleDiscoveryService,
-    IModuleStateStore moduleStateStore,
+    IModuleInitializationService moduleInitializationService,
     IBootstrapCompletionWriter bootstrapCompletionWriter,
     ITenantService tenantService,
     ISiteService siteService,
@@ -280,9 +280,7 @@ public sealed class SeedDatabaseService(
 
     private async Task SaveModuleStateAsync(CancellationToken cancellationToken)
     {
-        var descriptors = await moduleDiscoveryService.DiscoverAsync(cancellationToken);
-        var moduleStates = descriptors.Select(d => ModuleStateDocument.FromDescriptor(d, isBuiltIn: true));
-        await moduleStateStore.SaveAllAsync(moduleStates, cancellationToken);
+        await moduleInitializationService.InitializeModulesAsync(cancellationToken);
     }
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SeedDatabaseRequest request)
