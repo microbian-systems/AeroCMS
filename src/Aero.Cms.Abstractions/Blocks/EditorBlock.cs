@@ -9,7 +9,8 @@ namespace Aero.Cms.Abstractions.Blocks;
 /// </summary>
 public class EditorBlock
 {
-    // todo - switch block editor ids to long (snowflake)
+    // Note: EditorId is a client-side in-memory identifier for the editor canvas.
+    // Guid is sufficient here — avoids AOT issues with Process.GetCurrentProcess() in Snowflake.
     public string EditorId { get; set; } = Guid.NewGuid().ToString();
     public string Type     { get; set; } = string.Empty;
 

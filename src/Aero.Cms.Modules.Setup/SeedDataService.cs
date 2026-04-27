@@ -366,6 +366,11 @@ public sealed class SeedDatabaseService(
                 SeoTitle = $"{Normalize(request.HomepageTitle)} | {Normalize(request.SiteName)}",
                 SeoDescription = $"Welcome to {Normalize(request.SiteName)}. A modern CMS built on .NET 10, Marten, and Microsoft Orleans.",
                 HeaderImageUrl = "/assets/hero-01.svg",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "text", Content = Normalize(request.HomepageTitle) },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                },
                 LayoutRegions =
                 [
                     new LayoutRegion
@@ -419,6 +424,11 @@ public sealed class SeedDatabaseService(
                 Summary = $"Updates and field notes from {Normalize(request.SiteName)}.",
                 SeoTitle = $"{Normalize(request.BlogName)} | {Normalize(request.SiteName)}",
                 SeoDescription = $"Read the latest posts from {Normalize(request.SiteName)}.",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "text", Content = Normalize(request.BlogName) },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                },
                 LayoutRegions =
                 [
                     new LayoutRegion
@@ -473,6 +483,11 @@ public sealed class SeedDatabaseService(
                 Summary = "Learn more about our mission and the team behind the platform.",
                 SeoTitle = "About Us | Aero CMS",
                 SeoDescription = "Discover our story, mission, and commitment to building great digital experiences.",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "text", Content = "About Us" },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                },
                 LayoutRegions =
                 [
                     new LayoutRegion
@@ -534,6 +549,12 @@ public sealed class SeedDatabaseService(
                 Summary = "Get in touch with our team.",
                 SeoTitle = "Contact Us | Aero CMS",
                 SeoDescription = "Have questions? We'd love to hear from you. Send us a message today.",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "text", Content = "Contact Us" },
+                    new() { Type = "content", Content = bodyBlock.Content },
+                    new() { Type = "aero_cta", MainText = ctaBlock.Text, CtaText = ctaBlock.Text, CtaUrl = ctaBlock.Url }
+                },
                 LayoutRegions =
                 [
                     new LayoutRegion
