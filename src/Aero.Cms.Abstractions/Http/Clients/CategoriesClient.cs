@@ -56,7 +56,7 @@ public class CategoriesHttpClient(HttpClient httpClient, ILogger<CategoriesHttpC
     : AeroCmsClientBase(httpClient, logger), ICategoriesHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "categories";
+    public override string Path => "admin/categories";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<CategorySummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

@@ -43,7 +43,7 @@ public class BlocksHttpClient(HttpClient httpClient, ILogger<BlocksHttpClient> l
     : AeroCmsClientBase(httpClient, logger), IBlocksHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "blocks";
+    public override string Path => "admin/blocks";
 
     /// <inheritdoc />
     public Task<Result<BlockBase, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)

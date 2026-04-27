@@ -19,7 +19,7 @@ public static class SettingsApi
     /// </summary>
     public static void MapSettingsApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/settings")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/settings")
             .WithTags("Admin - Settings");
 
         group.MapGet("/", GetAllSettings)

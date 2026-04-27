@@ -32,7 +32,7 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
     : AeroCmsClientBase(httpClient, logger), IPreviewHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "preview";
+    public override string Path => "admin/preview";
 
     /// <inheritdoc />
     public Task<Result<object, AeroError>> PreviewPageAsync(long id, CancellationToken ct = default)

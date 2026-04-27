@@ -20,7 +20,7 @@ public static class TagsApi
     /// </summary>
     public static void MapTagsApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/tags")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/tags")
             .WithTags("Admin - Tags");
 
         group.MapGet("/", GetAllTags)

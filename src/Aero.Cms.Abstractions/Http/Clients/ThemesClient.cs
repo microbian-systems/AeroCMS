@@ -62,7 +62,7 @@ public class ThemesHttpClient(HttpClient httpClient, ILogger<ThemesHttpClient> l
     : AeroCmsClientBase(httpClient, logger), IThemesHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "themes";
+    public override string Path => "admin/themes";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<ThemeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

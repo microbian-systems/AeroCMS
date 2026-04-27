@@ -21,7 +21,7 @@ public static class UsersApi
     /// </summary>
     public static void MapUsersApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/users")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/users")
             .WithTags("Admin - Users");
 
         group.MapGet("/", GetAllUsers)

@@ -25,7 +25,7 @@ public static class MediaApi
     /// </summary>
     public static void MapMediaApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/media")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/media")
             .WithTags("Admin - Media");
 
         group.MapPost("/folder", CreateFolder)

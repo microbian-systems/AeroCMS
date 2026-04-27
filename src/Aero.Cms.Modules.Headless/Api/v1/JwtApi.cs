@@ -18,7 +18,7 @@ public static class JwtApi
 {
     public static void MapJwtApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/jwt")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}jwt")
             .WithTags("Headless - Bearer Auth");
 
         group.MapPost("/token", CreateToken)

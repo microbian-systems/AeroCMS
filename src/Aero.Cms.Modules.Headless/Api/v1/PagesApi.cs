@@ -19,7 +19,7 @@ public static class PagesApi
     /// </summary>
     public static void MapPagesApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/pages")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/pages")
             .WithTags("Admin - Pages");
 
         group.MapGet("/", ListPages)
@@ -147,7 +147,7 @@ public static class PagesApi
             var result = await pageService.CreateAsync(moduleRequest, cancellationToken);
             if (result is Result<PageDocument, AeroError>.Ok ok)
             {
-                return TypedResults.Created($"/api/v1/admin/pages/{ok.Value.Id}", MapToDetail(ok.Value));
+                return TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/pages/{ok.Value.Id}", MapToDetail(ok.Value));
             }
 
             if (result is Result<PageDocument, AeroError>.Failure failure)

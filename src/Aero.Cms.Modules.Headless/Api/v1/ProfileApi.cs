@@ -20,7 +20,7 @@ public static class ProfileApi
     /// </summary>
     public static void MapProfileApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/profile")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/profile")
             .WithTags("Admin - Profile");
 
         group.MapGet("/", GetProfile)

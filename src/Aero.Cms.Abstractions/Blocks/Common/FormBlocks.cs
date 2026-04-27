@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Html;
+using Aero.Cms.Abstractions.Http.Clients;
 
 namespace Aero.Cms.Core.Blocks.Common;
 
@@ -79,7 +80,7 @@ public sealed class FormEditorBlock : BlockBase
     /// <summary>
     /// Gets or sets the target API endpoint for the form submission.
     /// </summary>
-    public string ActionUrl { get; set; } = "/api/v1/forms/submit";
+    public string ActionUrl { get; set; } = $"/{HttpConstants.ApiPrefix}forms/submit";
 
     /// <summary>
     /// Gets or sets whether a captcha should be displayed and validated for this form.

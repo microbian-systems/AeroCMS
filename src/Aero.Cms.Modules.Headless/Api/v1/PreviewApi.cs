@@ -17,11 +17,11 @@ public static class PreviewApi
     /// </summary>
     public static void MapPreviewApi(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/admin/preview/pages/{id:long}", PreviewPage)
+        app.MapGet($"/{HttpConstants.ApiPrefix}admin/preview/pages/{{id:long}}", PreviewPage)
             .WithName("PreviewPage")
             .WithTags("Admin - Preview");
 
-        app.MapGet("/api/v1/admin/preview/blog-posts/{id:long}", PreviewBlogPost)
+        app.MapGet($"/{HttpConstants.ApiPrefix}admin/preview/blog-posts/{{id:long}}", PreviewBlogPost)
             .WithName("PreviewBlogPost")
             .WithTags("Admin - Preview");
     }

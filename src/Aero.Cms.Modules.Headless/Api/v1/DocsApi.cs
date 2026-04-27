@@ -12,7 +12,7 @@ public static class DocsApi
 {
     public static void MapDocsApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/docs")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/docs")
             .WithTags("Admin - Docs");
 
         group.MapGet("/", ListDocs);

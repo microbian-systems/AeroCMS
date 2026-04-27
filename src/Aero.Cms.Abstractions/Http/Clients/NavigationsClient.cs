@@ -56,7 +56,7 @@ public class NavigationsHttpClient(HttpClient httpClient, ILogger<NavigationsHtt
     : AeroCmsClientBase(httpClient, logger), INavigationsHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "navigations";
+    public override string Path => "admin/navigations";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<NavigationSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

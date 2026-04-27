@@ -61,7 +61,7 @@ public interface ISettingsHttpClient
 public class SettingsHttpClient(HttpClient httpClient, ILogger<SettingsHttpClient> logger) : AeroCmsClientBase(httpClient, logger), ISettingsHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "settings";
+    public override string Path => "admin/settings";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<SettingSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)
@@ -90,13 +90,24 @@ public class SettingsHttpClient(HttpClient httpClient, ILogger<SettingsHttpClien
     /// <inheritdoc />
     public Task<Result<bool, AeroError>> DeleteAsync(string key, CancellationToken ct = default)
     {
-        return DeleteAsync($"key/{Uri.EscapeDataString(key)}", ct);
+        return MapBoolResult(base.DeleteAsync($"key/{Uri.EscapeDataString(key)}", ct));
     }
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<SettingCategory>, AeroError>> GetCategoriesAsync(CancellationToken ct = default)
     {
         return GetAsync<IReadOnlyList<SettingCategory>>("categories", ct);
+    }
+
+    private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
+    {
+        var response = await task;
+        return response switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok => true,
+            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
+            _ => AeroError.CreateError("Unexpected result from HTTP operation")
+        };
     }
 }
 

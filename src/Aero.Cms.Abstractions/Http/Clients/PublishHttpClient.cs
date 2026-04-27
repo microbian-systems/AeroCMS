@@ -49,7 +49,7 @@ public class PublishHttpClient(HttpClient httpClient, ILogger<PublishHttpClient>
     : AeroCmsClientBase(httpClient, logger), IPublishHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "publish";
+    public override string Path => "admin/publish";
 
     /// <inheritdoc />
     public Task<Result<PublishResponse, AeroError>> PublishPageAsync(long id, CancellationToken ct = default)

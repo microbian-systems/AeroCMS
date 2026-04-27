@@ -32,7 +32,7 @@ public class DashboardHttpClient(HttpClient httpClient, ILogger<DashboardHttpCli
     : AeroCmsClientBase(httpClient, logger), IDashboardHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "dashboard";
+    public override string Path => "admin/dashboard";
 
     /// <inheritdoc />
     public Task<Result<DashboardStats, AeroError>> GetStatsAsync(CancellationToken ct = default)

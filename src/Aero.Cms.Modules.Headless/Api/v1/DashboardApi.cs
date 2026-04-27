@@ -20,7 +20,7 @@ public static class DashboardApi
     /// </summary>
     public static void MapDashboardApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/dashboard")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/dashboard")
             .WithTags("Admin - Dashboard");
 
         group.MapGet("/stats", GetDashboardStats)

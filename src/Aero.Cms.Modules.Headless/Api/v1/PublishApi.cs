@@ -17,19 +17,19 @@ public static class PublishApi
     /// </summary>
     public static void MapPublishApi(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/v1/admin/publish/pages/{id:long}", PublishPage)
+        app.MapPost($"/{HttpConstants.ApiPrefix}admin/publish/pages/{{id:long}}", PublishPage)
             .WithName("PublishPage")
             .WithTags("Admin - Publish");
 
-        app.MapPost("/api/v1/admin/publish/blog-posts/{id:long}", PublishBlogPost)
+        app.MapPost($"/{HttpConstants.ApiPrefix}admin/publish/blog-posts/{{id:long}}", PublishBlogPost)
             .WithName("PublishBlogPost")
             .WithTags("Admin - Publish");
 
-        app.MapPost("/api/v1/admin/unpublish/pages/{id:long}", UnpublishPage)
+        app.MapPost($"/{HttpConstants.ApiPrefix}admin/unpublish/pages/{{id:long}}", UnpublishPage)
             .WithName("UnpublishPage")
             .WithTags("Admin - Publish");
 
-        app.MapPost("/api/v1/admin/unpublish/blog-posts/{id:long}", UnpublishBlogPost)
+        app.MapPost($"/{HttpConstants.ApiPrefix}admin/unpublish/blog-posts/{{id:long}}", UnpublishBlogPost)
             .WithName("UnpublishBlogPost")
             .WithTags("Admin - Publish");
     }

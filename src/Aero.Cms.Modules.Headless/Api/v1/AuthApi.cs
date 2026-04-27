@@ -15,7 +15,7 @@ public static class AuthApi
 {
     public static void MapAuthApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/auth")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}auth")
             .WithTags("Headless - Auth");
 
         group.MapPost("/login", Login)

@@ -408,6 +408,7 @@ public class UserStore<TUser, TRole> :
             existingRoleOrNull.Users.Add(user.Id);
         }
 
+        DbSession.Store(user);
         await SaveChangesAsync();
     }
 

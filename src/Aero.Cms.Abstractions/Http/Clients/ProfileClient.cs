@@ -53,7 +53,7 @@ public interface IProfileHttpClient
 public class ProfileHttpClient(HttpClient httpClient, ILogger<ProfileHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IProfileHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "profile";
+    public override string Path => "admin/profile";
 
     /// <inheritdoc />
     public Task<Result<UserProfile, AeroError>> GetCurrentAsync(CancellationToken ct = default)

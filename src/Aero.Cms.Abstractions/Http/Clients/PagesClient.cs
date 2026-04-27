@@ -94,7 +94,7 @@ public interface IPagesHttpClient
 public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IPagesHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "pages";
+    public override string Path => "admin/pages";
 
     /// <inheritdoc />
     public Task<Result<PagedResult<PageSummary>, AeroError>> GetAllAsync(int skip = 0, int take = 20, string? search = null, CancellationToken ct = default)

@@ -71,7 +71,7 @@ public sealed class DocsHttpClient(HttpClient httpClient, ILogger<DocsHttpClient
     : AeroCmsClientBase(httpClient, logger), IDocsHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "docs";
+    public override string Path => "admin/docs";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<DocsSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

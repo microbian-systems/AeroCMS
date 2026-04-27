@@ -495,15 +495,16 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public async Task AddToRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
+    public Task AddToRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
-        var role = await _session.Query<AeroRole>().FirstOrDefaultAsync(r => r.Name == roleName, cancellationToken);
-        if (role != null)
+        if (user.Roles.All(r => r.Name != roleName))
         {
-            user.Roles.Add(role);
+            user.Roles.Add(new AeroRole(roleName));
         }
+
+        return Task.CompletedTask;
     }
 
     public async Task RemoveFromRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)

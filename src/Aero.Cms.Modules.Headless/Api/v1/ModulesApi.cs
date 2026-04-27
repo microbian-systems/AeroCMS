@@ -19,7 +19,7 @@ public static class ModulesApi
     /// </summary>
     public static void MapModulesApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/modules")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/modules")
             .WithTags("Admin - Modules");
 
         group.MapGet("/", GetAllModules)

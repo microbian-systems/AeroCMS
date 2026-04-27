@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Core.Blocks;
+using Aero.Cms.Abstractions.Http.Clients;
 
 namespace Aero.Cms.Shared.Services;
 
@@ -20,7 +21,7 @@ public sealed class HttpBlockService : IBlockService
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<BlockBase>($"/api/v1/blocks/{id}", ct);
+            return await _httpClient.GetFromJsonAsync<BlockBase>($"/{HttpConstants.ApiPrefix}blocks/{id}", ct);
         }
         catch (HttpRequestException)
         {
@@ -32,7 +33,7 @@ public sealed class HttpBlockService : IBlockService
     {
         // On the client side, we usually save blocks as part of the page in a "one-shot" save.
         // However, we implement this to satisfy the interface.
-        var response = await _httpClient.PostAsJsonAsync("/api/v1/blocks", block, ct);
+        var response = await _httpClient.PostAsJsonAsync($"/{HttpConstants.ApiPrefix}blocks", block, ct);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<BlockBase>(cancellationToken: ct))!;
     }

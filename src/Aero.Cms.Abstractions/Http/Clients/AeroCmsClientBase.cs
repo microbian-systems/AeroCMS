@@ -21,4 +21,26 @@ public abstract class AeroCmsClientBase(
     /// </summary>
     public abstract string Path { get; }
 
+    /// <summary>
+    /// Builds the full request URI by auto-prefixing relative URLs with "api/v1/{Path}".
+    /// Already-prefixed or absolute URLs are passed through unchanged.
+    /// This ensures all Aero CMS clients consistently target the correct API root.
+    /// </summary>
+    protected override Uri CreateUri(string url)
+    {
+        // Pass through if already prefixed or absolute
+        if (url.StartsWith(HttpConstants.ApiPrefix, StringComparison.Ordinal) ||
+            Uri.TryCreate(url, UriKind.Absolute, out _))
+            return base.CreateUri(url);
+
+        // Auto-prefix relative URLs: "details/42" → "api/v1/{path}/details/42"
+        var prefixed = url switch
+        {
+            "" => $"{HttpConstants.ApiPrefix}{Path}",
+            _ when url.StartsWith('?') => $"{HttpConstants.ApiPrefix}{Path}{url}",
+            _ => $"{HttpConstants.ApiPrefix}{Path}/{url.TrimStart('/')}"
+        };
+
+        return base.CreateUri(prefixed);
+    }
 }

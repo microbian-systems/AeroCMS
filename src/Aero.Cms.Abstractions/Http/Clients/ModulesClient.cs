@@ -62,7 +62,7 @@ public interface IModulesHttpClient
 public class ModulesHttpClient(HttpClient httpClient, ILogger<ModulesHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IModulesHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "modules";
+    public override string Path => "admin/modules";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<ModuleSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

@@ -101,7 +101,7 @@ public interface IBlogHttpClient
 public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IBlogHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "blogs";
+    public override string Path => "admin/blogs";
 
     /// <inheritdoc />
     public Task<Result<PagedResult<BlogSummary>, AeroError>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)

@@ -20,7 +20,7 @@ public static class NavigationsApi
     /// </summary>
     public static void MapNavigationsApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/navigations")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/navigations")
             .WithTags("Admin - Navigations");
 
         group.MapGet("/", GetAllNavigations)

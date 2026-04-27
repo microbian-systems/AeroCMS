@@ -68,7 +68,7 @@ public class UsersHttpClient(HttpClient httpClient, ILogger<UsersHttpClient> log
     : AeroCmsClientBase(httpClient, logger), IUsersHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "users";
+    public override string Path => "admin/users";
 
     /// <inheritdoc />
     public Task<Result<PagedResult<UserSummary>, AeroError>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)

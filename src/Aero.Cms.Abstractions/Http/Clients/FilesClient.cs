@@ -56,7 +56,7 @@ public interface IFilesHttpClient
 public class FilesHttpClient(HttpClient httpClient, ILogger<FilesHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IFilesHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "files";
+    public override string Path => "admin/files";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<FileSummary>, AeroError>> GetAllAsync(string? folder = null, CancellationToken ct = default)

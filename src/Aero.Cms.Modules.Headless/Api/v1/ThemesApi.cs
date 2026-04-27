@@ -20,7 +20,7 @@ public static class ThemesApi
     /// </summary>
     public static void MapThemesApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/themes")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/themes")
             .WithTags("Admin - Themes");
 
         group.MapGet("/", GetAllThemes)

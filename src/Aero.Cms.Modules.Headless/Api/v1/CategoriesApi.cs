@@ -21,7 +21,7 @@ public static class CategoriesApi
     /// </summary>
     public static void MapCategoriesApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/categories")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/categories")
             .WithTags("Admin - Categories");
 
         group.MapGet("/", GetAllCategories)

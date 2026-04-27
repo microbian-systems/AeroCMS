@@ -1,4 +1,5 @@
 using Aero.Cms.Core;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Models.Entities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -12,7 +13,7 @@ public static class IdentityApi
 {
     public static void MapIdentityApi(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/v1/admin/auth").WithTags("Admin - Identity");
+        var group = endpoints.MapGroup($"/{HttpConstants.ApiPrefix}admin/auth").WithTags("Admin - Identity");
 
         group.MapGet("/config", (IConfiguration configuration) =>
         {

@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
+using Aero.Cms.Abstractions.Http.Clients;
 
 namespace Aero.Cms.Web.Client.Services;
 
@@ -31,7 +32,7 @@ internal sealed class ServerAuthenticationStateProvider(
         {
             if (_cachedUser is null)
             {
-                var response = await httpClient.GetAsync("/api/v1/admin/auth/me");
+                var response = await httpClient.GetAsync($"/{HttpConstants.ApiPrefix}admin/auth/me");
                 if (!response.IsSuccessStatusCode)
                     return Unauthenticated;
 

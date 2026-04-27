@@ -56,7 +56,7 @@ public class TagsHttpClient(HttpClient httpClient, ILogger<TagsHttpClient> logge
     : AeroCmsClientBase(httpClient, logger), ITagsHttpClient
 {
     /// <inheritdoc />
-    public override string Path => "tags";
+    public override string Path => "admin/tags";
 
     /// <inheritdoc />
     public Task<Result<IReadOnlyList<TagSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)

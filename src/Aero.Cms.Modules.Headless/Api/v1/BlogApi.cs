@@ -16,7 +16,7 @@ public static class BlogApi
     /// </summary>
     public static void MapBlogApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/blogs")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/blogs")
             .WithTags("Admin - Blog");
 
         group.MapGet("/", ListPosts)

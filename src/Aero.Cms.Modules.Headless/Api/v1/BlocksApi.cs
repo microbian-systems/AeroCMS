@@ -11,7 +11,7 @@ public static class BlocksApi
     /// </summary>
     public static void MapBlocksApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/admin/blocks")
+        var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/blocks")
             .WithTags("Admin - Blocks");
 
         group.MapGet("/{id:long}", GetBlockById)
