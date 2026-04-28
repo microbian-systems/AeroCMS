@@ -1,5 +1,8 @@
 using System.Security.Claims;
 using Aero.Cms.Abstractions.Audit;
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Blog.Requests;
 using Microsoft.AspNetCore.Builder;
@@ -35,6 +38,12 @@ public static class BlogApi
 
         group.MapDelete("/{id:long}", DeletePost)
             .WithName("DeletePost");
+
+        group.MapPost("/{id:long}/publish", PublishPost)
+            .WithName("PublishPost");
+
+        group.MapPost("/{id:long}/unpublish", UnpublishPost)
+            .WithName("UnpublishPost");
     }
 
     private static async Task<IResult> ListPosts(
@@ -177,6 +186,17 @@ public static class BlogApi
                 });
             }
 
+            var blocks = new List<BlockBase>();
+            if (!string.IsNullOrEmpty(request.MarkdownContent))
+            {
+                blocks.Add(new MarkdownBlock
+                {
+                    Id = Snowflake.NewId(),
+                    Content = request.MarkdownContent,
+                    Order = 0
+                });
+            }
+
             var post = new BlogPostDocument
             {
                 Id = Snowflake.NewId(),
@@ -187,7 +207,7 @@ public static class BlogApi
                 SeoDescription = request.SeoDescription,
                 ImageUrl = request.ImageUrl,
                 PublicationState = request.PublicationState,
-                Content = []
+                Content = blocks
             };
 
             var result = await blogService.SaveAsync(post, cancellationToken);
@@ -263,6 +283,28 @@ public static class BlogApi
             existingPost.SeoDescription = request.SeoDescription;
             existingPost.ImageUrl = request.ImageUrl;
             existingPost.PublicationState = request.PublicationState;
+
+            // Update markdown content if provided
+            if (request.MarkdownContent is not null)
+            {
+                var existingMarkdownBlock = existingPost.Content
+                    .OfType<MarkdownBlock>()
+                    .FirstOrDefault();
+
+                if (existingMarkdownBlock is not null)
+                {
+                    existingMarkdownBlock.Content = request.MarkdownContent;
+                }
+                else if (!string.IsNullOrEmpty(request.MarkdownContent))
+                {
+                    existingPost.Content.Add(new MarkdownBlock
+                    {
+                        Id = Snowflake.NewId(),
+                        Content = request.MarkdownContent,
+                        Order = existingPost.Content.Count
+                    });
+                }
+            }
 
             var saveResult = await blogService.SaveAsync(existingPost, cancellationToken);
 
@@ -350,6 +392,78 @@ public static class BlogApi
         {
             logger.LogError(ex, "Error deleting blog post for id={Id}", id);
             return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> PublishPost(
+        long id,
+        [FromServices] IBlogPostContentService blogService,
+        [FromServices] IAuditService auditService,
+        [FromServices] IHttpContextAccessor httpContextAccessor,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var loadResult = await blogService.LoadAsync(id, cancellationToken);
+            if (loadResult is Result<BlogPostDocument?, AeroError>.Ok { Value: not null } ok)
+            {
+                var post = ok.Value;
+                post.PublicationState = ContentPublicationState.Published;
+                post.PublishedOn = DateTimeOffset.UtcNow;
+
+                var saveResult = await blogService.SaveAsync(post, cancellationToken);
+                if (saveResult is Result<BlogPostDocument, AeroError>.Ok saveOk)
+                {
+                    var userId = GetUserId(httpContextAccessor);
+                    var auditEvent = BlogPostUpdatedEvent.Create(userId, post.Id, post.Title, post.Slug);
+                    await auditService.LogAsync(auditEvent, cancellationToken);
+                    return TypedResults.Ok(saveOk.Value);
+                }
+
+                return TypedResults.BadRequest(new { error = "Failed to publish post" });
+            }
+
+            return TypedResults.NotFound();
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private static async Task<IResult> UnpublishPost(
+        long id,
+        [FromServices] IBlogPostContentService blogService,
+        [FromServices] IAuditService auditService,
+        [FromServices] IHttpContextAccessor httpContextAccessor,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var loadResult = await blogService.LoadAsync(id, cancellationToken);
+            if (loadResult is Result<BlogPostDocument?, AeroError>.Ok { Value: not null } ok)
+            {
+                var post = ok.Value;
+                post.PublicationState = ContentPublicationState.Draft;
+                post.PublishedOn = null;
+
+                var saveResult = await blogService.SaveAsync(post, cancellationToken);
+                if (saveResult is Result<BlogPostDocument, AeroError>.Ok saveOk)
+                {
+                    var userId = GetUserId(httpContextAccessor);
+                    var auditEvent = BlogPostUpdatedEvent.Create(userId, post.Id, post.Title, post.Slug);
+                    await auditService.LogAsync(auditEvent, cancellationToken);
+                    return TypedResults.Ok(saveOk.Value);
+                }
+
+                return TypedResults.BadRequest(new { error = "Failed to unpublish post" });
+            }
+
+            return TypedResults.NotFound();
+        }
+        catch (Exception ex)
+        {
+            return TypedResults.BadRequest(new { error = ex.Message });
         }
     }
 

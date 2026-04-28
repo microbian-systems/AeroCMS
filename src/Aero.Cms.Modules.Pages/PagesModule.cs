@@ -44,6 +44,7 @@ public sealed class PagesModule : AeroModuleBase, IConfigureMarten
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
+        opts.Schema.For<PageDocument>().Identity(x => x.Id);
         //opts.Schema.For<PageDocument>().Duplicate(x => x.Title); // todo - find out what the marten For<T>().Duplicate() method does and if it is needed here
         opts.Schema.For<PageDocument>().Index(x => x.Slug);
         opts.Schema.For<PageDocument>().Index(x => x.PublishedOn);

@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Audit;
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Headless.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
@@ -34,6 +35,7 @@ public sealed class HeadlessModule : AeroWebModule
         //if(env.IsDevelopment())
         services.AddOpenApi();
 
+        services.AddScoped<IAuditService, AuditService>();
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)

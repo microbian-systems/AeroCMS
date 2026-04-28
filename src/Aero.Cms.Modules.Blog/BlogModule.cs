@@ -1,4 +1,5 @@
 using Aero.Cms.Core;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Services.Images;
@@ -47,5 +48,16 @@ public sealed class BlogModule : AeroModuleBase, IUiModule
             options.Conventions.AddAreaPageRoute("Admin", "/Index", "/admin/blog");
             options.Conventions.AddAreaPageRoute("Admin", "/Edit", "/admin/blog/edit/{id?}");
         });
+    }
+
+    public override void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        opts.Schema.For<BlogPostDocument>().DocumentAlias(Schemas.Tables.Posts);
+        opts.Schema.For<BlogPostDocument>().Identity(x => x.Id);
+        //opts.Schema.For<BlogPostDocument>().Duplicate(x => x.Title); // todo - find out what the marten For<T>().Duplicate() method does and if it is needed here
+        opts.Schema.For<BlogPostDocument>().Index(x => x.Slug);
+        opts.Schema.For<BlogPostDocument>().Index(x => x.PublishedOn);
+        opts.Schema.For<BlogPostDocument>().Index(x => x.CreatedOn);
+        opts.Schema.For<BlogPostDocument>().Index(x => x.ModifiedOn);
     }
 }

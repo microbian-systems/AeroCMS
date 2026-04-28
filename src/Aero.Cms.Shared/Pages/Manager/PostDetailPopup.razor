@@ -1,3 +1,4 @@
+@using System.Linq
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Core
 @using Aero.Core.Railway
@@ -32,19 +33,19 @@
                 </div>
             </div>
             <div class="space-y-4 col-span-2 sm:col-span-1">
-                 @if (!string.IsNullOrEmpty(post.FeaturedImageUrl))
+                 @if (!string.IsNullOrEmpty(post.ImageUrl))
                  {
                     <div class="rounded-xl overflow-hidden shadow-sm border border-gray-100">
-                        <img src="@post.FeaturedImageUrl" class="w-full h-40 object-cover" alt="Featured Image" />
+                        <img src="@post.ImageUrl" class="w-full h-40 object-cover" alt="Featured Image" />
                     </div>
                  }
                 <div class="pt-2">
                     <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Status</label>
-                    @if (post.PublishedAt.HasValue)
+                    @if (post.PublishedOn.HasValue)
                     {
                         <div class="flex items-center gap-2 text-green-700">
                             <RadzenIcon Icon="check_circle" class="w-4 h-4" />
-                            <span class="text-sm font-medium">Published on @post.PublishedAt?.ToString("MMMM dd, yyyy")</span>
+                            <span class="text-sm font-medium">Published on @post.PublishedOn?.DateTime.ToString("MMMM dd, yyyy")</span>
                         </div>
                     }
                     else
@@ -73,15 +74,15 @@
                   </div>
                   <div class="flex justify-between border-b border-gray-50 pb-2">
                        <span>Category ID</span>
-                       <span class="font-medium text-gray-900">@post.CategoryId</span>
+                        <span class="font-medium text-gray-900">@(post.CategoryIds?.FirstOrDefault() ?? 0)</span>
                   </div>
                    <div class="flex justify-between border-b border-gray-50 pb-2">
                        <span>Created</span>
-                       <span class="font-medium text-gray-900">@post.CreatedAt.ToShortDateString()</span>
+                        <span class="font-medium text-gray-900">@post.CreatedOn.DateTime.ToShortDateString()</span>
                   </div>
                   <div class="flex justify-between border-b border-gray-50 pb-2">
                        <span>Last Modified</span>
-                       <span class="font-medium text-gray-900">@post.UpdatedAt.ToShortDateString()</span>
+                        <span class="font-medium text-gray-900">@(post.ModifiedOn?.DateTime.ToShortDateString() ?? "-")</span>
                   </div>
              </div>
         </div>

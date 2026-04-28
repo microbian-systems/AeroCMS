@@ -1,0 +1,357 @@
+@page "/manager/post/editor"
+@page "/manager/post/editor/{id:long}"
+@attribute [Authorize]
+
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
+@using BlazorMonaco
+@using BlazorMonaco.Editor
+@using BlazorMonaco.Languages
+
+<style>
+    #post-markdown-editor {
+        height: calc(100vh - 320px);
+        min-height: 400px;
+    }
+</style>
+
+@* ── Header ──────────────────────────────────────────── *@
+<div class="space-y-6">
+    <div class="pe-page-header">
+        <input class="pe-page-title-input" type="text" placeholder="Post Title"
+               value="@PostTitle" @oninput="e => PostTitle = e.Value?.ToString() ?? string.Empty"/>
+        <div class="pe-page-meta">
+            <div class="pe-meta-left">
+                <span class="pe-meta-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    Last saved: <strong>@LastSaved</strong>
+                </span>
+                <span class="pe-meta-item">
+                    — Status:
+                    @if (PublishedAt.HasValue)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Published" class="px-2 py-1" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Draft" class="px-2 py-1" />
+                    }
+                </span>
+            </div>
+            <div class="pe-meta-right">
+                <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="TogglePreview" title="Full page preview">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    Preview
+                </button>
+                <button class="pe-btn @(IsSaving ? "pe-btn-secondary" : "pe-btn-primary") pe-btn-sm" @onclick="SavePost" disabled="@IsSaving">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    @(IsSaving ? "Saving..." : "Save")
+                </button>
+                @if (Id.HasValue)
+                {
+                    @if (PublishedAt.HasValue)
+                    {
+                        <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="UnpublishPost">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Unpublish
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPost">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Publish
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ── Tab bar ─────────────────────────────────────── *@
+    <div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
+        <button class="pe-tab-btn @(ActiveTab == "editor" ? "active" : "")" 
+                @onclick='() => SwitchToTab("editor")'>
+            Editor
+        </button>
+        <button class="pe-tab-btn @(ActiveTab == "code" ? "active" : "")" 
+                @onclick='() => SwitchToTab("code")'>
+            Code
+        </button>
+        <button class="pe-tab-btn @(ActiveTab == "preview" ? "active" : "")" 
+                @onclick='() => SwitchToTab("preview")'>
+            Preview
+        </button>
+        <button class="pe-tab-btn @(ActiveTab == "metadata" ? "active" : "")" 
+                @onclick='() => SwitchToTab("metadata")'>
+            Metadata
+        </button>
+    </div>
+
+    @* ── Full screen preview mode (overlays tabs) ────── *@
+    @if (FullPreviewMode)
+    {
+        <div class="pe-preview-header">
+            <div class="pe-preview-devices">
+                <button class="pe-device-btn @(PreviewDevice == "desktop" ? "active" : "")" title="Desktop" @onclick='() => PreviewDevice = "desktop"'>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                </button>
+                <button class="pe-device-btn @(PreviewDevice == "tablet" ? "active" : "")" title="Tablet" @onclick='() => PreviewDevice = "tablet"'>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+                        <line x1="12" y1="18" x2="12.01" y2="18"/>
+                    </svg>
+                </button>
+                <button class="pe-device-btn @(PreviewDevice == "mobile" ? "active" : "")" title="Mobile" @onclick='() => PreviewDevice = "mobile"'>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                        <line x1="12" y1="18" x2="12.01" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <button class="pe-btn pe-btn-ghost" @onclick="TogglePreview">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Close Preview
+            </button>
+        </div>
+        <div class="pe-blocks-container preview-@PreviewDevice">
+            <div class="pe-markdown-preview-content">
+                <RadzenMarkdown Text="@Content" />
+            </div>
+        </div>
+    }
+    else
+    {
+        @* ── Tab: Editor (split view: edit + live preview) ── *@
+        @if (ActiveTab == "editor")
+        {
+            <div class="pe-editor-tab p-4">
+                <RadzenRow Gap="1.5rem" RowGap="1rem">
+                    <RadzenColumn SizeMD="6">
+                        @if (_contentInitialized)
+                        {
+                            <RadzenTextArea @bind-Value="Content"
+                                            Style="width: 100%; height: calc(100vh - 360px); min-height: 400px; font-family: monospace; font-size: 14px;"
+                                            Placeholder="# Start writing markdown..." />
+                        }
+                        else
+                        {
+                            <div style="width: 100%; height: calc(100vh - 360px); min-height: 400px; display: flex; align-items: center; justify-content: center; color: var(--pe-text-muted);">
+                                Loading...
+                            </div>
+                        }
+                    </RadzenColumn>
+                    <RadzenColumn SizeMD="6">
+                        <RadzenMarkdown Text="@Content" />
+                    </RadzenColumn>
+                </RadzenRow>
+            </div>
+        }
+
+        @* ── Tab: Code (BlazorMonaco) ─────────────────── *@
+        @* Always rendered (CSS hidden) so Monaco stays initialized *@
+        <div class="pe-editor-tab" style="@(ActiveTab == "code" ? "" : "display:none")">
+            <StandaloneCodeEditor @ref="_editor"
+                                  Id="post-markdown-editor"
+                                  ConstructionOptions="EditorConstructionOptions"
+                                  OnDidChangeModelContent="OnEditorContentChanged" />
+        </div>
+
+        @* ── Tab: Preview ────────────────────────────── *@
+        @if (ActiveTab == "preview")
+        {
+            <div class="pe-preview-tab">
+                <div class="pe-preview-devices mb-4 flex gap-2">
+                    <button class="pe-device-btn @(PreviewDevice == "desktop" ? "active" : "")" title="Desktop" @onclick='() => PreviewDevice = "desktop"'>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                        Desktop
+                    </button>
+                    <button class="pe-device-btn @(PreviewDevice == "tablet" ? "active" : "")" title="Tablet" @onclick='() => PreviewDevice = "tablet"'>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                        Tablet
+                    </button>
+                    <button class="pe-device-btn @(PreviewDevice == "mobile" ? "active" : "")" title="Mobile" @onclick='() => PreviewDevice = "mobile"'>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                        Mobile
+                    </button>
+                </div>
+                <div class="pe-preview-container preview-@PreviewDevice">
+                    <RadzenMarkdown Text="@Content" />
+                </div>
+            </div>
+        }
+
+        @* ── Tab: Metadata ───────────────────────────── *@
+        @if (ActiveTab == "metadata")
+        {
+            <div class="p-6 rounded-lg shadow-sm m-4 space-y-6 max-w-4xl" style="background: var(--pe-bg-secondary); color: var(--pe-text-primary);">
+                <h2 class="text-xl font-semibold mb-4" style="color: var(--pe-text-primary);">Post Metadata</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Post Title</label>
+                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
+                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                   @bind="PostTitle" placeholder="e.g. My First Blog Post" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">URL Slug</label>
+                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
+                                   style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
+                                   @bind="PostSlug" placeholder="e.g. my-first-blog-post" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Summary / Excerpt</label>
+                            <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
+                                      style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                      @bind="Excerpt" placeholder="Brief description..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Featured Image URL</label>
+                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
+                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                   @bind="FeaturedImageUrl" placeholder="https://..." />
+                            @if (!string.IsNullOrEmpty(FeaturedImageUrl))
+                            {
+                                <div class="mt-2 rounded-xl overflow-hidden shadow-sm border border-gray-100 max-w-xs">
+                                    <img src="@FeaturedImageUrl" class="w-full h-32 object-cover" alt="Featured Image Preview" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Category</label>
+                            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                    @bind="CategoryId">
+                                <option value="0">Uncategorized</option>
+                                @foreach (var cat in Categories)
+                                {
+                                    <option value="@cat.Id">@cat.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Tags</label>
+                            <div class="space-y-2">
+                                @foreach (var tag in AllTags)
+                                {
+                                    <label class="inline-flex items-center gap-2 mr-3 text-sm" style="color: var(--pe-text-primary);">
+                                        <input type="checkbox" 
+                                               value="@tag.Id" 
+                                               checked="@SelectedTagIds.Contains(tag.Id)"
+                                               @onchange="e => ToggleTag(tag.Id)" />
+                                        @tag.Name
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (LoadedPost is not null)
+                {
+                    <div class="mt-8 pt-6 border-t" style="border-top-color: var(--pe-border);">
+                        <h3 class="text-lg font-medium mb-4" style="color: var(--pe-text-primary);">Publishing &amp; History</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-md border" 
+                             style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                            <div>
+                                <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">Status</span>
+                                @if (PublishedAt.HasValue)
+                                {
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
+                                          style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">
+                                        Published
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
+                                          style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                                        Draft
+                                    </span>
+                                }
+                            </div>
+                            <div>
+                                <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">Date Created</span>
+                                <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@(LoadedPost?.CreatedOn.DateTime.ToShortDateString() ?? "-")</span>
+                            </div>
+                            <div>
+                                <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">Date Modified</span>
+                                <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@(LoadedPost?.ModifiedOn?.DateTime.ToShortDateString() ?? "-")</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+
+    @* ── Toast notifications ──────────────────────────── *@
+    <div class="pe-toast-container">
+        @foreach (var toast in Toasts)
+        {
+            <div class="pe-toast @toast.Type" @onclick="() => RemoveToast(toast.Id)">
+                @if (toast.Type == "success")
+                {
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                }
+                else if (toast.Type == "error")
+                {
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                }
+                else
+                {
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                }
+                <span>@toast.Message</span>
+            </div>
+        }
+    </div>
+</div>

@@ -6,6 +6,7 @@
 @using Aero.Core.Railway
 @inject IBlogHttpClient BlogApi
 @inject DialogService DialogService
+@inject NavigationManager Navigation
 
 <div class="space-y-6">
     <div class="flex items-center justify-between">
@@ -18,7 +19,7 @@
                             Value="@searchText" 
                             ValueChanged="@(args => OnSearch(args))" 
                             class="w-64" />
-            <RadzenButton Icon="add" Text="New Post" ButtonStyle="ButtonStyle.Primary" />
+            <RadzenButton Icon="add" Text="New Post" ButtonStyle="ButtonStyle.Primary" Click="@(() => Navigation.NavigateTo("/manager/post/editor"))" />
         </div>
     </div>
 
@@ -102,11 +103,9 @@
         grid?.Reload();
     }
 
-    async Task OnRowClick(BlogSummary? post)
+    void OnRowClick(BlogSummary? post)
     {
         if (post == null) return;
-        await DialogService.OpenAsync<PostDetailPopup>($"Post: {post.Title}", 
-            new Dictionary<string, object?> { { "PostId", post.Id } },
-            new DialogOptions { Width = "700px", Resizable = true, Draggable = true });
+        Navigation.NavigateTo($"/manager/post/editor/{post.Id}");
     }
 }

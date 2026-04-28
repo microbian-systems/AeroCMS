@@ -35,7 +35,7 @@ var webProjectPath = Aero.Cms.Modules.Setup.Configuration.AppSettingsPathResolve
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.File(
         Path.Combine(webProjectPath, "logs", "aero-.log"),

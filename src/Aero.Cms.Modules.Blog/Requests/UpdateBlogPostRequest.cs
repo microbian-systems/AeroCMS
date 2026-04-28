@@ -12,6 +12,7 @@ public sealed record UpdateBlogPostRequest
     public string? Summary { get; init; }
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+    public string? MarkdownContent { get; init; }
     public List<string>? Tags { get; init; }
     public string? Category { get; init; }
     public string? Author { get; init; }
