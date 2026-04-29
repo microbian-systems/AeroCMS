@@ -12,11 +12,13 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Aero.Core;
 using Aero.Cms.Core;
+using Aero.Cms.Core.Security;
 using Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using CmsPageDetail = Aero.Cms.Abstractions.Http.Clients.PageDetail;
 using Aero.Cms.Abstractions.Enums;
+using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -37,6 +39,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
     [Inject] protected IUsersHttpClient UsersClient { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
+    [Inject] protected ICmsHtmlSanitizer HtmlSanitizer { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
@@ -612,6 +615,11 @@ public partial class PageEditor : ComponentBase, IDisposable
             l.Trim().Length > 0 && !l.TrimStart().StartsWith('<') ? $"<p>{l}</p>" : l));
 
         return html;
+    }
+
+    protected void SanitizeHtmlPaste(HtmlEditorPasteEventArgs args)
+    {
+        args.Html = HtmlSanitizer.Sanitize(args.Html);
     }
 
     // ──────────────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Blocks.Dynamic;
+using Aero.Cms.Core.Security;
 using Aero.Modular;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -10,6 +12,11 @@ public static class BlockServiceExtensions
     public static IServiceCollection AddBlockSystemServices(this IServiceCollection services)
     {
         services.TryAddScoped<IBlockService, MartenBlockService>();
+        services.TryAddSingleton<ICmsHtmlSanitizer, CmsHtmlSanitizer>();
+        services.TryAddSingleton<SecureScribanTemplateOptions>();
+        services.TryAddSingleton<DynamicTemplateValidator>();
+        services.TryAddSingleton<ISecureScribanRenderer, SecureScribanRenderer>();
+        services.TryAddScoped<IDynamicBlockDefinitionService, MartenDynamicBlockDefinitionService>();
         services.AddSingleton<global::Marten.IConfigureMarten, BlockMartenConfiguration>();
         return services;
     }

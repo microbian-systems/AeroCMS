@@ -1,7 +1,7 @@
 @if (Block != null && !string.IsNullOrEmpty(Block.Content))
 {
     <div class="markdown-block-content">
-        <RadzenMarkdown Text="@Block.Content" AllowHtml="true" />
+        <RadzenMarkdown Text="@Block.Content" AllowHtml="false" />
     </div>
 }
 

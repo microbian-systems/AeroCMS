@@ -1,5 +1,10 @@
+using System.Text.Encodings.Web;
+using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Web.Core.Blocks.Rendering;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Html;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Headless.Areas.Api.v1;
@@ -20,6 +25,10 @@ public static class PreviewApi
 
         app.MapGet($"/{HttpConstants.ApiPrefix}admin/preview/blog-posts/{{id:long}}", PreviewBlogPost)
             .WithName("PreviewBlogPost")
+            .WithTags("Admin - Preview");
+
+        app.MapPost($"/{HttpConstants.ApiPrefix}admin/preview/blocks/render-fragment", PreviewBlockFragment)
+            .WithName("PreviewBlockFragment")
             .WithTags("Admin - Preview");
     }
 
@@ -84,6 +93,38 @@ public static class PreviewApi
             return TypedResults.Json(new { error = "An error occurred processing your request." }, statusCode: 500);
         }
     }
+
+    private static async Task<IResult> PreviewBlockFragment(
+        [FromBody] PreviewBlockFragmentRequest request,
+        CmsBlockHtmlRenderer blockRenderer,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PreviewApi));
+
+        try
+        {
+            if (request.Block is null)
+            {
+                return TypedResults.BadRequest(new { error = "A block payload is required." });
+            }
+
+            var html = await blockRenderer.RenderAsync(request.Block, cancellationToken: cancellationToken);
+            return TypedResults.Ok(new PreviewBlockFragmentResponse(RenderHtmlContent(html)));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error rendering preview block fragment");
+            return TypedResults.Json(new { error = "An error occurred rendering the preview fragment." }, statusCode: 500);
+        }
+    }
+
+    private static string RenderHtmlContent(IHtmlContent content)
+    {
+        using var writer = new StringWriter();
+        content.WriteTo(writer, HtmlEncoder.Default);
+        return writer.ToString();
+    }
 }
 
 /// <summary>
@@ -101,3 +142,7 @@ public record PreviewResponse<T>(T Content, string ContentType) where T : class
         _ => true
     };
 }
+
+public sealed record PreviewBlockFragmentRequest(BlockBase? Block);
+
+public sealed record PreviewBlockFragmentResponse(string Html);

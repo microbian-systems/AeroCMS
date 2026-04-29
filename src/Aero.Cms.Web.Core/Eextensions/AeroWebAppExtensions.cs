@@ -11,7 +11,9 @@ using Aero.EfCore.Extensions;
 using Aero.Core.Extensions;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Modules.Services;
+using Aero.Cms.Web.Core.Blocks.Rendering;
 using Aero.Modular;
+using Microsoft.AspNetCore.Components.Web;
 
 namespace Aero.Cms.Web.Core.Eextensions;
 
@@ -58,6 +60,9 @@ public static class AeroWebAppExtensions
         var log = await services.ConfigureLogging(config);
 
         services.AddBlockSystemServices();
+        services.AddScoped<HtmlRenderer>();
+        services.AddScoped<CmsBlockHtmlRenderer>();
+        services.AddScoped<IBlockSliceRenderer, CmsBlockSliceRenderer>();
         services.AddModuleSystemServices();
         await services.AddAeroModulesAsync(config, env);
         services.AddAeroDataLayer(config, env);

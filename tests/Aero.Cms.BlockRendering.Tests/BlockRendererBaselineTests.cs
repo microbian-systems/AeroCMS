@@ -1,8 +1,12 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Editing;
+using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Serialization;
+using Aero.Cms.Core.Extensions;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Shared.Blocks.Rendering;
+using Aero.Cms.Web.Core.Blocks.Rendering;
 using Aero.Core.Railway;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components;
@@ -33,6 +37,31 @@ public sealed class BlockRendererBaselineTests
 
         html.Should().Contain("markdown-block-content");
         html.Should().Contain("Baseline Markdown");
+    }
+
+    [Test]
+    public async Task BlockRenderer_WithMarkdownBlock_EscapesInlineHtml()
+    {
+        var block = new MarkdownBlock
+        {
+            Content = """
+# Safe Markdown
+<script>alert('x')</script>
+<strong>HTML stays literal</strong>
+"""
+        };
+
+        var html = await RenderComponentAsync<BlockRenderer>(
+            new Dictionary<string, object?>
+            {
+                ["Block"] = block
+            });
+
+        html.Should().Contain("Safe Markdown");
+        html.Should().Contain("&lt;script&gt;");
+        html.Should().Contain("&lt;strong&gt;HTML stays literal&lt;/strong&gt;");
+        html.Should().NotContain("<script>");
+        html.Should().NotContain("<strong>HTML stays literal</strong>");
     }
 
     [Test]
@@ -104,6 +133,27 @@ public sealed class BlockRendererBaselineTests
     }
 
     [Test]
+    public async Task BlockRenderer_WithRawHtmlBlock_SanitizesUnsafeMarkup()
+    {
+        var block = new RawHtmlBlock
+        {
+            Content = """<p onclick="alert('x')">Safe text</p><script>alert('x')</script><a href="javascript:alert('x')">bad link</a>"""
+        };
+
+        var html = await RenderComponentAsync<BlockRenderer>(
+            new Dictionary<string, object?>
+            {
+                ["Block"] = block
+            });
+
+        html.Should().Contain("Safe text");
+        var normalizedHtml = html.ToLowerInvariant();
+        normalizedHtml.Should().NotContain("<script");
+        normalizedHtml.Should().NotContain("onclick");
+        normalizedHtml.Should().NotContain("javascript:");
+    }
+
+    [Test]
     public async Task RawHtmlRenderer_RendersRawMarkupDirectly()
     {
         var block = new RawHtmlBlock
@@ -167,6 +217,7 @@ public sealed class BlockRendererBaselineTests
 
         markdown.DisplayName.Should().Be("Markdown Text");
         markdown.Category.Should().Be("Text");
+        markdown.SchemaVersion.Should().Be(1);
         markdown.ModelType.Should().Be(typeof(MarkdownBlock));
         markdown.RendererType.Should().Be(typeof(MarkdownBlockRenderer));
         markdown.RendererParameterName.Should().Be("Block");
@@ -204,6 +255,48 @@ public sealed class BlockRendererBaselineTests
             .Which.Value.DisplayName.Should().Be("Raw HTML");
     }
 
+    [Test]
+    public void GeneratedBlockModelManifest_ExposesAllDiscoveredBlockModelsForJsonAndMarten()
+    {
+        GeneratedBlockModelManifest.Blocks.Should().HaveCount(34);
+        GeneratedBlockModelManifest.Blocks["markdown"].ModelType.Should().Be(typeof(MarkdownBlock));
+        GeneratedBlockModelManifest.Blocks["markdown"].SchemaVersion.Should().Be(1);
+        GeneratedBlockModelManifest.Blocks["youtube_player"].ModelType.Should().Be(typeof(YouTubeBlock));
+        GeneratedBlockModelManifest.Blocks["columns"].ModelType.Should().Be(typeof(ColumnsBlock));
+
+        GeneratedBlockJsonRegistration.ModelTypes.Should().Contain(typeof(MarkdownBlock));
+        GeneratedBlockJsonRegistration.CollectionTypes.Should().Contain(typeof(List<MarkdownBlock>));
+    }
+
+    [Test]
+    public async Task CmsBlockSliceRenderer_DelegatesLegacyVisitorPathToGeneratedBlazorRenderer()
+    {
+        var block = new MarkdownBlock
+        {
+            Content = "# Legacy Slice Bridge"
+        };
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRadzenComponents();
+        services.AddBlockSystemServices();
+        services.AddSingleton<IJSRuntime, NoOpJSRuntime>();
+        services.AddSingleton<IErrorBoundaryLogger, NoOpErrorBoundaryLogger>();
+
+        await using var serviceProvider = services.BuildServiceProvider();
+        var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+
+        await using var htmlRenderer = new HtmlRenderer(serviceProvider, loggerFactory);
+        var blockHtmlRenderer = new CmsBlockHtmlRenderer(htmlRenderer);
+        var registry = new BlockSliceRegistry();
+        registry.Register(new CmsBlockSliceRenderer(blockHtmlRenderer));
+
+        var html = RenderHtmlContent(registry.Visit(block));
+
+        html.Should().Contain("markdown-block-content");
+        html.Should().Contain("Legacy Slice Bridge");
+    }
+
     private static async Task<string> RenderComponentAsync<TComponent>(
         IDictionary<string, object?> parameters)
         where TComponent : IComponent
@@ -211,6 +304,7 @@ public sealed class BlockRendererBaselineTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddRadzenComponents();
+        services.AddBlockSystemServices();
         services.AddSingleton<IJSRuntime, NoOpJSRuntime>();
         services.AddSingleton<IErrorBoundaryLogger, NoOpErrorBoundaryLogger>();
 
@@ -225,6 +319,13 @@ public sealed class BlockRendererBaselineTests
             var output = await htmlRenderer.RenderComponentAsync<TComponent>(parameterView);
             return output.ToHtmlString();
         });
+    }
+
+    private static string RenderHtmlContent(Microsoft.AspNetCore.Html.IHtmlContent content)
+    {
+        using var writer = new StringWriter();
+        content.WriteTo(writer, System.Text.Encodings.Web.HtmlEncoder.Default);
+        return writer.ToString();
     }
 
     private sealed class UnknownBlock : BlockBase

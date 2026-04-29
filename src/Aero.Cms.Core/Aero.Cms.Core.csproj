@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="EasyScrutor" />
+    <PackageReference Include="HtmlSanitizer" />
     <PackageReference Include="Marten" />
     <PackageReference Include="Microsoft.AspNetCore.Html.Abstractions" />
     <PackageReference Include="Microsoft.AspNetCore.Routing.Abstractions" />
@@ -13,6 +14,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyModel" />
     <PackageReference Include="Scrutor" />
     <PackageReference Include="Serilog" />
+    <PackageReference Include="Scriban" />
     <PackageReference Include="WolverineFx" />
   </ItemGroup>
 

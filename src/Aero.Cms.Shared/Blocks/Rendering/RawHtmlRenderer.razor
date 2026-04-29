@@ -1,9 +1,11 @@
 @using Aero.Cms.Abstractions.Blocks.Common
+@using Aero.Cms.Core.Security
 @namespace Aero.Cms.Shared.Blocks.Rendering
+@inject ICmsHtmlSanitizer HtmlSanitizer
 
 @if (Block is not null)
 {
-    @((MarkupString)Block.Content)
+    @((MarkupString)HtmlSanitizer.Sanitize(Block.Content))
 }
 
 @code {

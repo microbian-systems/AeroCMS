@@ -1,5 +1,6 @@
 using Aero.Cms.Core.Models;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
@@ -10,6 +11,17 @@ namespace Aero.Cms.Modules.Headless.Areas.Api.v1;
 /// </summary>
 public static class MediaApi
 {
+    private const long HtmlEditorImageMaxBytes = 10 * 1024 * 1024;
+
+    private static readonly IReadOnlyDictionary<string, string> HtmlEditorImageMimeTypes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["image/jpeg"] = ".jpg",
+            ["image/png"] = ".png",
+            ["image/webp"] = ".webp",
+            ["image/gif"] = ".gif"
+        };
+
     /// <summary>
     /// Maps the Media Admin API endpoints.
     /// </summary>
@@ -29,6 +41,10 @@ public static class MediaApi
 
         group.MapPost("/", CreateMedia)
             .WithName("UploadMedia");
+
+        group.MapPost("/html-editor-image", UploadHtmlEditorImage)
+            .DisableAntiforgery()
+            .WithName("UploadHtmlEditorImage");
 
         group.MapPut("/{id:long}", UpdateMedia)
             .WithName("UpdateMedia");
@@ -239,6 +255,69 @@ public static class MediaApi
         }
     }
 
+    private static async Task<IResult> UploadHtmlEditorImage(
+        HttpRequest request,
+        [FromServices] IDocumentSession session,
+        [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
+        CancellationToken cancellationToken = default)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(MediaApi));
+
+        try
+        {
+            if (!request.HasFormContentType)
+            {
+                return TypedResults.BadRequest(new { error = "Expected multipart form upload." });
+            }
+
+            var form = await request.ReadFormAsync(cancellationToken);
+            var file = form.Files.GetFile("file") ?? form.Files.FirstOrDefault();
+
+            var validation = ValidateHtmlEditorImage(file);
+            if (validation is not null)
+            {
+                return TypedResults.BadRequest(new { error = validation });
+            }
+
+            var safeExtension = GetSafeImageExtension(file!.ContentType, file.FileName);
+            var safeBaseName = Path.GetFileNameWithoutExtension(file.FileName);
+            safeBaseName = SanitizeFileName(string.IsNullOrWhiteSpace(safeBaseName) ? "html-editor-image" : safeBaseName);
+
+            var storedFileName = $"{Snowflake.NewId()}-{safeBaseName}{safeExtension}";
+            var directory = Path.Combine(GetWebRootPath(env), "media");
+            Directory.CreateDirectory(directory);
+
+            var filePath = Path.Combine(directory, storedFileName);
+            await using (var stream = File.Create(filePath))
+            await using (var upload = file.OpenReadStream())
+            {
+                await upload.CopyToAsync(stream, cancellationToken);
+            }
+
+            var url = $"/media/{storedFileName}";
+            var media = new MediaAsset
+            {
+                Id = Snowflake.NewId(),
+                FileName = storedFileName,
+                MimeType = file.ContentType,
+                FileSize = file.Length,
+                Url = url,
+                IsFolder = false
+            };
+
+            session.Store(media);
+            await session.SaveChangesAsync(cancellationToken);
+
+            return TypedResults.Ok(new { url, id = media.Id });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error uploading HTML editor image");
+            return TypedResults.Problem(detail: "Unable to upload image.");
+        }
+    }
+
     private static async Task<IResult> UpdateMedia(
         long id,
         [FromBody] UploadMediaRequest request,
@@ -327,4 +406,71 @@ public static class MediaApi
             return TypedResults.Problem(detail: ex.Message);
         }
     }
+
+    private static string? ValidateHtmlEditorImage(IFormFile? file)
+    {
+        if (file is null)
+        {
+            return "No file was uploaded.";
+        }
+
+        if (file.Length <= 0)
+        {
+            return "Uploaded file is empty.";
+        }
+
+        if (file.Length > HtmlEditorImageMaxBytes)
+        {
+            return "Uploaded image exceeds the 10 MB limit.";
+        }
+
+        if (!HtmlEditorImageMimeTypes.ContainsKey(file.ContentType))
+        {
+            return "Only JPEG, PNG, WebP, and GIF images are allowed.";
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return "Uploaded image must have a file extension.";
+        }
+
+        var expectedExtension = GetSafeImageExtension(file.ContentType, file.FileName);
+        if (!string.Equals(extension, expectedExtension, StringComparison.OrdinalIgnoreCase)
+            && !(string.Equals(file.ContentType, "image/jpeg", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "Uploaded image extension does not match the content type.";
+        }
+
+        return null;
+    }
+
+    private static string GetSafeImageExtension(string contentType, string fileName)
+    {
+        if (string.Equals(contentType, "image/jpeg", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(Path.GetExtension(fileName), ".jpeg", StringComparison.OrdinalIgnoreCase))
+        {
+            return ".jpeg";
+        }
+
+        return HtmlEditorImageMimeTypes[contentType];
+    }
+
+    private static string SanitizeFileName(string value)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var chars = value
+            .Where(ch => !invalid.Contains(ch))
+            .Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '-')
+            .ToArray();
+
+        var sanitized = new string(chars).Trim('-');
+        return string.IsNullOrWhiteSpace(sanitized) ? "html-editor-image" : sanitized;
+    }
+
+    private static string GetWebRootPath(Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
+        => string.IsNullOrWhiteSpace(env.WebRootPath)
+            ? Path.Combine(env.ContentRootPath, "wwwroot")
+            : env.WebRootPath;
 }

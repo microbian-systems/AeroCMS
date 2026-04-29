@@ -33,6 +33,7 @@ namespace Aero.Cms.Abstractions.Blocks;
 [JsonDerivedType(typeof(MarkdownBlock), "markdown")]
 [JsonDerivedType(typeof(RawHtmlBlock), "raw_html")]
 [JsonDerivedType(typeof(AnalyticsBlock), "analytics_script")]
+[JsonDerivedType(typeof(DynamicTemplateBlock), "dynamic_template")]
 [JsonDerivedType(typeof(NavigationBlock), "navigation")]
 [JsonDerivedType(typeof(AeroHeroBlock), "aero_hero")]
 [JsonDerivedType(typeof(AeroFeaturesBlock), "aero_features")]

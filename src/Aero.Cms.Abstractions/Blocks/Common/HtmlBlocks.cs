@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Html;
 namespace Aero.Cms.Abstractions.Blocks.Common;
 
 /// <summary>
-/// A block that allows injecting raw HTML, CSS, or JavaScript directly into the page.
+/// A block that allows sanitized custom HTML fragments in the page.
 /// </summary>
 [BlockMetadata("raw_html", "Raw HTML", Category = "Advanced")]
 public sealed class RawHtmlBlock : BlockBase

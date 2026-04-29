@@ -10,6 +10,7 @@ public sealed record CmsBlockDescriptor(
     string? Category,
     string? Icon,
     int SortOrder,
+    int SchemaVersion,
     Type ModelType,
     Type RendererType,
     string RendererParameterName);

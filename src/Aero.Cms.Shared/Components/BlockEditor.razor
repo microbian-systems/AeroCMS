@@ -1,10 +1,13 @@
 @using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Blocks.Common
 @using Aero.Cms.Abstractions.Blocks.Editing
 @using Aero.Cms.Core.Blocks
+@using Aero.Cms.Core.Security
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Core
 @using Aero.Core.Railway
 @inject BlockEditingService BlockService
+@inject ICmsHtmlSanitizer HtmlSanitizer
 @inject NavigationsHttpClient NavClient
 
 <div class="block-editor">
@@ -66,6 +69,35 @@
                                          Class="w-full" />
                         <RadzenText TextStyle="TextStyle.Caption" Class="rz-text-secondary mt-1">
                             Enter the rich text content for this block
+                        </RadzenText>
+                    </div>
+                    break;
+
+                case MarkdownBlock markdown:
+                    <div class="form-group">
+                        <RadzenLabel Text="Markdown" Component="markdownContent" Class="block text-sm font-medium text-gray-700 mb-2" />
+                        <RadzenTextArea @bind-Value="markdown.Content"
+                                        id="markdownContent"
+                                        Placeholder="# Markdown content..."
+                                        Rows="10"
+                                        Class="w-full" />
+                        <div class="markdown-block-content mt-4">
+                            <RadzenMarkdown Text="@markdown.Content" AllowHtml="false" />
+                        </div>
+                    </div>
+                    break;
+
+                case RawHtmlBlock rawHtml:
+                    <div class="form-group">
+                        <RadzenLabel Text="HTML" Component="rawHtmlContent" Class="block text-sm font-medium text-gray-700 mb-2" />
+                        <RadzenHtmlEditor @bind-Value="rawHtml.Content"
+                                         id="rawHtmlContent"
+                                         UploadUrl="/api/v1/admin/media/html-editor-image"
+                                         Paste="SanitizeHtmlPaste"
+                                         Style="height: 300px;"
+                                         Class="w-full" />
+                        <RadzenText TextStyle="TextStyle.Caption" Class="rz-text-secondary mt-1">
+                            HTML is sanitized before preview and rendering.
                         </RadzenText>
                     </div>
                     break;
@@ -471,6 +503,11 @@
     {
         // This would open a media picker dialog
         // For now, just a placeholder
+    }
+
+    private void SanitizeHtmlPaste(HtmlEditorPasteEventArgs args)
+    {
+        args.Html = HtmlSanitizer.Sanitize(args.Html);
     }
 
     private string GetBlockIcon() => Block?.BlockType?.ToLowerInvariant() switch

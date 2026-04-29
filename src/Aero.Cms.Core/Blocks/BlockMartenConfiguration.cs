@@ -1,5 +1,4 @@
 using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Common;
 using Marten;
 
 namespace Aero.Cms.Core.Blocks;
@@ -11,26 +10,10 @@ public sealed class BlockMartenConfiguration : IConfigureMarten
 {
     public void Configure(IServiceProvider services, StoreOptions options)
     {
-        options.Schema.For<BlockBase>().AddSubClassHierarchy(
-            typeof(RichTextBlock),
-            typeof(HeadingBlock),
-            typeof(ImageBlock),
-            typeof(CtaBlock),
-            typeof(QuoteBlock),
-            typeof(EmbedBlock),
-            typeof(NavigationBlock),
-            typeof(RawHtmlBlock),
-            typeof(AeroAuthBlock),
-            typeof(AeroBlogBlock),
-            typeof(AeroContactBlock),
-            typeof(AeroCtaBlock),
-            typeof(AeroFaqBlock),
-            typeof(AeroFeaturesBlock),
-            typeof(AeroHeroBlock),
-            typeof(AeroPortfolioBlock),
-            typeof(AeroPricingBlock),
-            typeof(AeroTableBlock),
-            typeof(AeroTeamsBlock),
-            typeof(AeroTestimonialsBlock));
+        var mappedTypes = GeneratedBlockModelManifest.Blocks.Values
+            .Select(descriptor => new MappedType(descriptor.ModelType, descriptor.BlockType))
+            .ToArray();
+
+        options.Schema.For<BlockBase>().AddSubClassHierarchy(mappedTypes);
     }
 }

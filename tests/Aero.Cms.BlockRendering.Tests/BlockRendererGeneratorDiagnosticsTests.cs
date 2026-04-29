@@ -29,11 +29,39 @@ public sealed class BlockRendererGeneratorDiagnosticsTests
             """);
 
         result.Diagnostics.Should().BeEmpty();
-        result.GeneratedSource.Should().Contain("public static partial class CmsBlockManifest");
-        result.GeneratedSource.Should().Contain("new CmsBlockDescriptor(\"demo\", \"Demo\"");
-        result.GeneratedSource.Should().Contain("builder.OpenComponent<global::Demo.DemoRenderer>(1);");
-        result.GeneratedSource.Should().Contain("builder.AddAttribute(2, \"Block\", typedBlock);");
-        result.GeneratedSource.Should().Contain("[\"demo\"] = new DemoBlockRenderAdapter()");
+        result.GetGeneratedSource("CmsBlockRendering.g.cs").Should().Contain("public static partial class CmsBlockManifest");
+        result.GetGeneratedSource("CmsBlockRendering.g.cs").Should().Contain("new CmsBlockDescriptor(\"demo\", \"Demo\"");
+        result.GetGeneratedSource("CmsBlockRendering.g.cs").Should().Contain("builder.OpenComponent<global::Demo.DemoRenderer>(1);");
+        result.GetGeneratedSource("CmsBlockRendering.g.cs").Should().Contain("builder.AddAttribute(2, \"Block\", typedBlock);");
+        result.GetGeneratedSource("CmsBlockRendering.g.cs").Should().Contain("[\"demo\"] = new DemoBlockRenderAdapter()");
+    }
+
+    [Test]
+    public void Generator_EmitsMetadataOnlyBlockArtifacts()
+    {
+        var result = RunGeneratorWithResult(
+            """
+            namespace Demo;
+
+            [Aero.Cms.Abstractions.Blocks.BlockMetadata("demo", "Demo", Category = "General", SortOrder = 10, SchemaVersion = 3)]
+            public sealed class DemoBlock : Aero.Cms.Abstractions.Blocks.BlockBase
+            {
+                public override string BlockType => "demo";
+            }
+            """);
+
+        result.Diagnostics.Should().BeEmpty();
+
+        var manifestSource = result.GetGeneratedSource("GeneratedBlockModelManifest.g.cs");
+        manifestSource.Should().Contain("public static partial class GeneratedBlockModelManifest");
+        manifestSource.Should().Contain("new GeneratedBlockModelDescriptor(\"demo\", \"Demo\"");
+        manifestSource.Should().Contain("10, 3, typeof(global::Demo.DemoBlock)");
+        manifestSource.Should().Contain("typeof(global::Demo.DemoBlock)");
+
+        var jsonSource = result.GetGeneratedSource("GeneratedBlockJsonRegistration.g.cs");
+        jsonSource.Should().Contain("public static partial class GeneratedBlockJsonRegistration");
+        jsonSource.Should().Contain("typeof(global::Demo.DemoBlock)");
+        jsonSource.Should().Contain("typeof(List<global::Demo.DemoBlock>)");
     }
 
     [Test]
@@ -69,6 +97,29 @@ public sealed class BlockRendererGeneratorDiagnosticsTests
             """);
 
         diagnostics.Should().Contain(diagnostic => diagnostic.Id == "AERO001");
+    }
+
+    [Test]
+    public void Generator_ReportsDuplicateBlockModelMetadata()
+    {
+        var diagnostics = RunGenerator(
+            """
+            namespace Demo;
+
+            [Aero.Cms.Abstractions.Blocks.BlockMetadata("demo", "Demo")]
+            public sealed class FirstBlock : Aero.Cms.Abstractions.Blocks.BlockBase
+            {
+                public override string BlockType => "demo";
+            }
+
+            [Aero.Cms.Abstractions.Blocks.BlockMetadata("demo", "Duplicate Demo")]
+            public sealed class SecondBlock : Aero.Cms.Abstractions.Blocks.BlockBase
+            {
+                public override string BlockType => "demo";
+            }
+            """);
+
+        diagnostics.Should().Contain(diagnostic => diagnostic.Id == "AERO006");
     }
 
     [Test]
@@ -150,14 +201,15 @@ public sealed class BlockRendererGeneratorDiagnosticsTests
             .Where(diagnostic => diagnostic.Id.StartsWith("AERO", StringComparison.Ordinal))
             .ToArray();
 
-        var generatedSource = driver
+        var generatedSources = driver
             .GetRunResult()
             .GeneratedTrees
-            .FirstOrDefault(tree => tree.FilePath.EndsWith("CmsBlockRendering.g.cs", StringComparison.Ordinal))
-            ?.GetText()
-            .ToString() ?? string.Empty;
+            .ToDictionary(
+                tree => Path.GetFileName(tree.FilePath),
+                tree => tree.GetText().ToString(),
+                StringComparer.Ordinal);
 
-        return new GeneratorTestResult(diagnostics, generatedSource);
+        return new GeneratorTestResult(diagnostics, generatedSources);
     }
 
     private static MetadataReference[] GetReferences()
@@ -180,6 +232,7 @@ public sealed class BlockRendererGeneratorDiagnosticsTests
     private const string ContractsSource =
         """
         using System;
+        using System.Text.Json.Serialization;
         using Microsoft.AspNetCore.Components;
         using Microsoft.AspNetCore.Html;
 
@@ -197,6 +250,16 @@ public sealed class BlockRendererGeneratorDiagnosticsTests
                 public string BlockType { get; }
 
                 public string DisplayName { get; }
+
+                public string? Description { get; set; }
+
+                public string? Category { get; set; }
+
+                public string? Icon { get; set; }
+
+                public int SortOrder { get; set; }
+
+                public int SchemaVersion { get; set; } = 1;
             }
 
             public interface IBlock
@@ -247,6 +310,7 @@ public sealed class BlockRendererGeneratorDiagnosticsTests
                 string? Category,
                 string? Icon,
                 int SortOrder,
+                int SchemaVersion,
                 Type ModelType,
                 Type RendererType,
                 string RendererParameterName);
@@ -255,5 +319,9 @@ public sealed class BlockRendererGeneratorDiagnosticsTests
 
     private sealed record GeneratorTestResult(
         IReadOnlyList<Diagnostic> Diagnostics,
-        string GeneratedSource);
+        IReadOnlyDictionary<string, string> GeneratedSources)
+    {
+        public string GetGeneratedSource(string hintName)
+            => GeneratedSources.TryGetValue(hintName, out var source) ? source : string.Empty;
+    }
 }

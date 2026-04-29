@@ -49,6 +49,7 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
 [JsonSerializable(typeof(List<MarkdownBlock>))]
 [JsonSerializable(typeof(List<RawHtmlBlock>))]
 [JsonSerializable(typeof(List<AnalyticsBlock>))]
+[JsonSerializable(typeof(List<DynamicTemplateBlock>))]
 [JsonSerializable(typeof(List<ScrollingContentBlock>))]
 [JsonSerializable(typeof(List<FormEditorBlock>))]
 [JsonSerializable(typeof(List<NavigationBlock>))]
@@ -89,6 +90,7 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
 [JsonSerializable(typeof(MarkdownBlock))]
 [JsonSerializable(typeof(RawHtmlBlock))]
 [JsonSerializable(typeof(AnalyticsBlock))]
+[JsonSerializable(typeof(DynamicTemplateBlock))]
 [JsonSerializable(typeof(ScrollingContentBlock))]
 [JsonSerializable(typeof(FormEditorBlock))]
 [JsonSerializable(typeof(NavigationBlock))]
@@ -127,6 +129,7 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
 [JsonSerializable(typeof(DateTime))]
 [JsonSerializable(typeof(Guid))]
 [JsonSerializable(typeof(JsonElement))]
+[JsonSerializable(typeof(JsonDocument))]
 
 [JsonSourceGenerationOptions(
     WriteIndented = false,

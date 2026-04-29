@@ -37,6 +37,11 @@ public sealed class BlockMetadataAttribute : Attribute
     public int SortOrder { get; set; }
 
     /// <summary>
+    /// Gets the persisted schema version for this block model.
+    /// </summary>
+    public int SchemaVersion { get; set; } = 1;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="BlockMetadataAttribute"/> class.
     /// </summary>
     /// <param name="name">The unique name of the block type.</param>

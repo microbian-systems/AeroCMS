@@ -1324,7 +1324,9 @@ else if (ActiveTab == "metadata")
             }
             else
             {
-                <div class="pe-markdown-preview">@((MarkupString)RenderMarkdown(b.Content))</div>
+                <div class="pe-markdown-preview">
+                    <RadzenMarkdown Text="@b.Content" AllowHtml="false" />
+                </div>
             }
         </div>
     };
@@ -1345,9 +1347,11 @@ else if (ActiveTab == "metadata")
             </div>
             @if (b.MarkdownView == "edit")
             {
-                <textarea placeholder="<div class='custom'>Hello World</div>"
-                          @bind="b.Content"
-                          @onfocus="() => SelectBlock(b.EditorId)"></textarea>
+                <RadzenHtmlEditor @bind-Value="b.Content"
+                                  UploadUrl="/api/v1/admin/media/html-editor-image"
+                                  Paste="SanitizeHtmlPaste"
+                                  Style="height:300px"
+                                  @onfocus="() => SelectBlock(b.EditorId)" />
             }
             else
             {

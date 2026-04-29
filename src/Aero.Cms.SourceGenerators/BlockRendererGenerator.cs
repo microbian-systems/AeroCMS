@@ -49,8 +49,24 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor DuplicateBlockModelType = new(
+        "AERO006",
+        "Duplicate CMS block metadata",
+        "Block type '{0}' is declared by more than one CMS block model",
+        "AeroCMS.BlockRendering",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        var blockModels = context.SyntaxProvider.ForAttributeWithMetadataName(
+            BlockMetadataAttributeMetadataName,
+            static (node, _) => node is ClassDeclarationSyntax,
+            static (ctx, _) => GetBlockModelCandidate(ctx))
+            .Where(static candidate => candidate is not null)
+            .Select(static (candidate, _) => candidate!.Value)
+            .Collect();
+
         var renderers = context.SyntaxProvider.ForAttributeWithMetadataName(
             RendererAttributeMetadataName,
             static (node, _) => node is ClassDeclarationSyntax,
@@ -58,6 +74,31 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             .Where(static candidate => candidate is not null)
             .Select(static (candidate, _) => candidate!.Value)
             .Collect();
+
+        context.RegisterSourceOutput(blockModels, static (productionContext, candidates) =>
+        {
+            var descriptors = candidates
+                .Select(CreateBlockModelDescriptor)
+                .Where(static descriptor => descriptor is not null)
+                .Select(static descriptor => descriptor!.Value)
+                .OrderBy(static descriptor => descriptor.BlockType, StringComparer.Ordinal)
+                .ToImmutableArray();
+
+            ReportDuplicateBlockModelTypes(productionContext, descriptors);
+
+            if (descriptors.Length == 0)
+            {
+                return;
+            }
+
+            productionContext.AddSource(
+                "GeneratedBlockModelManifest.g.cs",
+                SourceText.From(RenderBlockModelManifestSource(descriptors), Encoding.UTF8));
+
+            productionContext.AddSource(
+                "GeneratedBlockJsonRegistration.g.cs",
+                SourceText.From(RenderBlockJsonRegistrationSource(descriptors), Encoding.UTF8));
+        });
 
         context.RegisterSourceOutput(renderers, static (productionContext, candidates) =>
         {
@@ -79,6 +120,25 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
                 "CmsBlockRendering.g.cs",
                 SourceText.From(RenderGeneratedSource(descriptors), Encoding.UTF8));
         });
+    }
+
+    private static BlockModelCandidate? GetBlockModelCandidate(GeneratorAttributeSyntaxContext context)
+    {
+        if (context.TargetSymbol is not INamedTypeSymbol modelType || !IsBlockModel(modelType))
+        {
+            return null;
+        }
+
+        var metadata = context.Attributes.FirstOrDefault(static attr =>
+            attr.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                == "global::" + BlockMetadataAttributeMetadataName);
+
+        if (metadata is null || metadata.ConstructorArguments.Length < 1)
+        {
+            return null;
+        }
+
+        return new BlockModelCandidate(modelType, metadata);
     }
 
     private static RendererCandidate? GetRendererCandidate(GeneratorAttributeSyntaxContext context)
@@ -180,6 +240,7 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         var category = GetNamedString(metadata, "Category");
         var icon = GetNamedString(metadata, "Icon");
         var sortOrder = GetNamedInt(metadata, "SortOrder");
+        var schemaVersion = GetNamedInt(metadata, "SchemaVersion", 1);
         var rendererName = candidate.RendererType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var modelName = candidate.ModelType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var adapterName = ToAdapterName(candidate.ModelType);
@@ -196,8 +257,33 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             category,
             icon,
             sortOrder,
+            schemaVersion,
             candidate.HasNavigationParameter,
             candidate.Location);
+    }
+
+    private static BlockModelDescriptor? CreateBlockModelDescriptor(BlockModelCandidate candidate)
+    {
+        if (candidate.Metadata.ConstructorArguments[0].Value is not string blockType ||
+            string.IsNullOrWhiteSpace(blockType))
+        {
+            return null;
+        }
+
+        var displayName = candidate.Metadata.ConstructorArguments.Length > 1 &&
+            candidate.Metadata.ConstructorArguments[1].Value is string display
+                ? display
+                : blockType;
+
+        return new BlockModelDescriptor(
+            blockType,
+            displayName,
+            GetNamedString(candidate.Metadata, "Description"),
+            GetNamedString(candidate.Metadata, "Category"),
+            GetNamedString(candidate.Metadata, "Icon"),
+            GetNamedInt(candidate.Metadata, "SortOrder"),
+            GetNamedInt(candidate.Metadata, "SchemaVersion", 1),
+            candidate.ModelType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
     }
 
     private static string RenderGeneratedSource(ImmutableArray<BlockRendererDescriptor> descriptors)
@@ -215,6 +301,119 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
 
         RenderManifestSource(source, descriptors);
         RenderRegistrySource(source, descriptors);
+
+        return source.ToString();
+    }
+
+    private static string RenderBlockModelManifestSource(ImmutableArray<BlockModelDescriptor> descriptors)
+    {
+        var source = new StringBuilder();
+        source.AppendLine("// <auto-generated />");
+        source.AppendLine("#nullable enable");
+        source.AppendLine("using System;");
+        source.AppendLine("using System.Collections.Generic;");
+        source.AppendLine();
+        source.AppendLine("namespace Aero.Cms.Abstractions.Blocks;");
+        source.AppendLine();
+        source.AppendLine("/// <summary>");
+        source.AppendLine("/// Describes a source-generated CMS block model registration.");
+        source.AppendLine("/// </summary>");
+        source.AppendLine("public readonly record struct GeneratedBlockModelDescriptor(");
+        source.AppendLine("    string BlockType,");
+        source.AppendLine("    string DisplayName,");
+        source.AppendLine("    string? Description,");
+        source.AppendLine("    string? Category,");
+        source.AppendLine("    string? Icon,");
+        source.AppendLine("    int SortOrder,");
+        source.AppendLine("    int SchemaVersion,");
+        source.AppendLine("    Type ModelType);");
+        source.AppendLine();
+        source.AppendLine("/// <summary>");
+        source.AppendLine("/// Provides source-generated metadata for CMS block models.");
+        source.AppendLine("/// </summary>");
+        source.AppendLine("public static partial class GeneratedBlockModelManifest");
+        source.AppendLine("{");
+        source.AppendLine("    /// <summary>");
+        source.AppendLine("    /// Gets all discovered CMS block models keyed by persisted block type.");
+        source.AppendLine("    /// </summary>");
+        source.AppendLine("    public static readonly IReadOnlyDictionary<string, GeneratedBlockModelDescriptor> Blocks =");
+        source.AppendLine("        new Dictionary<string, GeneratedBlockModelDescriptor>(StringComparer.OrdinalIgnoreCase)");
+        source.AppendLine("        {");
+
+        foreach (var descriptor in descriptors)
+        {
+            source.AppendLine(
+                $"            [\"{Escape(descriptor.BlockType)}\"] = new GeneratedBlockModelDescriptor(\"{Escape(descriptor.BlockType)}\", \"{Escape(descriptor.DisplayName)}\", {Literal(descriptor.Description)}, {Literal(descriptor.Category)}, {Literal(descriptor.Icon)}, {descriptor.SortOrder}, {descriptor.SchemaVersion}, typeof({descriptor.ModelTypeName})),");
+        }
+
+        source.AppendLine("        };");
+        source.AppendLine();
+        source.AppendLine("    /// <summary>");
+        source.AppendLine("    /// Gets every discovered CMS block model type.");
+        source.AppendLine("    /// </summary>");
+        source.AppendLine("    public static readonly Type[] ModelTypes =");
+        source.AppendLine("    [");
+
+        foreach (var descriptor in descriptors)
+        {
+            source.AppendLine($"        typeof({descriptor.ModelTypeName}),");
+        }
+
+        source.AppendLine("    ];");
+        source.AppendLine();
+        source.AppendLine("    /// <summary>");
+        source.AppendLine("    /// Attempts to resolve source-generated metadata for a persisted block type discriminator.");
+        source.AppendLine("    /// </summary>");
+        source.AppendLine("    public static bool TryGet(string blockType, out GeneratedBlockModelDescriptor descriptor)");
+        source.AppendLine("        => Blocks.TryGetValue(blockType, out descriptor);");
+        source.AppendLine("}");
+
+        return source.ToString();
+    }
+
+    private static string RenderBlockJsonRegistrationSource(ImmutableArray<BlockModelDescriptor> descriptors)
+    {
+        var source = new StringBuilder();
+        source.AppendLine("// <auto-generated />");
+        source.AppendLine("#nullable enable");
+        source.AppendLine("using System;");
+        source.AppendLine("using System.Collections.Generic;");
+        source.AppendLine("using Aero.Cms.Abstractions.Blocks;");
+        source.AppendLine();
+        source.AppendLine("namespace Aero.Cms.Abstractions.Blocks.Serialization;");
+        source.AppendLine();
+        source.AppendLine("/// <summary>");
+        source.AppendLine("/// Provides source-generated JSON registration metadata for CMS block models.");
+        source.AppendLine("/// </summary>");
+        source.AppendLine("public static partial class GeneratedBlockJsonRegistration");
+        source.AppendLine("{");
+        source.AppendLine("    /// <summary>");
+        source.AppendLine("    /// Gets every discovered block model type that should be represented in block JSON metadata.");
+        source.AppendLine("    /// </summary>");
+        source.AppendLine("    public static readonly Type[] ModelTypes =");
+        source.AppendLine("    [");
+
+        foreach (var descriptor in descriptors)
+        {
+            source.AppendLine($"        typeof({descriptor.ModelTypeName}),");
+        }
+
+        source.AppendLine("    ];");
+        source.AppendLine();
+        source.AppendLine("    /// <summary>");
+        source.AppendLine("    /// Gets every discovered block collection type that should be represented in block JSON metadata.");
+        source.AppendLine("    /// </summary>");
+        source.AppendLine("    public static readonly Type[] CollectionTypes =");
+        source.AppendLine("    [");
+        source.AppendLine("        typeof(List<BlockBase>),");
+
+        foreach (var descriptor in descriptors)
+        {
+            source.AppendLine($"        typeof(List<{descriptor.ModelTypeName}>),");
+        }
+
+        source.AppendLine("    ];");
+        source.AppendLine("}");
 
         return source.ToString();
     }
@@ -238,7 +437,7 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         foreach (var descriptor in descriptors)
         {
             source.AppendLine(
-                $"            [\"{Escape(descriptor.BlockType)}\"] = new CmsBlockDescriptor(\"{Escape(descriptor.BlockType)}\", \"{Escape(descriptor.DisplayName)}\", {Literal(descriptor.Description)}, {Literal(descriptor.Category)}, {Literal(descriptor.Icon)}, {descriptor.SortOrder}, typeof({descriptor.ModelTypeName}), typeof({descriptor.RendererTypeName}), \"{Escape(descriptor.ParameterName)}\"),");
+                $"            [\"{Escape(descriptor.BlockType)}\"] = new CmsBlockDescriptor(\"{Escape(descriptor.BlockType)}\", \"{Escape(descriptor.DisplayName)}\", {Literal(descriptor.Description)}, {Literal(descriptor.Category)}, {Literal(descriptor.Icon)}, {descriptor.SortOrder}, {descriptor.SchemaVersion}, typeof({descriptor.ModelTypeName}), typeof({descriptor.RendererTypeName}), \"{Escape(descriptor.ParameterName)}\"),");
         }
 
         source.AppendLine("        };");
@@ -330,6 +529,24 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         }
     }
 
+    private static void ReportDuplicateBlockModelTypes(
+        SourceProductionContext context,
+        ImmutableArray<BlockModelDescriptor> descriptors)
+    {
+        foreach (var duplicateGroup in descriptors
+            .GroupBy(static descriptor => descriptor.BlockType, StringComparer.OrdinalIgnoreCase)
+            .Where(static group => group.Count() > 1))
+        {
+            foreach (var descriptor in duplicateGroup)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DuplicateBlockModelType,
+                    Location.None,
+                    descriptor.BlockType));
+            }
+        }
+    }
+
     private static bool IsBlockModel(INamedTypeSymbol modelType)
     {
         if (modelType.AllInterfaces.Any(static candidate =>
@@ -364,7 +581,7 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static int GetNamedInt(AttributeData metadata, string name)
+    private static int GetNamedInt(AttributeData metadata, string name, int defaultValue = 0)
     {
         foreach (var namedArgument in metadata.NamedArguments)
         {
@@ -374,7 +591,7 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             }
         }
 
-        return 0;
+        return defaultValue;
     }
 
     private static string ToAdapterName(INamedTypeSymbol modelType)
@@ -431,6 +648,58 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         public Location? Location { get; }
     }
 
+    private readonly struct BlockModelCandidate
+    {
+        public BlockModelCandidate(INamedTypeSymbol modelType, AttributeData metadata)
+        {
+            ModelType = modelType;
+            Metadata = metadata;
+        }
+
+        public INamedTypeSymbol ModelType { get; }
+
+        public AttributeData Metadata { get; }
+    }
+
+    private readonly struct BlockModelDescriptor
+    {
+        public BlockModelDescriptor(
+            string blockType,
+            string displayName,
+            string? description,
+            string? category,
+            string? icon,
+            int sortOrder,
+            int schemaVersion,
+            string modelTypeName)
+        {
+            BlockType = blockType;
+            DisplayName = displayName;
+            Description = description;
+            Category = category;
+            Icon = icon;
+            SortOrder = sortOrder;
+            SchemaVersion = schemaVersion;
+            ModelTypeName = modelTypeName;
+        }
+
+        public string BlockType { get; }
+
+        public string DisplayName { get; }
+
+        public string? Description { get; }
+
+        public string? Category { get; }
+
+        public string? Icon { get; }
+
+        public int SortOrder { get; }
+
+        public int SchemaVersion { get; }
+
+        public string ModelTypeName { get; }
+    }
+
     private readonly struct BlockRendererDescriptor
     {
         public BlockRendererDescriptor(
@@ -444,6 +713,7 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             string? category,
             string? icon,
             int sortOrder,
+            int schemaVersion,
             bool hasNavigationParameter,
             Location? location)
         {
@@ -457,6 +727,7 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             Category = category;
             Icon = icon;
             SortOrder = sortOrder;
+            SchemaVersion = schemaVersion;
             HasNavigationParameter = hasNavigationParameter;
             Location = location;
         }
@@ -480,6 +751,8 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         public string? Icon { get; }
 
         public int SortOrder { get; }
+
+        public int SchemaVersion { get; }
 
         public bool HasNavigationParameter { get; }
 
