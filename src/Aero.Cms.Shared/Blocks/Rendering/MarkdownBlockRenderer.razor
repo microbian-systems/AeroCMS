@@ -1,0 +1,11 @@
+@if (Block != null && !string.IsNullOrEmpty(Block.Content))
+{
+    <div class="markdown-block-content">
+        <RadzenMarkdown Text="@Block.Content" AllowHtml="true" />
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Aero.Cms.Abstractions.Blocks.Common.MarkdownBlock? Block { get; set; }
+}

@@ -13,6 +13,12 @@
                 <RichTextBlockRenderer Block="@richText" />
             }
             break;
+        case "markdown":
+            {
+                var markdown = Block as MarkdownBlock;
+                <MarkdownBlockRenderer Block="@markdown" />
+            }
+            break;
         case "heading":
             {
                 var heading = Block as HeadingBlock;

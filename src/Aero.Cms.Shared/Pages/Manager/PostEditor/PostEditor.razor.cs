@@ -249,8 +249,8 @@ public partial class PostEditor : ComponentBase, IDisposable
     {
         if (IsSaving) return;
 
-        // Sync Monaco value before saving
-        if (_editor is not null)
+        // Sync Monaco value before saving (only if actively using Code tab)
+        if (ActiveTab == "code" && _editor is not null)
         {
             Content = await _editor.GetValue();
         }

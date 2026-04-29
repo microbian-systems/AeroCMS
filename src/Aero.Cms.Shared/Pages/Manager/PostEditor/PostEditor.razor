@@ -138,7 +138,7 @@
         </div>
         <div class="pe-blocks-container preview-@PreviewDevice">
             <div class="pe-markdown-preview-content">
-                <RadzenMarkdown Text="@Content" />
+                <RadzenMarkdown Text="@Content" AllowHtml="true" />
             </div>
         </div>
     }
@@ -152,7 +152,8 @@
                     <RadzenColumn SizeMD="6">
                         @if (_contentInitialized)
                         {
-                            <RadzenTextArea @bind-Value="Content"
+                            <RadzenTextArea Value="@Content"
+                                            @oninput="e => Content = e.Value?.ToString() ?? string.Empty"
                                             Style="width: 100%; height: calc(100vh - 360px); min-height: 400px; font-family: monospace; font-size: 14px;"
                                             Placeholder="# Start writing markdown..." />
                         }
@@ -164,7 +165,7 @@
                         }
                     </RadzenColumn>
                     <RadzenColumn SizeMD="6">
-                        <RadzenMarkdown Text="@Content" />
+                        <RadzenMarkdown Text="@Content" AllowHtml="true" />
                     </RadzenColumn>
                 </RadzenRow>
             </div>
@@ -208,7 +209,7 @@
                     </button>
                 </div>
                 <div class="pe-preview-container preview-@PreviewDevice">
-                    <RadzenMarkdown Text="@Content" />
+                    <RadzenMarkdown Text="@Content" AllowHtml="true" />
                 </div>
             </div>
         }
