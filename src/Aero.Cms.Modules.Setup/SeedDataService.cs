@@ -15,8 +15,11 @@ using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
 using Aero.Services.Images;
 using Marten;
+using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Microsoft.AspNetCore.Hosting;
+using Serilog;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -73,6 +76,7 @@ public interface ISetupCompletionService : ISeedDatabaseService { }
 
 public sealed class SeedDatabaseService(
     IDocumentSession session,
+    IWebHostEnvironment env,
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
     IBlogPostContentService blogPostContentService,
@@ -264,6 +268,9 @@ public sealed class SeedDatabaseService(
             session.Store(doc);
         }
 
+        // Seed starter media assets from wwwroot/media
+        await SeedStarterMediaAsync(cancellationToken);
+
         // Build starter blog content (posts and tags)
         var (posts, tags) = BuildStarterBlogContent(request, staticPhotosClient);
 
@@ -278,6 +285,53 @@ public sealed class SeedDatabaseService(
         {
             await blogPostContentService.SaveAsync(post, cancellationToken);
         }
+    }
+
+    private async Task SeedStarterMediaAsync(CancellationToken ct)
+    {
+        var mediaDir = Path.Combine(env.WebRootPath, "media");
+        if (!Directory.Exists(mediaDir))
+        {
+            Log.Warning("Media directory not found at {Path}. Skipping media seed.", mediaDir);
+            return;
+        }
+
+        var mimeMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [".png"] = "image/png",
+            [".jpg"] = "image/jpeg",
+            [".jpeg"] = "image/jpeg",
+            [".gif"] = "image/gif",
+            [".webp"] = "image/webp",
+            [".svg"] = "image/svg+xml",
+            [".ico"] = "image/x-icon"
+        };
+
+        foreach (var filePath in Directory.EnumerateFiles(mediaDir))
+        {
+            var fileName = Path.GetFileName(filePath);
+            var ext = Path.GetExtension(filePath);
+            var mime = mimeMap.TryGetValue(ext, out var m) ? m : "application/octet-stream";
+
+            var altText = Path.GetFileNameWithoutExtension(fileName)
+                .Replace('-', ' ').Replace('_', ' ');
+
+            var media = new MediaAsset
+            {
+                Id = Snowflake.NewId(),
+                FileName = fileName,
+                Url = $"/media/{fileName}",
+                MimeType = mime,
+                FileSize = new FileInfo(filePath).Length,
+                AltText = altText,
+                IsFolder = false
+            };
+
+            session.Store(media);
+        }
+
+        Log.Information("Seeded {Count} media assets from {Path}",
+            Directory.GetFiles(mediaDir).Length, mediaDir);
     }
 
     private async Task SaveModuleStateAsync(CancellationToken cancellationToken)

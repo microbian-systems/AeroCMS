@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using Aero.Core;
 using Aero.Core.Railway;
-using Aero.Cms.Core.Security;
+using Aero.Core.Security;
 using Scriban;
 using Scriban.Syntax;
 
@@ -12,20 +12,20 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
 {
     private readonly SecureScribanTemplateOptions options;
     private readonly DynamicTemplateValidator validator;
-    private readonly ICmsHtmlSanitizer htmlSanitizer;
+    private readonly IHtmlSanitizer htmlSanitizer;
     private readonly ConcurrentDictionary<TemplateCacheKey, Template> templateCache = new();
 
     public SecureScribanRenderer()
-        : this(new SecureScribanTemplateOptions(), new CmsHtmlSanitizer())
+        : this(new SecureScribanTemplateOptions(), new HtmlSanitizer())
     {
     }
 
     public SecureScribanRenderer(SecureScribanTemplateOptions options)
-        : this(options, new CmsHtmlSanitizer())
+        : this(options, new HtmlSanitizer())
     {
     }
 
-    public SecureScribanRenderer(SecureScribanTemplateOptions options, ICmsHtmlSanitizer htmlSanitizer)
+    public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitizer htmlSanitizer)
     {
         this.options = options;
         this.htmlSanitizer = htmlSanitizer;

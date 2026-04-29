@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Aero.Core;
 using Aero.Cms.Core;
-using Aero.Cms.Core.Security;
+using Aero.Core.Security;
 using Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
@@ -38,8 +38,9 @@ public partial class PageEditor : ComponentBase, IDisposable
     [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
     [Inject] protected IUsersHttpClient UsersClient { get; set; } = default!;
+    [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
-    [Inject] protected ICmsHtmlSanitizer HtmlSanitizer { get; set; } = default!;
+    [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
@@ -63,6 +64,9 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool   SidebarCollapsed { get; set; }
     protected bool   PreviewMode      { get; set; }
     protected string PreviewDevice    { get; set; } = "desktop";
+    protected bool   IsPreviewRendering { get; set; }
+    protected string? PreviewHtml { get; set; }
+    protected string? PreviewError { get; set; }
     protected bool   RightSidebarCollapsed { get; set; } = true;
     protected bool   IsSaving              { get; set; }
     protected string ActiveTab             { get; set; } = "editor";
@@ -104,7 +108,9 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected List<ToastMessage> Toasts { get; set; } = [];
 
     // Auto-save timer
+    private const int PreviewDebounceMilliseconds = 300;
     private System.Timers.Timer? _autoSaveTimer;
+    private CancellationTokenSource? _previewDebounceCts;
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle  (mirrors Alpine.js init())
@@ -209,6 +215,8 @@ public partial class PageEditor : ComponentBase, IDisposable
     public void Dispose()
     {
         _autoSaveTimer?.Dispose();
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts?.Dispose();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -237,6 +245,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         Blocks.Add(block);
         SelectBlock(block.EditorId);
         ShowToast("Block added", "success");
+        QueuePreviewRefresh();
     }
 
     private EditorBlock CreateBlock(string type)
@@ -431,6 +440,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         Blocks.RemoveAt(index);
         SelectedBlockId = null;
         ShowToast("Block deleted");
+        QueuePreviewRefresh();
     }
 
     protected void DuplicateBlock(int index)
@@ -445,18 +455,21 @@ public partial class PageEditor : ComponentBase, IDisposable
 
         Blocks.Insert(index + 1, copy);
         ShowToast("Block duplicated", "success");
+        QueuePreviewRefresh();
     }
 
     protected void MoveBlockUp(int index)
     {
         if (index <= 0) return;
         (Blocks[index], Blocks[index - 1]) = (Blocks[index - 1], Blocks[index]);
+        QueuePreviewRefresh();
     }
 
     protected void MoveBlockDown(int index)
     {
         if (index >= Blocks.Count - 1) return;
         (Blocks[index], Blocks[index + 1]) = (Blocks[index + 1], Blocks[index]);
+        QueuePreviewRefresh();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -488,6 +501,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             Blocks.RemoveAt(DraggedIndex.Value);
             Blocks.Insert(index, block);
             DraggedIndex = index;
+            QueuePreviewRefresh();
         }
     }
 
@@ -502,6 +516,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         DraggedBlockId = null;
         DraggedIndex   = null;
         DragOverIndex  = -1;
+        QueuePreviewRefresh();
     }
 
     protected void DropBlock(DragEventArgs e, int index)
@@ -509,6 +524,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         DraggedBlockId = null;
         DraggedIndex   = null;
         DragOverIndex  = -1;
+        QueuePreviewRefresh();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -540,12 +556,14 @@ public partial class PageEditor : ComponentBase, IDisposable
         }
 
         block.ColumnCount = newCount;
+        QueuePreviewRefresh();
     }
 
     protected void AddBlockToColumn(EditorBlock block, int colIndex, string type)
     {
         var nb = CreateNestedBlock(type);
         block.EditorColumns[colIndex].Blocks.Add(nb);
+        QueuePreviewRefresh();
     }
 
     private static NestedBlock CreateNestedBlock(string type) => type switch
@@ -558,7 +576,10 @@ public partial class PageEditor : ComponentBase, IDisposable
     };
 
     protected void RemoveNestedBlock(EditorBlock block, int colIndex, int nestedIndex)
-        => block.EditorColumns[colIndex].Blocks.RemoveAt(nestedIndex);
+    {
+        block.EditorColumns[colIndex].Blocks.RemoveAt(nestedIndex);
+        QueuePreviewRefresh();
+    }
 
     protected void DropOnColumn(DragEventArgs e, EditorBlock block, int colIndex)
     {
@@ -576,6 +597,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         {
             block.EditorColumns[colIndex].Blocks.Add(CreateNestedBlock(mapped));
             ShowToast($"{DraggedType} added to column", "success");
+            QueuePreviewRefresh();
         }
 
         DraggedType = null;
@@ -770,10 +792,81 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Preview  (mirrors togglePreview())
     // ──────────────────────────────────────────────────────────
 
-    protected void TogglePreview()
+    protected async Task TogglePreview()
     {
         PreviewMode = !PreviewMode;
-        if (PreviewMode) SelectedBlockId = null;
+        if (PreviewMode)
+        {
+            SelectedBlockId = null;
+            await RefreshPreviewAsync();
+        }
+    }
+
+    private void QueuePreviewRefresh()
+    {
+        if (!PreviewMode)
+        {
+            return;
+        }
+
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _previewDebounceCts = cts;
+
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await Task.Delay(PreviewDebounceMilliseconds, cts.Token);
+                await RefreshPreviewAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when another edit supersedes the pending preview render.
+            }
+        });
+    }
+
+    private async Task RefreshPreviewAsync(CancellationToken cancellationToken = default)
+    {
+        if (!PreviewMode)
+        {
+            return;
+        }
+
+        IsPreviewRendering = true;
+        PreviewError = null;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var result = await PreviewClient.RenderPageFragmentAsync(blocks: Blocks, ct: cancellationToken);
+            switch (result)
+            {
+                case Result<string, AeroError>.Ok ok:
+                    PreviewHtml = ok.Value;
+                    break;
+                case Result<string, AeroError>.Failure failure:
+                    PreviewHtml = null;
+                    PreviewError = failure.Error.ToString();
+                    break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            PreviewHtml = null;
+            PreviewError = $"Preview render failed: {ex.Message}";
+        }
+        finally
+        {
+            IsPreviewRendering = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     // ──────────────────────────────────────────────────────────

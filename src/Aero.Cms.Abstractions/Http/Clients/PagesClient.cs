@@ -156,13 +156,13 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     /// <inheritdoc />
     public Task<Result<PageDetail, AeroError>> PublishAsync(long id, CancellationToken ct = default)
     {
-        return PostAsync<object, PageDetail>($"{id}/publish", new object(), ct);
+        return PutAsync<object, PageDetail>($"{id}/publish", new object(), ct);
     }
 
     /// <inheritdoc />
     public Task<Result<PageDetail, AeroError>> UnpublishAsync(long id, CancellationToken ct = default)
     {
-        return PostAsync<object, PageDetail>($"{id}/unpublish", new object(), ct);
+        return PutAsync<object, PageDetail>($"{id}/unpublish", new object(), ct);
     }
 }
 

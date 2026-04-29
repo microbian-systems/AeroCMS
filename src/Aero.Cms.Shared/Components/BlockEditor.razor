@@ -2,13 +2,14 @@
 @using Aero.Cms.Abstractions.Blocks.Common
 @using Aero.Cms.Abstractions.Blocks.Editing
 @using Aero.Cms.Core.Blocks
-@using Aero.Cms.Core.Security
+@using Aero.Core.Security
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Core
 @using Aero.Core.Railway
 @inject BlockEditingService BlockService
-@inject ICmsHtmlSanitizer HtmlSanitizer
+@inject IHtmlSanitizer HtmlSanitizer
 @inject NavigationsHttpClient NavClient
+@inject IPreviewHttpClient PreviewClient
 
 <div class="block-editor">
     <div class="flex items-center justify-between mb-6">
@@ -46,6 +47,13 @@
                           Icon="content_copy"
                           Size="ButtonSize.Small"
                           Title="Duplicate" />
+            <RadzenButton Click="RefreshPreview"
+                          Variant="Variant.Outlined"
+                          ButtonStyle="ButtonStyle.Light"
+                          Icon="visibility"
+                          Size="ButtonSize.Small"
+                          Disabled="@(Block is null || IsPreviewLoading)"
+                          Title="Refresh preview" />
             <RadzenButton Click="DeleteBlock"
                           Variant="Variant.Outlined"
                           ButtonStyle="ButtonStyle.Danger"
@@ -333,6 +341,41 @@
             }
         </div>
 
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <div class="flex items-center justify-between mb-3">
+                <RadzenText TextStyle="TextStyle.Subtitle2" Class="rz-mb-0">
+                    Preview
+                </RadzenText>
+                <RadzenButton Click="RefreshPreview"
+                              Variant="Variant.Outlined"
+                              ButtonStyle="ButtonStyle.Light"
+                              Icon="refresh"
+                              Size="ButtonSize.Small"
+                              Disabled="@IsPreviewLoading"
+                              Title="Refresh preview" />
+            </div>
+            <div class="block-editor-preview border border-gray-200 rounded-md p-4 bg-white">
+                @if (IsPreviewLoading)
+                {
+                    <div class="flex items-center gap-2 text-gray-500">
+                        <span>Rendering preview...</span>
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(PreviewError))
+                {
+                    <div class="text-sm text-red-600">@PreviewError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(PreviewHtml))
+                {
+                    <div @key="PreviewHtml">@((MarkupString)PreviewHtml)</div>
+                }
+                else
+                {
+                    <div class="text-sm text-gray-500">Refresh preview to render this block.</div>
+                }
+            </div>
+        </div>
+
         <div class="mt-6 pt-6 border-t border-gray-200 flex justify-end gap-3">
             <RadzenButton Click="CancelEdit"
                          Variant="Variant.Outlined"
@@ -411,6 +454,9 @@
     public bool CanMoveDown { get; set; } = true;
 
     private bool ShowValidationErrors { get; set; }
+    private bool IsPreviewLoading { get; set; }
+    private string? PreviewHtml { get; set; }
+    private string? PreviewError { get; set; }
     private IReadOnlyList<NavigationSummary> AvailableNavigations { get; set; } = Array.Empty<NavigationSummary>();
 
     protected override async Task OnInitializedAsync()
@@ -419,6 +465,17 @@
         if (result is Result<IReadOnlyList<NavigationSummary>, AeroError>.Ok ok && ok.Value != null)
         {
             AvailableNavigations = ok.Value;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        PreviewHtml = null;
+        PreviewError = null;
+
+        if (Block is not null)
+        {
+            await RefreshPreview();
         }
     }
 
@@ -497,6 +554,31 @@
         {
             await OnMoveDown.InvokeAsync(Block);
         }
+    }
+
+    private async Task RefreshPreview()
+    {
+        if (Block is null)
+        {
+            return;
+        }
+
+        IsPreviewLoading = true;
+        PreviewError = null;
+
+        var result = await PreviewClient.RenderBlockFragmentAsync(Block);
+        switch (result)
+        {
+            case Result<string, AeroError>.Ok ok:
+                PreviewHtml = ok.Value;
+                break;
+            case Result<string, AeroError>.Failure failure:
+                PreviewHtml = null;
+                PreviewError = failure.Error.ToString();
+                break;
+        }
+
+        IsPreviewLoading = false;
     }
 
     private void SelectMedia()

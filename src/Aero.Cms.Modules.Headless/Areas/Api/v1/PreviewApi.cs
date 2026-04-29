@@ -1,11 +1,15 @@
 using System.Text.Encodings.Web;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Http;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Web.Core.Blocks.Rendering;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Html;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Headless.Areas.Api.v1;
 
@@ -25,6 +29,14 @@ public static class PreviewApi
 
         app.MapGet($"/{HttpConstants.ApiPrefix}admin/preview/blog-posts/{{id:long}}", PreviewBlogPost)
             .WithName("PreviewBlogPost")
+            .WithTags("Admin - Preview");
+
+        app.MapPost($"/{HttpConstants.ApiPrefix}admin/preview/pages/render-fragment", PreviewPageFragment)
+            .WithName("PreviewPageFragment")
+            .WithTags("Admin - Preview");
+
+        app.MapPost($"/{HttpConstants.ApiPrefix}admin/preview/blog-posts/render-fragment", PreviewBlogPostFragment)
+            .WithName("PreviewBlogPostFragment")
             .WithTags("Admin - Preview");
 
         app.MapPost($"/{HttpConstants.ApiPrefix}admin/preview/blocks/render-fragment", PreviewBlockFragment)
@@ -94,6 +106,62 @@ public static class PreviewApi
         }
     }
 
+    private static async Task<IResult> PreviewPageFragment(
+        [FromBody] PreviewPageFragmentRequest request,
+        CmsBlockHtmlRenderer blockRenderer,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PreviewApi));
+
+        try
+        {
+            if ((request.Blocks is null || request.Blocks.Count == 0) &&
+                (request.LayoutRegions is null || request.LayoutRegions.Count == 0))
+            {
+                return TypedResults.BadRequest(new { error = "Page blocks or layout regions are required." });
+            }
+
+            var html = request.Blocks is { Count: > 0 }
+                ? await blockRenderer.RenderBlocksAsync(
+                    EditorBlockMapper.MapBlocks(request.Blocks),
+                    cancellationToken: cancellationToken)
+                : await blockRenderer.RenderRegionsAsync(request.LayoutRegions ?? [], cancellationToken);
+
+            return TypedResults.Ok(new PreviewPageFragmentResponse(RenderHtmlContent(html)));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error rendering preview page fragment");
+            return TypedResults.Json(new { error = "An error occurred rendering the preview fragment." }, statusCode: 500);
+        }
+    }
+
+    private static async Task<IResult> PreviewBlogPostFragment(
+        [FromBody] PreviewBlogPostFragmentRequest request,
+        CmsBlockHtmlRenderer blockRenderer,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PreviewApi));
+
+        try
+        {
+            if (request.Content is null)
+            {
+                return TypedResults.BadRequest(new { error = "Blog post content is required." });
+            }
+
+            var html = await blockRenderer.RenderBlocksAsync(request.Content, cancellationToken: cancellationToken);
+            return TypedResults.Ok(new PreviewBlogPostFragmentResponse(RenderHtmlContent(html)));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error rendering preview blog post fragment");
+            return TypedResults.Json(new { error = "An error occurred rendering the preview fragment." }, statusCode: 500);
+        }
+    }
+
     private static async Task<IResult> PreviewBlockFragment(
         [FromBody] PreviewBlockFragmentRequest request,
         CmsBlockHtmlRenderer blockRenderer,
@@ -132,7 +200,6 @@ public static class PreviewApi
 /// </summary>
 /// <param name="Content">The content document being previewed.</param>
 /// <param name="ContentType">The type of content (page or blog-post).</param>
-/// <param name="IsDraft">Whether the content is in draft state.</param>
 public record PreviewResponse<T>(T Content, string ContentType) where T : class
 {
     public bool IsDraft => Content switch
@@ -143,6 +210,3 @@ public record PreviewResponse<T>(T Content, string ContentType) where T : class
     };
 }
 
-public sealed record PreviewBlockFragmentRequest(BlockBase? Block);
-
-public sealed record PreviewBlockFragmentResponse(string Html);

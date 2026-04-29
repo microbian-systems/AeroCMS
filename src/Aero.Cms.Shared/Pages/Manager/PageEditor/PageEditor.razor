@@ -120,80 +120,111 @@
      @ondragover:preventDefault
      @ondrop="OnDropCanvas">
 
-    @* Empty state *@
-    @if (Blocks.Count == 0 && !PreviewMode)
+    @if (PreviewMode)
     {
-        <div class="pe-empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
-                 style="cursor: pointer" @onclick="() => RightSidebarCollapsed = false">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <line x1="12" y1="8" x2="12" y2="16"/>
-                <line x1="8" y1="12" x2="16" y2="12"/>
-            </svg>
-            <h3>Start building your page</h3>
-            <p>Drag blocks from the sidebar or click to add them here</p>
-        </div>
-    }
-
-    @* Block list *@
-    @for (var i = 0; i < Blocks.Count; i++)
-    {
-        var block = Blocks[i];
-        var index = i; // capture for lambda
-        var isSelected = SelectedBlockId == block.EditorId;
-
-        <div class="pe-block-wrapper @(isSelected ? "selected" : "") @(DraggedBlockId == block.EditorId ? "dragging" : "") @(DragOverIndex == index ? "drag-over" : "")"
-             @onclick="() => SelectBlock(block.EditorId)"
-             draggable="true"
-             @ondragstart="e => DragStartBlock(e, block.EditorId, index)"
-             @ondragover="e => DragOverBlock(e, index)"
-             @ondragover:preventDefault
-             @ondrop="e => DropBlock(e, index)"
-             @ondrop:stopPropagation>
-
-            @* Toolbar *@
-            @if (isSelected && !PreviewMode)
-            {
-                <div class="pe-block-toolbar">
-                    <button class="pe-toolbar-btn" title="Move up"
-                            disabled="@(index == 0)"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => MoveBlockUp(index)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="18 15 12 9 6 15"/>
-                        </svg>
-                    </button>
-                    <button class="pe-toolbar-btn" title="Move down"
-                            disabled="@(index == Blocks.Count - 1)"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => MoveBlockDown(index)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    </button>
-                    <button class="pe-toolbar-btn" title="Duplicate"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => DuplicateBlock(index)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
-                    </button>
-                    <button class="pe-toolbar-btn delete" title="Delete"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => DeleteBlock(index)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
-                    </button>
-                </div>
-            }
-
-            <div class="pe-block-content">
-                @RenderBlock(block, isSelected)
+        @if (IsPreviewRendering)
+        {
+            <div class="pe-empty-state">
+                <h3>Rendering preview...</h3>
             </div>
-        </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(PreviewError))
+        {
+            <div class="pe-empty-state">
+                <h3>Preview unavailable</h3>
+                <p>@PreviewError</p>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(PreviewHtml))
+        {
+            <div class="pe-server-preview" @key="PreviewHtml">
+                @((MarkupString)PreviewHtml)
+            </div>
+        }
+        else
+        {
+            <div class="pe-empty-state">
+                <h3>No preview content</h3>
+            </div>
+        }
+    }
+    else
+    {
+        @* Empty state *@
+        @if (Blocks.Count == 0)
+        {
+            <div class="pe-empty-state">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                     style="cursor: pointer" @onclick="() => RightSidebarCollapsed = false">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                <h3>Start building your page</h3>
+                <p>Drag blocks from the sidebar or click to add them here</p>
+            </div>
+        }
+
+        @* Block list *@
+        @for (var i = 0; i < Blocks.Count; i++)
+        {
+            var block = Blocks[i];
+            var index = i; // capture for lambda
+            var isSelected = SelectedBlockId == block.EditorId;
+
+            <div class="pe-block-wrapper @(isSelected ? "selected" : "") @(DraggedBlockId == block.EditorId ? "dragging" : "") @(DragOverIndex == index ? "drag-over" : "")"
+                 @onclick="() => SelectBlock(block.EditorId)"
+                 draggable="true"
+                 @ondragstart="e => DragStartBlock(e, block.EditorId, index)"
+                 @ondragover="e => DragOverBlock(e, index)"
+                 @ondragover:preventDefault
+                 @ondrop="e => DropBlock(e, index)"
+                 @ondrop:stopPropagation>
+
+                @* Toolbar *@
+                @if (isSelected)
+                {
+                    <div class="pe-block-toolbar">
+                        <button class="pe-toolbar-btn" title="Move up"
+                                disabled="@(index == 0)"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => MoveBlockUp(index)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="18 15 12 9 6 15"/>
+                            </svg>
+                        </button>
+                        <button class="pe-toolbar-btn" title="Move down"
+                                disabled="@(index == Blocks.Count - 1)"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => MoveBlockDown(index)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
+                        <button class="pe-toolbar-btn" title="Duplicate"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => DuplicateBlock(index)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                            </svg>
+                        </button>
+                        <button class="pe-toolbar-btn delete" title="Delete"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => DeleteBlock(index)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                        </button>
+                    </div>
+                }
+
+                <div class="pe-block-content">
+                    @RenderBlock(block, isSelected)
+                </div>
+            </div>
+        }
     }
 </div>
 }

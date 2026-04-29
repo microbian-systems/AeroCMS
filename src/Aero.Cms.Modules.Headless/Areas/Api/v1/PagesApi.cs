@@ -1,6 +1,7 @@
-using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Aero.Cms.Abstractions.Enums;
 using CreatePageRequest = Aero.Cms.Abstractions.Requests.CreatePageRequest;
 using UpdatePageRequest = Aero.Cms.Abstractions.Requests.UpdatePageRequest;
 
@@ -36,6 +37,12 @@ public static class PagesApi
 
         group.MapDelete("/{id:long}", DeletePage)
             .WithName("DeletePage");
+
+        group.MapPut("/{id:long}/publish", PublishPage)
+            .WithName("PublishPage");
+
+        group.MapPut("/{id:long}/unpublish", UnpublishPage)
+            .WithName("UnpublishPage");
     }
 
     private static async Task<IResult> ListPages(
@@ -241,6 +248,74 @@ public static class PagesApi
                 Title = "Failed to delete page",
                 Detail = ex.Message
             });
+        }
+    }
+
+    private static async Task<IResult> PublishPage(
+        long id,
+        IDocumentSession session,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PagesApi));
+        try
+        {
+            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+
+            if (page is null)
+            {
+                return TypedResults.NotFound(new { error = $"Page with id '{id}' not found." });
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            page.PublicationState = ContentPublicationState.Published;
+            page.PublishedOn ??= now;
+            page.ModifiedOn = now;
+
+            session.Store(page);
+            await session.SaveChangesAsync(cancellationToken);
+
+            logger.LogInformation("Published page id={Id}, slug={Slug}", id, page.Slug);
+            return TypedResults.Ok(MapToDetail(page));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error publishing page id={Id}", id);
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> UnpublishPage(
+        long id,
+        IDocumentSession session,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PagesApi));
+        try
+        {
+            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+
+            if (page is null)
+            {
+                return TypedResults.NotFound(new { error = $"Page with id '{id}' not found." });
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            page.PublicationState = ContentPublicationState.Draft;
+            page.PublishedOn = null;
+            page.ModifiedOn = now;
+
+            session.Store(page);
+            await session.SaveChangesAsync(cancellationToken);
+
+            logger.LogInformation("Unpublished page id={Id}, slug={Slug}", id, page.Slug);
+            return TypedResults.Ok(MapToDetail(page));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error unpublishing page id={Id}", id);
+            return TypedResults.Problem(ex.Message);
         }
     }
 

@@ -10,7 +10,7 @@ This file tracks implementation progress for the source-generated block renderin
 - [x] Phase 1: Generated Render Adapters
 - [x] Phase 2: Single Source Of Truth For Block Registration
 - [x] Phase 3: Server-Side Rendering Path Convergence
-- [ ] Phase 4: Dynamic Scriban Tier
+- [x] Phase 4: Dynamic Scriban Tier
 - [x] Phase 5: Radzen Markdown, HtmlEditor, Media Uploads, And Sanitization
 - [ ] Phase 6: Preview Hardening
 
@@ -182,7 +182,7 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - [x] Add `DynamicTemplateBlock`
 - [x] Add save-time template parsing and validation
 - [x] Add explicit JSON-to-Scriban mapping
-- [ ] Add secure Scriban options, limits, allowlists, and caching
+- [x] Add secure Scriban options, limits, allowlists, and caching
 - [x] Add sanitizer policy for dynamic template output
 - [x] Reject arbitrary JavaScript/script blocks
 
@@ -197,10 +197,11 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - Template cache keys include definition id, version, and template text so authoring previews cannot reuse stale parsed templates when an unsaved draft changes.
 - `AddBlockSystemServices()` now registers `SecureScribanTemplateOptions`, `DynamicTemplateValidator`, and `ISecureScribanRenderer`.
 - Dynamic Scriban output now passes through `ICmsHtmlSanitizer` before returning.
-- The full "secure options, limits, allowlists, and caching" checklist item remains unchecked because the wrapper still uses Scriban built-ins instead of an explicit function allowlist. AST linting is also intentionally deferred.
+- The secure renderer has runtime limits, template parse caching, sanitizer output, and an explicit Scriban function allowlist. The default allowlist now includes a curated deterministic subset of Scriban string, array, html, and math helpers; `object`, `regex`, imports, user-declared functions, and non-deterministic helpers remain blocked unless deliberately reviewed and enabled.
+- The validator now allows curated function calls and pipe functions by default while still rejecting unsafe function calls, imports, and template function declarations. Full schema-aware variable validation remains deferred.
 - Added `MartenDynamicBlockDefinitionService` for loading published, versioned dynamic block definitions by definition id and version.
 - Added `DynamicTemplateBlockRenderer`, registered it through the generated render adapter registry, and routed rendering through `IDynamicBlockDefinitionService` + `ISecureScribanRenderer`.
-- Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 27 passed, 0 failed.
+- Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 32 passed, 0 failed.
 
 ## Phase 5: Radzen Markdown, HtmlEditor, Media Uploads, And Sanitization
 
@@ -236,20 +237,26 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - [x] Keep preview ownership in `PreviewApi`
 - [x] Preserve existing saved draft preview endpoints
 - [x] Add unsaved block render-fragment endpoint
-- [ ] Add unsaved page/blog-post render-fragment endpoints
+- [x] Add unsaved page/blog-post render-fragment endpoints
 - [ ] Add whole-page iframe preview with strict origin validation
-- [ ] Add debounced whole-page preview updates
-- [ ] Add inline single-block preview
-- [ ] Route all preview rendering through generated adapter registry
+- [x] Add debounced whole-page preview updates
+- [x] Add inline single-block preview
+- [x] Route all preview fragment rendering through generated adapter registry
 
 ### Phase 6 Notes
 
 - Existing saved draft preview endpoints remain at `GET /api/v1/admin/preview/pages/{id}` and `GET /api/v1/admin/preview/blog-posts/{id}` and still return draft document JSON.
 - Added `POST /api/v1/admin/preview/blocks/render-fragment` to render a single unsaved `BlockBase` payload to an HTML fragment response.
+- Added `POST /api/v1/admin/preview/pages/render-fragment` and `POST /api/v1/admin/preview/blog-posts/render-fragment` to render unsaved documents to HTML fragment responses.
+- Page fragment rendering now prefers unsaved `PreviewPageFragmentRequest.Blocks` editor payloads and maps them through `EditorBlockMapper` before falling back to layout regions. This avoids forcing preview through `BlockPlacement.BlockId` lookups when the editor has unsaved block data.
+- Preview fragment request/response contracts now live in `Aero.Cms.Abstractions.Http`, so editor clients can send typed unsaved editor blocks/layout regions without referencing Core document entities.
+- `PageEditor.razor` now renders preview mode through `IPreviewHttpClient.RenderPageFragmentAsync` and the `PreviewApi` unsaved page fragment endpoint instead of the local handwritten block renderer.
+- Whole-page preview updates are debounced at 300ms while preview mode is active.
+- `BlockEditor.razor` now has an inline preview panel that calls `IPreviewHttpClient.RenderBlockFragmentAsync`, so single-block authoring previews use the same generated adapter-backed server rendering path as runtime rendering.
 - The block fragment endpoint lives in `PreviewApi`, preserving preview ownership there.
-- The block fragment endpoint renders through `CmsBlockHtmlRenderer`, which renders `BlockRenderer` through Blazor `HtmlRenderer` and therefore uses the generated adapter registry.
+- Preview fragment endpoints render through `CmsBlockHtmlRenderer`, which renders `BlockRenderer` through Blazor `HtmlRenderer` and therefore uses the generated adapter registry.
 - Runtime DI now registers `HtmlRenderer`, `CmsBlockHtmlRenderer`, and the legacy `IBlockSliceRenderer` bridge from `AddAeroCmsRuntimeAsync`.
 - `Aero.Cms.Modules.Headless` now references `Aero.Cms.Web.Core` so preview endpoints can use the shared server-side block rendering bridge.
-- Full preview convergence remains incomplete until unsaved page/blog-post fragments and iframe/debounce UX are added.
+- Full preview convergence remains incomplete until the optional iframe preview shell with strict origin validation is implemented. The practical static SSR fragment path is now wired through `PreviewApi` for inline block previews and whole-page editor previews.
+- Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 32 passed, 0 failed.
 - Verification: `dotnet build src\Aero.Cms.slnx --no-restore -v:minimal` -> succeeded with existing package advisory, Razor SDK, nullability, and deprecation warnings.
-- Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 27 passed, 0 failed.

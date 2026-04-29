@@ -1,7 +1,10 @@
-namespace Aero.Cms.Abstractions.Http.Clients;
-
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Http;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
+
+namespace Aero.Cms.Abstractions.Http.Clients;
 
 /// <summary>
 /// Interface for preview HTTP client.
@@ -23,6 +26,24 @@ public interface IPreviewHttpClient
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The preview object or an error.</returns>
     Task<Result<object, AeroError>> PreviewBlogPostAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Renders an unsaved page document to an HTML fragment.
+    /// </summary>
+    Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        IReadOnlyList<EditorBlock>? blocks = null,
+        IReadOnlyList<LayoutRegion>? layoutRegions = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Renders an unsaved blog post document to an HTML fragment.
+    /// </summary>
+    Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(IReadOnlyList<BlockBase> content, CancellationToken ct = default);
+
+    /// <summary>
+    /// Renders an unsaved block to an HTML fragment.
+    /// </summary>
+    Task<Result<string, AeroError>> RenderBlockFragmentAsync(BlockBase block, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -44,5 +65,41 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
     public Task<Result<object, AeroError>> PreviewBlogPostAsync(long id, CancellationToken ct = default)
     {
         return GetAsync<object>($"blog-posts/{id}", ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<string, AeroError>> RenderPageFragmentAsync(
+        IReadOnlyList<EditorBlock>? blocks = null,
+        IReadOnlyList<LayoutRegion>? layoutRegions = null,
+        CancellationToken ct = default)
+    {
+        var result = await PostAsync<PreviewPageFragmentRequest, PreviewPageFragmentResponse>(
+            "pages/render-fragment",
+            new PreviewPageFragmentRequest(blocks, layoutRegions),
+            ct);
+
+        return result is Result<PreviewPageFragmentResponse, AeroError>.Ok ok ? ok.Value.Html : ((Result<PreviewPageFragmentResponse, AeroError>.Failure)result).Error;
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(IReadOnlyList<BlockBase> content, CancellationToken ct = default)
+    {
+        var result = await PostAsync<PreviewBlogPostFragmentRequest, PreviewBlogPostFragmentResponse>(
+            "blog-posts/render-fragment",
+            new PreviewBlogPostFragmentRequest(content),
+            ct);
+
+        return result is Result<PreviewBlogPostFragmentResponse, AeroError>.Ok ok ? ok.Value.Html : ((Result<PreviewBlogPostFragmentResponse, AeroError>.Failure)result).Error;
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<string, AeroError>> RenderBlockFragmentAsync(BlockBase block, CancellationToken ct = default)
+    {
+        var result = await PostAsync<PreviewBlockFragmentRequest, PreviewBlockFragmentResponse>(
+            "blocks/render-fragment",
+            new PreviewBlockFragmentRequest(block),
+            ct);
+
+        return result is Result<PreviewBlockFragmentResponse, AeroError>.Ok ok ? ok.Value.Html : ((Result<PreviewBlockFragmentResponse, AeroError>.Failure)result).Error;
     }
 }
