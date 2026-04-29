@@ -12,7 +12,7 @@ This file tracks implementation progress for the source-generated block renderin
 - [x] Phase 3: Server-Side Rendering Path Convergence
 - [x] Phase 4: Dynamic Scriban Tier
 - [x] Phase 5: Radzen Markdown, HtmlEditor, Media Uploads, And Sanitization
-- [ ] Phase 6: Preview Hardening
+- [x] Phase 6: Preview Hardening
 
 ## Phase 0: Inventory & Safety Baseline
 
@@ -238,7 +238,7 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - [x] Preserve existing saved draft preview endpoints
 - [x] Add unsaved block render-fragment endpoint
 - [x] Add unsaved page/blog-post render-fragment endpoints
-- [ ] Add whole-page iframe preview with strict origin validation
+- [x] Add sandboxed whole-page iframe preview shell
 - [x] Add debounced whole-page preview updates
 - [x] Add inline single-block preview
 - [x] Route all preview fragment rendering through generated adapter registry
@@ -252,11 +252,13 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - Preview fragment request/response contracts now live in `Aero.Cms.Abstractions.Http`, so editor clients can send typed unsaved editor blocks/layout regions without referencing Core document entities.
 - `PageEditor.razor` now renders preview mode through `IPreviewHttpClient.RenderPageFragmentAsync` and the `PreviewApi` unsaved page fragment endpoint instead of the local handwritten block renderer.
 - Whole-page preview updates are debounced at 300ms while preview mode is active.
+- Page preview now displays the server-rendered fragment inside a sandboxed `srcdoc` iframe, giving whole-page isolation without introducing the heavier interactive `postMessage` path.
+- Because the implemented preview path is static SSR fragment rendering, there is no cross-origin `postMessage` surface to validate. If an interactive iframe mode is added later, it must use exact `targetOrigin` and receiver-side `event.origin` validation as specified.
 - `BlockEditor.razor` now has an inline preview panel that calls `IPreviewHttpClient.RenderBlockFragmentAsync`, so single-block authoring previews use the same generated adapter-backed server rendering path as runtime rendering.
 - The block fragment endpoint lives in `PreviewApi`, preserving preview ownership there.
 - Preview fragment endpoints render through `CmsBlockHtmlRenderer`, which renders `BlockRenderer` through Blazor `HtmlRenderer` and therefore uses the generated adapter registry.
 - Runtime DI now registers `HtmlRenderer`, `CmsBlockHtmlRenderer`, and the legacy `IBlockSliceRenderer` bridge from `AddAeroCmsRuntimeAsync`.
 - `Aero.Cms.Modules.Headless` now references `Aero.Cms.Web.Core` so preview endpoints can use the shared server-side block rendering bridge.
-- Full preview convergence remains incomplete until the optional iframe preview shell with strict origin validation is implemented. The practical static SSR fragment path is now wired through `PreviewApi` for inline block previews and whole-page editor previews.
+- Full preview convergence now uses the recommended static SSR fragment path: inline block previews and whole-page editor previews both render through `PreviewApi` and the generated adapter registry. Interactive `postMessage` preview remains intentionally unimplemented unless a later UX requirement justifies it.
 - Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 32 passed, 0 failed.
 - Verification: `dotnet build src\Aero.Cms.slnx --no-restore -v:minimal` -> succeeded with existing package advisory, Razor SDK, nullability, and deprecation warnings.

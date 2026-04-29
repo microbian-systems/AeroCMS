@@ -416,6 +416,16 @@
 .pe-blocks-container.preview-tablet  { max-width: 768px; }
 .pe-blocks-container.preview-mobile  { max-width: 375px; }
 
+.pe-preview-frame {
+    display: block;
+    width: 100%;
+    min-height: calc(100vh - 160px);
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-md);
+    background: #fff;
+    box-shadow: var(--pe-shadow-sm);
+}
+
 .pe-empty-state {
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;

@@ -78,7 +78,9 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
             new PreviewPageFragmentRequest(blocks, layoutRegions),
             ct);
 
-        return result is Result<PreviewPageFragmentResponse, AeroError>.Ok ok ? ok.Value.Html : ((Result<PreviewPageFragmentResponse, AeroError>.Failure)result).Error;
+        if (result is Result<PreviewPageFragmentResponse, AeroError>.Ok ok)
+            return new Result<string, AeroError>.Ok(ok.Value.Html);
+        return new Result<string, AeroError>.Failure(((Result<PreviewPageFragmentResponse, AeroError>.Failure)result).Error);
     }
 
     /// <inheritdoc />
@@ -89,7 +91,9 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
             new PreviewBlogPostFragmentRequest(content),
             ct);
 
-        return result is Result<PreviewBlogPostFragmentResponse, AeroError>.Ok ok ? ok.Value.Html : ((Result<PreviewBlogPostFragmentResponse, AeroError>.Failure)result).Error;
+        if (result is Result<PreviewBlogPostFragmentResponse, AeroError>.Ok ok)
+            return new Result<string, AeroError>.Ok(ok.Value.Html);
+        return new Result<string, AeroError>.Failure(((Result<PreviewBlogPostFragmentResponse, AeroError>.Failure)result).Error);
     }
 
     /// <inheritdoc />
@@ -100,6 +104,8 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
             new PreviewBlockFragmentRequest(block),
             ct);
 
-        return result is Result<PreviewBlockFragmentResponse, AeroError>.Ok ok ? ok.Value.Html : ((Result<PreviewBlockFragmentResponse, AeroError>.Failure)result).Error;
+        if (result is Result<PreviewBlockFragmentResponse, AeroError>.Ok ok)
+            return new Result<string, AeroError>.Ok(ok.Value.Html);
+        return new Result<string, AeroError>.Failure(((Result<PreviewBlockFragmentResponse, AeroError>.Failure)result).Error);
     }
 }

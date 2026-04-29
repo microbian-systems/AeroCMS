@@ -29,6 +29,9 @@ public static class PagesApi
         group.MapGet("/slug/{*slug}", GetPageBySlug)
             .WithName("GetPageBySlug");
 
+        group.MapGet("/drafts/{id:long}", PreviewDraftPage)
+            .WithName("PreviewDraftPage");
+
         group.MapPost("/", CreatePage)
             .WithName("CreatePage");
 
@@ -125,6 +128,11 @@ public static class PagesApi
             logger.LogError(ex, "Error retrieving page for slug={Slug}", slug);
             return TypedResults.NotFound();
         }
+    }
+
+    private static IResult PreviewDraftPage(long id)
+    {
+        return TypedResults.Redirect($"/_cms/preview/pages/drafts/{id}");
     }
 
     private static async Task<IResult> CreatePage(

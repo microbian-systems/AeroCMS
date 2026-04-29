@@ -24,6 +24,9 @@ public partial class EmbedBlockRenderer;
 [CmsBlockRenderer(typeof(DynamicTemplateBlock))]
 public partial class DynamicTemplateBlockRenderer;
 
+[CmsBlockRenderer(typeof(HeroBlock))]
+public partial class HeroRenderer;
+
 [CmsBlockRenderer(typeof(AeroHeroBlock))]
 public partial class AeroHeroRenderer;
 

@@ -135,11 +135,32 @@
                 <p>@PreviewError</p>
             </div>
         }
-        else if (!string.IsNullOrWhiteSpace(PreviewHtml))
+        else if (!string.IsNullOrWhiteSpace(PreviewFrameUrl) || !string.IsNullOrWhiteSpace(PreviewHtml))
         {
-            <div class="pe-server-preview" @key="PreviewHtml">
-                @((MarkupString)PreviewHtml)
-            </div>
+            @if (!string.IsNullOrWhiteSpace(PreviewFrameUrl))
+            {
+                <div class="pe-preview-url-bar">
+                    <span>Preview URL</span>
+                    <code>@PreviewFrameUrl</code>
+                </div>
+                <iframe class="pe-preview-frame"
+                        title="Page preview"
+                        sandbox="allow-scripts allow-forms allow-popups"
+                        src="@PreviewFrameUrl"
+                        @key="PreviewFrameUrl"></iframe>
+            }
+            else
+            {
+                <div class="pe-preview-url-bar">
+                    <span>Preview URL</span>
+                    <code>@PreviewFragmentUrl</code>
+                </div>
+                <iframe class="pe-preview-frame"
+                        title="Page preview"
+                        sandbox=""
+                        srcdoc="@PreviewFrameDocument"
+                        @key="PreviewFrameDocument"></iframe>
+            }
         }
         else
         {

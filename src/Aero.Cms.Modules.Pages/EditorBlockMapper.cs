@@ -203,6 +203,7 @@ public static class EditorBlockMapper
             },
             "image" => new ImageBlock
             {
+                Url = editorBlock.Src,
                 AltText = editorBlock.Alt,
                 Caption = editorBlock.Caption
             },
@@ -249,7 +250,7 @@ public static class EditorBlockMapper
         return nestedBlock.Type switch
         {
             "text" => new RichTextBlock { Content = nestedBlock.Content },
-            "image" => new ImageBlock { AltText = nestedBlock.Alt },
+            "image" => new ImageBlock { Url = nestedBlock.Src, AltText = nestedBlock.Alt },
             "video" => new EmbedBlock
             {
                 SourceUrl = FirstNonEmpty(nestedBlock.Url, nestedBlock.Src),

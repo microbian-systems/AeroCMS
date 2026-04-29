@@ -4,7 +4,7 @@
 @if (Block != null)
 {
     <figure class="my-6">
-        <img src="/api/media/@Block.MediaId" 
+        <img src="@(Block.Url ?? $"/api/media/{Block.MediaId}")" 
              alt="@Block.AltText" 
              class="w-full h-auto rounded-lg shadow-md" 
              loading="lazy" />

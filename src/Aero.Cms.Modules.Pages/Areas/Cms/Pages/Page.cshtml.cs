@@ -10,14 +10,21 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
     [BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
 
+    [BindProperty(SupportsGet = true)]
+    public long? DraftId { get; set; }
+
     public PageDocument? PageDocument { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         Result<PageDocument?, AeroError> result;
 
+        if (DraftId is { } draftId)
+        {
+            result = await pageService.LoadAsync(draftId, cancellationToken);
+        }
         // If no slug provided, load the homepage
-        if (string.IsNullOrWhiteSpace(Slug))
+        else if (string.IsNullOrWhiteSpace(Slug))
         {
             result = await pageService.LoadHomepageAsync(cancellationToken);
         }

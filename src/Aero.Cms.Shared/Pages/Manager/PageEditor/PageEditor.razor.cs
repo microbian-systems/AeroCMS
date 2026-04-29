@@ -67,6 +67,9 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool   IsPreviewRendering { get; set; }
     protected string? PreviewHtml { get; set; }
     protected string? PreviewError { get; set; }
+    protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/pages/render-fragment");
+    protected string? PreviewFrameUrl => Id is { } id ? BuildAbsoluteUrl($"api/v1/admin/pages/drafts/{id}") : null;
+    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
     protected bool   RightSidebarCollapsed { get; set; } = true;
     protected bool   IsSaving              { get; set; }
     protected string ActiveTab             { get; set; } = "editor";
@@ -835,6 +838,15 @@ public partial class PageEditor : ComponentBase, IDisposable
             return;
         }
 
+        if (!string.IsNullOrWhiteSpace(PreviewFrameUrl))
+        {
+            PreviewHtml = null;
+            PreviewError = null;
+            IsPreviewRendering = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
         IsPreviewRendering = true;
         PreviewError = null;
         await InvokeAsync(StateHasChanged);
@@ -867,6 +879,45 @@ public partial class PageEditor : ComponentBase, IDisposable
             IsPreviewRendering = false;
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private string BuildAbsoluteUrl(string relativeUrl)
+    {
+        return new Uri(new Uri(NavManager.BaseUri), relativeUrl.TrimStart('/')).ToString();
+    }
+
+    private static string BuildPreviewFrameDocument(string? html, string baseUri)
+    {
+        var content = string.IsNullOrWhiteSpace(html)
+            ? "<main class=\"pe-empty-state\"><h3>No preview content</h3></main>"
+            : html;
+        var appCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/app.css");
+        var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");
+        var radzenCss = new Uri(new Uri(baseUri), "_content/Radzen.Blazor/css/standard-base.css");
+
+        return $$"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <base href="{{baseUri}}">
+                <link rel="stylesheet" href="{{appCss}}">
+                <link rel="stylesheet" href="{{managerCss}}">
+                <link rel="stylesheet" href="{{radzenCss}}">
+                <style>
+                    html, body { margin: 0; min-height: 100%; background: #fff; }
+                    body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+                    .aero-preview-document { min-height: 100vh; overflow-x: hidden; }
+                </style>
+            </head>
+            <body>
+                <main class="aero-preview-document">
+                    {{content}}
+                </main>
+            </body>
+            </html>
+            """;
     }
 
     // ──────────────────────────────────────────────────────────
