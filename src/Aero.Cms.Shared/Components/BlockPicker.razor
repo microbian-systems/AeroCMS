@@ -1,5 +1,5 @@
 @using Aero.Cms.Abstractions.Blocks.Editing
-@inject BlockEditingService BlockService
+@using Aero.Cms.Shared.Blocks.Rendering
 
 <div class="block-picker">
     <RadzenText TextStyle="TextStyle.H5" Class="rz-mb-4">
@@ -18,7 +18,7 @@
                  class="block-card group relative p-6 rounded-xl border-2 border-transparent bg-white hover:border-blue-500 hover:shadow-lg transition-all duration-200 cursor-pointer @(SelectedBlockType?.Name == blockType.Name ? "ring-2 ring-blue-500 border-blue-500" : "border-gray-200")">
                 <div class="flex items-start gap-4">
                     <div class="block-icon flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl shadow-md group-hover:shadow-lg transition-shadow">
-                        <RadzenIcon Icon="@GetBlockIcon(blockType.Name)" />
+                        <RadzenIcon Icon="@(blockType.Icon ?? GetBlockIcon(blockType.Name))" />
                     </div>
                     <div class="flex-1 min-w-0">
                         <h3 class="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
@@ -87,7 +87,7 @@
 
     protected override void OnInitialized()
     {
-        AllBlockTypes = BlockService.GetAvailableBlockTypes();
+        AllBlockTypes = CmsBlockManifestEditorMetadata.GetAvailableBlockTypes();
     }
 
     private IEnumerable<BlockTypeInfo> GetBlockTypes()

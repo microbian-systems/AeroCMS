@@ -10,6 +10,7 @@ using Aero.Cms.Abstractions.Blocks;
 
 namespace Aero.Cms.Shared.Blocks.Rendering;
 
+[CmsBlockRenderer(typeof(NavigationBlock))]
 public partial class NavigationBlockRenderer
 {
     [Parameter]

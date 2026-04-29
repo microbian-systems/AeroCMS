@@ -1,137 +1,26 @@
 @using Aero.Cms.Abstractions.Blocks
-@using Aero.Cms.Abstractions.Blocks.Common
-@using Aero.Cms.Core.Blocks
 @using Aero.Cms.Abstractions.Http.Clients
 
-@if (Block != null)
+@if (Block is not null)
 {
-    @switch (Block.BlockType)
+    if (CmsBlockRenderRegistry.TryGet(Block.BlockType, out var adapter))
     {
-        case "rich_text":
-            {
-                var richText = Block as RichTextBlock;
-                <RichTextBlockRenderer Block="@richText" />
-            }
-            break;
-        case "markdown":
-            {
-                var markdown = Block as MarkdownBlock;
-                <MarkdownBlockRenderer Block="@markdown" />
-            }
-            break;
-        case "heading":
-            {
-                var heading = Block as HeadingBlock;
-                <HeadingBlockRenderer Block="@heading" />
-            }
-            break;
-        case "image":
-            {
-                var image = Block as ImageBlock;
-                <ImageBlockRenderer Block="@image" />
-            }
-            break;
-        case "cta":
-            {
-                var cta = Block as CtaBlock;
-                <CtaBlockRenderer Block="@cta" />
-            }
-            break;
-        case "quote":
-            {
-                var quote = Block as QuoteBlock;
-                <QuoteBlockRenderer Block="@quote" />
-            }
-            break;
-        case "embed":
-            {
-                var embed = Block as EmbedBlock;
-                <EmbedBlockRenderer Block="@embed" />
-            }
-            break;
-        case "navigation":
-            {
-                var navigation = Block as NavigationBlock;
-                <NavigationBlockRenderer Block="@navigation" Navigation="@Navigation" />
-            }
-            break;
-        case "aero_hero":
-            {
-                var aeroHero = Block as AeroHeroBlock;
-                <AeroHeroRenderer Block="@aeroHero" />
-            }
-            break;
-        case "aero_features":
-            {
-                var aeroFeatures = Block as AeroFeaturesBlock;
-                <AeroFeaturesRenderer Block="@aeroFeatures" />
-            }
-            break;
-        case "aero_cta":
-            {
-                var aeroCta = Block as AeroCtaBlock;
-                <AeroCtaRenderer Block="@aeroCta" />
-            }
-            break;
-        case "aero_blog":
-            {
-                var aeroBlog = Block as AeroBlogBlock;
-                <AeroBlogRenderer Block="@aeroBlog" />
-            }
-            break;
-        case "aero_pricing":
-            {
-                var aeroPricing = Block as AeroPricingBlock;
-                <AeroPricingRenderer Block="@aeroPricing" />
-            }
-            break;
-        case "aero_teams":
-            {
-                var aeroTeams = Block as AeroTeamsBlock;
-                <AeroTeamsRenderer Block="@aeroTeams" />
-            }
-            break;
-        case "aero_testimonials":
-            {
-                var aeroTestimonials = Block as AeroTestimonialsBlock;
-                <AeroTestimonialsRenderer Block="@aeroTestimonials" />
-            }
-            break;
-        case "aero_faq":
-            {
-                var aeroFaq = Block as AeroFaqBlock;
-                <AeroFaqRenderer Block="@aeroFaq" />
-            }
-            break;
-        case "aero_portfolio":
-            {
-                var aeroPortfolio = Block as AeroPortfolioBlock;
-                <AeroPortfolioRenderer Block="@aeroPortfolio" />
-            }
-            break;
-        case "aero_contact":
-            {
-                var aeroContact = Block as AeroContactBlock;
-                <AeroContactRenderer Block="@aeroContact" />
-            }
-            break;
-        case "aero_table":
-            {
-                var aeroTable = Block as AeroTableBlock;
-                <AeroTableRenderer Block="@aeroTable" />
-            }
-            break;
-        case "aero_auth":
-            {
-                var aeroAuth = Block as AeroAuthBlock;
-                <AeroAuthRenderer Block="@aeroAuth" />
-            }
-            break;
-        default:
-            <div class="p-4 border border-dashed border-gray-300 rounded text-gray-500 italic">
-                Unknown block type: @Block.BlockType (@Block.GetType().Name)
-            </div>
-            break;
+        <ErrorBoundary @key="Block">
+            <ChildContent>
+                @adapter.Render(Block, new BlockRenderContext(Navigation: Navigation))
+            </ChildContent>
+            <ErrorContent>
+                <div class="p-4 border border-red-200 bg-red-50 rounded text-red-700">
+                    Block content is temporarily unavailable.
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
+    }
+    else
+    {
+        <div class="p-4 border border-dashed border-gray-300 rounded text-gray-500 italic">
+            Unknown block type: @Block.BlockType (@Block.GetType().Name)
+        </div>
     }
 }
 
