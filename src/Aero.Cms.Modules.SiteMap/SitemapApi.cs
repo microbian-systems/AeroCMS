@@ -11,14 +11,17 @@ public static class SitemapApi
 {
     public static void MapSitemapApi(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/sitemap", GetSitemap)
-            .WithName("GetSitemapRedirect") // todo - redirect /sitemap to /sitemap.xml
+        app.MapGet("/sitemap", RedirectToSitemapXml)
+            .WithName("GetSitemapRedirect")
             .WithTags("SEO");
 
         app.MapGet("/sitemap.xml", GetSitemap)
             .WithName("GetSitemap")
             .WithTags("SEO");
     }
+
+    private static IResult RedirectToSitemapXml()
+        => Results.Redirect("/sitemap.xml", permanent: true);
 
     private static async Task<IResult> GetSitemap(
         ISiteMapService sitemapService,

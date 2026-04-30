@@ -298,12 +298,12 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     app.UseHttpsRedirection();
     app.MapStaticAssets();
     app.UseRouting();
-    // Output caching — policies defined in OutputCacheModule.
-    // TODO: Extract IConfigurePipeline interface so modules can register middleware themselves.
-    app.UseOutputCache();
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseCmsSetupGate();
+    // Output caching — policies defined in OutputCacheModule.
+    // TODO: Extract IConfigurePipeline interface so modules can register middleware themselves.
+    app.UseOutputCache();
     app.UseAntiforgery();
 
     app.MapRazorPages();
