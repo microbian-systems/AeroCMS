@@ -253,6 +253,10 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - `PageEditor.razor` now renders preview mode through `IPreviewHttpClient.RenderPageFragmentAsync` and the `PreviewApi` unsaved page fragment endpoint instead of the local handwritten block renderer.
 - Whole-page preview updates are debounced at 300ms while preview mode is active.
 - Page preview now displays the server-rendered fragment inside a sandboxed `srcdoc` iframe, giving whole-page isolation without introducing the heavier interactive `postMessage` path.
+- Saved page preview now uses `GET /api/v1/admin/pages/drafts/{id}` as the iframe URL, redirects to `/_cms/preview/pages/drafts/{id}`, and renders through the normal Razor page/layout pipeline so site CSS and script assets are included.
+- The page editor preview frame now shows a URL bar above the iframe so authors can see the preview endpoint currently being loaded.
+- Draft preview by id is guarded in the Razor page model and returns unauthorized for unauthenticated requests, so unpublished pages are not exposed through the public slug route.
+- New/unsaved pages still fall back to the `PreviewApi` static fragment `srcdoc` path because they do not yet have a persisted draft id to load through the full ASP.NET pipeline.
 - Because the implemented preview path is static SSR fragment rendering, there is no cross-origin `postMessage` surface to validate. If an interactive iframe mode is added later, it must use exact `targetOrigin` and receiver-side `event.origin` validation as specified.
 - `BlockEditor.razor` now has an inline preview panel that calls `IPreviewHttpClient.RenderBlockFragmentAsync`, so single-block authoring previews use the same generated adapter-backed server rendering path as runtime rendering.
 - The block fragment endpoint lives in `PreviewApi`, preserving preview ownership there.

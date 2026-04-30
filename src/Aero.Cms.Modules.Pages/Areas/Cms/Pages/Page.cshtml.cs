@@ -21,6 +21,11 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
 
         if (DraftId is { } draftId)
         {
+            if (User?.Identity?.IsAuthenticated != true)
+            {
+                return Unauthorized();
+            }
+
             result = await pageService.LoadAsync(draftId, cancellationToken);
         }
         // If no slug provided, load the homepage

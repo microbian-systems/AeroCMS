@@ -68,7 +68,9 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string? PreviewHtml { get; set; }
     protected string? PreviewError { get; set; }
     protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/pages/render-fragment");
-    protected string? PreviewFrameUrl => Id is { } id ? BuildAbsoluteUrl($"api/v1/admin/pages/drafts/{id}") : null;
+    protected string? PreviewFrameUrl => Id is { } id
+        ? BuildAbsoluteUrl($"api/v1/admin/pages/drafts/{id}?previewVersion={_previewRefreshVersion}")
+        : null;
     protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
     protected bool   RightSidebarCollapsed { get; set; } = true;
     protected bool   IsSaving              { get; set; }
@@ -114,6 +116,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     private const int PreviewDebounceMilliseconds = 300;
     private System.Timers.Timer? _autoSaveTimer;
     private CancellationTokenSource? _previewDebounceCts;
+    private long _previewRefreshVersion;
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle  (mirrors Alpine.js init())
@@ -801,6 +804,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         if (PreviewMode)
         {
             SelectedBlockId = null;
+            _previewRefreshVersion++;
             await RefreshPreviewAsync();
         }
     }
@@ -812,6 +816,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             return;
         }
 
+        _previewRefreshVersion++;
         _previewDebounceCts?.Cancel();
         _previewDebounceCts?.Dispose();
         var cts = new CancellationTokenSource();

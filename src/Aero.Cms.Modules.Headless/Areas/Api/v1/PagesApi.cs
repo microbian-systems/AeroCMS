@@ -130,9 +130,13 @@ public static class PagesApi
         }
     }
 
-    private static IResult PreviewDraftPage(long id)
+    private static IResult PreviewDraftPage(long id, [FromQuery] long? previewVersion = null)
     {
-        return TypedResults.Redirect($"/_cms/preview/pages/drafts/{id}");
+        var url = previewVersion is { } version
+            ? $"/_cms/preview/pages/drafts/{id}?previewVersion={version}"
+            : $"/_cms/preview/pages/drafts/{id}";
+
+        return TypedResults.Redirect(url);
     }
 
     private static async Task<IResult> CreatePage(

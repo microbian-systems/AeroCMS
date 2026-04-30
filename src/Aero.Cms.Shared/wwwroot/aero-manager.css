@@ -426,6 +426,34 @@
     box-shadow: var(--pe-shadow-sm);
 }
 
+.pe-preview-url-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-md);
+    background: var(--pe-bg-secondary);
+    color: var(--pe-text-secondary);
+    font-size: 12px;
+}
+
+.pe-preview-url-bar span {
+    flex: 0 0 auto;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.pe-preview-url-bar code {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--pe-text-primary);
+}
+
 .pe-empty-state {
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
