@@ -130,6 +130,11 @@ public sealed partial class DynamicTemplateValidator
 
         private bool IsSingleFunctionAllowed(string functionName)
         {
+            if (options.AllowAllFunctions)
+            {
+                return true;
+            }
+
             if (options.AllowedFunctionNames.Contains(functionName))
             {
                 return true;

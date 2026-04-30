@@ -10,6 +10,9 @@
         "right" => "text-right items-end",
         _ => "text-center items-center"
     };
+    var heightStyle = Block.FullScreen
+        ? "min-height: 100vh;"
+        : $"min-height: {Math.Max(240, Block.Height)}px;";
 
     <section class="relative w-full bg-cover bg-center overflow-hidden @(Block.UseParallax ? "bg-fixed" : "")"
              style="@(hasBg ? $"background-image: url('{bgImage}')" : "background-color: #111827")">
@@ -18,7 +21,8 @@
             <div class="absolute inset-0 bg-black" style="opacity: @Block.OverlayOpacity.ToString("0.##")"></div>
         }
 
-        <div class="relative z-10 flex flex-col justify-center px-6 py-24 mx-auto max-w-7xl min-h-[32rem] @alignClass">
+        <div class="relative z-10 flex flex-col justify-center px-6 py-24 mx-auto max-w-7xl @alignClass"
+             style="@heightStyle">
             @if (!string.IsNullOrEmpty(Block.Title))
             {
                 <h1 class="text-4xl font-bold text-white sm:text-5xl lg:text-6xl max-w-4xl @(Block.TextAlignment == "center" ? "mx-auto" : "")">

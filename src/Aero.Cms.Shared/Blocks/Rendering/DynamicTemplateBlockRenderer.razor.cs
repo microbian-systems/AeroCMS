@@ -31,7 +31,7 @@ public partial class DynamicTemplateBlockRenderer
             return;
         }
 
-        var definitionResult = await DefinitionService.GetAsync(Block.DefinitionId, Block.DefinitionVersion);
+        var definitionResult = await GetDefinitionAsync(Block);
         if (definitionResult is Result<DynamicBlockDefinition, AeroError>.Failure definitionFailure)
         {
             errorMessage = definitionFailure.Error.ToString();
@@ -47,5 +47,23 @@ public partial class DynamicTemplateBlockRenderer
         }
 
         renderedHtml = ((Result<string, AeroError>.Ok)renderResult).Value;
+    }
+
+    private Task<Result<DynamicBlockDefinition, AeroError>> GetDefinitionAsync(DynamicTemplateBlock block)
+    {
+        if (!string.IsNullOrWhiteSpace(block.InlineTemplate))
+        {
+            var definition = new DynamicBlockDefinition
+            {
+                Id = block.DefinitionId,
+                Version = block.DefinitionVersion,
+                IsPublished = true,
+                ScribanTemplate = block.InlineTemplate
+            };
+
+            return Task.FromResult<Result<DynamicBlockDefinition, AeroError>>(definition);
+        }
+
+        return DefinitionService.GetAsync(block.DefinitionId, block.DefinitionVersion);
     }
 }

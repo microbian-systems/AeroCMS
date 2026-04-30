@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
+using System.Text.Json;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -171,13 +172,22 @@ public static class EditorBlockMapper
                 AlternativeLinkUrl = editorBlock.AlternativeLinkUrl,
                 BackgroundImageUrl = editorBlock.BackgroundImage
             },
+            "boring_hero" => new BoringHeroBlock
+            {
+                FullWidth = true,
+                Title = FirstNonEmpty(editorBlock.MainText, editorBlock.Title),
+                Summary = FirstNonEmpty(editorBlock.SubText, editorBlock.Description),
+                BackgroundImageUrl = editorBlock.BackgroundImage
+            },
             "hero" => new HeroBlock
             {
                 Title = editorBlock.MainText,
                 SubTitle = editorBlock.SubText,
                 CtaText = editorBlock.CtaText,
                 CtaUrl = editorBlock.CtaUrl,
-                BackgroundImageUrl = editorBlock.BackgroundImage
+                BackgroundImageUrl = editorBlock.BackgroundImage,
+                Height = editorBlock.Height,
+                FullScreen = editorBlock.FullScreen
             },
             "raw_html" => new RawHtmlBlock
             {
@@ -186,6 +196,12 @@ public static class EditorBlockMapper
             "markdown" => new MarkdownBlock
             {
                 Content = editorBlock.Content
+            },
+            "dynamic_template" => new DynamicTemplateBlock
+            {
+                DefinitionVersion = 1,
+                InlineTemplate = editorBlock.ScribanTemplate,
+                Data = ParseJsonDocument(editorBlock.ScribanDataJson)
             },
             "rich_text" or "content" => new RichTextBlock
             {
@@ -269,5 +285,22 @@ public static class EditorBlockMapper
     private static string FirstNonEmpty(params string?[] values)
     {
         return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+    }
+
+    private static JsonDocument? ParseJsonDocument(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonDocument.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return JsonDocument.Parse("{}");
+        }
     }
 }

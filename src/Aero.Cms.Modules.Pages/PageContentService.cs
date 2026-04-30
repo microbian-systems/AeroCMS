@@ -115,7 +115,9 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             SeoTitle = request.SeoTitle,
             SeoDescription = request.SeoDescription,
             PublicationState = request.PublicationState,
-            ShowInNavMenu = request.ShowInNavMenu
+            ShowInNavMenu = request.ShowInNavMenu,
+            ShowHeaderNavigation = request.ShowHeaderNavigation,
+            HideFooter = request.HideFooter
         };
 
         if (request.EditorBlocks is { Count: > 0 })
@@ -144,6 +146,9 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             page.SeoTitle = request.SeoTitle;
             page.SeoDescription = request.SeoDescription;
             page.PublicationState = request.PublicationState;
+            page.ShowInNavMenu = request.ShowInNavMenu;
+            page.ShowHeaderNavigation = request.ShowHeaderNavigation;
+            page.HideFooter = request.HideFooter;
             if (request.EditorBlocks is { Count: > 0 })
             {
                 page.Blocks = request.EditorBlocks.ToList();

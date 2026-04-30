@@ -25,6 +25,9 @@ public class EditorBlock
     public string AlternativeLinkText { get; set; } = string.Empty;
     public string AlternativeLinkUrl  { get; set; } = string.Empty;
     public string BackgroundImage { get; set; } = string.Empty;
+    public int    Height          { get; set; } = 512;
+    public bool   FullScreen      { get; set; }
+    public bool   FullWidth       { get; set; }
     public string AeroLayout      { get; set; } = "side_image";
     public string Button1Style    { get; set; } = "primary";
     public string Button2Style    { get; set; } = "secondary";
@@ -39,6 +42,9 @@ public class EditorBlock
     public string Content      { get; set; } = string.Empty;
     public string Author       { get; set; } = string.Empty;
     public string MarkdownView { get; set; } = "edit";  // "edit" | "preview"
+    public string ScribanTemplate { get; set; } = string.Empty;
+    public string ScribanDataJson { get; set; } = "{}";
+    public string ScribanView     { get; set; } = "code";  // "code" | "preview"
 
     // Columns
     public int                ColumnCount   { get; set; } = 2;

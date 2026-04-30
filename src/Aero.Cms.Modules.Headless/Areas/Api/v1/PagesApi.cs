@@ -157,6 +157,8 @@ public static class PagesApi
                 request.PublicationState,
                 request.LayoutRegions,
                 request.ShowInNavMenu,
+                request.ShowHeaderNavigation,
+                request.HideFooter,
                 request.EditorBlocks
             );
 
@@ -206,6 +208,8 @@ public static class PagesApi
                 request.PublicationState,
                 request.LayoutRegions,
                 request.ShowInNavMenu,
+                request.ShowHeaderNavigation,
+                request.HideFooter,
                 request.EditorBlocks
             );
 
@@ -346,6 +350,8 @@ public static class PagesApi
             p.PublicationState,
             p.Blocks.Count,
             p.ShowInNavMenu,
+            p.ShowHeaderNavigation,
+            p.HideFooter,
             p.Blocks
         );
     }

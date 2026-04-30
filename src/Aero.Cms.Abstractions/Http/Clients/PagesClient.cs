@@ -190,6 +190,8 @@ public record PageDetail(
     ContentPublicationState PublicationState,
     int BlockCount,
     bool ShowInNavMenu,
+    bool ShowHeaderNavigation,
+    bool HideFooter,
     IReadOnlyList<EditorBlock>? Blocks);
 
 /// <summary>
@@ -204,6 +206,8 @@ public record CreatePageRequest(
     ContentPublicationState PublicationState, 
     IReadOnlyList<LayoutRegion>? LayoutRegions = null, 
     bool ShowInNavMenu = false, 
+    bool ShowHeaderNavigation = true,
+    bool HideFooter = false,
     IReadOnlyList<EditorBlock>? EditorBlocks = null);
 
 /// <summary>
@@ -218,4 +222,6 @@ public record UpdatePageRequest(
     ContentPublicationState PublicationState,
     IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
+    bool ShowHeaderNavigation = true,
+    bool HideFooter = false,
     IReadOnlyList<EditorBlock>? EditorBlocks = null);

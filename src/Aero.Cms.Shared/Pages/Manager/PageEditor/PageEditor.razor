@@ -279,6 +279,16 @@ else if (ActiveTab == "metadata")
                            style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
                     <label for="metaChkNav" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Show in Navigation Menu</label>
                 </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="metaChkHeaderNav" @bind="ShowHeaderNavigation" class="h-4 w-4 rounded"
+                           style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
+                    <label for="metaChkHeaderNav" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Show Site Navigation</label>
+                </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="metaChkFooter" @bind="HideFooter" class="h-4 w-4 rounded"
+                           style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
+                    <label for="metaChkFooter" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Hide Footer</label>
+                </div>
             </div>
             
             <div class="space-y-4">
@@ -335,7 +345,7 @@ else if (ActiveTab == "metadata")
 <SectionContent SectionName="RightSidebar">
     <AeroSidebar Title="Blocks" Side="SidebarSide.Right" @bind-IsCollapsed="RightSidebarCollapsed">
         <div class="pe-blocks-sidebar">
-            @* Content category *@
+            @* UI category *@
             <div class="pe-category">
                 <button class="pe-category-header" @onclick='() => ToggleCategory("content")'>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -347,7 +357,7 @@ else if (ActiveTab == "metadata")
                     </svg>
                     @if (!RightSidebarCollapsed)
                     {
-                        @:Content
+                        @:UI
                         <svg class="pe-chevron @(CategoryContent ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
@@ -356,6 +366,11 @@ else if (ActiveTab == "metadata")
                 @if (CategoryContent)
                 {
                     <div class="pe-category-items">
+                        <SidebarBlockItem Label="Boring Hero" @ondragstart='e => DragStart(e, "boring_hero")' OnClick='() => AddBlock("boring_hero")'>
+                            <rect x="3" y="4" width="18" height="16" rx="2"/>
+                            <line x1="7" y1="10" x2="17" y2="10"/>
+                            <line x1="7" y1="14" x2="14" y2="14"/>
+                        </SidebarBlockItem>
                         <SidebarBlockItem Label="Hero" @ondragstart='e => DragStart(e, "hero")' OnClick='() => AddBlock("hero")'>
                             <rect x="3" y="3" width="18" height="18" rx="2"/>
                             <line x1="3" y1="9" x2="21" y2="9"/>
@@ -383,6 +398,16 @@ else if (ActiveTab == "metadata")
                         <SidebarBlockItem Label="Markdown" @ondragstart='e => DragStart(e, "markdown")' OnClick='() => AddBlock("markdown")'>
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Raw HTML" @ondragstart='e => DragStart(e, "raw_html")' OnClick='() => AddBlock("raw_html")'>
+                            <polyline points="16 18 22 12 16 6"/>
+                            <polyline points="8 6 2 12 8 18"/>
+                        </SidebarBlockItem>
+                        <SidebarBlockItem Label="Scriban" @ondragstart='e => DragStart(e, "dynamic_template")' OnClick='() => AddBlock("dynamic_template")'>
+                            <path d="M4 4h16v16H4z"/>
+                            <path d="M8 9h8"/>
+                            <path d="M8 13h5"/>
+                            <path d="M8 17h8"/>
                         </SidebarBlockItem>
                         <SidebarBlockItem Label="Quote" @ondragstart='e => DragStart(e, "quote")' OnClick='() => AddBlock("quote")'>
                             <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3"/>
@@ -657,6 +682,7 @@ else if (ActiveTab == "metadata")
 
     RenderFragment RenderBlock(EditorBlock block, bool isSelected) => block.Type switch
     {
+        "boring_hero" => RenderBoringHeroBlock(block, isSelected),
         "hero" => RenderHeroBlock(block, isSelected),
         "aero_hero"         => RenderAeroHeroBlock(block, isSelected),
         "aero_features"     => RenderAeroFeaturesBlock(block, isSelected),
@@ -681,14 +707,60 @@ else if (ActiveTab == "metadata")
         "gallery" => RenderGalleryBlock(block),
         "audio" => RenderAudioBlock(block),
         "raw_html" => RenderHtmlBlock(block),
+        "dynamic_template" => RenderDynamicTemplateBlock(block),
         _ => RenderReferenceBlock(block),
+    };
+
+    // -- Boring Hero -------------------------------------------------------
+    RenderFragment RenderBoringHeroBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        var model = new BoringHeroBlock
+        {
+            FullWidth = true,
+            Title = b.MainText,
+            Summary = b.SubText,
+            BackgroundImageUrl = b.BackgroundImage
+        };
+
+        <div class="pe-hero-block-wrapper">
+            <BoringHeroRenderer Block="model" />
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-hero-bg-controls">
+                    <input class="pe-hero-title" type="text" placeholder="Page title"
+                           value="@b.MainText" @oninput="e => b.MainText = e.Value?.ToString() ?? string.Empty"
+                           @onfocus="() => SelectBlock(b.EditorId)" />
+                    <input class="pe-hero-subtitle" type="text" placeholder="Summary"
+                           value="@b.SubText" @oninput="e => b.SubText = e.Value?.ToString() ?? string.Empty"
+                           @onfocus="() => SelectBlock(b.EditorId)" />
+                    @if (string.IsNullOrEmpty(b.BackgroundImage))
+                    {
+                        <button class="pe-btn pe-btn-secondary pe-btn-sm"
+                                @onclick='() => OpenMediaSelector(b, false, "background")'>
+                            Add Background Image
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="pe-btn pe-btn-ghost pe-btn-sm"
+                                @onclick="() => b.BackgroundImage = string.Empty">
+                            Remove Background
+                        </button>
+                    }
+                </div>
+            }
+        </div>
     };
 
     // ── Hero ───────────────────────────────────────────────────
     RenderFragment RenderHeroBlock(EditorBlock b, bool sel) => __builder =>
     {
+        var heroHeightStyle = b.FullScreen
+            ? "min-height: 100vh;"
+            : $"min-height: {Math.Max(240, b.Height)}px;";
+
         <div class="pe-hero-block"
-             style="@(string.IsNullOrEmpty(b.BackgroundImage) ? "" : $"background-image:url({b.BackgroundImage})")">
+             style="@($"{heroHeightStyle}{(string.IsNullOrEmpty(b.BackgroundImage) ? "" : $"background-image:url({b.BackgroundImage})")}")">
             @if (!string.IsNullOrEmpty(b.BackgroundImage))
             {
                 <div class="pe-hero-overlay"></div>
@@ -709,6 +781,17 @@ else if (ActiveTab == "metadata")
                            @onfocus="() => SelectBlock(b.EditorId)"/>
                 </div>
                 <div class="pe-hero-bg-controls">
+                    <label class="pe-field-label">
+                        <input type="checkbox" @bind="b.FullScreen" />
+                        Full screen
+                    </label>
+                    @if (!b.FullScreen)
+                    {
+                        <input class="pe-hero-cta-url" type="number" min="240" max="1600" step="20"
+                               value="@b.Height"
+                               @oninput="e => b.Height = int.TryParse(e.Value?.ToString(), out var height) ? height : 512"
+                               @onfocus="() => SelectBlock(b.EditorId)" />
+                    }
                     @if (string.IsNullOrEmpty(b.BackgroundImage))
                     {
                         <button class="pe-btn pe-btn-secondary pe-btn-sm"
@@ -1410,6 +1493,61 @@ else if (ActiveTab == "metadata")
                 <div class="pe-markdown-preview">
                     <RawHtmlRenderer Block="@(new RawHtmlBlock { Content = b.Content })" />
                 </div>
+            }
+        </div>
+    };
+
+    // ── Scriban Dynamic Template ───────────────────────────────
+    RenderFragment RenderDynamicTemplateBlock(EditorBlock b) => __builder =>
+    {
+        <div class="pe-markdown-block pe-dynamic-template-block">
+            <div class="pe-markdown-tabs">
+                <button class='pe-tab-btn @(b.ScribanView == "code" ? "active" : "")'
+                        @onclick='() => b.ScribanView = "code"'>
+                    Code
+                </button>
+                <button class='pe-tab-btn @(b.ScribanView == "preview" ? "active" : "")'
+                        @onclick='async () =>
+                        {
+                            b.ScribanView = "preview";
+                            await RefreshDynamicTemplatePreviewAsync(b);
+                        }'>
+                    Preview
+                </button>
+            </div>
+
+            @if (b.ScribanView == "preview")
+            {
+                <div class="pe-dynamic-template-actions">
+                    <button class="pe-btn pe-btn-secondary pe-btn-sm"
+                            @onclick="() => RefreshDynamicTemplatePreviewAsync(b)">
+                        Refresh Preview
+                    </button>
+                </div>
+                <div class="pe-markdown-preview">
+                    @if (DynamicTemplatePreviewHtml.TryGetValue(b.EditorId, out var previewHtml))
+                    {
+                        @((MarkupString)previewHtml)
+                    }
+                    else
+                    {
+                        <p>Click Refresh Preview to render this Scriban template on the server.</p>
+                    }
+                </div>
+            }
+            else
+            {
+                <label class="pe-field-label">Scriban template</label>
+                <textarea class="pe-code-textarea"
+                          placeholder="{{ block.title }}"
+                          @bind="b.ScribanTemplate"
+                          @onfocus="() => SelectBlock(b.EditorId)"></textarea>
+
+                <label class="pe-field-label">Preview data JSON</label>
+                <textarea class="pe-code-textarea pe-code-textarea-sm"
+                          placeholder="{ &quot;title&quot;: &quot;Hello&quot; }"
+                          @bind="b.ScribanDataJson"
+                          @onfocus="() => SelectBlock(b.EditorId)"></textarea>
             }
         </div>
     };

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -93,6 +94,8 @@ public partial class PageEditor : ComponentBase, IDisposable
     private string SeoTitle { get; set; } = string.Empty;
     protected string SeoDescription { get; set; } = string.Empty;
     protected bool   ShowInNavMenu { get; set; } = true;
+    protected bool   ShowHeaderNavigation { get; set; } = true;
+    protected bool   HideFooter { get; set; }
     protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
 
     protected CmsPageDetail? LoadedPage { get; set; }
@@ -108,6 +111,7 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected List<MediaItem> MediaLibrary { get; set; } = [];
     private Dictionary<string, List<ReferenceItem>> _referenceData = new();
+    protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
 
     // Toasts
     protected List<ToastMessage> Toasts { get; set; } = [];
@@ -162,6 +166,8 @@ public partial class PageEditor : ComponentBase, IDisposable
             SeoDescription = page.SeoDescription ?? string.Empty;
             PublicationState = page.PublicationState;
             ShowInNavMenu = page.ShowInNavMenu; 
+            ShowHeaderNavigation = page.ShowHeaderNavigation;
+            HideFooter = page.HideFooter;
             
             // Load blocks if available in API
             if (page.Blocks != null)
@@ -260,12 +266,20 @@ public partial class PageEditor : ComponentBase, IDisposable
 
         switch (type)
         {
+            case "boring_hero":
+                block.MainText        = "Page Title";
+                block.SubText         = "A simple full-width page intro.";
+                block.BackgroundImage = string.Empty;
+                block.FullWidth       = true;
+                break;
             case "hero":
                 block.MainText = string.Empty;
                 block.SubText  = string.Empty;
                 block.CtaText  = string.Empty;
                 block.CtaUrl   = string.Empty;
                 block.BackgroundImage = string.Empty;
+                block.Height = 512;
+                block.FullScreen = false;
                 break;
             case "aero_hero":
                 block.MainText        = "Building Your Next Idea";
@@ -375,6 +389,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                 break;
             case "raw_html":
                 block.Content = "<!-- Custom HTML -->\n<div class=\"p-4 bg-gray-100\">Hello World</div>";
+                block.MarkdownView = "edit";
                 break;
             case "text":
                 block.Content = string.Empty;
@@ -387,6 +402,17 @@ public partial class PageEditor : ComponentBase, IDisposable
             case "markdown":
                 block.Content      = "# Heading\n\nYour markdown content here...";
                 block.MarkdownView = "edit";
+                break;
+
+            case "dynamic_template":
+                block.ScribanTemplate = "<section class=\"p-6 rounded-lg bg-slate-50\"><h2>{{ block.title }}</h2><p>{{ block.body }}</p></section>";
+                block.ScribanDataJson = """
+                    {
+                      "title": "Dynamic Template",
+                      "body": "Rendered with Scriban."
+                    }
+                    """;
+                block.ScribanView = "code";
                 break;
 
             case "quote":
@@ -648,6 +674,51 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected void SanitizeHtmlPaste(HtmlEditorPasteEventArgs args)
     {
         args.Html = HtmlSanitizer.Sanitize(args.Html);
+    }
+
+    protected async Task RefreshDynamicTemplatePreviewAsync(EditorBlock block)
+    {
+        if (string.IsNullOrWhiteSpace(block.ScribanTemplate))
+        {
+            DynamicTemplatePreviewHtml[block.EditorId] = "<div class=\"text-sm text-red-600\">Template is required.</div>";
+            return;
+        }
+
+        JsonDocument? data = null;
+        try
+        {
+            data = string.IsNullOrWhiteSpace(block.ScribanDataJson)
+                ? JsonDocument.Parse("{}")
+                : JsonDocument.Parse(block.ScribanDataJson);
+
+            var previewBlock = new DynamicTemplateBlock
+            {
+                DefinitionVersion = 1,
+                InlineTemplate = block.ScribanTemplate,
+                Data = data
+            };
+
+            var result = await PreviewClient.RenderBlockFragmentAsync(previewBlock);
+            DynamicTemplatePreviewHtml[block.EditorId] = result switch
+            {
+                Result<string, AeroError>.Ok ok => ok.Value,
+                Result<string, AeroError>.Failure failure => BuildPreviewError(failure.Error.ToString()),
+                _ => BuildPreviewError("Preview failed.")
+            };
+        }
+        catch (JsonException ex)
+        {
+            DynamicTemplatePreviewHtml[block.EditorId] = BuildPreviewError($"Invalid JSON data: {ex.Message}");
+        }
+        finally
+        {
+            data?.Dispose();
+        }
+    }
+
+    private static string BuildPreviewError(string message)
+    {
+        return $"<div class=\"text-sm text-red-600\">{System.Net.WebUtility.HtmlEncode(message)}</div>";
     }
 
     // ──────────────────────────────────────────────────────────
@@ -956,6 +1027,8 @@ public partial class PageEditor : ComponentBase, IDisposable
                     PublicationState,
                     null, // LayoutRegions are mapped on backend from EditorBlocks
                     ShowInNavMenu,
+                    ShowHeaderNavigation,
+                    HideFooter,
                     Blocks
                 );
 
@@ -981,6 +1054,8 @@ public partial class PageEditor : ComponentBase, IDisposable
                     PublicationState,
                     null,
                     ShowInNavMenu,
+                    ShowHeaderNavigation,
+                    HideFooter,
                     Blocks
                 );
 

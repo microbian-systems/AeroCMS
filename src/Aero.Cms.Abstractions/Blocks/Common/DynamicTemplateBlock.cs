@@ -23,6 +23,12 @@ public sealed class DynamicTemplateBlock : BlockBase
     public int DefinitionVersion { get; set; } = 1;
 
     /// <summary>
+    /// Gets or sets an inline template used by the MVP editor path.
+    /// When set, rendering does not require a persisted template definition.
+    /// </summary>
+    public string? InlineTemplate { get; set; }
+
+    /// <summary>
     /// Gets or sets the runtime JSON data passed to the template as the <c>block</c> variable.
     /// </summary>
     public JsonDocument? Data { get; set; }

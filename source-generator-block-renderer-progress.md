@@ -13,6 +13,7 @@ This file tracks implementation progress for the source-generated block renderin
 - [x] Phase 4: Dynamic Scriban Tier
 - [x] Phase 5: Radzen Markdown, HtmlEditor, Media Uploads, And Sanitization
 - [x] Phase 6: Preview Hardening
+- [x] Post-Spec Editor MVP Updates
 
 ## Phase 0: Inventory & Safety Baseline
 
@@ -266,3 +267,27 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - Full preview convergence now uses the recommended static SSR fragment path: inline block previews and whole-page editor previews both render through `PreviewApi` and the generated adapter registry. Interactive `postMessage` preview remains intentionally unimplemented unless a later UX requirement justifies it.
 - Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 32 passed, 0 failed.
 - Verification: `dotnet build src\Aero.Cms.slnx --no-restore -v:minimal` -> succeeded with existing package advisory, Razor SDK, nullability, and deprecation warnings.
+
+## Post-Spec Editor MVP Updates
+
+- [x] Replace the implicit page-level hero/header rendering with explicit block content
+- [x] Add `boring_hero` as a simple full-width page intro block
+- [x] Convert homepage/about/contact seed pages to use `BoringHeroBlock`
+- [x] Add `Height` and `FullScreen` to the existing `hero` block
+- [x] Add `Boring Hero`, `Hero`, `Markdown`, `Raw HTML`, and `Scriban` to the PageEditor UI section
+- [x] Add page metadata toggles for site navigation and footer visibility
+- [x] Add server-rendered inline Scriban authoring preview through `PreviewApi`
+- [ ] Add production-grade Scriban policy editing and safeguards after MVP signoff
+
+### Post-Spec Notes
+
+- `Page.cshtml` no longer renders a hard-coded page-level hero from `PageDocument.Title`, `Summary`, and `HeaderImageUrl`; pages now show hero/header content only when a block supplies it.
+- `BoringHeroBlock` intentionally mirrors the former simple page header and always renders as full-width content.
+- The existing `HeroBlock` now supports pixel `Height` with a default of `512`; `FullScreen` wins over `Height`.
+- `ShowHeaderNavigation` and `HideFooter` are editable in the PageEditor metadata tab and are passed through page create/update APIs.
+- The PageEditor Scriban block keeps authoring execution on the server by calling `PreviewApi` block fragment rendering with an inline template. This avoids adding a second client-side Scriban execution path.
+- MVP Scriban preview temporarily allows all Scriban function calls so custom function experiments are not blocked during local demo work. `SecureScribanTemplateOptions` carries a TODO to tighten this before production.
+- Verification: `dotnet build src\Aero.Cms.Shared\Aero.Cms.Shared.csproj --no-restore -v:minimal` -> succeeded with existing package advisory warnings.
+- Verification: `dotnet build src\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj --no-restore -v:minimal` -> succeeded with existing warnings.
+- Verification: `dotnet build src\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj --no-restore -v:minimal` -> succeeded with existing warnings.
+- Verification: `dotnet build src\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj --no-restore -v:minimal` -> succeeded with existing warnings.

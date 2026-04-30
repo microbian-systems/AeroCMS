@@ -578,6 +578,24 @@
 }
 .pe-hero-bg-controls {
     margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pe-field-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--pe-text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pe-hero-bg-controls .pe-field-label {
+    color: rgba(255, 255, 255, 0.85);
 }
 
 /* Text Block */
@@ -612,6 +630,35 @@
 .pe-markdown-preview {
     background: var(--pe-bg-secondary); border-radius: var(--pe-radius-sm);
     padding: 16px; min-height: 200px;
+}
+
+.pe-dynamic-template-block .pe-field-label {
+    margin: 12px 0 6px;
+}
+
+.pe-code-textarea {
+    width: 100%;
+    min-height: 240px;
+    background: var(--pe-bg-secondary);
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: 12px;
+    font-family: 'Fira Code', Consolas, 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--pe-text-primary);
+    outline: none;
+    resize: vertical;
+}
+
+.pe-code-textarea-sm {
+    min-height: 140px;
+}
+
+.pe-dynamic-template-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
 }
 
 /* Quote Block */

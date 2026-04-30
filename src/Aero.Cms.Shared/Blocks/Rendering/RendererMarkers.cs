@@ -24,6 +24,12 @@ public partial class EmbedBlockRenderer;
 [CmsBlockRenderer(typeof(DynamicTemplateBlock))]
 public partial class DynamicTemplateBlockRenderer;
 
+[CmsBlockRenderer(typeof(ColumnsBlock))]
+public partial class ColumnsRenderer;
+
+[CmsBlockRenderer(typeof(BoringHeroBlock))]
+public partial class BoringHeroRenderer;
+
 [CmsBlockRenderer(typeof(HeroBlock))]
 public partial class HeroRenderer;
 
