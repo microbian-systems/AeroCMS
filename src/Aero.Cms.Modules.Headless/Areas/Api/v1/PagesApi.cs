@@ -159,6 +159,7 @@ public static class PagesApi
                 request.ShowInNavMenu,
                 request.ShowHeaderNavigation,
                 request.HideFooter,
+                request.ShowChatAgent,
                 request.EditorBlocks
             );
 
@@ -210,6 +211,7 @@ public static class PagesApi
                 request.ShowInNavMenu,
                 request.ShowHeaderNavigation,
                 request.HideFooter,
+                request.ShowChatAgent,
                 request.EditorBlocks
             );
 
@@ -352,6 +354,7 @@ public static class PagesApi
             p.ShowInNavMenu,
             p.ShowHeaderNavigation,
             p.HideFooter,
+            p.ShowChatAgent,
             p.Blocks
         );
     }

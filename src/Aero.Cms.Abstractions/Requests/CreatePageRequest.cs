@@ -17,6 +17,7 @@ public record CreatePageRequest(
     bool ShowInNavMenu = false,
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
+    bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null
 ) : IRequest;
 
@@ -34,6 +35,7 @@ public record UpdatePageRequest(
     bool ShowInNavMenu = false,
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
+    bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null
 ) : IRequest;
 

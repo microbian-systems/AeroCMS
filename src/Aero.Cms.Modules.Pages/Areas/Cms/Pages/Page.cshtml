@@ -5,6 +5,7 @@
     ViewBag.Title = pageDoc?.SeoTitle ?? pageDoc?.Title ?? "Page";
     ViewBag.ShowHeaderNavigation = pageDoc?.ShowHeaderNavigation ?? true;
     ViewBag.HideFooter = pageDoc?.HideFooter ?? false;
+    ViewBag.ShowChatAgent = pageDoc?.ShowChatAgent ?? true;
 }
 
 @if (pageDoc is null)
@@ -41,4 +42,10 @@ else
             }
         </div>
     </article>
+}
+
+@* Chat Agent Widget *@
+@if (ViewBag.ShowChatAgent == true)
+{
+    <component type="typeof(Aero.Cms.Shared.Components.ChatAgentButton)" render-mode="Static" />
 }

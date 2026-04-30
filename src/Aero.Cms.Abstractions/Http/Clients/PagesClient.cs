@@ -192,6 +192,7 @@ public record PageDetail(
     bool ShowInNavMenu,
     bool ShowHeaderNavigation,
     bool HideFooter,
+    bool ShowChatAgent,
     IReadOnlyList<EditorBlock>? Blocks);
 
 /// <summary>
@@ -208,6 +209,7 @@ public record CreatePageRequest(
     bool ShowInNavMenu = false, 
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
+    bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null);
 
 /// <summary>
@@ -224,4 +226,5 @@ public record UpdatePageRequest(
     bool ShowInNavMenu = false,
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
+    bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null);

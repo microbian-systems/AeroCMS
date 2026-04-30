@@ -96,6 +96,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool   ShowInNavMenu { get; set; } = true;
     protected bool   ShowHeaderNavigation { get; set; } = true;
     protected bool   HideFooter { get; set; }
+    protected bool   ShowChatAgent { get; set; } = true;
     protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
 
     protected CmsPageDetail? LoadedPage { get; set; }
@@ -168,6 +169,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             ShowInNavMenu = page.ShowInNavMenu; 
             ShowHeaderNavigation = page.ShowHeaderNavigation;
             HideFooter = page.HideFooter;
+            ShowChatAgent = page.ShowChatAgent;
             
             // Load blocks if available in API
             if (page.Blocks != null)
@@ -1029,6 +1031,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                     ShowInNavMenu,
                     ShowHeaderNavigation,
                     HideFooter,
+                    ShowChatAgent,
                     Blocks
                 );
 
@@ -1056,6 +1059,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                     ShowInNavMenu,
                     ShowHeaderNavigation,
                     HideFooter,
+                    ShowChatAgent,
                     Blocks
                 );
 

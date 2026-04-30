@@ -289,6 +289,11 @@ else if (ActiveTab == "metadata")
                            style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
                     <label for="metaChkFooter" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Hide Footer</label>
                 </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="metaChkChat" @bind="ShowChatAgent" class="h-4 w-4 rounded"
+                           style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
+                    <label for="metaChkChat" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Show Chat Agent</label>
+                </div>
             </div>
             
             <div class="space-y-4">

@@ -117,7 +117,8 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             PublicationState = request.PublicationState,
             ShowInNavMenu = request.ShowInNavMenu,
             ShowHeaderNavigation = request.ShowHeaderNavigation,
-            HideFooter = request.HideFooter
+            HideFooter = request.HideFooter,
+            ShowChatAgent = request.ShowChatAgent
         };
 
         if (request.EditorBlocks is { Count: > 0 })
@@ -149,6 +150,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             page.ShowInNavMenu = request.ShowInNavMenu;
             page.ShowHeaderNavigation = request.ShowHeaderNavigation;
             page.HideFooter = request.HideFooter;
+            page.ShowChatAgent = request.ShowChatAgent;
             if (request.EditorBlocks is { Count: > 0 })
             {
                 page.Blocks = request.EditorBlocks.ToList();

@@ -54,4 +54,9 @@ public sealed class PageDocument : Entity
     ///  Flag to hide the footer on the page
     /// </summary>
     public bool HideFooter { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether the chat agent widget should be shown on this page.
+    /// </summary>
+    public bool ShowChatAgent { get; set; } = true;
 }
