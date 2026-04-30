@@ -44,8 +44,8 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
 
         var page = result switch
         {
-            global::Aero.Core.Railway.Result<PageDocument?, AeroError>.Ok(var foundPage) => foundPage,
-            global::Aero.Core.Railway.Result<PageDocument?, AeroError>.Failure => (PageDocument?)null,
+            Result<PageDocument?, AeroError>.Ok(var foundPage) => foundPage,
+            Result<PageDocument?, AeroError>.Failure => (PageDocument?)null,
             _ => (PageDocument?)null
         };
 
