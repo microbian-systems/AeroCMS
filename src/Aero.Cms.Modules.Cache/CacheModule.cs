@@ -15,9 +15,9 @@ namespace Aero.Cms.Modules.Cache;
 /// Infrastructure module for high-performance output caching using FusionCache.
 /// Owns FusionCache registration, distributed cache setup, and page caching hooks.
 /// </summary>
-public class CacheBusterModule : AeroModuleBase
+public class CacheModule : AeroModuleBase
 {
-    public override string Name => nameof(CacheBusterModule);
+    public override string Name => nameof(CacheModule);
     public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];

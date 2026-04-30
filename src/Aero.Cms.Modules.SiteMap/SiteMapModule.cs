@@ -13,7 +13,11 @@ public class SiteMapModule : AeroWebModule
     public override string Name => nameof(SiteMapModule);
     public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Dependencies => [
+        nameof(Aero.Cms.Modules.Blog.BlogModule),
+        nameof(Aero.Cms.Modules.Pages.PagesModule),
+        nameof(Aero.Cms.Modules.Docs.DocsModule),
+        nameof(Aero.Cms.Modules.Cache.CacheModule)];
     public override IReadOnlyList<string> Category => ["SEO", "Content"];
     public override IReadOnlyList<string> Tags => ["sitemap", "seo", "google", "xml"];
 
