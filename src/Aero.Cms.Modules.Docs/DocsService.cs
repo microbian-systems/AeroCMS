@@ -1,11 +1,14 @@
+using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Core;
 using Marten;
+using Wolverine;
 using static global::Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Modules.Docs;
 
-public sealed class DocsService(IDocumentSession session) : IDocsService
+public sealed class DocsService(IDocumentSession session, IMessageBus bus) : IDocsService
 {
     public async Task<global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -53,8 +56,17 @@ public sealed class DocsService(IDocumentSession session) : IDocsService
     {
         try
         {
+            var existing = await session.LoadAsync<DocsPage>(page.Id, cancellationToken);
+            var isNew = existing is null;
+
             session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
+
+            if (isNew)
+                await bus.PublishAsync(new AeroEvent<DocViewModel>.DocCreated(ToViewModel(page), $"Doc created: {page.Slug}"));
+            else
+                await bus.PublishAsync(new AeroEvent<DocViewModel>.DocUpdated(ToViewModel(page), $"Doc updated: {page.Slug}"));
+
             return Ok<DocsPage, AeroError>(page);
         }
         catch (Exception ex)
@@ -67,8 +79,14 @@ public sealed class DocsService(IDocumentSession session) : IDocsService
     {
         try
         {
+            var page = await session.LoadAsync<DocsPage>(id, cancellationToken);
+
             session.Delete<DocsPage>(id);
             await session.SaveChangesAsync(cancellationToken);
+
+            if (page is not null)
+                await bus.PublishAsync(new AeroEvent<DocViewModel>.DocDeleted(ToViewModel(page), $"Doc deleted: {page.Slug}"));
+
             return Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
@@ -76,6 +94,27 @@ public sealed class DocsService(IDocumentSession session) : IDocsService
             return AeroError.CreateError(ex.Message);
         }
     }
+
+    private static DocViewModel ToViewModel(DocsPage page) => new()
+    {
+        Id = page.Id,
+        Slug = page.Slug,
+        Title = page.Title,
+        Summary = page.Summary,
+        MarkdownContent = page.MarkdownContent,
+        SeoTitle = page.SeoTitle,
+        SeoDescription = page.SeoDescription,
+        PublicationState = page.PublicationState,
+        PublishedOn = page.PublishedOn,
+        ShowHeaderNavigation = page.ShowHeaderNavigation,
+        HeaderImageUrl = page.HeaderImageUrl,
+        ParentId = page.ParentId,
+        Order = page.Order,
+        CreatedOn = page.CreatedOn,
+        ModifiedOn = page.ModifiedOn,
+        CreatedBy = page.CreatedBy,
+        ModifiedBy = page.ModifiedBy
+    };
 
     public async Task<global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, CancellationToken cancellationToken = default)
     {

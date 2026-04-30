@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.SiteMap;
 
-public class SiteMapModule : AeroModuleBase
+public class SiteMapModule : AeroWebModule
 {
     public override string Name => nameof(SiteMapModule);
     public override string Version => AeroConstants.Version;
@@ -19,8 +19,12 @@ public class SiteMapModule : AeroModuleBase
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        services.AddScoped<ISiteMapService, SiteMapService>();
     }
-    public override void Configure(IAeroModuleBuilder builder)
+
+    public override Task RunAsync(IEndpointRouteBuilder builder)
     {
+        builder.MapSitemapApi();
+        return Task.CompletedTask;
     }
 }

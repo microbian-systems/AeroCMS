@@ -8,8 +8,7 @@ using System.Reflection;
 using Aero.Modular;
 using TickerQ.DependencyInjection;
 using Wolverine;
-using ZiggyCreatures.Caching.Fusion;
-using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
+
 
 namespace Aero.AppServer;
 
@@ -49,7 +48,6 @@ public static class AeroAppServerExtensions
         }
 
         var connString = resolved.DatabaseConnectionString;
-        var cacheString = resolved.CacheConnectionString;
 
         services.AddOrleans(opts =>
         {
@@ -111,29 +109,6 @@ public static class AeroAppServerExtensions
             opts.Discovery.IncludeAssembly(Assembly.GetEntryAssembly()!);
 
         }); // <--- Use .None instead of .ManualOnly
-
-        if (!string.IsNullOrWhiteSpace(cacheString))
-        {
-            services.AddFusionCacheStackExchangeRedisBackplane(opts =>
-            {
-                opts.Configuration = cacheString;
-            });
-        }
-
-        // FusionCache
-        var cacheBuilder = services.AddFusionCache() // todo - add abiity to pass in fusion cache options from config / or parameter
-            .WithDefaultEntryOptions(new FusionCacheEntryOptions
-            {
-                Duration = TimeSpan.FromMinutes(5) // todo - make cache expiration default configurable
-            })
-            // Set Redis as the distributed cache layer
-            .WithRegisteredDistributedCache();
-
-        if (!string.IsNullOrWhiteSpace(cacheString))
-        {
-            // And use it as a backplane to invalidate L1 memory caches
-            cacheBuilder.WithBackplane(new RedisBackplane(new RedisBackplaneOptions { Configuration = cacheString }));
-        }
 
         return Task.FromResult(builder);
     }

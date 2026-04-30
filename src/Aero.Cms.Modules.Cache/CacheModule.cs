@@ -4,6 +4,8 @@ using Aero.Modular;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 
 namespace Aero.Cms.Modules.Cache;
 
@@ -11,6 +13,7 @@ namespace Aero.Cms.Modules.Cache;
 
 /// <summary>
 /// Infrastructure module for high-performance output caching using FusionCache.
+/// Owns FusionCache registration, distributed cache setup, and page caching hooks.
 /// </summary>
 public class CacheBusterModule : AeroModuleBase
 {
@@ -21,20 +24,51 @@ public class CacheBusterModule : AeroModuleBase
     public override IReadOnlyList<string> Category => ["Infrastructure", "Performance"];
     public override IReadOnlyList<string> Tags => ["cache", "memory", "performance"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config=null, IHostEnvironment? env=null)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
-        // Register FusionCache with System.Text.Json serializer
-        /******* thisis now configured in the Aero.AppServer project *******/
-        //services.AddFusionCache()
-        //    .WithDefaultEntryOptions(options =>
-        //    {
-        //        options.Duration = TimeSpan.FromMinutes(5);
-        //        options.JitterMaxDuration = TimeSpan.FromSeconds(30);
-        //        options.SetFailSafe(true, TimeSpan.FromHours(1));
-        //    })
-        //    .WithSerializer(new FusionCacheSystemTextJsonSerializer());
+        // ---- Distributed cache (L2) ----
+        // MemoryDistributedCache is an in-memory IDistributedCache fallback.
+        // When an external cache (Redis/Garnet) is configured, replace this with
+        // AddStackExchangeRedisCache() in the host's bootstrap config.
+        services.AddDistributedMemoryCache();
 
-        // Register the caching hooks
+        // ---- Cache connection string ----
+        // Read from bootstrap config. Falls back to Memory mode (no external cache).
+        var cacheMode = config?.GetValue<string>("AeroCms:Bootstrap:CacheMode") ?? "Memory";
+
+        string? cacheString = cacheMode switch
+        {
+            "Embedded" => $"localhost:{config?.GetValue("Aero:Cache:Port", 33333)}",
+            _ => null
+        };
+
+        // Register Redis backplane in DI if we have a connection string
+        if (!string.IsNullOrWhiteSpace(cacheString))
+        {
+            services.AddFusionCacheStackExchangeRedisBackplane(opts =>
+            {
+                opts.Configuration = cacheString;
+            });
+        }
+
+        // ---- FusionCache ----
+        var cacheBuilder = services.AddFusionCache()
+            .WithDefaultEntryOptions(new FusionCacheEntryOptions
+            {
+                Duration = TimeSpan.FromMinutes(5)
+            })
+            .WithSystemTextJsonSerializer()
+            .WithRegisteredDistributedCache(ignoreMemoryDistributedCache: false);
+
+        if (!string.IsNullOrWhiteSpace(cacheString))
+        {
+            cacheBuilder.WithBackplane(new RedisBackplane(new RedisBackplaneOptions
+            {
+                Configuration = cacheString
+            }));
+        }
+
+        // ---- Page caching hooks ----
         services.AddScoped<PageCacheHook>();
         services.AddScoped<PageCacheStoreHook>();
         services.AddScoped<PageCacheInvalidatorHook>();
