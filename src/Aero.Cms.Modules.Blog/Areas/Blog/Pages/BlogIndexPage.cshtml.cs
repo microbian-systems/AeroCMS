@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Core;
@@ -7,6 +8,7 @@ using Aero.Core.Railway;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages;
 
+[OutputCache(PolicyName = "BlogPolicy")]
 public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
 {
     public int PageNumber { get; private set; } = 1;

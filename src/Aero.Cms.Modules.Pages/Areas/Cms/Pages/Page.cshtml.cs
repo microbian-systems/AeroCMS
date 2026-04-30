@@ -2,9 +2,11 @@ using Aero.Cms.Core.Entities;
 using Aero.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 
+[OutputCache(PolicyName = "PagesPolicy")]
 public class DynamicPageModel(IPageContentService pageService) : PageModel
 {
     [BindProperty(SupportsGet = true)]
