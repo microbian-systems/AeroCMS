@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Pages;
@@ -11,8 +12,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Aero.Cms.Abstractions.Blocks;
 using NSubstitute;
 using System.Text.RegularExpressions;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -178,6 +181,8 @@ public class SetupGateIntegrationTests
         builder.Services.AddScoped(_ => harness.Session);
         builder.Services.AddScoped<IDocumentSession>(_ => harness.Session);
         builder.Services.AddScoped<IQuerySession>(_ => harness.Session);
+        builder.Services.AddSingleton(Substitute.For<IBlockService>());
+        builder.Services.AddSingleton(Substitute.For<IFusionCache>());
 
         bootstrapper ??= Substitute.For<ISetupIdentityBootstrapper>();
         bootstrapper.BootstrapAsync(Arg.Any<SetupIdentityBootstrapRequest>(), Arg.Any<CancellationToken>())
@@ -218,5 +223,5 @@ public class SetupGateIntegrationTests
         await app.StartAsync();
 
         return app;
-    }
+}
 }

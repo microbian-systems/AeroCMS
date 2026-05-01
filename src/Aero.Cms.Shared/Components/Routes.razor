@@ -1,10 +1,61 @@
+@using Aero.Cms.Shared.Services
+@using Aero.Cms.Shared.Layout
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@inject NavigationManager NavigationManager
+@inject IFormFactor FormFactor
+
 <Router AppAssembly="@typeof(Routes).Assembly" AdditionalAssemblies="new[] { typeof(Aero.Cms.Shared._Imports).Assembly }">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(DarkModeLayout)" />
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(DarkModeLayout)">
+            <NotAuthorized>
+                @{
+                    var returnUrl = Uri.EscapeDataString(NavigationManager.ToBaseRelativePath(NavigationManager.Uri));
+                    NavigationManager.NavigateTo(
+                        string.IsNullOrWhiteSpace(returnUrl) || returnUrl == "/"
+                            ? "/manager/login"
+                            : $"/manager/login?returnUrl={returnUrl}",
+                        forceLoad: true);
+                }
+            </NotAuthorized>
+            <Authorizing>
+                <div class="min-h-screen flex items-center justify-center">
+                    <p class="text-gray-500">Checking authentication...</p>
+                </div>
+            </Authorizing>
+        </AuthorizeRouteView>
     </Found>
     <NotFound>
-        <LayoutView Layout="@typeof(Aero.Cms.Shared.Layout.MainLayout)">
-            <p>Sorry, there's nothing at this address.</p>
-        </LayoutView>
+        @if (FormFactor.GetFormFactor() != "Web")
+        {
+            @* Directly perform the redirect for the MAUI client to start at the manager *@
+           NavigationManager.NavigateTo("/manager"); 
+        }
+        else
+        {
+            <LayoutView Layout="@typeof(Aero.Cms.Shared.Layout.MainLayout)">
+                <p>Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        }
     </NotFound>
 </Router>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // On MAUI (non-web), the app starts at / by default.
+        // We want to redirect those clients automatically to the manager startup page.
+        // This prevents shadowing the Web application's actual home page at /.
+        if (FormFactor.GetFormFactor() != "Web" && IsAtRoot())
+        {
+            NavigationManager.NavigateTo("/manager/start", true);
+        }
+    }
+
+    private bool IsAtRoot()
+    {
+        var uri = NavigationManager.Uri.TrimEnd('/');
+        var baseUri = NavigationManager.BaseUri.TrimEnd('/');
+        return string.Equals(uri, baseUri, StringComparison.OrdinalIgnoreCase);
+    }
+}

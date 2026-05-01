@@ -1,5 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,7 +10,7 @@ namespace Aero.Cms.Modules.WebOptimizer;
 public class WebOptimizerModule : AeroModuleBase
 {
     public override string Name { get; } = nameof(WebOptimizerModule);
-    public override string Version { get; } = AeroVersion.Version;
+    public override string Version { get; } = AeroConstants.Version;
     public override string Author { get; } = AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies { get; } = [];
     public override IReadOnlyList<string> Category { get; } = ["utilities", "web"];

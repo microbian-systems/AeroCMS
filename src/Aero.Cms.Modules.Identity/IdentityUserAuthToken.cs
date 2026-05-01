@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
-namespace Aero.MartenDB.Identity;
+namespace Aero.Cms.Modules.Identity;
 
 /// <summary>
 /// A authorization token created by a login provider.

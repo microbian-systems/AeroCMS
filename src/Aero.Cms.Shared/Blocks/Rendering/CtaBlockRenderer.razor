@@ -1,3 +1,4 @@
+@using Aero.Cms.Abstractions.Blocks
 @using Aero.Cms.Core.Blocks
 
 @if (Block != null)
@@ -9,7 +10,7 @@
 
 @code {
     [Parameter]
-    public Aero.Cms.Core.Blocks.CtaBlock? Block { get; set; }
+    public CtaBlock? Block { get; set; }
 
     private string GetStyleClass(string? style)
     {

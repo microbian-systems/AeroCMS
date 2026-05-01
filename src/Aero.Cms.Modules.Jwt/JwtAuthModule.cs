@@ -13,20 +13,20 @@ using Aero.Cms.Core;
 
 namespace Aero.Cms.Modules.Jwt;
 
-public class JwtAuthModule : AeroModuleBase
+public class JwtAuthModule : AeroWebModule
 {
     public override string Name => nameof(JwtAuthModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["Identity", "Security"];
     public override IReadOnlyList<string> Tags => ["auth", "jwt", "tokens", "security"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config = null, IHostEnvironment env = null)
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         var key = Encoding.UTF8.GetBytes("super-secret-key");
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        services.AddAuthentication()
             .AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters

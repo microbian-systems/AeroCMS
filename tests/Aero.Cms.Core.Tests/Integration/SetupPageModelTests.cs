@@ -1,121 +1,121 @@
-using System.ComponentModel.DataAnnotations;
-using Aero.Cms.Modules.Setup;
-using Aero.Cms.Modules.Setup.Areas.MyFeature.Pages;
+﻿using TUnit.Core;
+using Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using NSubstitute;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
 public class SetupPageModelTests
 {
     [Test]
-    public async Task Invalid_setup_post_stays_on_the_page()
+    public async Task Step_1_validation_blocks_moving_next_when_main_info_is_incomplete()
     {
-        var completionService = Substitute.For<ISetupCompletionService>();
-        var model = new SetupModel(completionService);
-        model.ModelState.AddModelError("Input.AdminUserName", "Required");
+        var model = CreateModel();
+        model.CurrentStep = 1;
+        model.Input.SiteName = string.Empty;
+        model.Input.HomepageTitle = string.Empty;
 
-        var result = await model.OnPostAsync(CancellationToken.None);
+        await model.NextStep();
 
-        await Assert.That(result).IsTypeOf<PageResult>();
-        await completionService.DidNotReceive()
-            .CompleteAsync(Arg.Any<SetupCompletionRequest>(), Arg.Any<CancellationToken>());
+        await Assert.That(model.CurrentStep).IsEqualTo(1);
+        model.StatusMessage.Should().Be("Site name is required.");
+        model.HasValidationErrors.Should().BeTrue();
     }
 
     [Test]
-    public async Task Setup_input_model_requires_expected_fields_and_matching_passwords()
+    public async Task Server_database_mode_requires_a_connection_string_on_step_2()
     {
-        var input = new SetupModel.SetupInputModel
+        var model = CreateModel();
+        model.CurrentStep = 2;
+        model.Input.DatabaseMode = "Server";
+        model.Input.ConnectionString = string.Empty;
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(2);
+        model.StatusMessage.Should().Be("A database connection string is required when Database is set to Server.");
+        model.HasValidationErrors.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Embedded_cache_mode_does_not_block_step_3_progression_on_readiness()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 3;
+        model.Input.CacheMode = "Embedded";
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(4);
+        model.StatusMessage.Should().BeNull();
+        model.HasValidationErrors.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Infisical_selection_requires_machine_id_and_client_secret_on_step_4()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 4;
+        model.Input.SecretProvider = "Infisical";
+        model.Input.InfisicalMachineId = string.Empty;
+        model.Input.InfisicalClientSecret = string.Empty;
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(4);
+        model.StatusMessage.Should().Be("Infisical machine id is required.");
+        model.HasValidationErrors.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Infisical_selection_requires_client_secret_when_machine_id_is_present()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 4;
+        model.Input.SecretProvider = "Infisical";
+        model.Input.InfisicalMachineId = "machine-id";
+        model.Input.InfisicalClientSecret = string.Empty;
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(4);
+        model.StatusMessage.Should().Be("Infisical client secret is required.");
+        model.HasValidationErrors.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Password_mismatch_blocks_final_step_progression()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 5;
+        model.Input.Password = "correct horse battery";
+        model.Input.ConfirmPassword = "different password";
+
+        model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(5);
+        model.StatusMessage.Should().Be("Passwords must match.");
+        model.HasValidationErrors.Should().BeTrue();
+    }
+
+    private static Setup CreateModel()
+    {
+        return new Setup
         {
-            AdminUserName = "ab",
-            AdminEmail = "not-an-email",
-            Password = "short",
-            ConfirmPassword = "different",
-            SiteName = string.Empty,
-            HomepageTitle = string.Empty,
-            BlogName = string.Empty
-        };
-
-        var validationResults = new List<ValidationResult>();
-        var isValid = Validator.TryValidateObject(input, new ValidationContext(input), validationResults, validateAllProperties: true);
-
-        await Assert.That(isValid).IsFalse();
-        validationResults.Should().Contain(result => result.MemberNames.Contains(nameof(SetupModel.SetupInputModel.AdminUserName)));
-        validationResults.Should().Contain(result => result.MemberNames.Contains(nameof(SetupModel.SetupInputModel.AdminEmail)));
-        validationResults.Should().Contain(result => result.MemberNames.Contains(nameof(SetupModel.SetupInputModel.Password)));
-        validationResults.Should().Contain(result => result.MemberNames.Contains(nameof(SetupModel.SetupInputModel.ConfirmPassword)));
-        validationResults.Should().Contain(result => result.MemberNames.Contains(nameof(SetupModel.SetupInputModel.SiteName)));
-        validationResults.Should().Contain(result => result.MemberNames.Contains(nameof(SetupModel.SetupInputModel.HomepageTitle)));
-        validationResults.Should().Contain(result => result.MemberNames.Contains(nameof(SetupModel.SetupInputModel.BlogName)));
-    }
-
-    [Test]
-    public async Task Valid_setup_post_rejects_external_return_urls()
-    {
-        var model = CreateValidModel();
-        model.ReturnUrl = "https://evil.example/phish";
-
-        var result = await model.OnPostAsync(CancellationToken.None);
-
-        var redirect = result.Should().BeOfType<LocalRedirectResult>().Subject;
-        redirect.Url.Should().Be(SetupPathAllowlist.SetupPath);
-        model.StatusMessage.Should().NotBeNullOrWhiteSpace();
-
-        await Assert.That(redirect.Url).IsEqualTo(SetupPathAllowlist.SetupPath);
-    }
-
-    [Test]
-    public async Task Valid_setup_post_keeps_local_return_urls()
-    {
-        var model = CreateValidModel();
-        model.ReturnUrl = "/admin";
-
-        var result = await model.OnPostAsync(CancellationToken.None);
-
-        var redirect = result.Should().BeOfType<LocalRedirectResult>().Subject;
-        redirect.Url.Should().Be("/admin");
-
-        await Assert.That(redirect.Url).IsEqualTo("/admin");
-    }
-
-    [Test]
-    public async Task Bootstrap_failures_are_returned_to_the_page()
-    {
-        var completionService = Substitute.For<ISetupCompletionService>();
-        completionService.CompleteAsync(Arg.Any<SetupCompletionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(SetupCompletionResult.Failure("Password policy failed."));
-
-        var model = CreateValidModel(completionService);
-
-        var result = await model.OnPostAsync(CancellationToken.None);
-
-        await Assert.That(result).IsTypeOf<PageResult>();
-        model.ModelState[string.Empty]!.Errors.Should().Contain(error => error.ErrorMessage == "Password policy failed.");
-    }
-
-    private static SetupModel CreateValidModel(ISetupCompletionService? completionService = null)
-    {
-        if (completionService == null)
-        {
-            completionService = Substitute.For<ISetupCompletionService>();
-            completionService.CompleteAsync(Arg.Any<SetupCompletionRequest>(), Arg.Any<CancellationToken>())
-                .Returns(new SetupCompletionResult { CreatedAdmin = true });
-        }
-
-        return new SetupModel(completionService)
-        {
-            Input = new SetupModel.SetupInputModel
+            Input = new SetupInput
             {
+                DatabaseMode = "Embedded",
+                CacheMode = "Memory",
+                SecretProvider = "Local Certificate",
                 AdminUserName = "admin.user",
                 AdminEmail = "admin@example.com",
                 Password = "correct horse battery",
                 ConfirmPassword = "correct horse battery",
                 SiteName = "Aero CMS",
                 HomepageTitle = "Welcome to Aero CMS",
-                BlogName = "Field Notes"
+                BlogName = "Field Notes",
+                Hostname = "localhost",
+                DefaultCulture = "en-US"
             }
         };
-    }
+}
 }

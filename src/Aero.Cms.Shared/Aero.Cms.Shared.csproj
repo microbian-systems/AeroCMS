@@ -6,6 +6,9 @@
 
   <ItemGroup>
     <PackageReference Include="Blazor.Radzen.Theming" />
+    <PackageReference Include="BlazorMonaco" />
+    <PackageReference Include="Markdig" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
     <PackageReference Include="Radzen.Blazor" />
     <PackageReference Include="Serilog.Sinks.OpenObserve" />
@@ -17,6 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

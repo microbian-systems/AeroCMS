@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk.Razor">
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
-  </ItemGroup>
-
-
-</Project>

@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Core.Tests.TestModules;
 using FluentAssertions;
 
@@ -163,5 +164,5 @@ public class ModuleDiscoveryTests
         // Assert
         var module = result.Should().ContainSingle(m => m.Name == "SimpleTest").Subject;
         module.PhysicalPath.Should().NotBeNullOrEmpty();
-    }
+}
 }

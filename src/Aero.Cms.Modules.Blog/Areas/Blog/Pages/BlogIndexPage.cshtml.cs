@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Aero.Cms.Core;
+using Microsoft.AspNetCore.OutputCaching;
 using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Core.Entities;
+using Aero.Core;
+using Aero.Core.Railway;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages;
 
+[OutputCache(PolicyName = "BlogPolicy")]
 public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
 {
     public int PageNumber { get; private set; } = 1;
@@ -28,7 +32,7 @@ public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
         var latestResult = await blogService.GetLatestPostsAsync(3, cancellationToken);
         FeaturedPosts = latestResult switch
         {
-            Result<string, IReadOnlyList<BlogPostDocument>>.Ok(var list) => list,
+            Result<IReadOnlyList<BlogPostDocument>, AeroError>.Ok(var list) => list,
             _ => []
         };
 
@@ -38,7 +42,7 @@ public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
         var tagsResult = await blogService.GetAllTagsAsync(cancellationToken);
         TagNames = tagsResult switch
         {
-            Result<string, IReadOnlyList<Tag>>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
+            Result<IReadOnlyList<Tag>, AeroError>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
             _ => []
         };
     }
@@ -51,7 +55,7 @@ public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
         var tagsResult = await blogService.GetAllTagsAsync(cancellationToken);
         TagNames = tagsResult switch
         {
-            Result<string, IReadOnlyList<Tag>>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
+            Result<IReadOnlyList<Tag>, AeroError>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
             _ => []
         };
 
@@ -63,7 +67,7 @@ public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
         // Fetch archive posts skipping the 3 featured ones
         var result = await blogService.GetPagedPostsAsync(pageNumber, PageSize, skip: 3, cancellationToken);
         
-        if (result is Result<string, global::Marten.Pagination.IPagedList<BlogPostDocument>>.Ok(var pagedList))
+        if (result is Result<global::Marten.Pagination.IPagedList<BlogPostDocument>, AeroError>.Ok(var pagedList))
         {
             OtherPosts = pagedList.ToList();
             TotalCount = (int)pagedList.TotalItemCount; // Note: Marten total count for .Skip(3) might reflect the filtered set or original.

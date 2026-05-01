@@ -1,57 +1,26 @@
-@using Aero.Cms.Core.Blocks
-@using Aero.Cms.Core.Http.Clients
+@using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Http.Clients
 
-@if (Block != null)
+@if (Block is not null)
 {
-    @switch (Block.BlockType)
+    if (CmsBlockRenderRegistry.TryGet(Block.BlockType, out var adapter))
     {
-        case "rich_text":
-            {
-                var richText = Block as RichTextBlock;
-                <RichTextBlockRenderer Block="@richText" />
-            }
-            break;
-        case "heading":
-            {
-                var heading = Block as HeadingBlock;
-                <HeadingBlockRenderer Block="@heading" />
-            }
-            break;
-        case "image":
-            {
-                var image = Block as ImageBlock;
-                <ImageBlockRenderer Block="@image" />
-            }
-            break;
-        case "cta":
-            {
-                var cta = Block as CtaBlock;
-                <CtaBlockRenderer Block="@cta" />
-            }
-            break;
-        case "quote":
-            {
-                var quote = Block as QuoteBlock;
-                <QuoteBlockRenderer Block="@quote" />
-            }
-            break;
-        case "embed":
-            {
-                var embed = Block as EmbedBlock;
-                <EmbedBlockRenderer Block="@embed" />
-            }
-            break;
-        case "navigation":
-            {
-                var navigation = Block as NavigationBlock;
-                <NavigationBlockRenderer Block="@navigation" Navigation="@Navigation" />
-            }
-            break;
-        default:
-            <div class="p-4 border border-dashed border-gray-300 rounded text-gray-500 italic">
-                Unknown block type: @Block.BlockType (@Block.GetType().Name)
-            </div>
-            break;
+        <ErrorBoundary @key="Block">
+            <ChildContent>
+                @adapter.Render(Block, new BlockRenderContext(Navigation: Navigation))
+            </ChildContent>
+            <ErrorContent>
+                <div class="p-4 border border-red-200 bg-red-50 rounded text-red-700">
+                    Block content is temporarily unavailable.
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
+    }
+    else
+    {
+        <div class="p-4 border border-dashed border-gray-300 rounded text-gray-500 italic">
+            Unknown block type: @Block.BlockType (@Block.GetType().Name)
+        </div>
     }
 }
 

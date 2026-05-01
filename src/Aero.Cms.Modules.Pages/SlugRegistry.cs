@@ -1,4 +1,5 @@
 using Aero.Core;
+using Marten;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -64,28 +65,37 @@ public static class ContentSlugReservation
         string? previousSlug,
         CancellationToken cancellationToken)
     {
-        var slugDocumentId = Snowflake.NewId();
-        var existingReservation = await session.LoadAsync<ContentSlugDocument>(slugDocumentId, cancellationToken);
-        if (existingReservation is not null && !string.Equals(existingReservation.OwnerId.ToString(), ownerId.ToString(), StringComparison.Ordinal))
+        var normalizedSlug = ContentSlugDocument.Normalize(slug);
+        
+        // Find existing reservation for this slug
+        var existingReservation = await session.Query<ContentSlugDocument>()
+            .FirstOrDefaultAsync(x => x.NormalizedSlug == normalizedSlug, cancellationToken);
+            
+        if (existingReservation is not null && existingReservation.OwnerId != ownerId)
         {
             throw new SlugConflictException(slug, existingReservation.OwnerId.ToString(), ownerId.ToString());
         }
 
-        var previousSlugDocumentId = string.IsNullOrWhiteSpace(previousSlug)
-            ? null
-            : Snowflake.NewId().ToString();
-
-        if (previousSlugDocumentId is not null && !string.Equals(previousSlugDocumentId, slugDocumentId.ToString(), StringComparison.Ordinal))
+        // If we have a previous slug, remove its reservation if it's different from the new one
+        if (!string.IsNullOrWhiteSpace(previousSlug))
         {
-            var previousReservation = await session.LoadAsync<ContentSlugDocument>(previousSlugDocumentId, cancellationToken);
-            if (previousReservation is not null &&
-                previousReservation.OwnerId == ownerId &&
-                previousReservation.OwnerType == ownerType)
+            var normalizedPreviousSlug = ContentSlugDocument.Normalize(previousSlug);
+            if (normalizedPreviousSlug != normalizedSlug)
             {
-                session.Delete(previousReservation);
+                var previousReservation = await session.Query<ContentSlugDocument>()
+                    .FirstOrDefaultAsync(x => x.NormalizedSlug == normalizedPreviousSlug && x.OwnerId == ownerId, cancellationToken);
+                
+                if (previousReservation is not null)
+                {
+                    session.Delete(previousReservation);
+                }
             }
         }
 
-        session.Store(ContentSlugDocument.Create(slug, ownerId, ownerType));
+        // Only store if we don't already have this reservation (avoiding duplicates if it's an update with same slug)
+        if (existingReservation is null)
+        {
+            session.Store(ContentSlugDocument.Create(slug, ownerId, ownerType));
+        }
     }
 }

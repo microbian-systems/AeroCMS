@@ -1,3 +1,4 @@
+﻿using TUnit.Core;
 using Aero.Cms.Modules.Setup;
 using Aero.Core.Identity;
 using Aero.Models.Entities;
@@ -319,5 +320,5 @@ public class SetupIdentityBootstrapperTests
 
         public Task<AeroRole?> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
             => Task.FromResult(_roles.Values.FirstOrDefault(role => role.NormalizedName == normalizedRoleName));
-    }
+}
 }

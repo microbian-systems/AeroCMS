@@ -1,29 +1,27 @@
+using Aero.Cms.Abstractions.Blocks.Editing;
 using Aero.Cms.Core;
-using Aero.Cms.Core.Blocks;
-using Aero.Cms.Core.Blocks.Editing;
+
 using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Routing;
+using Aero.Cms.Core.Entities;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Pages;
 
-public sealed class PagesModule : AeroModuleBase
+public sealed class PagesModule : AeroModuleBase, IConfigureMarten
 {
     public override string Name => nameof(PagesModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["content", "pages"];
     public override IReadOnlyList<string> Tags => ["content", "pages", "cms"];
 
-    public override async Task RunAsync(IEndpointRouteBuilder builder)
-    {
 
-        await Task.CompletedTask;
-    }
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
@@ -40,6 +38,18 @@ public sealed class PagesModule : AeroModuleBase
         services.Configure<RazorPagesOptions>(options =>
         {
             options.Conventions.AddAreaPageRoute("Cms", "/Page", "/{slug?}");
+            options.Conventions.AddAreaPageRoute("Cms", "/Page", "/_cms/preview/pages/drafts/{draftId:long}");
         });
+    }
+
+    public override void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
+        opts.Schema.For<PageDocument>().Identity(x => x.Id);
+        //opts.Schema.For<PageDocument>().Duplicate(x => x.Title); // todo - find out what the marten For<T>().Duplicate() method does and if it is needed here
+        opts.Schema.For<PageDocument>().Index(x => x.Slug);
+        opts.Schema.For<PageDocument>().Index(x => x.PublishedOn);
+        opts.Schema.For<PageDocument>().Index(x => x.CreatedOn);
+        opts.Schema.For<PageDocument>().Index(x => x.ModifiedOn);
     }
 }

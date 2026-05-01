@@ -1,4 +1,6 @@
-using Aero.Cms.Core.Modules;
+﻿using Aero.Modular;
+using Aero.Cms.Modules.Modules.Services;
+using TUnit.Core;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,9 +67,9 @@ public class ModuleBuilderTests
         await Task.CompletedTask;
     }
 
-    private static ModuleBuilder CreateBuilder(IServiceCollection? services = null)
+    private static AeroModuleBuilder CreateBuilder(IServiceCollection? services = null)
     {
-        return new ModuleBuilder(
+        return new AeroModuleBuilder(
             services ?? new ServiceCollection(),
             new ConfigurationBuilder().Build(),
             new FakeHostEnvironment());

@@ -1,21 +1,37 @@
+using Aero.Cms.Core.Entities;
+using Aero.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 
+[OutputCache(PolicyName = "PagesPolicy")]
 public class DynamicPageModel(IPageContentService pageService) : PageModel
 {
     [BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
 
+    [BindProperty(SupportsGet = true)]
+    public long? DraftId { get; set; }
+
     public PageDocument? PageDocument { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
-        Result<string, PageDocument?> result;
+        Result<PageDocument?, AeroError> result;
 
+        if (DraftId is { } draftId)
+        {
+            if (User?.Identity?.IsAuthenticated != true)
+            {
+                return Unauthorized();
+            }
+
+            result = await pageService.LoadAsync(draftId, cancellationToken);
+        }
         // If no slug provided, load the homepage
-        if (string.IsNullOrWhiteSpace(Slug))
+        else if (string.IsNullOrWhiteSpace(Slug))
         {
             result = await pageService.LoadHomepageAsync(cancellationToken);
         }
@@ -28,8 +44,8 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
 
         var page = result switch
         {
-            global::Aero.Core.Railway.Result<string, PageDocument?>.Ok(var foundPage) => foundPage,
-            global::Aero.Core.Railway.Result<string, PageDocument?>.Failure => (PageDocument?)null,
+            Result<PageDocument?, AeroError>.Ok(var foundPage) => foundPage,
+            Result<PageDocument?, AeroError>.Failure => (PageDocument?)null,
             _ => (PageDocument?)null
         };
 

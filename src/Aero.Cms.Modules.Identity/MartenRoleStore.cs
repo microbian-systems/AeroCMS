@@ -1,11 +1,12 @@
 using System.Security.Claims;
 using Aero.Core.Identity;
+using Aero.Marten.Identity;
 using JasperFx;
 using Marten;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
-namespace Aero.MartenDB.Identity;
+namespace Aero.Cms.Modules.Identity;
 
 
 /// <summary>

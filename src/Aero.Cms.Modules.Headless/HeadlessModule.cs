@@ -1,5 +1,6 @@
+using Aero.Cms.Abstractions.Audit;
 using Aero.Cms.Core;
-using Aero.Cms.Modules.Headless.Api.v1;
+using Aero.Cms.Modules.Headless.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -14,11 +15,11 @@ namespace Aero.Cms.Modules.Headless;
 /// <summary>
 /// Aero CMS Admin module - provides admin functionality for publishing and previewing content.
 /// </summary>
-public sealed class HeadlessModule : AeroModuleBase
+public sealed class HeadlessModule : AeroWebModule
 {
     public override string Name => nameof(HeadlessModule);
 
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
 
     public override string Author => AeroConstants.Author;
 
@@ -30,8 +31,11 @@ public sealed class HeadlessModule : AeroModuleBase
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        // todo - check settings if openapi should be publicly available
+        //if(env.IsDevelopment())
         services.AddOpenApi();
 
+        services.AddScoped<IAuditService, AuditService>();
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)
@@ -39,7 +43,8 @@ public sealed class HeadlessModule : AeroModuleBase
         var scope = builder.ServiceProvider.CreateAsyncScope();
         var env = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
 
-        builder.MapPublishApi();
+        // PublishApi is deprecated — publish/unpublish is handled in PagesApi and BlogApi
+        // builder.MapPublishApi();
         builder.MapPreviewApi();
         builder.MapBlogApi();
         builder.MapPagesApi();
@@ -56,6 +61,8 @@ public sealed class HeadlessModule : AeroModuleBase
         builder.MapSettingsApi();
         builder.MapProfileApi();
         builder.MapBlocksApi();
+        builder.MapJwtApi();
+        builder.MapAuthApi();
 
         // todo - put scalar behind a gated login (auth filter)
         builder.MapOpenApi();

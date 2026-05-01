@@ -1,6 +1,8 @@
-using Aero.Cms.Core.Modules;
+﻿using TUnit.Core;
 using Aero.Cms.Core.Tests.TestModules;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
+using Aero.Cms.Modules.Modules.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -28,7 +30,7 @@ public class ModuleHostIntegrationTests
         services.AddSingleton<IAeroModule, SimpleTestModule>();
 
         // Act - simulate what AddAeroModulesAsync does
-        var moduleBuilder = new ModuleBuilder(services, configuration, environment);
+        var moduleBuilder = new AeroModuleBuilder(services, configuration, environment);
         await using var tempProvider = services.BuildServiceProvider();
         var modules = tempProvider.GetServices<IAeroModule>().ToList();
 
@@ -191,13 +193,13 @@ public class ModuleHostIntegrationTests
         var environment = new FakeHostEnvironment();
 
         // Track if builder was received
-        IModuleBuilder? capturedBuilder = null;
+        IAeroModuleBuilder? capturedBuilder = null;
         var testModule = new CallbackTestModule(builder => capturedBuilder = builder);
 
         services.AddSingleton<IAeroModule>(testModule);
 
         // Act
-        var moduleBuilder = new ModuleBuilder(services, configuration, environment);
+        var moduleBuilder = new AeroModuleBuilder(services, configuration, environment);
         testModule.Configure(moduleBuilder);
 
         // Assert
@@ -266,7 +268,7 @@ public class ModuleHostIntegrationTests
     /// <summary>
     /// Test module that captures the builder.
     /// </summary>
-    private class CallbackTestModule(Action<IModuleBuilder> callback) : AeroModuleBase
+    private class CallbackTestModule(Action<IAeroModuleBuilder> callback) : AeroModuleBase
     {
         public override string Name => "CallbackTest";
         public override string Version => "1.0.0";
@@ -275,7 +277,7 @@ public class ModuleHostIntegrationTests
         public override IReadOnlyList<string> Category => Array.Empty<string>();
         public override IReadOnlyList<string> Tags => Array.Empty<string>();
 
-        public override void Configure(IModuleBuilder builder)
+        public override void Configure(IAeroModuleBuilder builder)
         {
             callback(builder);
             base.Configure(builder);
@@ -293,6 +295,6 @@ public class ModuleHostIntegrationTests
         public IApplicationBuilder CreateApplicationBuilder()
         {
             throw new NotImplementedException();
-        }
+}
     }
 }

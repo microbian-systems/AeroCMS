@@ -1,4 +1,4 @@
-﻿namespace Aero.MartenDB.Identity;
+﻿namespace Aero.Cms.Modules.Identity;
 
 /// <summary>
 /// The type of ID to create for users.

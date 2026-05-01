@@ -1,6 +1,7 @@
+using TUnit.Core;
 using System.Net;
 using System.Text.Json;
-using Aero.Cms.Core.Http.Clients;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Railway;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -38,8 +39,8 @@ public class CategoriesHttpClientTests
         var result = await client.GetAllAsync();
 
         // Assert
-        result.Should().BeOfType<Result<string, IReadOnlyList<CategorySummary>>.Ok>();
-        var ok = (Result<string, IReadOnlyList<CategorySummary>>.Ok)result;
+        result.Should().BeOfType<Result<IReadOnlyList<CategorySummary>, global::Aero.Core.AeroError>.Ok>();
+        var ok = (Result<IReadOnlyList<CategorySummary>, global::Aero.Core.AeroError>.Ok)result;
         ok.Value.Count.Should().Be(1);
         ok.Value[0].Name.Should().Be("Test Category");
     }
@@ -49,6 +50,6 @@ public class CategoriesHttpClientTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             return Task.FromResult(response);
-        }
+}
     }
 }

@@ -1,6 +1,8 @@
+using Aero.Cms.Abstractions.Blocks;
+
 namespace Aero.Cms.Web.Core.Pipelines;
 
-using Aero.Cms.Core.Blocks;
+
 using Aero.Cms.Core.Pipelines;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc.Rendering;

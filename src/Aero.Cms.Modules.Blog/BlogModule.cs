@@ -1,17 +1,21 @@
 using Aero.Cms.Core;
-using Aero.Cms.Services;
+using Aero.Cms.Core.Entities;
+using Aero.Cms.Modules.Blog.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
+using Aero.Services.Images;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Blog;
 
-public sealed class BlogModule : AeroModuleBase, IUiModule
+public sealed class BlogModule : AeroWebModule, IUiModule
 {
     public override string Name => nameof(BlogModule);
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [nameof(Pages.PagesModule)];
     public override IReadOnlyList<string> Category => ["content", "blog"];
@@ -46,5 +50,16 @@ public sealed class BlogModule : AeroModuleBase, IUiModule
             options.Conventions.AddAreaPageRoute("Admin", "/Index", "/admin/blog");
             options.Conventions.AddAreaPageRoute("Admin", "/Edit", "/admin/blog/edit/{id?}");
         });
+    }
+
+    public override void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        opts.Schema.For<BlogPostDocument>().DocumentAlias(Schemas.Tables.Posts);
+        opts.Schema.For<BlogPostDocument>().Identity(x => x.Id);
+        //opts.Schema.For<BlogPostDocument>().Duplicate(x => x.Title); // todo - find out what the marten For<T>().Duplicate() method does and if it is needed here
+        opts.Schema.For<BlogPostDocument>().Index(x => x.Slug);
+        opts.Schema.For<BlogPostDocument>().Index(x => x.PublishedOn);
+        opts.Schema.For<BlogPostDocument>().Index(x => x.CreatedOn);
+        opts.Schema.For<BlogPostDocument>().Index(x => x.ModifiedOn);
     }
 }

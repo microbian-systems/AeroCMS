@@ -25,6 +25,8 @@ public static class AeroCmsRoles
     /// </summary>
     public const string ViewOnly = nameof(ViewOnly);
 
+    public const string ManagerRoleCsv = Admin + "," + Editor + "," + Contributor + "," + ViewOnly;
+
     public static IReadOnlyList<string> All { get; } =
     [
         Admin,

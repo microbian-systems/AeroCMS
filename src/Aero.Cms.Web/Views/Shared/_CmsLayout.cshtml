@@ -1,5 +1,6 @@
-@using Aero.Cms.Core.Blocks
-@using Aero.Cms.Core.Http.Clients
+@using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Core.Entities
 @using Marten
 @inject IDocumentSession MartenSession
 @{
@@ -11,7 +12,7 @@
     {
         // Load the pages referenced by the navigation items to check their ShowInNavMenu property
         var pageIds = navBlock.Items.Values.Where(i => i.PageId != 0).Select(i => i.PageId).ToList();
-        var pages = await MartenSession.LoadManyAsync<Aero.Cms.Modules.Pages.PageDocument>(pageIds);
+        var pages = await MartenSession.LoadManyAsync<PageDocument>(pageIds);
         
         // Find IDs that are explicitly hidden standard pages
         var hiddenPageIds = pages.Where(p => !p.ShowInNavMenu).Select(p => p.Id).ToHashSet();
@@ -36,6 +37,7 @@
     }
     
     var showHeaderNavigation = ViewBag.ShowHeaderNavigation as bool? ?? true;
+    var hideFooter = ViewBag.HideFooter as bool? ?? false;
 }
 <!DOCTYPE html>
 
@@ -161,13 +163,16 @@
         @RenderBody()
     </main>
 
-    <footer class="bg-white border-t border-slate-200 py-12 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center text-slate-500 text-sm">
-                &copy; @DateTime.Now.Year Aero CMS. All rights reserved.
+    @if (!hideFooter)
+    {
+        <footer class="bg-white border-t border-slate-200 py-12 mt-auto">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center text-slate-500 text-sm">
+                    &copy; @DateTime.Now.Year Aero CMS. All rights reserved.
+                </div>
             </div>
-        </div>
-    </footer>
+        </footer>
+    }
 
     <script src="/js/app.js" type="module"></script>
     @await RenderSectionAsync("Scripts", required:false)

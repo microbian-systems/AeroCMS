@@ -1,10 +1,11 @@
-﻿using FluentValidation;
+﻿using Aero.Cms.Core.Entities;
+using FluentValidation;
 
 namespace Aero.Cms.Modules.Pages.Validators;
 
-public class PageModelValidator : AbstractValidator<PageDocument>
+public class PageDocumentValidator : AbstractValidator<PageDocument>
 {
-    public PageModelValidator()
+    public PageDocumentValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Slug).NotNull().NotEmpty();

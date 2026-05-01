@@ -1,0 +1,56 @@
+@using Aero.Cms.Abstractions.Blocks.Common
+
+@if (Block != null)
+{
+    var bgImage = Block.BackgroundImageUrl;
+    var hasBg = !string.IsNullOrEmpty(bgImage);
+    var alignClass = Block.TextAlignment switch
+    {
+        "left" => "text-left items-start",
+        "right" => "text-right items-end",
+        _ => "text-center items-center"
+    };
+    var heightStyle = Block.FullScreen
+        ? "min-height: 100vh;"
+        : $"min-height: {Math.Max(240, Block.Height)}px;";
+
+    <section class="relative w-full bg-cover bg-center overflow-hidden @(Block.UseParallax ? "bg-fixed" : "")"
+             style="@(hasBg ? $"background-image: url('{bgImage}')" : "background-color: #111827")">
+        @if (hasBg)
+        {
+            <div class="absolute inset-0 bg-black" style="opacity: @Block.OverlayOpacity.ToString("0.##")"></div>
+        }
+
+        <div class="relative z-10 flex flex-col justify-center px-6 py-24 mx-auto max-w-7xl @alignClass"
+             style="@heightStyle">
+            @if (!string.IsNullOrEmpty(Block.Title))
+            {
+                <h1 class="text-4xl font-bold text-white sm:text-5xl lg:text-6xl max-w-4xl @(Block.TextAlignment == "center" ? "mx-auto" : "")">
+                    @Block.Title
+                </h1>
+            }
+
+            @if (!string.IsNullOrEmpty(Block.SubTitle))
+            {
+                <p class="mt-6 text-lg text-gray-200 max-w-2xl @(Block.TextAlignment == "center" ? "mx-auto" : "")">
+                    @Block.SubTitle
+                </p>
+            }
+
+            @if (!string.IsNullOrEmpty(Block.CtaText) && !string.IsNullOrEmpty(Block.CtaUrl))
+            {
+                <div class="mt-8">
+                    <a href="@Block.CtaUrl"
+                       class="inline-block px-8 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-500 transition-colors duration-200">
+                        @Block.CtaText
+                    </a>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public HeroBlock? Block { get; set; }
+}

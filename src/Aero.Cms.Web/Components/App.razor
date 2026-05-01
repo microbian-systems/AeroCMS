@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <ResourcePreloader />
-    <link rel="stylesheet" href="_content/Aero.Cms.Shared/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/app.css" />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/aero-manager.css" />
     <link rel="stylesheet" href="Aero.Cms.Web.styles.css" />
@@ -16,12 +15,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@@tailwindcss/browser@@4"></script>
     @* <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script> *@
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
-    <HeadOutlet @rendermode="InteractiveWebAssembly" />
+    <HeadOutlet @rendermode="@(new InteractiveWebAssemblyRenderMode(prerender: false))" />
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveWebAssembly" />
+    <Routes @rendermode="@(new InteractiveWebAssemblyRenderMode(prerender: false))" />
     <ReconnectModal />
+    <script src="_content/BlazorMonaco/jsInterop.js"></script>
+    <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
+    <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 

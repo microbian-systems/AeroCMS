@@ -1,6 +1,6 @@
 using Aero.Core.Entities;
 
-namespace Aero.Cms.Core;
+namespace Aero.Cms.Core.Models;
 
 /// <summary>
 /// Represents a media asset (image, video, etc.) in the CMS.
@@ -15,4 +15,6 @@ public class MediaAsset : Entity
     public int Height { get; set; }
     public string? AltText { get; set; }
     public string? Description { get; set; }
+    public bool IsFolder { get; set; }
+    public long? ParentId { get; set; }
 }

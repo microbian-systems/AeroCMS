@@ -1,4 +1,4 @@
-using Aero.Cms.Modules.Blog;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
 using Marten;

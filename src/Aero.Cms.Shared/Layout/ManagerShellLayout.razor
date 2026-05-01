@@ -1,8 +1,10 @@
 @inherits LayoutComponentBase
 @using Aero.Cms.Shared.Services
 @using Aero.Cms.Shared.Layout
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Sections
 @inject ManagerThemeService ThemeService
+@inject NavigationManager Navigation
 @implements IDisposable
 
 <div class="pe-root" data-theme="@ThemeService.Theme">
@@ -27,9 +29,47 @@
 <RadzenComponents />
 
 @code {
+    private string? redirectTarget;
+
     protected override void OnInitialized()
     {
         ThemeService.OnThemeChanged += StateHasChanged;
+    }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
+        if (relative.StartsWith("manager/login", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // Skip redirect if user is already authenticated (cookie present)
+        if (AuthenticationState is not null)
+        {
+            var authState = await AuthenticationState;
+            if (authState.User.Identity?.IsAuthenticated == true)
+            {
+                return;
+            }
+        }
+
+        redirectTarget = string.IsNullOrWhiteSpace(relative) || relative.Equals("manager", StringComparison.OrdinalIgnoreCase)
+            ? "/manager/login?returnUrl=%2Fmanager"
+            : $"/manager/login?returnUrl={Uri.EscapeDataString("/" + relative)}";
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !string.IsNullOrWhiteSpace(redirectTarget))
+        {
+            Navigation.NavigateTo(redirectTarget, forceLoad: true);
+        }
+
+        return Task.CompletedTask;
     }
 
     public void Dispose()

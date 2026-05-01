@@ -16,13 +16,13 @@ public static class IdentityBuilderExtensions
         if (userType is null)
             throw new InvalidOperationException(
                 $"Must provide an identity user of type {typeof(IdentityUser).FullName} or one that extends this type.");
-        if (!typeof(IdentityUser).IsAssignableFrom(userType))
-            throw new InvalidOperationException($"{userType.Name} must extend {typeof(IdentityUser).FullName}.");
+        if (!IsIdentityUserType(userType))
+            throw new InvalidOperationException($"{userType.Name} must extend IdentityUser<TKey>.");
 
         if (roleType is null)
             roleType = typeof(IdentityRole);
-        else if (!typeof(IdentityRole).IsAssignableFrom(roleType))
-            throw new InvalidOperationException($"{roleType.Name} must extend {typeof(IdentityRole).FullName}.");
+        else if (!IsIdentityRoleType(roleType))
+            throw new InvalidOperationException($"{roleType.Name} must extend IdentityRole<TKey>.");
 
         var userStoreType = typeof(UserStore<>).MakeGenericType(userType);
         var roleStoreType = typeof(RoleStore<>).MakeGenericType(roleType);
@@ -47,5 +47,22 @@ public static class IdentityBuilderExtensions
         builder.Services.TryAddScoped(typeof(IRoleClaimStore<>).MakeGenericType(roleType), roleStoreType);
 
         return builder;
+    }
+
+    private static bool IsIdentityUserType(Type type)
+        => IsAssignableToGenericType(type, typeof(IdentityUser<>));
+
+    private static bool IsIdentityRoleType(Type type)
+        => type == typeof(IdentityRole) || IsAssignableToGenericType(type, typeof(IdentityRole<>));
+
+    private static bool IsAssignableToGenericType(Type givenType, Type genericType)
+    {
+        if (givenType.IsGenericType && givenType.GetGenericTypeDefinition() == genericType)
+            return true;
+
+        if (givenType.GetInterfaces().Any(it => it.IsGenericType && it.GetGenericTypeDefinition() == genericType))
+            return true;
+
+        return givenType.BaseType is not null && IsAssignableToGenericType(givenType.BaseType, genericType);
     }
 }

@@ -1,16 +1,24 @@
 using Aero.Caching.Extensions;
+using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Setup.Configuration;
+using Aero.Cms.Modules.Setup.Endpoints;
 using Aero.Cms.Core;
-using Aero.Cms.Core.Extensions;
 using Aero.Cms.Web.Core.Modules;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Routing;
+using Aero.AppServer;
+using Aero.AppServer.Startup;
+using Aero.Modular;
+using Aero.Secrets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup;
+
+
+// todo - after setup runs it should autodisable itslf by setting hte Enabled = false and disable the aspnet core FeatureFlag and save to db
 
 /// <summary>
 /// Aero CMS infrastructure setup (database, caching, etc)
@@ -19,7 +27,7 @@ public sealed class SetupModule : AeroModuleBase
 {
     public override string Name => nameof(SetupModule);
 
-    public override string Version => AeroVersion.Version;
+    public override string Version => AeroConstants.Version;
 
     public override string Author => AeroConstants.Author;
     public override short Order { get; } = -32768;
@@ -38,22 +46,42 @@ public sealed class SetupModule : AeroModuleBase
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
-        services.Configure<RazorPagesOptions>(options =>
-            options.Conventions.AddAreaPageRoute("MyFeature", "/Setup", SetupPathAllowlist.SetupPath));
-        services.TryAddScoped<ISetupStateStore, MartenSetupStateStore>();
+        var bootstrapState = new AppSettingsBootstrapStateProvider(config ?? new ConfigurationBuilder().Build()).GetState();
+        var runtimeMode = bootstrapState.IsConfiguredMode || bootstrapState.IsRunningMode;
+
+        // Note: Setup page is now a Blazor component (Setup.razor) with @page "/setup"
+        // The route is discovered via AddAdditionalAssemblies in Program.cs
+        services.AddOptions<AeroDbOptions>()
+            .BindConfiguration("Aero:Embedded");
+        services.TryAddSingleton<IEnvironmentAppSettingsWriter, EnvironmentAppSettingsWriter>();
+        services.TryAddSingleton<InfisicalBootstrapSettingsProvider>();
+        services.TryAddSingleton<IDataProtectionCertificateSettingsProvider, ConfigurationDataProtectionCertificateSettingsProvider>();
+        services.TryAddSingleton<IBootstrapStateProvider, AppSettingsBootstrapStateProvider>();
         services.TryAddScoped<ISetupInitializationService, SetupInitializationService>();
-        services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
-        services.TryAddScoped<ISetupCompletionService, SetupCompletionService>();
-        services.TryAddScoped<IModuleStateStore, ModuleStateStore>();
+        services.TryAddScoped<IDatabaseBootstrapService, DatabaseBootstrapService>();
+        services.TryAddScoped<ICacheBootstrapService, CacheBootstrapService>();
+        services.TryAddScoped<IBootstrapCompletionWriter, BootstrapCompletionWriter>();
+        services.TryAddScoped<IBootstrapPendingSetupRequestStore, BootstrapPendingSetupRequestStore>();
+        services.TryAddScoped<ISetupBootstrapHandoffService, SetupBootstrapHandoffService>();
         services.TryAddSingleton<SetupPathAllowlist>();
         services.TryAddTransient<SetupGateMiddleware>();
-        services.AddAeroCaching(false);
+        services.TryAddSingleton<ISecretManager>(sp => DataProtectionCertificateBootstrapper.CreateSecretManager(sp.GetService<IConfiguration>()));
+
+        services.AddTransient<IStartupFilter, SetupStatusStartupFilter>();
+
+        if (runtimeMode)
+        {
+            // These services depend on Identity and Marten, which are only available in runtime mode
+            services.TryAddScoped<ISetupStateStore, MartenSetupStateStore>();
+            services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
+            services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
+            services.TryAddTransient<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();
+            services.AddAeroCaching(false);
+        }
     }
 
-    public override async Task RunAsync(IEndpointRouteBuilder builder)
+    public override async Task RunAsync(IServiceProvider sp)
     {
-        var scope = builder.ServiceProvider.CreateAsyncScope();
-        var sp = scope.ServiceProvider;
         var log = sp.GetRequiredService<ILogger<SetupModule>>();
         var setupInitService = sp.GetRequiredService<ISetupInitializationService>();
 
@@ -74,4 +102,5 @@ public sealed class SetupModule : AeroModuleBase
 
         await Task.CompletedTask;
     }
+
 }

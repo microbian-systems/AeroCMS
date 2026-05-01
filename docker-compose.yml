@@ -1,0 +1,286 @@
+services:
+  # --------------------------------------------------------------------------
+  # Citus PostgreSQL Cluster
+  # --------------------------------------------------------------------------
+  # master:
+  #   image: citusdata/citus:14.0.0
+  #   container_name: aero-cms_master
+  #   environment: &pg-auth
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: "*strongPassword1"
+  #     POSTGRES_DB: aero
+  #     POSTGRES_HOST_AUTH_METHOD: trust
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - master_data:/var/lib/postgresql/14/main
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 4s
+  #     timeout: 4s
+  #     start_period: 6s
+  #     retries: 5
+  #   labels:
+  #     com.citusdata.role: Master
+  #   networks:
+  #     - aero-net
+
+  # manager:
+  #   # image: aero-cms-manager
+  #   build:
+  #     context: ./manager
+  #     dockerfile: Dockerfile
+  #   container_name: aero-cms-manager
+  #   command: python -u /manager/manager.py
+  #   environment:
+  #     <<: *pg-auth
+  #     CITUS_HOST: master
+  #   depends_on:
+  #     master:
+  #       condition: service_healthy
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./manager:/manager
+  #     - healthcheck:/healthcheck
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "test -f /healthcheck/manager-ready"]
+  #     interval: 1s
+  #     timeout: 1s
+  #     start_period: 1s
+  #     retries: 10
+  #   networks:
+  #     - aero-net
+
+  # worker:
+  #   image: aero-cms-worker
+  #   build:
+  #     context: ./manager
+  #     dockerfile: Dockerfile.worker
+  #   command: /wait-for-manager.sh
+  #   labels:
+  #     com.citusdata.role: Worker
+  #   environment:
+  #     <<: *pg-auth
+  #   depends_on:
+  #     manager:
+  #       condition: service_healthy
+  #   volumes:
+  #     - healthcheck:/healthcheck:ro
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 4s
+  #     timeout: 4s
+  #     start_period: 6s
+  #     retries: 5
+  #   networks:
+  #     - aero-net
+
+  # --------------------------------------------------------------------------
+  # LavinMQ cluster nodes (internal only; scaled with --scale lavinmq=3)
+  # --------------------------------------------------------------------------
+  lavinmq:
+    image: cloudamqp/lavinmq:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command: 
+      - |
+        lavinmq --clustering \
+                --clustering-etcd-endpoints=http://etcd:2379 \
+                --clustering-bind=0.0.0.0 \
+                --clustering-advertised-uri=tcp://$(hostname):5679 \
+                --amqp-bind=0.0.0.0 \
+                --http-bind=0.0.0.0 \
+                --default-user-only-loopback=false
+    environment:
+      LAVINMQ_USER: admin
+      LAVINMQ_PASSWORD: "*strongPassword1"
+    expose:
+      - "5672"
+      - "15672"
+      - "5679"
+    depends_on:
+      etcd:
+        condition: service_healthy
+    networks:
+      - aero-net
+
+  # --------------------------------------------------------------------------
+  # HAProxy in front of LavinMQ
+  # - lavinmq stable AMQP endpoint: localhost:5672
+  # - lavinmq stable dashboard:     http://localhost:15672
+  # --------------------------------------------------------------------------
+  ha-proxy:
+    image: haproxy:3.0-alpine
+    container_name: ha-proxy
+    depends_on:
+      - lavinmq
+      - surrealdb
+    ports:
+      - "5672:5672"    # LavinMQ AMQP
+      - "15672:15672"  # LavinMQ UI
+      - "8000:8000"    # <--- Add this for SurrealDB
+    volumes:
+      - ./manager/lavinmq-haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      #- ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - aero-net
+
+  # --------------------------------------------------------------------------
+  # Graph Database
+  # --------------------------------------------------------------------------
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j
+    environment:
+      NEO4J_AUTH: neo4j/*strongPassword1
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    networks:
+      - aero-net
+
+  # --------------------------------------------------------------------------
+  # Observability
+  # --------------------------------------------------------------------------
+  openobserve:
+    image: openobserve/openobserve:latest
+    container_name: openobserve
+    ports:
+      - "5081:5080"
+      - "8001:8000"
+    environment:
+      ZO_ROOT_USER_EMAIL: aero@getaero.net
+      ZO_ROOT_USER_PASSWORD: "*strongPassword1"
+      ZO_DATA_DIR: /data
+    volumes:
+      - ./openobserve_data:/data
+    restart: always
+    networks:
+      - aero-net
+
+  # --------------------------------------------------------------------------
+  # In-Memory Cache
+  # --------------------------------------------------------------------------
+  garnet:
+    image: ghcr.io/microsoft/garnet:latest
+    container_name: garnet
+    ports:
+      - "6379:6379"
+    networks:
+      - aero-net
+
+  # --------------------------------------------------------------------------
+  # Distributed Key-Value Store
+  # --------------------------------------------------------------------------
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.6.5
+    container_name: etcd
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd
+      - --data-dir=/var/lib/etcd/data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --advertise-client-urls=http://etcd:2379
+      - --initial-cluster=etcd=http://etcd:2380
+      - --initial-cluster-token=etcd-cluster-0
+      - --initial-cluster-state=new
+    volumes:
+      - etcd-data:/var/lib/etcd/data
+    networks:
+      - aero-net
+    healthcheck:
+      test: [ "CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    environment:
+      - ETCDCTL_API=3
+
+
+  # --------------------------------------------------------------------------
+  # surreal
+  # --------------------------------------------------------------------------
+
+  # SurrealDB Compute Layer
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    restart: always
+    command: start tikv:pd:2395 --log trace --user aero --pass *strongPassword1 
+      # - start
+      # - --log=trace
+      # - --user=aero
+      # - --pass="*strongPassword1"
+      # - tikv:pd:2395
+    # No ports exposed directly to the host - ha-proxy handles connections
+    depends_on:
+      - pd
+    networks:
+      - aero-net
+
+  # Storage Layer (PD & TiKV)
+  pd:
+    image: pingcap/pd:latest
+    command:
+      - --name=pd
+      - --data-dir=/data/pd
+      - --client-urls=http://0.0.0.0:2395
+      - --advertise-client-urls=http://pd:2395
+      - --peer-urls=http://0.0.0.0:2381
+      - --advertise-peer-urls=http://pd:2381
+      - --initial-cluster=pd=http://pd:2381
+    expose:
+      - "2395"
+      - "2381"
+    volumes:
+      - pd_data:/data
+    networks:
+      - aero-net
+
+  tikv:
+    image: pingcap/tikv:latest
+    depends_on:
+      - pd
+    command:
+      - --pd-endpoints=pd:2395
+      - --addr=0.0.0.0:20160
+      - --advertise-addr=tikv:20160
+      - --data-dir=/data/tikv
+    volumes:
+      - tikv_data:/data
+    networks:
+      - aero-net
+
+configs:
+  lavinmq_config:
+    content: |
+        [clustering]
+        enabled = true
+        bind = 0.0.0.0
+        etcd_endpoints = etcd:2379
+
+volumes:
+  master_data:
+  aero-data:
+  citus-worker1-data:
+  citus-worker2-data:
+  lavinmq-data:
+  etcd-data:
+  openobserve-data:
+  garnet-data:
+  neo4j-data:
+  healthcheck-volume:
+  healthcheck:
+  data: {}
+  logs: {}
+  tikv_data:
+  pd_data:
+  posthog_clickhouse_data:
+
+networks:
+  aero-net:
+    name: aero-net
+    driver: bridge

@@ -1,10 +1,22 @@
+﻿using TUnit.Core;
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Services;
+using Aero.Cms.Core.Entities;
+using Aero.Models.Entities;
 using Aero.Cms.Modules.Blog;
+using Aero.Cms.Modules.Modules.Services;
 using Aero.Cms.Modules.Pages;
+using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Setup;
-using Aero.Cms.Services;
+using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Services.Images;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
 using NSubstitute;
+using Wolverine;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -16,7 +28,12 @@ public class SetupCompletionServiceTests
         var harness = new InMemoryCmsDocumentSessionHarness();
         var identityBootstrapper = Substitute.For<ISetupIdentityBootstrapper>();
         identityBootstrapper.BootstrapAsync(Arg.Any<SetupIdentityBootstrapRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SetupIdentityBootstrapResult { CreatedAdmin = true, CreatedRoles = true });
+            .Returns(new SetupIdentityBootstrapResult 
+            { 
+                CreatedAdmin = true, 
+                CreatedRoles = true,
+                AdminUser = new AeroUser { Id = 12345 } 
+            });
 
         var service = CreateService(harness, identityBootstrapper);
 
@@ -42,7 +59,8 @@ public class SetupCompletionServiceTests
             "cms/posts/getting-started-with-aero-cms",
             "cms/posts/shaping-your-homepage-message",
             "cms/posts/publishing-your-first-update");
-        harness.BlogPosts.Values.Should().OnlyContain(post => post.PublicationState == ContentPublicationState.Published);
+        harness.BlogPosts.Values.Should()
+            .OnlyContain(post => post.PublicationState == ContentPublicationState.Published);
     }
 
     [Test]
@@ -51,13 +69,17 @@ public class SetupCompletionServiceTests
         var harness = new InMemoryCmsDocumentSessionHarness();
         var identityBootstrapper = Substitute.For<ISetupIdentityBootstrapper>();
         identityBootstrapper.BootstrapAsync(Arg.Any<SetupIdentityBootstrapRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SetupIdentityBootstrapResult { CreatedAdmin = true });
+            .Returns(new SetupIdentityBootstrapResult 
+            { 
+                CreatedAdmin = true,
+                AdminUser = new AeroUser { Id = 12345 } 
+            });
 
         harness.OnStore = stored =>
         {
-            //if (stored is BlogPostDocument { Id: "cms/posts/publishing-your-first-update" })
+            if (stored is BlogPostDocument { Slug: "publishing-your-first-update" })
             {
-                //throw new InvalidOperationException("Simulated seed failure.");
+                throw new InvalidOperationException("Simulated seed failure.");
             }
         };
 
@@ -109,22 +131,52 @@ public class SetupCompletionServiceTests
         harness.BlogPosts.Should().BeEmpty();
     }
 
-    private static SetupCompletionService CreateService(InMemoryCmsDocumentSessionHarness harness, ISetupIdentityBootstrapper identityBootstrapper)
-        => new(
+    private static SeedDatabaseService CreateService(InMemoryCmsDocumentSessionHarness harness,
+        ISetupIdentityBootstrapper identityBootstrapper)
+    {
+        var tenantService = Substitute.For<ITenantService>();
+        tenantService.CreateTenantAsync(Arg.Any<TenantModel>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<TenantModel>());
+
+        var siteService = Substitute.For<ISiteService>();
+        siteService.CreateSiteAsync(Arg.Any<SitesModel>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<SitesModel>());
+
+        var apiKeyService = Substitute.For<IApiKeyService>();
+        apiKeyService.CreateKeyAsync(Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult("mock-key"));
+
+        return new SeedDatabaseService(
             harness.Session,
+            Substitute.For<IWebHostEnvironment>(),
             identityBootstrapper,
-            new MartenPageContentService(harness.Session),
+            new MartenPageContentService(harness.Session, Substitute.For<IBlockService>(),
+                Substitute.For<IMessageBus>()),
             new MartenBlogPostContentService(harness.Session),
             Substitute.For<IStaticPhotosClient>(),
-            Substitute.For<IModuleDiscoveryService>(),
-            Substitute.For<IModuleStateStore>());
+            Substitute.For<IModuleInitializationService>(),
+            Substitute.For<IBootstrapCompletionWriter>(),
+            tenantService,
+            siteService,
+            apiKeyService);
+    }
 
-    private static SetupCompletionRequest CreateRequest()
+    private static SeedDatabaseRequest CreateRequest()
         => new(
+            "embedded",
+            "memory",
+            "environment",
+            "Local",
+            null,
+            null,
+            null,
+            null,
             "admin.user",
             "admin@example.com",
             "CorrectHorseBattery1!",
             "Aero CMS",
             "Welcome to Aero CMS",
-            "Field Notes");
+            "Field Notes",
+            "localhost",
+            "en-US");
 }
