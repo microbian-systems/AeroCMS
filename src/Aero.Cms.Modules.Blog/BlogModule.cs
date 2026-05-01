@@ -56,7 +56,6 @@ public sealed class BlogModule : AeroWebModule, IUiModule
     {
         opts.Schema.For<BlogPostDocument>().DocumentAlias(Schemas.Tables.Posts);
         opts.Schema.For<BlogPostDocument>().Identity(x => x.Id);
-        //opts.Schema.For<BlogPostDocument>().Duplicate(x => x.Title); // todo - find out what the marten For<T>().Duplicate() method does and if it is needed here
         opts.Schema.For<BlogPostDocument>().Index(x => x.Slug);
         opts.Schema.For<BlogPostDocument>().Index(x => x.PublishedOn);
         opts.Schema.For<BlogPostDocument>().Index(x => x.CreatedOn);
