@@ -1,16 +1,18 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Modules.Blog.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Services.Images;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Blog;
 
-public sealed class BlogModule : AeroModuleBase, IUiModule
+public sealed class BlogModule : AeroWebModule, IUiModule
 {
     public override string Name => nameof(BlogModule);
     public override string Version => AeroConstants.Version;

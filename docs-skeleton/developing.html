@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Developing websites | Umbraco Documentation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css"/>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#3544B1', dark: '#2B3891', darker: '#1E2668' },
+            txt: { primary: '#1F2328', secondary: '#656D76', muted: '#8C959F' },
+            border: { DEFAULT: '#D8DEE4', light: '#E6E9EF' },
+            bg: { sidebar: '#F6F8FA', hover: '#F3F4F6', info: '#F6F8FA' },
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+    .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-scroll::-webkit-scrollbar-thumb { background: #D8DEE4; border-radius: 4px; }
+    .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #8C959F; }
+    .nav-item-active { color: #3544B1; border-left: 2px solid #3544B1; background: white; }
+    .chevron-rotate { transform: rotate(90deg); }
+    .page-fade { animation: fadeIn 200ms ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .search-overlay { backdrop-filter: blur(4px); }
+    .dropdown-menu { display: none; animation: dropdownIn 150ms ease; }
+    .dropdown-menu.show { display: block; }
+    @keyframes dropdownIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    .emoji-btn { transition: transform 150ms ease; }
+    .emoji-btn:hover { transform: scale(1.1); }
+    .emoji-btn.selected { transform: scale(1.15); }
+    .on-page-link.active { color: #3544B1; }
+  </style>
+</head>
+<body class="bg-white text-txt-primary font-sans antialiased">
+
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 h-16 bg-white border-b border-border flex items-center justify-between px-6 z-50">
+    <a href="index.html" class="flex items-center gap-2.5 text-txt-primary font-semibold text-base hover:opacity-80 transition-opacity">
+      <img src="assets/logo-umbraco.png" alt="Umbraco" class="w-6 h-6">
+      <span>Umbraco Documentation</span>
+    </a>
+
+    <nav class="hidden lg:flex items-center gap-1">
+      <a href="index.html" class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-txt-primary border-b-2 border-primary rounded-t">
+        <i class="ph ph-file-text text-base"></i>
+        Docs Overview
+      </a>
+      <div class="relative" data-dropdown>
+        <button class="nav-tab flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-txt-secondary hover:text-txt-primary hover:bg-bg-hover rounded transition-colors">
+          <i class="ph ph-code text-base"></i>
+          CMS
+          <i class="ph ph-caret-down text-[10px]"></i>
+        </button>
+        <div class="dropdown-menu absolute top-full left-0 mt-1 bg-white border border-border rounded-lg shadow-md py-2 min-w-[180px] z-50">
+          <a href="cms.html" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-cloud"></i> Cloud
+          </a>
+          <a href="cms.html" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-stack"></i> Compose
+          </a>
+          <a href="cms.html" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-heart"></i> Heartcore
+          </a>
+        </div>
+      </div>
+      <div class="relative" data-dropdown>
+        <button class="nav-tab flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-txt-secondary hover:text-txt-primary hover:bg-bg-hover rounded transition-colors">
+          <i class="ph ph-cloud text-base"></i>
+          Cloud Services
+          <i class="ph ph-caret-down text-[10px]"></i>
+        </button>
+        <div class="dropdown-menu absolute top-full left-0 mt-1 bg-white border border-border rounded-lg shadow-md py-2 min-w-[180px] z-50">
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-cloud"></i> Cloud Portal
+          </a>
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-hard-drives"></i> Infrastructure
+          </a>
+        </div>
+      </div>
+      <div class="relative" data-dropdown>
+        <button class="nav-tab flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-txt-secondary hover:text-txt-primary hover:bg-bg-hover rounded transition-colors">
+          <i class="ph ph-sparkle text-base"></i>
+          Digital Experience Products (DXP)
+          <i class="ph ph-caret-down text-[10px]"></i>
+        </button>
+        <div class="dropdown-menu absolute top-full left-0 mt-1 bg-white border border-border rounded-lg shadow-md py-2 min-w-[200px] z-50">
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-shopping-cart"></i> Commerce
+          </a>
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-credit-card"></i> Payment Providers
+          </a>
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-envelope"></i> Engage
+          </a>
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-truck"></i> Shipping Providers
+          </a>
+        </div>
+      </div>
+      <div class="relative" data-dropdown>
+        <button class="nav-tab flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-txt-secondary hover:text-txt-primary hover:bg-bg-hover rounded transition-colors">
+          <i class="ph ph-users text-base"></i>
+          Community & Project
+          <i class="ph ph-caret-down text-[10px]"></i>
+        </button>
+        <div class="dropdown-menu absolute top-full left-0 mt-1 bg-white border border-border rounded-lg shadow-md py-2 min-w-[180px] z-50">
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-hand-heart"></i> Contributing
+          </a>
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-plant"></i> Sustainability
+          </a>
+        </div>
+      </div>
+      <div class="relative" data-dropdown>
+        <button class="nav-tab flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-txt-secondary hover:text-txt-primary hover:bg-bg-hover rounded transition-colors">
+          <i class="ph ph-robot text-base"></i>
+          AI
+          <i class="ph ph-caret-down text-[10px]"></i>
+        </button>
+        <div class="dropdown-menu absolute top-full left-0 mt-1 bg-white border border-border rounded-lg shadow-md py-2 min-w-[180px] z-50">
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-sparkle"></i> Umbraco in AI
+          </a>
+          <a href="#" class="flex items-center gap-2 px-4 py-2 text-sm text-txt-secondary hover:bg-bg-hover hover:text-txt-primary transition-colors">
+            <i class="ph ph-brain"></i> AI in Umbraco
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <button id="searchBtn" class="flex items-center gap-2 px-3 py-1.5 border border-border rounded-md text-txt-muted text-sm hover:border-txt-muted transition-colors">
+        <i class="ph ph-magnifying-glass"></i>
+        <span class="hidden sm:inline">Search...</span>
+        <kbd class="hidden md:inline-flex items-center px-1.5 py-0.5 bg-bg-sidebar rounded text-xs font-mono text-txt-muted">Ctrl K</kbd>
+      </button>
+      <button class="p-2 text-txt-secondary hover:text-txt-primary transition-colors" title="Feedback">
+        <i class="ph ph-chat-circle text-lg"></i>
+      </button>
+      <button class="lg:hidden p-2 text-txt-secondary hover:text-txt-primary transition-colors" id="mobileMenuBtn">
+        <i class="ph ph-list text-lg"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Menu -->
+  <div id="mobileMenu" class="fixed inset-0 bg-black/30 z-40 hidden lg:hidden">
+    <div class="absolute left-0 top-16 bottom-0 w-80 bg-bg-sidebar border-r border-border overflow-y-auto sidebar-scroll p-4">
+      <nav class="space-y-1">
+        <a href="index.html" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-primary bg-white rounded">Docs Overview</a>
+        <a href="cms.html" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">CMS</a>
+        <a href="#" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">Cloud Services</a>
+        <a href="#" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">Digital Experience Products (DXP)</a>
+        <a href="#" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">Community & Project</a>
+        <a href="#" class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">AI</a>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Search Overlay -->
+  <div id="searchOverlay" class="fixed inset-0 bg-black/30 search-overlay z-[60] hidden">
+    <div class="flex items-start justify-center pt-[15vh]">
+      <div class="w-full max-w-2xl mx-4 bg-white rounded-xl shadow-2xl overflow-hidden">
+        <div class="flex items-center gap-3 px-5 py-4 border-b border-border">
+          <i class="ph ph-magnifying-glass text-xl text-txt-muted"></i>
+          <input type="text" placeholder="Search..." class="flex-1 text-base outline-none text-txt-primary placeholder:text-txt-muted" autofocus>
+          <kbd class="px-2 py-1 bg-bg-sidebar rounded text-xs font-mono text-txt-muted">Ctrl K</kbd>
+        </div>
+        <div class="py-2">
+          <a href="#" class="flex items-center gap-3 px-5 py-3 text-sm text-txt-primary hover:bg-bg-hover transition-colors">
+            <i class="ph ph-magnifying-glass text-txt-muted"></i>
+            How do I start using Umbraco and install it locally?
+          </a>
+          <a href="#" class="flex items-center gap-3 px-5 py-3 text-sm text-txt-primary hover:bg-bg-hover transition-colors">
+            <i class="ph ph-magnifying-glass text-txt-muted"></i>
+            What are the essential requirements to set up Umbraco?
+          </a>
+          <a href="#" class="flex items-center gap-3 px-5 py-3 text-sm text-txt-primary hover:bg-bg-hover transition-colors">
+            <i class="ph ph-magnifying-glass text-txt-muted"></i>
+            How do I create and connect a Document Type to a Template?
+          </a>
+          <a href="#" class="flex items-center gap-3 px-5 py-3 text-sm text-txt-primary hover:bg-bg-hover transition-colors">
+            <i class="ph ph-magnifying-glass text-txt-muted"></i>
+            What is a Template in Umbraco and how is it used with Razor?
+          </a>
+          <a href="#" class="flex items-center gap-3 px-5 py-3 text-sm text-txt-primary hover:bg-bg-hover transition-colors">
+            <i class="ph ph-magnifying-glass text-txt-muted"></i>
+            How do Document Types define what content editors can create?
+          </a>
+        </div>
+        <div class="flex items-center justify-between px-5 py-3 border-t border-border bg-bg-sidebar">
+          <button class="flex items-center gap-1 text-xs text-txt-secondary hover:text-txt-primary">
+            <span>Filter: All docs</span>
+            <i class="ph ph-caret-down"></i>
+          </button>
+          <div class="flex items-center gap-3 text-xs text-txt-muted">
+            <span class="flex items-center gap-1"><i class="ph ph-arrow-up"></i><i class="ph ph-arrow-down"></i> Navigate</span>
+            <span>ESC Close</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="flex pt-16 min-h-screen">
+    <!-- Left Sidebar (Docs Overview nav with Developing active) -->
+    <aside class="hidden lg:block w-[300px] min-w-[300px] bg-bg-sidebar border-r border-border fixed top-16 left-0 bottom-0 overflow-y-auto sidebar-scroll z-30">
+      <div class="p-4">
+        <button class="w-full flex items-center justify-between px-3 py-2 border border-border rounded-md bg-white text-sm font-medium text-txt-primary hover:border-txt-muted transition-colors mb-2">
+          <span>17 latest (LTS)</span>
+          <i class="ph ph-caret-down text-txt-muted"></i>
+        </button>
+      </div>
+
+      <nav class="px-2 pb-4">
+        <div class="mb-4">
+          <p class="px-3 py-2 text-xs font-medium text-txt-secondary uppercase tracking-wider">Umbraco Documentation</p>
+          <a href="index.html" class="flex items-center px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">
+            Umbraco Documentation
+          </a>
+          <a href="#" class="flex items-center px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">
+            Where can I get Help?
+          </a>
+          <a href="#" class="flex items-center px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">
+            Versioning Strategy
+          </a>
+          <a href="#" class="flex items-center px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">
+            Digital Experience (DXP) Products
+          </a>
+        </div>
+
+        <div class="mb-4">
+          <p class="px-3 py-2 text-xs font-medium text-txt-secondary uppercase tracking-wider">Getting Started</p>
+          <a href="#" class="flex items-center px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">
+            Choosing Umbraco
+          </a>
+          <a href="#" class="flex items-center px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">
+            Exploring the Umbraco Products
+          </a>
+          <a href="#" class="flex items-center px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">
+            Hosting an Umbraco project
+          </a>
+          <a href="#" class="flex items-center px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">
+            Creating websites
+          </a>
+          <a href="#" class="flex items-center px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">
+            Editing websites
+          </a>
+          <div class="sidebar-group">
+            <button class="w-full flex items-center justify-between px-3 py-1.5 text-sm font-medium text-txt-primary bg-white rounded transition-colors sidebar-toggle">
+              <span>Developing websites</span>
+              <i class="ph ph-caret-down text-xs text-txt-muted transition-transform chevron-rotate"></i>
+            </button>
+            <div class="pl-6 mt-1 space-y-1 sidebar-children">
+              <a href="developing.html" class="nav-item-active flex items-center px-3 py-1.5 text-sm rounded transition-colors">Developing websites</a>
+              <a href="#" class="flex items-center px-3 py-1.5 text-sm text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">Customizing Umbraco</a>
+              <a href="#" class="flex items-center px-3 py-1.5 text-sm text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors">Extending the Umbraco Backoffice</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <p class="px-3 py-2 text-xs font-medium text-txt-secondary uppercase tracking-wider">Contribute</p>
+          <button class="w-full flex items-center justify-between px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors sidebar-toggle">
+            <span>Documentation</span>
+            <i class="ph ph-caret-right text-xs text-txt-muted transition-transform"></i>
+          </button>
+          <button class="w-full flex items-center justify-between px-3 py-1.5 text-sm font-medium text-txt-secondary hover:bg-white hover:text-txt-primary rounded transition-colors sidebar-toggle">
+            <span>Umbraco-CMS</span>
+            <i class="ph ph-caret-right text-xs text-txt-muted transition-transform"></i>
+          </button>
+        </div>
+      </nav>
+
+      <div class="sticky bottom-0 bg-bg-sidebar border-t border-border p-4 mt-auto">
+        <div class="flex items-center gap-2 text-sm text-txt-muted">
+          <i class="ph ph-books"></i>
+          <span>Powered by GitBook</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 lg:ml-[300px] page-fade">
+      <div class="max-w-[900px] mx-auto px-6 md:px-12 lg:px-16 py-12">
+        <p class="text-xs font-medium text-primary uppercase tracking-wider mb-2">Getting Started</p>
+        <h1 class="text-3xl md:text-[32px] font-semibold text-txt-primary mb-4 leading-tight">Developing websites</h1>
+        <p class="text-base text-txt-secondary mb-4 leading-relaxed">Find the resources needed to develop and customize an Umbraco website, whether working with backend functionality or extending the backoffice.</p>
+        <p class="text-base text-txt-primary mb-6 leading-relaxed">Umbraco CMS is built on the Microsoft ASP.NET MVC framework. You can build upon this technology to work alongside and extend the functionality in Umbraco. The platform is designed to be flexible and pluggable, meaning key components can be replaced with custom implementations when needed.</p>
+
+        <!-- Info Callout -->
+        <div class="bg-bg-info rounded-md p-5 mb-6">
+          <div class="flex items-start gap-3">
+            <i class="ph ph-info text-xl text-primary mt-0.5 flex-shrink-0"></i>
+            <p class="text-sm text-txt-secondary leading-relaxed">It is possible to build an Umbraco site without advanced development tools. For more information, see the <a href="#" class="text-primary hover:underline font-medium">Creating websites with Umbraco</a> article.</p>
+          </div>
+        </div>
+
+        <!-- Learn List -->
+        <p class="text-base font-medium text-txt-primary mb-3">You'll learn how to:</p>
+        <ul class="list-disc list-inside space-y-1.5 mb-6 text-base text-txt-secondary">
+          <li>Structure and develop an Umbraco project</li>
+          <li>Extend and customize the Umbraco backoffice</li>
+          <li>Work with Umbraco-specific APIs and helpers</li>
+          <li>Use dependency injection within Umbraco</li>
+        </ul>
+
+        <p class="text-base font-medium text-txt-primary mb-3">This section is divided into two main areas:</p>
+        <ul class="list-disc list-inside space-y-1.5 mb-8 text-base text-txt-secondary">
+          <li><a href="#extending" class="text-primary hover:underline font-medium">Extending the Umbraco Backoffice</a></li>
+          <li><a href="#customizing" class="text-primary hover:underline font-medium">Customizing Umbraco Sites</a></li>
+        </ul>
+
+        <!-- Extending Section -->
+        <section id="extending" class="scroll-mt-20">
+          <h2 class="text-2xl font-semibold text-primary mb-4">Extending the Umbraco backoffice</h2>
+          <p class="text-base text-txt-secondary leading-relaxed">The Umbraco backoffice can be extended using AngularJS and C#. Customizing the Umbraco backoffice and editing the UI is a common task for developers who want to provide a tailored experience for content editors.</p>
+        </section>
+
+        <section id="customizing" class="scroll-mt-20 mt-8">
+          <h2 class="text-2xl font-semibold text-primary mb-4">Customizing Umbraco sites</h2>
+          <p class="text-base text-txt-secondary leading-relaxed">Learn how to customize and extend your Umbraco website with custom controllers, models, and views to build rich, dynamic web applications.</p>
+        </section>
+
+        <section id="dev-tools" class="scroll-mt-20 mt-8">
+          <h2 class="text-2xl font-semibold text-primary mb-4">Development Tools and IDE Recommendations</h2>
+          <p class="text-base text-txt-secondary leading-relaxed">Discover the recommended tools and IDEs for Umbraco development, including Visual Studio, VS Code, and the .NET CLI.</p>
+        </section>
+      </div>
+    </main>
+
+    <!-- Right Panel -->
+    <aside class="hidden xl:block w-[240px] min-w-[240px] pt-16 pr-4">
+      <div class="fixed top-20 w-[220px]">
+        <p class="flex items-center gap-2 text-xs font-medium text-txt-secondary uppercase tracking-wider mb-3">
+          <i class="ph ph-list"></i> On this page
+        </p>
+        <nav class="space-y-1 mb-8">
+          <a href="#extending" class="on-page-link block text-sm text-txt-secondary hover:text-txt-primary py-0.5 transition-colors">Extending the Umbraco backoffice</a>
+          <a href="#customizing" class="on-page-link block text-sm text-txt-secondary hover:text-txt-primary py-0.5 transition-colors">Customizing Umbraco sites</a>
+          <a href="#dev-tools" class="on-page-link block text-sm text-txt-secondary hover:text-txt-primary py-0.5 transition-colors">Development Tools and IDE Recommendations</a>
+        </nav>
+
+        <div class="border-t border-border pt-4">
+          <p class="text-sm text-txt-secondary mb-3">Was this helpful?</p>
+          <div class="flex items-center gap-2">
+            <button class="emoji-btn text-2xl" data-emoji="smile"><i class="ph ph-smiley"></i></button>
+            <button class="emoji-btn text-2xl" data-emoji="neutral"><i class="ph ph-smiley-meh"></i></button>
+            <button class="emoji-btn text-2xl" data-emoji="frown"><i class="ph ph-smiley-sad"></i></button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Theme Toggle -->
+  <div class="fixed bottom-4 right-4 flex items-center bg-white border border-border rounded-lg shadow-sm z-40">
+    <button class="p-2 text-primary hover:bg-bg-hover rounded-l-lg transition-colors" title="Switch to light theme">
+      <i class="ph ph-sun text-base"></i>
+    </button>
+    <button class="p-2 text-txt-muted hover:bg-bg-hover transition-colors" title="Switch to system theme">
+      <i class="ph ph-desktop text-base"></i>
+    </button>
+    <button class="p-2 text-txt-muted hover:bg-bg-hover rounded-r-lg transition-colors" title="Switch to dark theme">
+      <i class="ph ph-moon text-base"></i>
+    </button>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
