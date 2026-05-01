@@ -37,7 +37,7 @@ But when it comes to how Aero was designed *architecturally*, we're very opinion
 Most CMS platforms force you to choose:
 
 - **Razor** — powerful but rigid
-- **Liquid/Scriban** — dynamic but limited
+- **Scriban (Liquid)** — dynamic, sandboxed, and **Liquid-compatible** with some minor tweaks
 
 Aero CMS gives you **both**:
 
@@ -50,13 +50,15 @@ Strong typing where it matters, flexibility where it counts.
 
 ## 🔥 Dynamic Templates (That Don't Feel Like a Hack)
 
-In most systems, "dynamic templates" are bolted on as an afterthought. In Aero, it's a **core design pillar**:
+In most systems, "dynamic pages" are bolted on as an afterthought. In Aero, it's a **core design pillar**:
 
-- Edit templates at runtime — no deploy required
-- Store in the database, filesystem, or both
-- Override per site, per theme
+- Edit pages at runtime — no deploy required
+- Scripting via HTMX / Scriban
+- Safeguards for scripting
+    - No JS allowed
+    - Scriban Scripting guard rails
 
-Real CMS flexibility—no compile-and-pray.
+Real CMS flexibility— compile time safety without the flexibiity of dynamic programming (scripting).
 
 ---
 
