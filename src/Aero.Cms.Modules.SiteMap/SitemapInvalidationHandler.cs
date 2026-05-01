@@ -1,10 +1,12 @@
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Models;
 using Wolverine;
+using Wolverine.Attributes;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.SiteMap;
 
+[WolverineHandler]
 public class SitemapInvalidationHandler(IFusionCache cache) : IWolverineHandler
 {
     public Task Handle(AeroEvent<PageViewModel>.PageCreated _) => Invalidate();
