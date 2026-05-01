@@ -12,6 +12,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Pages;
 
+[Module(nameof(PagesModule))]
 public sealed class PagesModule : AeroModuleBase, IConfigureMarten
 {
     public override string Name => nameof(PagesModule);

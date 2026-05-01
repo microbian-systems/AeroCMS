@@ -9,12 +9,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Scalar.AspNetCore;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Headless;
 
 /// <summary>
 /// Aero CMS Admin module - provides admin functionality for publishing and previewing content.
 /// </summary>
+[Module(nameof(HeadlessModule))]
 public sealed class HeadlessModule : AeroWebModule
 {
     public override string Name => nameof(HeadlessModule);

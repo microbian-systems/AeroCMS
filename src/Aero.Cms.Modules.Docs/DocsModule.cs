@@ -10,6 +10,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Docs;
 
+[Module(nameof(DocsModule))]
 public sealed class DocsModule : AeroModuleBase
 {
     public override string Name => nameof(DocsModule);

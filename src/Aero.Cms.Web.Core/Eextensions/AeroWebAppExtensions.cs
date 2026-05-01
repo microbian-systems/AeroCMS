@@ -46,12 +46,16 @@ public static class AeroWebAppExtensions
 
     public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
         this WebApplicationBuilder builder)
-        where T : class => await builder.AddAeroCmsRuntimeAsync<T>([]);
+        where T : class => await builder.AddAeroCmsRuntimeAsync<T>([], null, ModuleCatalogMode.LegacyFallbackAllowed);
 
     public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
-        this WebApplicationBuilder builder, string[] args)
+        this WebApplicationBuilder builder,
+        string[]? args = null,
+        IReadOnlyList<ModuleDescriptor>? generatedDescriptors = null,
+        ModuleCatalogMode catalogMode = ModuleCatalogMode.LegacyFallbackAllowed)
         where T : class
     {
+        args ??= [];
         var config = builder.Configuration;
         var services = builder.Services;
         var env = builder.Environment;
@@ -64,7 +68,7 @@ public static class AeroWebAppExtensions
         services.AddScoped<CmsBlockHtmlRenderer>();
         services.AddScoped<IBlockSliceRenderer, CmsBlockSliceRenderer>();
         services.AddModuleSystemServices();
-        await services.AddAeroModulesAsync(config, env);
+        await services.AddAeroModulesAsync(config, env, generatedDescriptors, catalogMode);
         services.AddAeroDataLayer(config, env);
 
         return (builder, log);

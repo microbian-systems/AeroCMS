@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.WebOptimizer;
 
+[Module(nameof(WebOptimizerModule))]
 public class WebOptimizerModule : AeroModuleBase
 {
     public override string Name { get; } = nameof(WebOptimizerModule);

@@ -4,6 +4,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.Banners;
 
+[Module(nameof(BannerModule))]
 public class BannerModule : AeroModuleBase
 {
     public override string Name => nameof(BannerModule);

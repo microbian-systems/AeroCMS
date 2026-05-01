@@ -15,6 +15,7 @@ using System.Text;
 
 namespace Aero.Cms.Modules.Banner;
 
+[Module(nameof(BannerModule))]
 public class BannerModule : AeroModuleBase
 {
     public override string Name => nameof(BannerModule);

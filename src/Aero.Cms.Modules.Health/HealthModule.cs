@@ -5,9 +5,11 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Health;
 
+[Module(nameof(HealthModule))]
 public sealed class HealthModule : AeroWebModule
 {
     public override string Name => nameof(HealthModule);

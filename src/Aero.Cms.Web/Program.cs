@@ -19,6 +19,8 @@ using System.IO;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Http;
+using Aero.Cms.Web.Generated;
+using Aero.Cms.Modules.Modules.Services;
 
 
 // Implements a two-stage startup pattern:
@@ -206,8 +208,10 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     // Add service defaults
     builder.AddServiceDefaults();
 
-    // Add Aero Application Server (Orleans, Marten, etc.)
-    await builder.AddAeroApplicationServer();
+    // Add Aero Application Server (Orleans, Marten, Wolverine, etc.)
+    // Pass the source-generated Wolverine handler catalog to avoid assembly scanning.
+    await builder.AddAeroApplicationServer(
+        configureWolverine: GeneratedWolverineHandlerCatalog.Register);
 
     // Keep the web data layer aligned with the resolved infrastructure settings.
     // AddAeroDataLayer currently reads ConnectionStrings:aero from configuration,
@@ -273,8 +277,11 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     });
     services.AddExceptionHandler<AeroGlobalExceptionHandler>();
 
-    // Add full Aero CMS runtime services
-    var (_, log) = await builder.AddAeroCmsRuntimeAsync<Program>();
+    // Add full Aero CMS runtime services using source-generated module catalog.
+    // GeneratedRequired ensures startup fails loudly if the generator is broken.
+    var (_, log) = await builder.AddAeroCmsRuntimeAsync<Program>(
+        generatedDescriptors: GeneratedAeroModuleCatalog.Descriptors,
+        catalogMode: ModuleCatalogMode.GeneratedRequired);
 
     log.Information("Building main Aero CMS app...");
 

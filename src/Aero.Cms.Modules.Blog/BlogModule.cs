@@ -12,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Blog;
 
+[Module(nameof(BlogModule))]
 public sealed class BlogModule : AeroWebModule, IUiModule
 {
     public override string Name => nameof(BlogModule);

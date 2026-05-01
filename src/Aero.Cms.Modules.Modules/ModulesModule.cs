@@ -11,6 +11,7 @@ namespace Aero.Cms.Modules.Modules;
 /// <summary>
 /// Aero CMS Modules management module.
 /// </summary>
+[Module(nameof(ModulesModule))]
 public sealed class ModulesModule : AeroModuleBase
 {
     public override string Name => nameof(ModulesModule);

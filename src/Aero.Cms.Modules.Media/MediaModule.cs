@@ -10,6 +10,7 @@ using Marten;
 
 namespace Aero.Cms.Modules.Media;
 
+[Module(nameof(MediaModule))]
 public class MediaModule : AeroModuleBase, IConfigureMarten
 {
     public override string Name => nameof(MediaModule);

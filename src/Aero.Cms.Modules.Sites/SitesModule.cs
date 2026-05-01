@@ -12,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Sites;
 
+[Module(nameof(SitesModule))]
 public class SitesModule : AeroModuleBase, IConfigureMarten
 {
     public override string Name => nameof(SitesModule);

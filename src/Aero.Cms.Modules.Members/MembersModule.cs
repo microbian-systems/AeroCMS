@@ -6,6 +6,7 @@ namespace Aero.Cms.Modules.Members;
 /// <summary>
 /// Used to manage site membership (non cms users)
 /// </summary>
+[Module(nameof(MembersModule))]
 public class MembersModule : AeroModuleBase
 {
     public override string Name { get; }

@@ -3,6 +3,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Mail;
 
+[Module(nameof(MailTrapModule))]
 public class MailTrapModule : AeroModuleBase
 {
     public override string Name => nameof(MailTrapModule);

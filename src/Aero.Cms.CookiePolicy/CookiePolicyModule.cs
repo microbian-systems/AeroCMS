@@ -4,6 +4,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.CookiePolicy;
 
+[Module(nameof(CookiePolicyModule))]
 public class CookiePolicyModule : AeroModuleBase
 {
     public override string Name => nameof(CookiePolicyModule);

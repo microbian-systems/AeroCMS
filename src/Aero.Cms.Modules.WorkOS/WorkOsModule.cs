@@ -10,6 +10,7 @@ using WorkOS;
 
 namespace Aero.Cms.Modules.WorkOS;
 
+[Module(nameof(WorkOsModule))]
 public class WorkOsModule : AeroModuleBase
 {
     public override string Name => nameof(WorkOsModule);

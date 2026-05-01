@@ -17,6 +17,7 @@ namespace Aero.Cms.Modules.OutputCache;
 /// Razor Page models — see Page.cshtml.cs, BlogIndexPage.cshtml.cs, BlogDetailPage.cshtml.cs,
 /// DocsIndex.cshtml.cs, and Doc.cshtml.cs.
 /// </summary>
+[Module(nameof(OutputCacheModule))]
 public sealed class OutputCacheModule : AeroWebModule
 {
     public override string Name => nameof(OutputCacheModule);

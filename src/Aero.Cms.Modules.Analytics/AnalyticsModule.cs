@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Analytics;
 
+[Module(nameof(AnalyticsModule))]
 public class AnalyticsModule : AeroModuleBase
 {
     public override string Name => nameof(AnalyticsModule);

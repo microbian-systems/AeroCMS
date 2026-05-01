@@ -13,6 +13,7 @@ namespace Aero.Cms.Modules.Aliases;
 /// <summary>
 /// Site alias management module for handling URL aliases and redirects.
 /// </summary>
+[Module(nameof(AliasModule))]
 public class AliasModule : AeroModuleBase
 {
     public override string Name => nameof(AliasModule);
