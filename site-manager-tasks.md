@@ -9,7 +9,7 @@ Feature (Module) Structure
 
 Module Project and Main class (entry point): Aero.Cms.Modules.[FeatureName]
     - README.md: describes what the module is/does and any further details
-    - Project Type is Razor Class Library
+    - Project Type is Razor Class Library or Class Library (if a UI is not needed)
     - Module main class inherits from AeroModuleBase
     - Classname is usually [FeatureName]Module
     - Configures services that need to register with DI
