@@ -1,10 +1,15 @@
 # Aero CMS ✈️
 
-**Modern CMS without React.**
+**Modern CMS without React.** or any other SPA framework you need to learn
 
-A server-rendered, modular, multi-tenant CMS built on ASP.NET Core—designed for developers who want power without complexity.
+A server-rendered, modular, multi-site CMS built on ASP.NET Core—designed for developers who want power without complexity.
+
+
+# 💥💥💥 ALERT 💥💥💥
 
 ---
+
+> **⚠️ Pre-Beta Software** — Aero CMS is in early development and **not production ready**. Use at your own risk. We welcome contributors!
 
 ## Why Another CMS?
 
@@ -20,6 +25,10 @@ We built Aero because there wasn't a CMS that felt like it was *designed* for mo
 - Leverages the power of ASP.NET Core without fighting it
 - Lets you ship fast without painting yourself into a corner
 - Is modular by default, not as an afterthought
+
+**Aero stays out of your way.** It runs inside your ASP.NET Core app — the one you control. We don't force you into doing things our way for your application.
+
+But when it comes to how Aero was designed *architecturally*, we're very opinionated: **no reflection**, **source generators** over runtime discovery, **PostgreSQL** for persistence, **Railway-oriented programming** for business logic, and clean patterns that are baked in at the foundation.
 
 ---
 
@@ -45,7 +54,7 @@ In most systems, "dynamic templates" are bolted on as an afterthought. In Aero, 
 
 - Edit templates at runtime — no deploy required
 - Store in the database, filesystem, or both
-- Override per tenant, per site, per theme
+- Override per site, per theme
 
 Real CMS flexibility—no compile-and-pray.
 
@@ -64,13 +73,13 @@ Each module is self-contained, independently versioned, and composed into the ap
 
 ---
 
-## 🌍 Multi-Tenant by Design
+## 🌍 Multi-Site by Design
 
-Not "multi-tenant-ish." Actually multi-tenant:
+Not "multi-site-ish." Actually multi-site:
 
-- Host-based tenant resolution
-- Tenant-specific database isolation (SaaS-ready)
-- Per-tenant themes, templates, and content
+- Host-based site resolution
+- site-specific database isolation
+- Per-site themes, templates, and content
 
 One platform → many sites → many customers.
 
@@ -119,7 +128,7 @@ No legacy baggage. No unnecessary complexity. No decade-old hacks.
 |---|---|
 | ✈️ **Razor + Scriban hybrid rendering** | First-class support |
 | 🧩 **True modular system** | RCL-based modules, not plugins |
-| 🌍 **First-class multi-tenancy** | Host-based, per-tenant isolation |
+| 🌍 **First-class multi-tenancy** | Host-based, per-site isolation |
 | ⚡ **HTMX + Alpine interactivity** | Server-driven UI, minimal JS |
 | 🔐 **Safe runtime templates** | Sandboxed Scriban execution |
 | 🧠 **Modern .NET patterns** | Clean architecture, vertical slices |
