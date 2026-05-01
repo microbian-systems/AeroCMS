@@ -95,7 +95,8 @@ The source-generator/Wolverine decision remains unchanged.
 ## Manager
 
 - Dashboard UI makeover
-    - UI: needs to get the UI from the dashboard path on the D: drive.
+    - UI: needs to get the UI from the dashboard path D:\html-templates\mosaic
+        - don't need to make it functional but the UI replacing the current UI page would be great (markup - the .html file has to be a .razor or .cshtml1)
     - Remove Settings as a submenu and put it as an anchor at the bottom of the left-side menu.
 
 - Sites feature
