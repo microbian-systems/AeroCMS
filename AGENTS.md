@@ -75,6 +75,7 @@
 - Use Railway Oriented Programming for all code that handles business logic and data access (Aero.Core has the Result<T> and Option<T> types along with Bind<T> and Map<T>)
 - if something is unclear always refer to the ../docs documentation for clarity 
 - take the socratic method and ask any architectural code decisions to me
+- Avoid using reflection; prefer source generators for code discovery and generation
 - for sample images on web pages use: static.photos/blurred/640x360/110 (the number at the end is any number form 1 to 100000)
     - ## Sample Image Categories
         - nature
@@ -130,3 +131,27 @@
         - 640x360
         - 1024x576
         - 1200x630
+
+### Module Development Rules
+- Do not use reflection-based module discovery.
+- Use source generators for module discovery.
+- Follow existing project structure and naming conventions.
+- Keep module-specific logic inside `Aero.Cms.Modules.[FeatureName]`.
+- Do not introduce unnecessary abstractions.
+- Do not change unrelated logic.
+- Prefer MartenDB for persistence using `GenericMartenRepository` from `Aero/src/Aero.Marten`. Use EF Core (via `GenericEntityFrameworkRepository` from `Aero/src/Aero.EfCore`) only when the domain requires relational access or Identity.
+
+## Important Docs
+
+Agents should read relevant docs before generating code.
+
+- `docs/`
+- `./.skills/create-aero-module/SKILL.md`
+
+## Skills
+
+Use the module creation skill when creating a new Aero CMS module:
+
+- Canonical skill: `./.skills/create-aero-module/SKILL.md`
+- Codex skill wrapper: `./.agents/skills/create-aero-module/SKILL.md`
+- OpenCode skill wrapper: `./.opencode/skills/create-aero-module/SKILL.md`
