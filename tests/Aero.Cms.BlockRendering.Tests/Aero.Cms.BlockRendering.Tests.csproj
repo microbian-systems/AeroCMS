@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
   </ItemGroup>

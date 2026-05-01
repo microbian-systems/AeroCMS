@@ -75,6 +75,33 @@ public sealed class DynamicScribanTierTests
     }
 
     [Test]
+    public async Task SecureScribanRenderer_AllowsCuratedScribanFunctions()
+    {
+        using var data = JsonDocument.Parse("""{"title":"Dynamic Title","body":"<p>Hello</p>","items":[{"name":"One"},{"name":"Two"}],"score":3.6}""");
+        var definition = new DynamicBlockDefinition
+        {
+            Id = 103,
+            Version = 1,
+            ScribanTemplate = """
+                <h1>{{ block.title | string.downcase }}</h1>
+                <p>{{ block.body | html.strip }}</p>
+                <span>{{ block.items | array.size }}</span>
+                <strong>{{ block.score | math.round }}</strong>
+                """
+        };
+
+        var renderer = new SecureScribanRenderer();
+        var result = await renderer.RenderAsync(definition, data);
+
+        result.Should().BeOfType<Result<string, AeroError>.Ok>();
+        var html = ((Result<string, AeroError>.Ok)result).Value;
+        html.Should().Contain("<h1>dynamic title</h1>");
+        html.Should().Contain("<p>Hello</p>");
+        html.Should().Contain("<span>2</span>");
+        html.Should().Contain("<strong>4</strong>");
+    }
+
+    [Test]
     public async Task SecureScribanRenderer_RejectsMissingVariables()
     {
         using var data = JsonDocument.Parse("""{"title":"Dynamic Title"}""");
@@ -168,6 +195,36 @@ public sealed class DynamicScribanTierTests
     }
 
     [Test]
+    public void DynamicTemplateValidator_RejectsUnsafeFunctionCalls()
+    {
+        var validator = new DynamicTemplateValidator();
+
+        validator.Validate("""{{ object.eval "1 + 1" }}""")
+            .Should()
+            .BeOfType<Result<NoneType, AeroError>.Failure>();
+
+        validator.Validate("""{{ block.title | regex.replace "a" "b" }}""")
+            .Should()
+            .BeOfType<Result<NoneType, AeroError>.Failure>();
+    }
+
+    [Test]
+    public void DynamicTemplateValidator_AllowsCuratedFunctionCallsByDefault()
+    {
+        var validator = new DynamicTemplateValidator();
+
+        var textResult = validator.Validate("""{{ block.title | string.downcase | string.truncate 30 }}""");
+        textResult
+            .Should()
+            .BeOfType<Result<NoneType, AeroError>.Ok>(Describe(textResult));
+
+        var arrayResult = validator.Validate("""{{ block.items | array.size }}""");
+        arrayResult
+            .Should()
+            .BeOfType<Result<NoneType, AeroError>.Ok>(Describe(arrayResult));
+    }
+
+    [Test]
     public void AddBlockSystemServices_RegistersSecureScribanServices()
     {
         var services = new ServiceCollection();
@@ -211,6 +268,13 @@ public sealed class DynamicScribanTierTests
             var output = await htmlRenderer.RenderComponentAsync<TComponent>(parameterView);
             return output.ToHtmlString();
         });
+    }
+
+    private static string Describe(Result<NoneType, AeroError> result)
+    {
+        return result is Result<NoneType, AeroError>.Failure { Error: AeroError.Validation validation }
+            ? string.Join("; ", validation.Errors)
+            : result.ToString() ?? string.Empty;
     }
 
     private sealed class StubDynamicBlockDefinitionService(DynamicBlockDefinition definition) : IDynamicBlockDefinitionService

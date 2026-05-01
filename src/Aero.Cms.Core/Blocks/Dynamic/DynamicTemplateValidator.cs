@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Aero.Core;
 using Aero.Core.Railway;
 using Scriban;
+using Scriban.Syntax;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
@@ -33,6 +34,13 @@ public sealed partial class DynamicTemplateValidator
         if (parsed.HasErrors)
         {
             return AeroError.ValidationError(parsed.Messages.Select(message => message.Message));
+        }
+
+        var securityVisitor = new ScribanSecurityVisitor(options);
+        securityVisitor.Visit(parsed.Page);
+        if (securityVisitor.Errors.Count > 0)
+        {
+            return AeroError.ValidationError(securityVisitor.Errors);
         }
 
         return Prelude.Ok<NoneType, AeroError>(Prelude.None);
@@ -71,4 +79,83 @@ public sealed partial class DynamicTemplateValidator
 
     [GeneratedRegex("\\son[a-zA-Z]+\\s*=", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 1000)]
     private static partial Regex EventHandlerAttributeRegex();
+
+    private sealed class ScribanSecurityVisitor(SecureScribanTemplateOptions options) : ScriptVisitor
+    {
+        public List<string> Errors { get; } = [];
+
+        public override void Visit(ScriptFunction node)
+        {
+            Errors.Add("Template function declarations are not allowed.");
+        }
+
+        public override void Visit(ScriptImportStatement node)
+        {
+            Errors.Add("Template imports are not allowed.");
+        }
+
+        public override void Visit(ScriptFunctionCall node)
+        {
+            var functionName = GetFunctionName(node.Target);
+            if (!IsAllowed(functionName))
+            {
+                Errors.Add($"Template function '{functionName}' is not allowed.");
+            }
+
+            base.Visit(node);
+        }
+
+        public override void Visit(ScriptPipeCall node)
+        {
+            var functionName = GetFunctionName(node.To);
+            if (!IsAllowed(functionName))
+            {
+                Errors.Add($"Template pipe function '{functionName}' is not allowed.");
+            }
+
+            base.Visit(node);
+        }
+
+        private bool IsAllowed(string functionName)
+        {
+            if (functionName.Contains('|', StringComparison.Ordinal))
+            {
+                return functionName
+                    .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .All(IsSingleFunctionAllowed);
+            }
+
+            return IsSingleFunctionAllowed(functionName);
+        }
+
+        private bool IsSingleFunctionAllowed(string functionName)
+        {
+            if (options.AllowAllFunctions)
+            {
+                return true;
+            }
+
+            if (options.AllowedFunctionNames.Contains(functionName))
+            {
+                return true;
+            }
+
+            return options.AllowedFunctionNames.Any(allowedFunction =>
+                functionName.StartsWith(allowedFunction, StringComparison.OrdinalIgnoreCase) &&
+                functionName.Length > allowedFunction.Length &&
+                char.IsWhiteSpace(functionName[allowedFunction.Length]));
+        }
+
+        private static string GetFunctionName(ScriptExpression? expression)
+        {
+            if (expression is ScriptFunctionCall functionCall)
+            {
+                return GetFunctionName(functionCall.Target);
+            }
+
+            return expression?.ToString()?.Trim() is { Length: > 0 } functionName
+                ? functionName
+                : "<unknown>";
+        }
+    }
 }

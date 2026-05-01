@@ -43,7 +43,8 @@ public sealed class HeadlessModule : AeroWebModule
         var scope = builder.ServiceProvider.CreateAsyncScope();
         var env = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
 
-        builder.MapPublishApi();
+        // PublishApi is deprecated — publish/unpublish is handled in PagesApi and BlogApi
+        // builder.MapPublishApi();
         builder.MapPreviewApi();
         builder.MapBlogApi();
         builder.MapPagesApi();

@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Core.Security;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Aero.Cms.Core.Extensions;
@@ -40,5 +41,8 @@ builder.Services.AddAeroHttpClients(uri);
 // Legacy registrations
 builder.Services.AddScoped<ManagerThemeService>();
 builder.Services.AddRadzenComponents();
+
+// Register cross-cutting services that run client-side
+builder.Services.AddSingleton<IHtmlSanitizer, HtmlSanitizer>();
 
 await builder.Build().RunAsync();

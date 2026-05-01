@@ -38,6 +38,7 @@ public sealed class PagesModule : AeroModuleBase, IConfigureMarten
         services.Configure<RazorPagesOptions>(options =>
         {
             options.Conventions.AddAreaPageRoute("Cms", "/Page", "/{slug?}");
+            options.Conventions.AddAreaPageRoute("Cms", "/Page", "/_cms/preview/pages/drafts/{draftId:long}");
         });
     }
 

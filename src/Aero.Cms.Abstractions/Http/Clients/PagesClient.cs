@@ -156,13 +156,13 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     /// <inheritdoc />
     public Task<Result<PageDetail, AeroError>> PublishAsync(long id, CancellationToken ct = default)
     {
-        return PostAsync<object, PageDetail>($"{id}/publish", new object(), ct);
+        return PutAsync<object, PageDetail>($"{id}/publish", new object(), ct);
     }
 
     /// <inheritdoc />
     public Task<Result<PageDetail, AeroError>> UnpublishAsync(long id, CancellationToken ct = default)
     {
-        return PostAsync<object, PageDetail>($"{id}/unpublish", new object(), ct);
+        return PutAsync<object, PageDetail>($"{id}/unpublish", new object(), ct);
     }
 }
 
@@ -190,6 +190,9 @@ public record PageDetail(
     ContentPublicationState PublicationState,
     int BlockCount,
     bool ShowInNavMenu,
+    bool ShowHeaderNavigation,
+    bool HideFooter,
+    bool ShowChatAgent,
     IReadOnlyList<EditorBlock>? Blocks);
 
 /// <summary>
@@ -204,6 +207,9 @@ public record CreatePageRequest(
     ContentPublicationState PublicationState, 
     IReadOnlyList<LayoutRegion>? LayoutRegions = null, 
     bool ShowInNavMenu = false, 
+    bool ShowHeaderNavigation = true,
+    bool HideFooter = false,
+    bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null);
 
 /// <summary>
@@ -218,4 +224,7 @@ public record UpdatePageRequest(
     ContentPublicationState PublicationState,
     IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
+    bool ShowHeaderNavigation = true,
+    bool HideFooter = false,
+    bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null);

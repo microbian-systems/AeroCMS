@@ -62,11 +62,12 @@ public static class UsersApi
                     (u.LastName != null && u.LastName.ToLower().Contains(s)));
             }
 
-            var totalCount = await EntityFrameworkQueryableExtensions.CountAsync(query, cancellationToken);
-            var users = await EntityFrameworkQueryableExtensions.ToListAsync(query
+            var totalCount = query.Count();
+            var users = query
                 .OrderBy(u => u.UserName)
                 .Skip(skip)
-                .Take(take), cancellationToken);
+                .Take(take)
+                .ToList();
 
             var summaries = users.Select(u => new UserSummary(
                 u.Id,

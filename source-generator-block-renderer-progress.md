@@ -10,9 +10,10 @@ This file tracks implementation progress for the source-generated block renderin
 - [x] Phase 1: Generated Render Adapters
 - [x] Phase 2: Single Source Of Truth For Block Registration
 - [x] Phase 3: Server-Side Rendering Path Convergence
-- [ ] Phase 4: Dynamic Scriban Tier
+- [x] Phase 4: Dynamic Scriban Tier
 - [x] Phase 5: Radzen Markdown, HtmlEditor, Media Uploads, And Sanitization
-- [ ] Phase 6: Preview Hardening
+- [x] Phase 6: Preview Hardening
+- [x] Post-Spec Editor MVP Updates
 
 ## Phase 0: Inventory & Safety Baseline
 
@@ -182,7 +183,7 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - [x] Add `DynamicTemplateBlock`
 - [x] Add save-time template parsing and validation
 - [x] Add explicit JSON-to-Scriban mapping
-- [ ] Add secure Scriban options, limits, allowlists, and caching
+- [x] Add secure Scriban options, limits, allowlists, and caching
 - [x] Add sanitizer policy for dynamic template output
 - [x] Reject arbitrary JavaScript/script blocks
 
@@ -197,10 +198,11 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - Template cache keys include definition id, version, and template text so authoring previews cannot reuse stale parsed templates when an unsaved draft changes.
 - `AddBlockSystemServices()` now registers `SecureScribanTemplateOptions`, `DynamicTemplateValidator`, and `ISecureScribanRenderer`.
 - Dynamic Scriban output now passes through `ICmsHtmlSanitizer` before returning.
-- The full "secure options, limits, allowlists, and caching" checklist item remains unchecked because the wrapper still uses Scriban built-ins instead of an explicit function allowlist. AST linting is also intentionally deferred.
+- The secure renderer has runtime limits, template parse caching, sanitizer output, and an explicit Scriban function allowlist. The default allowlist now includes a curated deterministic subset of Scriban string, array, html, and math helpers; `object`, `regex`, imports, user-declared functions, and non-deterministic helpers remain blocked unless deliberately reviewed and enabled.
+- The validator now allows curated function calls and pipe functions by default while still rejecting unsafe function calls, imports, and template function declarations. Full schema-aware variable validation remains deferred.
 - Added `MartenDynamicBlockDefinitionService` for loading published, versioned dynamic block definitions by definition id and version.
 - Added `DynamicTemplateBlockRenderer`, registered it through the generated render adapter registry, and routed rendering through `IDynamicBlockDefinitionService` + `ISecureScribanRenderer`.
-- Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 27 passed, 0 failed.
+- Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 32 passed, 0 failed.
 
 ## Phase 5: Radzen Markdown, HtmlEditor, Media Uploads, And Sanitization
 
@@ -236,20 +238,56 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - [x] Keep preview ownership in `PreviewApi`
 - [x] Preserve existing saved draft preview endpoints
 - [x] Add unsaved block render-fragment endpoint
-- [ ] Add unsaved page/blog-post render-fragment endpoints
-- [ ] Add whole-page iframe preview with strict origin validation
-- [ ] Add debounced whole-page preview updates
-- [ ] Add inline single-block preview
-- [ ] Route all preview rendering through generated adapter registry
+- [x] Add unsaved page/blog-post render-fragment endpoints
+- [x] Add sandboxed whole-page iframe preview shell
+- [x] Add debounced whole-page preview updates
+- [x] Add inline single-block preview
+- [x] Route all preview fragment rendering through generated adapter registry
 
 ### Phase 6 Notes
 
 - Existing saved draft preview endpoints remain at `GET /api/v1/admin/preview/pages/{id}` and `GET /api/v1/admin/preview/blog-posts/{id}` and still return draft document JSON.
 - Added `POST /api/v1/admin/preview/blocks/render-fragment` to render a single unsaved `BlockBase` payload to an HTML fragment response.
+- Added `POST /api/v1/admin/preview/pages/render-fragment` and `POST /api/v1/admin/preview/blog-posts/render-fragment` to render unsaved documents to HTML fragment responses.
+- Page fragment rendering now prefers unsaved `PreviewPageFragmentRequest.Blocks` editor payloads and maps them through `EditorBlockMapper` before falling back to layout regions. This avoids forcing preview through `BlockPlacement.BlockId` lookups when the editor has unsaved block data.
+- Preview fragment request/response contracts now live in `Aero.Cms.Abstractions.Http`, so editor clients can send typed unsaved editor blocks/layout regions without referencing Core document entities.
+- `PageEditor.razor` now renders preview mode through `IPreviewHttpClient.RenderPageFragmentAsync` and the `PreviewApi` unsaved page fragment endpoint instead of the local handwritten block renderer.
+- Whole-page preview updates are debounced at 300ms while preview mode is active.
+- Page preview now displays the server-rendered fragment inside a sandboxed `srcdoc` iframe, giving whole-page isolation without introducing the heavier interactive `postMessage` path.
+- Saved page preview now uses `GET /api/v1/admin/pages/drafts/{id}` as the iframe URL, redirects to `/_cms/preview/pages/drafts/{id}`, and renders through the normal Razor page/layout pipeline so site CSS and script assets are included.
+- The page editor preview frame now shows a URL bar above the iframe so authors can see the preview endpoint currently being loaded.
+- Draft preview by id is guarded in the Razor page model and returns unauthorized for unauthenticated requests, so unpublished pages are not exposed through the public slug route.
+- New/unsaved pages still fall back to the `PreviewApi` static fragment `srcdoc` path because they do not yet have a persisted draft id to load through the full ASP.NET pipeline.
+- Because the implemented preview path is static SSR fragment rendering, there is no cross-origin `postMessage` surface to validate. If an interactive iframe mode is added later, it must use exact `targetOrigin` and receiver-side `event.origin` validation as specified.
+- `BlockEditor.razor` now has an inline preview panel that calls `IPreviewHttpClient.RenderBlockFragmentAsync`, so single-block authoring previews use the same generated adapter-backed server rendering path as runtime rendering.
 - The block fragment endpoint lives in `PreviewApi`, preserving preview ownership there.
-- The block fragment endpoint renders through `CmsBlockHtmlRenderer`, which renders `BlockRenderer` through Blazor `HtmlRenderer` and therefore uses the generated adapter registry.
+- Preview fragment endpoints render through `CmsBlockHtmlRenderer`, which renders `BlockRenderer` through Blazor `HtmlRenderer` and therefore uses the generated adapter registry.
 - Runtime DI now registers `HtmlRenderer`, `CmsBlockHtmlRenderer`, and the legacy `IBlockSliceRenderer` bridge from `AddAeroCmsRuntimeAsync`.
 - `Aero.Cms.Modules.Headless` now references `Aero.Cms.Web.Core` so preview endpoints can use the shared server-side block rendering bridge.
-- Full preview convergence remains incomplete until unsaved page/blog-post fragments and iframe/debounce UX are added.
+- Full preview convergence now uses the recommended static SSR fragment path: inline block previews and whole-page editor previews both render through `PreviewApi` and the generated adapter registry. Interactive `postMessage` preview remains intentionally unimplemented unless a later UX requirement justifies it.
+- Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 32 passed, 0 failed.
 - Verification: `dotnet build src\Aero.Cms.slnx --no-restore -v:minimal` -> succeeded with existing package advisory, Razor SDK, nullability, and deprecation warnings.
-- Verification: `dotnet test --project tests\Aero.Cms.BlockRendering.Tests\Aero.Cms.BlockRendering.Tests.csproj --no-restore -v:minimal` -> 27 passed, 0 failed.
+
+## Post-Spec Editor MVP Updates
+
+- [x] Replace the implicit page-level hero/header rendering with explicit block content
+- [x] Add `boring_hero` as a simple full-width page intro block
+- [x] Convert homepage/about/contact seed pages to use `BoringHeroBlock`
+- [x] Add `Height` and `FullScreen` to the existing `hero` block
+- [x] Add `Boring Hero`, `Hero`, `Markdown`, `Raw HTML`, and `Scriban` to the PageEditor UI section
+- [x] Add page metadata toggles for site navigation and footer visibility
+- [x] Add server-rendered inline Scriban authoring preview through `PreviewApi`
+- [ ] Add production-grade Scriban policy editing and safeguards after MVP signoff
+
+### Post-Spec Notes
+
+- `Page.cshtml` no longer renders a hard-coded page-level hero from `PageDocument.Title`, `Summary`, and `HeaderImageUrl`; pages now show hero/header content only when a block supplies it.
+- `BoringHeroBlock` intentionally mirrors the former simple page header and always renders as full-width content.
+- The existing `HeroBlock` now supports pixel `Height` with a default of `512`; `FullScreen` wins over `Height`.
+- `ShowHeaderNavigation` and `HideFooter` are editable in the PageEditor metadata tab and are passed through page create/update APIs.
+- The PageEditor Scriban block keeps authoring execution on the server by calling `PreviewApi` block fragment rendering with an inline template. This avoids adding a second client-side Scriban execution path.
+- MVP Scriban preview temporarily allows all Scriban function calls so custom function experiments are not blocked during local demo work. `SecureScribanTemplateOptions` carries a TODO to tighten this before production.
+- Verification: `dotnet build src\Aero.Cms.Shared\Aero.Cms.Shared.csproj --no-restore -v:minimal` -> succeeded with existing package advisory warnings.
+- Verification: `dotnet build src\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj --no-restore -v:minimal` -> succeeded with existing warnings.
+- Verification: `dotnet build src\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj --no-restore -v:minimal` -> succeeded with existing warnings.
+- Verification: `dotnet build src\Aero.Cms.Modules.Setup\Aero.Cms.Modules.Setup.csproj --no-restore -v:minimal` -> succeeded with existing warnings.

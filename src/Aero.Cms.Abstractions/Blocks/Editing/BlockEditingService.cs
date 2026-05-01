@@ -274,6 +274,8 @@ public sealed class BlockEditingService
             case ImageBlock image:
                 if (properties.TryGetValue("MediaId", out var mediaId))
                     image.MediaId = Convert.ToInt64(mediaId);
+                if (properties.TryGetValue("Url", out var imageUrl))
+                    image.Url = imageUrl?.ToString();
                 if (properties.TryGetValue("AltText", out var altText))
                     image.AltText = altText?.ToString();
                 if (properties.TryGetValue("Caption", out var caption))

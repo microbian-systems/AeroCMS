@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Aero.Core;
 using Aero.Cms.Core;
-using Aero.Cms.Core.Security;
+using Aero.Core.Security;
 using Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
@@ -38,8 +39,9 @@ public partial class PageEditor : ComponentBase, IDisposable
     [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
     [Inject] protected IUsersHttpClient UsersClient { get; set; } = default!;
+    [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
-    [Inject] protected ICmsHtmlSanitizer HtmlSanitizer { get; set; } = default!;
+    [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
@@ -63,6 +65,14 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool   SidebarCollapsed { get; set; }
     protected bool   PreviewMode      { get; set; }
     protected string PreviewDevice    { get; set; } = "desktop";
+    protected bool   IsPreviewRendering { get; set; }
+    protected string? PreviewHtml { get; set; }
+    protected string? PreviewError { get; set; }
+    protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/pages/render-fragment");
+    protected string? PreviewFrameUrl => Id is { } id
+        ? BuildAbsoluteUrl($"api/v1/admin/pages/drafts/{id}?previewVersion={_previewRefreshVersion}")
+        : null;
+    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
     protected bool   RightSidebarCollapsed { get; set; } = true;
     protected bool   IsSaving              { get; set; }
     protected string ActiveTab             { get; set; } = "editor";
@@ -84,6 +94,9 @@ public partial class PageEditor : ComponentBase, IDisposable
     private string SeoTitle { get; set; } = string.Empty;
     protected string SeoDescription { get; set; } = string.Empty;
     protected bool   ShowInNavMenu { get; set; } = true;
+    protected bool   ShowHeaderNavigation { get; set; } = true;
+    protected bool   HideFooter { get; set; }
+    protected bool   ShowChatAgent { get; set; } = true;
     protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
 
     protected CmsPageDetail? LoadedPage { get; set; }
@@ -99,12 +112,16 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected List<MediaItem> MediaLibrary { get; set; } = [];
     private Dictionary<string, List<ReferenceItem>> _referenceData = new();
+    protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
 
     // Toasts
     protected List<ToastMessage> Toasts { get; set; } = [];
 
     // Auto-save timer
+    private const int PreviewDebounceMilliseconds = 300;
     private System.Timers.Timer? _autoSaveTimer;
+    private CancellationTokenSource? _previewDebounceCts;
+    private long _previewRefreshVersion;
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle  (mirrors Alpine.js init())
@@ -150,6 +167,9 @@ public partial class PageEditor : ComponentBase, IDisposable
             SeoDescription = page.SeoDescription ?? string.Empty;
             PublicationState = page.PublicationState;
             ShowInNavMenu = page.ShowInNavMenu; 
+            ShowHeaderNavigation = page.ShowHeaderNavigation;
+            HideFooter = page.HideFooter;
+            ShowChatAgent = page.ShowChatAgent;
             
             // Load blocks if available in API
             if (page.Blocks != null)
@@ -209,6 +229,8 @@ public partial class PageEditor : ComponentBase, IDisposable
     public void Dispose()
     {
         _autoSaveTimer?.Dispose();
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts?.Dispose();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -237,6 +259,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         Blocks.Add(block);
         SelectBlock(block.EditorId);
         ShowToast("Block added", "success");
+        QueuePreviewRefresh();
     }
 
     private EditorBlock CreateBlock(string type)
@@ -245,12 +268,20 @@ public partial class PageEditor : ComponentBase, IDisposable
 
         switch (type)
         {
+            case "boring_hero":
+                block.MainText        = "Page Title";
+                block.SubText         = "A simple full-width page intro.";
+                block.BackgroundImage = string.Empty;
+                block.FullWidth       = true;
+                break;
             case "hero":
                 block.MainText = string.Empty;
                 block.SubText  = string.Empty;
                 block.CtaText  = string.Empty;
                 block.CtaUrl   = string.Empty;
                 block.BackgroundImage = string.Empty;
+                block.Height = 512;
+                block.FullScreen = false;
                 break;
             case "aero_hero":
                 block.MainText        = "Building Your Next Idea";
@@ -360,6 +391,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                 break;
             case "raw_html":
                 block.Content = "<!-- Custom HTML -->\n<div class=\"p-4 bg-gray-100\">Hello World</div>";
+                block.MarkdownView = "edit";
                 break;
             case "text":
                 block.Content = string.Empty;
@@ -372,6 +404,17 @@ public partial class PageEditor : ComponentBase, IDisposable
             case "markdown":
                 block.Content      = "# Heading\n\nYour markdown content here...";
                 block.MarkdownView = "edit";
+                break;
+
+            case "dynamic_template":
+                block.ScribanTemplate = "<section class=\"p-6 rounded-lg bg-slate-50\"><h2>{{ block.title }}</h2><p>{{ block.body }}</p></section>";
+                block.ScribanDataJson = """
+                    {
+                      "title": "Dynamic Template",
+                      "body": "Rendered with Scriban."
+                    }
+                    """;
+                block.ScribanView = "code";
                 break;
 
             case "quote":
@@ -431,6 +474,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         Blocks.RemoveAt(index);
         SelectedBlockId = null;
         ShowToast("Block deleted");
+        QueuePreviewRefresh();
     }
 
     protected void DuplicateBlock(int index)
@@ -445,18 +489,21 @@ public partial class PageEditor : ComponentBase, IDisposable
 
         Blocks.Insert(index + 1, copy);
         ShowToast("Block duplicated", "success");
+        QueuePreviewRefresh();
     }
 
     protected void MoveBlockUp(int index)
     {
         if (index <= 0) return;
         (Blocks[index], Blocks[index - 1]) = (Blocks[index - 1], Blocks[index]);
+        QueuePreviewRefresh();
     }
 
     protected void MoveBlockDown(int index)
     {
         if (index >= Blocks.Count - 1) return;
         (Blocks[index], Blocks[index + 1]) = (Blocks[index + 1], Blocks[index]);
+        QueuePreviewRefresh();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -488,6 +535,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             Blocks.RemoveAt(DraggedIndex.Value);
             Blocks.Insert(index, block);
             DraggedIndex = index;
+            QueuePreviewRefresh();
         }
     }
 
@@ -502,6 +550,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         DraggedBlockId = null;
         DraggedIndex   = null;
         DragOverIndex  = -1;
+        QueuePreviewRefresh();
     }
 
     protected void DropBlock(DragEventArgs e, int index)
@@ -509,6 +558,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         DraggedBlockId = null;
         DraggedIndex   = null;
         DragOverIndex  = -1;
+        QueuePreviewRefresh();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -540,12 +590,14 @@ public partial class PageEditor : ComponentBase, IDisposable
         }
 
         block.ColumnCount = newCount;
+        QueuePreviewRefresh();
     }
 
     protected void AddBlockToColumn(EditorBlock block, int colIndex, string type)
     {
         var nb = CreateNestedBlock(type);
         block.EditorColumns[colIndex].Blocks.Add(nb);
+        QueuePreviewRefresh();
     }
 
     private static NestedBlock CreateNestedBlock(string type) => type switch
@@ -558,7 +610,10 @@ public partial class PageEditor : ComponentBase, IDisposable
     };
 
     protected void RemoveNestedBlock(EditorBlock block, int colIndex, int nestedIndex)
-        => block.EditorColumns[colIndex].Blocks.RemoveAt(nestedIndex);
+    {
+        block.EditorColumns[colIndex].Blocks.RemoveAt(nestedIndex);
+        QueuePreviewRefresh();
+    }
 
     protected void DropOnColumn(DragEventArgs e, EditorBlock block, int colIndex)
     {
@@ -576,6 +631,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         {
             block.EditorColumns[colIndex].Blocks.Add(CreateNestedBlock(mapped));
             ShowToast($"{DraggedType} added to column", "success");
+            QueuePreviewRefresh();
         }
 
         DraggedType = null;
@@ -620,6 +676,51 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected void SanitizeHtmlPaste(HtmlEditorPasteEventArgs args)
     {
         args.Html = HtmlSanitizer.Sanitize(args.Html);
+    }
+
+    protected async Task RefreshDynamicTemplatePreviewAsync(EditorBlock block)
+    {
+        if (string.IsNullOrWhiteSpace(block.ScribanTemplate))
+        {
+            DynamicTemplatePreviewHtml[block.EditorId] = "<div class=\"text-sm text-red-600\">Template is required.</div>";
+            return;
+        }
+
+        JsonDocument? data = null;
+        try
+        {
+            data = string.IsNullOrWhiteSpace(block.ScribanDataJson)
+                ? JsonDocument.Parse("{}")
+                : JsonDocument.Parse(block.ScribanDataJson);
+
+            var previewBlock = new DynamicTemplateBlock
+            {
+                DefinitionVersion = 1,
+                InlineTemplate = block.ScribanTemplate,
+                Data = data
+            };
+
+            var result = await PreviewClient.RenderBlockFragmentAsync(previewBlock);
+            DynamicTemplatePreviewHtml[block.EditorId] = result switch
+            {
+                Result<string, AeroError>.Ok ok => ok.Value,
+                Result<string, AeroError>.Failure failure => BuildPreviewError(failure.Error.ToString()),
+                _ => BuildPreviewError("Preview failed.")
+            };
+        }
+        catch (JsonException ex)
+        {
+            DynamicTemplatePreviewHtml[block.EditorId] = BuildPreviewError($"Invalid JSON data: {ex.Message}");
+        }
+        finally
+        {
+            data?.Dispose();
+        }
+    }
+
+    private static string BuildPreviewError(string message)
+    {
+        return $"<div class=\"text-sm text-red-600\">{System.Net.WebUtility.HtmlEncode(message)}</div>";
     }
 
     // ──────────────────────────────────────────────────────────
@@ -770,10 +871,131 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Preview  (mirrors togglePreview())
     // ──────────────────────────────────────────────────────────
 
-    protected void TogglePreview()
+    protected async Task TogglePreview()
     {
         PreviewMode = !PreviewMode;
-        if (PreviewMode) SelectedBlockId = null;
+        if (PreviewMode)
+        {
+            SelectedBlockId = null;
+            _previewRefreshVersion++;
+            await RefreshPreviewAsync();
+        }
+    }
+
+    private void QueuePreviewRefresh()
+    {
+        if (!PreviewMode)
+        {
+            return;
+        }
+
+        _previewRefreshVersion++;
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _previewDebounceCts = cts;
+
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await Task.Delay(PreviewDebounceMilliseconds, cts.Token);
+                await RefreshPreviewAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when another edit supersedes the pending preview render.
+            }
+        });
+    }
+
+    private async Task RefreshPreviewAsync(CancellationToken cancellationToken = default)
+    {
+        if (!PreviewMode)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(PreviewFrameUrl))
+        {
+            PreviewHtml = null;
+            PreviewError = null;
+            IsPreviewRendering = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        IsPreviewRendering = true;
+        PreviewError = null;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var result = await PreviewClient.RenderPageFragmentAsync(blocks: Blocks, ct: cancellationToken);
+            switch (result)
+            {
+                case Result<string, AeroError>.Ok ok:
+                    PreviewHtml = ok.Value;
+                    break;
+                case Result<string, AeroError>.Failure failure:
+                    PreviewHtml = null;
+                    PreviewError = failure.Error.ToString();
+                    break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            PreviewHtml = null;
+            PreviewError = $"Preview render failed: {ex.Message}";
+        }
+        finally
+        {
+            IsPreviewRendering = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string BuildAbsoluteUrl(string relativeUrl)
+    {
+        return new Uri(new Uri(NavManager.BaseUri), relativeUrl.TrimStart('/')).ToString();
+    }
+
+    private static string BuildPreviewFrameDocument(string? html, string baseUri)
+    {
+        var content = string.IsNullOrWhiteSpace(html)
+            ? "<main class=\"pe-empty-state\"><h3>No preview content</h3></main>"
+            : html;
+        var appCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/app.css");
+        var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");
+        var radzenCss = new Uri(new Uri(baseUri), "_content/Radzen.Blazor/css/standard-base.css");
+
+        return $$"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <base href="{{baseUri}}">
+                <link rel="stylesheet" href="{{appCss}}">
+                <link rel="stylesheet" href="{{managerCss}}">
+                <link rel="stylesheet" href="{{radzenCss}}">
+                <style>
+                    html, body { margin: 0; min-height: 100%; background: #fff; }
+                    body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+                    .aero-preview-document { min-height: 100vh; overflow-x: hidden; }
+                </style>
+            </head>
+            <body>
+                <main class="aero-preview-document">
+                    {{content}}
+                </main>
+            </body>
+            </html>
+            """;
     }
 
     // ──────────────────────────────────────────────────────────
@@ -807,6 +1029,9 @@ public partial class PageEditor : ComponentBase, IDisposable
                     PublicationState,
                     null, // LayoutRegions are mapped on backend from EditorBlocks
                     ShowInNavMenu,
+                    ShowHeaderNavigation,
+                    HideFooter,
+                    ShowChatAgent,
                     Blocks
                 );
 
@@ -832,6 +1057,9 @@ public partial class PageEditor : ComponentBase, IDisposable
                     PublicationState,
                     null,
                     ShowInNavMenu,
+                    ShowHeaderNavigation,
+                    HideFooter,
+                    ShowChatAgent,
                     Blocks
                 );
 

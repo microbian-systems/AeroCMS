@@ -416,6 +416,44 @@
 .pe-blocks-container.preview-tablet  { max-width: 768px; }
 .pe-blocks-container.preview-mobile  { max-width: 375px; }
 
+.pe-preview-frame {
+    display: block;
+    width: 100%;
+    min-height: calc(100vh - 160px);
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-md);
+    background: #fff;
+    box-shadow: var(--pe-shadow-sm);
+}
+
+.pe-preview-url-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-md);
+    background: var(--pe-bg-secondary);
+    color: var(--pe-text-secondary);
+    font-size: 12px;
+}
+
+.pe-preview-url-bar span {
+    flex: 0 0 auto;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.pe-preview-url-bar code {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--pe-text-primary);
+}
+
 .pe-empty-state {
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
@@ -540,6 +578,24 @@
 }
 .pe-hero-bg-controls {
     margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pe-field-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--pe-text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pe-hero-bg-controls .pe-field-label {
+    color: rgba(255, 255, 255, 0.85);
 }
 
 /* Text Block */
@@ -574,6 +630,35 @@
 .pe-markdown-preview {
     background: var(--pe-bg-secondary); border-radius: var(--pe-radius-sm);
     padding: 16px; min-height: 200px;
+}
+
+.pe-dynamic-template-block .pe-field-label {
+    margin: 12px 0 6px;
+}
+
+.pe-code-textarea {
+    width: 100%;
+    min-height: 240px;
+    background: var(--pe-bg-secondary);
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-sm);
+    padding: 12px;
+    font-family: 'Fira Code', Consolas, 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--pe-text-primary);
+    outline: none;
+    resize: vertical;
+}
+
+.pe-code-textarea-sm {
+    min-height: 140px;
+}
+
+.pe-dynamic-template-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
 }
 
 /* Quote Block */

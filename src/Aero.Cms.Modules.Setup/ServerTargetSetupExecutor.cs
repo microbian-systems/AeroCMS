@@ -17,6 +17,7 @@ using Marten;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -80,8 +81,10 @@ public sealed class ServerTargetSetupExecutor(
             rootServiceProvider.GetRequiredService<IModuleDiscoveryService>(),
             new ModuleStateStore(session));
             
+        var env = rootServiceProvider.GetRequiredService<IWebHostEnvironment>();
         var seedService = new SeedDatabaseService(
             session,
+            env,
             identityBootstrapper,
             pageContentService,
             blogPostContentService,

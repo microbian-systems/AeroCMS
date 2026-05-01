@@ -14,6 +14,7 @@ using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Services.Images;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
 using NSubstitute;
 using Wolverine;
 
@@ -147,6 +148,7 @@ public class SetupCompletionServiceTests
 
         return new SeedDatabaseService(
             harness.Session,
+            Substitute.For<IWebHostEnvironment>(),
             identityBootstrapper,
             new MartenPageContentService(harness.Session, Substitute.For<IBlockService>(),
                 Substitute.For<IMessageBus>()),

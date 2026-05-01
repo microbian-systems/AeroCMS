@@ -27,6 +27,7 @@ namespace Aero.Cms.Abstractions.Blocks;
 [JsonDerivedType(typeof(CardBlock), "cards")]
 [JsonDerivedType(typeof(CarouselBlock), "carousel")]
 [JsonDerivedType(typeof(ContentLinkBlock), "content_link")]
+[JsonDerivedType(typeof(BoringHeroBlock), "boring_hero")]
 [JsonDerivedType(typeof(HeroBlock), "hero")]
 [JsonDerivedType(typeof(FormEditorBlock), "form_editor")]
 [JsonDerivedType(typeof(ScrollingContentBlock), "scrolling_content")]

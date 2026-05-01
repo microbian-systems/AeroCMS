@@ -8,6 +8,13 @@ namespace Aero.Cms.Modules.Headless.Areas.Api.v1;
 /// <summary>
 /// Admin API for publishing and unpublishing content.
 /// </summary>
+/// <remarks>
+/// DEPRECATED: Publish/unpublish operations have been moved to their respective API files.
+/// - Page publish/unpublish: <see cref="PagesApi"/>
+/// - Blog post publish/unpublish: <see cref="BlogApi"/>
+/// This class will be removed in a future release. Do not add new code here.
+/// </remarks>
+[Obsolete("Publish/unpublish moved to PagesApi and BlogApi. Will be removed in a future release.", error: true)]
 public static class PublishApi
 {
     /// <summary>
@@ -15,21 +22,21 @@ public static class PublishApi
     /// </summary>
     public static void MapPublishApi(this IEndpointRouteBuilder app)
     {
-        app.MapPost($"/{HttpConstants.ApiPrefix}admin/publish/pages/{{id:long}}", PublishPage)
-            .WithName("PublishPage")
-            .WithTags("Admin - Publish");
+        //app.MapPost($"/{HttpConstants.ApiPrefix}admin/publish/pages/{{id:long}}", PublishPage)
+        //    .WithName("PublishPage")
+        //    .WithTags("Admin - Publish");
 
-        app.MapPost($"/{HttpConstants.ApiPrefix}admin/publish/blog-posts/{{id:long}}", PublishBlogPost)
-            .WithName("PublishBlogPost")
-            .WithTags("Admin - Publish");
+        //app.MapPost($"/{HttpConstants.ApiPrefix}admin/publish/blog-posts/{{id:long}}", PublishBlogPost)
+        //    .WithName("PublishBlogPost")
+        //    .WithTags("Admin - Publish");
 
-        app.MapPost($"/{HttpConstants.ApiPrefix}admin/unpublish/pages/{{id:long}}", UnpublishPage)
-            .WithName("UnpublishPage")
-            .WithTags("Admin - Publish");
+        //app.MapPost($"/{HttpConstants.ApiPrefix}admin/unpublish/pages/{{id:long}}", UnpublishPage)
+        //    .WithName("UnpublishPage")
+        //    .WithTags("Admin - Publish");
 
-        app.MapPost($"/{HttpConstants.ApiPrefix}admin/unpublish/blog-posts/{{id:long}}", UnpublishBlogPost)
-            .WithName("UnpublishBlogPost")
-            .WithTags("Admin - Publish");
+        //app.MapPost($"/{HttpConstants.ApiPrefix}admin/unpublish/blog-posts/{{id:long}}", UnpublishBlogPost)
+        //    .WithName("UnpublishBlogPost")
+        //    .WithTags("Admin - Publish");
     }
 
     private static async Task<IResult> PublishPage(

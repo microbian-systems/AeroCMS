@@ -4,9 +4,11 @@ using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages;
 
+[OutputCache(PolicyName = "BlogPolicy")]
 public class BlogDetailPageModel(IBlogPostContentService blogService) : PageModel
 {
     [BindProperty(SupportsGet = true)]

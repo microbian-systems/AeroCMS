@@ -28,6 +28,6 @@ public class MediaModule : AeroModuleBase, IConfigureMarten
     {
         base.ConfigureServices(services, config, env);
 
-        services.AddSingleton<IConfigureMarten, MediaModule>();
+        //services.AddSingleton<IConfigureMarten, MediaModule>();
     }
 }

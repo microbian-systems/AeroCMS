@@ -15,6 +15,9 @@ public record CreatePageRequest(
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
     IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
+    bool ShowHeaderNavigation = true,
+    bool HideFooter = false,
+    bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null
 ) : IRequest;
 
@@ -30,6 +33,9 @@ public record UpdatePageRequest(
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
     IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
+    bool ShowHeaderNavigation = true,
+    bool HideFooter = false,
+    bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null
 ) : IRequest;
 

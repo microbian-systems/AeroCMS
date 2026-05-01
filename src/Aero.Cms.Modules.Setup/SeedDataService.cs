@@ -15,8 +15,11 @@ using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
 using Aero.Services.Images;
 using Marten;
+using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Microsoft.AspNetCore.Hosting;
+using Serilog;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -73,6 +76,7 @@ public interface ISetupCompletionService : ISeedDatabaseService { }
 
 public sealed class SeedDatabaseService(
     IDocumentSession session,
+    IWebHostEnvironment env,
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
     IBlogPostContentService blogPostContentService,
@@ -264,6 +268,9 @@ public sealed class SeedDatabaseService(
             session.Store(doc);
         }
 
+        // Seed starter media assets from wwwroot/media
+        await SeedStarterMediaAsync(cancellationToken);
+
         // Build starter blog content (posts and tags)
         var (posts, tags) = BuildStarterBlogContent(request, staticPhotosClient);
 
@@ -280,6 +287,53 @@ public sealed class SeedDatabaseService(
         }
     }
 
+    private async Task SeedStarterMediaAsync(CancellationToken ct)
+    {
+        var mediaDir = Path.Combine(env.WebRootPath, "media");
+        if (!Directory.Exists(mediaDir))
+        {
+            Log.Warning("Media directory not found at {Path}. Skipping media seed.", mediaDir);
+            return;
+        }
+
+        var mimeMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [".png"] = "image/png",
+            [".jpg"] = "image/jpeg",
+            [".jpeg"] = "image/jpeg",
+            [".gif"] = "image/gif",
+            [".webp"] = "image/webp",
+            [".svg"] = "image/svg+xml",
+            [".ico"] = "image/x-icon"
+        };
+
+        foreach (var filePath in Directory.EnumerateFiles(mediaDir))
+        {
+            var fileName = Path.GetFileName(filePath);
+            var ext = Path.GetExtension(filePath);
+            var mime = mimeMap.TryGetValue(ext, out var m) ? m : "application/octet-stream";
+
+            var altText = Path.GetFileNameWithoutExtension(fileName)
+                .Replace('-', ' ').Replace('_', ' ');
+
+            var media = new MediaAsset
+            {
+                Id = Snowflake.NewId(),
+                FileName = fileName,
+                Url = $"/media/{fileName}",
+                MimeType = mime,
+                FileSize = new FileInfo(filePath).Length,
+                AltText = altText,
+                IsFolder = false
+            };
+
+            session.Store(media);
+        }
+
+        Log.Information("Seeded {Count} media assets from {Path}",
+            Directory.GetFiles(mediaDir).Length, mediaDir);
+    }
+
     private async Task SaveModuleStateAsync(CancellationToken cancellationToken)
     {
         await moduleInitializationService.InitializeModulesAsync(cancellationToken);
@@ -287,11 +341,14 @@ public sealed class SeedDatabaseService(
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SeedDatabaseRequest request)
     {
-        var headingBlock = new HeadingBlock
+        var homepageSummary = $"A high-performance, block-based content platform built for scale. Experience the next generation of web management with {Normalize(request.SiteName)}.";
+        var heroBlock = new BoringHeroBlock
         {
             Id = Snowflake.NewId(),
-            Level = 1,
-            Text = Normalize(request.HomepageTitle),
+            Title = Normalize(request.HomepageTitle),
+            Summary = homepageSummary,
+            BackgroundImageUrl = "/assets/hero-01.svg",
+            FullWidth = true,
             Order = 0
         };
         var bodyBlock = new RichTextBlock
@@ -363,13 +420,12 @@ public sealed class SeedDatabaseService(
                 Kind = PageKind.Homepage,
                 Slug = "/",
                 Title = Normalize(request.HomepageTitle),
-                Summary = $"A high-performance, block-based content platform built for scale. Experience the next generation of web management with {Normalize(request.SiteName)}.",
+                Summary = homepageSummary,
                 SeoTitle = $"{Normalize(request.HomepageTitle)} | {Normalize(request.SiteName)}",
                 SeoDescription = $"Welcome to {Normalize(request.SiteName)}. A modern CMS built on .NET 10, Marten, and Microsoft Orleans.",
-                HeaderImageUrl = "/assets/hero-01.svg",
                 Blocks = new List<EditorBlock>
                 {
-                    new() { Type = "text", Content = Normalize(request.HomepageTitle) },
+                    new() { Type = "boring_hero", MainText = Normalize(request.HomepageTitle), SubText = homepageSummary, BackgroundImage = "/assets/hero-01.svg", FullWidth = true },
                     new() { Type = "content", Content = bodyBlock.Content }
                 },
                 LayoutRegions =
@@ -386,7 +442,7 @@ public sealed class SeedDatabaseService(
                                 Order = 0,
                                 Blocks =
                                 [
-                                    new BlockPlacement { BlockId = headingBlock.Id, BlockType = headingBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
                                     new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
                                 ]
                             }
@@ -395,7 +451,7 @@ public sealed class SeedDatabaseService(
                 ],
                 PublicationState = ContentPublicationState.Published
             },
-            new List<BlockBase> { headingBlock, bodyBlock }
+            new List<BlockBase> { heroBlock, bodyBlock }
         );
     }
 
@@ -459,11 +515,13 @@ public sealed class SeedDatabaseService(
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildAboutPage()
     {
-        var headingBlock = new HeadingBlock
+        const string summary = "Learn more about our mission and the team behind the platform.";
+        var heroBlock = new BoringHeroBlock
         {
             Id = Snowflake.NewId(),
-            Level = 1,
-            Text = "About Us",
+            Title = "About Us",
+            Summary = summary,
+            FullWidth = true,
             Order = 0
         };
         var bodyBlock = new RichTextBlock
@@ -481,12 +539,12 @@ public sealed class SeedDatabaseService(
                 Kind = PageKind.Standard,
                 Slug = "about",
                 Title = "About Us",
-                Summary = "Learn more about our mission and the team behind the platform.",
+                Summary = summary,
                 SeoTitle = "About Us | Aero CMS",
                 SeoDescription = "Discover our story, mission, and commitment to building great digital experiences.",
                 Blocks = new List<EditorBlock>
                 {
-                    new() { Type = "text", Content = "About Us" },
+                    new() { Type = "boring_hero", MainText = "About Us", SubText = summary, FullWidth = true },
                     new() { Type = "content", Content = bodyBlock.Content }
                 },
                 LayoutRegions =
@@ -503,7 +561,7 @@ public sealed class SeedDatabaseService(
                                 Order = 0,
                                 Blocks =
                                 [
-                                    new BlockPlacement { BlockId = headingBlock.Id, BlockType = headingBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
                                     new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
                                 ]
                             }
@@ -512,17 +570,19 @@ public sealed class SeedDatabaseService(
                 ],
                 PublicationState = ContentPublicationState.Published
             },
-            new List<BlockBase> { headingBlock, bodyBlock }
+            new List<BlockBase> { heroBlock, bodyBlock }
         );
     }
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildContactPage()
     {
-        var headingBlock = new HeadingBlock
+        const string summary = "Get in touch with our team.";
+        var heroBlock = new BoringHeroBlock
         {
             Id = Snowflake.NewId(),
-            Level = 1,
-            Text = "Contact Us",
+            Title = "Contact Us",
+            Summary = summary,
+            FullWidth = true,
             Order = 0
         };
         var bodyBlock = new RichTextBlock
@@ -547,12 +607,12 @@ public sealed class SeedDatabaseService(
                 Kind = PageKind.Standard,
                 Slug = "contact",
                 Title = "Contact Us",
-                Summary = "Get in touch with our team.",
+                Summary = summary,
                 SeoTitle = "Contact Us | Aero CMS",
                 SeoDescription = "Have questions? We'd love to hear from you. Send us a message today.",
                 Blocks = new List<EditorBlock>
                 {
-                    new() { Type = "text", Content = "Contact Us" },
+                    new() { Type = "boring_hero", MainText = "Contact Us", SubText = summary, FullWidth = true },
                     new() { Type = "content", Content = bodyBlock.Content },
                     new() { Type = "aero_cta", MainText = ctaBlock.Text, CtaText = ctaBlock.Text, CtaUrl = ctaBlock.Url }
                 },
@@ -570,7 +630,7 @@ public sealed class SeedDatabaseService(
                                 Order = 0,
                                 Blocks =
                                 [
-                                    new BlockPlacement { BlockId = headingBlock.Id, BlockType = headingBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
                                     new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 },
                                     new BlockPlacement { BlockId = ctaBlock.Id, BlockType = ctaBlock.BlockType, Order = 2 }
                                 ]
@@ -580,7 +640,7 @@ public sealed class SeedDatabaseService(
                 ],
                 PublicationState = ContentPublicationState.Published
             },
-            new List<BlockBase> { headingBlock, bodyBlock, ctaBlock }
+            new List<BlockBase> { heroBlock, bodyBlock, ctaBlock }
         );
     }
 

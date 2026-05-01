@@ -161,7 +161,7 @@ public class RealModuleDiscoveryTests
         {
             typeof(SetupModule),
             typeof(IdentityModule),
-            typeof(CacheBusterModule),
+            typeof(CacheModule),
             typeof(SecurityModule),
             typeof(SimpleSecurityModule),
             typeof(RateLimitingModule),
@@ -223,7 +223,7 @@ public class RealModuleDiscoveryTests
     public async Task DiscoverFromTypesAsync_WithRealModules_ShouldPopulateAllDescriptorFields()
     {
         // Arrange
-        var cacheModuleType = typeof(CacheBusterModule);
+        var cacheModuleType = typeof(CacheModule);
 
         // Act
         var result = await _discoveryService.DiscoverFromTypesAsync(
@@ -339,7 +339,7 @@ public class RealModuleDiscoveryTests
         {
             typeof(SetupModule),
             typeof(IdentityModule),
-            typeof(CacheBusterModule),
+            typeof(CacheModule),
             typeof(SecurityModule),
             typeof(SimpleSecurityModule),
             typeof(RateLimitingModule),

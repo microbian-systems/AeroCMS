@@ -87,6 +87,38 @@ public sealed class ContentLinkBlock : BlockBase
 }
 
 /// <summary>
+/// A simple full-width page header/hero that mirrors the original page-level header.
+/// </summary>
+[BlockMetadata("boring_hero", "Boring Hero", Category = "UI")]
+public sealed class BoringHeroBlock : BlockBase
+{
+    public override string BlockType => "boring_hero";
+
+    /// <summary>
+    /// Gets or sets whether the hero should break out to the full viewport width.
+    /// Boring heroes are always authored as full width.
+    /// </summary>
+    public bool FullWidth { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the main heading text.
+    /// </summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the secondary summary text.
+    /// </summary>
+    public string? Summary { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional direct URL for the background image.
+    /// </summary>
+    public string? BackgroundImageUrl { get; set; }
+
+    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+}
+
+/// <summary>
 /// A prominent hero section with a background image, text overlay, and call-to-action.
 /// </summary>
 [BlockMetadata("hero", "Hero Section", Category = "Media")]
@@ -108,6 +140,16 @@ public sealed class HeroBlock : BlockBase
     /// Gets or sets the accessibility alt text for the background image.
     /// </summary>
     public string? AltText { get; set; }
+
+    /// <summary>
+    /// Gets or sets the minimum hero height in pixels. Ignored when <see cref="FullScreen"/> is true.
+    /// </summary>
+    public int Height { get; set; } = 512;
+
+    /// <summary>
+    /// Gets or sets whether the hero should fill the viewport height.
+    /// </summary>
+    public bool FullScreen { get; set; }
 
     /// <summary>
     /// Gets or sets whether to apply a parallax scrolling effect to the background.

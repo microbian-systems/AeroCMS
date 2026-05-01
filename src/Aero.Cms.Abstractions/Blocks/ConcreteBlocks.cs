@@ -56,6 +56,13 @@ public sealed class ImageBlock : BlockBase
     public long MediaId { get; set; }
 
     /// <summary>
+    /// Gets or sets the direct URL of the image (e.g. "/media/photo.jpg").
+    /// This is populated from the editor's Src property during page save.
+    /// Falls back to resolving from <see cref="MediaId"/> if needed.
+    /// </summary>
+    public string? Url { get; set; }
+
+    /// <summary>
     /// Gets the alternative text for the image (used for accessibility).
     /// </summary>
     public string? AltText { get; set; }
