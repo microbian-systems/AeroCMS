@@ -153,7 +153,7 @@ Just a clean, modern platform you actually enjoy working with.
 | CSS | Tailwind CSS |
 | Validation | FluentValidation |
 | Telemetry | OpenTelemetry + Serilog + OpenObserve |
-| Testing | TUnit, Playwright, Alba, Bogus |
+| Testing | TUnit, Playwright, Alba, Bogus, Shouldly |
 
 ---
 
@@ -165,4 +165,19 @@ Just a clean, modern platform you actually enjoy working with.
 
 ## License
 
-*TBD*
+This project is **dual-licensed**:
+
+| Use Case | License |
+|---|---|
+| **Non-commercial / OSS** | [Apache License 2.0](LICENSE) |
+| **Commercial / SaaS** | [GNU AGPL v3](LICENSE) |
+
+In short: if you're building and selling a product or service on top of Aero, the AGPL applies to ensure community contributions remain protected. If you're using it for non-commercial purposes, the standard Apache 2.0 terms apply.
+
+See the [LICENSE](LICENSE) file for the full text of both licenses.
+
+### 📋 Important Notes
+
+- **NOTICE file** — Aero includes a [NOTICE](NOTICE) file as required by the Apache 2.0 license. Redistributions must preserve this notice.
+- **Trademark** — *Aero* is a trademark. The Apache 2.0 license grants you the right to use the code but does not permit using the project name to market competing services without permission.
+- **CLA** — All contributors must sign a [Contributor License Agreement](CONTRIBUTING.md) before contributions are accepted. This ensures we can continue to offer both the open-source and commercial versions of the project.
