@@ -21,6 +21,7 @@ using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Web.Generated;
 using Aero.Cms.Modules.Modules.Services;
+using Aero.Social.Abstractions;
 
 
 // Implements a two-stage startup pattern:
@@ -280,8 +281,16 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     // Add full Aero CMS runtime services using source-generated module catalog.
     // GeneratedRequired ensures startup fails loudly if the generator is broken.
     var (_, log) = await builder.AddAeroCmsRuntimeAsync<Program>(
-        generatedDescriptors: GeneratedAeroModuleCatalog.Descriptors,
-        catalogMode: ModuleCatalogMode.GeneratedRequired);
+        GeneratedAeroModuleCatalog.Descriptors);
+
+    // Register the generated descriptors so setup seeding services
+    // (resolved from DI) can persist module state without reflection.
+    services.AddSingleton(GeneratedAeroModuleCatalog.Descriptors);
+
+    // Set the startup-scanned social plug catalog so provider plug discovery
+    // uses a cached catalog instead of per-instance method scanning.
+    // The scan runs once; subsequent DiscoverPlugs() calls hit the cache.
+    SocialProviderBase.PlugCatalog = new ReflectionSocialPlugCatalog();
 
     log.Information("Building main Aero CMS app...");
 

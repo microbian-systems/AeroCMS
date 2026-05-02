@@ -4,7 +4,6 @@ using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core;
-
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Blog.Models;
@@ -13,6 +12,7 @@ using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
+using Aero.Modular;
 using Aero.Services.Images;
 using Marten;
 using Aero.Cms.Core.Models;
@@ -85,7 +85,8 @@ public sealed class SeedDatabaseService(
     IBootstrapCompletionWriter bootstrapCompletionWriter,
     ITenantService tenantService,
     ISiteService siteService,
-    IApiKeyService apiKeyService) : ISeedDatabaseService, ISetupCompletionService
+    IApiKeyService apiKeyService,
+    IReadOnlyList<ModuleDescriptor> moduleDescriptors) : ISeedDatabaseService, ISetupCompletionService
 {
     public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken ct = default)
     {
@@ -336,7 +337,7 @@ public sealed class SeedDatabaseService(
 
     private async Task SaveModuleStateAsync(CancellationToken cancellationToken)
     {
-        await moduleInitializationService.InitializeModulesAsync(cancellationToken);
+        await moduleInitializationService.InitializeModulesAsync(moduleDescriptors, cancellationToken);
     }
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildHomepage(SeedDatabaseRequest request)

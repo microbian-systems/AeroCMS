@@ -1,19 +1,30 @@
-using System.Reflection;
-
 namespace Aero.Cms.Abstractions.Blocks.Editing;
 
 /// <summary>
 /// Service for block editing operations, providing methods to create, update, delete, and manage CMS blocks.
+/// Block types are sourced from the generated <see cref="GeneratedBlockModelManifest"/>,
+/// eliminating runtime reflection-based assembly scanning.
 /// </summary>
 public sealed class BlockEditingService
 {
     private static readonly List<BlockTypeInfo> BlockTypes;
 
-    // todo - we should abstract the scanning logic of block types from this service
-    // - add error logging (ILogger<T> injected)
     static BlockEditingService()
     {
-        BlockTypes = ScanBlockTypes();
+        BlockTypes = GeneratedBlockModelManifest.Blocks.Values
+            .Select(d => new BlockTypeInfo
+            {
+                Name = d.BlockType,
+                DisplayName = d.DisplayName,
+                Description = d.Description,
+                Category = d.Category ?? "General",
+                Icon = d.Icon,
+                SortOrder = d.SortOrder,
+                Type = d.ModelType
+            })
+            .OrderBy(b => b.SortOrder)
+            .ThenBy(b => b.DisplayName)
+            .ToList();
     }
 
     /// <summary>
@@ -334,35 +345,6 @@ public sealed class BlockEditingService
         {
             orderedBlocks[i].Order = i;
         }
-    }
-
-    private static List<BlockTypeInfo> ScanBlockTypes()
-    {
-        var types = new List<BlockTypeInfo>();
-        var assembly = typeof(BlockBase).Assembly;
-
-        var blockTypes = assembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(BlockBase)));
-
-        foreach (var type in blockTypes)
-        {
-            var metadata = type.GetCustomAttribute<BlockMetadataAttribute>();
-            if (metadata is not null)
-            {
-                types.Add(new BlockTypeInfo
-                {
-                    Name = metadata.Name,
-                    DisplayName = metadata.DisplayName,
-                    Description = metadata.Description,
-                    Category = metadata.Category ?? "General",
-                    Icon = metadata.Icon,
-                    SortOrder = metadata.SortOrder,
-                    Type = type
-                });
-            }
-        }
-
-        return types;
     }
 
     private static Result<BlockBase, AeroError> CreateBlockInstance(Type blockType, int order)

@@ -21,16 +21,20 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Wolverine;
-using System.Reflection;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Modular;
+using Aero.Marten.Identity;
 
 namespace Aero.Cms.Modules.Setup;
 
 public interface IServerTargetSetupExecutor
 {
-    Task<SeedDatabaseResult> ExecuteAsync(string serverConnectionString, SeedDatabaseRequest request, CancellationToken cancellationToken = default);
+    Task<SeedDatabaseResult> ExecuteAsync(
+        string serverConnectionString,
+        SeedDatabaseRequest request,
+        IReadOnlyList<ModuleDescriptor>? descriptors = null,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class ServerTargetSetupExecutor(
@@ -38,7 +42,11 @@ public sealed class ServerTargetSetupExecutor(
     ILogger<ServerTargetSetupExecutor> logger,
     IBootstrapCompletionWriter bootstrapCompletionWriter) : IServerTargetSetupExecutor
 {
-    public async Task<SeedDatabaseResult> ExecuteAsync(string serverConnectionString, SeedDatabaseRequest request, CancellationToken cancellationToken = default)
+    public async Task<SeedDatabaseResult> ExecuteAsync(
+        string serverConnectionString,
+        SeedDatabaseRequest request,
+        IReadOnlyList<ModuleDescriptor>? descriptors = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serverConnectionString);
         ArgumentNullException.ThrowIfNull(request);
@@ -77,9 +85,8 @@ public sealed class ServerTargetSetupExecutor(
         var apiKeyService = rootServiceProvider.GetRequiredService<IApiKeyService>();
 
         var moduleInitializationService = new ModuleInitializationService(
-            rootServiceProvider.GetRequiredService<IModuleDiscoveryService>(),
             new ModuleStateStore(session));
-            
+
         var env = rootServiceProvider.GetRequiredService<IWebHostEnvironment>();
         var seedService = new SeedDatabaseService(
             session,
@@ -92,7 +99,8 @@ public sealed class ServerTargetSetupExecutor(
             bootstrapCompletionWriter,
             tenantService,
             siteService,
-            apiKeyService);
+            apiKeyService,
+            descriptors ?? Array.Empty<ModuleDescriptor>());
 
         var result = await seedService.CompleteAsync(request, cancellationToken);
         if (!result.Succeeded)
@@ -117,14 +125,7 @@ public sealed class ServerTargetSetupExecutor(
 
     private static IUserStore<AeroUser> CreateUserStore(IDocumentSession session, IServiceProvider services)
     {
-        var userStoreType = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(a => a.GetTypes())
-            .First(type => type.FullName == "Aero.MartenDB.Identity.UserStore`2" && type.Assembly.GetName().Name == "Aero.Cms.Modules.Identity");
-
-        var closedType = userStoreType.MakeGenericType(typeof(AeroUser), typeof(AeroRole));
-        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-        var logger = loggerFactory.CreateLogger(closedType.FullName!);
-        return (IUserStore<AeroUser>)Activator.CreateInstance(closedType, session, logger)!;
+        return new UserStore<AeroUser, AeroRole>(session);
     }
 
     private static UserManager<AeroUser> CreateUserManager(IUserStore<AeroUser> userStore, IServiceProvider services)

@@ -13,13 +13,11 @@ namespace Aero.Cms.Modules.Modules.Services;
 public static class ModuleOrchestrationExtensions
 {
     /// <summary>
-    /// Registers core module system services (discovery, graph, state merger, etc.)
+    /// Registers core module system services (graph, state merger, options).
+    /// Reflection-based discovery is no longer required — use generated descriptors.
     /// </summary>
     public static IServiceCollection AddModuleSystemServices(this IServiceCollection services)
     {
-        // Register discovery service
-        services.TryAddScoped<IModuleDiscoveryService, ModuleDiscoveryService>();
-
         // Register graph service
         services.TryAddScoped<IModuleGraphService, ModuleGraphService>();
 
@@ -40,9 +38,8 @@ public static class ModuleOrchestrationExtensions
         this IServiceCollection services,
         IConfiguration config,
         IHostEnvironment env,
-        IReadOnlyList<ModuleDescriptor>? generatedDescriptors = null,
-        ModuleCatalogMode catalogMode = ModuleCatalogMode.LegacyFallbackAllowed)
-        => services.AddAeroModulesAsync(config, env, generatedDescriptors, catalogMode).GetAwaiter().GetResult();
+        IReadOnlyList<ModuleDescriptor> generatedDescriptors)
+        => services.AddAeroModulesAsync(config, env, generatedDescriptors).GetAwaiter().GetResult();
 
     /// <summary>
     /// Alias for <see cref="AddAeroModules"/>.
@@ -51,96 +48,59 @@ public static class ModuleOrchestrationExtensions
         this IServiceCollection services,
         IConfiguration config,
         IHostEnvironment env,
-        IReadOnlyList<ModuleDescriptor>? generatedDescriptors = null,
-        ModuleCatalogMode catalogMode = ModuleCatalogMode.LegacyFallbackAllowed)
-        => services.AddAeroModules(config, env, generatedDescriptors, catalogMode);
+        IReadOnlyList<ModuleDescriptor> generatedDescriptors)
+        => services.AddAeroModules(config, env, generatedDescriptors);
 
     /// <summary>
-    /// Discovers, validates, and registers Aero modules in dependency order.
-    /// Supports both source-generated catalogs and legacy reflection fallback.
+    /// Validates and registers source-generated Aero modules in dependency order.
+    /// Requires a non-null, non-empty generated descriptor catalog.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">Application configuration.</param>
     /// <param name="environment">Host environment.</param>
     /// <param name="generatedDescriptors">
-    /// Source-generated module descriptors. When non-null, skips reflection-based
-    /// discovery and uses these descriptors directly. When null, falls back to
-    /// the legacy <see cref="IModuleDiscoveryService"/> reflection scanning.
-    /// </param>
-    /// <param name="catalogMode">
-    /// Controls behavior when generated descriptors are null or empty.
-    /// Defaults to <see cref="ModuleCatalogMode.LegacyFallbackAllowed"/>.
+    /// Source-generated module descriptors. Must be non-null and non-empty.
     /// </param>
     /// <exception cref="ModuleSystemStartupException">
-    /// Thrown when <paramref name="catalogMode"/> is <see cref="ModuleCatalogMode.GeneratedRequired"/>
-    /// and <paramref name="generatedDescriptors"/> is null or empty.
+    /// Thrown when <paramref name="generatedDescriptors"/> is null or empty.
     /// </exception>
     public static async Task<IServiceCollection> AddAeroModulesAsync(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment environment,
-        IReadOnlyList<ModuleDescriptor>? generatedDescriptors = null,
-        ModuleCatalogMode catalogMode = ModuleCatalogMode.LegacyFallbackAllowed)
+        IReadOnlyList<ModuleDescriptor> generatedDescriptors)
     {
-        // Use local service provider for discovery phase to avoid temporary provider issues
-        var discoveryServices = new ServiceCollection();
-        discoveryServices.AddSingleton(environment);
-        discoveryServices.AddLogging();
-        discoveryServices.AddOptions();
-        discoveryServices.AddModuleSystemServices();
+        ArgumentNullException.ThrowIfNull(generatedDescriptors);
 
-        // Add discovery options from configuration
-        discoveryServices.Configure<ModuleDiscoveryOptions>(configuration.GetSection("ModuleDiscovery"));
+        if (generatedDescriptors.Count == 0)
+        {
+            throw new ModuleSystemStartupException(
+                "Generated module catalog is empty. The source generator or analyzer reference may be misconfigured.");
+        }
 
-        await using var discoveryProvider = discoveryServices.BuildServiceProvider();
-        using var scope = discoveryProvider.CreateScope();
+        // Use local service provider for setup phase (logging, graph service)
+        var setupServices = new ServiceCollection();
+        setupServices.AddSingleton(environment);
+        setupServices.AddLogging();
+        setupServices.AddOptions();
+        setupServices.AddModuleSystemServices();
+        setupServices.Configure<ModuleDiscoveryOptions>(configuration.GetSection("ModuleDiscovery"));
 
-        // Construct the merger manually: the temp provider doesn't register IModuleStateStore,
-        // so GetService (not GetRequiredService) is used to allow optional null.
+        await using var setupProvider = setupServices.BuildServiceProvider();
+        using var scope = setupProvider.CreateScope();
         var sp = scope.ServiceProvider;
-        var discoveryService = sp.GetRequiredService<IModuleDiscoveryService>();
+
         var graphService = sp.GetRequiredService<IModuleGraphService>();
         var stateMerger = new ModuleRuntimeStateMerger(
             sp.GetService<IModuleStateStore>(),
             sp.GetRequiredService<ILogger<ModuleRuntimeStateMerger>>());
         var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("Aero.Cms.Modules.Startup");
 
-        // Resolve descriptors: use generated catalog or fall back to reflection
-        IReadOnlyList<ModuleDescriptor> descriptors;
+        // Use source-generated descriptors merged with stored database state
+        logger.LogInformation("Using source-generated module catalog with {Count} descriptor(s).",
+            generatedDescriptors.Count);
 
-        if (generatedDescriptors is not null)
-        {
-            // Source-generated path
-            if (generatedDescriptors.Count == 0 && catalogMode == ModuleCatalogMode.GeneratedRequired)
-            {
-                throw new ModuleSystemStartupException(
-                    "Generated module catalog is empty but ModuleCatalogMode.GeneratedRequired " +
-                    "was specified. The source generator or analyzer reference may be misconfigured.");
-            }
-
-            logger.LogInformation("Using source-generated module catalog with {Count} descriptor(s).",
-                generatedDescriptors.Count);
-
-            // Merge with stored state
-            descriptors = await stateMerger.MergeAsync(generatedDescriptors);
-        }
-        else
-        {
-            // Legacy reflection fallback
-            if (catalogMode == ModuleCatalogMode.GeneratedRequired)
-            {
-                throw new ModuleSystemStartupException(
-                    "Generated module catalog is null but ModuleCatalogMode.GeneratedRequired " +
-                    "was specified. The source generator may not have executed.");
-            }
-
-            logger.LogInformation("No generated catalog provided — falling back to reflection-based discovery.");
-
-            descriptors = await discoveryService.DiscoverAsync();
-
-            // Merge with stored state after reflection discovery
-            descriptors = await stateMerger.MergeAsync(descriptors);
-        }
+        var descriptors = await stateMerger.MergeAsync(generatedDescriptors);
 
         logger.LogInformation("Discovered {ModuleCount} Aero modules: {ModuleNames}",
             descriptors.Count,
