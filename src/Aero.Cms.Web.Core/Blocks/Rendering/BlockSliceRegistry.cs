@@ -98,11 +98,18 @@ public sealed class BlockSliceRegistry : IBlockVisitor
     /// </summary>
     /// <param name="block">The block to visit.</param>
     /// <returns>The rendered HTML content.</returns>
+    /// <remarks>
+    /// Uses <c>typeof(BlockBase)</c> instead of <c>block.GetType()</c> to avoid
+    /// runtime reflection. The only concrete <see cref="IBlockSliceRenderer"/>
+    /// implementation (<see cref="CmsBlockSliceRenderer"/>) registers against
+    /// <c>typeof(BlockBase)</c> as a catch-all, so this produces the same
+    /// resolution result without the runtime GetType() call.
+    /// </remarks>
     public IHtmlContent Visit(BlockBase block)
     {
         ArgumentNullException.ThrowIfNull(block);
 
-        var renderer = Resolve(block.GetType());
+        var renderer = Resolve(typeof(BlockBase));
         return renderer.Render(block);
     }
 }

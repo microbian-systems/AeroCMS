@@ -1,3 +1,5 @@
+using Aero.Cms.Abstractions.Blocks.Serialization;
+
 namespace Aero.Cms.Abstractions.Blocks.Editing;
 
 /// <summary>
@@ -55,13 +57,19 @@ public sealed class BlockEditingService
     /// <returns>A Result containing the created block or an error message.</returns>
     public Result<BlockBase, AeroError> CreateBlock(string blockTypeName, int order = 0)
     {
-        var blockTypeInfo = GetBlockTypeInfo(blockTypeName);
+        // Use the source-generated factory instead of Activator.CreateInstance.
+        // GeneratedBlockFactory.CreateByTypeName is emitted by BlockRendererGenerator
+        // and produces a compiled switch expression — zero reflection.
+        var instance = GeneratedBlockFactory.CreateByTypeName(blockTypeName);
         
-        return blockTypeInfo switch
+        if (instance is null)
         {
-            Option<BlockTypeInfo>.Some(var info) => CreateBlockInstance(info.Type, order),
-            _ => AeroError.NotFoundError($"Block type '{blockTypeName}' not found.")
-        };
+            return AeroError.NotFoundError($"Block type '{blockTypeName}' not found.");
+        }
+
+        instance.Id = Snowflake.NewId();
+        instance.Order = order;
+        return instance;
     }
 
     /// <summary>
@@ -77,13 +85,18 @@ public sealed class BlockEditingService
             return AeroError.CreateError("Source block cannot be null.");
         }
 
-        var json = System.Text.Json.JsonSerializer.Serialize(sourceBlock, sourceBlock.GetType());
-        var duplicate = System.Text.Json.JsonSerializer.Deserialize(json, sourceBlock.GetType()) as BlockBase;
+        // Use BlockSerializer which leverages BlockJsonContext.Default (source-generated)
+        // for AOT-safe polymorphic serialization. No runtime GetType() needed — STJ
+        // polymorphic serialization uses [JsonDerivedType] on BlockBase.
+        var json = BlockSerializer.Serialize(sourceBlock);
+        var result = BlockSerializer.Deserialize(json);
         
-        if (duplicate is null)
+        if (result is Result<BlockBase, AeroError>.Failure)
         {
             return AeroError.CreateError("Failed to duplicate block.");
         }
+
+        var duplicate = ((Result<BlockBase, AeroError>.Ok)result).Value;
 
         duplicate.Id = Snowflake.NewId();
         duplicate.Order = newOrder;
@@ -347,27 +360,6 @@ public sealed class BlockEditingService
         }
     }
 
-    private static Result<BlockBase, AeroError> CreateBlockInstance(Type blockType, int order)
-    {
-        try
-        {
-            var instance = Activator.CreateInstance(blockType) as BlockBase;
-            if (instance is null)
-            {
-                return AeroError.CreateError($"Failed to create instance of {blockType.Name}.");
-            }
-
-            instance.Id = Snowflake.NewId();
-            instance.Order = order;
-            
-            return instance;
-        }
-        catch (Exception ex)
-        {
-            
-            return AeroError.CreateError($"Error creating block: {ex.Message}");
-        }
-    }
 }
 
 /// <summary>
