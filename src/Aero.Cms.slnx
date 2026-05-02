@@ -42,6 +42,7 @@
     <Project Path="Aero.Cms.Modules.Cache/Aero.Cms.Modules.Cache.csproj" />
     <Project Path="Aero.Cms.Modules.Chat/Aero.Cms.Modules.Chat.csproj" Id="393b3f9b-6b43-4860-ac07-56012e5d2398" />
     <Project Path="Aero.Cms.Modules.ContentCreator/Aero.Cms.Modules.ContentCreator.csproj" Id="07f195da-d213-4220-a988-bbad2b4dbc4e" />
+    <Project Path="Aero.Cms.Modules.Core/Aero.Cms.Modules.Core.csproj" Id="28461ed8-46bd-473e-a6b9-5d13e5f3d0d7" />
     <Project Path="Aero.Cms.Modules.Crm/Aero.Cms.Modules.Crm.csproj" Id="f0a088cb-18fe-4ef2-9318-744abdbee4a9" />
     <Project Path="Aero.Cms.Modules.Docs/Aero.Cms.Modules.Docs.csproj" Id="7a333011-7319-49e2-8229-cbbd89599c77" />
     <Project Path="Aero.Cms.Modules.Export/Aero.Cms.Modules.Export.csproj" Id="beeaf44c-2bf2-4029-8c00-e2a91a6384f4" />
@@ -104,6 +105,6 @@
   <Project Path="Aero.Cms.Web.Core/Aero.Cms.Web.Core.csproj" />
   <Project Path="Aero.Cms.Web/Aero.Cms.Web.csproj" />
   <Project Path="Aero.Cms/Aero.Cms.csproj">
-    <Deploy Solution="Debug|*" />
+    <Deploy />
   </Project>
 </Solution>

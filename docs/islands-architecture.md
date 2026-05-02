@@ -350,6 +350,89 @@ Swapping a whole island resets local state like scroll position or cursor focus.
 
 ---
 
+## 13. Warp Signals: Global State Management
+
+To achieve SPA-like communication between isolated islands without a central framework (like React or Vue), AeroCMS utilizes a reactive signal system powered by **RxJS**. This allows disparate blocks to stay in sync via "Signals."
+
+### 13.1 The Signal Registry
+
+A lightweight JavaScript object initialized in the main layout (`_Layout.cshtml`) acts as the central registry. It uses RxJS `BehaviorSubject` to provide stateful, multi-cast signals.
+
+```javascript
+// warp-signals.js
+window.Warp = {
+    signals: {},
+
+    // Get or create a signal (BehaviorSubject)
+    getSignal(name, defaultValue = null) {
+        if (!this.signals[name]) {
+            this.signals[name] = new rxjs.BehaviorSubject(defaultValue);
+        }
+        return this.signals[name];
+    },
+
+    // Set a new value (Publish)
+    set(name, value) {
+        this.getSignal(name).next(value);
+    },
+
+    // Get current value (Snapshot)
+    get(name) {
+        return this.getSignal(name).value;
+    }
+};
+```
+
+### 13.2 The Island Bridge (Alpine.js)
+
+Islands use **Alpine.js** to bridge these RxJS signals into the local DOM. This allows the UI to react to global state changes instantaneously.
+
+**Example: A Cart Summary Island reacting to a Product Island**
+
+```razor
+@* CartSummaryRenderer.razor *@
+<div x-data="cartSummary()" class="cart-summary">
+    <span x-text="count">0</span> Items in Cart
+</div>
+
+<script>
+    function cartSummary() {
+        return {
+            count: 0,
+            init() {
+                // Subscribe to the global 'cart_count' signal
+                Warp.getSignal('cart_count', 0).subscribe(val => {
+                    this.count = val;
+                });
+            }
+        }
+    }
+</script>
+```
+
+### 13.3 Reactive HTMX Triggers
+
+RxJS signals can also be used to orchestrate complex HTMX behaviors, such as debounced re-rendering of multiple islands based on a single search input.
+
+```javascript
+// Global search coordination
+Warp.getSignal('search_query').pipe(
+    rxjs.operators.debounceTime(300),
+    rxjs.operators.distinctUntilChanged()
+).subscribe(query => {
+    // Trigger HTMX refresh on all blocks listening for 'refresh-search'
+    htmx.trigger("body", "refresh-search", { q: query });
+});
+```
+
+### 13.4 Why Warp Signals fit the WARP Stack
+
+- **Decoupled**: Blocks don't need to know about each other; they only know about the Signal.
+- **Stateless Server**: The server remains unaware of the "Signal" state, maintaining Native AOT and scaling benefits.
+- **Granular**: Only the specific HTML elements bound to the signal re-render on the client, avoiding a full DOM diff.
+
+---
+
 ## See Also
 
 
