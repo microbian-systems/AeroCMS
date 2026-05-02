@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Generated.Json\Aero.Cms.Generated.Json.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />

@@ -22,6 +22,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Wolverine;
 using Aero.Cms.Core.Blocks;
+using Aero.Cms.Generated;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Modular;
 using Aero.Marten.Identity;
@@ -57,10 +58,7 @@ public sealed class ServerTargetSetupExecutor(
         {
             options.Connection(serverConnectionString);
             options.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
-            options.UseSystemTextJsonForSerialization(new System.Text.Json.JsonSerializerOptions
-            {
-                AllowOutOfOrderMetadataProperties = true
-            });
+            options.UseAeroGeneratedJsonContext();
             options.Schema.For<AeroRole>().Identity(x => x.Id);
             options.Schema.For<AeroUser>().Identity(x => x.Id);
 

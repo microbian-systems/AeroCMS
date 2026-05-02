@@ -138,6 +138,6 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     GenerationMode = JsonSourceGenerationMode.Default | JsonSourceGenerationMode.Metadata)]
-internal partial class BlockJsonContext : JsonSerializerContext
+public partial class BlockJsonContext : JsonSerializerContext
 {
 }

@@ -279,6 +279,193 @@ ADR: [docs/decisions/ADR-001-source-generated-block-render-adapters.md](docs/dec
 - [x] Add server-rendered inline Scriban authoring preview through `PreviewApi`
 - [ ] Add production-grade Scriban policy editing and safeguards after MVP signoff
 
+## Phase 7: Source-Generated JSON Contexts (Multi-Project Shim)
+
+- [x] Create `Aero.Cms.Generated.Json` shim project
+- [x] Extend `BlockRendererGenerator` to emit `BlockBase.Polymorphic.g.cs` (replace hand-maintained `[JsonDerivedType]` list)
+- [x] Create `ContentTypeGenerator` for content type discovery + JSON context
+- [x] Make `BlockBase` partial, remove hand-maintained `[JsonDerivedType]` attributes
+- [x] Wire generated context into Marten (`TypeInfoResolver`)
+- [ ] Emit `GeneratedBlockJsonContext` (deferred — blocked by Roslyn generator chaining limitation)
+- [ ] Delete hand-maintained `BlockJsonContext.cs` (deferred)
+- [ ] Update `BlockSerializer` to use generated context from shim project (deferred)
+
+### Phase 7 Process Documentation
+
+This section documents the full investigation, decisions, and implementation. It exists because Phase 7 involved significant architecture research and resolved a long-standing design tension.
+
+---
+
+#### 7.1 Trigger
+
+The content type implementation spec (`docs/content-type-implementation.md`) requires adding new models (`ContentItem`, `ContentTypeDefinition`, `ContentEmbedBlock`) to the codebase. These need AOT-safe `JsonSerializerContext` registration alongside the existing 34 block types. The existing manual approach (`BlockJsonContext.cs` with 143 hand-written `[JsonSerializable]` lines) would require another manual entry per new type — a maintenance burden that source generators were intended to solve.
+
+Progress doc Phase 2 note (line 151) documents the blocker:
+> *STJ source generation does not consume context attributes emitted by another source generator in the same compilation.*
+
+---
+
+#### 7.2 Investigation
+
+The spec at `docs/cms-source-generators.md` §4 and `docs/source-generator-block-renderer.md` §10 describes generating:
+- `CmsJsonContext.g.cs` — auto-generated `JsonSerializerContext`
+- `BlockBase.Polymorphic.g.cs` — auto-generated `[JsonDerivedType]` attributes
+
+These were never implemented because the Phase 2 team hit the Roslyn source generator chaining limitation.
+
+**Key research sources:**
+
+| Source | Finding |
+|--------|---------|
+| [dotnet/roslyn#57239](https://github.com/dotnet/roslyn/issues/57239) | Roslyn source generators cannot chain (open since 2020) |
+| [dotnet/runtime#93439](https://github.com/dotnet/runtime/issues/93439) | STJ team confirms: "SGs run in non-deterministic order" |
+| [dotnet/runtime#108317](https://github.com/dotnet/runtime/issues/108317) | "STJ generator won't recognize generated context in scope" |
+| [dotnet/runtime#113584](https://github.com/dotnet/runtime/issues/113584) | "Source generators can't see each other" |
+| [dotnet/runtime#124889](https://github.com/dotnet/runtime/issues/124889) | Proposed `[assembly: DefaultJsonSerializerContext]` — not yet merged |
+| [dotnet/runtime#126861](https://github.com/dotnet/runtime/pull/126861) | Draft PR: `[JsonSerializable]` on POCOs directly — does not solve chaining |
+| Roslyn Incremental Generators Cookbook | Code rewriting explicitly out of scope for source generators |
+
+**Contradictory finding:** Microsoft Learn docs (mslearn) state that emitting `[JsonSerializable]` partial classes from another generator "does work in practice." Microsoft Learn MCP was queried and returned this guidance. However, the AeroCMS Phase 2 team reported it did NOT work in their testing, and our Phase 7 build confirmed CS0534 errors (partial context without STJ implementation), contradicting the Microsoft Learn docs.
+
+---
+
+#### 7.3 Architecture Decision
+
+**Candidate approaches evaluated:**
+
+| Approach | Pros | Cons | Verdict |
+|----------|------|------|---------|
+| A. Keep `BlockJsonContext.cs` manually | Zero risk | Per-type maintenance forever | Rejected |
+| B. Multi-project shim (recommended by STJ team) | Works around chaining | Adds project to solution; context emission STILL failed | Attempted |
+| C. Generate full `JsonSerializerContext` impl manually | No STJ dependency | Reimplements STJ's code gen (months of work) | Rejected |
+| D. `RegisterPostInitializationOutput` | Runs before all generators | Only for fixed content, not dynamic | Rejected |
+| E. Emit `[JsonDerivedType]` only (leave context hand-written) | Solves biggest pain point | Context still manual | Selected |
+
+**Decision:** Move all `[JsonDerivedType]` attributes to generated code (eliminating the 34-entry manual list). Defer `JsonSerializerContext` auto-generation to when Roslyn/SJT chaining is resolved. Wire the existing hand-maintained context into Marten for AOT safety.
+
+**Why the shim project could not emit the context:** Even with a dedicated project where both custom and STJ generators compile together, CS0534 confirms STJ cannot see the `[JsonSerializable]` attributes from another generator. The Roslyn limitation applies at the generator level, not the project level. Cross-project (shim) is the same as single-project in this regard.
+
+---
+
+#### 7.4 Codebase Analysis (Before)
+
+Key files analyzed:
+
+| File | Lines | Problem |
+|------|-------|---------|
+| `src/Aero.Cms.Abstractions/Blocks/BlockBase.cs` | 71 | 34 hand-written `[JsonDerivedType]` (lines 16-50) + `[JsonPolymorphic]` |
+| `src/Aero.Cms.Abstractions/Blocks/Serialization/BlockJsonContext.cs` | 143 | All `[JsonSerializable]` entries manually maintained |
+| `src/Aero.Cms.SourceGenerators/BlockRendererGenerator.cs` | 761 | Already discovers block models from source; emits manifest + registry |
+| `src/Aero.Cms.Core/Blocks/BlockMartenConfiguration.cs` | 19 | Already uses `GeneratedBlockModelManifest` for Marten subclass hierarchy |
+| `src/Aero.Cms.Core/Blocks/Dynamic/` (8 files) | — | Full Scriban rendering pipeline already built and tested |
+
+**Key insight about Marten vs BlockSerializer:**
+- Marten's serialization pipeline (`SystemTextJsonSerializer`) does NOT use `BlockJsonContext.Default`. It uses its own runtime STJ serialization with no `TypeInfoResolver` set. Blocks in Marten are serialized via runtime `[JsonDerivedType]` reflection.
+- `BlockSerializer` (app layer) does use `BlockJsonContext.Default`. They are completely separate pipelines.
+- The `docs/marten-aot.md` spec (line 104-112) recommends injecting `TypeInfoResolver` into Marten. This was never done.
+
+---
+
+#### 7.5 Implementation Details
+
+**`BlockRendererGenerator.cs` extended (lines added: ~200):**
+
+The existing generator already discovered block models via `SyntaxProvider.ForAttributeWithMetadataName` (local source discovery). This was sufficient for `BlockBase.Polymorphic.g.cs` because `BlockBase` lives in `Aero.Cms.Abstractions` where the types are in source.
+
+A second pipeline was added using `CompilationProvider` for cross-assembly discovery (to discover block types from referenced DLLs). This pipeline is needed for the deferred `GeneratedBlockJsonContext` — when it's activated, the shim project needs to discover types that live in `Aero.Cms.Abstractions.dll`.
+
+Key structs added:
+- `DiscoveredBlockType` — carries `FullyQualifiedName`, `BlockType`, `DisplayName` for a block model
+- `CrossAssemblyBlockData` — carries both discovered types and the current assembly name (needed to filter output by project)
+
+Key methods added:
+- `CollectBlockTypes()` — recursive namespace walker for types with `[BlockMetadata]`
+- `IsDerivedFromBlockBase()` — traverses `BaseType` chain to check inheritance
+- `RenderBlockBasePolymorphic()` — emits `[JsonPolymorphic]` + `[JsonDerivedType]` on partial `BlockBase`
+- `RenderGeneratedContext()` — emits `[JsonSerializable]` + `JsonSourceGenerationOptions` on partial context
+
+**`ContentTypeGenerator.cs` created (345 lines):**
+
+New incremental source generator following the `BlockRendererGenerator` pattern:
+- `RegisterPostInitializationOutput` emits `[ContentType]` and `[ContentField]` attributes into every project
+- Pipeline 1: `ForAttributeWithMetadataName` discovers `[ContentType]`-decorated classes in source
+- Pipeline 2: `CompilationProvider` discovers content types from referenced assemblies
+- Output 1: `GeneratedContentTypes.g.cs` — static manifest with `ContentTypeDefinition` instances
+- Output 2: `GeneratedContentJsonContext.g.cs` — emits only when infrastructure types (ContentItem, etc.) exist
+
+**`BlockBase.cs` simplified:**
+```csharp
+// Before: 51 lines of attributes + 1 class declaration
+[JsonPolymorphic(...)]
+[JsonDerivedType(typeof(RichTextBlock), "rich_text")]
+// ... 33 more ...
+public abstract class BlockBase : Entity, IBlock { }
+
+// After: 1 class declaration (partial, no STJ attributes)
+public abstract partial class BlockBase : Entity, IBlock { }
+```
+
+**`Aero.Cms.Generated.Json` project created:**
+- References `Aero.Cms.SourceGenerators` as analyzer (inherits `Directory.Build.props` wiring)
+- References `Aero.Cms.Abstractions` for block types + `BlockJsonContext`
+- References `Aero.Cms.Core` for Marten configuration
+- Exposes `GeneratedMartenConfiguration.UseAeroGeneratedJsonContext()` extension method
+- No sources needed; all outputs come from source generators
+
+**Marten wiring (`ServerTargetSetupExecutor.cs`):**
+```csharp
+// Before: raw STJ options without TypeInfoResolver
+options.UseSystemTextJsonForSerialization(new JsonSerializerOptions
+{
+    AllowOutOfOrderMetadataProperties = true
+});
+
+// After: wraps BlockJsonContext.Default with AllowOutOfOrderMetadataProperties
+options.UseAeroGeneratedJsonContext();
+```
+
+---
+
+#### 7.6 Build Verification
+
+| Build Target | Errors | Notes |
+|-------------|--------|-------|
+| `Aero.Cms.Generated.Json` | 0 | Shim project compiles clean |
+| `Aero.Cms.Abstractions` | 0 | BlockBase partial works; generator emits BlockBase.Polymorphic.g.cs |
+| `Aero.Cms.Core` | 0 | BlockMartenConfiguration uses generated manifest |
+| `Aero.Cms.Modules.Setup` | 0 | New reference to shim project; Marten wiring compiled |
+| Full `Aero.Cms.slnx` (source projects) | 0 | All source projects compile |
+| Test project (`Aero.Cms.Core.Tests`) | 2 | Pre-existing (missing `ModuleDiscoveryService` — unrelated) |
+
+---
+
+#### 7.7 What Remains Deferred
+
+| Item | Blocked By | Trigger to Resume |
+|------|-----------|-------------------|
+| Emit `GeneratedBlockJsonContext` from generator | `dotnet/roslyn#57239` / `dotnet/runtime#124889` | Roslyn fixes generator chaining OR .NET ships `DefaultJsonSerializerContext` |
+| Delete `BlockJsonContext.cs` | Needs generated context first | Same as above |
+| Wire `BlockSerializer` to shim context | `BlockJsonContext.cs` still exists | Same as above |
+
+The `RenderGeneratedContext()` method and `crossAssemblyBlockData` pipeline remain in the generator, commented out, documented with the issue link. When resolved: uncomment the `spc.AddSource` call in `BlockRendererGenerator.Initialize`, verify the STJ generator produces the implementation, delete `BlockJsonContext.cs`, update `BlockSerializer.cs` and `GeneratedMartenConfiguration.cs` to reference `GeneratedBlockJsonContext.Default`.
+
+---
+
+#### 7.8 Files Created or Modified
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `docs/source-generator-chaining-limitation.md` | **Created** | Documents Roslyn limitation with issue citations |
+| `src/Aero.Cms.Generated.Json/Aero.Cms.Generated.Json.csproj` | **Created** | Shim project for dual-generator compilation |
+| `src/Aero.Cms.Generated.Json/GeneratedMartenConfiguration.cs` | **Created** | Marten wiring extension methods |
+| `src/Aero.Cms.SourceGenerators/BlockRendererGenerator.cs` | **Extended** | Cross-assembly discovery + BlockBase.Polymorphic emission |
+| `src/Aero.Cms.SourceGenerators/ContentTypeGenerator.cs` | **Created** | Content type discovery + attributes + manifest |
+| `src/Aero.Cms.Abstractions/Blocks/BlockBase.cs` | **Modified** | Made partial, removed 34 `[JsonDerivedType]` and `[JsonPolymorphic]` |
+| `src/Aero.Cms.Abstractions/Blocks/Serialization/BlockJsonContext.cs` | **Modified** | Changed `internal` → `public` for shim project access |
+| `src/Aero.Cms.Modules.Setup/ServerTargetSetupExecutor.cs` | **Modified** | Uses `UseAeroGeneratedJsonContext()` |
+| `src/Aero.Cms.Modules.Setup/Aero.Cms.Modules.Setup.csproj` | **Modified** | Added shim project reference |
+| `src/Aero.Cms.slnx` | **Modified** | Added shim project entry |
+
 ### Post-Spec Notes
 
 - `Page.cshtml` no longer renders a hard-coded page-level hero from `PageDocument.Title`, `Summary`, and `HeaderImageUrl`; pages now show hero/header content only when a block supplies it.
