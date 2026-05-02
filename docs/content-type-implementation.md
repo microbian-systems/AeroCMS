@@ -11,7 +11,39 @@ The content type system bridges two worlds:
 - **Developer-defined types**: C# entity classes + source generators → compile-time metadata
 - **Runtime-defined types**: Manager UI → database schema → runtime metadata
 
-Both converge on the same internal model and the same rendering pipeline.
+Both converge on the same rendering pipeline.
+
+> **📝 NOTE: ContentItem vs PageDocument — two models, one system**
+>
+> `PageDocument` and `ContentItem` are **not competing models**. They serve different
+> purposes and work together:
+>
+> | | `PageDocument` | `ContentItem` |
+> |---|---|---|
+> | **Purpose** | A **page** — layout, navigation, SEO, header/footer | **Structured data** — follows a runtime-defined schema |
+> | **Structure** | `LayoutRegions` → columns → block placements | `Dictionary<string, JsonElement>` field bag |
+> | **Typical use** | Homepage, landing page, blog listing | "Team Member" profile, "Product" entry, "Case Study" |
+> | **Has its own URL?** | Yes — resolved via slug | Optionally — if configured as standalone |
+> | **Edits via** | Block editor (drag-drop layout) | Form editor (fields defined by ContentTypeDefinition) |
+>
+> **How they compose:** A `PageDocument` uses blocks as its content. One of those
+> blocks — a `ContentEmbedBlock` — references a `ContentItem` by ID and renders
+> it inline. The page owns the layout; the content item owns the structured data.
+>
+> ```text
+> PageDocument "About Us"     ← has its own slug, layout, navigation
+> └── LayoutRegions
+>     ├── TextBlock: "Our mission is..."
+>     ├── ContentEmbedBlock ─────→ ContentItem "Alice" (ContentType: "team-member")
+>     │                                    ↑ schema defined at runtime
+>     ├── ContentEmbedBlock ─────→ ContentItem "Bob" (ContentType: "team-member")
+>     └── ImageBlock: "/team-photo.jpg"
+> ```
+>
+> The existing `DynamicPageModel` (`Areas/Cms/Pages/Page.cshtml.cs`) never touches
+> `ContentItem`. It continues to load `PageDocument` by slug and render it through
+> `LayoutRegionRenderer`. ContentItems are added to pages via blocks — they are
+> embedded data, not page replacements.
 
 ```
                         ┌─────────────────────────────┐
@@ -89,6 +121,12 @@ public sealed class ContentTypeDefinition : Entity
     /// The rendering mode: as a single dynamic block, or as individual block instances.
     /// </summary>
     public ContentTypeRenderMode RenderMode { get; set; } = ContentTypeRenderMode.DynamicBlock;
+
+    /// <summary>
+    /// Optional scheduling configuration. When null, scheduling is not available
+    /// for this content type.
+    /// </summary>
+    public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
 }
 
 public enum ContentTypeRenderMode
@@ -123,6 +161,17 @@ public sealed class ContentFieldDefinition
     /// <summary>Validation rules, editor hints, etc. consumed by FluentValidation + admin UI</summary>
     public Dictionary<string, object?> Settings { get; set; } = [];
 }
+
+/// <summary>
+/// Scheduling configuration for ContentTypeDefinition.
+/// When set, content items of this type can opt into scheduled publishing.
+/// </summary>
+public sealed record ContentTypeScheduleConfig
+{
+    public bool AllowScheduledPublish { get; init; }
+    public bool AllowScheduledUnpublish { get; init; }
+    public int? MaxPublishDelayDays { get; init; }
+}
 ```
 
 ### 2.2 ContentItem — the field bag
@@ -143,6 +192,15 @@ public sealed class ContentItem : Entity
 
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset? PublishedOn { get; set; }
+
+    /// <summary>Monotonically incremented on each save. 0 = unsaved.</summary>
+    public int VersionNumber { get; set; }
+
+    /// <summary>If set, schedule this item for publishing at the given time.</summary>
+    public DateTimeOffset? SchedulePublishUtc { get; set; }
+
+    /// <summary>If set, schedule this item for unpublishing at the given time.</summary>
+    public DateTimeOffset? ScheduleUnpublishUtc { get; set; }
 }
 ```
 
@@ -197,6 +255,58 @@ public sealed class FieldBlockInstance
     /// <summary>Optional overrides passed to the block renderer</summary>
     public Dictionary<string, JsonElement> Props { get; set; } = [];
 }
+```
+
+### 2.4 ContentEmbedBlock — embedding ContentItems in pages
+
+ContentItems are embedded inside PageDocument blocks, not rendered standalone.
+`ContentEmbedBlock` is a block type in the existing `BlockBase` hierarchy that
+references a ContentItem by ID and renders it inline.
+
+```csharp
+[BlockMetadata("content_embed", "Content Embed", Category = "Content")]
+[JsonDerivedType(typeof(ContentEmbedBlock), "content_embed")]
+public sealed class ContentEmbedBlock : BlockBase
+{
+    public const string Discriminator = "content_embed";
+    public override string BlockType => Discriminator;
+
+    /// <summary>The ContentItem to render.</summary>
+    public long ContentItemId { get; set; }
+
+    /// <summary>
+    /// Which rendering path to use: DynamicBlock (Scriban) or
+    /// BlockLayout (individual block instances per field).
+    /// </summary>
+    public ContentTypeRenderMode RenderMode { get; set; } = ContentTypeRenderMode.DynamicBlock;
+
+    /// <summary>
+    /// Optional per-field override mappings.
+    /// When set, only these fields are rendered using the specified component aliases,
+    /// instead of the default field-to-block mapping.
+    /// </summary>
+    public List<ContentEmbedFieldMapping>? FieldOverrides { get; set; }
+}
+
+public sealed record ContentEmbedFieldMapping(
+    string FieldName,
+    string ComponentAlias,
+    Dictionary<string, JsonElement>? Props = null
+);
+```
+
+**What it is not:** ContentEmbedBlock is not a page, not a layout, and not a
+replacement for `PageDocument`. It is one block among many in the block hierarchy.
+
+**Placement in PageDocument:**
+
+```
+PageDocument "About Us"
+└── LayoutRegions
+    ├── HeroBlock
+    ├── ContentEmbedBlock ──→ ContentItem "Alice" (team-member)
+    ├── ContentEmbedBlock ──→ ContentItem "Bob"   (team-member)
+    └── TextBlock
 ```
 
 ---
@@ -402,6 +512,68 @@ public sealed class ContentTypeDynamicBlockBridge(
 }
 ```
 
+### 3.4 ContentEmbedBlock renderer integration
+
+The `ContentEmbedBlockRenderer` bridges the block system to the content type
+system at render time.
+
+```csharp
+[CmsBlockRenderer(typeof(ContentEmbedBlock))]
+public sealed class ContentEmbedBlockRenderer : IBlockRenderer
+{
+    public string ComponentAlias => "content_embed";
+
+    public async ValueTask<string> RenderAsync(
+        BlockRenderContext context,
+        CancellationToken ct = default)
+    {
+        var block = (ContentEmbedBlock)context.Block;
+
+        // 1. Load the ContentItem by ID
+        var contentService = context.Services.GetRequiredService<IContentService>();
+        var itemResult = await contentService.LoadAsync(block.ContentItemId, ct);
+        if (itemResult is Result<ContentItem, AeroError>.Failure)
+            return "";
+
+        var item = ((Result<ContentItem, AeroError>.Ok)itemResult).Value;
+
+        // 2. Load the ContentTypeDefinition
+        var typeService = context.Services.GetRequiredService<IContentTypeService>();
+        var typeResult = await typeService.GetByAliasAsync(item.SiteId, item.ContentTypeAlias, ct);
+        if (typeResult is Result<ContentTypeDefinition, AeroError>.Failure)
+            return "";
+
+        // 3. Bridge to DynamicTemplateBlock
+        var bridge = context.Services.GetRequiredService<IContentTypeRenderingBridge>();
+        var blockResult = await bridge.ToDynamicBlockAsync(
+            ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value,
+            item, ct);
+        if (blockResult is Result<DynamicTemplateBlock, AeroError>.Failure)
+            return "";
+
+        var dynamicBlock = ((Result<DynamicTemplateBlock, AeroError>.Ok)blockResult).Value;
+
+        // 4. Render through Scriban
+        var scriban = context.Services.GetRequiredService<ISecureScribanRenderer>();
+        var definitionResult = await bridge.GetDefinitionAsync(
+            ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value, ct);
+        if (definitionResult is Result<DynamicBlockDefinition, AeroError>.Failure)
+            return "";
+
+        var definition = ((Result<DynamicBlockDefinition, AeroError>.Ok)definitionResult).Value;
+        var htmlResult = await scriban.RenderAsync(definition, dynamicBlock.Data, ct);
+        if (htmlResult is Result<string, AeroError>.Failure)
+            return "";
+
+        return ((Result<string, AeroError>.Ok)htmlResult).Value;
+    }
+}
+```
+
+**Key point:** The renderer resolves services via `context.Services` at render
+time (not constructor injection). This is intentional — block renderers are
+registered as singletons; content type services are scoped per request.
+
 ---
 
 ## 4. Rendering Pipeline
@@ -429,9 +601,25 @@ DynamicTemplateBlockRenderer (existing Blazor component)
     → HTML output
 ```
 
-**Minimal API endpoint:**
+**Rendering integration:**
+
+ContentItems are **typically embedded inside PageDocument blocks** — the existing
+`DynamicPageModel` + `Page.cshtml` pipeline never needs to change.
+
+If you also want ContentItems to have their own public URLs (e.g. a standalone
+team member profile at `/team/alice`), register a second route that acts as a
+**fallback** when no PageDocument matches the slug:
 
 ```csharp
+// Option: separate routes with ASP.NET route precedence
+app.MapGet("/{slug}", GetPageBySlug);           // existing — PageDocument, higher priority
+app.MapGet("/{**slug}", GetContentBySlug);      // new — ContentItem catch-all, lower priority
+```
+
+```csharp
+// Standalone ContentItem URL handler — only registered if ContentItems
+// need their own public URLs. Otherwise, ContentItems are embedded in
+// PageDocument blocks and the existing DynamicPageModel handles everything.
 app.MapGet("/{**slug}", async (
     string? slug,
     IContentService contentService,
@@ -452,19 +640,21 @@ app.MapGet("/{**slug}", async (
         return Results.Problem($"Content type '{content.ContentTypeAlias}' not found.");
 
     var type = ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value;
-
     var blockResult = await bridge.ToDynamicBlockAsync(type, content, ct);
     if (blockResult is Result<DynamicTemplateBlock, AeroError>.Failure fail)
         return Results.Problem(fail.Error.Message);
 
     var block = ((Result<DynamicTemplateBlock, AeroError>.Ok)blockResult).Value;
+    var definitionResult = await bridge.GetDefinitionAsync(type, ct);
+    if (definitionResult is Result<DynamicBlockDefinition, AeroError>.Failure defFail)
+        return Results.Problem(defFail.Error.Message);
 
+    var definition = ((Result<DynamicBlockDefinition, AeroError>.Ok)definitionResult).Value;
     var htmlResult = await scribanRenderer.RenderAsync(definition, block.Data, ct);
     if (htmlResult is Result<string, AeroError>.Failure renderFail)
         return Results.Problem(renderFail.Error.Message);
 
-    var html = ((Result<string, AeroError>.Ok)htmlResult).Value;
-    return Results.Content(html, "text/html");
+    return Results.Content(((Result<string, AeroError>.Ok)htmlResult).Value, "text/html");
 });
 ```
 
@@ -1133,12 +1323,25 @@ opts.Schema.For<ContentItem>()
 ### 8.3 Save / publish command service
 
 Validation guards every write. Draft saves use relaxed validation; publish
-uses strict validation.
+uses strict validation. Publishing snapshots the current version for history.
 
 ```csharp
+public interface IContentService
+{
+    Task<Result<ContentItem, AeroError>> LoadAsync(long id, CancellationToken ct = default);
+    Task<Result<ContentItem, AeroError>> GetBySlugAsync(
+        long siteId, string slug, CancellationToken ct = default);
+    Task<Result<ContentItem, AeroError>> SaveAsync(
+        ContentItem item, CancellationToken ct = default);
+    Task<bool> ExistsAsync(long id, CancellationToken ct = default);
+    Task<Result<bool, AeroError>> DeleteAsync(
+        long id, CancellationToken ct = default);
+}
+
 public sealed class ContentCommandService(
     ContentValidationService validation,
-    IContentService contentService)
+    IContentService contentService,
+    IDocumentSession session)
 {
     public async Task<Result<ContentItem, IReadOnlyList<ValidationFailure>>> SaveDraftAsync(
         ContentItem item, CancellationToken ct = default)
@@ -1147,6 +1350,7 @@ public sealed class ContentCommandService(
         if (result is Result<ContentItem, IReadOnlyList<ValidationFailure>>.Failure f)
             return f.Error;
 
+        item.VersionNumber++;
         return await contentService.SaveAsync(item, ct);
     }
 
@@ -1157,10 +1361,226 @@ public sealed class ContentCommandService(
         if (result is Result<ContentItem, IReadOnlyList<ValidationFailure>>.Failure f)
             return f.Error;
 
+        // Snapshot the current published state before overwriting
+        if (item.PublicationState == ContentPublicationState.Published)
+        {
+            session.Store(new ContentItemVersion
+            {
+                ContentItemId = item.Id,
+                VersionNumber = item.VersionNumber,
+                Fields = item.Fields,
+                CreatedUtc = DateTimeOffset.UtcNow
+            });
+        }
+
+        item.VersionNumber++;
         item.PublicationState = ContentPublicationState.Published;
         item.PublishedOn = DateTimeOffset.UtcNow;
 
         return await contentService.SaveAsync(item, ct);
+    }
+
+    public async Task<Result<bool, IReadOnlyList<ValidationFailure>>> DeleteAsync(
+        long id, CancellationToken ct = default)
+    {
+        // Safety check: is this ContentItem referenced by any ContentEmbedBlock?
+        var referencingBlocks = await session.Query<PageDocument>()
+            .Where(p => p.LayoutRegions
+                .SelectMany(r => r.Columns)
+                .SelectMany(c => c.Blocks)
+                .Any(b => b.BlockType == ContentEmbedBlock.Discriminator
+                       && b.ContentItemId == id))
+            .CountAsync(ct);
+
+        if (referencingBlocks > 0)
+        {
+            return new List<ValidationFailure>
+            {
+                new("", $"Cannot delete: referenced by {referencingBlocks} block(s). Remove references first.")
+            };
+        }
+
+        return await contentService.DeleteAsync(id, ct);
+    }
+}
+```
+
+#### Version history document
+
+```csharp
+public sealed class ContentItemVersion : Entity
+{
+    public long ContentItemId { get; set; }
+    public int VersionNumber { get; set; }
+    public Dictionary<string, JsonElement> Fields { get; set; } = [];
+    public DateTimeOffset CreatedUtc { get; set; }
+}
+```
+
+```csharp
+opts.Schema.For<ContentItemVersion>()
+    .DocumentAlias("content_item_versions")
+    .Index(x => x.ContentItemId);
+```
+
+#### Scheduling evaluation (background job)
+
+A recurring job (via Wolverine or TickerQ) evaluates scheduled items:
+
+```csharp
+public sealed class ScheduledPublishHandler(IContentService contentService)
+{
+    public async Task Handle(ScheduledPublishEvaluation command, CancellationToken ct)
+    {
+        // Find items due for publish
+        var dueItems = await session.Query<ContentItem>()
+            .Where(i => i.SchedulePublishUtc <= DateTimeOffset.UtcNow
+                     && i.PublicationState == ContentPublicationState.Draft)
+            .ToListAsync(ct);
+
+        foreach (var item in dueItems)
+        {
+            item.PublicationState = ContentPublicationState.Published;
+            item.PublishedOn = DateTimeOffset.UtcNow;
+            item.SchedulePublishUtc = null;
+            await contentService.SaveAsync(item, ct);
+        }
+
+        // Find items due for unpublish
+        var dueUnpublish = await session.Query<ContentItem>()
+            .Where(i => i.ScheduleUnpublishUtc <= DateTimeOffset.UtcNow
+                     && i.PublicationState == ContentPublicationState.Published)
+            .ToListAsync(ct);
+
+        foreach (var item in dueUnpublish)
+        {
+            item.PublicationState = ContentPublicationState.Draft;
+            item.ScheduleUnpublishUtc = null;
+            await contentService.SaveAsync(item, ct);
+        }
+    }
+}
+```
+
+---
+
+### 8.4 Content query service
+
+A query abstraction for listing and filtering ContentItems by content type.
+
+```csharp
+public interface IContentQueryService
+{
+    /// <summary>Paginated listing of content items by type.</summary>
+    Task<Result<(IReadOnlyList<ContentItem> Items, long TotalCount), AeroError>> GetByTypeAsync(
+        long siteId,
+        string contentTypeAlias,
+        int skip = 0,
+        int take = 20,
+        CancellationToken ct = default);
+
+    /// <summary>Simple field-filtered search.</summary>
+    Task<Result<IReadOnlyList<ContentItem>, AeroError>> SearchAsync(
+        long siteId,
+        string contentTypeAlias,
+        Dictionary<string, string> fieldFilters,
+        CancellationToken ct = default);
+}
+```
+
+Marten implementation uses the document identity and computed indexes:
+
+```csharp
+public sealed class MartenContentQueryService(IDocumentSession session) : IContentQueryService
+{
+    public async Task<Result<(IReadOnlyList<ContentItem>, long), AeroError>> GetByTypeAsync(
+        long siteId, string alias, int skip, int take, CancellationToken ct)
+    {
+        var query = session.Query<ContentItem>()
+            .Where(x => x.SiteId == siteId && x.ContentTypeAlias == alias);
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .Skip(skip).Take(take)
+            .OrderByDescending(x => x.PublishedOn ?? x.CreatedOn)
+            .ToListAsync(ct);
+
+        return Prelude.Ok<ContentItem, AeroError>((items, total).AsTuple()!);
+    }
+
+    public async Task<Result<IReadOnlyList<ContentItem>, AeroError>> SearchAsync(
+        long siteId, string alias, Dictionary<string, string> filters, CancellationToken ct)
+    {
+        var query = session.Query<ContentItem>()
+            .Where(x => x.SiteId == siteId && x.ContentTypeAlias == alias);
+
+        foreach (var (field, value) in filters)
+        {
+            query = query.Where(x =>
+                x.Fields[field].ValueKind == System.Text.Json.JsonValueKind.String &&
+                x.Fields[field].GetString()!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var items = await query
+            .OrderByDescending(x => x.PublishedOn ?? x.CreatedOn)
+            .ToListAsync(ct);
+
+        return Prelude.Ok<ContentItem, AeroError>((IReadOnlyList<ContentItem>)items);
+    }
+}
+```
+
+**Usage from a page block (e.g. team listing):**
+
+A `TeamListingBlock` uses the query service at render time to fetch and iterate
+over all ContentItems of a given type:
+
+```csharp
+[BlockMetadata("team_listing", "Team Listing", Category = "Content")]
+public sealed class TeamListingBlock : BlockBase { ... }
+
+public sealed class TeamListingRenderer : IBlockRenderer
+{
+    public string ComponentAlias => "team_listing";
+
+    public async ValueTask<string> RenderAsync(BlockRenderContext context, CancellationToken ct)
+    {
+        var query = context.Services.GetRequiredService<IContentQueryService>();
+        var bridge = context.Services.GetRequiredService<IContentTypeRenderingBridge>();
+        var scriban = context.Services.GetRequiredService<ISecureScribanRenderer>();
+        var typeService = context.Services.GetRequiredService<IContentTypeService>();
+
+        var siteId = context.Get<long>(/* from page context */);
+
+        var result = await query.GetByTypeAsync(siteId, "team-member", 0, 50, ct);
+        if (result is Result<(IReadOnlyList<ContentItem>, long), AeroError>.Failure f)
+            return "";
+
+        var (members, _) = ((Result<(IReadOnlyList<ContentItem>, long), AeroError>.Ok)result).Value;
+
+        var html = new StringBuilder();
+        foreach (var member in members)
+        {
+            var typeResult = await typeService.GetByAliasAsync(siteId, member.ContentTypeAlias, ct);
+            if (typeResult is Result<ContentTypeDefinition, AeroError>.Failure) continue;
+
+            var blockResult = await bridge.ToDynamicBlockAsync(
+                ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value, member, ct);
+            if (blockResult is Result<DynamicTemplateBlock, AeroError>.Failure) continue;
+
+            var dynBlock = ((Result<DynamicTemplateBlock, AeroError>.Ok)blockResult).Value;
+            var defResult = await bridge.GetDefinitionAsync(
+                ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value, ct);
+            if (defResult is Result<DynamicBlockDefinition, AeroError>.Failure) continue;
+
+            var htmlResult = await scriban.RenderAsync(
+                ((Result<DynamicBlockDefinition, AeroError>.Ok)defResult).Value,
+                dynBlock.Data, ct);
+            if (htmlResult is Result<string, AeroError>.Ok ok)
+                html.AppendLine(ok.Value);
+        }
+
+        return $"<div class=\"team-grid\">{html}</div>";
     }
 }
 ```
@@ -1169,40 +1589,51 @@ public sealed class ContentCommandService(
 
 ## 9. Module Registration
 
-Add to the existing `IAeroModule` interface (one new method):
+The codebase already has the hooks. No new methods on `IAeroModule` are needed.
+
+### 9.1 Existing hooks
 
 ```csharp
+// Already exists — IAeroModule.cs
 public interface IAeroModule
 {
+    void Configure(IAeroModuleBuilder builder);   // ← use this
     void ConfigureServices(IServiceCollection services, ...);
-    void Configure(IServiceProvider services, StoreOptions opts);
-    void ConfigureMarten(StoreOptions opts);
-
-    // New:
-    void ConfigureContentTypes(ContentTypeRegistry registry);
+    // ...
 }
+
+// Already exists — IModuleBuilder.cs  
+public interface IAeroModuleBuilder
+{
+    void AddContentType(string contentType);       // ← use this
+    void AddContentPart<TPart>() where TPart : class, IContentPart;
+    void AddFieldEditor<TEditor>() where TEditor : class, IFieldEditor;
+    // ...
+}
+
+// Already exists — IAeroModule.cs:120
+public interface IContentDefinitionModule : IAeroModule { }  // ← implement this
 ```
 
-Module example:
+We fill in the empty marker interfaces (`IContentPart`, `IFieldEditor`) with real
+implementations and register content types through the existing builder.
+
+### 9.2 Module example
 
 ```csharp
 [Module(nameof(MarketingModule))]
-public sealed class MarketingModule : AeroModuleBase
+public sealed class MarketingModule : AeroModuleBase, IContentDefinitionModule
 {
     public override void ConfigureServices(IServiceCollection services, ...)
     {
-        // Field rendering (template snippets)
-        services.AddSingleton<IFieldTemplateSnippet, TextFieldSnippet>();
-        services.AddSingleton<IFieldTemplateSnippet, ImageFieldSnippet>();
-
-        // Field validation
+        // Fields (editors, validators, template snippets)
+        services.AddSingleton<IContentFieldEditor, TextFieldEditor>();
+        services.AddSingleton<IContentFieldEditor, ReferenceFieldEditor>();
         services.AddSingleton<IContentFieldValidator, TextFieldValidator>();
         services.AddSingleton<IContentFieldValidator, NumberFieldValidator>();
         services.AddSingleton<IContentFieldValidator, ReferenceFieldValidator>();
-
-        // Field editors (admin UI)
-        services.AddSingleton<IContentFieldEditor, TextFieldEditor>();
-        services.AddSingleton<IContentFieldEditor, ReferenceFieldEditor>();
+        services.AddSingleton<IFieldTemplateSnippet, TextFieldSnippet>();
+        services.AddSingleton<IFieldTemplateSnippet, ImageFieldSnippet>();
 
         // Async validators
         services.AddSingleton<IAsyncContentValidator, ReferenceExistenceValidator>();
@@ -1211,20 +1642,24 @@ public sealed class MarketingModule : AeroModuleBase
         services.AddSingleton<IBlockRenderer, HeroBlockRenderer>();
     }
 
-    public override void ConfigureContentTypes(ContentTypeRegistry registry)
+    public override void Configure(IAeroModuleBuilder builder)
     {
-        registry.Register(new ContentTypeDefinition
-        {
-            Alias = "landing-page",
-            Name = "Landing Page",
-            Fields =
-            {
-                new() { Name = "HeroTitle", FieldType = "text", Required = true },
-                new() { Name = "HeroImage", FieldType = "image" },
-                new() { Name = "CallToActionUrl", FieldType = "url" }
-            }
-        });
+        // Register content types through the existing builder API
+        builder.AddContentType("landing-page");
+        builder.AddFieldEditor<TextFieldEditor>();
+        builder.AddFieldEditor<ReferenceFieldEditor>();
     }
+}
+```
+
+Content types can also be registered imperatively:
+
+```csharp
+public override void Configure(IAeroModuleBuilder builder)
+{
+    builder.AddContentType("blog-post");
+    builder.AddContentType("case-study");
+    builder.AddContentType("doctor-profile");
 }
 ```
 
@@ -1242,8 +1677,9 @@ public sealed class MarketingModule : AeroModuleBase
 | `CmsBlockRenderRegistry` | For BlockLayout mode — dispatches block instances |
 | `BlockRendererGenerator` | Pattern to follow for `ContentTypeGenerator` |
 | `BlockJsonContext` | AOT-safe JSON serialization context |
-| `IAeroModuleBuilder` | Registration surface for content types, parts, editors |
-| `IAeroModule` | Module lifecycle — add `ConfigureContentTypes` |
+| `IAeroModuleBuilder` | Registration surface — `AddContentType()`, `AddFieldEditor()`, `AddContentPart()` already exist |
+| `IAeroModule` | Module lifecycle — `Configure(IAeroModuleBuilder)` already virtual on `AeroModuleBase` |
+| `IContentDefinitionModule` | Marker interface for content-type modules — already exists |
 | `ContentSlugDocument` | Slug uniqueness enforcement |
 | `FluentValidation` | Validation of schemas and content — `AbstractValidator<>`, `Custom` method |
 | `Marten` `IDocumentSession` | Querying content types, content items, dynamic block definitions |
@@ -1570,7 +2006,414 @@ The page renderer prepends and appends global blocks around the page's own block
 
 ---
 
-## 12. Summary
+## 12. Integration with Existing Codebase
+
+This design is ~95% additive. The existing codebase does not need to be restructured.
+
+### 12.1 What's already there (found during codebase analysis)
+
+| Existing artifact | File | How it's used |
+|-------------------|------|---------------|
+| `IAeroModule.Configure(IAeroModuleBuilder)` | `Aero/src/Aero.Modular/IAeroModule.cs:66` | Modules register content types, field editors, content parts |
+| `IAeroModuleBuilder.AddContentType(string)` | `Aero/src/Aero.Modular/IModuleBuilder.cs:35` | Exists — fill with `ContentTypeDefinition` metadata |
+| `IAeroModuleBuilder.AddContentPart<TPart>()` | `IModuleBuilder.cs:40` | Exists as empty marker — implement `IContentPart` |
+| `IAeroModuleBuilder.AddFieldEditor<TEditor>()` | `IModuleBuilder.cs:45` | Exists — implement `IContentFieldEditor` |
+| `IContentDefinitionModule : IAeroModule` | `Aero/src/Aero.Modular/IAeroModule.cs:120` | Marker for content-type modules — implement it |
+| `AeroModuleBase.Configure(IAeroModuleBuilder)` | `Aero/src/Aero.Modular/AeroModuleBase.cs:53` | Virtual — override in modules |
+| `PageRouteHandler.MapPageRoutes()` | `Pages/PageRouteHandler.cs:15` | Existing `GET /{slug}` for `PageDocument` |
+| `IPageContentService.FindBySlugAsync()` | `Pages/PageContentService.cs:21` | Existing page resolution |
+| `ContentSlugDocument` | `Pages/SlugRegistry.cs:13` | Slug uniqueness — add `ContentItem = 3` to `ContentSlugOwnerType` |
+| `BlockBase` hierarchy | `Abstractions/Blocks/BlockBase.cs` | Unchanged — `ContentItem` is parallel, not replacement |
+| `DynamicTemplateBlock` | `Abstractions/Blocks/Common/DynamicTemplateBlock.cs` | Unchanged — receives bridged data |
+| `DynamicBlockDefinition` | `Core/Blocks/Dynamic/DynamicBlockDefinition.cs` | Unchanged — auto-generated templates stored here |
+| `ISecureScribanRenderer` | `Core/Blocks/Dynamic/ISecureScribanRenderer.cs` | Unchanged — renders bridged templates |
+| `BlockRendererGenerator` | `SourceGenerators/BlockRendererGenerator.cs` | Pattern to follow for `ContentTypeGenerator` |
+
+### 12.2 Integration points that need a small change
+
+Only **one enum value** and **two route registrations** touch existing code:
+
+```csharp
+// 1. ContentSlugDocument.cs — add one value
+public enum ContentSlugOwnerType
+{
+    Page = 0,
+    BlogPost = 1,
+    Custom = 2,
+    ContentItem = 3   // ← new
+}
+```
+
+```csharp
+// 2. PageRouteHandler.cs — add ContentItem fallback in the handler,
+//    OR register a separate catch-all route that ASP.NET routing
+//    automatically prioritizes below the existing /{slug} route.
+//    See §4.1 for both options.
+```
+
+```csharp
+// 3. Marten StoreOptions — add schema configs (additive, not breaking)
+opts.Schema.For<ContentTypeDocument>()
+    .Identity(x => x.Id)
+    .DocumentAlias("content_type_definitions")
+    .Index(x => x.SiteId);
+
+opts.Schema.For<ContentItem>()
+    .DocumentAlias("content_items")
+    .Index(x => x.SiteId)
+    .Index(x => x.Slug)
+    .Index(x => x.ContentTypeAlias);
+```
+
+### 12.3 What requires zero changes
+
+- `PageDocument` — unchanged, block-based pages continue working
+- `BlogPostDocument` — unchanged (can optionally add `[ContentType]` attribute later)
+- `BlockBase` and all 20+ derived block types — unchanged
+- `CmsBlockRenderRegistry` — unchanged
+- `BlockRenderer.razor` — unchanged
+- `DynamicTemplateBlockRenderer` — unchanged
+- `IAeroModule` / `AeroModuleBase` — no new methods needed
+- `IPageContentService` — unchanged
+- `Wolverine` event sourcing — unchanged
+- `Orleans` service layer — unchanged
+
+### 12.4 How modules compose
+
+```
+AeroModuleBase (existing)
+    │
+    ├── ConfigureServices()  ← register IContentFieldValidator, IContentFieldEditor, etc.
+    ├── Configure(builder)   ← builder.AddContentType("alias"), builder.AddFieldEditor<T>()
+    └── Configure(opts)      ← opts.Schema.For<ContentTypeDocument>() (per module if needed)
+
+IContentDefinitionModule : IAeroModule (existing marker)
+    └── implement this on content-type modules
+```
+
+No new lifecycle methods. No new interfaces on `IAeroModule`. No breaking changes to
+existing modules.
+
+### 12.5 Route resolution flow
+
+ContentItems are **typically embedded inside PageDocument blocks**. The
+existing `DynamicPageModel` + `Page.cshtml` pipeline handles this without
+any changes:
+
+```
+Request: GET /about-us
+    │
+    ▼
+DynamicPageModel.OnGetAsync(?Slug=about-us)
+    → IPageContentService.FindBySlugAsync("about-us")
+    → PageDocument found? → render Page.cshtml with LayoutRegions
+        │                        ↓
+        │                 Block placements include ContentEmbedBlock
+        │                 that references ContentItem by ID
+        │                        ↓
+        │                 ContentEmbedBlockRenderer fetches ContentItem
+        │                 → bridge → DynamicTemplateBlock → Scriban → HTML
+        │
+    → not found → 404
+```
+
+A standalone `GET /{**slug}` route for ContentItem is optional — only needed
+if you want structured content to have its own public URL (e.g.
+`/team/alice` renders a "team-member" ContentItem directly). In that case,
+register it as a catch-all with lower precedence than the existing
+`/{slug}` route.
+
+### 12.6 Summary of integration surface
+
+```
+Integration point              Change type
+─────────────────────────────────────────────────
+ContentTypeDefinition          New (additive)
+ContentItem : Entity           New (additive)
+ContentTypeDocument (Marten)   New (additive)
+IContentFieldValidator         New (additive)
+IAsyncContentValidator         New (additive)
+IContentFieldEditor            New (fills existing IFieldEditor marker)
+DynamicContentValidator        New (additive)
+ContentValidationService       New (additive)
+ContentCommandService          New (additive)
+ContentTypeGenerator (src gen) New (additive)
+IModuleBuilder usage           Existing — already has the hooks
+IAeroModule usage              Existing — Configure(builder) already virtual
+IContentDefinitionModule       Existing — just implement it
+PageRouteHandler               Small change: add fallback OR separate route
+ContentSlugOwnerType           Add 1 enum value
+Marten StoreOptions            Add 3 schema configs
+PageDocument                   Zero changes
+BlockBase hierarchy            Zero changes
+DynamicTemplateBlock           Zero changes
+ISecureScribanRenderer         Zero changes
+```
+
+> **95% additive. 5% extension (routes, slug enum, Marten config). Zero breaking changes.**
+
+---
+
+## 14. Search Indexing
+
+ContentItems have structured fields. Each field type should contribute its value
+to the search index for site-wide or content-type-scoped search.
+
+### 14.1 Field indexer interface
+
+```csharp
+/// <summary>
+/// Contributes field values to the search index.
+/// Registered per field type via DI.
+/// </summary>
+public interface IContentFieldIndexer
+{
+    string FieldType { get; }
+
+    /// <summary>
+    /// Returns one or more text tokens to index from this field's value.
+    /// </summary>
+    IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value);
+}
+```
+
+### 14.2 Concrete indexers
+
+```csharp
+public sealed class TextFieldIndexer : IContentFieldIndexer
+{
+    public string FieldType => "text";
+
+    public IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.String)
+            yield return value.GetString() ?? "";
+    }
+}
+
+public sealed class RichTextFieldIndexer : IContentFieldIndexer
+{
+    public string FieldType => "richtext";
+
+    public IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.String)
+        {
+            // Strip HTML tags before indexing
+            var text = System.Text.RegularExpressions.Regex.Replace(
+                value.GetString() ?? "", "<[^>]*>", "");
+            yield return text;
+        }
+    }
+}
+
+public sealed class ReferenceFieldIndexer : IContentFieldIndexer
+{
+    public string FieldType => "reference";
+
+    public IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value)
+    {
+        // References contribute the referenced item's title to the parent index.
+        // This lookup is handled by the search service, not the indexer.
+        // The indexer yields the raw ID for cross-reference indexing.
+        if (value.ValueKind == JsonValueKind.String)
+            yield return value.GetString() ?? "";
+    }
+}
+```
+
+### 14.3 Index document
+
+When a ContentItem is saved, its field values are extracted into a search index
+document. The existing search infrastructure (documented in `docs/07_search_indexing.md`)
+consumes these documents.
+
+```csharp
+public sealed class ContentSearchDocument
+{
+    public string Id { get; set; } = string.Empty;  // "content:{siteId}:{contentItemId}"
+    public long SiteId { get; set; }
+    public long ContentItemId { get; set; }
+    public string ContentTypeAlias { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>Concatenated tokens from all indexed fields.</summary>
+    public string FullText { get; set; } = string.Empty;
+
+    /// <summary>Per-field tokens for faceted search.</summary>
+    public Dictionary<string, List<string>> FieldTokens { get; set; } = [];
+}
+```
+
+### 14.4 Index population
+
+The `ContentCommandService.SaveAsync/ PublishAsync` trigger index update:
+
+```csharp
+public sealed class ContentIndexService(
+    IEnumerable<IContentFieldIndexer> indexers,
+    IContentTypeService typeService)
+{
+    public async Task<ContentSearchDocument> BuildIndexAsync(
+        ContentItem item, CancellationToken ct = default)
+    {
+        var typeResult = await typeService.GetByAliasAsync(item.SiteId, item.ContentTypeAlias, ct);
+        if (typeResult is Result<ContentTypeDefinition, AeroError>.Failure)
+            return new ContentSearchDocument { Id = $"content:{item.SiteId}:{item.Id}" };
+
+        var type = ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value;
+        var lookup = indexers.ToDictionary(x => x.FieldType, StringComparer.OrdinalIgnoreCase);
+
+        var doc = new ContentSearchDocument
+        {
+            Id = $"content:{item.SiteId}:{item.Id}",
+            SiteId = item.SiteId,
+            ContentItemId = item.Id,
+            ContentTypeAlias = item.ContentTypeAlias,
+            Slug = item.Slug,
+            Title = item.Title ?? ""
+        };
+
+        foreach (var field in type.Fields)
+        {
+            if (!item.Fields.TryGetValue(field.Name, out var element)) continue;
+            if (!lookup.TryGetValue(field.FieldType, out var indexer)) continue;
+
+            var tokens = indexer.GetIndexTokens(field, element).ToList();
+            doc.FieldTokens[field.Name] = tokens;
+            doc.FullText += string.Join(" ", tokens) + " ";
+        }
+
+        return doc;
+    }
+}
+```
+
+### 14.5 Module registration
+
+```csharp
+services.AddSingleton<IContentFieldIndexer, TextFieldIndexer>();
+services.AddSingleton<IContentFieldIndexer, RichTextFieldIndexer>();
+services.AddSingleton<IContentFieldIndexer, ReferenceFieldIndexer>();
+```
+
+---
+
+## 15. Walkthrough: Building a Custom Field Type
+
+This section walks through adding a **color** field type end-to-end. The color
+picker stores a hex value like `#FF6600`.
+
+### 15.1 Editor
+
+```csharp
+public sealed class ColorFieldEditor : IContentFieldEditor
+{
+    public string FieldType => "color";
+    public string EditorComponent => "aero-color-picker";
+    public object? Normalize(object? value) =>
+        value?.ToString()?.TrimStart('#').ToUpperInvariant();
+}
+```
+
+### 15.2 Validator
+
+```csharp
+public sealed class ColorFieldValidator : IContentFieldValidator
+{
+    private static readonly System.Text.RegularExpressions.Regex HexRegex =
+        new("^[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
+
+    public string FieldType => "color";
+
+    public void ValidateElement(
+        ContentFieldDefinition field,
+        JsonElement element,
+        ContentValidationMode mode,
+        ValidationContext<ContentItem> context)
+    {
+        if (element.ValueKind != JsonValueKind.String)
+        {
+            context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be a hex color.");
+            return;
+        }
+
+        var value = element.GetString()?.TrimStart('#') ?? "";
+        if (!HexRegex.IsMatch(value))
+        {
+            context.AddFailure(field.Name,
+                $"{field.Label ?? field.Name} must be a valid hex color (e.g. #FF6600).");
+        }
+    }
+}
+```
+
+### 15.3 Scriban template snippet
+
+```csharp
+public sealed class ColorFieldSnippet : IFieldTemplateSnippet
+{
+    public string FieldType => "color";
+
+    public string Render(ContentFieldDefinition field) => $$"""
+    {{ if block.{{field.Name}} }}
+    <span class="aero-swatch" style="background-color: #{{ block.{{field.Name}} }}"></span>
+    {{ end }}
+    """;
+}
+```
+
+### 15.4 Search indexer
+
+```csharp
+public sealed class ColorFieldIndexer : IContentFieldIndexer
+{
+    public string FieldType => "color";
+
+    public IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.String)
+            yield return value.GetString() ?? "";
+    }
+}
+```
+
+### 15.5 Module registration
+
+```csharp
+public sealed class ColorFieldModule : AeroModuleBase
+{
+    public override void ConfigureServices(IServiceCollection services, ...)
+    {
+        services.AddSingleton<IContentFieldEditor, ColorFieldEditor>();
+        services.AddSingleton<IContentFieldValidator, ColorFieldValidator>();
+        services.AddSingleton<IFieldTemplateSnippet, ColorFieldSnippet>();
+        services.AddSingleton<IContentFieldIndexer, ColorFieldIndexer>();
+    }
+
+    public override void Configure(IAeroModuleBuilder builder)
+    {
+        builder.AddFieldEditor<ColorFieldEditor>();
+    }
+}
+```
+
+### 15.6 What was added
+
+| Interface | File | Purpose |
+|-----------|------|---------|
+| `IContentFieldEditor` | `ColorFieldEditor.cs` | Admin UI — color picker component |
+| `IContentFieldValidator` | `ColorFieldValidator.cs` | Sync validation — hex format check |
+| `IFieldTemplateSnippet` | `ColorFieldSnippet.cs` | Scriban rendering — swatch element |
+| `IContentFieldIndexer` | `ColorFieldIndexer.cs` | Search — color hex value |
+
+No reflection. No runtime code generation. Every integration point is a
+DI-registered service keyed by a `FieldType` string.
+
+---
+
+## 16. Summary
 
 ```
 Runtime path:
