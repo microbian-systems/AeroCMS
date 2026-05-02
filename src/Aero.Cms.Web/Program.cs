@@ -287,11 +287,10 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     // (resolved from DI) can persist module state without reflection.
     services.AddSingleton(GeneratedAeroModuleCatalog.Descriptors);
 
-    // Set the startup-scanned social plug catalog so provider plug discovery
-    // uses a cached catalog instead of per-instance method scanning.
-    // The scan runs once; subsequent DiscoverPlugs() calls hit the cache.
-    SocialProviderBase.PlugCatalog = new ReflectionSocialPlugCatalog();
-
+    // Social plug discovery now uses provider-declared plugs via
+    // GetDeclaredPlugs() overrides — no reflection or startup catalog needed.
+    // ReflectionSocialPlugCatalog has been removed.
+    
     log.Information("Building main Aero CMS app...");
 
     var app = builder.Build();
