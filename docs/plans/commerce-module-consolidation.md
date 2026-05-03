@@ -49,103 +49,152 @@ Consolidate the Microsoft eShop reference application (event-driven microservice
 
 ---
 
+## 3b. Two UI Surfaces
+
+The commerce module has two distinct UI surfaces:
+
+### Public Commerce Pages (customer-facing)
+Server-rendered pages inside the Commerce module itself as `.cshtml` Razor Pages. Covers: product catalog browsing, cart, checkout, order history. No WASM needed — served directly from the server.
+
+### Admin Commerce Pages (manager-facing)
+WASM-based admin interface in a dedicated `.Client` RCL. The Commerce module's server deps (Marten, Wolverine, EF Core, Npgsql) are **not WASM-compatible** — the WASM runtime can't load Npgsql's native networking code. Admin UI must live in a separate WASM-safe project.
+
+```
+Aero.Cms.Modules.Commerce                    [RCL, server-only]
+├── References: Marten, Wolverine, EF Core, Npgsql
+├── Minimal APIs, Wolverine Handlers, persistence
+└── Pages/Public/                            ← server-rendered .cshtml
+
+Aero.Cms.Modules.Commerce.Client             [RCL, WASM-safe]
+├── <SupportedPlatform Include="browser" />
+├── References: Aero.Cms.Abstractions, Aero.Cms.Shared (browser-safe only)
+├── Pages/Admin/ProductList.razor            ← WASM admin pages
+└── Services/CommerceClientService.cs        ← typed HttpClient → module's APIs
+```
+
+The `.Client` project is referenced by `Aero.Cms.Web.Client` — no server deps leak into WASM compilation.
+
+---
+
 ## 4. Proposed Directory Structure
 
 ```
-src/Aero.Cms.Modules.Commerce/
-├── CommerceModule.cs                    # [Module("Commerce")], AeroModuleBase, IConfigureMarten
-├── Aero.Cms.Modules.Commerce.csproj
-├── GlobalUsings.cs
+src/
+├── Aero.Cms.Modules.Commerce/                    [RCL: server-only]
+│   ├── CommerceModule.cs                         # [Module("Commerce")], AeroModuleBase, IConfigureMarten
+│   ├── Aero.Cms.Modules.Commerce.csproj
+│   ├── GlobalUsings.cs
+│   │
+│   ├── Catalog/                                  # Vertical slice: Product Catalog
+│   │   ├── Models/
+│   │   │   ├── ProductDocument.cs                # IEntity<long>, Marten document
+│   │   │   └── ProductCategory.cs
+│   │   ├── Services/
+│   │   │   ├── IProductService.cs
+│   │   │   └── ProductService.cs                 # IGenericMartenRepository<ProductDocument>
+│   │   ├── Validation/
+│   │   │   └── ProductValidator.cs               # FluentValidation
+│   │   ├── Handlers/
+│   │   │   ├── ProductHandlers.cs                # [WolverineHandler] : IWolverineHandler
+│   │   │   └── StockValidationHandler.cs
+│   │   ├── Events/
+│   │   │   ├── ProductCreated.cs
+│   │   │   ├── ProductPriceChanged.cs
+│   │   │   └── OrderStockConfirmed.cs
+│   │   └── Api/
+│   │       └── CatalogEndpoints.cs               # Minimal API endpoints
+│   │
+│   ├── Basket/                                   # Vertical slice: Shopping Cart
+│   │   ├── Models/
+│   │   │   ├── BasketDocument.cs                 # IEntity<long>, Marten document
+│   │   │   └── BasketItem.cs
+│   │   ├── Services/
+│   │   │   ├── IBasketService.cs
+│   │   │   └── BasketService.cs
+│   │   ├── Validation/
+│   │   │   └── BasketItemValidator.cs
+│   │   ├── Handlers/
+│   │   │   ├── AddToBasketHandler.cs
+│   │   │   ├── RemoveFromBasketHandler.cs
+│   │   │   └── ClearBasketOnOrderHandler.cs
+│   │   ├── Events/
+│   │   │   └── ItemAddedToBasket.cs
+│   │   └── Api/
+│   │       └── BasketEndpoints.cs
+│   │
+│   ├── Orders/                                   # Vertical slice: Order Management
+│   │   ├── Domain/
+│   │   │   ├── OrderEntity.cs                   # IEntity<long>, EF Core, aggregate root
+│   │   │   ├── OrderItem.cs                      # IEntity<long>
+│   │   │   ├── OrderStatus.cs                    # Enum: state machine
+│   │   │   ├── Address.cs                        # ValueObject (record)
+│   │   │   └── Buyer.cs                          # IEntity<long>
+│   │   ├── Data/
+│   │   │   ├── CommerceDbContext.cs              # EF Core DbContext
+│   │   │   └── Migrations/
+│   │   ├── Services/
+│   │   │   ├── IOrderService.cs
+│   │   │   └── OrderService.cs                  # IGenericEntityFrameworkRepository<OrderEntity>
+│   │   ├── Validation/
+│   │   │   ├── CreateOrderValidator.cs
+│   │   │   └── OrderItemValidator.cs
+│   │   ├── Handlers/
+│   │   │   ├── CreateOrderHandler.cs
+│   │   │   └── OrderStatusHandlers.cs
+│   │   ├── Events/
+│   │   │   ├── OrderStarted.cs
+│   │   │   ├── OrderStatusChangedToSubmitted.cs
+│   │   │   ├── OrderStatusChangedToAwaitingValidation.cs
+│   │   │   ├── OrderStatusChangedToStockConfirmed.cs
+│   │   │   ├── OrderStatusChangedToPaid.cs
+│   │   │   ├── OrderStatusChangedToShipped.cs
+│   │   │   └── OrderStatusChangedToCancelled.cs
+│   │   └── Api/
+│   │       └── OrderEndpoints.cs
+│   │
+│   ├── Payments/                                 # Vertical slice: Payment Processing
+│   │   ├── Models/
+│   │   │   └── PaymentEntity.cs                 # IEntity<long>, EF Core
+│   │   ├── Handlers/
+│   │   │   ├── ProcessPaymentHandler.cs
+│   │   │   └── PaymentResultHandler.cs
+│   │   ├── Events/
+│   │   │   ├── OrderPaymentSucceeded.cs
+│   │   │   └── OrderPaymentFailed.cs
+│   │   └── Api/
+│   │       └── PaymentEndpoints.cs
+│   │
+│   ├── Jobs/                                     # Background jobs (TickerQ)
+│   │   └── GracePeriodJob.cs                    # [TickerJob] for grace period expiry
+│   │
+│   ├── Pages/Public/                             # Public-facing commerce pages (server-rendered)
+│   │   ├── Catalog.cshtml
+│   │   ├── ProductDetail.cshtml
+│   │   ├── Cart.cshtml
+│   │   ├── Checkout.cshtml
+│   │   └── OrderHistory.cshtml
+│   │
+│   ├── Shared/                                   # Cross-slice shared contracts
+│   │   ├── StateMachine/
+│   │   │   └── OrderStateMachine.cs             # Railway-based transition engine
+│   │   └── ValueObjects/
+│   │       └── Money.cs                         # record Money(decimal Amount, string Currency)
+│   │
+│   └── README.md
 │
-├── Catalog/                             # Vertical slice: Product Catalog
-│   ├── Models/
-│   │   ├── ProductDocument.cs           # IEntity<long>, Marten document
-│   │   └── ProductCategory.cs
-│   ├── Services/
-│   │   ├── IProductService.cs
-│   │   └── ProductService.cs            # IGenericMartenRepository<ProductDocument>
-│   ├── Validation/
-│   │   └── ProductValidator.cs          # FluentValidation
-│   ├── Handlers/
-│   │   ├── ProductHandlers.cs           # [WolverineHandler] : IWolverineHandler
-│   │   └── StockValidationHandler.cs
-│   ├── Events/
-│   │   ├── ProductCreated.cs
-│   │   ├── ProductPriceChanged.cs
-│   │   └── OrderStockConfirmed.cs
-│   └── Api/
-│       └── CatalogEndpoints.cs          # Minimal API endpoints
-│
-├── Basket/                              # Vertical slice: Shopping Cart
-│   ├── Models/
-│   │   ├── BasketDocument.cs            # IEntity<long>, Marten document
-│   │   └── BasketItem.cs
-│   ├── Services/
-│   │   ├── IBasketService.cs
-│   │   └── BasketService.cs
-│   ├── Validation/
-│   │   └── BasketItemValidator.cs
-│   ├── Handlers/
-│   │   ├── AddToBasketHandler.cs
-│   │   ├── RemoveFromBasketHandler.cs
-│   │   └── ClearBasketOnOrderHandler.cs
-│   ├── Events/
-│   │   └── ItemAddedToBasket.cs
-│   └── Api/
-│       └── BasketEndpoints.cs
-│
-├── Orders/                              # Vertical slice: Order Management
-│   ├── Domain/
-│   │   ├── OrderEntity.cs              # IEntity<long>, EF Core, aggregate root
-│   │   ├── OrderItem.cs                 # IEntity<long>
-│   │   ├── OrderStatus.cs               # Enum: Submitted→AwaitingValidation→StockConfirmed→Paid→Shipped
-│   │   ├── Address.cs                   # ValueObject (record)
-│   │   └── Buyer.cs                     # IEntity<long>
-│   ├── Data/
-│   │   ├── CommerceDbContext.cs         # EF Core DbContext
-│   │   └── Migrations/
-│   ├── Services/
-│   │   ├── IOrderService.cs
-│   │   └── OrderService.cs             # IGenericEntityFrameworkRepository<OrderEntity>
-│   ├── Validation/
-│   │   ├── CreateOrderValidator.cs
-│   │   └── OrderItemValidator.cs
-│   ├── Handlers/
-│   │   ├── CreateOrderHandler.cs
-│   │   └── OrderStatusHandlers.cs
-│   ├── Events/
-│   │   ├── OrderStarted.cs
-│   │   ├── OrderStatusChangedToSubmitted.cs
-│   │   ├── OrderStatusChangedToAwaitingValidation.cs
-│   │   ├── OrderStatusChangedToStockConfirmed.cs
-│   │   ├── OrderStatusChangedToPaid.cs
-│   │   ├── OrderStatusChangedToShipped.cs
-│   │   └── OrderStatusChangedToCancelled.cs
-│   └── Api/
-│       └── OrderEndpoints.cs
-│
-├── Payments/                            # Vertical slice: Payment Processing
-│   ├── Models/
-│   │   └── PaymentEntity.cs            # IEntity<long>, EF Core
-│   ├── Handlers/
-│   │   ├── ProcessPaymentHandler.cs
-│   │   └── PaymentResultHandler.cs
-│   ├── Events/
-│   │   ├── OrderPaymentSucceeded.cs
-│   │   └── OrderPaymentFailed.cs
-│   └── Api/
-│       └── PaymentEndpoints.cs
-│
-├── Jobs/                                # Background jobs (TickerQ)
-│   └── GracePeriodJob.cs               # [TickerJob] for grace period expiry
-│
-├── Shared/                              # Cross-slice shared contracts
-│   ├── StateMachine/
-│   │   └── OrderStateMachine.cs        # Railway-based transition engine
-│   └── ValueObjects/
-│       └── Money.cs                    # record Money(decimal Amount, string Currency)
-│
-└── README.md
+└── Aero.Cms.Modules.Commerce.Client/            [RCL: WASM-safe]
+    ├── Aero.Cms.Modules.Commerce.Client.csproj
+    ├── _Imports.razor
+    ├── Services/
+    │   ├── ICommerceClientService.cs             # Typed HttpClient interfaces
+    │   └── CommerceClientService.cs               # Implementation (no server deps)
+    ├── Pages/Admin/
+    │   ├── ProductList.razor                     # WASM-based admin pages
+    │   ├── ProductEdit.razor
+    │   ├── OrderList.razor
+    │   ├── OrderDetail.razor
+    │   └── Dashboard.razor
+    └── wwwroot/
 ```
 
 ---
@@ -274,13 +323,15 @@ Step 10-12: OrderStatusChangedToPaid → Catalog, Webhooks, WebApp
 ## 10. Incremental Implementation Phases
 
 ### Phase 1: Foundation (pgvector deferred to Phase 5)
-- Create project `Aero.Cms.Modules.Commerce`
-- `CommerceModule.cs` entry point
+- Create `Aero.Cms.Modules.Commerce` (server RCL)
+- Create `Aero.Cms.Modules.Commerce.Client` (WASM-safe RCL)
+- `CommerceModule.cs` entry point with `[Module]` + `IConfigureMarten`
 - Catalog vertical slice: `ProductDocument`, `IProductService`, `ProductService`, `CatalogEndpoints`
   - Full-text search indexes on relevant fields (name, description)
   - **No pgvector/embeddings** — deferred to Phase 5
 - Content types integration for products
 - `CommerceDbContext` + `OrderEntity` skeleton
+- `.Client` project scaffold: `_Imports.razor`, admin page stubs, typed HTTP client
 
 ### Phase 2: Basket
 - `BasketDocument`, `IBasketService`, `BasketService`
