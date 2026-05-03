@@ -12,7 +12,6 @@ using Aero.Cms.Web.Components;
 using Aero.Web.Exceptions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Rewrite;
 using Radzen;
 using Serilog;
 using Serilog.Events;
@@ -21,7 +20,6 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Web.Generated;
-using Aero.Cms.Modules.Aliases;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Social.Abstractions;
 
@@ -311,14 +309,8 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
         app.UseHsts();
     }
 
-    app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
     app.UseHttpsRedirection();
     app.MapStaticAssets();
-
-    // Dynamic URL rewrite — resolves alias redirects (e.g. /404 → /oops)
-    // Must be before UseRouting so rewrites happen before route matching.
-    app.UseRewriter(new RewriteOptions().Add(
-        app.Services.GetRequiredService<AliasRewriteRule>()));
 
     app.UseRouting();
     app.UseAuthentication();

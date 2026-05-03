@@ -301,6 +301,22 @@ public sealed class SeedDatabaseService(
 
     private async Task SeedOopsPageAsync(long siteId, CancellationToken ct)
     {
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = "Page Not Found",
+            Summary = "The page you're looking for doesn't exist or has been moved.",
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-8'>We couldn't find the page you were looking for. It might have been moved, renamed, or deleted.</p>" +
+                      "<p class='text-lg leading-relaxed text-slate-700'>Head back to the homepage or use the navigation to find what you need.</p>",
+            Order = 1
+        };
+
         var oopsPage = new PageDocument
         {
             Id = Snowflake.NewId(),
@@ -312,18 +328,43 @@ public sealed class SeedDatabaseService(
             Blocks = new List<EditorBlock>
             {
                 new() { Type = "boring_hero", MainText = "Page Not Found", SubText = "The page you're looking for doesn't exist or has been moved.", FullWidth = true },
-                new() { Type = "content", Content = "<p>We couldn't find the page you were looking for. It might have been moved, renamed, or deleted.</p><p style='margin-top:1rem'><a href='/' class='eshop-button eshop-button-primary'>Back to Home</a></p>" }
+                new() { Type = "content", Content = bodyBlock.Content }
             },
+            LayoutRegions =
+            [
+                new LayoutRegion
+                {
+                    Name = "MainContent",
+                    Order = 0,
+                    Columns =
+                    [
+                        new LayoutColumn
+                        {
+                            Width = 12,
+                            Order = 0,
+                            Blocks =
+                            [
+                                new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
+                                new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
+                            ]
+                        }
+                    ]
+                }
+            ],
             PublicationState = ContentPublicationState.Published,
             CreatedBy = "seed",
             ModifiedBy = "seed"
         };
 
-        // Use SaveAsync for proper slug reservation — otherwise PagesModule can't find /oops
+        // Store blocks first, then save page (matches BuildHomepage pattern)
+        session.Store(heroBlock);
+        session.Store(bodyBlock);
+
+        // Use SaveAsync for proper slug reservation
         await pageContentService.SaveAsync(oopsPage, ct);
 
         // Create alias /404 → /oops
-        var alias = new AliasDocument
+        var alias404 = new AliasDocument
         {
             Id = Snowflake.NewId(),
             SiteId = siteId,
@@ -331,10 +372,21 @@ public sealed class SeedDatabaseService(
             NewPath = "/oops",
             Notes = "Auto-seeded 404 redirect"
         };
-        session.Store(alias);
+        session.Store(alias404);
+
+        // Create alias /500 → /oops
+        var alias500 = new AliasDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = siteId,
+            OldPath = "/500",
+            NewPath = "/oops",
+            Notes = "Auto-seeded 500 redirect"
+        };
+        session.Store(alias500);
 
         await session.SaveChangesAsync(ct);
-        Log.Information("Seeded /oops 404 page with /404 → /oops alias");
+        Log.Information("Seeded /oops error page with /404 → /oops and /500 → /oops aliases");
     }
 
     private async Task SeedStarterMediaAsync(CancellationToken ct)

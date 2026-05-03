@@ -2,60 +2,86 @@ using Aero.Cms.Core.Entities;
 using Marten;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Rewrite;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Net.Http.Headers;
 
 namespace Aero.Cms.Modules.Aliases;
 
 /// <summary>
-/// Custom <see cref="IRule"/> that evaluates URL aliases from the Marten database
-/// on each request. Results are cached for 30 seconds to avoid hitting the DB
-/// on every request while still allowing live updates within a reasonable window.
+/// Custom <see cref="IRule"/> that evaluates URL aliases.
 ///
-/// This is registered as a singleton but creates scoped DI scopes inside
-/// <see cref="ApplyRule"/> to resolve scoped <see cref="IDocumentSession"/>.
+/// Primary path: reads from the in-memory <see cref="IAliasRuleCache"/> (zero DB I/O).
+/// Cache-miss fallback: queries Marten directly, then populates the cache.
+///
+/// Warmup: <see cref="AliasRuleCacheWarmupService"/> loads the cache from the DB on startup.
+/// Invalidation: cache is invalidated on create/update/delete via <see cref="IAliasRuleCache.Invalidate"/>.
+///
+/// Registered as a singleton and added to <see cref="RewriteOptions"/>
+/// via the <see cref="AliasPipelineStartupFilter"/>.
 /// </summary>
 public sealed class AliasRewriteRule : IRule
 {
-    private readonly IMemoryCache _cache;
+    private readonly IAliasRuleCache _cache;
     private readonly IServiceProvider _serviceProvider;
-    private const string CacheKey = "rewrite-aliases";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(30);
+    private readonly ILogger<AliasRewriteRule> _log;
 
-    public AliasRewriteRule(IMemoryCache cache, IServiceProvider serviceProvider)
+    public AliasRewriteRule(IAliasRuleCache cache, IServiceProvider serviceProvider, ILogger<AliasRewriteRule> log)
     {
         _cache = cache;
         _serviceProvider = serviceProvider;
+        _log = log;
     }
 
     public void ApplyRule(RewriteContext context)
     {
-        var request = context.HttpContext.Request;
-        var path = request.Path.Value?.ToLowerInvariant();
-        if (string.IsNullOrEmpty(path)) return;
+        var http = context.HttpContext;
+        var rawPath = http.Request.Path.Value;
+        if (string.IsNullOrWhiteSpace(rawPath)) return;
 
-        // Load aliases from cache (refreshed from Marten every 30s)
-        var aliases = _cache.GetOrCreate(CacheKey, entry =>
+        var path = rawPath.Trim().TrimEnd('/').ToLowerInvariant();
+
+        // Fast path — check in-memory cache
+        var entry = _cache.Find(path);
+        if (entry is not null)
         {
-            entry.AbsoluteExpirationRelativeToNow = CacheDuration;
-            using var scope = _serviceProvider.CreateScope();
-            var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
-            return session.Query<AliasDocument>().ToList();
-        });
+            ApplyEntry(http, entry, context);
+            return;
+        }
 
-        if (aliases is null || aliases.Count == 0) return;
+        // Cache miss — fall back to DB query (logged at Debug for diagnostics)
+        _log.LogDebug("Cache miss for path '{Path}' — querying Marten", path);
 
-        // Check if the current path matches any alias
+        using var scope = _serviceProvider.CreateScope();
+        var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+        var aliases = session.Query<AliasDocument>().ToList();
+
         foreach (var alias in aliases)
         {
-            if (string.Equals(alias.OldPath, path, StringComparison.OrdinalIgnoreCase))
+            var aliasPath = (alias.OldPath ?? "").Trim().TrimEnd('/').ToLowerInvariant();
+            if (string.Equals(aliasPath, path, StringComparison.OrdinalIgnoreCase))
             {
-                var response = context.HttpContext.Response;
-                response.StatusCode = StatusCodes.Status301MovedPermanently;
-                response.Headers["Location"] = alias.NewPath;
-                context.Result = RuleResult.EndResponse;
+                _log.LogDebug("DB fallback matched '{OldPath}' → '{NewPath}' for '{Path}'",
+                    alias.OldPath, alias.NewPath, path);
+
+                ApplyEntry(http, new AliasRuleEntry(
+                    alias.SiteId,
+                    aliasPath,
+                    alias.NewPath),
+                    context);
                 return;
             }
         }
+
+        // No match in cache or DB
+        _log.LogDebug("No alias found for path '{Path}' (cache miss + DB miss)", path);
+    }
+
+    private static void ApplyEntry(HttpContext http, AliasRuleEntry entry, RewriteContext context)
+    {
+        http.Response.StatusCode = entry.StatusCode;
+        http.Response.Headers[HeaderNames.Location] =
+            entry.NewPath + http.Request.QueryString;
+        context.Result = RuleResult.EndResponse;
     }
 }
