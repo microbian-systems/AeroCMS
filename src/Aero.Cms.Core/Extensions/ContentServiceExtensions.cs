@@ -29,8 +29,8 @@ public static class ContentServiceExtensions
         services.AddScoped<ContentCommandService>();
         services.AddScoped<ContentEmbedBlockRenderer>();
 
-        // Rendering bridge
-        services.AddSingleton<IContentTypeRenderingBridge, ContentTypeDynamicBlockBridge>();
+        // Rendering bridge (scoped — depends on IDocumentSession)
+        services.AddScoped<IContentTypeRenderingBridge, ContentTypeDynamicBlockBridge>();
 
         // Field editors (admin UI)
         services.AddSingleton<IContentFieldEditor, TextFieldEditor>();
@@ -45,9 +45,9 @@ public static class ContentServiceExtensions
         services.AddSingleton<IContentFieldValidator, NumberFieldValidator>();
         services.AddSingleton<IContentFieldValidator, ReferenceFieldValidator>();
 
-        // Async validators (domain rules)
-        services.AddSingleton<IAsyncContentValidator, UniqueSlugValidator>();
-        services.AddSingleton<IAsyncContentValidator, ReferenceExistenceValidator>();
+        // Async validators (scoped — depend on scoped IContentService)
+        services.AddScoped<IAsyncContentValidator, UniqueSlugValidator>();
+        services.AddScoped<IAsyncContentValidator, ReferenceExistenceValidator>();
 
         // Scriban template snippets
         services.AddSingleton<IFieldTemplateSnippet, TextFieldSnippet>();

@@ -271,6 +271,7 @@
 	  <ProjectReference Include="..\Aero.Cms.CookiePolicy\Aero.Cms.CookiePolicy.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Ai\Aero.Cms.Modules.Ai.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Chat\Aero.Cms.Modules.Chat.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Content\Aero.Cms.Modules.Content.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Crm\Aero.Cms.Modules.Crm.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Export\Aero.Cms.Modules.Export.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Forum\Aero.Cms.Modules.Forum.csproj" />
