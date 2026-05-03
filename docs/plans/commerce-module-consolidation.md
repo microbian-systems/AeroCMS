@@ -35,7 +35,7 @@ Consolidate the Microsoft eShop reference application (event-driven microservice
 | eShop Service | AeroCMS Target | Notes |
 |--------------|----------------|-------|
 | **Basket.API** (gRPC + Redis) | Commerce/Cart vertical slice | Minimal APIs replacing gRPC. Marten documents replacing Redis. Garnet available for secondary cache. |
-| **Catalog.API** (HTTP + pgvector) | Commerce/Catalog vertical slice | Marten documents for products. Content types integration. AI search via existing Aero.Cms.Modules.Ai. |
+| **Catalog.API** (HTTP + pgvector) | Commerce/Catalog vertical slice | Marten documents for products. Content types integration. **pgvector deferred to Phase 5** — full-text search indexes on ProductDocument for initial pass. |
 | **Ordering.API** + **Ordering.Domain** + **Ordering.Infrastructure** | Commerce/Orders vertical slice | EF Core for relational integrity. Order aggregate state machine preserved. Wolverine handlers replace MediatR. |
 | **OrderProcessor** (polling) | Commerce/Jobs — TickerQ | Cron-style job for grace period expiry. |
 | **PaymentProcessor** (simulated) | Commerce/Payments vertical slice | Wolverine handler. |
@@ -273,10 +273,12 @@ Step 10-12: OrderStatusChangedToPaid → Catalog, Webhooks, WebApp
 
 ## 10. Incremental Implementation Phases
 
-### Phase 1: Foundation
+### Phase 1: Foundation (pgvector deferred to Phase 5)
 - Create project `Aero.Cms.Modules.Commerce`
 - `CommerceModule.cs` entry point
 - Catalog vertical slice: `ProductDocument`, `IProductService`, `ProductService`, `CatalogEndpoints`
+  - Full-text search indexes on relevant fields (name, description)
+  - **No pgvector/embeddings** — deferred to Phase 5
 - Content types integration for products
 - `CommerceDbContext` + `OrderEntity` skeleton
 
