@@ -1,0 +1,48 @@
+@using Microsoft.AspNetCore.Identity
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Shop</title>
+    <link rel="stylesheet" href="~/css/commerce.css" asp-append-version="true" />
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body class="eshop-body">
+    @* ─── Header ─── *@
+    <div class="eshop-header@(ViewData["IsHome"] is true ? " eshop-header-home" : "")">
+        <div class="eshop-header-hero">
+            <img role="presentation"
+                 src="@(ViewData["IsHome"] is true ? "~/images/header-home.webp" : "~/images/header.webp")"
+                 alt="" asp-append-version="true" />
+        </div>
+        <div class="eshop-header-container">
+            <nav class="eshop-header-navbar">
+                <partial name="_UserMenuPartial" />
+                <partial name="_CartMenuPartial" />
+            </nav>
+            <div class="eshop-header-intro">
+                <h1>@ViewData["HeaderTitle"]</h1>
+                <p>@ViewData["HeaderSubtitle"]</p>
+            </div>
+        </div>
+    </div>
+
+    @* ─── Page Body ─── *@
+    <main>
+        @RenderBody()
+    </main>
+
+    @* ─── Footer ─── *@
+    <footer class="eshop-footer">
+        <div class="eshop-footer-content">
+            <div class="eshop-footer-row">
+                <img role="presentation" src="~/images/logo-footer.svg" alt="" class="logo logo-footer" />
+                <p>&copy; @DateTime.Now.Year Shop</p>
+            </div>
+        </div>
+    </footer>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

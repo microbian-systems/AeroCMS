@@ -17,6 +17,7 @@ using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using FluentValidation;
 using Marten;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -50,6 +51,23 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
         services.AddScoped<IValidator<ProductDocument>, ProductValidator>();
         services.AddScoped<IValidator<BasketItem>, BasketItemValidator>();
         services.AddScoped<IValidator<OrderEntity>, CreateOrderValidator>();
+
+        // HTTP context accessor (for anonymous cart cookie)
+        services.AddHttpContextAccessor();
+
+        // Razor Pages — register this module's Areas for public commerce pages
+        services.AddRazorPages()
+            .AddApplicationPart(typeof(CommerceModule).Assembly);
+
+        services.Configure<RazorPagesOptions>(options =>
+        {
+            options.Conventions.AddAreaPageRoute("Commerce", "/Catalog", "/shop/products");
+            options.Conventions.AddAreaPageRoute("Commerce", "/ProductDetail", "/shop/products/{slug}");
+            options.Conventions.AddAreaPageRoute("Commerce", "/Cart", "/shop/cart");
+            options.Conventions.AddAreaPageRoute("Commerce", "/Checkout", "/shop/checkout");
+            options.Conventions.AddAreaPageRoute("Commerce", "/Orders", "/shop/orders");
+            options.Conventions.AddAreaPageRoute("Commerce", "/OrderDetail", "/shop/orders/{id}");
+        });
     }
 
     public override void Configure(IServiceProvider services, StoreOptions opts)

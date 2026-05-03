@@ -1,0 +1,66 @@
+@page "/shop/checkout"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@model CheckoutModel
+@{
+    ViewData["Title"] = "Checkout";
+    ViewData["HeaderTitle"] = "Checkout";
+    ViewData["HeaderSubtitle"] = "";
+}
+
+<div class="eshop-checkout">
+    <form method="post" asp-page-handler="PlaceOrder">
+        @Html.AntiForgeryToken()
+        <div class="form">
+            <div class="form-section">
+                <h2>Shipping address</h2>
+                <label>
+                    Address
+                    <input type="text" name="Street" value="@Model.Street" />
+                </label>
+                <div class="form-group">
+                    <div class="form-group-item">
+                        <label>
+                            City
+                            <input type="text" name="City" value="@Model.City" />
+                        </label>
+                    </div>
+                    <div class="form-group-item">
+                        <label>
+                            State
+                            <input type="text" name="State" value="@Model.State" />
+                        </label>
+                    </div>
+                    <div class="form-group-item">
+                        <label>
+                            Zip code
+                            <input type="text" name="ZipCode" value="@Model.ZipCode" />
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label>
+                        Country
+                        <input type="text" name="Country" value="@Model.Country" />
+                    </label>
+                </div>
+            </div>
+            <div class="form-section">
+                <div class="form-buttons">
+                    <a href="/shop/cart" class="eshop-button eshop-button-secondary">
+                        <img role="presentation" src="~/icons/arrow-left.svg" alt="" /> Back to the shopping bag
+                    </a>
+                    <button class="eshop-button eshop-button-primary" type="submit">Place order</button>
+                </div>
+            </div>
+        </div>
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="validation-summary-errors">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <p>@error.ErrorMessage</p>
+                }
+            </div>
+        }
+    </form>
+</div>

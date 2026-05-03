@@ -10,6 +10,8 @@ using Aero.Cms.Core.Entities;
 namespace Aero.Cms.Modules.Aliases;
 
 
+public class
+
 
 
 /// <summary>

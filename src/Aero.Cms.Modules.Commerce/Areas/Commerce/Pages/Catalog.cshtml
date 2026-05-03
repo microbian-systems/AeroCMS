@@ -1,0 +1,39 @@
+@page "/shop/products"
+@model CatalogModel
+@{
+    ViewData["Title"] = "Shop";
+    ViewData["IsHome"] = true;
+    ViewData["HeaderTitle"] = "Ready for a new adventure?";
+    ViewData["HeaderSubtitle"] = "Start the season with the latest in clothing and equipment.";
+}
+
+<div class="eshop-catalog">
+    <partial name="_CatalogSearchPartial" model="Model.SearchViewModel" />
+
+    @if (Model.Products is null)
+    {
+        <p class="eshop-loading">Loading...</p>
+    }
+    else
+    {
+        <div>
+            <div class="eshop-catalog-items">
+                @foreach (var product in Model.Products)
+                {
+                    <partial name="_CatalogItemPartial" model="product" />
+                }
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <div class="eshop-page-links">
+                    @for (int i = 1; i <= Model.TotalPages; i++)
+                    {
+                        <a href="@Url.Page("Catalog", new { page = i == 1 ? null : (int?)i, search = Model.Search, category = Model.Category })"
+                           class="@(i == Model.CurrentPage ? "active-page" : "")">@i</a>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
