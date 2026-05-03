@@ -1,11 +1,21 @@
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core;
-using Aero.Cms.Web.Core.Modules;
+using Aero.Cms.Core.Content;
+using Aero.Cms.Core.Content.Indexing;
+using Aero.Cms.Core.Content.Jobs;
+using Aero.Cms.Core.Content.Rendering;
+using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Core.Extensions;
 using Aero.Modular;
+using Marten;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-namespace Aero.Cms.Modules.ContentCreator;
+namespace Aero.Cms.Modules.Content;
 
-// todo - rename this to AiContentCreatorModule or something - the name is a bit too generic and could be confused with a service that creates content for Aero CMS itself, rather than an AI-powered content creation module that can be used by other modules and features in the system.
-public class AeroContentModule : AeroModuleBase
+[Module(nameof(AeroContentModule))]
+public sealed class AeroContentModule : AeroModuleBase, IContentDefinitionModule
 {
     public override string Name => nameof(AeroContentModule);
 
@@ -13,14 +23,50 @@ public class AeroContentModule : AeroModuleBase
 
     public override string Author => AeroConstants.Author;
 
-    public override string Description => """
-                                          An AI content creation module. Feed it a URL or text or simply 
-                                          just ask it to create content based on a topic you provide
-                                          """;
+    public override string Description => "Runtime-defined content types with Scriban-based rendering. " +
+        "Managers define content type schemas (fields, validation, templates) at runtime. " +
+        "Content items are stored as field bags (Dictionary<string, JsonElement>) and rendered " +
+        "through the existing DynamicTemplateBlock pipeline.";
 
     public override IReadOnlyList<string> Dependencies => [];
 
-    public override IReadOnlyList<string> Category => ["ai", "content-generation", "content"];
+    public override IReadOnlyList<string> Category => ["content", "infrastructure"];
 
-    public override IReadOnlyList<string> Tags => ["ai", "ai-content-creator", "content-generation"];
+    public override IReadOnlyList<string> Tags => ["content", "content-types", "cms", "structured-data"];
+
+    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+    {
+        // Register the entire content type system via the extension method
+        services.AddContentTypeSystem();
+    }
+
+    public override void Configure(IAeroModuleBuilder builder)
+    {
+        // Register the content types and field editors through the builder
+        builder.AddFieldEditor<TextFieldEditor>();
+        builder.AddFieldEditor<ImageFieldEditor>();
+        builder.AddFieldEditor<RichtextFieldEditor>();
+        builder.AddFieldEditor<NumberFieldEditor>();
+        builder.AddFieldEditor<BooleanFieldEditor>();
+        builder.AddFieldEditor<UrlFieldEditor>();
+    }
+
+    public override void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        // Marten document configuration for the content type system
+        opts.Schema.For<ContentTypeDocument>()
+            .Identity(x => x.Id)
+            .DocumentAlias("content_type_definitions")
+            .Index(x => x.SiteId);
+
+        opts.Schema.For<ContentItem>()
+            .DocumentAlias("content_items")
+            .Index(x => x.SiteId)
+            .Index(x => x.Slug)
+            .Index(x => x.ContentTypeAlias);
+
+        opts.Schema.For<ContentItemVersion>()
+            .DocumentAlias("content_item_versions")
+            .Index(x => x.ContentItemId);
+    }
 }

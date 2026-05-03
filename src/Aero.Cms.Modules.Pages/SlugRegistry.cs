@@ -7,7 +7,8 @@ public enum ContentSlugOwnerType
 {
     Page = 0,
     BlogPost = 1,
-    Custom = 2
+    Custom = 2,
+    ContentItem = 3
 }
 
 public sealed class ContentSlugDocument

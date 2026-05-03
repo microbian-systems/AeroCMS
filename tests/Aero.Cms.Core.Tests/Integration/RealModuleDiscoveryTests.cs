@@ -17,6 +17,7 @@ using NSubstitute;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Modular;
+using Aero.Cms.Core.Tests.Services;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
