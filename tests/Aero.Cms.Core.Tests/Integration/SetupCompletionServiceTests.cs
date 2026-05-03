@@ -11,6 +11,7 @@ using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Tenant;
+using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Services.Images;
@@ -155,6 +156,8 @@ public class SetupCompletionServiceTests
                 Substitute.For<IMessageBus>()),
             new MartenBlogPostContentService(harness.Session),
             Substitute.For<IStaticPhotosClient>(),
+            Substitute.For<IPexelsService>(),
+            Substitute.For<ICommerceSeedService>(),
             Substitute.For<IModuleInitializationService>(),
             Substitute.For<IBootstrapCompletionWriter>(),
             tenantService,

@@ -1,9 +1,11 @@
 ﻿using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using Aero.Services.Images;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Orleans.Configuration;
 using Marten;
@@ -29,6 +31,8 @@ public class MediaModule : AeroModuleBase, IConfigureMarten
     {
         base.ConfigureServices(services, config, env);
 
-        //services.AddSingleton<IConfigureMarten, MediaModule>();
+        // Pexels image service — for downloading and storing media assets.
+        // Registered here because Media owns the media storage domain.
+        services.TryAddScoped<IPexelsService, PexelsService>();
     }
 }

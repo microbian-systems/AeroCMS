@@ -39,5 +39,9 @@ public class AliasModule : AeroModuleBase
         base.ConfigureServices(services, config, env);
         services.AddScoped<IAliasRepository, AliasRepository>();
         services.AddScoped<IPageSaveHook, SlugRewriteHook>();
+
+        // Dynamic URL rewrite rule — singleton, resolves scoped services per request
+        services.AddMemoryCache();
+        services.AddSingleton<AliasRewriteRule>();
     }
 }

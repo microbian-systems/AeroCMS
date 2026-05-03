@@ -11,8 +11,10 @@ using Aero.Cms.Modules.Commerce.Orders.Api;
 using Aero.Cms.Modules.Commerce.Orders.Data;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
 using Aero.Cms.Modules.Commerce.Orders.Services;
+using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Modules.Commerce.Orders.Validation;
 using Aero.Cms.Modules.Commerce.Payments.Api;
+using Aero.Services.Images;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using FluentValidation;
@@ -21,6 +23,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Commerce;
@@ -55,12 +58,20 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
         // HTTP context accessor (for anonymous cart cookie)
         services.AddHttpContextAccessor();
 
+        // Pexels image service (also used by Setup module's SeedDatabaseService).
+        // MediaModule also registers this via TryAddScoped — whichever loads first wins.
+        services.TryAddScoped<IPexelsService, PexelsService>();
+
+        // Commerce seed service
+        services.AddScoped<ICommerceSeedService, CommerceSeedService>();
+
         // Razor Pages — register this module's Areas for public commerce pages
         services.AddRazorPages()
             .AddApplicationPart(typeof(CommerceModule).Assembly);
 
         services.Configure<RazorPagesOptions>(options =>
         {
+            options.Conventions.AddAreaPageRoute("Commerce", "/ShopHome", "/shop");
             options.Conventions.AddAreaPageRoute("Commerce", "/Catalog", "/shop/products");
             options.Conventions.AddAreaPageRoute("Commerce", "/ProductDetail", "/shop/products/{slug}");
             options.Conventions.AddAreaPageRoute("Commerce", "/Cart", "/shop/cart");

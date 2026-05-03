@@ -17,7 +17,10 @@ using Aero.Services.Images;
 using Marten;
 using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Modules.Services;
+using Aero.Cms.Modules.Aliases;
+using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Services.Images;
 using Microsoft.AspNetCore.Hosting;
 using Serilog;
 
@@ -81,6 +84,8 @@ public sealed class SeedDatabaseService(
     IPageContentService pageContentService,
     IBlogPostContentService blogPostContentService,
     IStaticPhotosClient staticPhotosClient,
+    IPexelsService pexelsService,
+    ICommerceSeedService commerceSeedService,
     IModuleInitializationService moduleInitializationService,
     IBootstrapCompletionWriter bootstrapCompletionWriter,
     ITenantService tenantService,
@@ -139,7 +144,7 @@ public sealed class SeedDatabaseService(
 
         try
         {
-            await SeedStarterContentAsync(request, ct);
+            await SeedStarterContentAsync(request, site.Id, ct);
         }
         catch (Exception ex)
         {
@@ -225,7 +230,7 @@ public sealed class SeedDatabaseService(
         return (tenantResult, siteResult);
     }
 
-    private async Task SeedStarterContentAsync(SeedDatabaseRequest request, CancellationToken cancellationToken)
+    private async Task SeedStarterContentAsync(SeedDatabaseRequest request, long siteId, CancellationToken cancellationToken)
     {
         // Build pages first to get their IDs for navigation items
         var (homepage, homepageBlocks) = BuildHomepage(request);
@@ -286,6 +291,50 @@ public sealed class SeedDatabaseService(
         {
             await blogPostContentService.SaveAsync(post, cancellationToken);
         }
+
+        // Seed /oops 404 page with alias
+        await SeedOopsPageAsync(siteId, cancellationToken);
+
+        // Seed commerce products
+        await commerceSeedService.SeedAsync(siteId, cancellationToken);
+    }
+
+    private async Task SeedOopsPageAsync(long siteId, CancellationToken ct)
+    {
+        var oopsPage = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            Kind = PageKind.Standard,
+            Slug = "oops",
+            Title = "Page Not Found",
+            Summary = "The page you're looking for doesn't exist or has been moved.",
+            SeoTitle = "Page Not Found",
+            Blocks = new List<EditorBlock>
+            {
+                new() { Type = "boring_hero", MainText = "Page Not Found", SubText = "The page you're looking for doesn't exist or has been moved.", FullWidth = true },
+                new() { Type = "content", Content = "<p>We couldn't find the page you were looking for. It might have been moved, renamed, or deleted.</p><p style='margin-top:1rem'><a href='/' class='eshop-button eshop-button-primary'>Back to Home</a></p>" }
+            },
+            PublicationState = ContentPublicationState.Published,
+            CreatedBy = "seed",
+            ModifiedBy = "seed"
+        };
+
+        // Use SaveAsync for proper slug reservation — otherwise PagesModule can't find /oops
+        await pageContentService.SaveAsync(oopsPage, ct);
+
+        // Create alias /404 → /oops
+        var alias = new AliasDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = siteId,
+            OldPath = "/404",
+            NewPath = "/oops",
+            Notes = "Auto-seeded 404 redirect"
+        };
+        session.Store(alias);
+
+        await session.SaveChangesAsync(ct);
+        Log.Information("Seeded /oops 404 page with /404 → /oops alias");
     }
 
     private async Task SeedStarterMediaAsync(CancellationToken ct)

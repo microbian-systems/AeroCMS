@@ -6,11 +6,17 @@ using Aero.Core.Entities;
 using System.Linq.Expressions;
 using Aero.Core;
 using Aero.Cms.Core.Entities;
+using Aero.Marten;
 
 namespace Aero.Cms.Modules.Aliases;
 
 
-public class
+public class AliasService : MartenGenericRepositoryOption<AliasDocument>
+{
+    public AliasService(IDocumentSession session, ILogger<MartenGenericRepositoryOption<AliasDocument>> log) : base(session, log)
+    {
+    }
+}
 
 
 

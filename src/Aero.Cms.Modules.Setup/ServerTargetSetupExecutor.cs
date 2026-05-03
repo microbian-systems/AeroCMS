@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog;
+using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
@@ -78,6 +79,8 @@ public sealed class ServerTargetSetupExecutor(
         var identityBootstrapper = new SetupIdentityBootstrapper(userManager);
         
         var staticPhotosClient = rootServiceProvider.GetRequiredService<IStaticPhotosClient>();
+        var pexelsService = rootServiceProvider.GetRequiredService<IPexelsService>();
+        var commerceSeedService = rootServiceProvider.GetRequiredService<ICommerceSeedService>();
         var tenantService = rootServiceProvider.GetRequiredService<ITenantService>();
         var siteService = rootServiceProvider.GetRequiredService<ISiteService>();
         var apiKeyService = rootServiceProvider.GetRequiredService<IApiKeyService>();
@@ -93,6 +96,8 @@ public sealed class ServerTargetSetupExecutor(
             pageContentService,
             blogPostContentService,
             staticPhotosClient,
+            pexelsService,
+            commerceSeedService,
             moduleInitializationService,
             bootstrapCompletionWriter,
             tenantService,
