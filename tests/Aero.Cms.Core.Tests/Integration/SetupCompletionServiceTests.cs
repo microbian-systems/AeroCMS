@@ -12,6 +12,7 @@ using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
 using Aero.Services.Images;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
@@ -158,7 +159,8 @@ public class SetupCompletionServiceTests
             Substitute.For<IBootstrapCompletionWriter>(),
             tenantService,
             siteService,
-            apiKeyService);
+            apiKeyService,
+            Array.Empty<ModuleDescriptor>());
     }
 
     private static SeedDatabaseRequest CreateRequest()

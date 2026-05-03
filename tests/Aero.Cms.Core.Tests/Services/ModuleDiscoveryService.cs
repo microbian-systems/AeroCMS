@@ -2,6 +2,8 @@ using System.Reflection;
 using Aero.Cms.Core.Tests.TestModules;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Core.Tests.Services;
 
@@ -26,6 +28,15 @@ public interface IModuleDiscoveryService
 /// </summary>
 public class ModuleDiscoveryService : IModuleDiscoveryService
 {
+    public ModuleDiscoveryService() { }
+
+    public ModuleDiscoveryService(
+        object? options,
+        IHostEnvironment? hostEnvironment,
+        Microsoft.Extensions.Logging.ILogger<ModuleDiscoveryService>? logger)
+    {
+        // Test mock — parameters accepted but not needed for test behavior
+    }
     public Task<IReadOnlyList<ModuleDescriptor>> DiscoverAsync(IEnumerable<Assembly>? assemblies = null, CancellationToken ct = default)
     {
         assemblies ??= AppDomain.CurrentDomain.GetAssemblies();
