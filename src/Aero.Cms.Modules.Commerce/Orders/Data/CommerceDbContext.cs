@@ -1,3 +1,4 @@
+using Aero.Cms.Core;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
 using Aero.Core;
 using Aero.Core.Entities;
@@ -26,7 +27,7 @@ public sealed class CommerceDbContext : DbContext
 
         mb.Entity<OrderEntity>(e =>
         {
-            e.ToTable("orders");
+            e.ToTable(Schemas.Tables.Orders);
             e.HasKey(x => x.Id);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
             e.Property(x => x.CustomerId).HasMaxLength(100);
@@ -52,7 +53,7 @@ public sealed class CommerceDbContext : DbContext
 
         mb.Entity<OrderItem>(e =>
         {
-            e.ToTable("order_items");
+            e.ToTable(Schemas.Tables.OrderItems);
             e.HasKey(x => x.Id);
             e.Property(x => x.ProductName).HasMaxLength(500);
             e.Property(x => x.Sku).HasMaxLength(100);
@@ -60,7 +61,7 @@ public sealed class CommerceDbContext : DbContext
 
         mb.Entity<Buyer>(e =>
         {
-            e.ToTable("buyers");
+            e.ToTable(Schemas.Tables.Buyers);
             e.HasKey(x => x.Id);
             e.Property(x => x.IdentityId).HasMaxLength(100);
             e.Property(x => x.Name).HasMaxLength(200);

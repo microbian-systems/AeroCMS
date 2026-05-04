@@ -27,6 +27,11 @@ public static class Schemas
         public const string Tags = "tags";
         public const string Tenants = "tenants";
         public const string Users = "users";
+        public const string Baskets = "baskets";
+        public const string Buyers = "buyers";
+        public const string Orders = "orders";
+        public const string OrderItems = "order_items";
+        public const string Products = "products";
     }
 
 }

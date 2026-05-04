@@ -26,8 +26,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.EntityFrameworkCore;
 
 namespace Aero.Cms.Modules.Commerce;
 
@@ -91,7 +89,7 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
         // Product document — Marten schema
         opts.DatabaseSchemaName = Schemas.Database;
         opts.Schema.For<ProductDocument>()
-            .DocumentAlias("products")
+            .DocumentAlias(Schemas.Tables.Products)
             .Identity(x => x.Id)
             .Index(x => x.Slug)
             .Index(x => x.Sku)
@@ -102,7 +100,7 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
 
         // Basket document — Marten schema
         opts.Schema.For<BasketDocument>()
-            .DocumentAlias("baskets")
+            .DocumentAlias(Schemas.Tables.Baskets)
             .Identity(x => x.Id)
             .Index(x => x.CustomerId);
     }
@@ -115,20 +113,5 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
         builder.MapPaymentApi();
 
         base.Run(builder);
-    }
-}
-
-
-public sealed class CommerceStartupFilter : IStartupFilter
-{
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
-    {
-        return app =>
-        {
-            var db = app.ApplicationServices.GetRequiredService<CommerceDbContext>();
-            db.Database.Migrate();
-
-            next(app);
-        };
     }
 }
