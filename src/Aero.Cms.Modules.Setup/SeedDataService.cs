@@ -472,10 +472,6 @@ public sealed class SeedDatabaseService(
         {
             Id = Snowflake.NewId(),
             Content = @"
-                <style>
-                    .no-scrollbar::-webkit-scrollbar { display: none; }
-                    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-                </style>
                 <div class='max-w-4xl mx-auto'>
                     <p class='text-xl leading-relaxed text-slate-700 mb-10'>
                         <strong>Aero CMS</strong> is a high-performance content platform designed for the next generation of web experience. 
@@ -512,7 +508,7 @@ public sealed class SeedDatabaseService(
                     <div class='mt-24 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16 border-y border-slate-100'>
                         <div class='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center'>
                             <h2 class='text-2xl font-black text-slate-900 uppercase tracking-widest mb-12'>Tech we use:</h2>
-                            <div class='flex overflow-x-auto gap-16 pb-4 items-center no-scrollbar justify-center px-4'>
+                            <div class='flex flex-wrap gap-8 sm:gap-12 md:gap-16 items-center justify-center px-4'>
                                 <img src='/img/dotnet-logo.svg' alt='DotNet' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/csharp.DJ9MidBD_1dalL.svg' alt='C#' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/postgresql.webp' alt='PostgreSQL' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
