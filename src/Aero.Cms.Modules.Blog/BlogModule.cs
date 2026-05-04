@@ -1,6 +1,7 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Areas.Api.v1;
+using Aero.Cms.Modules.Blog.Parsers;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Services.Images;
@@ -33,6 +34,12 @@ public sealed class BlogModule : AeroWebModule, IUiModule
         {
             client.BaseAddress = new Uri("https://picsum.photos/");
         });
+
+        // Blog import services
+        services.AddScoped<IBlogImportParser, JsonBlogImportParser>();
+        services.AddScoped<IBlogImportParser, MarkdownBlogImportParser>();
+        services.AddScoped<IBlogImportParser, ZipBlogImportParser>();
+        services.AddScoped<IBlogImportService, BlogImportService>();
 
         // Register this assembly so the Razor Pages in Areas/Blog/Pages are discovered
         services.AddRazorPages()

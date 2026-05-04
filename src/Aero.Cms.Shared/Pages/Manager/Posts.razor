@@ -2,6 +2,7 @@
 @page "/manager/posts/general"
 @attribute [Authorize]
 @using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Shared.Pages.Manager
 @using Aero.Core
 @using Aero.Core.Railway
 @inject IBlogHttpClient BlogApi
@@ -19,6 +20,7 @@
                             Value="@searchText" 
                             ValueChanged="@(args => OnSearch(args))" 
                             class="w-64" />
+            <RadzenButton Icon="file_upload" Text="Import" ButtonStyle="ButtonStyle.Secondary" Click="@OpenImportDialog" />
             <RadzenButton Icon="add" Text="New Post" ButtonStyle="ButtonStyle.Primary" Click="@(() => Navigation.NavigateTo("/manager/post/editor"))" />
         </div>
     </div>
@@ -107,5 +109,16 @@
     {
         if (post == null) return;
         Navigation.NavigateTo($"/manager/post/editor/{post.Id}");
+    }
+
+    async Task OpenImportDialog()
+    {
+        var result = await DialogService.OpenAsync<ImportDialog>("Import Posts",
+            null,
+            new DialogOptions { Width = "640px" });
+        if (result is true)
+        {
+            grid?.Reload();
+        }
     }
 }

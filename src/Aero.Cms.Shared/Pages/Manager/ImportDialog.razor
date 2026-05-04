@@ -1,0 +1,243 @@
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
+@using Radzen
+@using Radzen.Blazor
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Logging
+@inject IBlogHttpClient BlogApi
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+@inject ILogger<ImportDialog> Logger
+
+<div class="import-dialog p-6 bg-white dark:bg-gray-900 rounded-3xl">
+    <div class="mb-6 flex items-center justify-between">
+        <div class="flex flex-col">
+            <h3 class="text-xl font-black text-gray-900 dark:text-white tracking-tight">Import Posts</h3>
+            <p class="text-xs text-gray-500 font-medium mt-1">Upload blog posts from a file</p>
+        </div>
+        <div class="bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-full border border-amber-100 dark:border-amber-900/30">
+            <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Max 50MB</span>
+        </div>
+    </div>
+
+    <!-- File Input -->
+    <div class="relative group">
+        <InputFile OnChange="@OnFileSelected" accept=".zip,.json,.md" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" id="fileInput" />
+        
+        <div class="w-full h-36 flex flex-col items-center justify-center border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-3xl bg-gray-50 dark:bg-gray-900/50 group-hover:bg-white dark:group-hover:bg-gray-800 transition-all duration-300 relative overflow-hidden">
+            <div class="flex flex-col items-center gap-3 relative z-0">
+                <div class="w-12 h-12 bg-white dark:bg-gray-800 rounded-2xl shadow-md flex items-center justify-center">
+                    <RadzenIcon Icon="@("file_upload")" class="w-6 h-6 text-amber-500" />
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="text-sm font-bold text-gray-700 dark:text-gray-300">Click to select a file</span>
+                    <span class="text-[10px] text-gray-400 font-medium mt-1 uppercase tracking-widest">.ZIP .JSON .MD</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (selectedFile is not null)
+    {
+        <div class="mt-4 p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center flex-1 min-w-0">
+                    <div class="w-9 h-9 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center mr-3 shadow-sm border border-gray-50 dark:border-gray-700">
+                        <RadzenIcon Icon="@("insert_drive_file")" class="text-gray-400 w-5 h-5" />
+                    </div>
+                    <div class="flex flex-col min-w-0">
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-200 truncate">@selectedFile.Name</span>
+                        <span class="text-[10px] text-gray-400 font-mono">@FormatSize(selectedFile.Size)</span>
+                    </div>
+                </div>
+                @if (!isUploading)
+                {
+                    <RadzenButton Icon="@("close")" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@ClearFile" class="rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors" />
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Import Options -->
+    <div class="mt-5 space-y-3">
+        <label class="flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" @bind="StoreLocalImages" class="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+            <div class="flex flex-col">
+                <span class="text-xs font-bold text-gray-700 dark:text-gray-200">Store images locally</span>
+                <span class="text-[10px] text-gray-400">Downloads Pexels photos to local storage instead of using CDN URLs</span>
+            </div>
+        </label>
+
+        <div class="flex items-center gap-3">
+            <label class="text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">Duplicate slugs:</label>
+            <RadzenDropDown @bind-Value="@DuplicateBehavior" 
+                            Data="@duplicateOptions" 
+                            TextProperty="Text" 
+                            ValueProperty="Value"
+                            class="flex-1" />
+        </div>
+    </div>
+
+    <!-- Result Display -->
+    @if (importResult is not null)
+    {
+        <div class="mt-5 p-4 rounded-2xl border @(importResult.TotalImported > 0 ? "bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30" : "bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30")">
+            <div class="flex items-center gap-3 mb-2">
+                @{
+                    var iconName = importResult?.TotalImported > 0 ? "check_circle" : "error";
+                }
+                <RadzenIcon Icon="@iconName" 
+                           class="@IconClass" />
+                <span class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    @importResult.TotalImported of @importResult.TotalProcessed imported
+                </span>
+            </div>
+            @if (importResult.TotalSkipped > 0)
+            {
+                <div class="ml-9 text-xs text-gray-500">
+                    <span class="font-medium">Skipped (@importResult.TotalSkipped):</span>
+                    @string.Join(", ", importResult.SkippedPosts.Select(s => s.Slug))
+                </div>
+            }
+            @if (importResult.Errors.Count > 0)
+            {
+                <div class="ml-9 text-xs text-red-500 mt-1">
+                    @foreach (var err in importResult.Errors)
+                    {
+                        <div>⚠ @err.Item: @err.Message</div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Actions -->
+    <div class="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3">
+        <RadzenButton Text="@(importResult is not null ? "Close" : "Cancel")" 
+                     ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" 
+                     class="rounded-xl px-6 font-bold text-xs"
+                     Click="@(() => DialogService.Close(importResult?.TotalImported > 0))" />
+        <RadzenButton Text="@(isUploading ? "Importing..." : "Import")" 
+                     Icon="@("file_upload")" ButtonStyle="ButtonStyle.Primary" 
+                     Variant="Variant.Filled" 
+                     class="rounded-xl px-8 shadow-xl shadow-amber-500/20 font-bold text-xs py-2.5" 
+                     Click="@OnImport" 
+                     Disabled="@(selectedFile is null || isUploading)" />
+    </div>
+</div>
+
+@code {
+    IBrowserFile? selectedFile;
+    bool isUploading;
+    bool StoreLocalImages = true;
+    string DuplicateBehavior = "skip";
+    ImportBlogResult? importResult;
+
+    List<DropdownOption> duplicateOptions =
+    [
+        new() { Value = "skip", Text = "Skip duplicates" },
+        new() { Value = "suffix", Text = "Append -2, -3..." },
+        new() { Value = "overwrite", Text = "Overwrite existing" }
+    ];
+
+    void OnFileSelected(InputFileChangeEventArgs args)
+    {
+        Logger.LogInformation("File selected: {Count} files", args.FileCount);
+        selectedFile = args.File;
+        importResult = null;
+    }
+
+    void ClearFile()
+    {
+        selectedFile = null;
+        importResult = null;
+    }
+
+    async Task OnImport()
+    {
+        if (selectedFile is null) return;
+
+        isUploading = true;
+        importResult = null;
+
+        try
+        {
+            Logger.LogInformation("Reading file {FileName} ({Size} bytes)", selectedFile.Name, selectedFile.Size);
+
+            using var stream = selectedFile.OpenReadStream(50 * 1024 * 1024); // max 50MB
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+
+            var data = memoryStream.ToArray();
+            var base64 = Convert.ToBase64String(data);
+
+            var request = new ImportFileRequest(
+                FileName: selectedFile.Name,
+                MimeType: selectedFile.ContentType,
+                Base64Data: base64,
+                StoreLocalImages: StoreLocalImages,
+                DuplicateBehavior: DuplicateBehavior,
+                DefaultAuthorId: null,
+                PublishImported: true
+            );
+
+            Logger.LogInformation("Calling import API for {FileName}...", selectedFile.Name);
+            var result = await BlogApi.ImportAsync(request);
+
+            if (result is Result<ImportBlogResult, AeroError>.Ok ok)
+            {
+                importResult = ok.Value;
+                Logger.LogInformation("Import result: {Imported} imported, {Skipped} skipped",
+                    ok.Value.TotalImported, ok.Value.TotalSkipped);
+
+                if (ok.Value.TotalImported > 0)
+                {
+                    NotificationService.Notify(NotificationSeverity.Success, "Import Complete",
+                        $"{ok.Value.TotalImported} post(s) imported successfully.");
+                }
+                else
+                {
+                    NotificationService.Notify(NotificationSeverity.Warning, "Import Partial",
+                        "No posts were imported. Check the results for details.");
+                }
+            }
+            else if (result is Result<ImportBlogResult, AeroError>.Failure fail)
+            {
+                Logger.LogError("Import API returned error: {Error}", fail.Error);
+                NotificationService.Notify(NotificationSeverity.Error, "Import Failed", fail.Error.ToString());
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during import");
+            NotificationService.Notify(NotificationSeverity.Error, "Import Error", ex.Message);
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    string FormatSize(long bytes)
+    {
+        string[] suffix = { "B", "KB", "MB", "GB", "TB" };
+        int i;
+        double dblSByte = bytes;
+        for (i = 0; i < suffix.Length && bytes >= 1024; i++, bytes /= 1024)
+        {
+            dblSByte = bytes / 1024.0;
+        }
+        return $"{dblSByte:0.##} {suffix[i]}";
+    }
+
+    string IconClass => importResult?.TotalImported > 0
+        ? "w-6 h-6 text-green-500"
+        : "w-6 h-6 text-red-500";
+
+    class DropdownOption
+    {
+        public string Value { get; set; } = "";
+        public string Text { get; set; } = "";
+    }
+}
