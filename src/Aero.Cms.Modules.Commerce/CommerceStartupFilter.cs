@@ -12,7 +12,8 @@ public sealed class CommerceStartupFilter : IStartupFilter
     {
         return app =>
         {
-            var db = app.ApplicationServices.GetRequiredService<CommerceDbContext>();
+            using var scope = app.ApplicationServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<CommerceDbContext>();
             db.Database.Migrate();
 
             next(app);

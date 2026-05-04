@@ -15,6 +15,7 @@
     <PackageReference Include="Marten" />
     <PackageReference Include="TickerQ" />
     <PackageReference Include="TickerQ.Utilities" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="WolverineFx" />
   </ItemGroup>
 

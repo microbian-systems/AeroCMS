@@ -26,6 +26,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 
 namespace Aero.Cms.Modules.Commerce;
 
@@ -50,7 +51,9 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
         services.AddScoped<IBasketService, BasketService>();
 
         // Orders (EF Core)
-        services.AddDbContext<CommerceDbContext>();
+        var connString = config?.GetConnectionString("aero")
+                         ?? throw new InvalidOperationException("Connection string 'aero' is required for CommerceDbContext.");
+        services.AddDbContext<CommerceDbContext>(o => o.UseNpgsql(connString));
         services.AddScoped<IOrderService, OrderService>();
 
         // Validation
