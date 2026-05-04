@@ -29,20 +29,27 @@ public class MediaAsset : Entity
 /// Attribution metadata for a media asset sourced from a third-party service.
 /// Stored as a complete object on <see cref="MediaAsset.Attribution"/>.
 /// </summary>
-public sealed record MediaAttribution
+public sealed class MediaAttribution
 {
     /// <summary>The creator/photographer name.</summary>
-    public string CreatorName { get; init; } = string.Empty;
+    public string? CreatorName { get; init; } = null;
 
     /// <summary>URL to the creator's profile on the source platform.</summary>
-    public string CreatorUrl { get; init; } = string.Empty;
+    public string? CreatorUrl { get; init; } = null;
 
     /// <summary>URL to the media's page on the source platform.</summary>
-    public string SourceUrl { get; init; } = string.Empty;
+    public string? SourceUrl { get; init; } = null;
 
     /// <summary>Third-party platform name (e.g. "Pexels", "Unsplash").</summary>
-    public string Platform { get; init; } = string.Empty;
+    public string? Platform { get; init; } = null;
 
     /// <summary>Media type: "image" or "video".</summary>
-    public string MediaType { get; init; } = "image";
+    public MediaType MediaType { get; init; } = MediaType.Image;
+}
+
+
+public enum MediaType
+{
+    Image,
+    Video
 }
