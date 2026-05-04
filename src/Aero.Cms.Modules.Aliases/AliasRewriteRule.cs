@@ -54,6 +54,7 @@ public sealed class AliasRewriteRule : IRule
 
         using var scope = _serviceProvider.CreateScope();
         var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+        // todo - cache aliases instead of hitting marten everytime
         var aliases = session.Query<AliasDocument>().ToList();
 
         foreach (var alias in aliases)

@@ -57,12 +57,12 @@ public class AliasModule : AeroWebModule
 
         // Pipeline middleware — runs UseRewriter + UseStatusCodePages BEFORE all other middleware.
         // Insert(0) guarantees our IStartupFilter wraps the entire request pipeline.
-        services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, AliasPipelineStartupFilter>());
+        services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, AliasStartupFilter>());
     }
 
     public override async Task RunAsync(IEndpointRouteBuilder builder)
     {
-        await base.RunAsync(builder);
+            
     }
 
     public override void Configure(IServiceProvider services, StoreOptions opts)

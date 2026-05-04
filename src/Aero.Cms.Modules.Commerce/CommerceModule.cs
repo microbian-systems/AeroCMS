@@ -25,6 +25,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
 
 namespace Aero.Cms.Modules.Commerce;
 
@@ -40,6 +43,8 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, CommerceStartupFilter>());
+
         // Catalog (Marten)
         services.AddScoped<IProductService, ProductService>();
 
@@ -84,8 +89,9 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         // Product document — Marten schema
+        opts.DatabaseSchemaName = Schemas.Database;
         opts.Schema.For<ProductDocument>()
-            .DocumentAlias("commerce_products")
+            .DocumentAlias("products")
             .Identity(x => x.Id)
             .Index(x => x.Slug)
             .Index(x => x.Sku)
@@ -96,18 +102,33 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
 
         // Basket document — Marten schema
         opts.Schema.For<BasketDocument>()
-            .DocumentAlias("commerce_baskets")
+            .DocumentAlias("baskets")
             .Identity(x => x.Id)
             .Index(x => x.CustomerId);
     }
 
     public override void Run(IEndpointRouteBuilder builder)
     {
-        CatalogEndpoints.MapCatalogApi(builder);
-        BasketEndpoints.MapBasketApi(builder);
-        OrderEndpoints.MapOrderApi(builder);
-        PaymentEndpoints.MapPaymentApi(builder);
+        builder.MapCatalogApi();
+        builder.MapBasketApi();
+        builder.MapOrderApi();
+        builder.MapPaymentApi();
 
         base.Run(builder);
+    }
+}
+
+
+public sealed class CommerceStartupFilter : IStartupFilter
+{
+    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+    {
+        return app =>
+        {
+            var db = app.ApplicationServices.GetRequiredService<CommerceDbContext>();
+            db.Database.Migrate();
+
+            next(app);
+        };
     }
 }

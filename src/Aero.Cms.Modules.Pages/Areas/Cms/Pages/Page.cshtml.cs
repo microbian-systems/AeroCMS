@@ -1,5 +1,6 @@
 using Aero.Cms.Core.Entities;
 using Aero.Core;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
@@ -55,6 +56,21 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
         }
 
         PageDocument = page;
+        PreserveReExecutedStatusCode();
         return Page();
+    }
+
+    private void PreserveReExecutedStatusCode()
+    {
+        var reExecuteFeature = HttpContext.Features.Get<IStatusCodeReExecuteFeature>();
+        if (reExecuteFeature is null)
+        {
+            return;
+        }
+
+        if (reExecuteFeature.OriginalStatusCode is >= 400 and <= 599)
+        {
+            Response.StatusCode = reExecuteFeature.OriginalStatusCode;
+        }
     }
 }

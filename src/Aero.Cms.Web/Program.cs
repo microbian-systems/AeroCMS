@@ -309,6 +309,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
         app.UseHsts();
     }
 
+
     app.UseHttpsRedirection();
     app.MapStaticAssets();
 
@@ -332,6 +333,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
     app.MapIdentityApi();
     app.MapAeroCmsEndpoints();
+    app.UseStatusCodePagesWithRedirects("/oops"); // todo - figure out why this only works when called from here for now
 
     try
     {

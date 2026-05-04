@@ -26,7 +26,7 @@ public sealed class CommerceDbContext : DbContext
 
         mb.Entity<OrderEntity>(e =>
         {
-            e.ToTable("commerce_orders");
+            e.ToTable("orders");
             e.HasKey(x => x.Id);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
             e.Property(x => x.CustomerId).HasMaxLength(100);
@@ -52,7 +52,7 @@ public sealed class CommerceDbContext : DbContext
 
         mb.Entity<OrderItem>(e =>
         {
-            e.ToTable("commerce_order_items");
+            e.ToTable("order_items");
             e.HasKey(x => x.Id);
             e.Property(x => x.ProductName).HasMaxLength(500);
             e.Property(x => x.Sku).HasMaxLength(100);
@@ -60,7 +60,7 @@ public sealed class CommerceDbContext : DbContext
 
         mb.Entity<Buyer>(e =>
         {
-            e.ToTable("commerce_buyers");
+            e.ToTable("buyers");
             e.HasKey(x => x.Id);
             e.Property(x => x.IdentityId).HasMaxLength(100);
             e.Property(x => x.Name).HasMaxLength(200);
