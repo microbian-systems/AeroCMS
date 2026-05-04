@@ -47,7 +47,7 @@ else if (args.Length == 1)
 {
     // Single arg: if it's a number, it's the total; otherwise it's the output path
     if (int.TryParse(args[0], out totalAssets))
-        outputDir = "./src/Aero.Cms.Web/wwwroot/media";
+        outputDir = "../../src/Aero.Cms.Web/wwwroot/media";
     else
     {
         outputDir = args[0];
@@ -147,7 +147,7 @@ Log.Information("Downloading {Count} images...", photos.Count);
 
 await Parallel.ForEachAsync(photos, new ParallelOptions { MaxDegreeOfParallelism = 5 }, async (photo, ct) =>
 {
-    var url = photo.Src.Medium ?? photo.Src.Large ?? photo.Src.Original;
+    var url = photo.Src.Landscape ?? photo.Src.Large2x ?? photo.Src.Large ?? photo.Src.Original;
     if (string.IsNullOrEmpty(url)) { Interlocked.Increment(ref failed); return; }
 
     var filename = $"pexels-{photo.Id}.jpg";
