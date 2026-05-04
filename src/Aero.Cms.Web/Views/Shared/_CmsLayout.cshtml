@@ -57,6 +57,8 @@
     <style type="text/tailwindcss" src="/css/web-client.css"></style>
     
     @await RenderSectionAsync("cssPartial", required: false)
+    <link rel="icon" type="image/png" href="/img/favicon.png" />
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
     <title>@ViewBag.Title</title>
     @await RenderSectionAsync("headPartial", required:false)
     <script src="/lib/htmx/htmx.min.js"></script>

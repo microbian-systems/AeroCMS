@@ -296,6 +296,42 @@ public sealed class SeedDatabaseService(
 
         // Seed commerce products
         await commerceSeedService.SeedAsync(siteId, cancellationToken);
+
+        // Seed default global settings
+        SeedDefaultSettings();
+    }
+
+    private void SeedDefaultSettings()
+    {
+        var defaults = new List<Setting>
+        {
+            // Security
+            new() { Key = "Manager.DisablePublicAccess", Category = "Security", Value = "false", Type = "bool", Description = "Restrict manager access to internal networks only." },
+            new() { Key = "Manager.RequireWasmInstall", Category = "Security", Value = "false", Type = "bool", Description = "Force WASM PWA install for manager access." },
+            new() { Key = "Security.MaintenanceMode", Category = "Security", Value = "false", Type = "bool", Description = "Enable maintenance mode for public site." },
+            new() { Key = "Security.MaintenanceMessage", Category = "Security", Value = "", Type = "string", Description = "Message shown during maintenance." },
+
+            // General
+            new() { Key = "General.DefaultLocale", Category = "General", Value = "en-US", Type = "string", Description = "Default culture code." },
+            new() { Key = "General.DefaultTimezone", Category = "General", Value = "UTC", Type = "string", Description = "Default timezone." },
+            new() { Key = "General.AdminPagination", Category = "General", Value = "20", Type = "int", Description = "Items per page in admin lists." },
+            new() { Key = "General.MaxUploadSizeMB", Category = "General", Value = "50", Type = "int", Description = "Max file upload size in MB." },
+
+            // SEO
+            new() { Key = "SEO.RobotsTxt", Category = "SEO", Value = "", Type = "text", Description = "Custom robots.txt content." },
+            new() { Key = "SEO.DefaultMetaDescription", Category = "SEO", Value = "", Type = "string", Description = "Fallback meta description." },
+            new() { Key = "SEO.DefaultOgImage", Category = "SEO", Value = "", Type = "string", Description = "Fallback OG image URL." },
+
+            // API
+            new() { Key = "API.CorsOrigins", Category = "API", Value = "", Type = "string", Description = "Comma-separated allowed CORS origins." },
+            new() { Key = "API.RateLimitPerMinute", Category = "API", Value = "60", Type = "int", Description = "API rate limit per minute per IP." },
+            new() { Key = "API.EnablePublicApi", Category = "API", Value = "true", Type = "bool", Description = "Allow unauthenticated public API access." }
+        };
+
+        foreach (var setting in defaults)
+        {
+            session.Store(setting);
+        }
     }
 
     private async Task SeedOopsPageAsync(long siteId, CancellationToken ct)

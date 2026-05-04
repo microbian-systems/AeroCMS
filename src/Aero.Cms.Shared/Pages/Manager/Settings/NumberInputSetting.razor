@@ -1,0 +1,32 @@
+@* Number input with label and description *@
+
+<div>
+    <label for="@Id" class="block text-sm font-medium text-gray-700">@Label</label>
+    @if (!string.IsNullOrEmpty(Description))
+    {
+        <p class="mt-1 text-sm text-gray-500">@Description</p>
+    }
+    <input id="@Id" type="number" value="@Value"
+           min="@Min" max="@Max"
+           @onchange="OnChanged"
+           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public int Value { get; set; }
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+    [Parameter] public int Min { get; set; } = 0;
+    [Parameter] public int Max { get; set; } = int.MaxValue;
+
+    private async Task OnChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var val))
+        {
+            Value = Math.Clamp(val, Min, Max);
+            await ValueChanged.InvokeAsync(Value);
+        }
+    }
+}

@@ -261,6 +261,22 @@
     flex-direction: column;
     gap: 2px;
     padding: 8px 0;
+    min-height: 100%;
+}
+
+.pe-nav-spacer {
+    flex: 1;
+}
+
+.pe-nav-settings {
+    margin-top: auto;
+    border-top: 1px solid var(--pe-border);
+    padding-top: 6px;
+}
+
+.pe-sidebar.collapsed .pe-nav-settings {
+    border-top: none;
+    padding-top: 0;
 }
 
 .pe-nav-vertical .pe-nav-link {

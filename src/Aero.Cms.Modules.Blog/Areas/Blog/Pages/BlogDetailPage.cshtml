@@ -10,7 +10,7 @@
 @model Aero.Cms.Modules.Blog.Areas.Blog.Pages.BlogDetailPageModel
 
 @{
-    ViewBag.Title = Model.Post?.SeoTitle ?? Model.Post?.Title ?? "Blog Post";
+    ViewBag.Title = (Model.Post?.SeoTitle ?? Model.Post?.Title ?? "Blog Post") + " | Aero CMS";
     var post = Model.Post!;
 }
 

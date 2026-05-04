@@ -1,0 +1,26 @@
+@* Text input with label and description *@
+
+<div>
+    <label for="@Id" class="block text-sm font-medium text-gray-700">@Label</label>
+    @if (!string.IsNullOrEmpty(Description))
+    {
+        <p class="mt-1 text-sm text-gray-500">@Description</p>
+    }
+    <input id="@Id" type="text" value="@Value"
+           @onchange="OnChanged"
+           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    private async Task OnChanged(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString() ?? string.Empty;
+        await ValueChanged.InvokeAsync(Value);
+    }
+}

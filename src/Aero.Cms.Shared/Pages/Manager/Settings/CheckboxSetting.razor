@@ -1,0 +1,30 @@
+@* Checkbox with label and description *@
+
+<div class="flex items-start">
+    <div class="flex items-center h-5">
+        <input id="@Id" type="checkbox" checked="@Value"
+               @onchange="OnChanged"
+               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
+    </div>
+    <div class="ml-3 text-sm">
+        <label for="@Id" class="font-medium text-gray-700">@Label</label>
+        @if (!string.IsNullOrEmpty(Description))
+        {
+            <p class="text-gray-500">@Description</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public bool Value { get; set; }
+    [Parameter] public EventCallback<bool> ValueChanged { get; set; }
+
+    private async Task OnChanged(ChangeEventArgs e)
+    {
+        Value = (bool)(e.Value ?? false);
+        await ValueChanged.InvokeAsync(Value);
+    }
+}
