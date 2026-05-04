@@ -69,6 +69,14 @@
             </div>
         </label>
 
+        <label class="flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" @bind="PublishImported" class="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+            <div class="flex flex-col">
+                <span class="text-xs font-bold text-gray-700 dark:text-gray-200">Publish imported posts</span>
+                <span class="text-[10px] text-gray-400">If unchecked, posts will be imported as drafts with no publish date</span>
+            </div>
+        </label>
+
         <div class="flex items-center gap-3">
             <label class="text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">Duplicate slugs:</label>
             <RadzenDropDown @bind-Value="@DuplicateBehavior" 
@@ -131,6 +139,7 @@
     IBrowserFile? selectedFile;
     bool isUploading;
     bool StoreLocalImages = true;
+    bool PublishImported = true;
     string DuplicateBehavior = "skip";
     ImportBlogResult? importResult;
 
@@ -179,7 +188,7 @@
                 StoreLocalImages: StoreLocalImages,
                 DuplicateBehavior: DuplicateBehavior,
                 DefaultAuthorId: null,
-                PublishImported: true
+                PublishImported: PublishImported
             );
 
             Logger.LogInformation("Calling import API for {FileName}...", selectedFile.Name);

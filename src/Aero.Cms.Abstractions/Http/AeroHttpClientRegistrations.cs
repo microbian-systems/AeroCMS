@@ -43,7 +43,14 @@ public static class AeroHttpClientExtensions
                 .AddHttpMessageHandler<JwtTokenHandler>()
                 .AddHttpMessageHandler<AeroHttpLoggingHandler>()
                 .AddHttpMessageHandler<ClientRateLimitHandler>()
-                .AddStandardResilienceHandler();
+                .AddStandardResilienceHandler(options =>
+                {
+                    // Increase timeouts for long-running operations (blog import, etc.).
+                    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(60);
+                    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
+                    // Circuit breaker sampling must be ≥ 2× attempt timeout.
+                    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(120);
+                });
         });
 
         services.AddHttpClient<IBlogHttpClient, BlogHttpClient>();

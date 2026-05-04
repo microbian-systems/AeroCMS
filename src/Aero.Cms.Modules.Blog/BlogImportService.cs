@@ -112,6 +112,14 @@ public sealed class BlogImportService : IBlogImportService
                     AeroError.CreateError("No blog posts found in the uploaded file"));
             }
 
+            // Log parsed data for diagnostics
+            _log.LogInformation("[Import] Parsed {Count} posts from '{File}'", importablePosts.Count, request.FileName);
+            foreach (var p in importablePosts.Take(3))
+            {
+                _log.LogInformation("[Import] Parsed: slug={Slug}, rawDate='{RawDate}', parsedDate={ParsedDate}",
+                    p.Slug, p.PublishedOn?.ToString("o") ?? "<null>", p.PublishedOn?.ToString("yyyy-MM-dd") ?? "<null>");
+            }
+
             // 4. Batch resolve tags across all posts
             var tagMap = await ResolveTagsAsync(importablePosts, ct);
 
@@ -197,7 +205,7 @@ public sealed class BlogImportService : IBlogImportService
                             document.PublicationState = request.PublishImported
                                 ? ContentPublicationState.Published
                                 : ContentPublicationState.Draft;
-                            document.PublishedOn = post.PublishedOn ?? now;
+                            document.PublishedOn = request.PublishImported ? post.PublishedOn ?? now : null;
                             document.ModifiedOn = now;
                             document.TagIds = post.Tags.Select(t => tagMap.GetValueOrDefault(t.ToLowerInvariant(), 0L))
                                 .Where(id => id > 0).ToList();
@@ -212,7 +220,12 @@ public sealed class BlogImportService : IBlogImportService
                     }
                     else
                     {
+                        _log.LogInformation("[Import] Creating: slug={Slug}, parsedPublishedOn={Parsed}, publishFlag={Publish}",
+                            post.Slug, post.PublishedOn?.ToString("yyyy-MM-dd") ?? "<null>", request.PublishImported);
                         document = CreateNewPost(post, postId, now, resolvedImageUrl, tagMap, request);
+                        _log.LogInformation("[Import] Created: slug={Slug}, doc.PublishedOn={DocPub}, doc.CreatedOn={DocCreated}",
+                            document.Slug, document.PublishedOn?.ToString("yyyy-MM-dd") ?? "<null>",
+                            document.CreatedOn.ToString("yyyy-MM-dd"));
                     }
 
                     // Create slug reservation
@@ -287,9 +300,9 @@ public sealed class BlogImportService : IBlogImportService
             PublicationState = request.PublishImported
                 ? ContentPublicationState.Published
                 : ContentPublicationState.Draft,
-            PublishedOn = post.PublishedOn ?? now,
-            CreatedOn = now,
-            ModifiedOn = now,
+            PublishedOn = request.PublishImported ? post.PublishedOn ?? now : null,
+            CreatedOn = post.PublishedOn ?? now,
+            ModifiedOn = post.PublishedOn ?? now,
             TagIds = post.Tags
                 .Select(t => tagMap.GetValueOrDefault(t.ToLowerInvariant(), 0L))
                 .Where(id => id > 0)
@@ -384,11 +397,11 @@ public sealed class BlogImportService : IBlogImportService
         ImportablePost post, bool isOverwrite,
         SemaphoreSlim semaphore, CancellationToken ct)
     {
-        // 1. Use coverImage from the import if provided
+        // 1. Use coverImage from the import JSON if provided
         if (!string.IsNullOrEmpty(post.CoverImage))
             return post.CoverImage;
 
-        // 2. Try Pexels (throttled)
+        // 2. Try Pexels (throttled) when no coverImage in the import
         if (_pexels is not null)
         {
             await semaphore.WaitAsync(ct);

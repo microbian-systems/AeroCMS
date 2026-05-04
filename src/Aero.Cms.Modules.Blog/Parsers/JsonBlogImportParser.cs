@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Core;
 
@@ -61,22 +63,50 @@ public sealed class JsonBlogImportParser : IBlogImportParser
     private static ImportablePost Map(ImportEntry entry) => new()
     {
         Title = entry.Title ?? string.Empty,
-        Slug = entry.Slug ?? string.Empty,
+        Slug = entry.Slug ?? GenerateSlug(entry.Title),
         MarkdownContent = entry.Content ?? string.Empty,
         CoverImage = entry.CoverImage,
-        PublishedOn = DateTimeOffset.TryParse(entry.Date, out var dt) ? dt : null,
+        PublishedOn = TryParseDate(entry.Date),
         Tags = entry.Tags ?? []
     };
 
-    // Internal DTO matching the import JSON format
-    private sealed record ImportEntry
+    private static string GenerateSlug(string? title)
     {
-        public int Id { get; init; }
-        public string? Title { get; init; }
-        public string? Date { get; init; }
-        public string? Slug { get; init; }
-        public string? CoverImage { get; init; }
-        public string? Content { get; init; }
-        public List<string>? Tags { get; init; }
+        if (string.IsNullOrWhiteSpace(title)) return "untitled";
+        return title
+            .ToLowerInvariant().Trim()
+            .Replace(" ", "-").Replace(":", "").Replace(".", "")
+            .Replace(",", "").Replace("'", "").Replace("\"", "")
+            .Replace("--", "-").Trim('-');
+    }
+
+    private static DateTimeOffset? TryParseDate(string? dateStr)
+    {
+        if (string.IsNullOrWhiteSpace(dateStr)) return null;
+
+        // Primary format: "2023-01-25"
+        if (DateTimeOffset.TryParseExact(dateStr, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal, out var dt))
+            return dt;
+
+        // Fallback: try ISO 8601 with time component
+        if (DateTimeOffset.TryParse(dateStr, CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal, out var dt2))
+            return dt2;
+
+        return null;
+    }
+
+
+    // Internal DTO matching the import JSON format
+    private sealed class ImportEntry
+    {
+        [JsonPropertyName("id")] public int Id { get; set; }
+        [JsonPropertyName("title")] public string? Title { get; set; }
+        [JsonPropertyName("date")] public string? Date { get; set; }
+        [JsonPropertyName("slug")] public string? Slug { get; set; }
+        [JsonPropertyName("coverImage")] public string? CoverImage { get; set; }
+        [JsonPropertyName("content")] public string? Content { get; set; }
+        [JsonPropertyName("tags")] public List<string>? Tags { get; set; }
     }
 }

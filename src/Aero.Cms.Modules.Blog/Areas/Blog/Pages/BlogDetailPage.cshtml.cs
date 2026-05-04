@@ -24,10 +24,9 @@ public class BlogDetailPageModel(IBlogPostContentService blogService) : PageMode
             return NotFound();
         }
 
-        // Slugs are stored with the blog/ prefix (e.g. "blog/my-post")
-        // but the route {slug} parameter only captures the post portion
-        var fullSlug = $"blog/{Slug}";
-        var result = await blogService.FindBySlugAsync(fullSlug, cancellationToken);
+        // Slugs are stored without a prefix — the route /blog/{slug}
+        // provides the plain slug directly from the URL.
+        var result = await blogService.FindBySlugAsync(Slug, cancellationToken);
         var tagsResult = await blogService.GetAllTagsAsync(cancellationToken);
 
         var post = result switch
