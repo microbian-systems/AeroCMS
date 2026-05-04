@@ -37,6 +37,8 @@ public class SitesModule : AeroModuleBase, IConfigureMarten
         opts.Schema.For<SitesModel>().UniqueIndex(x => x.Hostname!);
         opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
         opts.Schema.For<SitesModel>().ForeignKey<TenantModel>(x => x.TenantId);
+
+        base.Configure<SitesModel>(services, opts);
     }
 }
 
