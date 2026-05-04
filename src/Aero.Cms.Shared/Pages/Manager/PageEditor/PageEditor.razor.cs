@@ -1,15 +1,12 @@
 using System.Text.RegularExpressions;
 using System.Text.Json;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System;
-using System.IO;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Aero.Core;
 using Aero.Cms.Core;
@@ -110,7 +107,6 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string?      MediaContext     { get; set; }   // "background" | "nested"
     protected NestedBlock? NestedMediaTarget { get; set; }
 
-    protected List<MediaItem> MediaLibrary { get; set; } = [];
     private Dictionary<string, List<ReferenceItem>> _referenceData = new();
     protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
 
@@ -188,15 +184,6 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     private async Task LoadReferenceDataAsync()
     {
-        // Media Gallery
-        var mediaResult = await MediaClient.GetAllAsync(take: 50);
-        if (mediaResult is Result<PagedResult<MediaSummary>, AeroError>.Ok mediaOk)
-        {
-            MediaLibrary = mediaOk.Value.Items
-                .Select(m => new MediaItem(m.Id, m.Url, m.FileName))
-                .ToList();
-        }
-
         // Reference Picker data
         var pagesTask = PagesClient.GetAllAsync(take: 50);
         var blogsTask = BlogClient.GetAllAsync(take: 50);
@@ -444,6 +431,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             case "video":
                 block.Url = string.Empty;
                 block.Src = string.Empty;
+                block.AutoPlay = false;
                 break;
 
             case "gallery":
@@ -761,6 +749,15 @@ public partial class PageEditor : ComponentBase, IDisposable
         {
             CurrentMediaBlock.BackgroundImage = items.First().Src;
         }
+        else if (MediaContext == "video" && CurrentMediaBlock != null)
+        {
+            // Set the URL and auto-load the video (resolves YouTube/Vimeo embeds or direct URL)
+            // LoadVideo handles its own toast — skip the generic one below.
+            CurrentMediaBlock.Url = items.First().Src;
+            LoadVideo(CurrentMediaBlock);
+            MediaModalOpen = false;
+            return;
+        }
         else if (MediaContext == "nested" && NestedMediaTarget is not null)
         {
             NestedMediaTarget.Src = items.First().Src;
@@ -786,27 +783,6 @@ public partial class PageEditor : ComponentBase, IDisposable
         block.Src     = string.Empty;
         block.Alt     = string.Empty;
         block.Caption = string.Empty;
-    }
-
-    protected async Task HandleFileSelect(InputFileChangeEventArgs e)
-    {
-        foreach (var file in e.GetMultipleFiles())
-        {
-            if (!file.ContentType.StartsWith("image/")) continue;
-
-            // Simulate upload: read as base64 for preview
-            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
-            using var ms     = new MemoryStream();
-            await stream.CopyToAsync(ms);
-            var bytes = ms.ToArray();
-            var b64   = Convert.ToBase64String(bytes);
-            var dataUrl = $"data:{file.ContentType};base64,{b64}";
-
-            var newItem = new MediaItem(MediaLibrary.Any() ? MediaLibrary.Max(i => i.Id) + 1 : 1, dataUrl, file.Name);
-            MediaLibrary.Insert(0, newItem);
-        }
-
-        ShowToast("Files uploaded", "success");
     }
 
     // ──────────────────────────────────────────────────────────

@@ -12,15 +12,15 @@ using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
+using Aero.Core.Railway;
 using Aero.Modular;
-using Aero.Services.Images;
 using Marten;
 using Aero.Cms.Core.Models;
+using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Cms.Modules.Aliases;
 using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Modules.Setup.Bootstrap;
-using Aero.Services.Images;
 using Microsoft.AspNetCore.Hosting;
 using Serilog;
 
@@ -83,8 +83,7 @@ public sealed class SeedDatabaseService(
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
     IBlogPostContentService blogPostContentService,
-    IStaticPhotosClient staticPhotosClient,
-    IPexelsService pexelsService,
+    IMediaService mediaService,
     ICommerceSeedService commerceSeedService,
     IModuleInitializationService moduleInitializationService,
     IBootstrapCompletionWriter bootstrapCompletionWriter,
@@ -278,7 +277,7 @@ public sealed class SeedDatabaseService(
         await SeedStarterMediaAsync(cancellationToken);
 
         // Build starter blog content (posts and tags)
-        var (posts, tags) = BuildStarterBlogContent(request, staticPhotosClient);
+        var (posts, tags) = BuildStarterBlogContent(request);
 
         // Store tags first
         foreach (var tag in tags)
@@ -409,6 +408,7 @@ public sealed class SeedDatabaseService(
             [".ico"] = "image/x-icon"
         };
 
+        // Seed top-level media files in wwwroot/media/
         foreach (var filePath in Directory.EnumerateFiles(mediaDir))
         {
             var fileName = Path.GetFileName(filePath);
@@ -432,8 +432,23 @@ public sealed class SeedDatabaseService(
             session.Store(media);
         }
 
-        Log.Information("Seeded {Count} media assets from {Path}",
-            Directory.GetFiles(mediaDir).Length, mediaDir);
+        // Seed hydrated Pexels images with full attribution metadata
+        var hydratedResult = await mediaService.SeedFromDirectoryAsync("hydrated-images", ct);
+        if (hydratedResult.IsFailure)
+        {
+            var error = hydratedResult is Result<int, AeroError>.Failure f
+                ? (f.Error is AeroError.Error e ? e.msg : "Unknown error")
+                : "Failed to seed hydrated images";
+            Log.Warning("Failed to seed hydrated images: {Error}", error);
+        }
+        else
+        {
+            var count = hydratedResult is Result<int, AeroError>.Ok ok ? ok.Value : 0;
+            Log.Information("Seeded {Count} hydrated media assets", count);
+        }
+
+        Log.Information("Seeded top-level media assets from {Path}",
+            Directory.GetFiles(mediaDir).Length);
     }
 
     private async Task SaveModuleStateAsync(CancellationToken cancellationToken)
@@ -746,11 +761,21 @@ public sealed class SeedDatabaseService(
         );
     }
 
-    private static (IReadOnlyList<BlogPostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request, IStaticPhotosClient staticPhotosClient)
+    private static (IReadOnlyList<BlogPostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request)
     {
         var random = new Random();
         var tags = CreateTags();
         var tagMap = tags.ToDictionary(t => t.Name, t => t.Id);
+
+        const string H = "/media/hydrated-images/";
+        var techPool = new[]
+        {
+            $"{H}pexels-14057520.jpg", $"{H}pexels-14928877.jpg",
+            $"{H}pexels-16038076.jpg", $"{H}pexels-33402136.jpg",
+            $"{H}pexels-36586080.jpg", $"{H}pexels-37298148.jpg",
+            $"{H}pexels-35774019.jpg", $"{H}pexels-36713338.jpg",
+            $"{H}pexels-36009140.jpg", $"{H}pexels-36578877.jpg"
+        };
 
         var posts = new List<BlogPostDocument>
         {
@@ -758,52 +783,52 @@ public sealed class SeedDatabaseService(
                 "Launching a better way to share updates and connect with our community.",
                 "# Welcome to Our New Platform\n\nWe're thrilled to unveil our new digital home. This platform marks a significant step forward in how we communicate, share, and engage with you&#8212;our community.\n\nBuilt from the ground up with modern technology, this site represents our commitment to speed, accessibility, and user experience. Every pixel has been crafted with care, every feature designed with purpose.\n\nAs you explore, you'll find our blog at the heart of this platform. This is where we'll share insights, announce updates, and tell the stories behind our work.",
                 [tagMap["announcements"], tagMap["community"]],
-                staticPhotosClient.GetPhotoUrl("technology"), random.Next(1, 1001)),
+                $"{H}pexels-34077030.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "blog/behind-the-scenes-building-a-content-management-system", "Behind the Scenes: Building a Content Management System",
                 "A deep dive into the technical decisions that power our content platform.",
                 "# Behind the Scenes: Building a Content Management System\n\nCreating a CMS from scratch is both exhilarating and challenging. In this post, we're pulling back the curtain on the architectural decisions that shape our platform.\n\nWe chose **.NET 10** for its performance and robust ecosystem. **MartenDB** provides the document storage layer, giving us flexibility in our schema while maintaining query performance. The block-based content model allows for rich, modular layouts.\n\nThe result is a system that's fast, flexible, and fun to use. Stay tuned for more technical deep dives.\n\n> The best systems are those that disappear, letting creators focus on what matters&#8212;creating.\n\n&#8212; Our Team",
                 [tagMap["architecture"], tagMap["cms"], tagMap[".net"]],
-                staticPhotosClient.GetPhotoUrl("technology"), random.Next(1, 1001)),
+                $"{H}pexels-27254940.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "blog/design-principles-for-modern-web-platforms", "Design Principles for Modern Web Platforms",
                 "How we approach design to create interfaces that feel natural and intuitive.",
                 "# Design Principles for Modern Web Platforms\n\nGood design is invisible. It works so well that users never notice the effort behind it. That's the standard we hold ourselves to.\n\nOur design philosophy centers on three pillars: **clarity**, **speed**, and **delightful interactions**. Every component we build must serve a purpose, load instantly, and feel natural to use.\n\nWe believe in progressive enhancement&#8212;starting with a solid, accessible foundation and layering on polished experiences for capable browsers. This ensures everyone gets a great experience, regardless of device or connection.",
                 [tagMap["design"], tagMap["ux"]],
-                staticPhotosClient.GetPhotoUrl("workspace"), random.Next(1, 1001)),
+                $"{H}pexels-37178225.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "blog/choosing-orleans-for-distributed-systems", "Choosing Orleans for Distributed Systems",
                 "Why we selected Orleans as our service framework and what we've learned.",
                 "# Choosing Orleans for Distributed Systems\n\nWhen architecting a platform that needs to scale, the choice of service framework is critical. After evaluating several options, we chose **Microsoft Orleans** for its balance of simplicity and power.\n\nOrleans brings the actor model to .NET in a way that feels natural. Grains provide a clean mental model for stateful services, while the runtime handles distribution, persistence, and scaling concerns.\n\nWhat sold us most was the developer experience. The programming model is intuitive, the debugging story is solid, and the documentation is excellent. After months of building, we haven't looked back.\n\n> Orleans lets us think about business logic, not infrastructure. That's exactly what we needed.",
                 [tagMap["orleans"], tagMap["distributed-systems"], tagMap[".net"]],
-                staticPhotosClient.GetPhotoUrl("architecture"), random.Next(1, 1001)),
+                $"{H}pexels-36723270.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "blog/content-strategy-blogging-best-practices", "Content Strategy: Blogging Best Practices",
                 "Tips for maintaining a consistent publishing cadence and quality content.",
                 "# Content Strategy: Blogging Best Practices\n\nStarting a blog is easy. Maintaining one is hard. Here's what we've learned about building a sustainable content practice.\n\n**First, quality beats quantity.** We'd rather publish one excellent article than three mediocre ones. Each post should add genuine value&#8212;whether that's solving a problem, sharing insight, or telling a compelling story.\n\n**Second, consistency builds trust.** When readers know they can expect content on a regular schedule, they become loyal followers. We publish weekly, every Tuesday morning.\n\n**Finally, engage with your audience.** Respond to comments, answer questions, and acknowledge feedback. The best blogs are conversations, not monologues.",
                 [tagMap["content-strategy"], tagMap["blogging"]],
-                staticPhotosClient.GetPhotoUrl("office"), random.Next(1, 1001)),
+                $"{H}pexels-36391026.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "blog/scaling-postgres-for-high-traffic", "Scaling Postgres for High Traffic",
                 "Lessons learned from optimizing our database layer for performance.",
                 "# Scaling Postgres for High Traffic\n\nPostgreSQL is remarkably capable, but pushing it to its limits requires thoughtfulness. Here's how we handle traffic spikes without breaking a sweat.\n\n**Indexing is everything.** Every query was analyzed and optimized. We use covering indexes for read-heavy paths, partial indexes for filtered queries, and GIN indexes for full-text search. The difference in performance is night and day.\n\n**Connection pooling is essential.** With Marten's pooling built-in, we reuse connections efficiently, avoiding the overhead of establishing new connections for each request.\n\n**And always, always monitor.** Query stats, connection counts, cache hit ratios&#8212;know your system's vital signs before problems arise.\n\n> Premature optimization is the root of all evil. But so is ignoring performance until it bites you.",
                 [tagMap["postgresql"], tagMap["performance"], tagMap["database"]],
-                staticPhotosClient.GetPhotoUrl("technology"), random.Next(1, 1001)),
+                $"{H}pexels-34043108.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "blog/embracing-blazor-and-htmx", "Embracing Blazor and HTMX for Interactive UIs",
                 "How we combine server-side rendering with progressive enhancement.",
                 "# Embracing Blazor and HTMX for Interactive UIs\n\nThe web development landscape is fractured between full-page reload purists and SPA enthusiasts. We found a middle ground that gives us the best of both worlds.\n\n**Blazor** provides rich, interactive components in C#. We use Radzen's component library for rapid development of complex UI elements&#8212;data grids, editors, dialogs. Everything works without writing JavaScript.\n\n**HTMX** adds the dynamic touch. With a few attributes, we enable seamless partial page updates, infinite scroll, and real-time interactions. The pattern is simple: server renders HTML, HTMX swaps it in. No client-side routing, no hydration complexity.\n\nThe result is a site that loads fast, works without JavaScript, yet feels modern and responsive. That's the sweet spot.",
                 [tagMap["blazor"], tagMap["htmx"], tagMap["frontend"]],
-                staticPhotosClient.GetPhotoUrl("workspace"), random.Next(1, 1001)),
+                $"{H}pexels-13860372.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "blog/open-telemetry-observability-at-scale", "OpenTelemetry: Observability at Scale",
                 "Implementing distributed tracing and metrics in our platform.",
                 "# OpenTelemetry: Observability at Scale\n\nWhen systems grow complex, intuition fails. You need data. That's where observability comes in, and **OpenTelemetry** is our tool of choice.\n\nWe instrument everything with OpenTelemetry: requests, database calls, cache operations, message processing. Using **Serilog** as our logging foundation and **OpenObserve** for storage and visualization, we have complete visibility into system behavior.\n\nTraces let us follow requests across service boundaries, finding where latency bubbles up. Metrics show trends over time&#8212;error rates, response times, throughput. Logs provide the detail when something goes wrong.\n\nThe investment pays dividends every incident. Instead of guessing, we know exactly what happened and where.\n\n> Without observability, you're flying blind. With it, you can debug with confidence.",
                 [tagMap["observability"], tagMap["opentelemetry"], tagMap["monitoring"]],
-                staticPhotosClient.GetPhotoUrl("science"), random.Next(1, 1001)),
+                $"{H}pexels-29243214.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "blog/getting-started-with-aero-cms", "Getting Started with Aero CMS",
                 $"Use {Normalize(request.SiteName)} to publish your first update in minutes.",
                 $"# Getting Started with Aero CMS\n\nYour site is live with a homepage and blog. Use this starter post as the baseline for your first editorial update in **{Normalize(request.SiteName)}**.\n\nThe platform is designed to be intuitive. Create pages, arrange blocks, publish content&#8212;all without touching code. But if you need to extend functionality, the architecture is open and extensible.\n\nBrowse the admin panel to explore what's possible. Add new pages, create blog posts, arrange content blocks, customize the design. This is just the beginning.",
                 [tagMap["cms"], tagMap["tutorial"], tagMap["guide"]],
-                staticPhotosClient.GetPhotoUrl("education"), random.Next(1, 1001)),
+                $"{H}pexels-12491947.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "blog/the-future-of-content-management", "The Future of Content Management",
                 "Where we see the CMS space heading and what it means for content creators.",
                 "# The Future of Content Management\n\nThe CMS landscape is evolving. Traditional monoliths give way to composable architectures. Proprietary formats yield to open standards. We're excited about where it's heading.\n\nBlock-based content models are becoming the norm. Instead of rigid templates, editors compose with reusable components. This flexibility unlocks creativity while maintaining consistency.\n\n**Headless is hot, but we're skeptical** of the one-size-fits-all pitch. Most teams need a cohesive system, not a puzzle of separate products. We believe in integrated solutions that just work.\n\nThe future is fast, accessible, and focused on the creator experience. That's the future we're building toward.",
                 [tagMap["future"], tagMap["cms"], tagMap["trends"]],
-                staticPhotosClient.GetPhotoUrl("technology"), random.Next(1, 1001))
+                $"{H}pexels-37292919.jpg", random.Next(1, 1001))
         };
 
         // Add 20 more posts
@@ -829,7 +854,7 @@ public sealed class SeedDatabaseService(
                 $"Exploring the nuances of {topic} in the context of modern enterprise applications.",
                 $"# {topic}\n\n{topic} is a crucial area of modern software development. In this deep dive, we examine the core principles and how they apply to building high-performance systems.\n\nAs we move towards more distributed and resilient architectures, understanding the underlying patterns becomes even more important.",
                 allTagIds.OrderBy(_ => random.Next()).Take(3).ToList(),
-                staticPhotosClient.GetPhotoUrl("technology"),
+                techPool[i % techPool.Length],
                 random.Next(1, 500)));
         }
 
@@ -904,7 +929,7 @@ Technical documentation for integrating with the Aero CMS core services.",
             PublishedOn = DateTimeOffset.UtcNow,
             PublicationState = ContentPublicationState.Published,
             Order = 0,
-            HeaderImageUrl = staticPhotosClient.GetPhotoUrl("tech", "1920x1080"),
+            HeaderImageUrl = "/media/hydrated-images/pexels-30556872.jpg",
             SeoTitle = "Aero CMS Documentation - Knowledge Base",
             SeoDescription = "Learn how to build and extend Aero CMS with our comprehensive developer guides."
         };

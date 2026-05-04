@@ -5,11 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Media;
 
-
 public interface IMediaRepository : IGenericMartenRepository<MediaAsset>;
 
-public class MediaReposiotry(IDocumentSession session, ILogger<MediaReposiotry> log) 
-    : GenericMartenRepository<MediaAsset>(session, log), IMediaRepository
-{
-
-}
+public class MediaRepository(IDocumentSession session, ILogger<MediaRepository> log)
+    : GenericMartenRepository<MediaAsset>(session, log), IMediaRepository;

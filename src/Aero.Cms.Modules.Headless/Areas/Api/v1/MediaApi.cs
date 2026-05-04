@@ -1,4 +1,7 @@
 using Aero.Cms.Core.Models;
+using Aero.Cms.Modules.Media;
+using Aero.Core;
+using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -54,7 +57,7 @@ public static class MediaApi
     }
 
     private static async Task<IResult> GetAllMedia(
-        [FromServices] IDocumentSession session,
+        [FromServices] IMediaService mediaService,
         [FromServices] ILoggerFactory loggerFactory,
         [FromQuery] long? parentId = null,
         [FromQuery] int skip = 0,
@@ -65,41 +68,19 @@ public static class MediaApi
         var logger = loggerFactory.CreateLogger(typeof(MediaApi));
         try
         {
-            var query = session.Query<MediaAsset>();
+            var result = await mediaService.GetPagedAsync(parentId, skip, take, search, cancellationToken);
 
-            IQueryable<MediaAsset> filteredQuery = query;
+            if (result is Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>.Ok(var ok))
+            {
+                var summaries = ok.Items.Select(m => new MediaSummary(
+                    m.Id, m.FileName, m.Url, m.MimeType ?? "application/octet-stream",
+                    m.FileSize, m.CreatedOn.DateTime, m.IsFolder, m.ParentId
+                )).ToList();
 
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var s = search.ToLower();
-                filteredQuery = filteredQuery.Where(x => x.FileName.ToLower().Contains(s) || (x.AltText != null && x.AltText.ToLower().Contains(s)));
-            }
-            else
-            {
-                filteredQuery = filteredQuery.Where(x => x.ParentId == parentId);
+                return TypedResults.Ok(new PagedResult<MediaSummary>(summaries, ok.TotalCount, skip, take));
             }
 
-            var stats = new global::Marten.Linq.QueryStatistics();
-            var media = await ((global::Marten.Linq.IMartenQueryable<MediaAsset>)filteredQuery)
-                .OrderByDescending(x => x.IsFolder)
-                .ThenByDescending(x => x.CreatedOn)
-                .Stats(out stats)
-                .Skip(skip)
-                .Take(take)
-                .ToListAsync(cancellationToken);
-
-            var summaries = media.Select(m => new MediaSummary(
-                m.Id,
-                m.FileName,
-                m.Url,
-                m.MimeType ?? "application/octet-stream",
-                m.FileSize,
-                m.CreatedOn.DateTime,
-                m.IsFolder,
-                m.ParentId
-            )).ToList();
-
-            return TypedResults.Ok(new PagedResult<MediaSummary>(summaries, stats.TotalResults, skip, take));
+            return TypedResults.Problem(detail: "Failed to retrieve media");
         }
         catch (Exception ex)
         {
@@ -110,36 +91,24 @@ public static class MediaApi
 
     private static async Task<IResult> GetMediaById(
         long id,
-        [FromServices] IDocumentSession session,
+        [FromServices] IMediaService mediaService,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(MediaApi));
         try
         {
-            var media = await session.LoadAsync<MediaAsset>(id, cancellationToken);
+            var result = await mediaService.GetByIdAsync(id, cancellationToken);
 
-            if (media is null)
+            if (result is Result<MediaAsset?, AeroError>.Ok(var ok) && ok is not null)
             {
-                return TypedResults.NotFound(new { error = $"Media asset with ID {id} not found." });
+                return TypedResults.Ok(new MediaDetail(
+                    ok.Id, ok.FileName, ok.Url, ok.MimeType, ok.FileSize,
+                    ok.CreatedOn.DateTime, ok.Width, ok.Height,
+                    ok.AltText, ok.Description, ok.IsFolder, ok.ParentId));
             }
 
-            var detail = new MediaDetail(
-                media.Id,
-                media.FileName,
-                media.Url,
-                media.MimeType,
-                media.FileSize,
-                media.CreatedOn.DateTime,
-                media.Width,
-                media.Height,
-                media.AltText,
-                media.Description,
-                media.IsFolder,
-                media.ParentId
-            );
-
-            return TypedResults.Ok(detail);
+            return TypedResults.NotFound(new { error = $"Media asset with ID {id} not found." });
         }
         catch (Exception ex)
         {
@@ -150,28 +119,23 @@ public static class MediaApi
 
     private static async Task<IResult> CreateFolder(
         [FromBody] CreateFolderRequest request,
-        [FromServices] IDocumentSession session,
+        [FromServices] IMediaService mediaService,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(MediaApi));
         try
         {
-            var folder = new MediaAsset
+            var result = await mediaService.CreateFolderAsync(request.Name, request.ParentId, cancellationToken);
+
+            if (result is Result<MediaAsset, AeroError>.Ok(var folder))
             {
-                Id = Snowflake.NewId(),
-                FileName = request.Name,
-                IsFolder = true,
-                ParentId = request.ParentId,
-                MimeType = "folder",
-                Url = "#"
-            };
+                return TypedResults.Ok(new MediaDetail(
+                    folder.Id, folder.FileName, folder.Url, folder.MimeType, 0,
+                    folder.CreatedOn.DateTime, 0, 0, null, null, true, folder.ParentId));
+            }
 
-            session.Store(folder);
-            await session.SaveChangesAsync(cancellationToken);
-
-            var detail = new MediaDetail(folder.Id, folder.FileName, folder.Url, folder.MimeType, 0, folder.CreatedOn.DateTime, 0, 0, null, null, true, folder.ParentId);
-            return TypedResults.Ok(detail);
+            return TypedResults.Problem(detail: "Failed to create folder");
         }
         catch (Exception ex)
         {
@@ -182,7 +146,7 @@ public static class MediaApi
 
     private static async Task<IResult> CreateMedia(
         [FromBody] UploadMediaRequest request,
-        [FromServices] IDocumentSession session,
+        [FromServices] IMediaService mediaService,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
         CancellationToken cancellationToken = default)
@@ -197,7 +161,7 @@ public static class MediaApi
                 var directory = Path.Combine(env.WebRootPath, "media");
                 logger.LogInformation("Saving media file to: {Directory}. FileName: {FileName}", directory, request.FileName);
 
-                if (!Directory.Exists(directory)) 
+                if (!Directory.Exists(directory))
                 {
                     logger.LogDebug("Directory does not exist. Creating: {Directory}", directory);
                     Directory.CreateDirectory(directory);
@@ -205,17 +169,16 @@ public static class MediaApi
 
                 var filePath = Path.Combine(directory, request.FileName);
                 logger.LogDebug("Converting Base64 data (Length: {Length}) to bytes...", request.Base64Data.Length);
-                
+
                 var data = Convert.FromBase64String(request.Base64Data);
                 logger.LogInformation("Writing {Bytes} bytes to disk at {FilePath}...", data.Length, filePath);
-                
+
                 await File.WriteAllBytesAsync(filePath, data, cancellationToken);
                 logger.LogDebug("File write complete.");
             }
 
             var media = new MediaAsset
             {
-                Id = Snowflake.NewId(),
                 FileName = request.FileName,
                 MimeType = request.MimeType,
                 FileSize = request.FileSize,
@@ -226,27 +189,19 @@ public static class MediaApi
                 IsFolder = false
             };
 
-            logger.LogDebug("Storing MediaAsset record in DB. ID: {Id}", media.Id);
-            session.Store(media);
-            await session.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("MediaAsset record persisted successfully for {Id}", media.Id);
+            logger.LogDebug("Storing MediaAsset record in DB...");
+            var result = await mediaService.CreateAsync(media, cancellationToken);
 
-            var detail = new MediaDetail(
-                media.Id,
-                media.FileName,
-                media.Url,
-                media.MimeType,
-                media.FileSize,
-                media.CreatedOn.DateTime,
-                media.Width,
-                media.Height,
-                media.AltText,
-                media.Description,
-                false,
-                media.ParentId
-            );
+            if (result is Result<MediaAsset, AeroError>.Ok(var saved))
+            {
+                logger.LogInformation("MediaAsset record persisted successfully for {Id}", saved.Id);
+                return TypedResults.Ok(new MediaDetail(
+                    saved.Id, saved.FileName, saved.Url, saved.MimeType, saved.FileSize,
+                    saved.CreatedOn.DateTime, saved.Width, saved.Height,
+                    saved.AltText, saved.Description, false, saved.ParentId));
+            }
 
-            return TypedResults.Ok(detail);
+            return TypedResults.Problem(detail: "Failed to create media asset");
         }
         catch (Exception ex)
         {
@@ -257,7 +212,7 @@ public static class MediaApi
 
     private static async Task<IResult> UploadHtmlEditorImage(
         HttpRequest request,
-        [FromServices] IDocumentSession session,
+        [FromServices] IMediaService mediaService,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
         CancellationToken cancellationToken = default)
@@ -298,7 +253,6 @@ public static class MediaApi
             var url = $"/media/{storedFileName}";
             var media = new MediaAsset
             {
-                Id = Snowflake.NewId(),
                 FileName = storedFileName,
                 MimeType = file.ContentType,
                 FileSize = file.Length,
@@ -306,10 +260,14 @@ public static class MediaApi
                 IsFolder = false
             };
 
-            session.Store(media);
-            await session.SaveChangesAsync(cancellationToken);
+            var result = await mediaService.CreateAsync(media, cancellationToken);
 
-            return TypedResults.Ok(new { url, id = media.Id });
+            if (result is Result<MediaAsset, AeroError>.Ok(var saved))
+            {
+                return TypedResults.Ok(new { url, id = saved.Id });
+            }
+
+            return TypedResults.Problem(detail: "Unable to save media record.");
         }
         catch (Exception ex)
         {
@@ -321,44 +279,35 @@ public static class MediaApi
     private static async Task<IResult> UpdateMedia(
         long id,
         [FromBody] UploadMediaRequest request,
-        [FromServices] IDocumentSession session,
+        [FromServices] IMediaService mediaService,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(MediaApi));
         try
         {
-            var media = await session.LoadAsync<MediaAsset>(id, cancellationToken);
+            var getResult = await mediaService.GetByIdAsync(id, cancellationToken);
 
-            if (media is null)
+            if (getResult is Result<MediaAsset?, AeroError>.Ok(var existing) && existing is not null)
             {
-                return TypedResults.NotFound(new { error = $"Media asset with ID {id} not found." });
+                existing.FileName = request.FileName;
+                existing.AltText = request.AltText;
+                existing.Description = request.Description;
+
+                var updateResult = await mediaService.UpdateAsync(existing, cancellationToken);
+
+                if (updateResult is Result<MediaAsset, AeroError>.Ok(var saved))
+                {
+                    return TypedResults.Ok(new MediaDetail(
+                        saved.Id, saved.FileName, saved.Url, saved.MimeType, saved.FileSize,
+                        saved.CreatedOn.DateTime, saved.Width, saved.Height,
+                        saved.AltText, saved.Description, saved.IsFolder, saved.ParentId));
+                }
+
+                return TypedResults.Problem(detail: "Failed to update media asset");
             }
 
-            media.FileName = request.FileName;
-            media.AltText = request.AltText;
-            media.Description = request.Description;
-            // Note: We don't update Url or Base64Data here for simplicity in this edit
-
-            session.Store(media);
-            await session.SaveChangesAsync(cancellationToken);
-
-            var detail = new MediaDetail(
-                media.Id,
-                media.FileName,
-                media.Url,
-                media.MimeType,
-                media.FileSize,
-                media.CreatedOn.DateTime,
-                media.Width,
-                media.Height,
-                media.AltText,
-                media.Description,
-                media.IsFolder,
-                media.ParentId
-            );
-
-            return TypedResults.Ok(detail);
+            return TypedResults.NotFound(new { error = $"Media asset with ID {id} not found." });
         }
         catch (Exception ex)
         {
@@ -369,36 +318,21 @@ public static class MediaApi
 
     private static async Task<IResult> DeleteMedia(
         long id,
-        [FromServices] IDocumentSession session,
+        [FromServices] IMediaService mediaService,
         [FromServices] ILoggerFactory loggerFactory,
-        [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(MediaApi));
         try
         {
-            var media = await session.LoadAsync<MediaAsset>(id, cancellationToken);
+            var result = await mediaService.DeleteAsync(id, cancellationToken);
 
-            if (media is null)
+            if (result is Result<bool, AeroError>.Ok(var deleted))
             {
-                return TypedResults.NotFound(new { error = $"Media asset with ID {id} not found." });
+                return TypedResults.Ok(deleted);
             }
 
-            if (!media.IsFolder)
-            {
-                var filePath = Path.Combine(env.WebRootPath, "media", media.FileName);
-                if (File.Exists(filePath)) File.Delete(filePath);
-            }
-            else
-            {
-                // Optionally delete recursively if it was a real folder on disk, 
-                // but here it's just a logical folder in DB.
-            }
-
-            session.Delete(media);
-            await session.SaveChangesAsync(cancellationToken);
-
-            return TypedResults.Ok(true);
+            return TypedResults.NotFound(new { error = $"Media asset with ID {id} not found." });
         }
         catch (Exception ex)
         {
@@ -410,38 +344,26 @@ public static class MediaApi
     private static string? ValidateHtmlEditorImage(IFormFile? file)
     {
         if (file is null)
-        {
             return "No file was uploaded.";
-        }
 
         if (file.Length <= 0)
-        {
             return "Uploaded file is empty.";
-        }
 
         if (file.Length > HtmlEditorImageMaxBytes)
-        {
             return "Uploaded image exceeds the 10 MB limit.";
-        }
 
         if (!HtmlEditorImageMimeTypes.ContainsKey(file.ContentType))
-        {
             return "Only JPEG, PNG, WebP, and GIF images are allowed.";
-        }
 
         var extension = Path.GetExtension(file.FileName);
         if (string.IsNullOrWhiteSpace(extension))
-        {
             return "Uploaded image must have a file extension.";
-        }
 
         var expectedExtension = GetSafeImageExtension(file.ContentType, file.FileName);
         if (!string.Equals(extension, expectedExtension, StringComparison.OrdinalIgnoreCase)
             && !(string.Equals(file.ContentType, "image/jpeg", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase)))
-        {
             return "Uploaded image extension does not match the content type.";
-        }
 
         return null;
     }
@@ -450,9 +372,7 @@ public static class MediaApi
     {
         if (string.Equals(contentType, "image/jpeg", StringComparison.OrdinalIgnoreCase)
             && string.Equals(Path.GetExtension(fileName), ".jpeg", StringComparison.OrdinalIgnoreCase))
-        {
             return ".jpeg";
-        }
 
         return HtmlEditorImageMimeTypes[contentType];
     }
