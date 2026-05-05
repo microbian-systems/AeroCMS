@@ -3,6 +3,7 @@ using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Core;
+using Aero.Core.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Models;
@@ -45,17 +46,20 @@ public sealed class BlogImportService : IBlogImportService
     private readonly IEnumerable<IBlogImportParser> _parsers;
     private readonly IDocumentSession _session;
     private readonly IPexelsService? _pexels;
+    private readonly ISiteContext _siteContext;
     private readonly ILogger<BlogImportService> _log;
 
     public BlogImportService(
         IEnumerable<IBlogImportParser> parsers,
         IDocumentSession session,
         IPexelsService? pexels,
+        ISiteContext siteContext,
         ILogger<BlogImportService> log)
     {
         _parsers = parsers;
         _session = session;
         _pexels = pexels;
+        _siteContext = siteContext;
         _log = log;
     }
 
@@ -104,6 +108,11 @@ public sealed class BlogImportService : IBlogImportService
                 return Prelude.Fail<ImportBlogResult, AeroError>(
                     AeroError.CreateError("Unexpected parse result"));
             }
+
+            // Fallback: if the client didn't provide a SiteId (e.g. from NoopSiteContext in WASM),
+            // stamp it from the server-side ISiteContext (reads cookie / IAeroSiteSlice).
+            var effectiveSiteId = request.SiteId > 0 ? request.SiteId : _siteContext.SiteId;
+            request = request with { SiteId = effectiveSiteId };
 
             var importablePosts = parseOk.Value;
             if (importablePosts.Count == 0)
@@ -361,7 +370,8 @@ public sealed class BlogImportService : IBlogImportService
                 {
                     Id = Snowflake.NewId(),
                     Name = tagSlug,  // Use slug as name if no display name available
-                    Slug = tagSlug
+                    Slug = tagSlug,
+                    SiteId = _siteContext.SiteId
                 };
                 tagMap[tagSlug] = tag.Id;
                 newTags.Add(tag);

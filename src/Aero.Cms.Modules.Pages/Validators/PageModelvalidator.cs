@@ -8,6 +8,7 @@ public class PageDocumentValidator : AbstractValidator<PageDocument>
     public PageDocumentValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
+        RuleFor(x => x.SiteId).GreaterThan(0);
         RuleFor(x => x.Slug).NotNull().NotEmpty();
         RuleFor(x => x.Title).NotNull().NotEmpty();
     }

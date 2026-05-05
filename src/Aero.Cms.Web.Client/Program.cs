@@ -36,7 +36,12 @@ builder.Services.AddScoped(_ => new HttpClient
 });
 
 // Register all Aero HTTP clients
+builder.Services.AddLocalStorageServices();
 builder.Services.AddAeroHttpClients(uri);
+
+// Client-side state container — replaces per-page HTTP calls for site context
+builder.Services.AddSingleton<IAdminStorage, LocalStorageAdminStorage>();
+builder.Services.AddSingleton<AdminStateContainer>();
 
 // Legacy registrations
 builder.Services.AddScoped<ManagerThemeService>();

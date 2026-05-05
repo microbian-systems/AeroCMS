@@ -1,12 +1,18 @@
 @inherits LayoutComponentBase
 @using Aero.Cms.Shared.Services
 @using Aero.Cms.Shared.Layout
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Abstractions.Models
+@using Aero.Core
+@using Aero.Core.Railway
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Sections
 @using Aero.Cms.Abstractions.Interfaces
 @inject ManagerThemeService ThemeService
 @inject NavigationManager Navigation
 @inject ICurrentSiteAccessor CurrentSiteAccessor
+@inject AdminStateContainer AdminState
+@inject ISitesHttpClient SitesClient
 @implements IDisposable
 
 <div class="pe-root" data-theme="@ThemeService.Theme">
@@ -50,6 +56,12 @@
             return;
         }
 
+        // Hydrate client-side state container on first load
+        if (!AdminState.IsInitialized)
+        {
+            AdminState.LoadFromStorage();
+        }
+
         // Skip redirect if user is already authenticated (cookie present)
         if (AuthenticationState is not null)
         {
@@ -57,7 +69,16 @@
             if (authState.User.Identity?.IsAuthenticated == true)
             {
                 // After auth, check if a site has been selected
-                var siteId = await CurrentSiteAccessor.GetCurrentSiteIdAsync();
+                // Try in-memory state first, then fall back to HTTP cookie call
+                var siteId = AdminState.CurrentSiteId
+                    ?? await CurrentSiteAccessor.GetCurrentSiteIdAsync();
+
+                // Final fallback: call the default site API (creates one if needed)
+                if (siteId is null)
+                {
+                    siteId = await TryGetDefaultSiteAsync();
+                }
+
                 if (siteId is null)
                 {
                     redirectTarget = "/manager/select-site";
@@ -85,5 +106,20 @@
     public void Dispose()
     {
         ThemeService.OnThemeChanged -= StateHasChanged;
+    }
+
+    private async Task<long?> TryGetDefaultSiteAsync()
+    {
+        try
+        {
+            var result = await SitesClient.GetDefaultAsync();
+            if (result is Result<SiteViewModel, AeroError>.Ok ok)
+            {
+                AdminState.SetSite(ok.Value.Id, ok.Value.Name ?? "Default Site");
+                return ok.Value.Id;
+            }
+        }
+        catch { }
+        return null;
     }
 }

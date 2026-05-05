@@ -89,6 +89,8 @@ public sealed class DocsService(IDocumentSession session, IMessageBus bus, ISite
         try
         {
             var page = await session.LoadAsync<DocsPage>(id, cancellationToken);
+            if (page is null || page.SiteId != _siteContext.SiteId)
+                return AeroError.CreateError($"Doc with id '{id}' not found or access denied");
 
             session.Delete<DocsPage>(id);
             await session.SaveChangesAsync(cancellationToken);

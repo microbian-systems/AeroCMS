@@ -22,6 +22,9 @@ using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Web.Generated;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Social.Abstractions;
+using Aero.Cms.Web.Infrastructure;
+using Aero.Core.Http;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 
 // Implements a two-stage startup pattern:
@@ -269,6 +272,10 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     services.AddAeroHttpClients(baseUrl is not null ? new Uri(baseUrl) : null);
     services.AddScoped<ManagerThemeService>();
     services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
+
+    // Override the NoopSiteContext (WASM-safe singleton) with the real server-side
+    // DefaultSiteContext that reads IAeroSiteSlice from middleware or AeroCms.SiteId cookie.
+    services.Replace(ServiceDescriptor.Scoped<ISiteContext, DefaultSiteContext>());
 
     services.AddProblemDetails(options =>
     {

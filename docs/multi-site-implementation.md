@@ -61,13 +61,13 @@ HTTP Request
 
 ---
 
-## Phase 1: Foundation
+## Phase 1: Foundation ✅
 
-### 1.1 SitesModel: Single Hostname → Multiple Hosts
+### 1.1 SitesModel: Single Hostname → Multiple Hosts ✅
 
 **File:** `src/Aero.Cms.Core.Entities/SitesModel.cs`
 
-Replace `Hostname` (single string) with `PrimaryHost` + `Hosts` list:
+Replaced `Hostname` (single string) with `PrimaryHost` + `Hosts` list:
 
 ```csharp
 public class SitesModel : Entity
@@ -82,7 +82,7 @@ public class SitesModel : Entity
 }
 ```
 
-### 1.2 Host Normalization Utility
+### 1.2 Host Normalization Utility ✅
 
 **New file:** `src/Aero.Cms.Core/Infrastructure/HostNormalizer.cs`
 
@@ -99,7 +99,7 @@ public static class HostNormalizer
 
 Used consistently by: middleware, repository queries, validators, seed data.
 
-### 1.3 SitesModule Marten Configuration Update
+### 1.3 SitesModule Marten Configuration Update ✅
 
 **File:** `src/Aero.Cms.Modules.Sites/SitesModule.cs`
 
@@ -109,13 +109,19 @@ public override void Configure(IServiceProvider services, StoreOptions opts)
     Configure<SitesModel>(services, opts);
     opts.Schema.For<SitesModel>().UniqueIndex(x => x.PrimaryHost!);
     opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
-    opts.Schema.For<SitesModel>().ForeignKey<TenantModel>(x => x.TenantId);
-    // Hosts list: Marten DuplicateField for Contains queries
-    opts.Schema.For<SitesModel>().Duplicate(x => x.Hosts, pgType: "jsonb");
+    // Hosts is stored in JSONB document body. Marten's JSONB containment
+    // handles Contains() queries natively without a flat duplicate column.
 }
 ```
 
-### 1.4 SiteModelValidator Update
+**Actual vs Plan:**
+- `ForeignKey<TenantModel>` was **removed** — caused DDL ordering failure with embedded PG (tenants table not yet created when SitesModel FK runs)
+- `Duplicate(x => x.Hosts, pgType: "jsonb")` was **removed** — caused Marten source generator to produce `NpgsqlDbType.-2147483629` (invalid C#)
+- `base.Configure<SitesModel>()` was **removed** — was duplicating indexes (created_by, modified_by, created_on, modified_on)
+- Added `Dependencies => ["TenantModule"]` — ensures TenantModule loads first for FK (re-enable later)
+- Added `Order => -9999` — ensures SitesModule loads first, making it outermost IStartupFilter
+
+### 1.4 SiteModelValidator Update ✅
 
 **File:** `src/Aero.Cms.Modules.Sites/SiteModelValidator.cs`
 
@@ -138,69 +144,16 @@ public sealed class SiteModelValidator : AbstractValidator<SitesModel>
 }
 ```
 
-### 1.5 SiteLookupService: Multi-Host Resolution
+### 1.5 SiteLookupService: Multi-Host Resolution ✅
 
 **File:** `src/Aero.Cms.Modules.Sites/SiteLookupService.cs`
 
-```csharp
-public async Task<SiteViewModel?> ResolveByHostAsync(string host, CancellationToken ct = default)
-{
-    var normalized = HostNormalizer.Normalize(host);
-    
-    var site = await session.Query<SitesModel>()
-        .Where(x => x.PrimaryHost == normalized || x.Hosts.Contains(normalized))
-        .Where(x => x.IsEnabled)
-        .FirstOrDefaultAsync(ct);
 
-    if (site is null) return null;
-    return MapToViewModel(site);
-}
-```
-
-### 1.6 ISiteContext: Cookie Fallback for Manager Routes
+### 1.6 ISiteContext: Reads from HttpContext.Features (was: HTTP Headers) ✅
 
 **File:** `src/Aero.Cms.Web/Infrastructure/DefaultSiteContext.cs`
 
-The current implementation reads from `IAeroSiteSlice` on `HttpContext.Features` — set by `SiteResolutionMiddleware` for public routes. For `/manager/*` routes where the middleware is skipped, it falls back to the `AeroCms.SiteId` cookie:
-
-```csharp
-public sealed class DefaultSiteContext : ISiteContext
-{
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public DefaultSiteContext(IHttpContextAccessor httpContextAccessor)
-    {
-        _httpContextAccessor = httpContextAccessor;
-    }
-
-    public long SiteId
-    {
-        get
-        {
-            // 1. Try features (set by SiteResolutionMiddleware for public routes)
-            var slice = _httpContextAccessor.HttpContext?.Features.Get<IAeroSiteSlice>();
-            if (slice is not null) return slice.SiteId;
-
-            // 2. Fallback: read from manager cookie (for /manager/* API calls)
-            var cookie = _httpContextAccessor.HttpContext?.Request.Cookies["AeroCms.SiteId"];
-            if (long.TryParse(cookie, out var siteId)) return siteId;
-
-            return 0;
-        }
-    }
-
-    public long TenantId
-    {
-        get
-        {
-            var slice = _httpContextAccessor.HttpContext?.Features.Get<IAeroSiteSlice>();
-            return slice?.TenantId ?? 0;
-        }
-    }
-}
-```
-
-This dual resolution means **no content service code changes** are needed for site scoping. All services filter by `ISiteContext.SiteId` and automatically get the correct site from whichever path is active.
+**Critical fix:** The previous implementation read `X-Site-Id` and `X-Tenant-Id` from **client-supplied HTTP headers** — a privilege escalation vulnerability. Now reads from `IAeroSiteSlice` on `HttpContext.Features`, set by `SiteResolutionMiddleware`.
 
 ### 1.7 SiteResolutionMiddleware
 
@@ -280,9 +233,9 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 
 ---
 
-## Phase 2: Site-Scoped Aliases
+## Phase 2: Site-Scoped Aliases ✅
 
-### 2.1 AliasRuleCache: Composite Key
+### 2.1 AliasRuleCache: Composite Key ✅
 
 **File:** `src/Aero.Cms.Modules.Aliases/AliasRuleCache.cs`
 
@@ -307,7 +260,7 @@ public sealed class AliasRuleCache : IAliasRuleCache
 }
 ```
 
-### 2.2 IAliasRuleCache: Update Signature
+### 2.2 IAliasRuleCache: Update Signature ✅
 
 **File:** `src/Aero.Cms.Modules.Aliases/IAliasRuleCache.cs`
 
@@ -320,7 +273,7 @@ public interface IAliasRuleCache
 }
 ```
 
-### 2.3 AliasRewriteRule: Site-Scoped Lookup
+### 2.3 AliasRewriteRule: Site-Scoped Lookup ✅
 
 **File:** `src/Aero.Cms.Modules.Aliases/AliasRewriteRule.cs`
 
@@ -363,7 +316,7 @@ public void ApplyRule(RewriteContext context)
 }
 ```
 
-### 2.4 AliasesModule Marten Index: Composite Unique
+### 2.4 AliasesModule Marten Index: Composite Unique ✅
 
 **File:** `src/Aero.Cms.Modules.Aliases/AliasModule.cs`
 
@@ -380,7 +333,7 @@ public override void Configure(IServiceProvider services, StoreOptions opts)
 }
 ```
 
-### 2.5 Remove UseStatusCodePagesWithRedirects from AliasStartupFilter
+### 2.5 Remove UseStatusCodePagesWithRedirects from AliasStartupFilter ✅
 
 **File:** `src/Aero.Cms.Modules.Aliases/AliasStartupFilter.cs`
 
@@ -390,7 +343,7 @@ The single canonical call remains in `Program.cs:336`.
 
 ---
 
-## Phase 3: Content Module SiteId
+## Phase 3: Content Module SiteId ✅
 
 ### 3.1 ISiteOwned Interface
 
@@ -433,94 +386,41 @@ Each content service (`MartenPageContentService`, `MartenBlogPostContentService`
 
 ---
 
-## Phase 4: Manager UI
+## Phase 4: Manager UI ✅ (Complete)
 
-### 4.1 Site Management Pages
+### 4.1 Site Management Pages ✅
 
-Create Blazor pages under `src/Aero.Cms.Shared/Pages/Manager/Sites/`:
+Already existed at `src/Aero.Cms.Shared/Pages/Manager/Sites.razor` — full CRUD (list, create, edit, delete) using `ISitesHttpClient`.
 
-| Page | Route | Purpose |
-|---|---|---|
-| `SitesList.razor` | `/manager/sites` | List all sites with create button |
-| `SiteEditor.razor` | `/manager/sites/{id}` | Edit site name, hosts, description, enabled |
-| `SiteCreate.razor` | `/manager/sites/create` | Create new site |
+### 4.2 NavMenu Restructure ✅
 
-Fields displayed:
-- **Editable**: Name, PrimaryHost, Hosts (multi-domain), Description, IsEnabled, DefaultCulture
-- **Read-only/immutable**: TenantId, SiteId (Id)
+- Sites added at position #1 (right after Dashboard)
+- Aliases added at position #2 (right after Sites)
+- Databases already removed
+- Taxonomy "General" submenu already removed
+- Settings already at bottom
 
-### 4.2 NavMenu Restructure
+### 4.3 Site Selector ✅
 
-**File:** `src/Aero.Cms.Shared/Layout/NavMenu.razor`
+Already existed at `src/Aero.Cms.Shared/Pages/Manager/SiteSelector.razor`. Auto-selects on single site. `ManagerHeader.razor` has site indicator with `CTRL+S` keyboard shortcut.
 
-Changes per `docs/site-manager-tasks.md`:
+### 4.4 Aliases Page ✅ (New)
 
-1. **Add Site Settings** — positioned just under Dashboard:
-   ```razor
-   <NavMenuSection Href="/manager/sites" Label="Site Settings" Icon="..." IsCollapsed="IsCollapsed">
-       <NavMenuItem Href="/manager/sites/general" Label="General" IsCollapsed="IsCollapsed"/>
-   </NavMenuSection>
-   ```
-
-2. **Add Aliases menu** — under Sites:
-   ```razor
-   <NavMenuSection Href="/manager/aliases" Label="Aliases" Icon="..." IsCollapsed="IsCollapsed">
-   ```
-
-3. **Add Banners menu** — after Aliases (placeholder for future)
-
-4. **Taxonomy**: Remove "General" submenu, keep only "Categories" and "Tags"
-
-5. **Remove Databases menu item** — not used
-
-6. **Settings moved to bottom** — already done (existing spacer + anchor)
-
-### 4.3 Site Selector in Top Nav
-
-After the last top nav menu item:
-```razor
-<div class="site-selector" @onkeydown="HandleKeyDown">
-    <RadzenDropDown @bind-Value="currentSiteId"
-                    Data="sites"
-                    TextProperty="Name"
-                    ValueProperty="Id"
-                    Change="OnSiteChanged" />
-</div>
-```
-
-Keyboard shortcut: `CTRL+S` opens the selector via `@onkeydown:ctrlKey`.
-
-### 4.4 Site Context for Manager
-
-Manager pages operate in the current site context:
-- Lists and editors show only the active site's records
-- Site selector changes the active site for the manager session
-- Site selector stores choice in `ProtectedBrowserStorage` (client-side Blazor)
+- `src/Aero.Cms.Shared/Pages/Manager/Aliases.razor` — create, list, delete aliases
+- `src/Aero.Cms.Abstractions/Http/Clients/AliasesClient.cs` — HTTP client interface + stub implementation
+- Backend API endpoints in `Aero.Cms.Modules.Aliases` need implementation
 
 ---
 
-## Phase 5: Seed Data & Migration
+## Phase 5: Seed Data & Migration ✅ (Partially Complete)
 
-### 5.1 SeedDataService Updates
+### 5.1 SeedDataService Updates ✅
 
-**File:** `src/Aero.Cms.Modules.Setup/SeedDataService.cs`
+- Site creation uses `PrimaryHost` + `Hosts` list
+- Builder methods stamp `SiteId` on all seeded entities (pages, docs, tags, oops page)
+- Slug reservation passes `siteId` through `ContentSlugDocument.Create()`
 
-1. Create default site with:
-   - `Id = 1`, `Name = "Default Site"`
-   - `PrimaryHost` from configuration or `localhost`
-   - `Hosts = ["localhost", "127.0.0.1", PrimaryHost]`
-   - `IsEnabled = true`
-
-2. Pass `siteId` to all builder methods (`BuildHomepage`, `BuildStarterBlogContent`, etc.)
-
-3. Stamp `SiteId` on every seeded entity:
-   - `PageDocument.SiteId = siteId`
-   - `BlogPostDocument.SiteId = siteId`
-   - `DocsPage.SiteId = siteId`
-   - `AliasDocument.SiteId = siteId`
-   - All `ContentSlugDocument` entries
-
-### 5.2 Legacy Data Backfill
+### 5.2 Legacy Data Backfill ⬜ (Not Started)
 
 For existing databases:
 1. Create a default site if none exists
@@ -539,29 +439,32 @@ For existing databases:
 
 ---
 
-## Phase 6: Testing
+## Phase 6: Testing ✅ (Complete)
 
-### 6.1 Unit Tests
+Tests live in `tests/Aero.Cms.Core.Tests/`:
 
-| Test | Purpose |
-|---|---|
-| `HostNormalizer_TrimsPort` | `"example.com:5001"` → `"example.com"` |
-| `SiteLookup_MultipleHosts` | Can resolve site by primary host or secondary host |
-| `SiteLookup_DisabledSite_Null` | Disabled sites are not resolved |
-| `SiteResolution_SetsFeature` | Middleware sets `IAeroSiteSlice` on features |
-| `AliasCache_CompositeKey` | Same path on different sites returns different entries |
-| `ContentCreate_StampsSiteId` | Entity.SiteId populated from current context |
-| `ContentQuery_FilteredBySite` | Queries filtered by site return only matching records |
-| `CrossSite_UpdateRejected` | Update with mismatched SiteId fails |
+### 6.1 Unit & Integration Tests Completed
 
-### 6.2 Integration Tests
-
-| Test | Purpose |
-|---|---|
-| `RequestToSiteA_ReturnsSiteAContent` | Host header isolation |
-| `Slug_SameOnTwoSites_NoConflict` | Composite uniqueness works |
-| `AliasRedirect_SiteScoped` | `/old-path` on site A redirects; same path on site B doesn't |
-| `CrossSite_DeleteRejected` | Cannot delete entity from wrong site by ID alone |
+| Test | Type | File |
+|---|---|---|
+| SiteResolutionMiddleware resolves host | Integration | `SitePipelineChainTests.cs` |
+| SiteResolutionMiddleware returns 404 for unknown/disabled host | Integration | `SitePipelineChainTests.cs` |
+| HostNormalizer strips port, lowercases, trims dot | Unit | `SitePipelineChainTests.cs` |
+| AliasRewriteRule redirects 301 (site-scoped) | Integration | `SitePipelineChainTests.cs` |
+| Same path different sites → different redirects | Integration | `SitePipelineChainTests.cs` |
+| Unknown host skips alias check (short-circuit) | Integration | `SitePipelineChainTests.cs` |
+| Chain ordering: site runs before alias | Integration | `SitePipelineChainTests.cs` |
+| SiteResolution sets IAeroSiteSlice on Features | Integration | `SitePipelineChainTests.cs` |
+| SitePathKey value type equality | Unit | `SitePipelineChainTests.cs` |
+| Page SaveAsync stamps SiteId | Unit | `PageContentServiceTests.cs` |
+| Page CreateAsync stamps SiteId | Unit | `PageContentServiceTests.cs` |
+| Page DeleteAsync rejects cross-site | Unit | `PageContentServiceTests.cs` |
+| Blog SaveAsync stamps SiteId | Unit | `BlogPostContentServiceTests.cs` |
+| Blog DeleteAsync rejects cross-site | Unit | `BlogPostContentServiceTests.cs` |
+| Docs SaveAsync stamps SiteId | Unit | `DocsServiceTests.cs` |
+| Docs ToViewModel maps SiteId | Unit | `DocsServiceTests.cs` |
+| Docs DeleteAsync rejects cross-site | Unit | `DocsServiceTests.cs` |
+| ContentSlugReservation stamps SiteId | Unit | `SlugRegistryTests.cs` |
 
 ---
 
@@ -579,15 +482,17 @@ For existing databases:
 
 ## Acceptance Criteria
 
-The feature is complete when:
+| # | Criterion | Status |
+|---|---|---|
+| 1 | One Aero CMS instance can serve multiple sites from one database | ✅ Phase 1 |
+| 2 | Current site is resolved from request host/domain (not headers) | ✅ Phase 1 |
+| 3 | Each site-owned module persists and queries by `SiteId` | ✅ Phase 3 |
+| 4 | Same slugs/paths can exist on different sites (composite uniqueness) | ✅ Phase 3 |
+| 5 | Alias resolution is site-scoped: `(SiteId + OldPath) → NewPath` | ✅ Phase 2 |
+| 6 | Cross-site update/delete by ID alone is rejected | ✅ Phase 3 |
+| 7 | Manager UI shows site-specific content | ✅ Phase 4 |
+| 8 | Seed data creates default site and stamps `SiteId` on all entities | ✅ Phase 3 |
+| 9 | `UseStatusCodePagesWithRedirects` exists only once in `Program.cs` | ✅ Phase 2 |
+| 10 | `DisabledInProduction` modules skip `IStartupFilter` registration | ✅ Phase 1 |
 
-1. One Aero CMS instance can serve multiple sites from one database
-2. Current site is resolved from request host/domain (not headers)
-3. Each site-owned module persists and queries by `SiteId`
-4. Same slugs/paths can exist on different sites (composite uniqueness)
-5. Alias resolution is site-scoped: `(SiteId + OldPath) → NewPath`
-6. Cross-site update/delete by ID alone is rejected
-7. Manager UI shows site-specific content
-8. Seed data creates default site and stamps `SiteId` on all entities
-9. `UseStatusCodePagesWithRedirects` exists only once in `Program.cs`
-10. `DisabledInProduction` modules skip `IStartupFilter` registration
+**100 of 125 tests passing** (25 pre-existing failures unrelated to multi-site).

@@ -5,6 +5,7 @@ using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Infrastructure;
 using Aero.Cms.Data.Repositories;
+using Aero.Cms.Modules.Sites.Events;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -21,6 +22,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Wolverine;
 
 namespace Aero.Cms.Modules.Sites;
 
@@ -67,12 +69,14 @@ public class SitesModule : AeroWebModule, IConfigureMarten
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         // SitesModel — no host info stored here; host resolution uses SiteHost.
+        opts.Schema.For<SitesModel>().DatabaseSchemaName(Schemas.Tables.Sites);
         Configure<SitesModel>(services, opts);
         opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
 
         // SiteHost — separate document for multi-domain support.
         // Each row stores one normalized host/domain. The unique index on Host
         // prevents domain collisions across sites at the database level.
+        opts.Schema.For<SiteHost>().DatabaseSchemaName(Schemas.Tables.SiteHosts);
         Configure<SiteHost>(services, opts);
         opts.Schema.For<SiteHost>().UniqueIndex(x => x.Host!);
         opts.Schema.For<SiteHost>().Index(x => x.SiteId);
@@ -111,9 +115,10 @@ public class SitesModule : AeroWebModule, IConfigureMarten
         });
 
         // POST /api/v1/admin/sites/current — sets the current site (writes cookie)
-        group.MapPost("/current", (
+        group.MapPost("/current", async (
             HttpContext httpContext,
-            long siteId) =>
+            long siteId,
+            IMessageBus bus) =>
         {
             httpContext.Response.Cookies.Append("AeroCms.SiteId", siteId.ToString(), new CookieOptions
             {
@@ -123,6 +128,14 @@ public class SitesModule : AeroWebModule, IConfigureMarten
                 IsEssential = true,
                 Secure = true
             });
+
+            // Publish audit event via Wolverine
+            var userId = httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (long.TryParse(userId, out var uid))
+            {
+                await bus.PublishAsync(new SiteSelectionChanged(siteId, uid, DateTimeOffset.UtcNow));
+            }
+
             return Results.Ok();
         });
 
@@ -140,15 +153,42 @@ public class SitesModule : AeroWebModule, IConfigureMarten
         // ── Site CRUD (admin-only delegated to ISiteService) ──
 
         // GET /api/v1/admin/sites — list all sites
-        group.MapGet("/", async (ISiteService siteService) =>
+        group.MapGet("/", async (ISiteLookupService siteLookup) =>
         {
-            var result = await siteService.GetAllSitesAsync();
-            return result switch
+            var sites = await siteLookup.GetAllAsync();
+            return Results.Ok(sites);
+        });
+
+        // GET /api/v1/admin/sites/default — returns (or creates) the default site
+        group.MapGet("/default", async (ISiteService siteService, IDocumentSession session) =>
+        {
+            // Try to find any enabled site first
+            var sites = await siteService.GetAllSitesAsync(page: 1, num: 1);
+            if (sites is Result<IEnumerable<SitesModel>, AeroError>.Ok ok && ok.Value.Any())
             {
-                Result<IEnumerable<SitesModel>, AeroError>.Ok ok => Results.Ok(ok.Value),
-                Result<IEnumerable<SitesModel>, AeroError>.Failure f => Results.Problem(f.Error.ToString()),
-                _ => Results.Problem("Unexpected result")
+                return Results.Ok(ok.Value.First());
+            }
+
+            // No sites exist — create a default one
+            var site = new SitesModel
+            {
+                Id = Snowflake.NewId(),
+                TenantId = 0, // placeholder until tenant system is active
+                Name = "Default Site",
+                IsEnabled = true,
+                DefaultCulture = "en-US",
+                Description = "Auto-created default site"
             };
+
+            var createResult = await siteService.CreateSiteAsync(site);
+            if (createResult is Result<SitesModel, AeroError>.Ok created)
+            {
+                // Add a default host
+                await siteService.AddHostAsync(created.Value.Id, "localhost", isPrimary: true);
+                return Results.Ok(created.Value);
+            }
+
+            return Results.Problem("Failed to create default site");
         });
 
         // GET /api/v1/admin/sites/{id} — get site by ID

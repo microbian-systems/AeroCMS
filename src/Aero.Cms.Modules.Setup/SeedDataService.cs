@@ -300,6 +300,7 @@ public sealed class SeedDatabaseService(
         // Save blog posts (blocks are stored inline in Content)
         foreach (var post in posts)
         {
+            post.SiteId = siteId;
             await blogPostContentService.SaveAsync(post, cancellationToken);
         }
 

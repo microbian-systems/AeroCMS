@@ -13,6 +13,8 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor
 {
     public event Action? SiteChanged;
 
+    private long? _cachedSiteId;
+
     public async Task<SiteViewModel?> GetCurrentSiteAsync()
     {
         try
@@ -31,7 +33,13 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor
     public async Task<long?> GetCurrentSiteIdAsync()
     {
         var site = await GetCurrentSiteAsync();
-        return site?.Id;
+        if (site is not null)
+        {
+            _cachedSiteId = site.Id;
+            return site.Id;
+        }
+        // Fall back to in-memory cache when cookie/HTTP call fails
+        return _cachedSiteId;
     }
 
     public async Task SetCurrentSiteAsync(long siteId)
@@ -39,6 +47,7 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor
         try
         {
             await http.PostAsJsonAsync("/api/v1/admin/sites/current", siteId);
+            _cachedSiteId = siteId;
             SiteChanged?.Invoke();
         }
         catch
@@ -52,6 +61,7 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor
         try
         {
             await http.DeleteAsync("/api/v1/admin/sites/current");
+            _cachedSiteId = null;
             SiteChanged?.Invoke();
         }
         catch

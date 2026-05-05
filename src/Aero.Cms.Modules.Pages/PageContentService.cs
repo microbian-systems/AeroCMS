@@ -207,7 +207,9 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             await ValidatePage(page);
 
             var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
-            page.SiteId = _siteContext.SiteId; // stamp from context
+            // Only stamp SiteId from context when not already set by the caller (e.g. seed).
+            if (existingPage is null && page.SiteId == 0)
+                page.SiteId = _siteContext.SiteId;
             await ContentSlugReservation.ReserveAsync(
                 session,
                 page.Id,

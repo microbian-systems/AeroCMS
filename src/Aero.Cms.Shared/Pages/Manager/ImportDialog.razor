@@ -6,10 +6,11 @@
 @using Radzen.Blazor
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging
+@using Aero.Cms.Shared.Services
 @inject IBlogHttpClient BlogApi
+@inject AdminStateContainer AdminState
 @inject NotificationService NotificationService
 @inject DialogService DialogService
-@inject ISiteContext SiteContext
 @inject ILogger<ImportDialog> Logger
 
 <div class="import-dialog p-6 bg-white dark:bg-gray-900 rounded-3xl">
@@ -183,6 +184,8 @@
             var data = memoryStream.ToArray();
             var base64 = Convert.ToBase64String(data);
 
+            var siteId = AdminState.CurrentSiteId ?? 0;
+
             var request = new ImportFileRequest(
                 FileName: selectedFile.Name,
                 MimeType: selectedFile.ContentType,
@@ -191,7 +194,7 @@
                 DuplicateBehavior: DuplicateBehavior,
                 DefaultAuthorId: null,
                 PublishImported: PublishImported,
-                SiteId: SiteContext.SiteId
+                SiteId: siteId
             );
 
             Logger.LogInformation("Calling import API for {FileName}...", selectedFile.Name);

@@ -179,17 +179,81 @@ Site deletion is destructive — all site-owned data across ALL tables must be r
 
 **Source-generator approach**: Extend the existing module catalog source generator to emit a `SiteOwnedTypes` static class listing all `ISiteOwned` implementations. No manual enumeration. No reflection.
 
-### Blazor Dual-Rendering Concerns (New)
+### Client-Side State Management (New — 2026-05-06)
 
-The manager uses **InteractiveServer + InteractiveWebAssembly** render modes. This creates state sync challenges:
+The manager runs in **InteractiveWebAssembly** mode only (no InteractiveServer). There is no server-side session — all manager state is purely client-side.
 
-**`ICurrentSiteAccessor` needs two implementations**:
-- **Server**: Reads cookie via `IHttpContextAccessor.HttpContext.Request.Cookies["AeroCms.SiteId"]`
-- **WASM**: Reads cookie via `IJSRuntime.InvokeAsync<string>("eval", "document.cookie")` (JavaScript interop)
+#### Problem — `CurrentSiteAccessor` HTTP Round-Trips
 
-**Circuit reconnection**: Blazor Server circuits recreate scoped DI on reconnect. The cookie ensures the site selection survives disconnection. Implement `ICircuitHandler` to re-read the cookie on reconnect.
+`CurrentSiteAccessor.GetCurrentSiteIdAsync()` makes an HTTP call to `GET /api/v1/admin/sites/current` on **every page load** (Aliases, Sites, ImportDialog, ManagerShellLayout). This reads the `AeroCms.SiteId` cookie from the server — wasteful and fragile.
 
-**`ServerAuthenticationStateProvider` must be extended**: Currently returns only `UserName`, `Email`, `Roles`. Must also include `AccessibleSiteIds` and `IsAdmin` in the `/api/v1/admin/auth/me` response so the WASM client knows which sites to show in the site picker.
+#### Solution — Singleton State Container + localStorage
+
+Based on Microsoft's [official Blazor WASM state management pattern](https://learn.microsoft.com/en-us/aspnet/core/blazor/state-management/?view=aspnetcore-10.0#in-memory-state-container-service):
+
+| Component | Pattern | Purpose |
+|-----------|---------|---------|
+| `AdminStateContainer` | Singleton + `event Action? StateChanged` | In-memory state — no HTTP per read |
+| `Blazored.LocalStorage` (NuGet) | `ILocalStorageService` via JS interop | Persist across page reloads |
+| `AdminStateInitializer` | Bootstraps on `ManagerShellLayout.OnInitializedAsync` | Hydrate from localStorage; fallback to API |
+| Wolverine `SiteSelectionChanged` | Server-side message handler | Audit/log site selection on server |
+
+**Registration in client `Program.cs`:**
+```csharp
+builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddSingleton<AdminStateContainer>();
+```
+
+**Container shape:**
+```csharp
+public class AdminStateContainer
+{
+    public long? CurrentSiteId { get; private set; }
+    public SiteViewModel? CurrentSite { get; private set; }
+    public string? CurrentView { get; set; }
+
+    public event Action? StateChanged;
+
+    public async Task SetSiteAsync(long siteId, string siteName) { ... }
+    public async Task LoadFromStorageAsync(ILocalStorageService storage) { ... }
+    public async Task PersistAsync(ILocalStorageService storage) { ... }
+}
+```
+
+**Data flow:**
+```
+ManagerShellLayout.OnInitializedAsync
+  → AdminStateContainer.LoadFromStorageAsync(localStorage)
+    → localStorage.GetItemAsync<long?>("currentSiteId")
+    → if null → HTTP GET /api/v1/admin/sites/default → cache in container
+    → if found → hydrate container in-memory
+
+Aliases.razor.LoadData:
+  → var siteId = AdminStateContainer.CurrentSiteId;  // NO HTTP call!
+  → if (siteId is null) return;
+  → await AliasClient.GetAllBySiteAsync(siteId.Value);
+```
+
+**Wolverine integration (server-side only):**
+```csharp
+// Published when user selects a site via the API
+public record SiteSelectionChanged(long SiteId, long UserId, DateTimeOffset Timestamp);
+
+// Handler — logs the selection for audit
+[WolverineHandler]
+public static class SiteSelectionHandler
+{
+    public static void Handle(SiteSelectionChanged message, ILogger logger) { ... }
+}
+```
+
+### Blazor Dual-Rendering Concerns (Updated)
+
+The manager uses **InteractiveWebAssembly** render mode only. State management is fully client-side:
+
+**`ICurrentSiteAccessor` remains**: For the cookie-based HTTP path (used by `ManagerShellLayout` on first load to verify the cookie has a site). Once `AdminStateContainer` is hydrated, all subsequent reads use the in-memory container.
+
+**`Blazored.LocalStorage` replaces raw `IJSRuntime`**: Provides typed `GetItemAsync<T>`/`SetItemAsync<T>` with automatic JSON serialization. No need for `ProtectedBrowserStorage` (server-only) or manual JS interop.
 
 ### ✅ Verified — No Longer Blockers
 

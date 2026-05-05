@@ -11,6 +11,7 @@ public interface ISitesHttpClient
 {
     Task<Result<IReadOnlyList<SiteViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default);
     Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default);
     Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default);
     Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default);
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
@@ -26,6 +27,9 @@ public class SitesHttpClient(HttpClient httpClient, ILogger<SitesHttpClient> log
 
     public Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
         => GetAsync<SiteViewModel>(id.ToString(), ct);
+
+    public Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default)
+        => GetAsync<SiteViewModel>("default", ct);
 
     public Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default)
         => PostAsync<CreateSiteRequest, SiteViewModel>(string.Empty, request, ct);

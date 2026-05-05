@@ -1,4 +1,6 @@
-using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Core.Entities;
+using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Modules.Docs;
 using Marten;
 using Microsoft.Extensions.Logging;
 using ZiggyCreatures.Caching.Fusion;
@@ -6,12 +8,8 @@ using ZiggyCreatures.Caching.Fusion;
 namespace Aero.Cms.Modules.SiteMap;
 
 /// <summary>
-/// Marten document session listener that invalidates the sitemap cache
+/// Marten document session listener that invalidates the site-scoped sitemap cache
 /// whenever content documents are created, updated, or deleted.
-/// 
-/// Replaces the previous Wolverine handler approach which crashed due
-/// to Wolverine's <c>GetPrettyName</c> failing on nested generic types
-/// used as handler parameters (<c>AeroEvent&lt;T&gt;.PageCreated</c>, etc.).
 /// </summary>
 public sealed class SitemapCacheListener : DocumentSessionListenerBase
 {
@@ -26,26 +24,27 @@ public sealed class SitemapCacheListener : DocumentSessionListenerBase
 
     /// <summary>
     /// Called just before saving changes. Checks if any content document types
-    /// have pending changes and invalidates the sitemap cache if so.
+    /// have pending changes and invalidates the sitemap cache by tag if so.
+    /// The cache key is site-scoped (<c>sitemap:xml:{siteId}</c>) and tagged "sitemap".
     /// </summary>
     public override async Task BeforeSaveChangesAsync(IDocumentSession session, CancellationToken token)
     {
         var changes = session.PendingChanges;
 
-        if (changes.InsertsFor<PageViewModel>().Any() ||
-            changes.UpdatesFor<PageViewModel>().Any() ||
-            changes.DeletionsFor<PageViewModel>().Any() ||
+        if (changes.InsertsFor<PageDocument>().Any() ||
+            changes.UpdatesFor<PageDocument>().Any() ||
+            changes.DeletionsFor<PageDocument>().Any() ||
 
-            changes.InsertsFor<PostViewModel>().Any() ||
-            changes.UpdatesFor<PostViewModel>().Any() ||
-            changes.DeletionsFor<PostViewModel>().Any() ||
+            changes.InsertsFor<BlogPostDocument>().Any() ||
+            changes.UpdatesFor<BlogPostDocument>().Any() ||
+            changes.DeletionsFor<BlogPostDocument>().Any() ||
 
-            changes.InsertsFor<DocViewModel>().Any() ||
-            changes.UpdatesFor<DocViewModel>().Any() ||
-            changes.DeletionsFor<DocViewModel>().Any())
+            changes.InsertsFor<DocsPage>().Any() ||
+            changes.UpdatesFor<DocsPage>().Any() ||
+            changes.DeletionsFor<DocsPage>().Any())
         {
-            _logger.LogDebug("Content change detected — invalidating sitemap cache");
-            await _cache.RemoveAsync("sitemap:xml", token: token);
+            _logger.LogDebug("Content change detected — invalidating sitemap cache by tag");
+            await _cache.RemoveByTagAsync("sitemap", token: token);
         }
     }
 }

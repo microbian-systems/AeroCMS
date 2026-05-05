@@ -7,7 +7,7 @@ namespace Aero.Cms.Core.Entities;
 /// Each record grants a user a set of permissions on a specific site.
 /// Admins bypass this check entirely (they have access to all sites).
 /// </summary>
-public class UserSiteAssignment : Entity
+public class UserSiteAssignment : Entity // todo - rename UserSiteAssignment -> UserSitePerms
 {
     /// <summary>The user's ID (ASP.NET Identity user ID, stored as long).</summary>
     public long UserId { get; set; }

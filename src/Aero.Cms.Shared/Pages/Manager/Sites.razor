@@ -6,8 +6,10 @@
 @using Aero.Cms.Abstractions.Requests
 @using Aero.Core
 @using Aero.Core.Railway
+@using Aero.Cms.Shared.Services
 @inject ISitesHttpClient SitesClient
 @inject ICurrentSiteAccessor CurrentSiteAccessor
+@inject AdminStateContainer AdminState
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
@@ -112,7 +114,7 @@
             <RadzenDataGridColumn TItem="SiteViewModel" Title="Actions" Width="280px">
                 <Template Context="site">
                     <div class="flex gap-2">
-                        <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Success" Text="Set" Click="@(() => SelectSiteAsync(site.Id))" />
+                        <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Success" Text="Set" Click="@(() => SelectSiteAsync(site.Id, site.Name))" />
                         <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary" Text="Edit" Click="@(() => OpenEditForm(site))" />
                         <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger" Text="Del" Click="@(() => DeleteSiteAsync(site))" />
                     </div>
@@ -124,7 +126,7 @@
 
 @code {
     private RadzenDataGrid<SiteViewModel>? _grid;
-    private IReadOnlyList<SiteViewModel> _sites = [];
+    private IReadOnlyList<SiteViewModel>? _sites;
     private int _count;
     private bool _isLoading;
     private bool _showCreateForm;
@@ -236,9 +238,10 @@
         }
     }
 
-    private async Task SelectSiteAsync(long siteId)
+    private async Task SelectSiteAsync(long siteId, string? siteName)
     {
         await CurrentSiteAccessor.SetCurrentSiteAsync(siteId);
+        AdminState.SetSite(siteId, siteName ?? "Site");
         NotificationService.Notify(NotificationSeverity.Success, "Site selected");
         Navigation.NavigateTo("/manager");
     }

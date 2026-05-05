@@ -348,6 +348,34 @@ public sealed class SitePipelineChainTests
         await Assert.That(key1.Path).IsEqualTo("/test");
     }
 
+    [Test]
+    public async Task SiteResolution_SetsSiteSlice_ForDownstreamMiddleware()
+    {
+        // Verifies the site resolution middleware sets IAeroSiteSlice
+        // on HttpContext.Features before downstream middleware executes.
+        IAeroSiteSlice? capturedSlice = null;
+
+        var siteLookup = Substitute.For<ISiteLookupService>();
+        siteLookup.ResolveByHostAsync("testsite.com", Arg.Any<CancellationToken>())
+            .Returns(CreateSite(42, "testsite.com"));
+
+        using var host = await CreateHostWithCaptureAsync(siteLookup, Substitute.For<IAliasRuleCache>(),
+            context => { capturedSlice = context.Features.Get<IAeroSiteSlice>(); });
+
+        var client = host.GetTestClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, "/")
+        {
+            Headers = { { "Host", "testsite.com" } }
+        };
+
+        var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await Assert.That(capturedSlice).IsNotNull();
+        await Assert.That(capturedSlice!.SiteId).IsEqualTo(42);
+        await Assert.That(capturedSlice.TenantId).IsEqualTo(420);
+    }
+
     // ──────────────────────────────────────────────────
     // Helpers
     // ──────────────────────────────────────────────────
@@ -401,6 +429,48 @@ public sealed class SitePipelineChainTests
         // 3. Terminal — returns 200 for any request that passes through
         app.Run(async context =>
         {
+            context.Response.StatusCode = 200;
+            await context.Response.WriteAsync("OK");
+        });
+
+        await app.StartAsync();
+        return app;
+    }
+
+    /// <summary>
+    /// Creates a test host with a capture callback for verifying middleware state.
+    /// </summary>
+    private static async Task<IHost> CreateHostWithCaptureAsync(
+        ISiteLookupService siteLookup,
+        IAliasRuleCache aliasCache,
+        Action<HttpContext> captureAction)
+    {
+        var builder = WebApplication.CreateBuilder([]);
+
+        builder.Services.AddSingleton(siteLookup);
+        builder.Services.AddSingleton(aliasCache);
+        builder.Services.AddSingleton<AliasRewriteRule>(sp =>
+            new AliasRewriteRule(
+                aliasCache,
+                sp,
+                Substitute.For<Microsoft.Extensions.Logging.ILogger<AliasRewriteRule>>()));
+
+        builder.WebHost.UseTestServer();
+
+        var app = builder.Build();
+
+        // 1. Site resolution middleware
+        app.UseMiddleware<SiteResolutionMiddleware>();
+
+        // 2. Alias rewrite middleware
+        var rule = app.Services.GetRequiredService<AliasRewriteRule>();
+        var rewriteOptions = new RewriteOptions().Add(rule);
+        app.UseRewriter(rewriteOptions);
+
+        // 3. Terminal — capture and respond
+        app.Run(async context =>
+        {
+            captureAction(context);
             context.Response.StatusCode = 200;
             await context.Response.WriteAsync("OK");
         });

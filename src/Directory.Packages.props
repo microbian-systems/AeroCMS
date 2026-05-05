@@ -4,6 +4,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Blazor.LocalStorage.WebAssembly" Version="9.0.1" />
     <PackageVersion Include="BlazorMonaco" Version="3.4.0" />
     <PackageVersion Include="Mapster" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Compliance.Redaction" Version="10.5.0" />

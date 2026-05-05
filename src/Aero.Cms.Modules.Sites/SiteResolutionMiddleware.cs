@@ -15,6 +15,7 @@ namespace Aero.Cms.Modules.Sites;
 public sealed class SiteResolutionMiddleware(RequestDelegate next)
 {
     private static readonly PathString ManagerPathPrefix = "/manager";
+    private static readonly PathString NoSitePathPrefix = "/nosite";
 
     public async Task InvokeAsync(
         HttpContext context,
@@ -28,6 +29,13 @@ public sealed class SiteResolutionMiddleware(RequestDelegate next)
             return;
         }
 
+        // The NoSiteExists page must be reachable without a matching site.
+        if (context.Request.Path.StartsWithSegments(NoSitePathPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            await next(context);
+            return;
+        }
+
         var host = context.Request.Host.Host;
         var normalized = HostNormalizer.Normalize(host);
 
@@ -35,7 +43,7 @@ public sealed class SiteResolutionMiddleware(RequestDelegate next)
 
         if (site is null || !site.IsEnabled)
         {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            context.Response.Redirect("/nosite");
             return;
         }
 

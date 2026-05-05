@@ -159,7 +159,9 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
             ValidateId(post.Id);
 
             var existingPost = await session.LoadAsync<BlogPostDocument>(post.Id, cancellationToken);
-            post.SiteId = _siteContext.SiteId; // stamp from context
+            // Only stamp SiteId from context when not already set by the caller (e.g. seed).
+            if (existingPost is null && post.SiteId == 0)
+                post.SiteId = _siteContext.SiteId;
             await ContentSlugReservation.ReserveAsync(
                 session,
                 post.Id,
