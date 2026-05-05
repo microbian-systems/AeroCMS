@@ -10,9 +10,11 @@ public class SiteRequestValidator : AbstractValidator<CreateSiteRequest>
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Name is required.")
             .MaximumLength(255).WithMessage("Name cannot exceed 255 characters.");
-        RuleFor(x => x.Hostname)
-            .NotEmpty().WithMessage("Hostname is required.")
-            .MaximumLength(255).WithMessage("Hostname cannot exceed 255 characters.");
+        RuleFor(x => x.PrimaryHost)
+            .NotEmpty().WithMessage("PrimaryHost is required.")
+            .MaximumLength(255).WithMessage("PrimaryHost cannot exceed 255 characters.");
+        RuleFor(x => x.Hosts)
+            .NotEmpty().WithMessage("At least one host must be provided.");
     }
 }
 
@@ -25,9 +27,11 @@ public class UpdateSiteRequestValidator : AbstractValidator<UpdateSiteRequest>
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Name is required.")
             .MaximumLength(255).WithMessage("Name cannot exceed 255 characters.");
-        RuleFor(x => x.Hostname)
-            .NotEmpty().WithMessage("Hostname is required.")
-            .MaximumLength(255).WithMessage("Hostname cannot exceed 255 characters.");
+        RuleFor(x => x.PrimaryHost)
+            .NotEmpty().WithMessage("PrimaryHost is required.")
+            .MaximumLength(255).WithMessage("PrimaryHost cannot exceed 255 characters.");
+        RuleFor(x => x.Hosts)
+            .NotEmpty().WithMessage("At least one host must be provided.");
     }
 }
 

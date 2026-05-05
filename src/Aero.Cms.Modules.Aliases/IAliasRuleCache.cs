@@ -6,14 +6,16 @@ namespace Aero.Cms.Modules.Aliases;
 /// Hot in-memory alias lookup. Zero database I/O per request.
 /// Cache is refreshed once on startup via <see cref="AliasRuleCacheWarmupService"/>
 /// and invalidated when aliases are created, updated, or deleted.
+/// Lookups are site-scoped: the same old path on two different sites returns
+/// different entries.
 /// </summary>
 public interface IAliasRuleCache
 {
     /// <summary>
-    /// Finds an alias rule matching the normalized old path.
+    /// Finds an alias rule matching the normalized old path for the given site.
     /// Returns null if no match. O(1) dictionary lookup.
     /// </summary>
-    AliasRuleEntry? Find(string oldPath);
+    AliasRuleEntry? Find(long siteId, string oldPath);
 
     /// <summary>
     /// Refreshes the cache from the database. Called on startup and
@@ -36,3 +38,8 @@ public sealed record AliasRuleEntry(
     string NewPath,
     int StatusCode = 301
 );
+
+/// <summary>
+/// Composite key for site-scoped alias cache lookups.
+/// </summary>
+public readonly record struct SitePathKey(long SiteId, string Path);

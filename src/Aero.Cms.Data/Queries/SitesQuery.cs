@@ -24,7 +24,7 @@ public sealed class SiteByHostnameQuery : ICompiledQuery<SitesModel, SitesModel?
     {
         return q => q
             .Include(x => x.TenantId, Tenants)
-            .FirstOrDefault(x => x.Hostname == hostname);
+            .FirstOrDefault(x => x.PrimaryHost == hostname);
     }
 }
 

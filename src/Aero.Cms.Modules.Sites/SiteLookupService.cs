@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Infrastructure;
 using Aero.Marten;
 using Marten;
 using Microsoft.Extensions.Logging;
@@ -13,14 +14,16 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
         string host,
         CancellationToken cancellationToken = default)
     {
+        var normalized = HostNormalizer.Normalize(host);
+
+        // Match by PrimaryHost or any entry in Hosts list
         var site = await session.Query<SitesModel>()
-            .Where(x => x.Hostname == host)
+            .Where(x => x.IsEnabled)
+            .Where(x => x.PrimaryHost == normalized || x.Hosts.Contains(normalized))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (site is null)
-        {
             return null;
-        }
 
         return MapToViewModel(site);
     }
@@ -39,9 +42,10 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
         return new SiteViewModel
         {
             Id = model.Id,
+            TenantId = model.TenantId,
             Name = model.Name,
-            PrimaryHost = model.Hostname,
-            Hosts = [model.Hostname!],
+            PrimaryHost = model.PrimaryHost,
+            Hosts = model.Hosts,
             IsEnabled = model.IsEnabled,
             DefaultCulture = model.DefaultCulture,
             CreatedOn = model.CreatedOn,

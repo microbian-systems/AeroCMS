@@ -219,7 +219,8 @@ public sealed class SeedDatabaseService(
             Id = Snowflake.NewId(),
             TenantId = createdTenantId,
             Name = request.SiteName,
-            Hostname = request.Hostname,
+            PrimaryHost = request.Hostname,
+            Hosts = [request.Hostname!],
             IsEnabled = true,
             DefaultCulture = request.DefaultCulture
         };

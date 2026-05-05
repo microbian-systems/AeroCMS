@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Http;
 
@@ -5,13 +6,12 @@ namespace Aero.Cms.Web.Infrastructure;
 
 /// <summary>
 /// Default implementation of ISiteContext using IHttpContextAccessor.
-/// Tries to resolve site and tenant IDs from request headers.
+/// Reads the current site from <see cref="IAeroSiteSlice"/> set by
+/// <see cref="SiteResolutionMiddleware"/> on <see cref="HttpContext.Features"/>.
 /// </summary>
 public sealed class DefaultSiteContext : ISiteContext
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private const string SiteIdHeader = "X-Site-Id";
-    private const string TenantIdHeader = "X-Tenant-Id";
 
     public DefaultSiteContext(IHttpContextAccessor httpContextAccessor)
     {
@@ -22,12 +22,9 @@ public sealed class DefaultSiteContext : ISiteContext
     {
         get
         {
-            var context = _httpContextAccessor.HttpContext;
-            if (context != null && context.Request.Headers.TryGetValue(SiteIdHeader, out var siteIdStr) && long.TryParse(siteIdStr, out var siteId))
-            {
-                return siteId;
-            }
-            return 0;
+            var features = _httpContextAccessor.HttpContext?.Features;
+            var slice = features?.Get<IAeroSiteSlice>();
+            return slice?.SiteId ?? 0;
         }
     }
 
@@ -35,12 +32,9 @@ public sealed class DefaultSiteContext : ISiteContext
     {
         get
         {
-            var context = _httpContextAccessor.HttpContext;
-            if (context != null && context.Request.Headers.TryGetValue(TenantIdHeader, out var tenantIdStr) && long.TryParse(tenantIdStr, out var tenantId))
-            {
-                return tenantId;
-            }
-            return 0;
+            var features = _httpContextAccessor.HttpContext?.Features;
+            var slice = features?.Get<IAeroSiteSlice>();
+            return slice?.TenantId ?? 0;
         }
     }
 }

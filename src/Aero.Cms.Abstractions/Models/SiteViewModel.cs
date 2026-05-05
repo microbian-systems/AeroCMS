@@ -14,6 +14,8 @@ public record SiteViewModel : AeroEntityViewModel
     public bool IsEnabled { get; set; } = true;
     [Id(4)]
     public string? DefaultCulture { get; set; }
+    [Id(5)]
+    public long TenantId { get; set; }
 }
 
 [GenerateSerializer]
