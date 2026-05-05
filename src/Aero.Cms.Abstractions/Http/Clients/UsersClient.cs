@@ -54,11 +54,17 @@ public interface IUsersHttpClient
     /// <summary>
     /// Changes a user's password.
     /// </summary>
-    /// <param name="id">The user identifier.</param>
-    /// <param name="request">The password change request.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>True if password was changed successfully or an error.</returns>
     Task<Result<bool, AeroError>> ChangePasswordAsync(long id, ChangePasswordRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets all site assignments for a user.
+    /// </summary>
+    Task<Result<IReadOnlyList<UserSiteAssignmentResponse>, AeroError>> GetSiteAssignmentsAsync(long userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Updates all site assignments for a user (replaces existing).
+    /// </summary>
+    Task<Result<bool, AeroError>> UpdateSiteAssignmentsAsync(long userId, UserSiteAssignmentBatch request, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -106,6 +112,18 @@ public class UsersHttpClient(HttpClient httpClient, ILogger<UsersHttpClient> log
     public Task<Result<bool, AeroError>> ChangePasswordAsync(long id, ChangePasswordRequest request, CancellationToken ct = default)
     {
         return MapBoolResult(base.PostAsync<ChangePasswordRequest, HttpResponseMessage>($"{id}/password", request, ct));
+    }
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<UserSiteAssignmentResponse>, AeroError>> GetSiteAssignmentsAsync(long userId, CancellationToken ct = default)
+    {
+        return GetAsync<IReadOnlyList<UserSiteAssignmentResponse>>($"{userId}/sites", ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<bool, AeroError>> UpdateSiteAssignmentsAsync(long userId, UserSiteAssignmentBatch request, CancellationToken ct = default)
+    {
+        return MapBoolResult(PutAsync<UserSiteAssignmentBatch, HttpResponseMessage>($"{userId}/sites", request, ct));
     }
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
@@ -172,3 +190,25 @@ public record UpdateUserRequest(string Email, string DisplayName, bool IsEnabled
 /// <param name="CurrentPassword">The current password.</param>
 /// <param name="NewPassword">The new password.</param>
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+/// <summary>
+/// A single user-site assignment entry.
+/// </summary>
+/// <param name="Id">Assignment ID.</param>
+/// <param name="UserId">User ID.</param>
+/// <param name="SiteId">Site ID.</param>
+/// <param name="Permissions">List of permission strings.</param>
+public record UserSiteAssignmentResponse(long Id, long UserId, long SiteId, List<string> Permissions);
+
+/// <summary>
+/// A single site assignment item for batch updates.
+/// </summary>
+/// <param name="SiteId">Site ID to assign.</param>
+/// <param name="Permissions">Permissions to grant.</param>
+public record UserSiteAssignmentItem(long SiteId, List<string>? Permissions);
+
+/// <summary>
+/// Batch request for updating user-site assignments.
+/// </summary>
+/// <param name="Assignments">List of site assignments.</param>
+public record UserSiteAssignmentBatch(List<UserSiteAssignmentItem> Assignments);

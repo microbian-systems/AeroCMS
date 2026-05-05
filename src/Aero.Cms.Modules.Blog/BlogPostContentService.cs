@@ -9,6 +9,7 @@ using Aero.Core.Railway;
 using FlakeId;
 using Marten;
 using Marten.Pagination;
+using Microsoft.AspNetCore.Http;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,7 +32,7 @@ public interface IBlogPostContentService
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenBlogPostContentService(IDocumentSession session, ISiteContext siteContext) : IBlogPostContentService
+public sealed class MartenBlogPostContentService(IDocumentSession session, ISiteContext siteContext, IHttpContextAccessor? httpContextAccessor = null) : IBlogPostContentService
 {
     private readonly ISiteContext _siteContext = siteContext;
     public async Task<Result<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
@@ -172,6 +173,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
             var existingCreatedAtUtc = existingPost?.CreatedOn;
             post.CreatedOn = existingCreatedAtUtc is null || existingCreatedAtUtc == default ? now : existingCreatedAtUtc.Value;
             post.ModifiedOn = now;
+            post.ModifiedBy = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
             post.PublishedOn = post.PublicationState == ContentPublicationState.Published
                 ? existingPost?.PublishedOn ?? now
                 : null;

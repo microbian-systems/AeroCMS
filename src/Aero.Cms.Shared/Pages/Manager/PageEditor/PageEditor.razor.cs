@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Linq;
@@ -85,6 +86,10 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string PageSlug { get; set; } = string.Empty;
     protected string Summary { get; set; } = string.Empty;
 
+    /// <summary>Tracks whether the slug should auto-populate from the title.</summary>
+    private enum SlugState { Auto, Loaded, Locked }
+    private SlugState _slugState = SlugState.Auto;
+
     // Redundant ID removed to avoid ambiguity with ManagerComponent Base.Id
     // public string Id { get; set; } = string.Empty; 
 
@@ -113,11 +118,15 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Toasts
     protected List<ToastMessage> Toasts { get; set; } = [];
 
-    // Auto-save timer
+    // Auto-save timer & dirty tracking
     private const int PreviewDebounceMilliseconds = 300;
     private System.Timers.Timer? _autoSaveTimer;
     private CancellationTokenSource? _previewDebounceCts;
-    private long _previewRefreshVersion;
+    private long _previewRefreshVersion;	
+
+    /// <summary>Tracks whether unsaved changes exist. Auto-save only fires when Dirty.</summary>
+    private enum PageState { Clean, Dirty }
+    private PageState _pageState = PageState.Dirty;  // new pages start dirty
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle  (mirrors Alpine.js init())
@@ -158,6 +167,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             LoadedPage = page;
             PageTitle = page.Title;
             PageSlug = page.Slug;
+            _slugState = SlugState.Loaded;  // preserve DB slug — never auto-overwrite
             Summary = page.Excerpt ?? string.Empty;
             SeoTitle = page.SeoTitle ?? string.Empty;
             SeoDescription = page.SeoDescription ?? string.Empty;
@@ -173,7 +183,20 @@ public partial class PageEditor : ComponentBase, IDisposable
                 Blocks = page.Blocks.ToList();
             }
 
+            // Check for a newer draft — if one exists, use it as the in-progress state
+            var draftResult = await PagesClient.GetDraftAsync(id);
+            if (draftResult is Result<PageDraftSummary?, AeroError>.Ok { Value: not null } draftOk)
+            {
+                var draft = draftOk.Value;
+                PageTitle = draft.Title;
+                PageSlug = draft.Slug;
+                Summary = draft.Summary ?? string.Empty;
+                if (draft.Blocks is not null)
+                    Blocks = draft.Blocks.ToList();
+            }
+
             UpdateLastSaved();
+            _pageState = PageState.Clean;
             await InvokeAsync(StateHasChanged);
         }
         else
@@ -245,6 +268,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         var block = CreateBlock(type);
         Blocks.Add(block);
         SelectBlock(block.EditorId);
+        MarkDirty();
         ShowToast("Block added", "success");
         QueuePreviewRefresh();
     }
@@ -461,6 +485,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         Blocks.RemoveAt(index);
         SelectedBlockId = null;
+        MarkDirty();
         ShowToast("Block deleted");
         QueuePreviewRefresh();
     }
@@ -476,6 +501,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             col.ColId = Guid.NewGuid().ToString();
 
         Blocks.Insert(index + 1, copy);
+        MarkDirty();
         ShowToast("Block duplicated", "success");
         QueuePreviewRefresh();
     }
@@ -484,6 +510,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         if (index <= 0) return;
         (Blocks[index], Blocks[index - 1]) = (Blocks[index - 1], Blocks[index]);
+        MarkDirty();
         QueuePreviewRefresh();
     }
 
@@ -491,6 +518,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         if (index >= Blocks.Count - 1) return;
         (Blocks[index], Blocks[index + 1]) = (Blocks[index + 1], Blocks[index]);
+        MarkDirty();
         QueuePreviewRefresh();
     }
 
@@ -978,12 +1006,39 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Save / Publish  (mirrors savePage / publishPage)
     // ──────────────────────────────────────────────────────────
 
+    private void MarkDirty() => _pageState = PageState.Dirty;
+
     private async Task AutoSaveAsync()
     {
-        // One-shot save implementation handles both create and update
-        if (Id == 0 || Id is null) return;
-        
-        await SavePage();
+        if (_pageState != PageState.Dirty) return;
+
+        if (Id == 0 || Id is null)
+        {
+            // New page: only auto-create if there's actual content
+            if (Blocks.Count == 0 && string.IsNullOrWhiteSpace(PageTitle))
+                return;
+
+            await SavePage();  // creates the page via API, sets Id
+            return;
+        }
+
+        // Existing page: upsert draft (not PageDocument — that's for manual save/publish)
+        try
+        {
+            var request = new PageDraftRequest(
+                PageTitle,
+                PageSlug,
+                Summary,
+                Blocks.ToList()
+            );
+            var result = await PagesClient.SaveDraftAsync(Id.Value, request);
+            if (result is Result<bool, AeroError>.Ok)
+                _pageState = PageState.Clean;
+        }
+        catch
+        {
+            // Auto-save failures are non-critical — will retry on next interval
+        }
     }
 
     private async Task SavePage()
@@ -991,6 +1046,13 @@ public partial class PageEditor : ComponentBase, IDisposable
         if (IsSaving) return;
         IsSaving = true;
         await InvokeAsync(StateHasChanged);
+
+        // Ensure slug has a value before saving — derive from title if empty
+        if (string.IsNullOrWhiteSpace(PageSlug))
+        {
+            PageSlug = TitleToSlug(PageTitle);
+            _slugState = SlugState.Locked;
+        }
 
         try
         {
@@ -1015,6 +1077,8 @@ public partial class PageEditor : ComponentBase, IDisposable
                 if (result is Result<CmsPageDetail, AeroError>.Ok)
                 {
                     UpdateLastSaved();
+                    _pageState = PageState.Clean;
+                    await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
                     ShowToast("Page saved successfully", "success");
                 }
                 else if (result is Result<CmsPageDetail, AeroError>.Failure err)
@@ -1043,6 +1107,8 @@ public partial class PageEditor : ComponentBase, IDisposable
                 if (result is Result<CmsPageDetail, AeroError>.Ok createOk)
                 {
                     Id = createOk.Value.Id;
+                    _slugState = SlugState.Locked;  // preserve generated slug going forward
+                    _pageState = PageState.Clean;
                     UpdateLastSaved();
                     ShowToast("Page created successfully", "success");
                     // Update URL without refreshing
@@ -1078,6 +1144,8 @@ public partial class PageEditor : ComponentBase, IDisposable
             if (result is Result<CmsPageDetail, AeroError>.Ok ok)
             {
                 PublicationState = ok.Value.PublicationState;
+                _pageState = PageState.Clean;
+                await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
                 ShowToast("Page published!", "success");
             }
             else
@@ -1089,6 +1157,47 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected void UpdateLastSaved()
         => LastSaved = DateTime.Now.ToString("HH:mm");
+
+    // ──────────────────────────────────────────────────────────
+    // Slug auto-population  (mirrors common CMS behavior)
+    // ──────────────────────────────────────────────────────────
+
+    /// <summary>Called when the title changes in either the editor or metadata tab.</summary>
+    protected void OnTitleChanged(string title)
+    {
+        PageTitle = title;
+        MarkDirty();
+        if (_slugState == SlugState.Auto)
+            PageSlug = TitleToSlug(title);
+    }
+
+    /// <summary>Called when the user manually edits the slug. Locks it to prevent title overwrites.</summary>
+    protected void OnSlugChanged(string slug)
+    {
+        PageSlug = slug;
+        MarkDirty();
+        _slugState = SlugState.Locked;
+    }
+
+    /// <summary>Converts a human-readable title to a URL-friendly slug.</summary>
+    private static string TitleToSlug(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+
+        // Decompose diacritics: "café" → "cafe" + combining accent
+        var normalized = title.Normalize(NormalizationForm.FormD);
+        var filtered = normalized.Where(c =>
+            char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) || c == '-');
+
+        var slug = new string(filtered.ToArray())
+            .Normalize(NormalizationForm.FormC)
+            .ToLowerInvariant();
+
+        slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");  // strip remaining marks
+        slug = Regex.Replace(slug, @"\s+", "-");           // spaces → hyphens
+        slug = Regex.Replace(slug, @"-+", "-");            // collapse dashes
+        return slug.Trim('-');
+    }
 
     // ──────────────────────────────────────────────────────────
     // Toast  (mirrors showToast / removeToast)

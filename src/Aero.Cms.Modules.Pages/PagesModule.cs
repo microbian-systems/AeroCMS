@@ -56,5 +56,10 @@ public sealed class PagesModule : AeroModuleBase, IConfigureMarten
         // ContentSlugDocument — composite unique on (SiteId, NormalizedSlug)
         opts.Schema.For<ContentSlugDocument>().Index(x => x.SiteId);
         opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => x.SiteId, x => x.NormalizedSlug);
+
+        // PageDraft — one per page, upserted on auto-save, deleted on publish/manual save
+        opts.Schema.For<PageDraft>().Index(x => x.PageId);
+        opts.Schema.For<PageDraft>().Index(x => x.SiteId);
+        opts.Schema.For<PageDraft>().Index(x => x.DraftedAt);
     }
 }

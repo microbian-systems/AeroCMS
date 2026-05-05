@@ -1,11 +1,15 @@
 @page "/manager/users/{UserId:long}/sites"
 @attribute [Authorize]
-
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Abstractions.Interfaces
+@using Aero.Cms.Abstractions.Models
 @using Aero.Core
 @using Aero.Core.Railway
 @using Radzen
 @using Radzen.Blazor
-
+@inject ISitesHttpClient SitesClient
+@inject IUsersHttpClient UsersClient
+@inject ICurrentSiteAccessor CurrentSiteAccessor
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
 @inject DialogService DialogService
@@ -13,49 +17,156 @@
 <div class="space-y-6 px-6 py-6">
     <div>
         <h1 class="text-2xl font-bold mb-2">User Site Assignments</h1>
-        <p class="text-gray-500">Manage which sites this user can access and their permissions</p>
+        <p class="text-gray-500">Manage which sites this user can access and their permissions.</p>
     </div>
 
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800">
-        <strong>Coming Soon:</strong> This feature is not yet available. Users can be assigned to sites through the database.
-    </div>
+    @if (_isLoading)
+    {
+        <div class="flex justify-center py-12">
+            <span class="text-gray-500">Loading...</span>
+        </div>
+    }
+    else if (_sites.Count == 0)
+    {
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            No sites found. Create a site first.
+        </div>
+    }
+    else
+    {
+        <RadzenDataGrid Data="@_siteModels" TItem="SiteViewModel" AllowPaging="false" AllowFiltering="false">
+            <Columns>
+                <RadzenDataGridColumn TItem="SiteViewModel" Property="Name" Title="Site" Width="200px" />
+                <RadzenDataGridColumn TItem="SiteViewModel" Property="PrimaryHost" Title="Host" />
+                <RadzenDataGridColumn TItem="SiteViewModel" Title="Read">
+                    <Template Context="site">
+                        <input type="checkbox" checked="@HasPermission(site.Id, PermissionRead)"
+                               @onchange="e => TogglePermission(site.Id, PermissionRead)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="SiteViewModel" Title="Create">
+                    <Template Context="site">
+                        <input type="checkbox" checked="@HasPermission(site.Id, PermissionCreate)"
+                               @onchange="e => TogglePermission(site.Id, PermissionCreate)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="SiteViewModel" Title="Update">
+                    <Template Context="site">
+                        <input type="checkbox" checked="@HasPermission(site.Id, PermissionUpdate)"
+                               @onchange="e => TogglePermission(site.Id, PermissionUpdate)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="SiteViewModel" Title="Delete">
+                    <Template Context="site">
+                        <input type="checkbox" checked="@HasPermission(site.Id, PermissionDelete)"
+                               @onchange="e => TogglePermission(site.Id, PermissionDelete)" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
 
-    <div>
-        <h3 class="text-lg font-semibold mb-3">Permission Reference</h3>
-        <table class="w-full border-collapse">
-            <thead>
-                <tr class="bg-gray-100">
-                    <th class="text-left p-2 border">Permission</th>
-                    <th class="text-left p-2 border">Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var perm in _permissions)
-                {
-                    <tr class="border-b">
-                        <td class="p-2 border"><span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">@perm.Key</span></td>
-                        <td class="p-2 border">@perm.Value</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-
-    <div>
-        <RadzenButton ButtonStyle="ButtonStyle.Secondary" Click="@(() => Navigation.NavigateTo("/manager/users"))">
-            Back to Users
-        </RadzenButton>
-    </div>
+        <div class="flex gap-3 mt-6">
+            <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Save Assignments" Click="@SaveAssignmentsAsync" />
+            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="Select All" Click="@SelectAll" />
+            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="Clear All" Click="@ClearAll" />
+            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="Back to Users" Click="@(() => Navigation.NavigateTo("/manager/users"))" />
+        </div>
+    }
 </div>
 
 @code {
     [Parameter] public long UserId { get; set; }
 
-    private Dictionary<string, string> _permissions = new()
+    private bool _isLoading = true;
+    private List<SiteViewModel> _sites = [];
+    private List<SiteViewModel> _siteModels = [];
+    private Dictionary<long, HashSet<string>> _assignments = [];
+
+    private const string PermissionRead = "read";
+    private const string PermissionCreate = "create";
+    private const string PermissionUpdate = "update";
+    private const string PermissionDelete = "delete";
+
+    private bool HasPermission(long siteId, string permission)
+        => _assignments.ContainsKey(siteId) && _assignments[siteId].Contains(permission);
+
+    protected override async Task OnInitializedAsync()
     {
-        { "read", "View content and access the site in the manager" },
-        { "create", "Create new content on the site" },
-        { "update", "Edit existing content on the site" },
-        { "delete", "Delete content from the site" },
-    };
+        try
+        {
+            // Load all sites
+            var sitesResult = await SitesClient.GetAllAsync();
+            if (sitesResult is Result<IReadOnlyList<SiteViewModel>, AeroError>.Ok ok)
+            {
+                _sites = ok.Value.OrderBy(s => s.Name).ToList();
+                _siteModels = _sites;
+            }
+
+            // Load existing assignments for this user
+            var assignmentResult = await UsersClient.GetSiteAssignmentsAsync(UserId);
+            if (assignmentResult is Result<IReadOnlyList<UserSiteAssignmentResponse>, AeroError>.Ok assignOk)
+            {
+                foreach (var a in assignOk.Value)
+                {
+                    _assignments[a.SiteId] = new HashSet<string>(a.Permissions, StringComparer.OrdinalIgnoreCase);
+                }
+            }
+        }
+        catch
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Failed to load data", duration: 4000);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void TogglePermission(long siteId, string permission)
+    {
+        if (!_assignments.ContainsKey(siteId))
+            _assignments[siteId] = [];
+
+        if (_assignments[siteId].Contains(permission))
+            _assignments[siteId].Remove(permission);
+        else
+            _assignments[siteId].Add(permission);
+
+        // Clean up empty assignments
+        if (_assignments[siteId].Count == 0)
+            _assignments.Remove(siteId);
+
+        StateHasChanged();
+    }
+
+    private void SelectAll()
+    {
+        foreach (var site in _sites)
+        {
+            _assignments[site.Id] = ["read", "create", "update", "delete"];
+        }
+        StateHasChanged();
+    }
+
+    private void ClearAll()
+    {
+        _assignments.Clear();
+        StateHasChanged();
+    }
+
+    private async Task SaveAssignmentsAsync()
+    {
+        var items = _assignments.Select(kvp => new UserSiteAssignmentItem(kvp.Key, kvp.Value.ToList())).ToList();
+        var request = new UserSiteAssignmentBatch(items);
+
+        var result = await UsersClient.UpdateSiteAssignmentsAsync(UserId, request);
+        if (result is Result<bool, AeroError>.Ok)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Assignments saved", duration: 4000);
+        }
+        else if (result is Result<bool, AeroError>.Failure fail)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, fail.Error.ToString(), duration: 4000);
+        }
+    }
 }

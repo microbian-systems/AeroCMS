@@ -157,11 +157,11 @@ public async Task<SiteViewModel?> ResolveByHostAsync(string host, CancellationTo
 }
 ```
 
-### 1.6 ISiteContext Fix: Remove Header-Based SiteId
+### 1.6 ISiteContext: Cookie Fallback for Manager Routes
 
 **File:** `src/Aero.Cms.Web/Infrastructure/DefaultSiteContext.cs`
 
-The current implementation reads `X-Site-Id` from **client-supplied HTTP headers** — a privilege escalation vulnerability. Replace with `IAeroSiteSlice` from `HttpContext.Features`:
+The current implementation reads from `IAeroSiteSlice` on `HttpContext.Features` — set by `SiteResolutionMiddleware` for public routes. For `/manager/*` routes where the middleware is skipped, it falls back to the `AeroCms.SiteId` cookie:
 
 ```csharp
 public sealed class DefaultSiteContext : ISiteContext
@@ -177,9 +177,15 @@ public sealed class DefaultSiteContext : ISiteContext
     {
         get
         {
-            var features = _httpContextAccessor.HttpContext?.Features;
-            var slice = features?.Get<IAeroSiteSlice>();
-            return slice?.SiteId ?? 0;
+            // 1. Try features (set by SiteResolutionMiddleware for public routes)
+            var slice = _httpContextAccessor.HttpContext?.Features.Get<IAeroSiteSlice>();
+            if (slice is not null) return slice.SiteId;
+
+            // 2. Fallback: read from manager cookie (for /manager/* API calls)
+            var cookie = _httpContextAccessor.HttpContext?.Request.Cookies["AeroCms.SiteId"];
+            if (long.TryParse(cookie, out var siteId)) return siteId;
+
+            return 0;
         }
     }
 
@@ -187,13 +193,14 @@ public sealed class DefaultSiteContext : ISiteContext
     {
         get
         {
-            var features = _httpContextAccessor.HttpContext?.Features;
-            var slice = features?.Get<IAeroSiteSlice>();
+            var slice = _httpContextAccessor.HttpContext?.Features.Get<IAeroSiteSlice>();
             return slice?.TenantId ?? 0;
         }
     }
 }
 ```
+
+This dual resolution means **no content service code changes** are needed for site scoping. All services filter by `ISiteContext.SiteId` and automatically get the correct site from whichever path is active.
 
 ### 1.7 SiteResolutionMiddleware
 

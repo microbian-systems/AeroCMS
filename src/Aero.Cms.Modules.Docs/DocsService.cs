@@ -4,12 +4,13 @@ using Aero.Cms.Core.Entities;
 using Aero.Core;
 using Aero.Core.Http;
 using Marten;
+using Microsoft.AspNetCore.Http;
 using Wolverine;
 using static global::Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Modules.Docs;
 
-public sealed class DocsService(IDocumentSession session, IMessageBus bus, ISiteContext siteContext) : IDocsService
+public sealed class DocsService(IDocumentSession session, IMessageBus bus, ISiteContext siteContext, IHttpContextAccessor? httpContextAccessor = null) : IDocsService
 {
     private readonly ISiteContext _siteContext = siteContext;
     public async Task<global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -62,6 +63,10 @@ public sealed class DocsService(IDocumentSession session, IMessageBus bus, ISite
             var existing = await session.LoadAsync<DocsPage>(page.Id, cancellationToken);
             page.SiteId = _siteContext.SiteId; // stamp from context
             var isNew = existing is null;
+
+            var now = DateTimeOffset.UtcNow;
+            page.ModifiedOn = now;
+            page.ModifiedBy = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
 
             session.Store(page);
             await session.SaveChangesAsync(cancellationToken);

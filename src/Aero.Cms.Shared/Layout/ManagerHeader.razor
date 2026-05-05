@@ -8,7 +8,8 @@
 @inject ICurrentSiteAccessor CurrentSiteAccessor
 @inject ILogger<ManagerHeader> Logger
 
-<header class="pe-header">
+<header class="pe-header" id="aero-header" tabindex="-1"
+        @onkeydown="HandleKeyDown" @onkeydown:preventDefault="false">
     <div class="pe-header-left">
         <a href="/manager" class="pe-logo">
             <div class="pe-logo-icon">
@@ -88,6 +89,14 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Failed to load current site for header display");
+        }
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if ((e.CtrlKey || e.MetaKey) && e.Key == "s")
+        {
+            Navigation.NavigateTo("/manager/select-site");
         }
     }
 

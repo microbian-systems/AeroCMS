@@ -20,7 +20,7 @@
 <div class="space-y-6">
     <div class="pe-page-header">
         <input class="pe-page-title-input" type="text" placeholder="Post Title"
-               value="@PostTitle" @oninput="e => PostTitle = e.Value?.ToString() ?? string.Empty"/>
+               value="@PostTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)"/>
         <div class="pe-page-meta">
             <div class="pe-meta-left">
                 <span class="pe-meta-item">
@@ -153,7 +153,7 @@
                         @if (_contentInitialized)
                         {
                             <RadzenTextArea Value="@Content"
-                                            @oninput="e => Content = e.Value?.ToString() ?? string.Empty"
+                                            @oninput="e => OnContentChanged(e.Value?.ToString() ?? string.Empty)"
                                             Style="width: 100%; height: calc(100vh - 360px); min-height: 400px; font-family: monospace; font-size: 14px;"
                                             Placeholder="# Start writing markdown..." />
                         }
@@ -226,25 +226,25 @@
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Post Title</label>
                             <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
                                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   @bind="PostTitle" placeholder="e.g. My First Blog Post" />
+                                   value="@PostTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. My First Blog Post" />
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">URL Slug</label>
                             <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
                                    style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
-                                   @bind="PostSlug" placeholder="e.g. my-first-blog-post" />
+                                   value="@PostSlug" @oninput="e => OnSlugChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. my-first-blog-post" />
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Summary / Excerpt</label>
                             <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
                                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                      @bind="Excerpt" placeholder="Brief description..."></textarea>
+                                      @oninput="e => OnExcerptChanged(e.Value?.ToString() ?? string.Empty)">@Excerpt</textarea>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Featured Image URL</label>
                             <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
                                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   @bind="FeaturedImageUrl" placeholder="https://..." />
+                                   value="@FeaturedImageUrl" @oninput="e => OnFeaturedImageChanged(e.Value?.ToString() ?? string.Empty)" placeholder="https://..." />
                             @if (!string.IsNullOrEmpty(FeaturedImageUrl))
                             {
                                 <div class="mt-2 rounded-xl overflow-hidden shadow-sm border border-gray-100 max-w-xs">
@@ -259,7 +259,7 @@
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Category</label>
                             <select class="w-full rounded-md shadow-sm sm:text-sm"
                                     style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                    @bind="CategoryId">
+                                    value="@CategoryId" @onchange="e => OnCategoryChanged(e.Value?.ToString() ?? string.Empty)">
                                 <option value="0">Uncategorized</option>
                                 @foreach (var cat in Categories)
                                 {

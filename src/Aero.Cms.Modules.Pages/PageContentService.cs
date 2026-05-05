@@ -12,6 +12,7 @@ using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Core.Http;
 using Aero.Core.Railway;
+using Microsoft.AspNetCore.Http;
 
 
 namespace Aero.Cms.Modules.Pages;
@@ -29,7 +30,7 @@ public interface IPageContentService
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenPageContentService(IDocumentSession session, IBlockService blockService, IMessageBus bus, ISiteContext siteContext) : IPageContentService
+public sealed class MartenPageContentService(IDocumentSession session, IBlockService blockService, IMessageBus bus, ISiteContext siteContext, IHttpContextAccessor? httpContextAccessor = null) : IPageContentService
 {
     private readonly ISiteContext _siteContext = siteContext;
     public async Task<Result<PageDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default)
@@ -220,6 +221,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             var existingCreatedOn = existingPage?.CreatedOn;
             page.CreatedOn = existingCreatedOn is null || existingCreatedOn == default ? now : existingCreatedOn.Value;
             page.ModifiedOn = now;
+            page.ModifiedBy = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
             page.PublishedOn = page.PublicationState == ContentPublicationState.Published
                 ? existingPage?.PublishedOn ?? now
                 : null;

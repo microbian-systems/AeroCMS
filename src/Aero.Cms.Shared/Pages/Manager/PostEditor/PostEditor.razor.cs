@@ -67,8 +67,10 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Toasts
     protected List<ToastMessage> Toasts { get; set; } = [];
 
-    // Auto-save timer
+    // Auto-save timer & dirty tracking
     private System.Timers.Timer? _autoSaveTimer;
+    private enum PostState { Clean, Dirty }
+    private PostState _postState = PostState.Dirty;  // new posts start dirty
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle
@@ -89,7 +91,7 @@ public partial class PostEditor : ComponentBase, IDisposable
             _contentInitialized = true;
         }
 
-        _autoSaveTimer = new System.Timers.Timer(30_000);
+        _autoSaveTimer = new System.Timers.Timer(3_000);
         _autoSaveTimer.Elapsed += async (_, _) => await InvokeAsync(AutoSaveAsync);
         _autoSaveTimer.AutoReset = true;
         _autoSaveTimer.Start();
@@ -144,6 +146,7 @@ public partial class PostEditor : ComponentBase, IDisposable
             CategoryId = post.CategoryIds?.FirstOrDefault() ?? 0;
             SelectedTagIds = post.TagIds?.ToList() ?? [];
             PublishedAt = post.PublishedOn?.DateTime;
+            _postState = PostState.Clean;
             UpdateLastSaved();
             await InvokeAsync(StateHasChanged);
         }
@@ -186,6 +189,7 @@ public partial class PostEditor : ComponentBase, IDisposable
         {
             Content = await _editor.GetValue();
         }
+        MarkDirty();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -233,6 +237,20 @@ public partial class PostEditor : ComponentBase, IDisposable
             SelectedTagIds.Remove(tagId);
         else
             SelectedTagIds.Add(tagId);
+        MarkDirty();
+    }
+
+    // ── Dirty tracking helpers for input handlers ────────
+
+    protected void OnTitleChanged(string title) { PostTitle = title; MarkDirty(); }
+    protected void OnSlugChanged(string slug) { PostSlug = slug; MarkDirty(); }
+    protected void OnContentChanged(string content) { Content = content; MarkDirty(); }
+    protected void OnExcerptChanged(string excerpt) { Excerpt = excerpt; MarkDirty(); }
+    protected void OnFeaturedImageChanged(string url) { FeaturedImageUrl = url; MarkDirty(); }
+    protected void OnCategoryChanged(string categoryId)
+    {
+        if (long.TryParse(categoryId, out var id)) CategoryId = id;
+        MarkDirty();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -241,9 +259,21 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     private async Task AutoSaveAsync()
     {
-        if (Id is null) return;
+        if (_postState != PostState.Dirty) return;
+
+        if (Id is null)
+        {
+            // New post: only auto-create if there's actual content
+            if (string.IsNullOrWhiteSpace(PostTitle) && string.IsNullOrWhiteSpace(Content))
+                return;
+            await SavePost();
+            return;
+        }
+
         await SavePost();
     }
+
+    private void MarkDirty() => _postState = PostState.Dirty;
 
     protected async Task SavePost()
     {
@@ -282,6 +312,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                 {
                     PublishedAt = ok.Value.PublishedOn?.DateTime;
                     LoadedPost = ok.Value;
+                    _postState = PostState.Clean;
                     UpdateLastSaved();
                     ShowToast("Post saved successfully", "success");
                 }
@@ -310,6 +341,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                     Id = ok.Value.Id;
                     LoadedPost = ok.Value;
                     PublishedAt = ok.Value.PublishedOn?.DateTime;
+                    _postState = PostState.Clean;
                     UpdateLastSaved();
                     ShowToast("Post created successfully", "success");
 
@@ -345,6 +377,7 @@ public partial class PostEditor : ComponentBase, IDisposable
             if (result is Result<BlogDetail, AeroError>.Ok ok)
             {
                 PublishedAt = ok.Value.PublishedOn?.DateTime;
+                _postState = PostState.Clean;
                 ShowToast("Post published!", "success");
             }
             else

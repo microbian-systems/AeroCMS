@@ -35,7 +35,7 @@
 {
     <div class="pe-page-header">
         <input class="pe-page-title-input" type="text" placeholder="Page Title"
-               value="@PageTitle" @oninput="e => PageTitle = e.Value?.ToString() ?? string.Empty"/>
+               value="@PageTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)"/>
         <div class="pe-page-meta">
             <div class="pe-meta-left">
                 <span class="pe-meta-item">
@@ -260,13 +260,13 @@ else if (ActiveTab == "metadata")
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Page Title</label>
                     <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                           @bind="PageTitle" placeholder="e.g. About Us" />
+                           value="@PageTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. About Us" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">URL Slug</label>
                     <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
                            style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
-                           @bind="PageSlug" placeholder="e.g. about-us" />
+                           value="@PageSlug" @oninput="e => OnSlugChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. about-us" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Summary / Excerpt</label>
