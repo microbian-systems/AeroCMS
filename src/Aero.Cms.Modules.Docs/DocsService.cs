@@ -2,19 +2,22 @@ using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Core;
+using Aero.Core.Http;
 using Marten;
 using Wolverine;
 using static global::Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Modules.Docs;
 
-public sealed class DocsService(IDocumentSession session, IMessageBus bus) : IDocsService
+public sealed class DocsService(IDocumentSession session, IMessageBus bus, ISiteContext siteContext) : IDocsService
 {
+    private readonly ISiteContext _siteContext = siteContext;
     public async Task<global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var docs = await session.Query<DocsPage>()
+                .Where(x => x.SiteId == _siteContext.SiteId)
                 .OrderBy(x => x.Order)
                 .ToListAsync(cancellationToken);
             return Ok<IReadOnlyList<DocsPage>, AeroError>(docs);
@@ -30,7 +33,7 @@ public sealed class DocsService(IDocumentSession session, IMessageBus bus) : IDo
         try
         {
             var doc = await session.Query<DocsPage>()
-                .FirstOrDefaultAsync(x => x.Slug == slug, cancellationToken);
+                .FirstOrDefaultAsync(x => x.SiteId == _siteContext.SiteId && x.Slug == slug, cancellationToken);
             return Ok<DocsPage?, AeroError>(doc);
         }
         catch (Exception ex)
@@ -57,6 +60,7 @@ public sealed class DocsService(IDocumentSession session, IMessageBus bus) : IDo
         try
         {
             var existing = await session.LoadAsync<DocsPage>(page.Id, cancellationToken);
+            page.SiteId = _siteContext.SiteId; // stamp from context
             var isNew = existing is null;
 
             session.Store(page);
@@ -98,6 +102,7 @@ public sealed class DocsService(IDocumentSession session, IMessageBus bus) : IDo
     private static DocViewModel ToViewModel(DocsPage page) => new()
     {
         Id = page.Id,
+        SiteId = page.SiteId,
         Slug = page.Slug,
         Title = page.Title,
         Summary = page.Summary,
@@ -121,7 +126,7 @@ public sealed class DocsService(IDocumentSession session, IMessageBus bus) : IDo
         try
         {
             var children = await session.Query<DocsPage>()
-                .Where(x => x.ParentId == parentId)
+                .Where(x => x.SiteId == _siteContext.SiteId && x.ParentId == parentId)
                 .OrderBy(x => x.Order)
                 .ToListAsync(cancellationToken);
             return Ok<IReadOnlyList<DocsPage>, AeroError>(children);
@@ -138,7 +143,7 @@ public sealed class DocsService(IDocumentSession session, IMessageBus bus) : IDo
         {
             // First find root "docs" page
             var rootDoc = await session.Query<DocsPage>()
-                .FirstOrDefaultAsync(x => x.Slug == "docs", cancellationToken);
+                .FirstOrDefaultAsync(x => x.SiteId == _siteContext.SiteId && x.Slug == "docs", cancellationToken);
             
             if (rootDoc == null)
             {
@@ -147,7 +152,7 @@ public sealed class DocsService(IDocumentSession session, IMessageBus bus) : IDo
 
             // Find children of root "docs"
             var children = await session.Query<DocsPage>()
-                .Where(x => x.ParentId == rootDoc.Id)
+                .Where(x => x.SiteId == _siteContext.SiteId && x.ParentId == rootDoc.Id)
                 .OrderBy(x => x.Order)
                 .ToListAsync(cancellationToken);
 

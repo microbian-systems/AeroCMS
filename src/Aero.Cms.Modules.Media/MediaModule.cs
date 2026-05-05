@@ -29,6 +29,7 @@ public class MediaModule : AeroModuleBase, IConfigureMarten
         options.Schema.For<MediaAsset>()
             .DocumentAlias(Schemas.Tables.Media)
             .Identity(x => x.Id)
+            .Index(x => x.SiteId)
             .Index(x => x.FileName)
             .Index(x => x.Url)
             .Index(x => x.ParentId)

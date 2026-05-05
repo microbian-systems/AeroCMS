@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Models;
@@ -5,8 +6,9 @@ namespace Aero.Cms.Core.Models;
 /// <summary>
 /// Represents a media asset (image, video, etc.) in the CMS.
 /// </summary>
-public class MediaAsset : Entity
+public class MediaAsset : Entity, ISiteOwned
 {
+    public long SiteId { get; set; }
     public string FileName { get; set; } = string.Empty;
     public string Url { get; set; } = string.Empty;
     public string MimeType { get; set; } = string.Empty;

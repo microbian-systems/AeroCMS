@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
 using Aero.Core.Entities;
 
@@ -7,8 +8,9 @@ using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Core.Entities;
 
-public sealed class PageDocument : Entity
+public sealed class PageDocument : Entity, ISiteOwned
 {
+    public long SiteId { get; set; }
     public PageKind Kind { get; set; } = PageKind.Standard;
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;

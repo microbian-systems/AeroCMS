@@ -47,9 +47,14 @@ public sealed class PagesModule : AeroModuleBase, IConfigureMarten
     {
         opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
         opts.Schema.For<PageDocument>().Identity(x => x.Id);
-        opts.Schema.For<PageDocument>().Index(x => x.Slug);
+        opts.Schema.For<PageDocument>().Index(x => x.SiteId);
+        opts.Schema.For<PageDocument>().UniqueIndex(x => x.SiteId, x => x.Slug);
         opts.Schema.For<PageDocument>().Index(x => x.PublishedOn);
         opts.Schema.For<PageDocument>().Index(x => x.CreatedOn);
         opts.Schema.For<PageDocument>().Index(x => x.ModifiedOn);
+        
+        // ContentSlugDocument — composite unique on (SiteId, NormalizedSlug)
+        opts.Schema.For<ContentSlugDocument>().Index(x => x.SiteId);
+        opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => x.SiteId, x => x.NormalizedSlug);
     }
 }

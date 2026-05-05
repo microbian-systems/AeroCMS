@@ -45,6 +45,8 @@
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.RateLimiting\Aero.Cms.Modules.RateLimiting.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Analytics\Aero.Cms.Modules.Analytics.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Sites\Aero.Cms.Modules.Sites.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
   </ItemGroup>
 
 </Project>

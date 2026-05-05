@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Core;
 using Marten;
 
@@ -11,11 +12,12 @@ public enum ContentSlugOwnerType
     ContentItem = 3
 }
 
-public sealed class ContentSlugDocument
+public sealed class ContentSlugDocument : ISiteOwned
 {
     private const string RootSlugKey = "__root__";
 
     public long Id { get; set; } = Snowflake.NewId();
+    public long SiteId { get; set; }
     public string Slug { get; set; } = string.Empty;
     public string NormalizedSlug { get; set; } = string.Empty;
     public long OwnerId { get; set; } 
@@ -33,7 +35,7 @@ public sealed class ContentSlugDocument
     }
 
 
-    public static ContentSlugDocument Create(string slug, long ownerId, ContentSlugOwnerType ownerType)
+    public static ContentSlugDocument Create(string slug, long ownerId, ContentSlugOwnerType ownerType, long siteId)
     {
         var normalizedSlug = Normalize(slug);
 
@@ -43,7 +45,8 @@ public sealed class ContentSlugDocument
             Slug = slug,
             NormalizedSlug = normalizedSlug,
             OwnerId = ownerId,
-            OwnerType = ownerType
+            OwnerType = ownerType,
+            SiteId = siteId
         };
     }
 }
@@ -63,6 +66,7 @@ public static class ContentSlugReservation
         long ownerId,
         ContentSlugOwnerType ownerType,
         string slug,
+        long siteId,
         string? previousSlug,
         CancellationToken cancellationToken)
     {
@@ -96,7 +100,7 @@ public static class ContentSlugReservation
         // Only store if we don't already have this reservation (avoiding duplicates if it's an update with same slug)
         if (existingReservation is null)
         {
-            session.Store(ContentSlugDocument.Create(slug, ownerId, ownerType));
+            session.Store(ContentSlugDocument.Create(slug, ownerId, ownerType, siteId));
         }
     }
 }

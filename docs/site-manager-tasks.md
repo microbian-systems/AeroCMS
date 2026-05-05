@@ -1,5 +1,7 @@
 # Aero CMS Manager Site Tasks
 
+> **Status**: Council-vetted plan. Updated 2026-05-04 with findings from multi-LLM architecture review.
+
 ## Multi-Tenancy and Site Scope
 
 The anticipated multi-tenancy model does not combine tenants into a shared host.
@@ -12,6 +14,8 @@ The anticipated multi-tenancy model does not combine tenants into a shared host.
 - Every site-owned table/document/entity must have a `long SiteId` foreign key.
 
 Multi-tenancy is handled at the proxy level. After load balancers hit the proxies, the proxy will resolve the incoming domain name to a tenant id, find the right service/container, and forward the request there. This is future work and is listed here for informational purposes.
+
+---
 
 ## Architecture Decisions From Review
 
@@ -30,6 +34,7 @@ Do not implement per-site or per-tenant module enablement.
 Site ownership is still required for content/data.
 
 - Pages, posts/blogs, docs, aliases, banners, taxonomy, navigation, media, and other site-owned models must have `long SiteId`.
+- All site-owned types must implement `ISiteOwned { long SiteId { get; set; } }` — **does not exist yet, must be added** at `src/Aero.Cms.Abstractions/Interfaces/ISiteOwned.cs`.
 - Site-owned reads must filter by `SiteId`.
 - Site-owned writes must stamp `SiteId` from the resolved current site context.
 - Normal create/update/delete requests should not trust client-supplied `SiteId`.
@@ -40,18 +45,127 @@ Site ownership is still required for content/data.
 Setup should continue creating the tenant and default site as it does now.
 
 - Tenants are generally managed outside the CMS in the future hosting/provisioning model.
-- The setup/bootstrap flow still creates a local/default tenant record and a default site.
+- The setup/bootstrap flow creates a local/default tenant record and a default site via `SeedDataService.cs` (already implemented).
 - Retain the created tenant id and site id in setup state.
 - Seed starter pages, posts, docs, media, navigation, taxonomy, and other site-owned data with the default site's `SiteId`.
 
-### Site Domains
+### Site Domains (Multi-Domain / CNAME Support)
 
-The Site model must support multiple domains/CNAMEs.
+The Site model must support multiple domains/CNAMEs. The current entity `SitesModel` has only a single `string? Hostname`. Two options evaluated:
 
-- Store domains as a dictionary keyed by route host/domain, for example `mydomain.com` or `www.mynewwebsite.com`.
-- Proposed shape: `Dictionary<string, AliasDocument>` where the key is the route URL/domain and the value uses the alias model in `src/Aero.Cms.Core.Entities/AliasDocument.cs`.
-- Site Settings must allow editing the domain/CNAME collection.
-- Site Settings must display immutable tenant id and immutable site id.
+| Option | Structure | Pros | Cons |
+|--------|-----------|------|------|
+| **Separate `SiteHost` document** (recommended) | `SiteHost { long SiteId, string Host }` — unique index on `Host` | Marten can unique-index each row; fast host lookup; clean denial of duplicate domains | Extra document type; one more table in cascade delete |
+| Inline list on `SitesModel` | `SitesModel.Hosts: List<string>` | Simple, fewer documents | Marten cannot unique-index list elements; cross-site domain collision possible |
+| Dictionary with AliasDocument | `Dictionary<string, AliasDocument> Domains` | Rich metadata per domain | AliasDocument has OldPath/NewPath/Notes — irrelevant for domain mapping; confusing semantics |
+
+**Decision**: Use **separate `SiteHost` document** for domain storage.
+- Create entity `SiteHost` with `SiteId` (FK) + `Host` (unique-indexed string).
+- `SiteLookupService` queries `SiteHost` for host resolution, then loads the parent `SitesModel`.
+- Site Settings UI lists/edits `SiteHost` entries for the current site.
+- Display immutable tenant id and site id in Site Settings.
+
+### Two Independent Site Resolution Paths
+
+The system needs **two separate resolution paths** for the current site:
+
+| Path | Used By | Mechanism | Data Source |
+|------|---------|-----------|-------------|
+| **Hostname resolution** | Public frontend (content rendering) | `SiteResolutionMiddleware` → `ISiteLookupService.ResolveByHostAsync()` | `SiteHost.Host` match |
+| **Explicit selection** | Admin manager UI | `ICurrentSiteAccessor` backed by cookie `AeroCms.SiteId` | User's selected site in manager |
+
+**Critical rule**: `SiteResolutionMiddleware` MUST skip `/manager/*` routes. The manager resolves the site from user selection, not hostname. Add a path check at the top of `SiteResolutionMiddleware.InvokeAsync`.
+
+### Current Site Context Contracts
+
+Two separate abstractions serve different purposes:
+
+| Contract | Location | Purpose |
+|----------|----------|---------|
+| `ISiteContext { long SiteId, long TenantId }` | `Aero\src\Aero.Core\Http\ISiteContext.cs` | Low-level content queries — reads from `HttpContext.Features` (set by middleware) |
+| `ICurrentSiteAccessor` | `Aero.Cms.Abstractions` (to be created) | Manager-side state — reads/writes current selected site from cookie |
+
+`DefaultSiteContext` (web host) implements `ISiteContext` by reading `IAeroSiteSlice` from features. This is secure — features are set by middleware, not headers.
+
+### User-Site Assignment Model (New)
+
+Users must be assigned to sites with per-site permissions. This is a **new entity** — does not exist yet.
+
+```csharp
+// src/Aero.Cms.Core.Entities/UserSiteAssignment.cs
+public class UserSiteAssignment : Entity
+{
+    public long UserId { get; set; }
+    public long SiteId { get; set; }
+    public List<string> Permissions { get; set; } = []; // "create", "read", "update", "delete"
+}
+```
+
+**Why Marten document, not Identity claims**: Claims per site-path would create claim bloat for users on many sites. Marten documents support efficient querying, batch updates, and batch revocation. Claims remain for coarse identity (UserName, Email, Roles).
+
+**Service**: `IUserSiteService` — Create, Update permissions, Remove assignment, GetAccessibleSites.
+
+### RBAC — Per-Site Claims-Based Authorization (New)
+
+Authorization is dual-layer:
+
+1. **Coarse role**: `ClaimTypes.Role` — `Admin`, `Editor`, `Contributor`, `ViewOnly`
+2. **Fine per-site claims**: From `UserSiteAssignment.Permissions[]` — `"create"`, `"read"`, `"update"`, `"delete"`
+
+**Admin bypass rule**: Users with `ClaimTypes.Role == "Admin"` bypass `UserSiteAssignment` checks and see ALL sites in the site picker. However, site scoping still applies — Admin is still restricted to operating within the currently selected site. This avoids the complexity of a separate "SuperAdmin" role while maintaining data isolation.
+
+**Authorization flow**:
+1. Is user authenticated? → No → 401
+2. Does user have `Admin` role? → Yes → Allow (within selected site scope)
+3. Does `UserSiteAssignment` exist for `(UserId, currentSiteId)` with required permission? → Yes → Allow
+4. Otherwise → 403
+
+**Integration point**: Leverage the `IPermissionService` pattern from `docs/02_permissions_and_rbac.md` with `SitePermissionRequirement` for ASP.NET Core policy-based authorization.
+
+### Cascade Site Delete (New)
+
+Site deletion is destructive — all site-owned data across ALL tables must be removed. Two-phase approach:
+
+1. **Soft-delete**: Set `SitesModel.IsEnabled = false`, record deletion timestamp. Site content becomes inaccessible but recoverable.
+2. **Background deletion** (TickerQ job `SiteDeletionJob`):
+   - Source-generator discovers all types implementing `ISiteOwned`
+   - For each type: `session.DeleteWhere<T>(x => x.SiteId == siteId)` within a Marten `IDocumentSession` transaction
+   - Delete `SiteHost` records, `UserSiteAssignment` records
+   - Finally, hard-delete `SitesModel` itself
+
+**Source-generator approach**: Extend the existing module catalog source generator to emit a `SiteOwnedTypes` static class listing all `ISiteOwned` implementations. No manual enumeration. No reflection.
+
+### Blazor Dual-Rendering Concerns (New)
+
+The manager uses **InteractiveServer + InteractiveWebAssembly** render modes. This creates state sync challenges:
+
+**`ICurrentSiteAccessor` needs two implementations**:
+- **Server**: Reads cookie via `IHttpContextAccessor.HttpContext.Request.Cookies["AeroCms.SiteId"]`
+- **WASM**: Reads cookie via `IJSRuntime.InvokeAsync<string>("eval", "document.cookie")` (JavaScript interop)
+
+**Circuit reconnection**: Blazor Server circuits recreate scoped DI on reconnect. The cookie ensures the site selection survives disconnection. Implement `ICircuitHandler` to re-read the cookie on reconnect.
+
+**`ServerAuthenticationStateProvider` must be extended**: Currently returns only `UserName`, `Email`, `Roles`. Must also include `AccessibleSiteIds` and `IsAdmin` in the `/api/v1/admin/auth/me` response so the WASM client knows which sites to show in the site picker.
+
+### ✅ Verified — No Longer Blockers
+
+The following concerns were investigated and found to be **already resolved** in the current codebase:
+
+| Claim | Resolution |
+|-------|------------|
+| `AeroSiteMiddleware` uses `Snowflake.NewId()` for TenantId | **Resolved** — Old middleware replaced by `SiteResolutionMiddleware` which correctly reads `site.TenantId` from the resolved site |
+| `DefaultSiteContext` reads `X-Site-Id`/`X-Tenant-Id` headers | **Resolved** — Reads from `HttpContext.Features.Get<IAeroSiteSlice>()` set by middleware, not headers |
+| `SiteViewModel` missing `TenantId` | **Resolved** — `SiteViewModel` already has `TenantId` field (line 18) |
+
+### Alias Indexing
+
+Aliases are site-owned.
+
+- Use unique `(SiteId, OldPath)` or `(SiteId, SourcePath)` for redirect lookup.
+- Do not make `(SiteId, NewPath)` unique.
+- A non-unique `(SiteId, NewPath)` index is acceptable if reverse lookup/search needs it.
+- Multiple old paths must be allowed to redirect to the same new path.
+- Alias resolution must always be `SiteId + old path`, never path alone.
 
 ### Docs Module Fix
 
@@ -71,16 +185,6 @@ Required work:
 - Convert docs slug/path uniqueness to site-scoped uniqueness, such as `(SiteId, Slug)` or `(SiteId, Path)` depending on the final docs routing model.
 - Update starter docs seeding to stamp the default site id.
 
-### Alias Indexing
-
-Aliases are site-owned.
-
-- Use unique `(SiteId, OldPath)` or `(SiteId, SourcePath)` for redirect lookup.
-- Do not make `(SiteId, NewPath)` unique.
-- A non-unique `(SiteId, NewPath)` index is acceptable if reverse lookup/search needs it.
-- Multiple old paths must be allowed to redirect to the same new path.
-- Alias resolution must always be `SiteId + old path`, never path alone.
-
 ### Wolverine Handler Discovery
 
 The source-generator/Wolverine decision remains unchanged.
@@ -90,81 +194,185 @@ The source-generator/Wolverine decision remains unchanged.
 - Keep analyzer coverage for intended handlers missing the attribute.
 - Do not use broad interface scanning as the source-generator discovery mechanism.
 
+---
+
+## Implementation Phases
+
+### Phase 0 — Verification (no code changes needed)
+
+The old `AeroSiteMiddleware` with the random TenantId bug and header-based `DefaultSiteContext` have been resolved. Verify:
+
+- [ ] `SiteResolutionMiddleware` resolves TenantId correctly from `site.TenantId`
+- [ ] `DefaultSiteContext` reads from `HttpContext.Features`, not from headers
+- [ ] `SiteViewModel.TenantId` is populated in all queries
+
+### Phase 1 — Foundation (new abstractions + data model)
+
+- [ ] Add `ISiteOwned` interface at `src/Aero.Cms.Abstractions/Interfaces/ISiteOwned.cs`
+- [ ] Create `UserSiteAssignment` entity at `src/Aero.Cms.Core.Entities/UserSiteAssignment.cs`
+- [ ] Create `SiteHost` entity for multi-domain support at `src/Aero.Cms.Core.Entities/SiteHost.cs`
+- [ ] Update `SitesModel` — add `Description` field; remove `Hostname` (replaced by `SiteHost`)
+- [ ] Create `ICurrentSiteAccessor` interface at `Aero.Cms.Abstractions`
+- [ ] Implement `CookieCurrentSiteAccessor` (server) and `WasmCurrentSiteAccessor` (WASM, via JS interop)
+- [ ] Update Marten config in `SitesModule`:
+  - Remove unique index on `Hostname`
+  - Add unique index on `SiteHost.Host`
+  - Add indexes on `UserSiteAssignment.(UserId, SiteId)`
+- [ ] Extend source generator to emit `SiteOwnedTypes` static class discovering all `ISiteOwned` implementations
+- [ ] Extend `ServerAuthenticationStateProvider` to include `AccessibleSiteIds` and `IsAdmin` in me response
+
+### Phase 2 — RBAC & Authorization
+
+- [ ] Create `IUserSiteService` with CRUD for assignments and permission checking
+- [ ] Implement `SiteAuthorizationService` — resolves site access from `UserSiteAssignment` or admin bypass
+- [ ] Add `SitePermissionRequirement` for ASP.NET Core policy-based auth
+- [ ] Add `site:{siteId}:{permission}` policy handler
+- [ ] **Manager middleware skip**: Update `SiteResolutionMiddleware` to skip `/manager/*` routes
+- [ ] Wire authorization into existing manager API endpoints
+
+### Phase 3 — Manager UX
+
+- [ ] **Site Selection Gate**: New page at `/manager/select-site`
+  - Loads after login, before any manager page
+  - Redirect from `ManagerShellLayout` if no site selected
+  - Shows only sites from `GetAccessibleSitesAsync()` (all sites for admins)
+  - **Edge case**: Auto-skip to dashboard if user has exactly 1 accessible site
+- [ ] **Header indicator**: In `ManagerHeader.razor`, display current site name + badge after last nav item
+  - Click opens site picker dropdown
+  - `CTRL+S` keyboard shortcut
+- [ ] **NavMenu updates** (per `site-manager-tasks.md` menu structure):
+  - Add Sites menu item below Dashboard
+  - Site Settings: positioned just under Dashboard, site-specific (not global)
+  - Aliases: directly under Sites
+  - Banners: after Aliases
+  - Remove Databases menu
+  - Taxonomy: keep only Categories + Tags (remove General)
+  - Settings anchor at bottom (Global Settings, TBD)
+- [ ] **Site CRUD pages**: `/manager/sites`
+  - Radzen DataGrid listing sites (admin: all; non-admin: assigned only)
+  - Create/Edit dialog: Name, Description, SiteHost entries, DefaultCulture, Enabled
+  - Delete flow: confirmation modal → soft-delete → background job notification
+- [ ] **User-Site Assignment UI**: `/manager/users/{id}/sites`
+  - List assigned sites + permissions (Create/Read/Update/Delete checkboxes per site)
+  - Admin-only page
+- [ ] All existing manager pages updated to pass `SiteId` from `ICurrentSiteAccessor` in API calls
+
+### Phase 4 — Cascade Delete Implementation
+
+- [ ] Create `SiteDeletionJob` (TickerQ background job)
+- [ ] Soft-delete flow: `SiteService.DeleteSiteAsync()` sets `IsEnabled = false`
+- [ ] Job deletes all `ISiteOwned` data via source-generated type list
+- [ ] Transactional safety: use `IDocumentSession` transaction per site
+- [ ] Audit logging: log every entity type deletion count
+- [ ] UI: show deletion progress / completion timestamp
+
+### Phase 5 — Multi-Domain & Hardening
+
+- [ ] Migrate existing `SitesModel.Hostname` data to `SiteHost` entries
+- [ ] Update `SiteLookupService` to query `SiteHost` collection
+- [ ] Add `HostNormalizer` validation to site domain editing
+- [ ] Integration tests: hostname resolution, cross-site isolation, cascade delete
+- [ ] Security audit: verify IDOR protection (every read/write checks `entity.SiteId == currentSiteId`)
+
+---
+
 ## Remaining Tasks for the Aero CMS Manager
 
-## Manager
+### Manager
 
 - Dashboard UI makeover
-    - UI: needs to get the UI from the dashboard path D:\html-templates\mosaic
-        - don't need to make it functional but the UI replacing the current UI page would be great (markup - the .html file has to be a .razor or .cshtml1)
-    - Remove Settings as a submenu and put it as an anchor at the bottom of the left-side menu.
+    - UI: needs to get the UI from the dashboard path `D:\html-templates\mosaic`
+        - Don't need to make it functional but the UI replacing the current UI page would be great (markup - the `.html` file has to be a `.razor` or `.cshtml`)
+    - ~~Remove Settings as a submenu and put it as an anchor at the bottom of the left-side menu.~~ ✅ Done — Global Settings already anchored at bottom in `NavMenu.razor` lines 86-88.
 
-- Sites feature
-    - Site should have a `TenantId` for reference only; tenants are managed outside the CMS long term.
-    - Site should support multiple domains/CNAMEs.
-    - After the last top nav menu item, display the currently selected site.
-    - Clicking the current site opens the site selection menu.
-    - `CTRL + S` should open the site selection menu.
-    - Site Settings should be positioned just under the Dashboard menu item.
-    - Site Settings is site-specific, not global.
-    - User can edit site name.
-    - User can edit site domains/CNAMEs.
-    - User can edit site description.
-    - Display immutable tenant id.
-    - Display immutable site id.
+### Sites Feature (Detailed)
 
-- Aliases Menu
-    - Place directly under the new Sites menu item.
-    - Main module is `Aero.Cms.Modules.Aliases`.
-    - Add UI/API support for creating aliases with old URL and new URL.
-    - Automatically create/update aliases when a URL/slug changes for blog, page, or doc rename.
-    - Add/confirm `AliasViewModel` in `Aero.Cms.Abstractions`.
-    - Create the alias API in `Aero.Cms.Modules.Headless`.
-    - Add an HTTP client for the new alias API.
-    - Add/confirm FluentValidation validators for the alias model/request.
-    - Change alias uniqueness from global old path to unique `(SiteId, OldPath)`.
-    - Keep `NewPath` non-unique; optionally add non-unique `(SiteId, NewPath)` index for reverse lookup.
+- Site should have a `TenantId` for reference only; tenants are managed outside the CMS long term.
+- Site should support multiple domains/CNAMEs via `SiteHost` document (see Architecture Decisions above).
+- After the last top nav menu item, display the currently selected site.
+- Clicking the current site opens the site selection menu.
+- `CTRL + S` should open the site selection menu.
+- Site Settings should be positioned just under the Dashboard menu item.
+- Site Settings is site-specific, not global.
+- User can edit site name.
+- User can edit site domains/CNAMEs.
+- User can edit site description.
+- Display immutable tenant id.
+- Display immutable site id.
+- **New**: User-site assignment via `UserSiteAssignment` entity.
+- **New**: Per-site RBAC claims (create/read/update/delete).
+- **New**: Cascade site delete (soft-delete + background job).
 
-- Banners Menu
-    - Add a Banners item after Aliases.
-    - Banners allow sites to display sitewide banners.
-    - Banner feature code lives in `Aero.Cms.Modules.Banners`.
-    - Banners are site-owned and need `SiteId`.
-    - Create the banner API in `Aero.Cms.Modules.Headless`.
-    - Add an API client for the banners API.
-    - Add a FluentValidation validator for the banner model/request.
+### Aliases Menu
 
-- Navigation (NavMenu) Module
-    - Add a new NavMenu block registered with source generators.
-    - Navigation/menu records are site-owned and need `SiteId`.
-    - API and supporting code should follow the Aero CMS module creation skill.
+- Place directly under the new Sites menu item.
+- Main module is `Aero.Cms.Modules.Aliases`.
+- Add UI/API support for creating aliases with old URL and new URL.
+- Automatically create/update aliases when a URL/slug changes for blog, page, or doc rename.
+- Add/confirm `AliasViewModel` in `Aero.Cms.Abstractions`.
+- Create the alias API in `Aero.Cms.Modules.Headless`.
+- Add an HTTP client for the new alias API.
+- Add/confirm FluentValidation validators for the alias model/request.
+- Change alias uniqueness from global old path to unique `(SiteId, OldPath)`.
+- Keep `NewPath` non-unique; optionally add non-unique `(SiteId, NewPath)` index for reverse lookup.
 
-- Global Settings
-    - Under the main left-side menu, add a Settings button anchored at the bottom.
-    - Global settings items are TBD.
-    - Global settings are instance-level, not site-level, unless a setting is explicitly moved into Site Settings.
+### Banners Menu
 
-- Databases Menu
-    - Remove the left-hand Databases menu item.
-    - It is not used.
+- Add a Banners item after Aliases.
+- Banners allow sites to display sitewide banners.
+- Banner feature code lives in `Aero.Cms.Modules.Banners`.
+- Banners are site-owned and need `SiteId`.
+- Create the banner API in `Aero.Cms.Modules.Headless`.
+- Add an API client for the banners API.
+- Add a FluentValidation validator for the banner model/request.
 
-- Taxonomy Menu Item
-    - Keep only two submenu items:
-        - Categories
-        - Tags
-    - Remove the General option.
-    - Implement APIs for categories and tags in `Aero.Cms.Modules.Taxonomy`.
-    - Categories and tags are site-owned and need `SiteId`.
-    - Category/tag uniqueness should be site-scoped, such as `(SiteId, Slug)` or `(SiteId, Name)` depending on the final business rule.
+### Navigation (NavMenu) Module
+
+- Add a new NavMenu block registered with source generators.
+- Navigation/menu records are site-owned and need `SiteId`.
+- API and supporting code should follow the Aero CMS module creation skill.
+
+### Global Settings
+
+- Under the main left-side menu, add a Settings button anchored at the bottom. ✅ Done.
+- Global settings items are TBD.
+- Global settings are instance-level, not site-level, unless a setting is explicitly moved into Site Settings.
+
+### Databases Menu
+
+- Remove the left-hand Databases menu item.
+- It is not used.
+
+### Taxonomy Menu Item
+
+- Keep only two submenu items: Categories, Tags.
+- Remove the General option.
+- Implement APIs for categories and tags in `Aero.Cms.Modules.Taxonomy`.
+- Categories and tags are site-owned and need `SiteId`.
+- Category/tag uniqueness should be site-scoped, such as `(SiteId, Slug)` or `(SiteId, Name)` depending on the final business rule.
+
+---
 
 ## Cross-Module SiteId Work
 
 After adding `SiteId` to Pages, Posts, Docs, and other site-owned features:
 
-- Ensure `SeedDataService.cs` creates and retains a tenant and a default site.
-- Ensure seeded records use the created default site id.
-- Update dependent modules and models with `long SiteId` where data is owned by a site.
-- Update list/search/query endpoints to filter by `SiteId`.
-- Update create/update/delete endpoints to derive `SiteId` from the resolved current site context.
-- Update events, cache invalidation, sitemap/search projections, and alias generation to include `SiteId`.
-- Review existing global uniqueness rules and convert them to site-scoped composite uniqueness where appropriate.
+- [ ] Add `ISiteOwned` interface — all site-owned entity types must implement it.
+- [ ] Ensure `SeedDataService.cs` creates and retains a tenant and a default site. ✅ Done.
+- [ ] Ensure seeded records use the created default site id.
+- [ ] Update dependent modules and models with `long SiteId` where data is owned by a site.
+- [ ] Update list/search/query endpoints to filter by `SiteId`.
+- [ ] Update create/update/delete endpoints to derive `SiteId` from the resolved current site context.
+- [ ] Update events, cache invalidation, sitemap/search projections, and alias generation to include `SiteId`.
+- [ ] Review existing global uniqueness rules and convert them to site-scoped composite uniqueness where appropriate.
+
+---
+
+## Test Strategy
+
+| Layer | Tool | What to test |
+|-------|------|-------------|
+| **Unit** | TUnit | `SiteService` CRUD, `IUserSiteService` assignment logic, `SitePermissionHandler` authorization, `UserSiteAssignment` validation |
+| **Integration** | Alba + embedded Postgres (mysticmind-postgresembed) | Full request pipeline with site middleware, scoped content queries, hostname resolution, cross-site IDOR prevention |
+| **E2E** | Playwright | Manager flow: login → site selection → CRUD content within site → verify content invisible on different site |
+| **Security** | TUnit | Unassigned user access denied, cross-site entity access by ID rejected, admin bypass verified, cookie tampering validation |

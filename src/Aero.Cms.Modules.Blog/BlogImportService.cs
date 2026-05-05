@@ -231,7 +231,7 @@ public sealed class BlogImportService : IBlogImportService
                     // Create slug reservation
                     if (existingSlug is null || behavior != DuplicateSlugBehavior.Skip)
                     {
-                        slugDoc = ContentSlugDocument.Create(post.Slug, document.Id, ContentSlugOwnerType.BlogPost);
+                        slugDoc = ContentSlugDocument.Create(post.Slug, document.Id, ContentSlugOwnerType.BlogPost, request.SiteId);
                         slugReservations.Add(slugDoc);
                     }
 
@@ -290,6 +290,7 @@ public sealed class BlogImportService : IBlogImportService
         return new BlogPostDocument
         {
             Id = postId,
+            SiteId = request.SiteId,
             Title = post.Title,
             Slug = post.Slug,
             Excerpt = post.MarkdownContent.Length > 500

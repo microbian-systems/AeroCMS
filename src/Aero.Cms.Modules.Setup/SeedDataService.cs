@@ -257,20 +257,25 @@ public sealed class SeedDatabaseService(
         session.Store(mainNav);
 
         // Store pages and their blocks
+        homepage.SiteId = siteId;
         foreach (var block in homepageBlocks) session.Store(block);
         await pageContentService.SaveAsync(homepage, cancellationToken);
 
+        blogListing.SiteId = siteId;
         foreach (var block in blogListingBlocks) session.Store(block);
         await pageContentService.SaveAsync(blogListing, cancellationToken);
 
+        aboutPage.SiteId = siteId;
         foreach (var block in aboutBlocks) session.Store(block);
         await pageContentService.SaveAsync(aboutPage, cancellationToken);
 
+        contactPage.SiteId = siteId;
         foreach (var block in contactBlocks) session.Store(block);
         await pageContentService.SaveAsync(contactPage, cancellationToken);
         
         foreach (var doc in docs)
         {
+            doc.SiteId = siteId;
             session.Store(doc);
         }
 
@@ -283,6 +288,7 @@ public sealed class SeedDatabaseService(
         // Store tags first
         foreach (var tag in tags)
         {
+            tag.SiteId = siteId;
             session.Store(tag);
         }
 
@@ -391,6 +397,9 @@ public sealed class SeedDatabaseService(
             CreatedBy = "seed",
             ModifiedBy = "seed"
         };
+
+        // Stamp siteId on the oopsPage before storing
+        oopsPage.SiteId = siteId;
 
         // Store blocks first, then save page (matches BuildHomepage pattern)
         session.Store(heroBlock);

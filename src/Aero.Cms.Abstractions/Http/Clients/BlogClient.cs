@@ -239,7 +239,8 @@ public sealed record ImportFileRequest(
     bool StoreLocalImages,
     string DuplicateBehavior,
     long? DefaultAuthorId,
-    bool PublishImported
+    bool PublishImported,
+    long SiteId
 );
 
 /// <summary>

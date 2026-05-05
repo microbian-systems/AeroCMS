@@ -10,6 +10,7 @@ using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
+using Aero.Core.Http;
 using Aero.Core.Railway;
 
 
@@ -28,8 +29,9 @@ public interface IPageContentService
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenPageContentService(IDocumentSession session, IBlockService blockService, IMessageBus bus) : IPageContentService
+public sealed class MartenPageContentService(IDocumentSession session, IBlockService blockService, IMessageBus bus, ISiteContext siteContext) : IPageContentService
 {
+    private readonly ISiteContext _siteContext = siteContext;
     public async Task<Result<PageDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
         try
@@ -55,7 +57,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
     {
         try
         {
-            var query = session.Query<PageDocument>();
+            var query = session.Query<PageDocument>().Where(x => x.SiteId == _siteContext.SiteId);
 
             IQueryable<PageDocument> filteredQuery = query;
             if (!string.IsNullOrWhiteSpace(search))
@@ -85,6 +87,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
         {
             var reservation = await session.Query<ContentSlugDocument>()
                 .FirstOrDefaultAsync(x =>
+                    x.SiteId == _siteContext.SiteId &&
                     string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
             if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.Page)
             {
@@ -107,6 +110,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
         var page = new PageDocument
         {
             Id = Snowflake.NewId(),
+            SiteId = _siteContext.SiteId,
             Title = request.Title,
             Slug = string.IsNullOrEmpty(request.Slug)
                 ? request.Title.GenerateSlug()
@@ -172,8 +176,12 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
     {
         try
         {
+            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+            if (page is null || page.SiteId != _siteContext.SiteId)
+                return Prelude.Fail<bool, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
+
             var reservation = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.Page, token: cancellationToken);
+                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.Page && x.SiteId == _siteContext.SiteId, token: cancellationToken);
 
             if (reservation is not null)
             {
@@ -198,11 +206,13 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             await ValidatePage(page);
 
             var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
+            page.SiteId = _siteContext.SiteId; // stamp from context
             await ContentSlugReservation.ReserveAsync(
                 session,
                 page.Id,
                 ContentSlugOwnerType.Page,
                 page.Slug,
+                page.SiteId,
                 existingPage?.Slug,
                 cancellationToken);
 

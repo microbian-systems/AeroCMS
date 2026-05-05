@@ -1,6 +1,7 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Areas.Api.v1;
+using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Blog.Parsers;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
@@ -64,9 +65,16 @@ public sealed class BlogModule : AeroWebModule, IUiModule
     {
         opts.Schema.For<BlogPostDocument>().DocumentAlias(Schemas.Tables.Posts);
         opts.Schema.For<BlogPostDocument>().Identity(x => x.Id);
-        opts.Schema.For<BlogPostDocument>().Index(x => x.Slug);
+        opts.Schema.For<BlogPostDocument>().Index(x => x.SiteId);
+        opts.Schema.For<BlogPostDocument>().UniqueIndex(x => x.SiteId, x => x.Slug);
         opts.Schema.For<BlogPostDocument>().Index(x => x.PublishedOn);
         opts.Schema.For<BlogPostDocument>().Index(x => x.CreatedOn);
         opts.Schema.For<BlogPostDocument>().Index(x => x.ModifiedOn);
+        
+        // Tags and Categories
+        opts.Schema.For<Tag>().Index(x => x.SiteId);
+        opts.Schema.For<Tag>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        opts.Schema.For<Category>().Index(x => x.SiteId);
+        opts.Schema.For<Category>().UniqueIndex(x => x.SiteId, x => x.Slug);
     }
 }

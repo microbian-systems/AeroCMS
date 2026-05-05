@@ -4,6 +4,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Pages;
 using Aero.Core;
+using Aero.Core.Http;
 using Aero.Core.Railway;
 using FlakeId;
 using Marten;
@@ -30,13 +31,14 @@ public interface IBlogPostContentService
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenBlogPostContentService(IDocumentSession session) : IBlogPostContentService
+public sealed class MartenBlogPostContentService(IDocumentSession session, ISiteContext siteContext) : IBlogPostContentService
 {
+    private readonly ISiteContext _siteContext = siteContext;
     public async Task<Result<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
     {
         try
         {
-            var query = session.Query<BlogPostDocument>();
+            var query = session.Query<BlogPostDocument>().Where(x => x.SiteId == _siteContext.SiteId);
 
             IQueryable<BlogPostDocument> filteredQuery = query;
             if (!string.IsNullOrWhiteSpace(search))
@@ -66,8 +68,12 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
         try
         {
             ValidateId(id);
+            var post = await session.LoadAsync<BlogPostDocument>(id, cancellationToken);
+            if (post is null || post.SiteId != _siteContext.SiteId)
+                return Prelude.Fail<bool, AeroError>(AeroError.CreateError($"Blog post with id '{id}' not found or access denied"));
+
             var reservation = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.BlogPost, token: cancellationToken);
+                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.BlogPost && x.SiteId == _siteContext.SiteId, token: cancellationToken);
 
             if (reservation is not null)
             {
@@ -106,6 +112,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
         {
             var reservation = await session.Query<ContentSlugDocument>()
                 .FirstOrDefaultAsync(x =>
+                    x.SiteId == _siteContext.SiteId &&
                     string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
 
             if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.BlogPost)
@@ -129,6 +136,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
         try
         {
             var latest = await session.Query<BlogPostDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId)
                 .Where(x => x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
                 .Take(count)
@@ -150,11 +158,13 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
             ValidateId(post.Id);
 
             var existingPost = await session.LoadAsync<BlogPostDocument>(post.Id, cancellationToken);
+            post.SiteId = _siteContext.SiteId; // stamp from context
             await ContentSlugReservation.ReserveAsync(
                 session,
                 post.Id,
                 ContentSlugOwnerType.BlogPost,
                 post.Slug,
+                post.SiteId,
                 existingPost?.Slug,
                 cancellationToken);
 
@@ -186,6 +196,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
         try
         {
             var posts = await session.Query<BlogPostDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId)
                 .Where(x => x.TagIds.Contains(tagId) && x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
                 .ToListAsync(token: cancellationToken);
@@ -203,6 +214,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
         try
         {
             var posts = await session.Query<BlogPostDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId)
                 .Where(x => x.CategoryIds.Contains(categoryId) && x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
                 .ToListAsync(token: cancellationToken);
@@ -220,6 +232,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
         try
         {
             var pagedList = await session.Query<BlogPostDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId)
                 .Where(x => x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
                 .Skip(skip)
@@ -238,6 +251,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
         try
         {
             var tags = await session.Query<Tag>()
+                .Where(x => x.SiteId == _siteContext.SiteId)
                 .OrderBy(x => x.Name)
                 .ToListAsync(token: cancellationToken);
 
@@ -254,6 +268,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session) : IBl
         try
         {
             var categories = await session.Query<Category>()
+                .Where(x => x.SiteId == _siteContext.SiteId)
                 .OrderBy(x => x.Name)
                 .ToListAsync(token: cancellationToken);
 

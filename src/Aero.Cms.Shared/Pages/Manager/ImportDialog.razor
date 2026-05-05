@@ -1,5 +1,6 @@
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Core
+@using Aero.Core.Http
 @using Aero.Core.Railway
 @using Radzen
 @using Radzen.Blazor
@@ -8,6 +9,7 @@
 @inject IBlogHttpClient BlogApi
 @inject NotificationService NotificationService
 @inject DialogService DialogService
+@inject ISiteContext SiteContext
 @inject ILogger<ImportDialog> Logger
 
 <div class="import-dialog p-6 bg-white dark:bg-gray-900 rounded-3xl">
@@ -188,7 +190,8 @@
                 StoreLocalImages: StoreLocalImages,
                 DuplicateBehavior: DuplicateBehavior,
                 DefaultAuthorId: null,
-                PublishImported: PublishImported
+                PublishImported: PublishImported,
+                SiteId: SiteContext.SiteId
             );
 
             Logger.LogInformation("Calling import API for {FileName}...", selectedFile.Name);
