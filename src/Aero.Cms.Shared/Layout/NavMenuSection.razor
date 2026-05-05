@@ -3,6 +3,8 @@
 
 <div class="pe-nav-section">
     <div class="pe-nav-section-header">
+    @if (!string.IsNullOrEmpty(Href))
+    {
         <NavLink class="pe-nav-link" href="@Href" Match="@Match">
             <div class="pe-nav-icon">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -14,6 +16,21 @@
                 <span>@Label</span>
             }
         </NavLink>
+    }
+    else
+    {
+        <div class="pe-nav-link" style="cursor: default;">
+            <div class="pe-nav-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="@Icon" />
+                </svg>
+            </div>
+            @if (!IsCollapsed)
+            {
+                <span>@Label</span>
+            }
+        </div>
+    }
         
         @if (!IsCollapsed && ChildContent != null)
         {
