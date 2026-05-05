@@ -73,6 +73,7 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<IAuthClient, AuthClient>();
         services.AddHttpClient<IContentTypesHttpClient, ContentTypesHttpClient>();
         services.AddHttpClient<IContentItemsHttpClient, ContentItemsHttpClient>();
+        services.AddHttpClient<ISitesHttpClient, SitesHttpClient>();
 
         return services;
     }

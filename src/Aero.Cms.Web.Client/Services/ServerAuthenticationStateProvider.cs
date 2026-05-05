@@ -52,6 +52,9 @@ internal sealed class ServerAuthenticationStateProvider(
             foreach (var role in _cachedUser.Roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));
 
+            if (_cachedUser.IsAdmin)
+                claims.Add(new Claim("is_admin", "true"));
+
             var identity = new ClaimsIdentity(claims, "BlazorWebAppAuthentication");
             return new AuthenticationState(new ClaimsPrincipal(identity));
         }
@@ -70,5 +73,6 @@ internal sealed class ServerAuthenticationStateProvider(
     private sealed record CurrentUserResponse(
         string UserName,
         string? Email,
-        IReadOnlyList<string> Roles);
+        IReadOnlyList<string> Roles,
+        bool IsAdmin);
 }

@@ -51,18 +51,19 @@ Setup should continue creating the tenant and default site as it does now.
 
 ### Site Domains (Multi-Domain / CNAME Support)
 
-The Site model must support multiple domains/CNAMEs. The current entity `SitesModel` has only a single `string? Hostname`. Two options evaluated:
+The Site model must support multiple domains/CNAMEs. The current entity `SitesModel` had only a single `string? Hostname` and later `Hosts: List<string>`. Two options evaluated:
 
 | Option | Structure | Pros | Cons |
 |--------|-----------|------|------|
-| **Separate `SiteHost` document** (recommended) | `SiteHost { long SiteId, string Host }` — unique index on `Host` | Marten can unique-index each row; fast host lookup; clean denial of duplicate domains | Extra document type; one more table in cascade delete |
-| Inline list on `SitesModel` | `SitesModel.Hosts: List<string>` | Simple, fewer documents | Marten cannot unique-index list elements; cross-site domain collision possible |
-| Dictionary with AliasDocument | `Dictionary<string, AliasDocument> Domains` | Rich metadata per domain | AliasDocument has OldPath/NewPath/Notes — irrelevant for domain mapping; confusing semantics |
+| **Separate `SiteHost` document** ✅ (implemented) | `SiteHost { long SiteId, string Host, bool IsPrimary }` — unique index on `Host` | Marten can unique-index each row; fast host lookup; prevents domain collision across sites | Extra document type; one more type in cascade delete |
+| Inline list on `SitesModel` | `SitesModel.Hosts: List<string>` | Simpler API | Marten cannot unique-index list elements — **real risk of non-deterministic host resolution** |
 
-**Decision**: Use **separate `SiteHost` document** for domain storage.
-- Create entity `SiteHost` with `SiteId` (FK) + `Host` (unique-indexed string).
-- `SiteLookupService` queries `SiteHost` for host resolution, then loads the parent `SitesModel`.
-- Site Settings UI lists/edits `SiteHost` entries for the current site.
+**Decision**: Use **separate `SiteHost` document** for domain storage — ✅ **implemented 2026-05-04**.
+- Entity `SiteHost` created at `src/Aero.Cms.Core.Entities/SiteHost.cs` with `SiteId`, `Host` (unique-indexed), `IsPrimary`.
+- `SitesModel.PrimaryHost` and `SitesModel.Hosts` removed — host resolution now goes through `SiteHost`.
+- `SiteLookupService` queries `SiteHost` first via `SiteHost.Host` btree match, then loads parent `SitesModel`.
+- `SiteService` provides `AddHostAsync`, `RemoveHostAsync`, `GetHostsAsync`, `ReplaceHostsAsync` for host CRUD.
+- Site Settings UI (future) lists/edits `SiteHost` entries for the current site.
 - Display immutable tenant id and site id in Site Settings.
 
 ### Two Independent Site Resolution Paths
@@ -202,60 +203,45 @@ The source-generator/Wolverine decision remains unchanged.
 
 The old `AeroSiteMiddleware` with the random TenantId bug and header-based `DefaultSiteContext` have been resolved. Verify:
 
-- [ ] `SiteResolutionMiddleware` resolves TenantId correctly from `site.TenantId`
-- [ ] `DefaultSiteContext` reads from `HttpContext.Features`, not from headers
-- [ ] `SiteViewModel.TenantId` is populated in all queries
+- [x] `SiteResolutionMiddleware` resolves TenantId correctly from `site.TenantId`
+- [x] `DefaultSiteContext` reads from `HttpContext.Features`, not from headers
+- [x] `SiteViewModel.TenantId` is populated in all queries
 
 ### Phase 1 — Foundation (new abstractions + data model)
 
-- [ ] Add `ISiteOwned` interface at `src/Aero.Cms.Abstractions/Interfaces/ISiteOwned.cs`
-- [ ] Create `UserSiteAssignment` entity at `src/Aero.Cms.Core.Entities/UserSiteAssignment.cs`
-- [ ] Create `SiteHost` entity for multi-domain support at `src/Aero.Cms.Core.Entities/SiteHost.cs`
-- [ ] Update `SitesModel` — add `Description` field; remove `Hostname` (replaced by `SiteHost`)
-- [ ] Create `ICurrentSiteAccessor` interface at `Aero.Cms.Abstractions`
-- [ ] Implement `CookieCurrentSiteAccessor` (server) and `WasmCurrentSiteAccessor` (WASM, via JS interop)
-- [ ] Update Marten config in `SitesModule`:
-  - Remove unique index on `Hostname`
-  - Add unique index on `SiteHost.Host`
-  - Add indexes on `UserSiteAssignment.(UserId, SiteId)`
-- [ ] Extend source generator to emit `SiteOwnedTypes` static class discovering all `ISiteOwned` implementations
-- [ ] Extend `ServerAuthenticationStateProvider` to include `AccessibleSiteIds` and `IsAdmin` in me response
+- [x] Add `ISiteOwned` interface at `src/Aero.Cms.Abstractions/Interfaces/ISiteOwned.cs`
+- [x] Create `UserSiteAssignment` entity at `src/Aero.Cms.Core.Entities/UserSiteAssignment.cs`
+- [x] Create `SiteHost` entity for multi-domain support at `src/Aero.Cms.Core.Entities/SiteHost.cs`
+- [x] Update `SitesModel` — add `Description` field; remove `PrimaryHost` and `Hosts` (moved to SiteHost)
+- [x] Create `ICurrentSiteAccessor` interface at `Aero.Cms.Abstractions/Interfaces/ICurrentSiteAccessor.cs`
+- [x] Implement `CurrentSiteAccessor` (Blazor-friendly, uses HttpClient → server API) at `src/Aero.Cms.Shared/Services`
+- [ ] Implement `WasmCurrentSiteAccessor` (WASM, via JS interop) — **deferred; the HttpClient-based `CurrentSiteAccessor` works for both render modes**
+- [x] Update Marten config in `SitesModule`:
+  - [x] Removed unique index on `Hostname` (field removed from `SitesModel`)
+  - [x] Added unique index on `SiteHost.Host`
+  - [x] Added indexes on `UserSiteAssignment.UserId` and `SiteId`
+- [ ] Extend source generator to emit `SiteOwnedTypes` static class — **deferred to Phase 4 (cascade delete)**
+- [x] Extend `ServerAuthenticationStateProvider` to include `IsAdmin` in `/me` response
+- [x] Add current-site API endpoints: `GET/POST/DELETE /api/v1/admin/sites/current`
+- [x] Add `SitePermissionRequirement` + `SitePermissionHandler` for ASP.NET Core policy-based auth
 
 ### Phase 2 — RBAC & Authorization
 
-- [ ] Create `IUserSiteService` with CRUD for assignments and permission checking
-- [ ] Implement `SiteAuthorizationService` — resolves site access from `UserSiteAssignment` or admin bypass
-- [ ] Add `SitePermissionRequirement` for ASP.NET Core policy-based auth
-- [ ] Add `site:{siteId}:{permission}` policy handler
-- [ ] **Manager middleware skip**: Update `SiteResolutionMiddleware` to skip `/manager/*` routes
-- [ ] Wire authorization into existing manager API endpoints
+- [x] Create `IUserSiteService` with CRUD for assignments and permission checking
+- [x] Implement `UserSiteService` — resolves site access from `UserSiteAssignment` or admin bypass
+- [x] Add `SitePermissionRequirement` for ASP.NET Core policy-based auth
+- [x] Add site authorization policies: `site:read`, `site:create`, `site:update`, `site:delete`
+- [x] **Manager middleware skip**: Updated `SiteResolutionMiddleware` to skip `/manager/*` routes
+- [ ] Wire authorization into existing manager API endpoints — **deferred to Phase 3 (when endpoints are built)**
 
 ### Phase 3 — Manager UX
 
 - [ ] **Site Selection Gate**: New page at `/manager/select-site`
-  - Loads after login, before any manager page
-  - Redirect from `ManagerShellLayout` if no site selected
-  - Shows only sites from `GetAccessibleSitesAsync()` (all sites for admins)
-  - **Edge case**: Auto-skip to dashboard if user has exactly 1 accessible site
-- [ ] **Header indicator**: In `ManagerHeader.razor`, display current site name + badge after last nav item
-  - Click opens site picker dropdown
-  - `CTRL+S` keyboard shortcut
-- [ ] **NavMenu updates** (per `site-manager-tasks.md` menu structure):
-  - Add Sites menu item below Dashboard
-  - Site Settings: positioned just under Dashboard, site-specific (not global)
-  - Aliases: directly under Sites
-  - Banners: after Aliases
-  - Remove Databases menu
-  - Taxonomy: keep only Categories + Tags (remove General)
-  - Settings anchor at bottom (Global Settings, TBD)
 - [ ] **Site CRUD pages**: `/manager/sites`
-  - Radzen DataGrid listing sites (admin: all; non-admin: assigned only)
-  - Create/Edit dialog: Name, Description, SiteHost entries, DefaultCulture, Enabled
-  - Delete flow: confirmation modal → soft-delete → background job notification
 - [ ] **User-Site Assignment UI**: `/manager/users/{id}/sites`
-  - List assigned sites + permissions (Create/Read/Update/Delete checkboxes per site)
-  - Admin-only page
-- [ ] All existing manager pages updated to pass `SiteId` from `ICurrentSiteAccessor` in API calls
+- [ ] **Header indicator**: Site name badge + CTRL+S
+- [ ] **NavMenu updates**: Reorder per spec
+- [ ] Wire `[Authorize(Policy = "site:read")]` etc. onto site management endpoints
 
 ### Phase 4 — Cascade Delete Implementation
 

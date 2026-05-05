@@ -268,6 +268,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     var baseUrl = config["ApiSettings:BaseUrl"];
     services.AddAeroHttpClients(baseUrl is not null ? new Uri(baseUrl) : null);
     services.AddScoped<ManagerThemeService>();
+    services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
 
     services.AddProblemDetails(options =>
     {

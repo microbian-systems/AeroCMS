@@ -40,7 +40,12 @@ public static class IdentityApi
         }
 
         var roles = await userManager.GetRolesAsync(user);
-        return Results.Ok(new CurrentUserResponse(user.UserName ?? user.Email ?? "Unknown", user.Email, roles.ToArray()));
+        var isAdmin = roles.Contains("Admin", StringComparer.OrdinalIgnoreCase);
+        return Results.Ok(new CurrentUserResponse(
+            user.UserName ?? user.Email ?? "Unknown",
+            user.Email,
+            roles.ToArray(),
+            isAdmin));
     }
 
     private static async Task<IResult> LocalLoginAsync(
@@ -104,7 +109,7 @@ public static class IdentityApi
 
     public sealed record AuthenticationConfigResponse(string AuthenticationMode);
 
-    public sealed record CurrentUserResponse(string UserName, string? Email, IReadOnlyList<string> Roles);
+    public sealed record CurrentUserResponse(string UserName, string? Email, IReadOnlyList<string> Roles, bool IsAdmin);
 
     public sealed record LocalLoginRequest(string EmailOrUserName, string Password, bool RememberMe);
 

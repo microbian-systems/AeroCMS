@@ -219,13 +219,18 @@ public sealed class SeedDatabaseService(
             Id = Snowflake.NewId(),
             TenantId = createdTenantId,
             Name = request.SiteName,
-            PrimaryHost = request.Hostname,
-            Hosts = [request.Hostname!],
             IsEnabled = true,
             DefaultCulture = request.DefaultCulture
         };
 
         var siteResult = await siteService.CreateSiteAsync(site, cancellationToken);
+
+        if (siteResult.IsSuccess)
+        {
+            // Create a SiteHost entry for the primary host/domain
+            var siteId = siteResult is Result<SitesModel, AeroError>.Ok ok ? ok.Value.Id : site.Id;
+            await siteService.AddHostAsync(siteId, request.Hostname!, isPrimary: true, cancellationToken);
+        }
         
         return (tenantResult, siteResult);
     }

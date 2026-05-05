@@ -1,7 +1,12 @@
 @using Aero.Cms.Shared.Services
+@using Aero.Cms.Abstractions.Interfaces
+@using Microsoft.Extensions.Logging
+@implements IDisposable
 @inject ManagerThemeService Theme
 @inject HttpClient Http
 @inject NavigationManager Navigation
+@inject ICurrentSiteAccessor CurrentSiteAccessor
+@inject ILogger<ManagerHeader> Logger
 
 <header class="pe-header">
     <div class="pe-header-left">
@@ -20,14 +25,22 @@
             <NavLink class="pe-nav-link" href="/manager/navigations">Navigations</NavLink>
             <NavLink class="pe-nav-link" href="/manager/docs">Docs</NavLink>
             <NavLink class="pe-nav-link" href="/manager/modules">Modules</NavLink>
-            <NavLink class="pe-nav-link" href="/manager/taxonomy/general">Taxonomy</NavLink>
+            <NavLink class="pe-nav-link" href="/manager/taxonomy/categories">Taxonomy</NavLink>
             <NavLink class="pe-nav-link" href="/manager/users">Users</NavLink>
             <NavLink class="pe-nav-link" href="/manager/seo">SEO</NavLink>
-            <NavLink class="pe-nav-link" href="/manager/settings">Settings</NavLink>
         </nav>
     </div>
 
     <div class="pe-header-right">
+        @* Current Site indicator *@
+        @if (currentSite is not null)
+        {
+            <button class="pe-btn pe-btn-ghost pe-btn-sm" title="Switch Site (Ctrl+S)" @onclick="OpenSitePicker">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"></path></svg>
+                <span>@currentSite.Name</span>
+            </button>
+        }
+
         <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="Theme.ToggleThemeAsync" title="Toggle Light/Dark Mode">
             @if (Theme.IsDarkMode)
             {
@@ -63,6 +76,39 @@
 </header>
 
 @code {
+    private Aero.Cms.Abstractions.Models.SiteViewModel? currentSite;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentSiteAccessor.SiteChanged += OnSiteChanged;
+        try
+        {
+            currentSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load current site for header display");
+        }
+    }
+
+    private async void OnSiteChanged()
+    {
+        try
+        {
+            currentSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
+        }
+    }
+
+    private void OpenSitePicker()
+    {
+        Navigation.NavigateTo("/manager/select-site");
+    }
+
     private async Task LogoutAsync()
     {
         try
@@ -73,5 +119,10 @@
         {
             Navigation.NavigateTo("/manager/login", forceLoad: true);
         }
+    }
+
+    public void Dispose()
+    {
+        CurrentSiteAccessor.SiteChanged -= OnSiteChanged;
     }
 }

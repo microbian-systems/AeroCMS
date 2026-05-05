@@ -1,14 +1,16 @@
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Infrastructure;
 using Aero.Cms.Data.Repositories;
 using Aero.Core;
 using Aero.Core.Railway;
 using FluentValidation;
+using Marten;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Sites;
 
 /// <summary>
-/// Service for managing sites in the CMS.
+/// Service for managing sites and their host/domain assignments in the CMS.
 /// </summary>
 public interface ISiteService
 {
@@ -41,13 +43,37 @@ public interface ISiteService
     /// Gets a site by hostname.
     /// </summary>
     Task<Option<SitesModel>> GetSiteByHostnameAsync(string hostname, CancellationToken ct = default);
+
+    // --- Host/Domain management ---
+
+    /// <summary>
+    /// Adds a host/domain to a site. The host value is normalized before storage.
+    /// </summary>
+    Task<Result<SiteHost, AeroError>> AddHostAsync(long siteId, string host, bool isPrimary = false, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes a host/domain entry by its ID.
+    /// </summary>
+    Task<Result<bool, AeroError>> RemoveHostAsync(long hostId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets all hosts/domains assigned to a site.
+    /// </summary>
+    Task<Result<IReadOnlyList<SiteHost>, AeroError>> GetHostsAsync(long siteId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Replaces all hosts for a site with a new set. Atomically deletes old hosts and inserts new ones.
+    /// Each entry is a tuple of (host, isPrimary).
+    /// </summary>
+    Task<Result<IReadOnlyList<SiteHost>, AeroError>> ReplaceHostsAsync(long siteId, List<(string host, bool isPrimary)> hosts, CancellationToken ct = default);
 }
 
 /// <summary>
 /// Implementation of site management service using Railway Oriented Programming patterns.
 /// </summary>
 public class SiteService(
-    ISiteRepository repo, 
+    ISiteRepository repo,
+    IDocumentSession session,
     ILogger<SiteService> log) : ISiteService
 {
     public async Task<Result<SitesModel, AeroError>> CreateSiteAsync(SitesModel site, CancellationToken ct = default)
@@ -105,6 +131,12 @@ public class SiteService(
     {
         try
         {
+            // Delete all SiteHost entries first
+            var hosts = await session.Query<SiteHost>()
+                .Where(x => x.SiteId == id)
+                .ToListAsync(ct);
+            session.DeleteObjects(hosts);
+
             await repo.DeleteAsync(id, ct);
             log.LogInformation("Deleted site {SiteId}", id);
             return true;
@@ -138,7 +170,109 @@ public class SiteService(
 
     public async Task<Option<SitesModel>> GetSiteByHostnameAsync(string hostname, CancellationToken ct = default)
     {
-        var site = await repo.GetByHostnameAsync(hostname, ct);
+        var normalized = HostNormalizer.Normalize(hostname);
+        var site = await repo.GetByHostnameAsync(normalized, ct);
         return site;
+    }
+
+    // --- Host/Domain management ---
+
+    public async Task<Result<SiteHost, AeroError>> AddHostAsync(long siteId, string host, bool isPrimary = false, CancellationToken ct = default)
+    {
+        try
+        {
+            var normalized = HostNormalizer.Normalize(host);
+            if (string.IsNullOrWhiteSpace(normalized))
+                return AeroError.CreateError("Host value cannot be empty");
+
+            var siteHost = new SiteHost
+            {
+                Id = Snowflake.NewId(),
+                SiteId = siteId,
+                Host = normalized,
+                IsPrimary = isPrimary
+            };
+
+            session.Store(siteHost);
+            await session.SaveChangesAsync(ct);
+
+            log.LogInformation("Added host {Host} to site {SiteId} (primary: {IsPrimary})", normalized, siteId, isPrimary);
+            return siteHost;
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Failed to add host to site {SiteId}", siteId);
+            return AeroError.CreateError($"Failed to add host: {ex.Message}");
+        }
+    }
+
+    public async Task<Result<bool, AeroError>> RemoveHostAsync(long hostId, CancellationToken ct = default)
+    {
+        try
+        {
+            session.Delete<SiteHost>(hostId);
+            await session.SaveChangesAsync(ct);
+            log.LogInformation("Removed host entry {HostId}", hostId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Failed to remove host entry {HostId}", hostId);
+            return AeroError.CreateError($"Failed to remove host: {ex.Message}");
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<SiteHost>, AeroError>> GetHostsAsync(long siteId, CancellationToken ct = default)
+    {
+        try
+        {
+            var hosts = await session.Query<SiteHost>()
+                .Where(x => x.SiteId == siteId)
+                .OrderByDescending(x => x.IsPrimary)
+                .ThenBy(x => x.Host)
+                .ToListAsync(ct);
+
+            return new Result<IReadOnlyList<SiteHost>, AeroError>.Ok(hosts);
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Failed to get hosts for site {SiteId}", siteId);
+            return AeroError.CreateError($"Failed to get hosts: {ex.Message}");
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<SiteHost>, AeroError>> ReplaceHostsAsync(long siteId, List<(string host, bool isPrimary)> hosts, CancellationToken ct = default)
+    {
+        try
+        {
+            // Delete all existing hosts for this site
+            var existing = await session.Query<SiteHost>()
+                .Where(x => x.SiteId == siteId)
+                .ToListAsync(ct);
+            session.DeleteObjects(existing);
+
+            // Insert new hosts
+            var newHosts = hosts
+                .Select(h => new SiteHost
+                {
+                    Id = Snowflake.NewId(),
+                    SiteId = siteId,
+                    Host = HostNormalizer.Normalize(h.host),
+                    IsPrimary = h.isPrimary
+                })
+                .Where(h => !string.IsNullOrWhiteSpace(h.Host))
+                .ToList();
+
+            session.StoreObjects(newHosts);
+            await session.SaveChangesAsync(ct);
+
+            log.LogInformation("Replaced hosts for site {SiteId}: {Count} entries", siteId, newHosts.Count);
+            return new Result<IReadOnlyList<SiteHost>, AeroError>.Ok(newHosts);
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Failed to replace hosts for site {SiteId}", siteId);
+            return AeroError.CreateError($"Failed to replace hosts: {ex.Message}");
+        }
     }
 }

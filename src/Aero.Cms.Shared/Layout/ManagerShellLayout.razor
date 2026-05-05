@@ -3,8 +3,10 @@
 @using Aero.Cms.Shared.Layout
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Sections
+@using Aero.Cms.Abstractions.Interfaces
 @inject ManagerThemeService ThemeService
 @inject NavigationManager Navigation
+@inject ICurrentSiteAccessor CurrentSiteAccessor
 @implements IDisposable
 
 <div class="pe-root" data-theme="@ThemeService.Theme">
@@ -42,7 +44,8 @@
     protected override async Task OnInitializedAsync()
     {
         var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
-        if (relative.StartsWith("manager/login", StringComparison.OrdinalIgnoreCase))
+        if (relative.StartsWith("manager/login", StringComparison.OrdinalIgnoreCase) ||
+            relative.StartsWith("manager/select-site", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -53,6 +56,13 @@
             var authState = await AuthenticationState;
             if (authState.User.Identity?.IsAuthenticated == true)
             {
+                // After auth, check if a site has been selected
+                var siteId = await CurrentSiteAccessor.GetCurrentSiteIdAsync();
+                if (siteId is null)
+                {
+                    redirectTarget = "/manager/select-site";
+                    return;
+                }
                 return;
             }
         }

@@ -40,6 +40,7 @@ builder.Services.AddAeroHttpClients(uri);
 
 // Legacy registrations
 builder.Services.AddScoped<ManagerThemeService>();
+builder.Services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
 builder.Services.AddRadzenComponents();
 
 // Register cross-cutting services that run client-side

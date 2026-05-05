@@ -1,0 +1,127 @@
+@page "/manager/select-site"
+@attribute [Authorize]
+
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Abstractions.Interfaces
+@using Aero.Cms.Abstractions.Models
+@using Aero.Core
+
+@inject ISitesHttpClient SitesClient
+@inject ICurrentSiteAccessor CurrentSiteAccessor
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+
+<div class="mb-6">
+    <h1 class="text-2xl font-bold mb-2">Select a Site</h1>
+    <p class="text-gray-500">Choose a site to manage</p>
+</div>
+
+@if (_isLoading)
+{
+    <div class="flex justify-center py-12">
+        <span class="text-gray-500">Loading sites...</span>
+    </div>
+}
+else if (_errorMessage is not null)
+{
+    <div class="text-center py-12">
+        <p class="text-red-500">@_errorMessage</p>
+    </div>
+}
+else if (_sites is null || _sites.Count == 0)
+{
+    <div class="text-center py-12">
+        <p class="text-gray-500">No sites available. Contact your administrator.</p>
+    </div>
+}
+else
+{
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        @foreach (var site in _sites)
+        {
+            <button @onclick="() => SelectSite(site.Id)" class="p-4 border rounded-lg hover:shadow-md transition-shadow text-left w-full">
+                <h3 class="font-semibold text-lg">@site.Name</h3>
+                <p class="text-sm text-gray-500">@site.PrimaryHost</p>
+                <div class="mt-2">
+                    <span class="text-xs px-2 py-1 rounded @(site.IsEnabled ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")">
+                        @(site.IsEnabled ? "Active" : "Disabled")
+                    </span>
+                </div>
+            </button>
+        }
+    </div>
+}
+
+@* Admin: Manage Sites link *@
+<AuthorizeView Roles="Admin">
+    <Authorized>
+        <div class="mt-6 text-center">
+            <a href="/manager/sites" class="text-sm text-indigo-600 hover:underline">Manage Sites</a>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private IReadOnlyList<SiteViewModel>? _sites;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // If a site is already selected, redirect immediately
+        var currentSiteId = await CurrentSiteAccessor.GetCurrentSiteIdAsync();
+        if (currentSiteId.HasValue)
+        {
+            Navigation.NavigateTo("/manager");
+            return;
+        }
+
+        await LoadSitesAsync();
+    }
+
+    private async Task LoadSitesAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await SitesClient.GetAllAsync();
+
+            switch (result)
+            {
+                case Result<IReadOnlyList<SiteViewModel>, AeroError>.Ok ok:
+                    _sites = ok.Value;
+
+                    // Auto-select if only 1 site
+                    if (_sites.Count == 1)
+                    {
+                        var site = _sites[0];
+                        await CurrentSiteAccessor.SetCurrentSiteAsync(site.Id);
+                        Navigation.NavigateTo("/manager");
+                    }
+                    break;
+
+                case Result<IReadOnlyList<SiteViewModel>, AeroError>.Failure fail:
+                    _errorMessage = "Failed to load sites.";
+                    NotificationService.Notify(NotificationSeverity.Error, "Error", fail.Error.ToString());
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Failed to load sites.";
+            NotificationService.Notify(NotificationSeverity.Error, "Error", ex.Message);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SelectSite(long siteId)
+    {
+        await CurrentSiteAccessor.SetCurrentSiteAsync(siteId);
+        Navigation.NavigateTo("/manager");
+    }
+}

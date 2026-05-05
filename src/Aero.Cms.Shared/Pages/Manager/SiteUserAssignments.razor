@@ -1,0 +1,61 @@
+@page "/manager/users/{UserId:long}/sites"
+@attribute [Authorize]
+
+@using Aero.Core
+@using Aero.Core.Railway
+@using Radzen
+@using Radzen.Blazor
+
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+@inject DialogService DialogService
+
+<div class="space-y-6 px-6 py-6">
+    <div>
+        <h1 class="text-2xl font-bold mb-2">User Site Assignments</h1>
+        <p class="text-gray-500">Manage which sites this user can access and their permissions</p>
+    </div>
+
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800">
+        <strong>Coming Soon:</strong> This feature is not yet available. Users can be assigned to sites through the database.
+    </div>
+
+    <div>
+        <h3 class="text-lg font-semibold mb-3">Permission Reference</h3>
+        <table class="w-full border-collapse">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="text-left p-2 border">Permission</th>
+                    <th class="text-left p-2 border">Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var perm in _permissions)
+                {
+                    <tr class="border-b">
+                        <td class="p-2 border"><span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">@perm.Key</span></td>
+                        <td class="p-2 border">@perm.Value</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div>
+        <RadzenButton ButtonStyle="ButtonStyle.Secondary" Click="@(() => Navigation.NavigateTo("/manager/users"))">
+            Back to Users
+        </RadzenButton>
+    </div>
+</div>
+
+@code {
+    [Parameter] public long UserId { get; set; }
+
+    private Dictionary<string, string> _permissions = new()
+    {
+        { "read", "View content and access the site in the manager" },
+        { "create", "Create new content on the site" },
+        { "update", "Edit existing content on the site" },
+        { "delete", "Delete content from the site" },
+    };
+}

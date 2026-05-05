@@ -8,13 +8,26 @@ namespace Aero.Cms.Modules.Sites;
 /// Resolves the current site from the request host and sets
 /// <see cref="IAeroSiteSlice"/> on <see cref="HttpContext.Features"/>.
 /// Short-circuits with 404 if the host does not match any enabled site.
+///
+/// Skips <c>/manager/*</c> routes — the manager resolves the site from the
+/// <c>AeroCms.SiteId</c> cookie set by explicit user selection.
 /// </summary>
 public sealed class SiteResolutionMiddleware(RequestDelegate next)
 {
+    private static readonly PathString ManagerPathPrefix = "/manager";
+
     public async Task InvokeAsync(
         HttpContext context,
         ISiteLookupService siteLookup)
     {
+        // The manager resolves site from user cookie selection, not hostname.
+        // Skip host-based resolution for all /manager/* routes.
+        if (context.Request.Path.StartsWithSegments(ManagerPathPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            await next(context);
+            return;
+        }
+
         var host = context.Request.Host.Host;
         var normalized = HostNormalizer.Normalize(host);
 
