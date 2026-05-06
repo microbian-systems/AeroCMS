@@ -2,6 +2,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Docs;
 using Marten;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -14,11 +15,13 @@ namespace Aero.Cms.Modules.SiteMap;
 public sealed class SitemapCacheListener : DocumentSessionListenerBase
 {
     private readonly IFusionCache _cache;
+    private readonly IHostEnvironment _environment;
     private readonly ILogger<SitemapCacheListener> _logger;
 
-    public SitemapCacheListener(IFusionCache cache, ILogger<SitemapCacheListener> logger)
+    public SitemapCacheListener(IFusionCache cache, IHostEnvironment environment, ILogger<SitemapCacheListener> logger)
     {
         _cache = cache;
+        _environment = environment;
         _logger = logger;
     }
 
@@ -29,6 +32,11 @@ public sealed class SitemapCacheListener : DocumentSessionListenerBase
     /// </summary>
     public override async Task BeforeSaveChangesAsync(IDocumentSession session, CancellationToken token)
     {
+        if (!_environment.IsProduction())
+        {
+            return;
+        }
+
         var changes = session.PendingChanges;
 
         if (changes.InsertsFor<PageDocument>().Any() ||

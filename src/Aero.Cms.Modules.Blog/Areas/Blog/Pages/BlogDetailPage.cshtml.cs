@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.OutputCaching;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages;
 
+[ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
 [OutputCache(PolicyName = "BlogPolicy")]
 public class BlogDetailPageModel(IBlogPostContentService blogService) : PageModel
 {

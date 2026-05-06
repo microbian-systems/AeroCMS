@@ -104,6 +104,11 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
             return false;
         }
 
+        if (IsManagerOrAdminPath(request.Path))
+        {
+            return false;
+        }
+
         // Do not cache authenticated requests
         if (!StringValues.IsNullOrEmpty(request.Headers.Authorization)
             || context.HttpContext.User?.Identity?.IsAuthenticated == true)
@@ -113,4 +118,9 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
 
         return true;
     }
+
+    private static bool IsManagerOrAdminPath(PathString path)
+        => path.StartsWithSegments("/manager", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/admin", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/api/v1/admin", StringComparison.OrdinalIgnoreCase);
 }

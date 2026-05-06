@@ -39,6 +39,7 @@ public class SiteMapModule : AeroWebModule
     {
         options.Listeners.Add(new SitemapCacheListener(
             services.GetRequiredService<ZiggyCreatures.Caching.Fusion.IFusionCache>(),
+            services.GetRequiredService<IHostEnvironment>(),
             services.GetRequiredService<ILogger<SitemapCacheListener>>()));
     }
 

@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Models;
@@ -13,6 +14,8 @@ using Microsoft.AspNetCore.Http;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Wolverine;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.Blog;
 
@@ -32,13 +35,27 @@ public interface IBlogPostContentService
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenBlogPostContentService(IDocumentSession session, ISiteContext siteContext, IHttpContextAccessor? httpContextAccessor = null) : IBlogPostContentService
+public sealed class MartenBlogPostContentService(
+    IDocumentSession session,
+    ISiteContext siteContext,
+    IMessageBus? bus = null,
+    IHttpContextAccessor? httpContextAccessor = null,
+    IFusionCache? cache = null) : IBlogPostContentService
 {
+    private const string BlogCacheTag = "blog-index";
     private readonly ISiteContext _siteContext = siteContext;
+
     public async Task<Result<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
     {
         try
         {
+            var cacheKey = BuildCacheKey($"list:{skip}:{take}:{NormalizeCachePart(search)}");
+            var cached = await TryGetCacheAsync<BlogPostListCacheEntry>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                return Prelude.Ok<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>((cached.Items, cached.TotalCount));
+            }
+
             var query = session.Query<BlogPostDocument>().Where(x => x.SiteId == _siteContext.SiteId);
 
             IQueryable<BlogPostDocument> filteredQuery = query;
@@ -56,6 +73,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
                 .Take(take)
                 .ToListAsync(token: cancellationToken);
 
+            await SetCacheAsync(cacheKey, new BlogPostListCacheEntry(posts.ToList(), stats.TotalResults), cancellationToken);
             return Prelude.Ok<(IReadOnlyList<BlogPostDocument> Items, long TotalCount), AeroError>((posts, stats.TotalResults));
         }
         catch (Exception ex)
@@ -83,6 +101,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
 
             session.Delete<BlogPostDocument>(id);
             await session.SaveChangesAsync(cancellationToken);
+            await PublishContentUpdatedAsync(post, post.Slug, cancellationToken);
             return Prelude.Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
@@ -96,10 +115,21 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
         try
         {
             ValidateId(id);
+            var cacheKey = BuildCacheKey($"id:{id}");
+            var cached = await TryGetCacheAsync<BlogPostDocument>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                return Prelude.Ok<BlogPostDocument?, AeroError>(cached);
+            }
+
             var document = await session.LoadAsync<BlogPostDocument>(id, cancellationToken);
-            return document is null || document.SiteId != _siteContext.SiteId
-                ? Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError($"Blog post with id '{id}' not found or access denied"))
-                : Prelude.Ok<BlogPostDocument?, AeroError>(document);
+            if (document is null || document.SiteId != _siteContext.SiteId)
+            {
+                return Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError($"Blog post with id '{id}' not found or access denied"));
+            }
+
+            await SetCacheAsync(cacheKey, document, cancellationToken);
+            return Prelude.Ok<BlogPostDocument?, AeroError>(document);
         }
         catch (Exception ex)
         {
@@ -111,6 +141,13 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
     {
         try
         {
+            var cacheKey = BuildCacheKey($"slug:{NormalizeCachePart(slug)}");
+            var cached = await TryGetCacheAsync<BlogPostDocument>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                return Prelude.Ok<BlogPostDocument?, AeroError>(cached);
+            }
+
             var reservation = await session.Query<ContentSlugDocument>()
                 .FirstOrDefaultAsync(x =>
                     x.SiteId == _siteContext.SiteId &&
@@ -129,6 +166,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
             if (document.PublicationState != ContentPublicationState.Published)
                 return Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.NotFoundError($"Blog post with slug '{slug}' not found"));
 
+            await SetCacheAsync(cacheKey, document, cancellationToken);
             return Prelude.Ok<BlogPostDocument?, AeroError>(document);
         }
         catch (Exception ex)
@@ -141,6 +179,13 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
     {
         try
         {
+            var cacheKey = BuildCacheKey($"latest:{count}");
+            var cached = await TryGetCacheAsync<BlogPostCollectionCacheEntry>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                return Prelude.Ok<IReadOnlyList<BlogPostDocument>, AeroError>(cached.Items);
+            }
+
             var latest = await session.Query<BlogPostDocument>()
                 .Where(x => x.SiteId == _siteContext.SiteId)
                 .Where(x => x.PublicationState == ContentPublicationState.Published)
@@ -148,6 +193,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
                 .Take(count)
                 .ToListAsync(token: cancellationToken);
 
+            await SetCacheAsync(cacheKey, new BlogPostCollectionCacheEntry(latest.ToList()), cancellationToken);
             return Prelude.Ok<IReadOnlyList<BlogPostDocument>, AeroError>(latest);
         }
         catch (Exception ex)
@@ -187,6 +233,7 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
 
             session.Store(post);
             await session.SaveChangesAsync(cancellationToken);
+            await PublishContentUpdatedAsync(post, existingPost?.Slug, cancellationToken);
 
             return Prelude.Ok<BlogPostDocument, AeroError>(post);
         }
@@ -309,4 +356,34 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
     {
         var snowflake = Id.Parse(id);
     }
+
+    private string BuildCacheKey(string suffix)
+        => $"cms:blog:{_siteContext.SiteId}:{suffix}";
+
+    private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken cancellationToken) where T : class
+    {
+        if (cache is null)
+        {
+            return null;
+        }
+
+        var cached = await cache.TryGetAsync<T>(key, token: cancellationToken);
+        return cached.HasValue ? cached.Value : null;
+    }
+
+    private Task SetCacheAsync<T>(string key, T value, CancellationToken cancellationToken) where T : class
+        => cache is null
+            ? Task.CompletedTask
+            : cache.SetAsync(key, value, tags: [BlogCacheTag], token: cancellationToken).AsTask();
+
+    private Task PublishContentUpdatedAsync(BlogPostDocument post, string? oldSlug, CancellationToken cancellationToken)
+        => bus is null
+            ? Task.CompletedTask
+            : bus.PublishAsync(new BlogPostContentUpdatedEvent(post.Id, post.SiteId, post.Slug, oldSlug)).AsTask();
+
+    private static string NormalizeCachePart(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "_" : value.Trim().Trim('/').ToLowerInvariant();
+
+    private sealed record BlogPostListCacheEntry(List<BlogPostDocument> Items, long TotalCount);
+    private sealed record BlogPostCollectionCacheEntry(List<BlogPostDocument> Items);
 }

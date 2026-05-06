@@ -2,6 +2,7 @@ using Aero.Cms.Core;
 using Aero.Cms.Modules.OutputCache.Caching;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +19,7 @@ namespace Aero.Cms.Modules.OutputCache;
 /// DocsIndex.cshtml.cs, and Doc.cshtml.cs.
 /// </summary>
 [Module(nameof(OutputCacheModule))]
-public sealed class OutputCacheModule : AeroWebModule
+public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
 {
     public override string Name => nameof(OutputCacheModule);
     public override string Version => AeroConstants.Version;
@@ -26,6 +27,7 @@ public sealed class OutputCacheModule : AeroWebModule
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["infrastructure", "performance"];
     public override IReadOnlyList<string> Tags => ["cache", "output-cache", "performance"];
+    public int PipelineOrder => 200;
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
@@ -41,11 +43,6 @@ public sealed class OutputCacheModule : AeroWebModule
         //     options.Configuration = config!.GetConnectionString("cache");
         //     options.InstanceName = "AeroCmsOutput";
         // });
-
-        // TODO: Add IConfigurePipeline interface to AeroModuleBase / IAeroModule so that
-        // modules can register middleware (app.Use*) directly instead of requiring edits to
-        // Program.cs. This would allow OutputCacheModule to own the full middleware pipeline
-        // position of UseOutputCache().
 
         services.AddOutputCache(options =>
         {
@@ -97,4 +94,7 @@ public sealed class OutputCacheModule : AeroWebModule
                 excludeDefaultPolicy: true);
         });
     }
+
+    public void ConfigurePipeline(IApplicationBuilder app)
+        => app.UseOutputCache();
 }

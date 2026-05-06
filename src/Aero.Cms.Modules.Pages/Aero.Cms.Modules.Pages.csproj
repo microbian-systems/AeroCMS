@@ -13,6 +13,7 @@
     <PackageReference Include="Markdig" />
     <PackageReference Include="Marten" />
     <PackageReference Include="WolverineFx" />
+    <PackageReference Include="ZiggyCreatures.FusionCache" />
   </ItemGroup>
 
   <ItemGroup>

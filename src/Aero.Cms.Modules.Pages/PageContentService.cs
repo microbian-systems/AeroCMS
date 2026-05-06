@@ -13,6 +13,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Http;
+using ZiggyCreatures.Caching.Fusion;
 
 
 namespace Aero.Cms.Modules.Pages;
@@ -30,17 +31,36 @@ public interface IPageContentService
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenPageContentService(IDocumentSession session, IBlockService blockService, IMessageBus bus, ISiteContext siteContext, IHttpContextAccessor? httpContextAccessor = null) : IPageContentService
+public sealed class MartenPageContentService(
+    IDocumentSession session,
+    IBlockService blockService,
+    IMessageBus bus,
+    ISiteContext siteContext,
+    IHttpContextAccessor? httpContextAccessor = null,
+    IFusionCache? cache = null) : IPageContentService
 {
+    private const string PageCacheTag = "pages-list";
     private readonly ISiteContext _siteContext = siteContext;
+
     public async Task<Result<PageDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
+            var cacheKey = BuildCacheKey($"id:{id}");
+            var cached = await TryGetCacheAsync<PageDocument>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                return Prelude.Ok<PageDocument?, AeroError>(cached);
+            }
+
             var document = await session.LoadAsync<PageDocument>(id, cancellationToken);
-            return document is null || document.SiteId != _siteContext.SiteId
-                ? Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"))
-                : Prelude.Ok<PageDocument?, AeroError>(document);
+            if (document is null || document.SiteId != _siteContext.SiteId)
+            {
+                return Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
+            }
+
+            await SetCacheAsync(cacheKey, document, cancellationToken);
+            return Prelude.Ok<PageDocument?, AeroError>(document);
         }
         catch (Exception ex)
         {
@@ -58,6 +78,13 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
     {
         try
         {
+            var cacheKey = BuildCacheKey($"list:{skip}:{take}:{NormalizeCachePart(search)}");
+            var cached = await TryGetCacheAsync<PageListCacheEntry>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                return Prelude.Ok<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>((cached.Items, cached.TotalCount));
+            }
+
             var query = session.Query<PageDocument>().Where(x => x.SiteId == _siteContext.SiteId);
 
             IQueryable<PageDocument> filteredQuery = query;
@@ -74,6 +101,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
                 .Take(take)
                 .ToListAsync(token: cancellationToken);
 
+            await SetCacheAsync(cacheKey, new PageListCacheEntry(pages.ToList(), stats.TotalResults), cancellationToken);
             return Prelude.Ok<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>((pages, stats.TotalResults));
         }
         catch (Exception ex)
@@ -86,6 +114,13 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
     {
         try
         {
+            var cacheKey = BuildCacheKey($"slug:{NormalizeCachePart(slug)}");
+            var cached = await TryGetCacheAsync<PageDocument>(cacheKey, cancellationToken);
+            if (cached is not null)
+            {
+                return Prelude.Ok<PageDocument?, AeroError>(cached);
+            }
+
             var reservation = await session.Query<ContentSlugDocument>()
                 .FirstOrDefaultAsync(x =>
                     x.SiteId == _siteContext.SiteId &&
@@ -103,6 +138,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             if (document.PublicationState != ContentPublicationState.Published)
                 return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
 
+            await SetCacheAsync(cacheKey, document, cancellationToken);
             return Prelude.Ok<PageDocument?, AeroError>(document);
         }
         catch (Exception ex)
@@ -147,20 +183,16 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
 
     public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default)
     {
-        var loadResult = await LoadAsync(id, cancellationToken);
-        if (loadResult is Result<PageDocument?, AeroError>.Ok { Value: not null } ok)
+        try
         {
-            var page = ok.Value;
-            page.Title = request.Title;
-            page.Slug = request.Slug;
-            page.Summary = request.Summary;
-            page.SeoTitle = request.SeoTitle;
-            page.SeoDescription = request.SeoDescription;
-            page.PublicationState = request.PublicationState;
-            page.ShowInNavMenu = request.ShowInNavMenu;
-            page.ShowHeaderNavigation = request.ShowHeaderNavigation;
-            page.HideFooter = request.HideFooter;
-            page.ShowChatAgent = request.ShowChatAgent;
+            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+            if (page is null || page.SiteId != _siteContext.SiteId)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
+            }
+
+            ApplyUpdateRequest(page, request);
+
             if (request.EditorBlocks is { Count: > 0 })
             {
                 page.Blocks = request.EditorBlocks.ToList();
@@ -175,7 +207,10 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             return await SaveAsync(page, cancellationToken);
         }
 
-        return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError($"Page with id '{id}' not found"));
+        catch (Exception ex)
+        {
+            return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError(ex.Message));
+        }
     }
 
     public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default)
@@ -196,6 +231,7 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
 
             session.Delete<PageDocument>(id);
             await session.SaveChangesAsync(cancellationToken);
+            await bus.PublishAsync(new PageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, page.Slug));
             return Prelude.Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
@@ -209,39 +245,55 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
         try
         {
             ArgumentNullException.ThrowIfNull(page);
+            if (page.SiteId == 0)
+            {
+                page.SiteId = _siteContext.SiteId;
+            }
+
             await ValidatePage(page);
 
             var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
-            // Only stamp SiteId from context when not already set by the caller (e.g. seed).
-            if (existingPage is null && page.SiteId == 0)
-                page.SiteId = _siteContext.SiteId;
+            if (existingPage is not null && existingPage.SiteId != _siteContext.SiteId)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError($"Page with id '{page.Id}' not found or access denied"));
+            }
+
+            var targetPage = existingPage ?? page;
+            var oldSlug = existingPage?.Slug;
+            if (existingPage is not null && !ReferenceEquals(page, existingPage))
+            {
+                ApplyPersistedValues(page, existingPage);
+            }
+
             await ContentSlugReservation.ReserveAsync(
                 session,
-                page.Id,
+                targetPage.Id,
                 ContentSlugOwnerType.Page,
-                page.Slug,
-                page.SiteId,
-                existingPage?.Slug,
+                targetPage.Slug,
+                targetPage.SiteId,
+                oldSlug,
                 cancellationToken);
 
             var now = DateTimeOffset.UtcNow;
             var existingCreatedOn = existingPage?.CreatedOn;
-            page.CreatedOn = existingCreatedOn is null || existingCreatedOn == default ? now : existingCreatedOn.Value;
-            page.ModifiedOn = now;
-            page.ModifiedBy = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
-            page.PublishedOn = page.PublicationState == ContentPublicationState.Published
+            targetPage.CreatedOn = existingCreatedOn is null || existingCreatedOn == default ? now : existingCreatedOn.Value;
+            targetPage.ModifiedOn = now;
+            targetPage.ModifiedBy = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
+            targetPage.PublishedOn = targetPage.PublicationState == ContentPublicationState.Published
                 ? existingPage?.PublishedOn ?? now
                 : null;
 
-            session.Store(page);
+            session.Store(targetPage);
             await session.SaveChangesAsync(cancellationToken);
 
-            if (page.PublicationState == ContentPublicationState.Published)
+            if (targetPage.PublicationState == ContentPublicationState.Published)
             {
-                await bus.PublishAsync(new SlugUpdated(page.Id, "Page", page.Slug, existingPage?.Slug));
+                await bus.PublishAsync(new SlugUpdated(targetPage.Id, "Page", targetPage.Slug, oldSlug));
             }
 
-            return Prelude.Ok<PageDocument, AeroError>(page);
+            await bus.PublishAsync(new PageContentUpdatedEvent(targetPage.Id, targetPage.SiteId, targetPage.Slug, oldSlug));
+
+            return Prelude.Ok<PageDocument, AeroError>(targetPage);
 
         }
         catch (ArgumentException ex)
@@ -300,4 +352,61 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
             throw new ArgumentException($"page errors: {string.Join(", ", valid.Errors.Select(e => e.ErrorMessage))}");
         }
     }
+
+    private static void ApplyUpdateRequest(PageDocument page, UpdatePageRequest request)
+    {
+        page.Title = request.Title;
+        page.Slug = request.Slug;
+        page.Summary = request.Summary;
+        page.SeoTitle = request.SeoTitle;
+        page.SeoDescription = request.SeoDescription;
+        page.PublicationState = request.PublicationState;
+        page.ShowInNavMenu = request.ShowInNavMenu;
+        page.ShowHeaderNavigation = request.ShowHeaderNavigation;
+        page.HideFooter = request.HideFooter;
+        page.ShowChatAgent = request.ShowChatAgent;
+    }
+
+    private static void ApplyPersistedValues(PageDocument source, PageDocument target)
+    {
+        target.Kind = source.Kind;
+        target.Slug = source.Slug;
+        target.Title = source.Title;
+        target.Summary = source.Summary;
+        target.SeoTitle = source.SeoTitle;
+        target.SeoDescription = source.SeoDescription;
+        target.LayoutRegions = source.LayoutRegions;
+        target.Blocks = source.Blocks;
+        target.PublicationState = source.PublicationState;
+        target.ShowInNavMenu = source.ShowInNavMenu;
+        target.ShowHeaderNavigation = source.ShowHeaderNavigation;
+        target.HeaderImageUrl = source.HeaderImageUrl;
+        target.HideHeader = source.HideHeader;
+        target.HideFooter = source.HideFooter;
+        target.ShowChatAgent = source.ShowChatAgent;
+    }
+
+    private string BuildCacheKey(string suffix)
+        => $"cms:page:{_siteContext.SiteId}:{suffix}";
+
+    private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken cancellationToken) where T : class
+    {
+        if (cache is null)
+        {
+            return null;
+        }
+
+        var cached = await cache.TryGetAsync<T>(key, token: cancellationToken);
+        return cached.HasValue ? cached.Value : null;
+    }
+
+    private Task SetCacheAsync<T>(string key, T value, CancellationToken cancellationToken) where T : class
+        => cache is null
+            ? Task.CompletedTask
+            : cache.SetAsync(key, value, tags: [PageCacheTag], token: cancellationToken).AsTask();
+
+    private static string NormalizeCachePart(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "_" : value.Trim().Trim('/').ToLowerInvariant();
+
+    private sealed record PageListCacheEntry(List<PageDocument> Items, long TotalCount);
 }

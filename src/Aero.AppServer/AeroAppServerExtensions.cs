@@ -77,7 +77,8 @@ public static class AeroAppServerExtensions
         services.AddMarten(opts =>
         {
             opts.Connection(connString);
-        });
+        })
+        .UseLightweightSessions();
 
         // Wolverine — handler discovery is driven by the source-generated
         // GeneratedWolverineHandlerCatalog callback, which disables conventional

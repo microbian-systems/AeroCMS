@@ -8,6 +8,7 @@ using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Docs.Areas.Docs.Pages;
 
+[ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any)]
 [OutputCache(PolicyName = "DocsPolicy")]
 public class DocModel(IQuerySession session) : PageModel
 {

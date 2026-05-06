@@ -203,4 +203,33 @@ public static class AeroWebAppExtensions
 
         return endpoints;
     }
+
+    /// <summary>
+    /// Applies middleware contributed by Aero CMS modules in explicit pipeline order.
+    /// The host chooses the insertion point; modules own their middleware details.
+    /// </summary>
+    public static IApplicationBuilder UseAeroCmsModulePipeline(
+        this IApplicationBuilder app)
+    {
+        var graph = app.ApplicationServices.GetService<ModuleGraph>();
+
+        var modules = graph is not null
+            ? graph.LoadOrder
+                .Select(descriptor => app.ApplicationServices.GetService(descriptor.ModuleType))
+                .OfType<IAeroPipelineModule>()
+                .ToList()
+            : app.ApplicationServices
+                .GetServices<IAeroModule>()
+                .OfType<IAeroPipelineModule>()
+                .ToList();
+
+        foreach (var module in modules
+                     .OrderBy(module => module.PipelineOrder)
+                     .ThenBy(module => module.Order))
+        {
+            module.ConfigurePipeline(app);
+        }
+
+        return app;
+    }
 }

@@ -13,6 +13,8 @@
     <PackageReference Include="Marten" />
     <PackageReference Include="Radzen.Blazor" />
     <PackageReference Include="Shouldly" />
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="ZiggyCreatures.FusionCache" />
   </ItemGroup>
 
   <ItemGroup>

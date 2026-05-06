@@ -57,6 +57,7 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
 
         PageDocument = page;
         PreserveReExecutedStatusCode();
+        ApplyResponseCacheHeaders();
         return Page();
     }
 
@@ -72,5 +73,18 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
         {
             Response.StatusCode = reExecuteFeature.OriginalStatusCode;
         }
+    }
+
+    private void ApplyResponseCacheHeaders()
+    {
+        if (DraftId is not null)
+        {
+            Response.Headers.CacheControl = "no-store, no-cache";
+            Response.Headers.Pragma = "no-cache";
+            Response.Headers.Expires = "0";
+            return;
+        }
+
+        Response.Headers.CacheControl = "public,max-age=300";
     }
 }

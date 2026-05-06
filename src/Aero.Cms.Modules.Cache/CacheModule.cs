@@ -1,6 +1,11 @@
 using Aero.Cms.Core;
+using Aero.Cms.Modules.Cache.Handlers;
+using Aero.Cms.Modules.Cache.Services;
+using Aero.Cms.Modules.OutputCache;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -16,17 +21,20 @@ namespace Aero.Cms.Modules.Cache;
 /// Owns FusionCache registration, distributed cache setup, and page caching hooks.
 /// </summary>
 [Module(nameof(CacheModule))]
-public class CacheModule : AeroModuleBase
+public class CacheModule : AeroModuleBase, IAeroPipelineModule
 {
     public override string Name => nameof(CacheModule);
     public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
+    public override IReadOnlyList<string> Dependencies => [nameof(OutputCacheModule)];
     public override IReadOnlyList<string> Category => ["Infrastructure", "Performance"];
     public override IReadOnlyList<string> Tags => ["cache", "memory", "performance"];
+    public int PipelineOrder => 100;
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        services.AddResponseCaching();
+
         // ---- Distributed cache (L2) ----
         // MemoryDistributedCache is an in-memory IDistributedCache fallback.
         // When an external cache (Redis/Garnet) is configured, replace this with
@@ -70,9 +78,32 @@ public class CacheModule : AeroModuleBase
         }
 
         // ---- Page caching hooks ----
+        services.AddSingleton<ICacheInvalidationService, FusionCacheInvalidationService>();
+        services.AddScoped<ContentUpdatedHandler>();
         services.AddScoped<PageCacheHook>();
         services.AddScoped<PageCacheStoreHook>();
         services.AddScoped<PageCacheInvalidatorHook>();
+    }
+
+    public void ConfigurePipeline(IApplicationBuilder app)
+    {
+        app.Use(async (context, next) =>
+        {
+            if (IsManagerOrAdminPath(context.Request.Path))
+            {
+                context.Response.OnStarting(() =>
+                {
+                    context.Response.Headers.CacheControl = "no-store, no-cache";
+                    context.Response.Headers.Pragma = "no-cache";
+                    context.Response.Headers.Expires = "0";
+                    return Task.CompletedTask;
+                });
+            }
+
+            await next();
+        });
+
+        app.UseResponseCaching();
     }
 
     public override void Configure(IAeroModuleBuilder builder)
@@ -83,4 +114,9 @@ public class CacheModule : AeroModuleBase
         // builder.addpagereadhook<pagecachestorehook>();
         // builder.addpagesavehook<pagecacheinvalidatorhook>();
     }
+
+    private static bool IsManagerOrAdminPath(PathString path)
+        => path.StartsWithSegments("/manager", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/admin", StringComparison.OrdinalIgnoreCase) ||
+           path.StartsWithSegments("/api/v1/admin", StringComparison.OrdinalIgnoreCase);
 }

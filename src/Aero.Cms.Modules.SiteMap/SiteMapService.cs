@@ -9,6 +9,7 @@ using Aero.Core.Http;
 using Aero.Core.Railway;
 using Marten;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using static Aero.Core.Railway.Prelude;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -22,6 +23,7 @@ public sealed class SiteMapService : ISiteMapService
     private readonly IQuerySession _session;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ISiteContext _siteContext;
+    private readonly IHostEnvironment _environment;
 
     public SiteMapService(
         IFusionCache cache,
@@ -29,7 +31,8 @@ public sealed class SiteMapService : ISiteMapService
         IDocsService docsService,
         IQuerySession session,
         IHttpContextAccessor httpContextAccessor,
-        ISiteContext siteContext)
+        ISiteContext siteContext,
+        IHostEnvironment environment)
     {
         _cache = cache;
         _pageService = pageService;
@@ -37,6 +40,7 @@ public sealed class SiteMapService : ISiteMapService
         _session = session;
         _httpContextAccessor = httpContextAccessor;
         _siteContext = siteContext;
+        _environment = environment;
     }
 
     public async Task<Result<string, AeroError>> BuildSitemapAsync(CancellationToken ct)
@@ -44,15 +48,21 @@ public sealed class SiteMapService : ISiteMapService
         var siteId = _siteContext.SiteId;
         var cacheKey = $"sitemap:xml:{siteId}";
 
-        var cached = await _cache.TryGetAsync<string>(cacheKey, token: ct);
-        if (cached.HasValue)
-            return Ok<string, AeroError>(cached.Value);
+        if (_environment.IsProduction())
+        {
+            var cached = await _cache.TryGetAsync<string>(cacheKey, token: ct);
+            if (cached.HasValue)
+                return Ok<string, AeroError>(cached.Value);
+        }
 
         var entriesResult = await GatherEntriesAsync(ct);
         if (entriesResult is Result<List<SitemapEntry>, AeroError>.Ok ok)
         {
             var xml = RenderSitemap(ok.Value);
-            await _cache.SetAsync(cacheKey, xml, tags: ["sitemap"], token: ct);
+            if (_environment.IsProduction())
+            {
+                await _cache.SetAsync(cacheKey, xml, tags: ["sitemap"], token: ct);
+            }
             return Ok<string, AeroError>(xml);
         }
 

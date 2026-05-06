@@ -6,6 +6,7 @@ using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.SiteMap;
 
@@ -30,12 +31,22 @@ public static class SitemapApi
         => Results.Redirect("/sitemap.xml", permanent: true);
 
     private static async Task<IResult> GetSitemap(
+        HttpContext httpContext,
         ISiteMapService sitemapService,
+        IHostEnvironment environment,
         CancellationToken ct)
     {
         var result = await sitemapService.BuildSitemapAsync(ct);
         if (result is Result<string, AeroError>.Ok ok)
+        {
+            if (environment.IsProduction())
+            {
+                httpContext.Response.Headers.CacheControl = "public,max-age=300";
+            }
+
             return Results.Content(ok.Value, "application/xml", Encoding.UTF8);
+        }
+
         return Results.Problem("Failed to generate sitemap");
     }
 
