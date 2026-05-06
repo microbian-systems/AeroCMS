@@ -202,7 +202,10 @@ public sealed class BlogImportService : IBlogImportService
                         {
                             // Remove old slug reservation for this owner
                             var oldSlugDoc = await _session.Query<ContentSlugDocument>()
-                                .FirstOrDefaultAsync(s => s.OwnerId == existingDoc.Id && s.OwnerType == ContentSlugOwnerType.BlogPost, ct);
+                                .FirstOrDefaultAsync(s =>
+                                    s.SiteId == request.SiteId &&
+                                    s.OwnerId == existingDoc.Id &&
+                                    s.OwnerType == ContentSlugOwnerType.BlogPost, ct);
                             if (oldSlugDoc is not null)
                                 _session.Delete(oldSlugDoc);
 
@@ -353,7 +356,7 @@ public sealed class BlogImportService : IBlogImportService
 
         // Query existing tags
         var existingTags = await _session.Query<Tag>()
-            .Where(t => allTags.Contains(t.Slug))
+            .Where(t => t.SiteId == _siteContext.SiteId && allTags.Contains(t.Slug))
             .ToListAsync(ct);
 
         var tagMap = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -400,7 +403,10 @@ public sealed class BlogImportService : IBlogImportService
             return [];
 
         return await _session.Query<ContentSlugDocument>()
-            .Where(s => slugs.Contains(s.NormalizedSlug) && s.OwnerType == ContentSlugOwnerType.BlogPost)
+            .Where(s =>
+                s.SiteId == _siteContext.SiteId &&
+                slugs.Contains(s.NormalizedSlug) &&
+                s.OwnerType == ContentSlugOwnerType.BlogPost)
             .ToListAsync(ct);
     }
 

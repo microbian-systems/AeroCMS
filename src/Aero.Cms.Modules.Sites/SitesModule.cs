@@ -1,6 +1,11 @@
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Infrastructure;
@@ -116,17 +121,30 @@ public class SitesModule : AeroWebModule, IConfigureMarten
 
         // POST /api/v1/admin/sites/current — sets the current site (writes cookie)
         group.MapPost("/current", async (
+            SetCurrentSiteRequest request,
             HttpContext httpContext,
-            long siteId,
+            ISiteLookupService siteLookup,
             IMessageBus bus) =>
         {
+            if (request.SiteId <= 0)
+            {
+                return Results.BadRequest("A valid site id is required.");
+            }
+
+            var sites = await siteLookup.GetAllAsync();
+            if (!sites.Any(site => site.Id == request.SiteId))
+            {
+                return Results.NotFound();
+            }
+
+            var siteId = request.SiteId;
             httpContext.Response.Cookies.Append("AeroCms.SiteId", siteId.ToString(), new CookieOptions
             {
                 HttpOnly = true,
                 SameSite = SameSiteMode.Lax,
                 Expires = DateTimeOffset.UtcNow.AddDays(30),
                 IsEssential = true,
-                Secure = true
+                Secure = httpContext.Request.IsHttps
             });
 
             // Publish audit event via Wolverine
@@ -145,7 +163,8 @@ public class SitesModule : AeroWebModule, IConfigureMarten
             httpContext.Response.Cookies.Delete("AeroCms.SiteId", new CookieOptions
             {
                 HttpOnly = true,
-                SameSite = SameSiteMode.Lax
+                SameSite = SameSiteMode.Lax,
+                Secure = httpContext.Request.IsHttps
             });
             return Results.Ok();
         });
@@ -203,7 +222,7 @@ public class SitesModule : AeroWebModule, IConfigureMarten
         });
 
         // POST /api/v1/admin/sites — create site
-        group.MapPost("/", async (CreateSiteRequest request, ISiteService siteService) =>
+        group.MapPost("/", async (CreateSiteRequest request, ISiteService siteService, IDocumentSession session) =>
         {
             var validator = new Abstractions.Validators.SiteRequestValidator();
             var validationResult = await validator.ValidateAsync(request);
@@ -242,6 +261,9 @@ public class SitesModule : AeroWebModule, IConfigureMarten
             }
             if (allHosts.Count > 0)
                 await siteService.ReplaceHostsAsync(createdSite.Id, allHosts);
+
+            // Auto-create a default homepage so the new site has initial content
+            await CreateDefaultHomepageAsync(session, createdSite);
 
             return Results.Created($"/api/v1/admin/sites/{createdSite.Id}", createdSite);
         });
@@ -297,6 +319,23 @@ public class SitesModule : AeroWebModule, IConfigureMarten
         });
 
         return Task.CompletedTask;
+    }
+
+    private static async Task CreateDefaultHomepageAsync(IDocumentSession session, SitesModel site)
+    {
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            Kind = PageKind.Homepage,
+            Slug = "/",
+            Title = site.Name ?? "Home",
+            Summary = $"Welcome to {site.Name}",
+            SiteId = site.Id,
+            PublicationState = ContentPublicationState.Published
+        };
+
+        session.Store(page);
+        await session.SaveChangesAsync();
     }
 }
 

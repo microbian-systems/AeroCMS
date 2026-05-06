@@ -233,7 +233,7 @@ public static class PagesApi
 
             if (result is Result<PageDocument, AeroError>.Failure failure)
             {
-                logger.LogWarning("Failed to update page {Id}. Error: {Error}. Request: {@Request}", id, failure.Error, request);
+                logger.LogError("Failed to update page {Id}. Error: {Error}. Request: {@Request}", id, failure.Error, request);
                 return TypedResults.BadRequest(new ProblemDetails
                 {
                     Title = "Failed to update page",

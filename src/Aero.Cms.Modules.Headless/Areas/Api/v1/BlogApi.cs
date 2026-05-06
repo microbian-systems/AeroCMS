@@ -4,8 +4,10 @@ using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Blog.Requests;
+using Aero.Core.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -173,6 +175,7 @@ public static class BlogApi
         [FromServices] IAuditService auditService,
         [FromServices] IHttpContextAccessor httpContextAccessor,
         [FromServices] IDocumentSession session,
+        [FromServices] ISiteContext siteContext,
         CancellationToken cancellationToken)
     {
         try
@@ -180,7 +183,9 @@ public static class BlogApi
             // Check slug uniqueness
             var normalizedSlug = ContentSlugDocument.Normalize(request.Slug);
             var existingSlug = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(s => s.NormalizedSlug == normalizedSlug, cancellationToken);
+                .FirstOrDefaultAsync(
+                    s => s.SiteId == siteContext.SiteId && s.NormalizedSlug == normalizedSlug,
+                    cancellationToken);
             if (existingSlug != null)
             {
                 return TypedResults.BadRequest(new ProblemDetails
@@ -244,6 +249,7 @@ public static class BlogApi
         [FromServices] IAuditService auditService,
         [FromServices] IHttpContextAccessor httpContextAccessor,
         [FromServices] IDocumentSession session,
+        [FromServices] ISiteContext siteContext,
         CancellationToken cancellationToken)
     {
         try
@@ -251,7 +257,11 @@ public static class BlogApi
             // Check slug uniqueness (excluding current post)
             var normalizedSlug = ContentSlugDocument.Normalize(request.Slug);
             var existingSlug = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(s => s.NormalizedSlug == normalizedSlug && s.OwnerId != id, cancellationToken);
+                .FirstOrDefaultAsync(
+                    s => s.SiteId == siteContext.SiteId &&
+                         s.NormalizedSlug == normalizedSlug &&
+                         s.OwnerId != id,
+                    cancellationToken);
             if (existingSlug != null)
             {
                 return TypedResults.BadRequest(new ProblemDetails

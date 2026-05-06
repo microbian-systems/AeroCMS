@@ -17,27 +17,37 @@
 
 <div class="pe-root" data-theme="@ThemeService.Theme">
     <ManagerHeader />
-    
-    <div class="pe-main-layout">
-        <AeroSidebar Title="Menu" 
-                     Side="SidebarSide.Left" 
-                     IsCollapsed="@ThemeService.IsSidebarCollapsed"
-                     IsCollapsedChanged="@(async (c) => ThemeService.ToggleSidebar())">
-            <NavMenu IsCollapsed="@ThemeService.IsSidebarCollapsed" />
-        </AeroSidebar>
 
-        <div class="pe-editor-area">
-            @Body
+    @if (siteContextReady)
+    {
+        <div class="pe-main-layout">
+            <AeroSidebar Title="Menu"
+                         Side="SidebarSide.Left"
+                         IsCollapsed="@ThemeService.IsSidebarCollapsed"
+                         IsCollapsedChanged="@(async (c) => ThemeService.ToggleSidebar())">
+                <NavMenu IsCollapsed="@ThemeService.IsSidebarCollapsed" />
+            </AeroSidebar>
+
+            <div class="pe-editor-area">
+                @Body
+            </div>
+
+            <SectionOutlet SectionName="RightSidebar" />
         </div>
-
-        <SectionOutlet SectionName="RightSidebar" />
-    </div>
+    }
+    else
+    {
+        <div class="pe-editor-area flex items-center justify-center min-h-screen">
+            <span class="text-sm text-gray-500">Loading manager...</span>
+        </div>
+    }
 </div>
 
 <RadzenComponents />
 
 @code {
     private string? redirectTarget;
+    private bool siteContextReady;
 
     protected override void OnInitialized()
     {
@@ -53,6 +63,7 @@
         if (relative.StartsWith("manager/login", StringComparison.OrdinalIgnoreCase) ||
             relative.StartsWith("manager/select-site", StringComparison.OrdinalIgnoreCase))
         {
+            siteContextReady = true;
             return;
         }
 
@@ -73,6 +84,11 @@
                 var siteId = AdminState.CurrentSiteId
                     ?? await CurrentSiteAccessor.GetCurrentSiteIdAsync();
 
+                if (AdminState.CurrentSiteId.HasValue)
+                {
+                    await CurrentSiteAccessor.SetCurrentSiteAsync(AdminState.CurrentSiteId.Value);
+                }
+
                 // Final fallback: call the default site API (creates one if needed)
                 if (siteId is null)
                 {
@@ -84,6 +100,8 @@
                     redirectTarget = "/manager/select-site";
                     return;
                 }
+
+                siteContextReady = true;
                 return;
             }
         }
@@ -116,6 +134,8 @@
             if (result is Result<SiteViewModel, AeroError>.Ok ok)
             {
                 AdminState.SetSite(ok.Value.Id, ok.Value.Name ?? "Default Site");
+                // Also set the server-side cookie so DefaultSiteContext picks it up
+                await CurrentSiteAccessor.SetCurrentSiteAsync(ok.Value.Id);
                 return ok.Value.Id;
             }
         }

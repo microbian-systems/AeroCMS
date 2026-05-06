@@ -25,6 +25,7 @@ public static class Schemas
         public const string Settings = "settings";
         public const string Sites = "sites";
         public const string SiteHosts = "hosts";
+        public const string SlugRegistry = "slugs";
         public const string Tags = "tags";
         public const string Tenants = "tenants";
         public const string Users = "users";

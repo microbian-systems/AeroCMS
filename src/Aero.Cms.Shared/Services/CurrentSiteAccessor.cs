@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Abstractions.Requests;
 
 namespace Aero.Cms.Shared.Services;
 
@@ -46,7 +47,10 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor
     {
         try
         {
-            await http.PostAsJsonAsync("/api/v1/admin/sites/current", siteId);
+            var response = await http.PostAsJsonAsync("/api/v1/admin/sites/current", new SetCurrentSiteRequest(siteId));
+            if (!response.IsSuccessStatusCode)
+                return;
+
             _cachedSiteId = siteId;
             SiteChanged?.Invoke();
         }

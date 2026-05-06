@@ -179,7 +179,7 @@ Site deletion is destructive — all site-owned data across ALL tables must be r
 
 **Source-generator approach**: Extend the existing module catalog source generator to emit a `SiteOwnedTypes` static class listing all `ISiteOwned` implementations. No manual enumeration. No reflection.
 
-### Client-Side State Management (New — 2026-05-06)
+### Client-Side State Management (2026-05-06)
 
 The manager runs in **InteractiveWebAssembly** mode only (no InteractiveServer). There is no server-side session — all manager state is purely client-side.
 
@@ -194,58 +194,196 @@ Based on Microsoft's [official Blazor WASM state management pattern](https://lea
 | Component | Pattern | Purpose |
 |-----------|---------|---------|
 | `AdminStateContainer` | Singleton + `event Action? StateChanged` | In-memory state — no HTTP per read |
-| `Blazored.LocalStorage` (NuGet) | `ILocalStorageService` via JS interop | Persist across page reloads |
-| `AdminStateInitializer` | Bootstraps on `ManagerShellLayout.OnInitializedAsync` | Hydrate from localStorage; fallback to API |
+| `Blazor.LocalStorage.WebAssembly` (NuGet) | `ILocalStorageService` via source-gen JS interop | Persist across page reloads |
+| `IAdminStorage` abstraction | Shared interface `{ GetItem<T>, SetItem<T> }` | Enables Shared project to reference storage |
+| `LocalStorageAdminStorage` | WASM adapter wrapping `ILocalStorageService` | Registered on Web.Client side |
 | Wolverine `SiteSelectionChanged` | Server-side message handler | Audit/log site selection on server |
 
 **Registration in client `Program.cs`:**
 ```csharp
-builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddLocalStorageServices();
+builder.Services.AddSingleton<IAdminStorage, LocalStorageAdminStorage>();
 builder.Services.AddSingleton<AdminStateContainer>();
 ```
 
-**Container shape:**
+**Container shape (actual):**
 ```csharp
-public class AdminStateContainer
+public sealed class AdminStateContainer
 {
-    public long? CurrentSiteId { get; private set; }
-    public SiteViewModel? CurrentSite { get; private set; }
-    public string? CurrentView { get; set; }
+    private const string StorageKey = "aero-admin-state";
+    private readonly IAdminStorage _storage;
 
+    public long? CurrentSiteId { get; private set; }
+    public string? CurrentSiteName { get; private set; }
+    public string? CurrentView { get; set; }
+    public bool IsInitialized { get; private set; }
     public event Action? StateChanged;
 
-    public async Task SetSiteAsync(long siteId, string siteName) { ... }
-    public async Task LoadFromStorageAsync(ILocalStorageService storage) { ... }
-    public async Task PersistAsync(ILocalStorageService storage) { ... }
+    public AdminStateContainer(IAdminStorage storage) => _storage = storage;
+
+    public void SetSite(long siteId, string siteName) { ... }
+    public void LoadFromStorage() { ... }
 }
 ```
 
-**Data flow:**
+**Data flow (3-tier hydration chain):**
 ```
 ManagerShellLayout.OnInitializedAsync
-  → AdminStateContainer.LoadFromStorageAsync(localStorage)
-    → localStorage.GetItemAsync<long?>("currentSiteId")
-    → if null → HTTP GET /api/v1/admin/sites/default → cache in container
-    → if found → hydrate container in-memory
+  → AdminStateContainer.LoadFromStorage()           // #1 localStorage (instant)
+    → localStorage.getItem("aero-admin-state.siteId")
+    → if found → hydrate in-memory, done
+    → if null → fall through
 
-Aliases.razor.LoadData:
-  → var siteId = AdminStateContainer.CurrentSiteId;  // NO HTTP call!
-  → if (siteId is null) return;
-  → await AliasClient.GetAllBySiteAsync(siteId.Value);
+  → CurrentSiteAccessor.GetCurrentSiteIdAsync()      // #2 HTTP cookie call
+    → GET /api/v1/admin/sites/current
+    → if site found → hydrate AdminState + done
+    → if null → fall through
+
+  → SitesClient.GetDefaultAsync()                    // #3 API default/auto-create
+    → GET /api/v1/admin/sites/default
+    → returns first enabled site OR creates a default one
+    → AdminState.SetSite() + CurrentSiteAccessor.SetCurrentSiteAsync()
+    → done
+
+Once hydrated:
+  → All pages read AdminState.CurrentSiteId (in-memory, instant)
+  → No HTTP calls per page load
+```
+
+**Headers use `AdminState` now:**
+```csharp
+// ManagerHeader.OnInitializedAsync — reads AdminState before cookie
+if (AdminState.CurrentSiteId.HasValue)
+{
+    currentSite = new SiteViewModel
+    {
+        Id = AdminState.CurrentSiteId.Value,
+        Name = AdminState.CurrentSiteName ?? "Site"
+    };
+}
+else
+{
+    currentSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+}
 ```
 
 **Wolverine integration (server-side only):**
 ```csharp
-// Published when user selects a site via the API
-public record SiteSelectionChanged(long SiteId, long UserId, DateTimeOffset Timestamp);
+// Published when user selects a site via POST /api/v1/admin/sites/current
+public sealed record SiteSelectionChanged(long SiteId, long UserId, DateTimeOffset Timestamp);
 
-// Handler — logs the selection for audit
 [WolverineHandler]
-public static class SiteSelectionHandler
+public sealed class SiteSelectionAuditHandler : IWolverineHandler
 {
-    public static void Handle(SiteSelectionChanged message, ILogger logger) { ... }
+    public void Handle(SiteSelectionChanged e) { /* audit log */ }
 }
 ```
+
+### DefaultSiteContext Priority (Critical Fix — 2026-05-06)
+
+The server-side `DefaultSiteContext` has a **priority order** that was changed. The previous order was:
+
+1. ✅ `IAeroSiteSlice` from `HttpContext.Features` (set by `SiteResolutionMiddleware` for public routes)
+2. ✅ `AeroCms.SiteId` cookie (for manager routes)
+
+**Problem**: For `/api/v1/admin/*` routes (pages API, posts API, etc.), the `SiteResolutionMiddleware` DOES run (it only skips `/manager/*` paths) and sets `IAeroSiteSlice` from hostname lookup. This means the user's cookie-based site selection was **never reached** for admin API calls — content was always scoped to the hostname-resolved site (the default).
+
+**Fix**: Swap the priority to cookie-first:
+
+```csharp
+public long SiteId
+{
+    get
+    {
+        // 1. Manager cookie — user's explicit site selection takes priority
+        var cookie = httpContext?.Request.Cookies["AeroCms.SiteId"];
+        if (long.TryParse(cookie, out var siteId)) return siteId;
+
+        // 2. Features — hostname resolution for public routes
+        var slice = httpContext?.Features.Get<IAeroSiteSlice>();
+        if (slice is not null) return slice.SiteId;
+
+        return 0;
+    }
+}
+```
+
+This ensures that when a manager user selects a different site, all admin API calls use the selected site's ID, not the hostname-resolved site.
+
+### Global Keyboard Shortcut (CTRL+SHIFT+S) — JS Interop
+
+The previous `@onkeydown` on `<header tabindex="-1">` never fired because the header element never had keyboard focus. Fixed with a global `window.addEventListener('keydown', ...)` via a collocated JS module.
+
+**`ManagerHeader.razor.js`:**
+```javascript
+export function registerKeyboardShortcut(dotnetObj) {
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 's') {
+            e.preventDefault();
+            dotnetRef.invokeMethodAsync('OnKeyboardShortcut');
+        }
+    });
+}
+```
+
+**Blazor lifecycle:**
+```csharp
+protected override async Task OnAfterRenderAsync(bool firstRender)
+{
+    if (firstRender && !_disposed)
+    {
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./.../ManagerHeader.razor.js");
+        _dotNetRef = DotNetObjectReference.Create(this);
+        await _module.InvokeVoidAsync("registerKeyboardShortcut", _dotNetRef);
+    }
+}
+
+[JSInvokable]
+public async Task OnKeyboardShortcut()
+{
+    await ShowSitePickerAsync(); // opens site picker modal with fresh API data
+}
+
+public async ValueTask DisposeAsync()
+{
+    // Cleanup: unregister listener + dispose DotNetObjectReference
+}
+```
+
+**Behavior**: Opens a modal site picker showing all sites from the API (always fresh — no caching). Select a site and it updates `AdminStateContainer` + cookie + closes modal.
+
+### Top Navigation Redesign (2026-05-06)
+
+The header navigation was changed from horizontal text links to a dropdown menu:
+
+```
+[ AERO ]  [ MySite | 13423432432  ▼ ]  [🌙]  [👤 Account | Logout]
+                      │
+                      ├ Dashboard
+                      ├ Pages
+                      ├ Posts
+                      ├ Media
+                      ├ Navigations
+                      ├ Aliases
+                      ├ Docs
+                      ├ Modules
+                      ├ Taxonomy
+                      ├ Users
+                      └ SEO
+```
+
+The site name + Snowflake ID is displayed in the button. Clicking opens a dropdown with all navigation items. The `.pe-nav` class still exists but now wraps the dropdown component instead of individual `NavLink` elements.
+
+### Default Page on Site Creation (2026-05-06)
+
+When a new site is created via `POST /api/v1/admin/sites`, a minimal `PageDocument` is auto-created:
+- Slug: `/` (homepage)
+- Title: site name
+- SiteId: stamped with the new site's ID
+- PublicationState: Published
+- Stored via `IDocumentSession.Store()` directly (avoids cross-module dependency)
+
+This prevents the infinite redirect/infinite loop that occurred when visiting a site with no content.
 
 ### Blazor Dual-Rendering Concerns (Updated)
 

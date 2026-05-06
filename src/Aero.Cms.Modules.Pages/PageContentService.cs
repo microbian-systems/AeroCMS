@@ -38,8 +38,8 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
         try
         {
             var document = await session.LoadAsync<PageDocument>(id, cancellationToken);
-            return document is null
-                ? Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError($"Page with id '{id}' not found"))
+            return document is null || document.SiteId != _siteContext.SiteId
+                ? Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"))
                 : Prelude.Ok<PageDocument?, AeroError>(document);
         }
         catch (Exception ex)

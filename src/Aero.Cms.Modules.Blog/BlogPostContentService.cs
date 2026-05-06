@@ -97,8 +97,8 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
         {
             ValidateId(id);
             var document = await session.LoadAsync<BlogPostDocument>(id, cancellationToken);
-            return document is null
-                ? Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError($"Blog post with id '{id}' not found"))
+            return document is null || document.SiteId != _siteContext.SiteId
+                ? Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError($"Blog post with id '{id}' not found or access denied"))
                 : Prelude.Ok<BlogPostDocument?, AeroError>(document);
         }
         catch (Exception ex)

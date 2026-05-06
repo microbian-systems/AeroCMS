@@ -341,7 +341,23 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
     app.MapIdentityApi();
     app.MapAeroCmsEndpoints();
-    app.UseStatusCodePagesWithRedirects("/oops"); // todo - figure out why this only works when called from here for now
+    app.UseStatusCodePages(statusCodeContext =>
+    {
+        var httpContext = statusCodeContext.HttpContext;
+        if (httpContext.Response.HasStarted)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (httpContext.Request.Path.StartsWithSegments("/oops", StringComparison.OrdinalIgnoreCase))
+        {
+            httpContext.Response.Redirect("/nosite");
+            return Task.CompletedTask;
+        }
+
+        httpContext.Response.Redirect("/oops");
+        return Task.CompletedTask;
+    }); // Keep the CMS /oops redirect, but avoid looping if a site has not created /oops yet.
 
     try
     {

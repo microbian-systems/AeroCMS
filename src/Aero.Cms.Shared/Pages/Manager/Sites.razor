@@ -243,7 +243,7 @@
         await CurrentSiteAccessor.SetCurrentSiteAsync(siteId);
         AdminState.SetSite(siteId, siteName ?? "Site");
         NotificationService.Notify(NotificationSeverity.Success, "Site selected");
-        Navigation.NavigateTo("/manager");
+        Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
     }
 
     private static List<string> ParseHosts(string text)

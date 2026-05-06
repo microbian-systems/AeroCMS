@@ -5,9 +5,12 @@
 @using Aero.Cms.Abstractions.Interfaces
 @using Aero.Cms.Abstractions.Models
 @using Aero.Core
+@using Aero.Cms.Shared.Services
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject ISitesHttpClient SitesClient
 @inject ICurrentSiteAccessor CurrentSiteAccessor
+@inject AdminStateContainer AdminState
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
 
@@ -98,7 +101,8 @@ else
                     {
                         var site = _sites[0];
                         await CurrentSiteAccessor.SetCurrentSiteAsync(site.Id);
-                        Navigation.NavigateTo("/manager");
+                        AdminState.SetSite(site.Id, site.Name ?? "Site");
+                        Navigation.NavigateTo("/manager", forceLoad: true);
                     }
                     break;
 
@@ -121,7 +125,9 @@ else
 
     private async Task SelectSite(long siteId)
     {
+        var site = _sites?.FirstOrDefault(s => s.Id == siteId);
         await CurrentSiteAccessor.SetCurrentSiteAsync(siteId);
-        Navigation.NavigateTo("/manager");
+        AdminState.SetSite(siteId, site?.Name ?? "Site");
+        Navigation.NavigateTo("/manager", forceLoad: true);
     }
 }

@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Core;
+using Aero.Core.Entities;
 using Marten;
 
 namespace Aero.Cms.Modules.Pages;
@@ -12,11 +13,10 @@ public enum ContentSlugOwnerType
     ContentItem = 3
 }
 
-public sealed class ContentSlugDocument : ISiteOwned
+public sealed class ContentSlugDocument : Entity, ISiteOwned
 {
     private const string RootSlugKey = "__root__";
 
-    public long Id { get; set; } = Snowflake.NewId();
     public long SiteId { get; set; }
     public string Slug { get; set; } = string.Empty;
     public string NormalizedSlug { get; set; } = string.Empty;
@@ -72,9 +72,11 @@ public static class ContentSlugReservation
     {
         var normalizedSlug = ContentSlugDocument.Normalize(slug);
         
-        // Find existing reservation for this slug
+        // Find existing reservation for this slug within the current site.
         var existingReservation = await session.Query<ContentSlugDocument>()
-            .FirstOrDefaultAsync(x => x.NormalizedSlug == normalizedSlug, cancellationToken);
+            .FirstOrDefaultAsync(
+                x => x.SiteId == siteId && x.NormalizedSlug == normalizedSlug,
+                cancellationToken);
             
         if (existingReservation is not null && existingReservation.OwnerId != ownerId)
         {
@@ -88,7 +90,11 @@ public static class ContentSlugReservation
             if (normalizedPreviousSlug != normalizedSlug)
             {
                 var previousReservation = await session.Query<ContentSlugDocument>()
-                    .FirstOrDefaultAsync(x => x.NormalizedSlug == normalizedPreviousSlug && x.OwnerId == ownerId, cancellationToken);
+                    .FirstOrDefaultAsync(
+                        x => x.SiteId == siteId &&
+                             x.NormalizedSlug == normalizedPreviousSlug &&
+                             x.OwnerId == ownerId,
+                        cancellationToken);
                 
                 if (previousReservation is not null)
                 {

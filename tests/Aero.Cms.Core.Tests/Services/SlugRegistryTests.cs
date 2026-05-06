@@ -63,4 +63,36 @@ public sealed class SlugRegistryTests
             Arg.Is<ContentSlugDocument>(d => d.SiteId == 42)
         );
     }
+
+    [Test]
+    public async Task ReserveAsync_AllowsSameSlugAcrossDifferentSites()
+    {
+        var docs = new List<ContentSlugDocument>
+        {
+            ContentSlugDocument.Create("/", 100, ContentSlugOwnerType.Page, siteId: 1)
+        }.AsQueryable();
+
+        var queryable = Substitute.For<IQueryable<ContentSlugDocument>>();
+        queryable.Provider.Returns(docs.Provider);
+        queryable.Expression.Returns(docs.Expression);
+        queryable.ElementType.Returns(docs.ElementType);
+        queryable.GetEnumerator().Returns(docs.GetEnumerator());
+
+        _session.Query<ContentSlugDocument>().Returns(queryable);
+
+        await ContentSlugReservation.ReserveAsync(
+            _session,
+            ownerId: 200,
+            ContentSlugOwnerType.Page,
+            slug: "/",
+            siteId: 2,
+            previousSlug: null,
+            CancellationToken.None);
+
+        _session.Received(1).Store(
+            Arg.Is<ContentSlugDocument>(d =>
+                d.SiteId == 2 &&
+                d.OwnerId == 200 &&
+                d.NormalizedSlug == ContentSlugDocument.Normalize("/")));
+    }
 }
