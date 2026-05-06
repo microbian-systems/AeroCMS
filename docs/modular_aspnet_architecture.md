@@ -386,19 +386,14 @@ Approach:
 
 # Recommended Cache Architecture
 
-Use multi-layer caching.
+Use two cache profiles:
 
-L1 cache
+| Surface | Cache Layers |
+|---|---|
+| Public CMS pages, blog, docs, sitemap, and public headless reads | Response caching + Output caching + FusionCache |
+| Manager/admin UI and manager API data | FusionCache only |
 
-Memory cache (per node)
-
-L2 cache
-
-Redis or Garnet distributed cache
-
-L3
-
-Database (Postgres / Marten)
+FusionCache itself uses L1 local memory and optional L2 Redis/Garnet. Marten/Postgres remains the source of truth, not a cache layer.
 
 ---
 
@@ -409,18 +404,19 @@ Database (Postgres / Marten)
 | Framework | ASP.NET Core (.NET 10+) |
 | **Routing** | **Minimal APIs** (for Headless API) |
 | **Rendering** | Razor Views |
-| **Caching** | **Triple Threat** (Output Cache + FusionCache + Marten) |
-| L1 Cache | Memory cache (per node) |
-| L2 Cache | Redis distributed cache |
-| L3 / Store | Marten DB (PostgreSQL) |
+| **Caching** | Public: Response Cache + Output Cache + FusionCache; Manager/admin: FusionCache only |
+| FusionCache L1 | Memory cache (per node) |
+| FusionCache L2 | Redis/Garnet distributed cache |
+| Source of Truth | Marten DB (PostgreSQL) |
 
 ---
 
 # Cache Invalidation Strategy
 
-1. **Tag-Based Eviction:** Use `IOutputCacheStore.EvictByTagAsync` to clear cached HTML responses when underlying content changes.
-2. **Admin Purge:** Implement a `POST /admin/clear-cache` endpoint for manual intervention.
-3. **Fail-Safe:** Leverage FusionCache to serve stale data if the persistent store is under high load or temporarily unavailable.
+1. **Tag-Based Eviction:** Use Wolverine events to clear FusionCache keys/tags for public and manager data.
+2. **Public Output Eviction:** Use `IOutputCacheStore.EvictByTagAsync` to clear public cached HTML responses when underlying content changes.
+3. **Admin Purge:** Implement a `POST /admin/clear-cache` endpoint for manual intervention across public output cache and FusionCache entries.
+4. **Fail-Safe:** Leverage FusionCache to serve stale data if the persistent store is under high load or temporarily unavailable.
 
 
 ---
