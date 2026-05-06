@@ -262,8 +262,9 @@ public class SitesModule : AeroWebModule, IConfigureMarten
             if (allHosts.Count > 0)
                 await siteService.ReplaceHostsAsync(createdSite.Id, allHosts);
 
-            // Auto-create a default homepage so the new site has initial content
+            // Auto-create default pages so the new site has initial content
             await CreateDefaultHomepageAsync(session, createdSite);
+            await CreateOopsPageAsync(session, createdSite);
 
             return Results.Created($"/api/v1/admin/sites/{createdSite.Id}", createdSite);
         });
@@ -332,6 +333,59 @@ public class SitesModule : AeroWebModule, IConfigureMarten
             Summary = $"Welcome to {site.Name}",
             SiteId = site.Id,
             PublicationState = ContentPublicationState.Published
+        };
+
+        session.Store(page);
+        await session.SaveChangesAsync();
+    }
+
+    private static async Task CreateOopsPageAsync(IDocumentSession session, SitesModel site)
+    {
+        // Create a BoringHeroBlock for the /oops page
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = "Page Not Found",
+            Summary = "The page you're looking for doesn't exist or has been moved.",
+            FullWidth = true,
+            Order = 0
+        };
+
+        session.Store(heroBlock);
+
+        var page = new PageDocument
+        {
+            Id = Snowflake.NewId(),
+            Kind = PageKind.Standard,
+            Slug = "/oops",
+            Title = "Oops",
+            Summary = "Page not found",
+            SiteId = site.Id,
+            PublicationState = ContentPublicationState.Published,
+            LayoutRegions =
+            [
+                new LayoutRegion
+                {
+                    Name = "Main",
+                    Order = 0,
+                    Columns =
+                    [
+                        new LayoutColumn
+                        {
+                            Width = 12,
+                            Blocks =
+                            [
+                                new BlockPlacement
+                                {
+                                    BlockId = heroBlock.Id,
+                                    BlockType = heroBlock.BlockType,
+                                    Order = 0
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
         };
 
         session.Store(page);
