@@ -58,26 +58,23 @@
                     </svg>
                     @(IsSaving ? "Saving..." : "Save")
                 </button>
-                @if (Id.HasValue)
+                @if (PublishedAt.HasValue)
                 {
-                    @if (PublishedAt.HasValue)
-                    {
-                        <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="UnpublishPost">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Unpublish
-                        </button>
-                    }
-                    else
-                    {
-                        <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPost">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Publish
-                        </button>
-                    }
+                    <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="UnpublishPost">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Unpublish
+                    </button>
+                }
+                else
+                {
+                    <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPost">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Publish
+                    </button>
                 }
             </div>
         </div>

@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
@@ -26,6 +27,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Wolverine;
 
@@ -317,6 +319,39 @@ public class SitesModule : AeroWebModule, IConfigureMarten
                 Result<bool, AeroError>.Failure f => Results.Problem(f.Error.ToString()),
                 _ => Results.Problem("Unexpected result")
             };
+        });
+
+        // ── Client error reporting endpoint ──
+        var errorsGroup = endpoints.MapGroup($"/{HttpConstants.ApiPrefix}admin/errors")
+            .WithTags("Admin - Error Reporting");
+
+        errorsGroup.MapPost("/", async (
+            ClientErrorEntry entry,
+            IMessageBus bus,
+            ILoggerFactory loggerFactory) =>
+        {
+            var logger = loggerFactory.CreateLogger("ClientErrorReporting");
+            try
+            {
+                logger.LogWarning("Client error reported: {ErrorType} \u2014 {ErrorMessage} at {ClientUrl}",
+                    entry.ErrorType, entry.ErrorMessage, entry.ClientUrl);
+
+                await bus.PublishAsync(new ClientErrorReported(
+                    entry.ErrorType,
+                    entry.ErrorMessage,
+                    entry.ClientUrl,
+                    entry.UserAgent,
+                    entry.ClientTimestamp,
+                    entry.StackTrace
+                ));
+
+                return Results.Ok();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to process client error report");
+                return Results.Problem("Failed to process error report");
+            }
         });
 
         return Task.CompletedTask;

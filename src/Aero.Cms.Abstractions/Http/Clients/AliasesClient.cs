@@ -19,7 +19,6 @@ public interface IAliasHttpClient
 
 /// <summary>
 /// HTTP client for alias management API.
-/// NOTE: Backend endpoints (admin/aliases/) are stubs — implement in Aero.Cms.Modules.Aliases before use.
 /// </summary>
 public class AliasesHttpClient(HttpClient httpClient, ILogger<AliasesHttpClient> logger)
     : AeroCmsClientBase(httpClient, logger), IAliasHttpClient

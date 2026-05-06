@@ -49,6 +49,7 @@ builder.Services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor
 builder.Services.AddRadzenComponents();
 
 // Register cross-cutting services that run client-side
+builder.Services.AddScoped<IErrorReportingService, ErrorReportingService>();
 builder.Services.AddSingleton<IHtmlSanitizer, HtmlSanitizer>();
 
 await builder.Build().RunAsync();

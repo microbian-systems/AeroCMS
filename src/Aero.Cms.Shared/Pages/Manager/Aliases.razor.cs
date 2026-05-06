@@ -1,4 +1,5 @@
-﻿using Aero.Cms.Abstractions.Models;
+﻿using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Shared.Services;
 using Aero.Core;
@@ -9,15 +10,13 @@ using Radzen;
 using Radzen.Blazor;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
 public partial class Aliases
 {
     [Inject] public ILogger<Aliases> log { get; set; } = default!;
-    [Inject] public AdminStateContainer AdminState { get; set; } = default!;
-    //[Inject] public CurrentSiteAccessor ctx { get; }
+
     private RadzenDataGrid<AliasViewModel>? _grid;
     private IReadOnlyList<AliasViewModel>? _aliases;
     private int _count;
@@ -27,24 +26,36 @@ public partial class Aliases
     private string _createOldPath = "";
     private string _createNewPath = "";
 
+    /// <summary>
+    /// Resolves the current SiteId from AdminState (singleton state container,
+    /// hydrated from localStorage by ManagerShellLayout). Falls back to the
+    /// default site API if state hasn't been hydrated yet.
+    ///
+    /// SiteId MUST be passed from client to server on every request (REST is stateless).
+    /// </summary>
+    private async Task<long?> ResolveSiteIdAsync()
+    {
+        var siteId = AdminState.CurrentSiteId;
+
+        if (siteId is null)
+        {
+            var defaultResult = await SitesClient.GetDefaultAsync();
+            if (defaultResult is Result<SiteViewModel, AeroError>.Ok defaultOk)
+            {
+                siteId = defaultOk.Value.Id;
+                AdminState.SetSite(defaultOk.Value.Id, defaultOk.Value.Name ?? "Default Site");
+            }
+        }
+
+        return siteId;
+    }
+
     private async Task LoadData(LoadDataArgs args)
     {
         _isLoading = true;
         try
         {
-            var siteId = AdminState.CurrentSiteId;
-
-            // Fallback: if state wasn't hydrated yet, call the default site API
-            if (siteId is null)
-            {
-                var defaultResult = await SitesClient.GetDefaultAsync();
-                if (defaultResult is Result<SiteViewModel, AeroError>.Ok defaultOk)
-                {
-                    siteId = defaultOk.Value.Id;
-                    AdminState.SetSite(defaultOk.Value.Id, defaultOk.Value.Name ?? "Default Site");
-                }
-            }
-
+            var siteId = await ResolveSiteIdAsync();
             if (siteId is null) return;
 
             var result = await AliasClient.GetAllBySiteAsync(siteId.Value);
@@ -60,7 +71,7 @@ public partial class Aliases
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "error occurred getting site aliases {SiteId}", AdminState.CurrentSiteId);
+            log.LogError(ex, "error occurred getting site aliases");
         }
         finally
         {
@@ -71,7 +82,12 @@ public partial class Aliases
     private async Task HandleCreate()
     {
         var siteId = AdminState.CurrentSiteId;
-        if (siteId is null) return;
+        if (siteId is null)
+        {
+            // Fallback: try resolving from default site API
+            siteId = await ResolveSiteIdAsync();
+            if (siteId is null) return;
+        }
 
         var request = new CreateAliasRequest(siteId.Value, _createOldPath, _createNewPath);
         var result = await AliasClient.CreateAsync(request);

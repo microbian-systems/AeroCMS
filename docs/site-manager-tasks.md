@@ -403,6 +403,83 @@ The following concerns were investigated and found to be **already resolved** in
 | `DefaultSiteContext` reads `X-Site-Id`/`X-Tenant-Id` headers | **Resolved** — Reads from `HttpContext.Features.Get<IAeroSiteSlice>()` set by middleware, not headers |
 | `SiteViewModel` missing `TenantId` | **Resolved** — `SiteViewModel` already has `TenantId` field (line 18) |
 
+### 🐛 Active Bugs & Issues (2026-05-06)
+
+The following bugs were discovered after the initial multi-site implementation and need fixing:
+
+---
+
+#### 1. New Site: Missing `/oops` Page
+
+**Problem**: Creating a new site via `POST /api/v1/admin/sites` auto-creates a homepage but does not create an `/oops` page. The `/oops` route (shown on errors/not-found) 404s.
+
+**Fix**: On site creation, also create an `OopsPage` document with:
+- Slug: `/oops`
+- Single block: "Boring Header" block type
+- SiteId: stamped with the new site's ID
+
+**Location**: `src/Aero.Cms.Modules.Sites/SitesModule.cs` — alongside the existing homepage auto-creation.
+
+---
+
+#### 2. Unpublished Pages Still Visible in Public CMS
+
+**Problem**: When a page is unpublished (set to a non-Published state), it still resolves and renders in the public frontend. The public page render endpoint (`GET /api/v1/pages/{slug}` or similar) doesn't filter by `PublicationState`.
+
+**Expected**: Unpublished pages should return 404 or a "not found" response from public endpoints. Manager preview should still work (potentially via a preview key/token).
+
+**Scope**: Check all public content rendering paths (Pages, Blog posts, Docs) to ensure they filter by `Published` state.
+
+---
+
+#### 3. Blog Posts: Missing Publish/Unpublish Toggle + Public Visibility
+
+**Problem**: 
+- The blog post editor in the manager has no Publish/Unpublish toggle button. Posts can't be published or unpublished from the UI.
+- Unpublished blog posts (even if set via API) are still served on the public frontend.
+
+**Fix**:
+- Add Publish/Unpublish button to the blog post editor UI (alongside Save, similar to page editor).
+- Ensure public blog post queries filter by `PublicationState = Published`.
+
+**Location**: Blog post editor Razor page + `BlogPostContentService` public query methods.
+
+---
+
+#### 4. Manager Error Handling: Wolverine Error Message
+
+**Problem**: When an error occurs in manager API calls, the UI shows a message (already implemented) but there's no structured error reporting:
+- No Wolverine message is fired with error details.
+- Errors are not persisted client-side (IndexedDB/localStorage "error" bucket).
+- Errors are not sent to the server with client context (URL, user agent, timestamp, etc.).
+
+**Required**:
+1. Define a Wolverine error message type (can wrap existing `AeroError` types).
+2. Fired from the HTTP client response pipeline (e.g., `AeroCmsClientBase` or per-client error handling).
+3. Client-side handler stores to a local "error" bucket (IndexedDB preferred).
+4. Server-side handler receives error details + client info and persists/logs.
+
+**Location**: 
+- Error message type: `Aero.Cms.Abstractions/Messages/` (new)
+- Client-side handler: WASM client app
+- Server-side handler: server-side handler in a suitable module
+
+---
+
+#### 5. Aliases Not Showing in Manager Panel
+
+**Problem**: The Aliases panel (`/manager/aliases`) shows an empty list even when aliases exist for the current site. This is a regression — it worked previously.
+
+**Likely cause**: The alias query endpoint isn't filtering by the correct `SiteId`, or the `DefaultSiteContext` cookie isn't being read properly for `/api/v1/admin/aliases/*` routes.
+
+**Debugging needed**: Check:
+- `GET /api/v1/admin/aliases` endpoint query logic (SiteId filtering)
+- That the `AeroCms.SiteId` cookie is present in the request
+- That `DefaultSiteContext.SiteId` resolves correctly for admin alias routes
+- Compare with working endpoints (e.g., `GET /api/v1/admin/pages`)
+
+---
+
 ### Alias Indexing
 
 Aliases are site-owned.

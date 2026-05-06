@@ -1155,6 +1155,24 @@ public partial class PageEditor : ComponentBase, IDisposable
         }
     }
 
+    protected async Task UnpublishPage()
+    {
+        if (Id.HasValue)
+        {
+            var result = await PagesClient.UnpublishAsync(Id.Value);
+            if (result is Result<CmsPageDetail, AeroError>.Ok ok)
+            {
+                PublicationState = ok.Value.PublicationState;
+                _pageState = PageState.Clean;
+                ShowToast("Page unpublished", "success");
+            }
+            else
+            {
+                ShowToast("Failed to unpublish", "error");
+            }
+        }
+    }
+
     protected void UpdateLastSaved()
         => LastSaved = DateTime.Now.ToString("HH:mm");
 

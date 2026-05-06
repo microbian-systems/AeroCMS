@@ -5,11 +5,12 @@
 @using Aero.Cms.Abstractions.Interfaces
 @using Aero.Cms.Abstractions.Models
 @using Aero.Cms.Abstractions.Requests
+@using Aero.Cms.Shared.Services
 @using Aero.Core
 @using Aero.Core.Railway
 @inject IAliasHttpClient AliasClient
 @inject ISitesHttpClient SitesClient
-@inject ICurrentSiteAccessor CurrentSiteAccessor
+@inject AdminStateContainer AdminState
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation

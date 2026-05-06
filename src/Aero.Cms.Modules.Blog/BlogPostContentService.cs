@@ -118,13 +118,18 @@ public sealed class MartenBlogPostContentService(IDocumentSession session, ISite
 
             if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.BlogPost)
             {
-                return Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError($"Blog post with slug '{slug}' not found"));
+                return Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.NotFoundError($"Blog post with slug '{slug}' not found"));
             }
 
             var document = await session.LoadAsync<BlogPostDocument>(reservation.OwnerId, cancellationToken);
-            return document is null
-                ? Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.CreateError($"Blog post with id '{reservation.OwnerId}' not found"))
-                : Prelude.Ok<BlogPostDocument?, AeroError>(document);
+            if (document is null)
+                return Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.NotFoundError($"Blog post with id '{reservation.OwnerId}' not found"));
+
+            // Filter by published state — unpublished posts must not be publicly accessible
+            if (document.PublicationState != ContentPublicationState.Published)
+                return Prelude.Fail<BlogPostDocument?, AeroError>(AeroError.NotFoundError($"Blog post with slug '{slug}' not found"));
+
+            return Prelude.Ok<BlogPostDocument?, AeroError>(document);
         }
         catch (Exception ex)
         {

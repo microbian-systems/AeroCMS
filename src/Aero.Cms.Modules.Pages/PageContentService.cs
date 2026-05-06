@@ -92,13 +92,18 @@ public sealed class MartenPageContentService(IDocumentSession session, IBlockSer
                     string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
             if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.Page)
             {
-                return Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError($"Page with slug '{slug}' not found"));
+                return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
             }
 
             var document = await session.LoadAsync<PageDocument>(reservation.OwnerId, cancellationToken);
-            return document is null
-                ? Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError($"Page with id '{reservation.OwnerId}' not found"))
-                : Prelude.Ok<PageDocument?, AeroError>(document);
+            if (document is null)
+                return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with id '{reservation.OwnerId}' not found"));
+
+            // Filter by published state — unpublished pages must not be publicly accessible
+            if (document.PublicationState != ContentPublicationState.Published)
+                return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
+
+            return Prelude.Ok<PageDocument?, AeroError>(document);
         }
         catch (Exception ex)
         {
