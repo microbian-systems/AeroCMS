@@ -268,9 +268,9 @@
 	  <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
 	  <ProjectReference Include="..\Aero.AppServer\Aero.AppServer.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
-	  <ProjectReference Include="..\Aero.Cms.Banners\Aero.Cms.Banners.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.CookiePolicy\Aero.Cms.CookiePolicy.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Ai\Aero.Cms.Modules.Ai.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Banner\Aero.Cms.Modules.Banner.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Chat\Aero.Cms.Modules.Chat.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Content\Aero.Cms.Modules.Content.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Commerce\Aero.Cms.Modules.Commerce.csproj" />
@@ -292,7 +292,9 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.OpenTelemetry\Aero.Cms.Modules.OpenTelemetry.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.OutputCache\Aero.Cms.Modules.OutputCache.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.RequestLog\Aero.Cms.Modules.RequestLog.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Scalar\Aero.Cms.Modules.Scalar.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Search\Aero.Cms.Modules.Search.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Secrets\Aero.Cms.Modules.Secrets.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Settings\Aero.Cms.Modules.Settings.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Sites\Aero.Cms.Modules.Sites.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Static\Aero.Cms.Modules.Static.csproj" />

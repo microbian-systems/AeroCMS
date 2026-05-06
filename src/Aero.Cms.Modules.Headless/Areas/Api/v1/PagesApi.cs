@@ -357,7 +357,7 @@ public static class PagesApi
             p.SeoTitle,
             p.SeoDescription,
             p.CreatedOn.DateTime,
-            p.ModifiedOn.Value.DateTime,
+            (p.ModifiedOn ?? p.CreatedOn).DateTime,
             p.PublishedOn?.DateTime,
             p.PublicationState,
             p.Blocks.Count,

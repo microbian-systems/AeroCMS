@@ -347,6 +347,11 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
             return Task.CompletedTask;
         }
 
+        if (httpContext.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.CompletedTask;
+        }
+
         if (httpContext.Request.Path.StartsWithSegments("/oops", StringComparison.OrdinalIgnoreCase))
         {
             httpContext.Response.Redirect("/nosite");

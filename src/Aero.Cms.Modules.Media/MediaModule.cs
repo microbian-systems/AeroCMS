@@ -13,7 +13,7 @@ using Marten;
 namespace Aero.Cms.Modules.Media;
 
 [Module(nameof(MediaModule))]
-public class MediaModule : AeroModuleBase, IConfigureMarten
+public class MediaModule : AeroWebModule, IConfigureMarten
 {
     public override string Name => nameof(MediaModule);
     public override string Version => AeroConstants.Version;
