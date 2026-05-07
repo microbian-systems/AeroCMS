@@ -1,8 +1,10 @@
 @page
+@using Aero.Cms.Abstractions.Blocks.Common
 @using Aero.Cms.Modules.Blog.Models
 @using Aero.Core
 @using Aero.Core.Railway
 @using Aero.Services.Images
+@using Markdig
 
 @inject Aero.Cms.Modules.Blog.IBlogPostContentService BlogService
 @inject IStaticPhotosClient StaticPhotos
@@ -83,14 +85,16 @@
         </div>
     </header>
 
-    @* Content Blocks *@
+    @* Content Blocks — render markdown directly via Markdig *@
     <div class="prose prose-lg max-w-none">
-        @if (post.Content?.Count > 0)
+        @{
+            var markdownContent = string.Join("\n\n", post.Content
+                .OfType<MarkdownBlock>()
+                .Select(b => b.Content));
+        }
+        @if (!string.IsNullOrWhiteSpace(markdownContent))
         {
-            foreach (var block in post.Content.OrderBy(b => b.Order))
-            {
-                <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.BlockRenderer)" render-mode="Static" param-Block="block" />
-            }
+            @Html.Raw(Markdown.ToHtml(markdownContent))
         }
         else
         {

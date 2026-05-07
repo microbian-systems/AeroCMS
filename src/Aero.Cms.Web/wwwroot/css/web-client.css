@@ -42,9 +42,14 @@
     @apply font-sans;
   }
   
-  h1, h2, h3, h4, h5, h6 {
+/*  :where(:not(.prose, .not-prose *)) h1,
+  :where(:not(.prose, .not-prose *)) h2,
+  :where(:not(.prose, .not-prose *)) h3,
+  :where(:not(.prose, .not-prose *)) h4,
+  :where(:not(.prose, .not-prose *)) h5,
+  :where(:not(.prose, .not-prose *)) h6 {
     @apply font-display font-black tracking-tight;
-  }
+  }*/
   
   /* Shared block utilities */
   .container-wide {

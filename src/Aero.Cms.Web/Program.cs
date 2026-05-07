@@ -26,6 +26,7 @@ using Aero.Cms.Web.Infrastructure;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Hydro.Configuration;
 
 
 // Implements a two-stage startup pattern:
@@ -299,7 +300,10 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     // Social plug discovery now uses provider-declared plugs via
     // GetDeclaredPlugs() overrides — no reflection or startup catalog needed.
     // ReflectionSocialPlugCatalog has been removed.
-    
+
+    services.AddHydro();
+
+
     log.Information("Building main Aero CMS app...");
 
     var app = builder.Build();
@@ -320,7 +324,6 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
 
     app.UseHttpsRedirection();
-    app.MapStaticAssets();
 
     app.UseRouting();
     app.UseAuthentication();
@@ -328,6 +331,15 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     app.UseCmsSetupGate();
     app.UseAeroCmsModulePipeline();
     app.UseAntiforgery();
+
+    // Hydro MUST come before MapStaticAssets because it replaces
+    // IWebHostEnvironment.WebRootFileProvider with a CompositeFileProvider
+    // that maps /hydro/* paths to embedded JS resources. MapStaticAssets
+    // snapshots the provider at config time; if placed before UseHydro,
+    // it never sees the Hydro scripts.
+    app.UseHydro(builder.Environment);
+
+    app.MapStaticAssets();
 
     app.UseStatusCodePagesWithReExecute("/oops", "?status={0}");
     app.Use(async (context, next) =>

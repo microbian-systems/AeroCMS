@@ -30,7 +30,9 @@ private static readonly string[] PrefixPaths =
         "/_blazor",  // Blazor Server SignalR
         "/css",
         "/js",
-        "/images"
+        "/images",
+        "/img",
+        "/hydro"
     ];
 
     public bool IsAllowed(PathString path)
