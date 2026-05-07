@@ -360,6 +360,36 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-0">
                     <div class="p-5 space-y-4 border-r" style="border-color: var(--pe-border);">
                         <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">AI provider</label>
+                            @if (IsLoadingAiProviders)
+                            {
+                                <div class="rounded-md border px-3 py-2 text-sm" style="border-color: var(--pe-border); color: var(--pe-text-muted);">
+                                    Loading providers...
+                                </div>
+                            }
+                            else if (AiProviderOptions.Count == 0)
+                            {
+                                <div class="rounded-md border px-3 py-2 text-sm" style="border-color: #f59e0b; color: #92400e; background: rgba(245, 158, 11, 0.08);">
+                                    Configure and enable an AI provider before generating suggestions.
+                                </div>
+                            }
+                            else
+                            {
+                                <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                        style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                        value="@SelectedAiProviderId"
+                                        @onchange="e => SelectedAiProviderId = e.Value?.ToString()">
+                                    @foreach (var provider in AiProviderOptions)
+                                    {
+                                        <option value="@provider.Id">
+                                            @(provider.IsDefault ? $"{provider.DisplayName} (default)" : provider.DisplayName)
+                                        </option>
+                                    }
+                                </select>
+                            }
+                        </div>
+
+                        <div>
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Target field</label>
                             <select class="w-full rounded-md shadow-sm sm:text-sm"
                                     style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
@@ -388,7 +418,7 @@
                             <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick='() => UseQuickPrompt("Improve this for SEO while keeping it accurate.")'>Improve SEO</button>
                         </div>
 
-                        <button class="pe-btn @(IsEnhancing ? "pe-btn-secondary" : "pe-btn-primary") w-full justify-center" @onclick="RunEnhancementAsync" disabled="@IsEnhancing">
+                        <button class="pe-btn @(IsEnhancing ? "pe-btn-secondary" : "pe-btn-primary") w-full justify-center" @onclick="RunEnhancementAsync" disabled="@(IsEnhancing || IsLoadingAiProviders || AiProviderOptions.Count == 0)">
                             @(IsEnhancing ? "Enhancing..." : "Generate suggestion")
                         </button>
                     </div>

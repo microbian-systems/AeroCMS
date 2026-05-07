@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -8,20 +9,13 @@ namespace Aero.Cms.Shared.Pages.Manager;
 
 public partial class AiSettings
 {
-    [Inject] protected ISettingsHttpClient SettingsClient { get; set; } = default!;
+    [Inject] protected IAiHttpClient AiClient { get; set; } = default!;
 
-    protected bool Enabled { get; set; }
-    protected string Provider { get; set; } = "Tornado";
-    protected string Endpoint { get; set; } = string.Empty;
-    protected string Model { get; set; } = string.Empty;
-    protected string ApiKeySecretName { get; set; } = string.Empty;
-    protected string ApiKeyEnvironmentVariable { get; set; } = string.Empty;
-    protected string Temperature { get; set; } = "0.3";
-    protected string MaxOutputTokens { get; set; } = "1200";
-    protected string TimeoutSeconds { get; set; } = "60";
-    protected bool StreamResponses { get; set; }
-    protected bool SaveUsageTelemetry { get; set; }
+    protected bool IsLoading { get; set; } = true;
     protected bool IsSaving { get; set; }
+    protected bool Enabled { get; set; }
+    protected string DefaultProviderId { get; set; } = "tornado";
+    protected List<ProviderFormModel> Providers { get; set; } = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -30,62 +24,51 @@ public partial class AiSettings
 
     protected async Task LoadAsync()
     {
-        var result = await SettingsClient.GetByCategoryAsync("AI");
-        if (result is not Result<IReadOnlyList<SettingDetail>, AeroError>.Ok ok)
+        IsLoading = true;
+        var result = await AiClient.GetSettingsAsync();
+        if (result is Result<AiSettingsConfiguration, AeroError>.Ok ok)
         {
-            return;
+            Enabled = ok.Value.Enabled;
+            DefaultProviderId = ok.Value.DefaultProviderId;
+            Providers = ok.Value.Providers.Select(ProviderFormModel.FromSettings).ToList();
+        }
+        else if (result is Result<AiSettingsConfiguration, AeroError>.Failure failure)
+        {
+            Notify(NotificationSeverity.Error, "AI settings failed", failure.Error.ToString());
         }
 
-        var settings = ok.Value.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-        Enabled = Get(settings, "Ai.Enabled", "false").Equals("true", StringComparison.OrdinalIgnoreCase);
-        Provider = Get(settings, "Ai.Provider", "Tornado");
-        Endpoint = Get(settings, "Ai.Endpoint", string.Empty);
-        Model = Get(settings, "Ai.Model", string.Empty);
-        ApiKeySecretName = Get(settings, "Ai.ApiKeySecretName", string.Empty);
-        ApiKeyEnvironmentVariable = Get(settings, "Ai.ApiKeyEnvironmentVariable", string.Empty);
-        Temperature = Get(settings, "Ai.Temperature", "0.3");
-        MaxOutputTokens = Get(settings, "Ai.MaxOutputTokens", "1200");
-        TimeoutSeconds = Get(settings, "Ai.TimeoutSeconds", "60");
-        StreamResponses = Get(settings, "Ai.StreamResponses", "false").Equals("true", StringComparison.OrdinalIgnoreCase);
-        SaveUsageTelemetry = Get(settings, "Ai.SaveUsageTelemetry", "false").Equals("true", StringComparison.OrdinalIgnoreCase);
+        IsLoading = false;
     }
 
     protected async Task SaveAsync()
     {
         IsSaving = true;
 
-        var settings = new Dictionary<string, string>
-        {
-            ["Ai.Enabled"] = Enabled.ToString(),
-            ["Ai.Provider"] = Provider,
-            ["Ai.Endpoint"] = Endpoint,
-            ["Ai.Model"] = Model,
-            ["Ai.ApiKeySecretName"] = ApiKeySecretName,
-            ["Ai.ApiKeyEnvironmentVariable"] = ApiKeyEnvironmentVariable,
-            ["Ai.Temperature"] = Temperature,
-            ["Ai.MaxOutputTokens"] = MaxOutputTokens,
-            ["Ai.TimeoutSeconds"] = TimeoutSeconds,
-            ["Ai.StreamResponses"] = StreamResponses.ToString(),
-            ["Ai.SaveUsageTelemetry"] = SaveUsageTelemetry.ToString()
-        };
+        var request = new SaveAiSettingsRequest(
+            Enabled,
+            DefaultProviderId,
+            Providers.Select(provider => provider.ToUpdate()).ToList());
 
-        foreach (var setting in settings)
+        var result = await AiClient.SaveSettingsAsync(request);
+        if (result is Result<AiSettingsConfiguration, AeroError>.Ok ok)
         {
-            var result = await SettingsClient.SetAsync(new SetSettingRequest(setting.Key, setting.Value, "AI", "string"));
-            if (result is Result<SettingDetail, AeroError>.Failure failure)
-            {
-                Notify(NotificationSeverity.Error, "AI settings failed", failure.Error.ToString());
-                IsSaving = false;
-                return;
-            }
+            Enabled = ok.Value.Enabled;
+            DefaultProviderId = ok.Value.DefaultProviderId;
+            Providers = ok.Value.Providers.Select(ProviderFormModel.FromSettings).ToList();
+            Notify(NotificationSeverity.Success, "AI settings saved", "Provider settings were updated.");
+        }
+        else if (result is Result<AiSettingsConfiguration, AeroError>.Failure failure)
+        {
+            Notify(NotificationSeverity.Error, "AI settings failed", failure.Error.ToString());
         }
 
-        Notify(NotificationSeverity.Success, "AI settings saved", "Provider settings were updated.");
         IsSaving = false;
     }
 
-    private static string Get(IReadOnlyDictionary<string, string> settings, string key, string fallback)
-        => settings.TryGetValue(key, out var value) ? value : fallback;
+    protected void SelectDefaultProvider(string providerId)
+    {
+        DefaultProviderId = providerId;
+    }
 
     private void Notify(NotificationSeverity severity, string summary, string detail)
     {
@@ -96,5 +79,68 @@ public partial class AiSettings
             Detail = detail,
             Duration = 4000
         });
+    }
+
+    protected sealed class ProviderFormModel
+    {
+        public string Id { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public AiProviderKind Provider { get; set; }
+        public bool Enabled { get; set; }
+        public string Endpoint { get; set; } = string.Empty;
+        public string Model { get; set; } = string.Empty;
+        public bool HasApiKey { get; set; }
+        public string ApiKey { get; set; } = string.Empty;
+        public bool ClearApiKey { get; set; }
+        public string Temperature { get; set; } = "0.3";
+        public string MaxOutputTokens { get; set; } = "1200";
+        public string TimeoutSeconds { get; set; } = "60";
+        public bool StreamResponses { get; set; }
+        public bool SaveUsageTelemetry { get; set; }
+        public bool SupportsContentEnhancement { get; set; }
+
+        public static ProviderFormModel FromSettings(AiProviderSettings settings)
+            => new()
+            {
+                Id = settings.Id,
+                DisplayName = settings.DisplayName,
+                Provider = settings.Provider,
+                Enabled = settings.Enabled,
+                Endpoint = settings.Endpoint ?? string.Empty,
+                Model = settings.Model ?? string.Empty,
+                HasApiKey = settings.HasApiKey,
+                Temperature = settings.Temperature.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+                MaxOutputTokens = settings.MaxOutputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                TimeoutSeconds = settings.TimeoutSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                StreamResponses = settings.StreamResponses,
+                SaveUsageTelemetry = settings.SaveUsageTelemetry,
+                SupportsContentEnhancement = settings.SupportsContentEnhancement
+            };
+
+        public AiProviderSettingsUpdate ToUpdate()
+            => new(
+                Id,
+                DisplayName,
+                Provider,
+                Enabled,
+                string.IsNullOrWhiteSpace(Endpoint) ? null : Endpoint,
+                string.IsNullOrWhiteSpace(Model) ? null : Model,
+                string.IsNullOrWhiteSpace(ApiKey) ? null : ApiKey,
+                ClearApiKey,
+                ParseFloat(Temperature, 0.3f),
+                ParseInt(MaxOutputTokens, 1200),
+                ParseInt(TimeoutSeconds, 60),
+                StreamResponses,
+                SaveUsageTelemetry);
+
+        private static int ParseInt(string value, int fallback)
+            => int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : fallback;
+
+        private static float ParseFloat(string value, float fallback)
+            => float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : fallback;
     }
 }

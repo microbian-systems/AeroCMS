@@ -57,5 +57,9 @@ public sealed class EnhanceContentRequestValidator : AbstractValidator<EnhanceCo
         RuleFor(x => x.Tone)
             .MaximumLength(100)
             .When(x => x.Tone is not null);
+
+        RuleFor(x => x.ProviderId)
+            .MaximumLength(100)
+            .When(x => x.ProviderId is not null);
     }
 }

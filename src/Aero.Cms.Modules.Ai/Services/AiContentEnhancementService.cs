@@ -3,9 +3,9 @@ using Aero.Cms.Modules.Ai.Configuration;
 using Aero.Core;
 using Aero.Core.Railway;
 using FluentValidation;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace Aero.Cms.Modules.Ai.Services;
 
@@ -16,6 +16,8 @@ public sealed class AiContentEnhancementService(
     IValidator<EnhanceContentRequest> validator,
     ILogger<AiContentEnhancementService> logger) : IAiContentEnhancementService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
     private const string Instructions = """
         You are an editorial assistant inside AeroCMS.
         Improve the supplied CMS content according to the user's prompt.
@@ -27,6 +29,35 @@ public sealed class AiContentEnhancementService(
         keep the text conservative. No cussing. No questionable material responses.
         """;
 
+    /// <summary>
+    /// Strips markdown code fences (```json ... ```) and surrounding whitespace from LLM responses
+    /// that wrap JSON in Markdown formatting despite instructions.
+    /// </summary>
+    private static string StripMarkdownFences(string text)
+    {
+        var trimmed = text.Trim();
+        if (trimmed.StartsWith("```", StringComparison.Ordinal))
+        {
+            // Remove opening fence (e.g. "```json" or "```")
+            var firstNewline = trimmed.IndexOf('\n');
+            if (firstNewline > 0)
+            {
+                trimmed = trimmed[(firstNewline + 1)..];
+            }
+
+            // Remove closing fence if present
+            var closingFence = trimmed.LastIndexOf("```", StringComparison.Ordinal);
+            if (closingFence >= 0)
+            {
+                trimmed = trimmed[..closingFence];
+            }
+
+            trimmed = trimmed.Trim();
+        }
+
+        return trimmed;
+    }
+
     public async Task<Result<EnhanceContentResponse, AeroError>> EnhanceAsync(
         EnhanceContentRequest request,
         CancellationToken cancellationToken = default)
@@ -37,19 +68,19 @@ public sealed class AiContentEnhancementService(
             return AeroError.ValidationError(validation.Errors.Select(error => error.ErrorMessage));
         }
 
-        var settingsResult = await settingsProvider.GetAsync(cancellationToken);
-        if (settingsResult is Result<AiSettings, AeroError>.Failure settingsFailure)
+        var settingsResult = await settingsProvider.GetAsync(request.ProviderId, cancellationToken);
+        if (settingsResult is Result<AiRuntimeSettings, AeroError>.Failure settingsFailure)
         {
             return settingsFailure.Error;
         }
 
-        var settings = ((Result<AiSettings, AeroError>.Ok)settingsResult).Value;
+        var settings = ((Result<AiRuntimeSettings, AeroError>.Ok)settingsResult).Value;
         if (!settings.Enabled)
         {
             return AeroError.ConfigurationError("AI is disabled.");
         }
 
-        var clientResult = await chatClientFactory.CreateAsync(cancellationToken);
+        var clientResult = await chatClientFactory.CreateAsync(settings, cancellationToken);
         if (clientResult is Result<IChatClient, AeroError>.Failure clientFailure)
         {
             return clientFailure.Error;
@@ -61,21 +92,45 @@ public sealed class AiContentEnhancementService(
 
         try
         {
-            var agent = new ChatClientAgent(client, instructions: Instructions);
+            // Build chat messages manually: system instructions + user prompt
+            var messages = new List<ChatMessage>
+            {
+                new(ChatRole.System, Instructions),
+                new(ChatRole.User, promptBuilder.Build(request))
+            };
+
             var chatOptions = new ChatOptions
             {
                 Temperature = settings.Temperature,
                 MaxOutputTokens = settings.MaxOutputTokens
             };
 
-            var response = await agent.RunAsync<EnhanceContentAgentOutput>(
-                promptBuilder.Build(request),
-                session: null,
-                serializerOptions: new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web),
-                options: new ChatClientAgentRunOptions(chatOptions),
-                cancellationToken: timeout.Token);
+            var chatResponse = await client.GetResponseAsync(messages, chatOptions, cancellationToken: timeout.Token);
+            var rawText = chatResponse.Messages?.LastOrDefault()?.Text;
 
-            var output = response.Result;
+            if (string.IsNullOrWhiteSpace(rawText))
+            {
+                return AeroError.CreateError("AI provider returned an empty response.");
+            }
+
+            // Some LLMs wrap JSON in markdown code fences — strip them before deserializing
+            var cleaned = StripMarkdownFences(rawText);
+
+            EnhanceContentAgentOutput? output;
+            try
+            {
+                output = JsonSerializer.Deserialize<EnhanceContentAgentOutput>(cleaned, JsonOptions);
+            }
+            catch (JsonException)
+            {
+                // If that fails, try parsing from the raw text as a fallback
+                output = JsonSerializer.Deserialize<EnhanceContentAgentOutput>(rawText, JsonOptions);
+            }
+
+            if (output is null)
+            {
+                return AeroError.CreateError("AI provider returned an unparseable response.");
+            }
             if (string.IsNullOrWhiteSpace(output.EnhancedText))
             {
                 return AeroError.CreateError("AI provider returned an empty enhancement.");
@@ -85,7 +140,7 @@ public sealed class AiContentEnhancementService(
                 output.EnhancedText,
                 output.Rationale,
                 output.Warnings ?? [],
-                settings.Provider.ToString(),
+                settings.DisplayName,
                 settings.Model ?? string.Empty,
                 Usage: null);
 

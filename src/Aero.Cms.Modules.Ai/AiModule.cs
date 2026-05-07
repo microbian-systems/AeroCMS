@@ -9,6 +9,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Ai;
@@ -25,6 +26,9 @@ public sealed class AiModule : AeroWebModule, IUiModule
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        services.AddDataProtection();
+        services.TryAddSingleton<IAiSecretProtector, DataProtectionAiSecretProtector>();
+        services.AddScoped<IAiSettingsStore, AiSettingsStore>();
         services.AddScoped<IAiSettingsProvider, AiSettingsProvider>();
         services.AddScoped<IAiChatClientFactory, TornadoAiChatClientFactory>();
         services.AddScoped<IAiContentEnhancementService, AiContentEnhancementService>();
@@ -37,4 +41,12 @@ public sealed class AiModule : AeroWebModule, IUiModule
         builder.MapAiApi();
         return Task.CompletedTask;
     }
+
+    public override async Task RunAsync(IServiceProvider sp)
+    {
+        await using var scope = sp.CreateAsyncScope();
+        var settingsStore = scope.ServiceProvider.GetRequiredService<IAiSettingsStore>();
+        await settingsStore.EnsureDefaultsAsync();
+    }
 }
+

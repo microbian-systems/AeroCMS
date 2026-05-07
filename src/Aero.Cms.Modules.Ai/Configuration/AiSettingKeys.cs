@@ -2,7 +2,11 @@ namespace Aero.Cms.Modules.Ai.Configuration;
 
 internal static class AiSettingKeys
 {
+    public const string Category = "AI";
     public const string Enabled = "Ai.Enabled";
+    public const string DefaultProviderId = "Ai.DefaultProviderId";
+    public const string ProviderIds = "Ai.ProviderIds";
+    public const string ProviderPrefix = "Ai.Provider.";
     public const string Provider = "Ai.Provider";
     public const string Endpoint = "Ai.Endpoint";
     public const string Model = "Ai.Model";
@@ -17,6 +21,8 @@ internal static class AiSettingKeys
     public static readonly IReadOnlyList<string> All =
     [
         Enabled,
+        DefaultProviderId,
+        ProviderIds,
         Provider,
         Endpoint,
         Model,

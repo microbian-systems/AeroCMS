@@ -6,5 +6,7 @@ namespace Aero.Cms.Modules.Ai.Configuration;
 
 public interface IAiSettingsProvider
 {
-    Task<Result<AiSettings, AeroError>> GetAsync(CancellationToken cancellationToken = default);
+    Task<Result<AiRuntimeSettings, AeroError>> GetAsync(
+        string? providerId = null,
+        CancellationToken cancellationToken = default);
 }

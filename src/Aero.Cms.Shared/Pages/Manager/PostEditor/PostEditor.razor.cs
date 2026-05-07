@@ -76,11 +76,14 @@ public partial class PostEditor : ComponentBase, IDisposable
     // AI enhancement state
     protected bool IsEnhancePanelOpen { get; set; }
     protected bool IsEnhancing { get; set; }
+    protected bool IsLoadingAiProviders { get; set; }
     protected string EnhanceTargetField { get; set; } = "body";
     protected string EnhancePrompt { get; set; } = string.Empty;
+    protected string? SelectedAiProviderId { get; set; }
     protected string? EnhanceSuggestion { get; set; }
     protected string? EnhanceRationale { get; set; }
     protected IReadOnlyList<string> EnhanceWarnings { get; set; } = [];
+    protected IReadOnlyList<AiProviderOption> AiProviderOptions { get; set; } = [];
 
     protected IReadOnlyList<EnhanceTargetOption> EnhanceTargetOptions { get; } =
     [
@@ -515,6 +518,8 @@ public partial class PostEditor : ComponentBase, IDisposable
         EnhanceRationale = null;
         EnhanceWarnings = [];
         IsEnhancePanelOpen = true;
+
+        await LoadAiProviderOptionsAsync();
     }
 
     protected void CloseEnhancePanel()
@@ -555,7 +560,8 @@ public partial class PostEditor : ComponentBase, IDisposable
             Summary: Excerpt,
             Slug: PostSlug,
             Tone: null,
-            Metadata: BuildEnhanceMetadata());
+            Metadata: BuildEnhanceMetadata(),
+            ProviderId: string.IsNullOrWhiteSpace(SelectedAiProviderId) ? null : SelectedAiProviderId);
 
         var result = await AiClient.EnhanceContentAsync(request);
         if (result is Result<EnhanceContentResponse, AeroError>.Ok ok)
@@ -631,6 +637,34 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
 
         return metadata;
+    }
+
+    private async Task LoadAiProviderOptionsAsync()
+    {
+        IsLoadingAiProviders = true;
+        await InvokeAsync(StateHasChanged);
+
+        var result = await AiClient.GetProviderOptionsAsync();
+        if (result is Result<IReadOnlyList<AiProviderOption>, AeroError>.Ok ok)
+        {
+            AiProviderOptions = ok.Value;
+            var selectedStillAvailable = AiProviderOptions.Any(provider =>
+                provider.Id.Equals(SelectedAiProviderId, StringComparison.OrdinalIgnoreCase));
+
+            if (!selectedStillAvailable)
+            {
+                SelectedAiProviderId = AiProviderOptions.FirstOrDefault(provider => provider.IsDefault)?.Id
+                    ?? AiProviderOptions.FirstOrDefault()?.Id;
+            }
+        }
+        else if (result is Result<IReadOnlyList<AiProviderOption>, AeroError>.Failure failure)
+        {
+            AiProviderOptions = [];
+            SelectedAiProviderId = null;
+            ShowToast($"AI providers failed to load: {failure.Error}", "error");
+        }
+
+        IsLoadingAiProviders = false;
     }
 
     protected sealed record EnhanceTargetOption(string Value, string Label);

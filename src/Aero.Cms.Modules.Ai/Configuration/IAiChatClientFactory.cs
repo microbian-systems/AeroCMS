@@ -6,5 +6,7 @@ namespace Aero.Cms.Modules.Ai.Configuration;
 
 public interface IAiChatClientFactory
 {
-    Task<Result<IChatClient, AeroError>> CreateAsync(CancellationToken cancellationToken = default);
+    Task<Result<IChatClient, AeroError>> CreateAsync(
+        AiRuntimeSettings settings,
+        CancellationToken cancellationToken = default);
 }
