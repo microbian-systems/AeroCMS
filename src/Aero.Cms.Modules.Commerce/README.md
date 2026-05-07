@@ -2,6 +2,9 @@
 
 Commerce module for Aero CMS — eCommerce reference application patterns into a single vertical-slice module.
 
+## Run Migration
+> dotnet ef migrations add MigrationName --project src/Aero.Cms.Modules.Commerce -s src/Aero.Cms.Web
+
 ## Architecture
 
 ```

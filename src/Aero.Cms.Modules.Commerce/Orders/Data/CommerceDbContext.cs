@@ -17,6 +17,7 @@ public sealed class CommerceDbContext : DbContext
     {
         base.OnModelCreating(mb);
 
+        mb.HasDefaultSchema(Aero.Core.Data.Schemas.Aero);
         // Decimal precision for all decimal properties
         foreach (var property in mb.Model.GetEntityTypes()
                      .SelectMany(t => t.GetProperties())
