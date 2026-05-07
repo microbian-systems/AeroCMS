@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
@@ -70,7 +72,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Auto-save timer & dirty tracking
     private System.Timers.Timer? _autoSaveTimer;
     private enum PostState { Clean, Dirty }
-    private PostState _postState = PostState.Dirty;  // new posts start dirty
+    private PostState _postState = PostState.Clean;  // new posts start clean — wait for user input
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle
@@ -91,9 +93,13 @@ public partial class PostEditor : ComponentBase, IDisposable
             _contentInitialized = true;
         }
 
-        _autoSaveTimer = new System.Timers.Timer(3_000);
-        _autoSaveTimer.Elapsed += async (_, _) => await InvokeAsync(AutoSaveAsync);
-        _autoSaveTimer.AutoReset = true;
+        _autoSaveTimer = new System.Timers.Timer(15_000);
+        _autoSaveTimer.AutoReset = false;
+        _autoSaveTimer.Elapsed += async (_, _) =>
+        {
+            await InvokeAsync(AutoSaveAsync);
+            _autoSaveTimer?.Start();
+        };
         _autoSaveTimer.Start();
     }
 
@@ -204,6 +210,12 @@ public partial class PostEditor : ComponentBase, IDisposable
             Content = await _editor.GetValue();
         }
 
+        // When entering the Code tab, push editor Content into Monaco
+        if (tab == "code" && ActiveTab != "code" && _editor is not null && _editorReady)
+        {
+            await _editor.SetValue(Content);
+        }
+
         ActiveTab = tab;
         StateHasChanged();
     }
@@ -242,7 +254,13 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     // ── Dirty tracking helpers for input handlers ────────
 
-    protected void OnTitleChanged(string title) { PostTitle = title; MarkDirty(); }
+    protected void OnTitleChanged(string title) 
+    { 
+        PostTitle = title; 
+        if (string.IsNullOrWhiteSpace(PostSlug))
+            PostSlug = TitleToSlug(title);
+        MarkDirty(); 
+    }
     protected void OnSlugChanged(string slug) { PostSlug = slug; MarkDirty(); }
     protected void OnContentChanged(string content) { Content = content; MarkDirty(); }
     protected void OnExcerptChanged(string excerpt) { Excerpt = excerpt; MarkDirty(); }
@@ -261,6 +279,10 @@ public partial class PostEditor : ComponentBase, IDisposable
     {
         if (_postState != PostState.Dirty) return;
 
+        // Belt-and-suspenders: skip if slug is blank (no meaningful content yet)
+        if (string.IsNullOrWhiteSpace(PostSlug))
+            return;
+
         if (Id is null)
         {
             // New post: only auto-create if there's actual content
@@ -273,7 +295,13 @@ public partial class PostEditor : ComponentBase, IDisposable
         await SavePost();
     }
 
-    private void MarkDirty() => _postState = PostState.Dirty;
+    private void MarkDirty()
+    {
+        _postState = PostState.Dirty;
+        // Debounce: reset the 15s countdown on every change
+        _autoSaveTimer?.Stop();
+        _autoSaveTimer?.Start();
+    }
 
     protected async Task SavePost()
     {
@@ -403,8 +431,29 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
     }
 
+    private static string TitleToSlug(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+
+        // Decompose diacritics: "café" → "cafe" + combining accent
+        var normalized = title.Normalize(NormalizationForm.FormD);
+        var filtered = normalized.Where(c =>
+            char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) || c == '-');
+
+        var slug = new string(filtered.ToArray())
+            .Normalize(NormalizationForm.FormC)
+            .ToLowerInvariant();
+
+        slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");  // strip remaining marks
+        slug = Regex.Replace(slug, @"\s+", "-");           // spaces → hyphens
+        slug = Regex.Replace(slug, @"-{2,}", "-");         // collapse multiple hyphens
+        slug = slug.Trim('-');                             // trim leading/trailing hyphens
+
+        return slug;
+    }
+
     protected void UpdateLastSaved()
-        => LastSaved = DateTime.Now.ToString("HH:mm");
+        => LastSaved = $"Post saved at {DateTime.Now:HH:mm:ss}";
 
     // ──────────────────────────────────────────────────────────
     // Toast notifications

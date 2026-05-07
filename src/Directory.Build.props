@@ -36,6 +36,15 @@
 		<ProjectReference Include="$(MSBuildThisFileDirectory)Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<Using Include="System" Global="true" />
+		<Using Include="System.Collections.Concurrent" Global="true" />
+		<Using Include="System.Collections.Generic" Global="true" />
+		<Using Include="System.Linq" Global="true" />
+		<Using Include="System.Linq.Expressions" Global="true" />
+		<Using Include="System.Text.Json" Global="true" />
+	</ItemGroup>
+
 	<!--
     Source Generator & Analyzer: Wire Aero.Cms.SourceGenerators to every project
     in src/ so ModuleManifestGenerator, WolverineHandlerGenerator, and AERO002 analyzer
