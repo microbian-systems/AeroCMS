@@ -8,6 +8,7 @@
 @using BlazorMonaco
 @using BlazorMonaco.Editor
 @using BlazorMonaco.Languages
+@using Aero.Cms.Shared.Layout
 
 <style>
     #post-markdown-editor {
@@ -88,27 +89,28 @@
     </div>
 
     @* ── Tab bar ─────────────────────────────────────── *@
-    <div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
-        <button class="pe-tab-btn @(ActiveTab == "editor" ? "active" : "")" 
-                @onclick='() => SwitchToTab("editor")'>
-            Editor
-        </button>
-        <button class="pe-tab-btn @(ActiveTab == "code" ? "active" : "")" 
-                @onclick='() => SwitchToTab("code")'>
-            Code
-        </button>
-        <button class="pe-tab-btn @(ActiveTab == "preview" ? "active" : "")" 
-                @onclick='() => SwitchToTab("preview")'>
-            Preview
-        </button>
-        <button class="pe-tab-btn @(ActiveTab == "metadata" ? "active" : "")" 
-                @onclick='() => SwitchToTab("metadata")'>
-            Metadata
-        </button>
-    </div>
-
-    @* ── Full screen preview mode (overlays tabs) ────── *@
-    @if (FullPreviewMode)
+    @if (ActiveTab != "preview" && !FullPreviewMode)
+    {
+        <div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
+            <button class="pe-tab-btn @(ActiveTab == "editor" ? "active" : "")" 
+                    @onclick='() => SwitchToTab("editor")'>
+                Editor
+            </button>
+            <button class="pe-tab-btn @(ActiveTab == "code" ? "active" : "")" 
+                    @onclick='() => SwitchToTab("code")'>
+                Code
+            </button>
+            <button class="pe-tab-btn @(ActiveTab == "preview" ? "active" : "")" 
+                    @onclick='() => SwitchToTab("preview")'>
+                Preview
+            </button>
+            <button class="pe-tab-btn @(ActiveTab == "metadata" ? "active" : "")" 
+                    @onclick='() => SwitchToTab("metadata")'>
+                Metadata
+            </button>
+        </div>
+    }
+    else
     {
         <div class="pe-preview-header">
             <div class="pe-preview-devices">
@@ -132,7 +134,7 @@
                     </svg>
                 </button>
             </div>
-            <button class="pe-btn pe-btn-ghost" @onclick="TogglePreview">
+            <button class="pe-btn pe-btn-ghost" @onclick='() => { if (FullPreviewMode) TogglePreview(); else SwitchToTab("editor"); }'>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
                     <line x1="6" y1="6" x2="18" y2="18"/>
@@ -140,10 +142,58 @@
                 Close Preview
             </button>
         </div>
+    }
+
+    @* ── Full screen preview mode (overlays tabs) ────── *@
+    @if (FullPreviewMode)
+    {
         <div class="pe-blocks-container preview-@PreviewDevice">
-            <div class="pe-markdown-preview-content">
-                <RadzenMarkdown Text="@Content" AllowHtml="true" />
-            </div>
+            @if (IsPreviewRendering)
+            {
+                <div class="pe-empty-state">
+                    <h3>Rendering preview...</h3>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(PreviewError))
+            {
+                <div class="pe-empty-state">
+                    <h3>Preview unavailable</h3>
+                    <p>@PreviewError</p>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(PreviewFrameUrl) || !string.IsNullOrWhiteSpace(PreviewHtml))
+            {
+                @if (!string.IsNullOrWhiteSpace(PreviewFrameUrl))
+                {
+                    <div class="pe-preview-url-bar">
+                        <span>Preview URL</span>
+                        <code>@PreviewFrameUrl</code>
+                    </div>
+                    <iframe class="pe-preview-frame"
+                            title="Post preview"
+                            sandbox="allow-scripts allow-forms allow-popups"
+                            src="@PreviewFrameUrl"
+                            @key="PreviewFrameUrl"></iframe>
+                }
+                else
+                {
+                    <div class="pe-preview-url-bar">
+                        <span>Preview URL</span>
+                        <code>@PreviewFragmentUrl</code>
+                    </div>
+                    <iframe class="pe-preview-frame"
+                            title="Post preview"
+                            sandbox=""
+                            srcdoc="@PreviewFrameDocument"
+                            @key="PreviewFrameDocument"></iframe>
+                }
+            }
+            else
+            {
+                <div class="pe-empty-state">
+                    <h3>No preview content</h3>
+                </div>
+            }
         </div>
     }
     else
@@ -187,35 +237,54 @@
         @* ── Tab: Preview ────────────────────────────── *@
         @if (ActiveTab == "preview")
         {
-            <div class="pe-preview-tab">
-                <div class="pe-preview-devices mb-4 flex gap-2">
-                    <button class="pe-device-btn @(PreviewDevice == "desktop" ? "active" : "")" title="Desktop" @onclick='() => PreviewDevice = "desktop"'>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                            <line x1="8" y1="21" x2="16" y2="21"/>
-                            <line x1="12" y1="17" x2="12" y2="21"/>
-                        </svg>
-                        Desktop
-                    </button>
-                    <button class="pe-device-btn @(PreviewDevice == "tablet" ? "active" : "")" title="Tablet" @onclick='() => PreviewDevice = "tablet"'>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
-                            <line x1="12" y1="18" x2="12.01" y2="18"/>
-                        </svg>
-                        Tablet
-                    </button>
-                    <button class="pe-device-btn @(PreviewDevice == "mobile" ? "active" : "")" title="Mobile" @onclick='() => PreviewDevice = "mobile"'>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                            <line x1="12" y1="18" x2="12.01" y2="18"/>
-                        </svg>
-                        Mobile
-                    </button>
+            <div class="pe-blocks-container preview-@PreviewDevice">
+                    @if (IsPreviewRendering)
+                    {
+                        <div class="pe-empty-state" style="padding: 4rem; text-align: center;">
+                            <h3>Rendering preview...</h3>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(PreviewError))
+                    {
+                        <div class="pe-empty-state" style="padding: 4rem; text-align: center;">
+                            <h3>Preview unavailable</h3>
+                            <p>@PreviewError</p>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(PreviewFrameUrl) || !string.IsNullOrWhiteSpace(PreviewHtml))
+                    {
+                        @if (!string.IsNullOrWhiteSpace(PreviewFrameUrl))
+                        {
+                            <div class="pe-preview-url-bar">
+                                <span>Preview URL</span>
+                                <code>@PreviewFrameUrl</code>
+                            </div>
+                            <iframe class="pe-preview-frame"
+                                    title="Post preview"
+                                    sandbox="allow-scripts allow-forms allow-popups"
+                                    src="@PreviewFrameUrl"
+                                    @key="PreviewFrameUrl"></iframe>
+                        }
+                        else
+                        {
+                            <div class="pe-preview-url-bar">
+                                <span>Preview URL</span>
+                                <code>@PreviewFragmentUrl</code>
+                            </div>
+                            <iframe class="pe-preview-frame"
+                                    title="Post preview"
+                                    sandbox=""
+                                    srcdoc="@PreviewFrameDocument"
+                                    @key="PreviewFrameDocument"></iframe>
+                        }
+                    }
+                    else
+                    {
+                        <div class="pe-empty-state" style="padding: 4rem; text-align: center;">
+                            <h3>No preview content</h3>
+                        </div>
+                    }
                 </div>
-                <div class="pe-preview-container preview-@PreviewDevice">
-                    <RadzenMarkdown Text="@Content" AllowHtml="true" />
-                </div>
-            </div>
         }
 
         @* ── Tab: Metadata ───────────────────────────── *@
@@ -259,9 +328,21 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Featured Image URL</label>
-                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   value="@FeaturedImageUrl" @oninput="e => OnFeaturedImageChanged(e.Value?.ToString() ?? string.Empty)" placeholder="https://..." />
+                            <div class="flex gap-2">
+                                <input type="text" class="flex-1 rounded-md shadow-sm sm:text-sm"
+                                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                       value="@FeaturedImageUrl" @oninput="e => OnFeaturedImageChanged(e.Value?.ToString() ?? string.Empty)" placeholder="https://..." />
+                                <button class="pe-btn pe-btn-secondary pe-btn-sm flex items-center gap-1 whitespace-nowrap"
+                                        style="border: 1px solid var(--pe-border);"
+                                        @onclick="OpenMediaSelector" type="button">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                                        <polyline points="21 15 16 10 5 21"/>
+                                    </svg>
+                                    Media
+                                </button>
+                            </div>
                             @if (!string.IsNullOrEmpty(FeaturedImageUrl))
                             {
                                 <div class="mt-2 rounded-xl overflow-hidden shadow-sm border border-gray-100 max-w-xs">
@@ -488,4 +569,12 @@
             </div>
         }
     </div>
+
+    @* ── Media selector modal ─────────────────────────── *@
+    <MediaSelectorModal
+        Show="MediaModalOpen"
+        MultiSelect="false"
+        OnClose="() => MediaModalOpen = false"
+        OnConfirm="OnConfirmFeaturedImage"/>
+
 </div>

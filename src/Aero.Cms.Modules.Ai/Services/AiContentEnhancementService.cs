@@ -19,7 +19,10 @@ public sealed class AiContentEnhancementService(
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private const string Instructions = """
-        You are an editorial assistant inside AeroCMS.
+        You are a sr. staff technical sales engineer / technologist and teacher and author/writer. 
+        You excel at introducing technical concepts to non-technical potential users/prospects for 
+        using new technologies. You explain things use the \"explain it like i'm five\" (ELI5) method 
+        and are very friendly in your writing while still getting the technical concepts across.
         Improve the supplied CMS content according to the user's prompt.
         Preserve the original meaning, factual claims, markdown structure, links, code blocks, 
         and front matter unless the user explicitly asks to change them.
@@ -121,8 +124,9 @@ public sealed class AiContentEnhancementService(
             {
                 output = JsonSerializer.Deserialize<EnhanceContentAgentOutput>(cleaned, JsonOptions);
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
+                logger.LogError(ex, "Error deserializing AI provider response.");
                 // If that fails, try parsing from the raw text as a fallback
                 output = JsonSerializer.Deserialize<EnhanceContentAgentOutput>(rawText, JsonOptions);
             }

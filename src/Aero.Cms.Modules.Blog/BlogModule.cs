@@ -53,6 +53,7 @@ public sealed class BlogModule : AeroWebModule, IUiModule
         {
             options.Conventions.AddAreaPageRoute("Blog", "/BlogIndexPage", "/blog");
             options.Conventions.AddAreaPageRoute("Blog", "/BlogDetailPage", "/blog/{slug}");
+            options.Conventions.AddAreaPageRoute("Blog", "/BlogDetailPage", "/_cms/preview/blog/drafts/{draftId:long}");
 
             // Map Admin area routes — these must be explicitly mapped because
             // PagesModule's catch-all /{slug?} route would otherwise intercept them.

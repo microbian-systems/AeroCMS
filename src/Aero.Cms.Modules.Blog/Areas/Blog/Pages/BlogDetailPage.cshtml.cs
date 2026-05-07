@@ -15,20 +15,35 @@ public class BlogDetailPageModel(IBlogPostContentService blogService) : PageMode
     [BindProperty(SupportsGet = true)]
     public string Slug { get; set; } = string.Empty;
 
+    [BindProperty(SupportsGet = true)]
+    public long? DraftId { get; set; }
+
     public BlogPostDocument? Post { get; private set; }
     public Dictionary<long, string> TagNames { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(Slug))
+        Result<BlogPostDocument?, AeroError>? result;
+
+        if (DraftId is { } draftId)
+        {
+            if (User?.Identity?.IsAuthenticated != true)
+            {
+                return Unauthorized();
+            }
+
+            result = await blogService.LoadAsync(draftId, cancellationToken);
+        }
+        else if (string.IsNullOrWhiteSpace(Slug))
         {
             return NotFound();
         }
-
-        // Slugs are stored without a prefix — the route /blog/{slug}
-        // provides the plain slug directly from the URL.
-        var result = await blogService.FindBySlugAsync(Slug, cancellationToken);
-        var tagsResult = await blogService.GetAllTagsAsync(cancellationToken);
+        else
+        {
+            // Slugs are stored without a prefix — the route /blog/{slug}
+            // provides the plain slug directly from the URL.
+            result = await blogService.FindBySlugAsync(Slug, cancellationToken);
+        }
 
         var post = result switch
         {
@@ -41,13 +56,27 @@ public class BlogDetailPageModel(IBlogPostContentService blogService) : PageMode
             return NotFound();
         }
 
-        TagNames = tagsResult switch
+        TagNames = (await blogService.GetAllTagsAsync(cancellationToken)) switch
         {
             Result<IReadOnlyList<Tag>, AeroError>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
             _ => []
         };
 
         Post = post;
+        ApplyResponseCacheHeaders();
         return Page();
+    }
+
+    private void ApplyResponseCacheHeaders()
+    {
+        if (DraftId is not null)
+        {
+            Response.Headers.CacheControl = "no-store, no-cache";
+            Response.Headers.Pragma = "no-cache";
+            Response.Headers.Expires = "0";
+            return;
+        }
+
+        Response.Headers.CacheControl = "public,max-age=300";
     }
 }

@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
@@ -31,6 +33,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
+    [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // Editor state
@@ -54,6 +57,14 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Preview state
     protected bool FullPreviewMode { get; set; }
     protected string PreviewDevice { get; set; } = "desktop";
+    protected bool   IsPreviewRendering { get; set; }
+    protected string? PreviewHtml { get; set; }
+    protected string? PreviewError { get; set; }
+    protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/blog-posts/render-fragment");
+    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
+    protected string? PreviewFrameUrl => Id.HasValue
+        ? BuildAbsoluteUrl($"_cms/preview/blog/drafts/{Id.Value}?previewVersion={_previewRefreshVersion}")
+        : null;
 
     // Loaded post data
     protected BlogDetail? LoadedPost { get; set; }
@@ -69,6 +80,9 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Guards against RadzenTextArea @bind-Value firing ValueChanged("") 
     // during initialization and overwriting async-loaded content
     private bool _contentInitialized;
+
+    // Media selector modal state
+    protected bool MediaModalOpen { get; set; }
 
     // Toasts
     protected List<ToastMessage> Toasts { get; set; } = [];
@@ -98,6 +112,11 @@ public partial class PostEditor : ComponentBase, IDisposable
     private System.Timers.Timer? _autoSaveTimer;
     private enum PostState { Clean, Dirty }
     private PostState _postState = PostState.Clean;  // new posts start clean — wait for user input
+
+    // Preview debounce
+    private const int PreviewDebounceMilliseconds = 300;
+    private CancellationTokenSource? _previewDebounceCts;
+    private long _previewRefreshVersion;
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle
@@ -144,6 +163,8 @@ public partial class PostEditor : ComponentBase, IDisposable
     public void Dispose()
     {
         _autoSaveTimer?.Dispose();
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts?.Dispose();
     }
 
     private async Task LoadReferenceDataAsync()
@@ -223,6 +244,10 @@ public partial class PostEditor : ComponentBase, IDisposable
             Content = await _editor.GetValue();
         }
         MarkDirty();
+        if (ActiveTab == "preview" || FullPreviewMode)
+        {
+            QueuePreviewRefresh();
+        }
     }
 
     // ──────────────────────────────────────────────────────────
@@ -244,6 +269,13 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
 
         ActiveTab = tab;
+
+        // Refresh preview when switching to the preview tab
+        if (tab == "preview")
+        {
+            _ = RefreshPreviewAsync();
+        }
+
         StateHasChanged();
     }
 
@@ -263,7 +295,136 @@ public partial class PostEditor : ComponentBase, IDisposable
         if (FullPreviewMode)
         {
             ActiveTab = "preview";
+            _previewRefreshVersion++;
+            await RefreshPreviewAsync();
         }
+    }
+
+    private void QueuePreviewRefresh()
+    {
+        if (ActiveTab != "preview" && !FullPreviewMode)
+        {
+            return;
+        }
+
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _previewDebounceCts = cts;
+
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await Task.Delay(PreviewDebounceMilliseconds, cts.Token);
+                await RefreshPreviewAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when another edit supersedes the pending preview render.
+            }
+        });
+    }
+
+    private async Task RefreshPreviewAsync(CancellationToken cancellationToken = default)
+    {
+        if (ActiveTab != "preview" && !FullPreviewMode)
+        {
+            return;
+        }
+
+        // When the post has an ID, the iframe loads the full site page
+        // (nav, layout, footer) — no fragment render needed.
+        if (!string.IsNullOrWhiteSpace(PreviewFrameUrl))
+        {
+            PreviewHtml = null;
+            PreviewError = null;
+            IsPreviewRendering = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        IsPreviewRendering = true;
+        PreviewError = null;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var blocks = ContentToBlocks();
+            var result = await PreviewClient.RenderBlogPostFragmentAsync(blocks, cancellationToken);
+            switch (result)
+            {
+                case Result<string, AeroError>.Ok ok:
+                    PreviewHtml = ok.Value;
+                    break;
+                case Result<string, AeroError>.Failure failure:
+                    PreviewHtml = null;
+                    PreviewError = failure.Error.ToString();
+                    break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            PreviewHtml = null;
+            PreviewError = $"Preview render failed: {ex.Message}";
+        }
+        finally
+        {
+            IsPreviewRendering = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private IReadOnlyList<BlockBase> ContentToBlocks()
+    {
+        var currentContent = Content;
+        if (string.IsNullOrWhiteSpace(currentContent))
+            return [];
+
+        return [new MarkdownBlock { Content = currentContent }];
+    }
+
+    private static string BuildPreviewFrameDocument(string? html, string baseUri)
+    {
+        var content = string.IsNullOrWhiteSpace(html)
+            ? "<main class=\"pe-empty-state\"><h3>No preview content</h3></main>"
+            : html;
+        var appCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/app.css");
+        var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");
+        var radzenCss = new Uri(new Uri(baseUri), "_content/Radzen.Blazor/css/standard-base.css");
+
+        return $$"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <base href="{{baseUri}}">
+                <link rel="stylesheet" href="{{appCss}}">
+                <link rel="stylesheet" href="{{managerCss}}">
+                <link rel="stylesheet" href="{{radzenCss}}">
+                <style>
+                    html, body { margin: 0; min-height: 100%; background: #fff; }
+                    body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+                    .aero-preview-document { min-height: 100vh; overflow-x: hidden; }
+                </style>
+            </head>
+            <body>
+                <main class="aero-preview-document">
+                    {{content}}
+                </main>
+            </body>
+            </html>
+            """;
+    }
+
+    private string BuildAbsoluteUrl(string relativeUrl, string? baseUri = null)
+    {
+        return new Uri(new Uri(baseUri ?? NavManager.BaseUri), relativeUrl.TrimStart('/')).ToString();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -289,7 +450,15 @@ public partial class PostEditor : ComponentBase, IDisposable
         MarkDirty(); 
     }
     protected void OnSlugChanged(string slug) { PostSlug = slug; MarkDirty(); }
-    protected void OnContentChanged(string content) { Content = content; MarkDirty(); }
+    protected void OnContentChanged(string content)
+    {
+        Content = content;
+        MarkDirty();
+        if (ActiveTab == "preview" || FullPreviewMode)
+        {
+            QueuePreviewRefresh();
+        }
+    }
     protected void OnExcerptChanged(string excerpt) { Excerpt = excerpt; MarkDirty(); }
     protected void OnSeoTitleChanged(string title) { SeoTitle = title; MarkDirty(); }
     protected void OnSeoDescriptionChanged(string description) { SeoDescription = description; MarkDirty(); }
@@ -502,6 +671,26 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     protected void RemoveToast(string id)
         => Toasts.RemoveAll(t => t.Id == id);
+
+    // ──────────────────────────────────────────────────────────
+    // Media selector
+    // ──────────────────────────────────────────────────────────
+
+    protected void OpenMediaSelector()
+    {
+        MediaModalOpen = true;
+    }
+
+    protected void OnConfirmFeaturedImage(List<MediaItem> items)
+    {
+        if (items.Count > 0)
+        {
+            FeaturedImageUrl = items[0].Src;
+            MarkDirty();
+        }
+
+        MediaModalOpen = false;
+    }
 
     // ──────────────────────────────────────────────────────────
     // AI enhancement
