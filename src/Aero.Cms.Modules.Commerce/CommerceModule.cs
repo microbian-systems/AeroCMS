@@ -53,7 +53,8 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
         // Orders (EF Core)
         var connString = config?.GetConnectionString("aero")
                          ?? throw new InvalidOperationException("Connection string 'aero' is required for CommerceDbContext.");
-        services.AddDbContext<CommerceDbContext>(o => o.UseNpgsql(connString));
+        services.AddDbContext<CommerceDbContext>(o => o.UseNpgsql(connString,
+            x => x.MigrationsHistoryTable(Aero.Core.Data.Schemas.MigrationTableName, Schemas.Database)));
         services.AddScoped<IOrderService, OrderService>();
 
         // Validation
