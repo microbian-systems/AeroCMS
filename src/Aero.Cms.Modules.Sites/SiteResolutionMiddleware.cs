@@ -16,16 +16,13 @@ public sealed class SiteResolutionMiddleware(RequestDelegate next)
 {
     private static readonly PathString ManagerPathPrefix = "/manager";
     private static readonly PathString NoSitePathPrefix = "/nosite";
-    private static readonly PathString PreviewPathPrefix = "/_cms/preview";
 
     public async Task InvokeAsync(
         HttpContext context,
         ISiteLookupService siteLookup)
     {
         // The manager resolves site from user cookie selection, not hostname.
-        // Skip host-based resolution for all /manager/* and preview routes.
-        if (context.Request.Path.StartsWithSegments(ManagerPathPrefix, StringComparison.OrdinalIgnoreCase) ||
-            context.Request.Path.StartsWithSegments(PreviewPathPrefix, StringComparison.OrdinalIgnoreCase))
+        if (context.Request.Path.StartsWithSegments(ManagerPathPrefix, StringComparison.OrdinalIgnoreCase))
         {
             await next(context);
             return;

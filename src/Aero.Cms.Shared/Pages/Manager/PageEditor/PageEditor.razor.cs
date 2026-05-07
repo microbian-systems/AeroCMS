@@ -12,11 +12,14 @@ using Microsoft.AspNetCore.Components.Web;
 using Aero.Core;
 using Aero.Cms.Core;
 using Aero.Core.Security;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Models;
 
 using Aero.Core.Railway;
 using CmsPageDetail = Aero.Cms.Abstractions.Http.Clients.PageDetail;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Shared.Services;
 using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
@@ -38,6 +41,9 @@ public partial class PageEditor : ComponentBase, IDisposable
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
     [Inject] protected IUsersHttpClient UsersClient { get; set; } = default!;
     [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
+    [Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
+    [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
+    [Inject] protected AdminStateContainer AdminState { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
 
@@ -68,7 +74,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string? PreviewError { get; set; }
     protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/pages/render-fragment");
     protected string? PreviewFrameUrl => Id is { } id
-        ? BuildAbsoluteUrl($"api/v1/admin/pages/drafts/{id}?previewVersion={_previewRefreshVersion}")
+        ? BuildAbsoluteUrl($"_cms/preview/pages/drafts/{id}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
     protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
     protected bool   RightSidebarCollapsed { get; set; } = true;
@@ -122,6 +128,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     private const int PreviewDebounceMilliseconds = 300;
     private System.Timers.Timer? _autoSaveTimer;
     private CancellationTokenSource? _previewDebounceCts;
+    private string? _previewBaseUri;
     private long _previewRefreshVersion;	
 
     /// <summary>Tracks whether unsaved changes exist. Auto-save only fires when Dirty.</summary>
@@ -134,6 +141,8 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected override async Task OnInitializedAsync()
     {
+        await ResolvePreviewBaseUriAsync();
+
         if (Id.HasValue)
         {
             await LoadPageAsync(Id.Value);
@@ -963,9 +972,73 @@ public partial class PageEditor : ComponentBase, IDisposable
         }
     }
 
-    private string BuildAbsoluteUrl(string relativeUrl)
+    private async Task ResolvePreviewBaseUriAsync()
     {
-        return new Uri(new Uri(NavManager.BaseUri), relativeUrl.TrimStart('/')).ToString();
+        SiteViewModel? selectedSite = null;
+
+        if (AdminState.CurrentSiteId is { } selectedSiteId)
+        {
+            selectedSite = await LoadSiteByIdAsync(selectedSiteId);
+        }
+
+        selectedSite ??= await CurrentSiteAccessor.GetCurrentSiteAsync();
+
+        if (selectedSite is null)
+        {
+            var defaultResult = await SitesClient.GetDefaultAsync();
+            if (defaultResult is Result<SiteViewModel, AeroError>.Ok defaultOk)
+            {
+                selectedSite = defaultOk.Value;
+            }
+        }
+
+        _previewBaseUri = BuildSiteBaseUri(selectedSite) ?? NavManager.BaseUri;
+    }
+
+    private async Task<SiteViewModel?> LoadSiteByIdAsync(long siteId)
+    {
+        var result = await SitesClient.GetByIdAsync(siteId);
+        return result is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
+    }
+
+    private string BuildAbsoluteUrl(string relativeUrl, string? baseUri = null)
+    {
+        return new Uri(new Uri(baseUri ?? NavManager.BaseUri), relativeUrl.TrimStart('/')).ToString();
+    }
+
+    private string? BuildSiteBaseUri(SiteViewModel? site)
+    {
+        var host = site?.PrimaryHost;
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            host = site?.Hosts.FirstOrDefault(static h => !string.IsNullOrWhiteSpace(h));
+        }
+
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return null;
+        }
+
+        host = host.Trim().TrimEnd('/');
+
+        if (Uri.TryCreate(host, UriKind.Absolute, out var absoluteUri))
+        {
+            return EnsureTrailingSlash(absoluteUri.ToString());
+        }
+
+        var current = new Uri(NavManager.BaseUri);
+        var authority = host;
+        if (!host.Contains(':', StringComparison.Ordinal))
+        {
+            authority = current.IsDefaultPort ? host : $"{host}:{current.Port}";
+        }
+
+        return EnsureTrailingSlash($"{current.Scheme}://{authority}");
+    }
+
+    private static string EnsureTrailingSlash(string uri)
+    {
+        return uri.EndsWith("/", StringComparison.Ordinal) ? uri : $"{uri}/";
     }
 
     private static string BuildPreviewFrameDocument(string? html, string baseUri)

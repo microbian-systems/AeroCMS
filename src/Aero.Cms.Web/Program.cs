@@ -24,6 +24,7 @@ using Aero.Cms.Modules.Modules.Services;
 using Aero.Social.Abstractions;
 using Aero.Cms.Web.Infrastructure;
 using Aero.Core.Http;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 
@@ -328,6 +329,21 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     app.UseAeroCmsModulePipeline();
     app.UseAntiforgery();
 
+    app.UseStatusCodePagesWithReExecute("/oops", "?status={0}");
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            var statusCodePagesFeature = context.Features.Get<IStatusCodePagesFeature>();
+            if (statusCodePagesFeature is not null)
+            {
+                statusCodePagesFeature.Enabled = false;
+            }
+        }
+
+        await next();
+    });
+
     app.MapRazorPages();
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode()
@@ -339,28 +355,6 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
     app.MapIdentityApi();
     app.MapAeroCmsEndpoints();
-    app.UseStatusCodePages(statusCodeContext =>
-    {
-        var httpContext = statusCodeContext.HttpContext;
-        if (httpContext.Response.HasStarted)
-        {
-            return Task.CompletedTask;
-        }
-
-        if (httpContext.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
-        {
-            return Task.CompletedTask;
-        }
-
-        if (httpContext.Request.Path.StartsWithSegments("/oops", StringComparison.OrdinalIgnoreCase))
-        {
-            httpContext.Response.Redirect("/nosite");
-            return Task.CompletedTask;
-        }
-
-        httpContext.Response.Redirect("/oops");
-        return Task.CompletedTask;
-    }); // Keep the CMS /oops redirect, but avoid looping if a site has not created /oops yet.
 
     try
     {

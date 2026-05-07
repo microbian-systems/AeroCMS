@@ -18,7 +18,6 @@ public sealed class DefaultSiteContext : ISiteContext
 {
     private static readonly PathString ManagerPathPrefix = "/manager";
     private static readonly PathString AdminApiPathPrefix = "/api/v1/admin";
-    private static readonly PathString PreviewPathPrefix = "/_cms/preview";
 
     private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -74,7 +73,6 @@ public sealed class DefaultSiteContext : ISiteContext
 
         var path = httpContext.Request.Path;
         return path.StartsWithSegments(ManagerPathPrefix, StringComparison.OrdinalIgnoreCase) ||
-               path.StartsWithSegments(AdminApiPathPrefix, StringComparison.OrdinalIgnoreCase) ||
-               path.StartsWithSegments(PreviewPathPrefix, StringComparison.OrdinalIgnoreCase);
+               path.StartsWithSegments(AdminApiPathPrefix, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -25,6 +25,17 @@
             <span class="pe-logo-text">AERO</span>
         </a>
 
+        @* Switch Site button *@
+        @if (currentSite is not null)
+        {
+            <button class="pe-btn pe-btn-ghost pe-btn-sm" title="Switch Site (Ctrl+Shift+S)" @onclick="OpenSitePickerAsync">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"></path></svg>
+                <span>@currentSite.Name</span>
+            </button>
+        }
+
+        <span class="text-xs text-gray-400 mx-1.5">|</span>
+
         <nav class="pe-nav">
             <div class="relative" @onclick:stopPropagation>
                 <button class="flex items-center gap-2 pe-btn pe-btn-ghost pe-btn-sm font-semibold"
@@ -67,15 +78,6 @@
     </div>
 
     <div class="pe-header-right">
-        @* Current Site indicator *@
-        @if (currentSite is not null)
-        {
-            <button class="pe-btn pe-btn-ghost pe-btn-sm" title="Switch Site (Ctrl+Shift+S)" @onclick="OpenSitePickerAsync">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"></path></svg>
-                <span>@currentSite.Name</span>
-            </button>
-        }
-
         <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="Theme.ToggleThemeAsync" title="Toggle Light/Dark Mode">
             @if (Theme.IsDarkMode)
             {

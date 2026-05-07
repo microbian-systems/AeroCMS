@@ -29,6 +29,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
+using Weasel.Postgresql.Tables.Partitioning;
 using Wolverine;
 
 namespace Aero.Cms.Modules.Sites;
@@ -76,19 +78,23 @@ public class SitesModule : AeroWebModule, IConfigureMarten
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         // SitesModel — no host info stored here; host resolution uses SiteHost.
-        opts.Schema.For<SitesModel>().DatabaseSchemaName(Schemas.Tables.Sites);
+        opts.Schema.For<SitesModel>().DatabaseSchemaName(Schemas.Database);
+        opts.Schema.For<SitesModel>().DocumentAlias(Schemas.Tables.Sites);
         Configure<SitesModel>(services, opts);
         opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
 
         // SiteHost — separate document for multi-domain support.
         // Each row stores one normalized host/domain. The unique index on Host
         // prevents domain collisions across sites at the database level.
-        opts.Schema.For<SiteHost>().DatabaseSchemaName(Schemas.Tables.SiteHosts);
+        opts.Schema.For<SiteHost>().DatabaseSchemaName(Schemas.Database);
+        opts.Schema.For<SiteHost>().DocumentAlias(Schemas.Tables.SiteHosts);
         Configure<SiteHost>(services, opts);
         opts.Schema.For<SiteHost>().UniqueIndex(x => x.Host!);
         opts.Schema.For<SiteHost>().Index(x => x.SiteId);
 
         // UserSiteAssignment — maps users to sites with per-site permissions.
+        opts.Schema.For<UserSiteAssignment>().DatabaseSchemaName(Schemas.Database);
+        opts.Schema.For<UserSiteAssignment>().DocumentAlias(Schemas.Tables.SitePerms);
         Configure<UserSiteAssignment>(services, opts);
         opts.Schema.For<UserSiteAssignment>().Index(x => x.UserId);
         opts.Schema.For<UserSiteAssignment>().Index(x => x.SiteId);
@@ -224,7 +230,7 @@ public class SitesModule : AeroWebModule, IConfigureMarten
         });
 
         // POST /api/v1/admin/sites — create site
-        group.MapPost("/", async (CreateSiteRequest request, ISiteService siteService, IDocumentSession session) =>
+        group.MapPost("/", async (CreateSiteRequest request, ISiteService siteService, IDocumentSession session, HttpContext httpContext) =>
         {
             var validator = new Abstractions.Validators.SiteRequestValidator();
             var validationResult = await validator.ValidateAsync(request);
@@ -265,8 +271,9 @@ public class SitesModule : AeroWebModule, IConfigureMarten
                 await siteService.ReplaceHostsAsync(createdSite.Id, allHosts);
 
             // Auto-create default pages so the new site has initial content
-            await CreateDefaultHomepageAsync(session, createdSite);
-            await CreateOopsPageAsync(session, createdSite);
+            var createdBy = ResolveAuditUser(httpContext.User);
+            await CreateDefaultHomepageAsync(session, createdSite, createdBy);
+            await CreateOopsPageAsync(session, createdSite, createdBy);
 
             return Results.Created($"/api/v1/admin/sites/{createdSite.Id}", createdSite);
         });
@@ -357,8 +364,9 @@ public class SitesModule : AeroWebModule, IConfigureMarten
         return Task.CompletedTask;
     }
 
-    private static async Task CreateDefaultHomepageAsync(IDocumentSession session, SitesModel site)
+    private static async Task CreateDefaultHomepageAsync(IDocumentSession session, SitesModel site, string createdBy)
     {
+        var now = DateTimeOffset.UtcNow;
         var page = new PageDocument
         {
             Id = Snowflake.NewId(),
@@ -367,15 +375,22 @@ public class SitesModule : AeroWebModule, IConfigureMarten
             Title = site.Name ?? "Home",
             Summary = $"Welcome to {site.Name}",
             SiteId = site.Id,
-            PublicationState = ContentPublicationState.Published
+            PublicationState = ContentPublicationState.Published,
+            PublishedOn = now,
+            CreatedOn = now,
+            ModifiedOn = now,
+            CreatedBy = createdBy,
+            ModifiedBy = createdBy
         };
 
         session.Store(page);
         await session.SaveChangesAsync();
     }
 
-    private static async Task CreateOopsPageAsync(IDocumentSession session, SitesModel site)
+    private static async Task CreateOopsPageAsync(IDocumentSession session, SitesModel site, string createdBy)
     {
+        var now = DateTimeOffset.UtcNow;
+
         // Create a BoringHeroBlock for the /oops page
         var heroBlock = new BoringHeroBlock
         {
@@ -397,6 +412,11 @@ public class SitesModule : AeroWebModule, IConfigureMarten
             Summary = "Page not found",
             SiteId = site.Id,
             PublicationState = ContentPublicationState.Published,
+            PublishedOn = now,
+            CreatedOn = now,
+            ModifiedOn = now,
+            CreatedBy = createdBy,
+            ModifiedBy = createdBy,
             LayoutRegions =
             [
                 new LayoutRegion
@@ -425,6 +445,14 @@ public class SitesModule : AeroWebModule, IConfigureMarten
 
         session.Store(page);
         await session.SaveChangesAsync();
+    }
+
+    private static string ResolveAuditUser(ClaimsPrincipal user)
+    {
+        return user.Identity?.Name
+            ?? user.FindFirstValue(ClaimTypes.Email)
+            ?? user.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? "system";
     }
 }
 

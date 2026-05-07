@@ -376,6 +376,32 @@ public sealed class SitePipelineChainTests
         await Assert.That(capturedSlice.TenantId).IsEqualTo(420);
     }
 
+    [Test]
+    public async Task SiteResolution_ResolvesPreviewPath_FromRequestHost()
+    {
+        IAeroSiteSlice? capturedSlice = null;
+
+        var siteLookup = Substitute.For<ISiteLookupService>();
+        siteLookup.ResolveByHostAsync("previewsite.com", Arg.Any<CancellationToken>())
+            .Returns(CreateSite(52, "previewsite.com"));
+
+        using var host = await CreateHostWithCaptureAsync(siteLookup, Substitute.For<IAliasRuleCache>(),
+            context => { capturedSlice = context.Features.Get<IAeroSiteSlice>(); });
+
+        var client = host.GetTestClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, "/_cms/preview/pages/drafts/123")
+        {
+            Headers = { { "Host", "previewsite.com" } }
+        };
+
+        var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await siteLookup.Received(1).ResolveByHostAsync("previewsite.com", Arg.Any<CancellationToken>());
+        await Assert.That(capturedSlice).IsNotNull();
+        await Assert.That(capturedSlice!.SiteId).IsEqualTo(52);
+    }
+
     // ──────────────────────────────────────────────────
     // Helpers
     // ──────────────────────────────────────────────────
@@ -462,12 +488,9 @@ public sealed class SitePipelineChainTests
         // 1. Site resolution middleware
         app.UseMiddleware<SiteResolutionMiddleware>();
 
-        // 2. Alias rewrite middleware
-        var rule = app.Services.GetRequiredService<AliasRewriteRule>();
-        var rewriteOptions = new RewriteOptions().Add(rule);
-        app.UseRewriter(rewriteOptions);
-
-        // 3. Terminal — capture and respond
+        // 2. Terminal — capture and respond. These tests only assert the
+        // site-resolution feature, so alias rewriting would add unrelated
+        // Marten dependencies to the harness.
         app.Run(async context =>
         {
             captureAction(context);
