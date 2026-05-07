@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
@@ -26,6 +27,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     [Parameter] public long? Id { get; set; }
 
     [Inject] protected IBlogHttpClient BlogApi { get; set; } = default!;
+    [Inject] protected IAiHttpClient AiClient { get; set; } = default!;
     [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
@@ -38,6 +40,8 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected string PostSlug { get; set; } = string.Empty;
     protected string Content { get; set; } = string.Empty;
     protected string Excerpt { get; set; } = string.Empty;
+    protected string SeoTitle { get; set; } = string.Empty;
+    protected string SeoDescription { get; set; } = string.Empty;
     protected string FeaturedImageUrl { get; set; } = string.Empty;
     protected long CategoryId { get; set; }
     protected List<long> SelectedTagIds { get; set; } = [];
@@ -68,6 +72,24 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     // Toasts
     protected List<ToastMessage> Toasts { get; set; } = [];
+
+    // AI enhancement state
+    protected bool IsEnhancePanelOpen { get; set; }
+    protected bool IsEnhancing { get; set; }
+    protected string EnhanceTargetField { get; set; } = "body";
+    protected string EnhancePrompt { get; set; } = string.Empty;
+    protected string? EnhanceSuggestion { get; set; }
+    protected string? EnhanceRationale { get; set; }
+    protected IReadOnlyList<string> EnhanceWarnings { get; set; } = [];
+
+    protected IReadOnlyList<EnhanceTargetOption> EnhanceTargetOptions { get; } =
+    [
+        new("body", "Body"),
+        new("title", "Title"),
+        new("summary", "Summary"),
+        new("seoTitle", "SEO Title"),
+        new("seoDescription", "SEO Description")
+    ];
 
     // Auto-save timer & dirty tracking
     private System.Timers.Timer? _autoSaveTimer;
@@ -148,6 +170,8 @@ public partial class PostEditor : ComponentBase, IDisposable
             Content = ExtractMarkdownContent(post.Content);
             _contentInitialized = true;
             Excerpt = post.Excerpt ?? string.Empty;
+            SeoTitle = post.SeoTitle ?? string.Empty;
+            SeoDescription = post.SeoDescription ?? string.Empty;
             FeaturedImageUrl = post.ImageUrl ?? string.Empty;
             CategoryId = post.CategoryIds?.FirstOrDefault() ?? 0;
             SelectedTagIds = post.TagIds?.ToList() ?? [];
@@ -264,6 +288,8 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected void OnSlugChanged(string slug) { PostSlug = slug; MarkDirty(); }
     protected void OnContentChanged(string content) { Content = content; MarkDirty(); }
     protected void OnExcerptChanged(string excerpt) { Excerpt = excerpt; MarkDirty(); }
+    protected void OnSeoTitleChanged(string title) { SeoTitle = title; MarkDirty(); }
+    protected void OnSeoDescriptionChanged(string description) { SeoDescription = description; MarkDirty(); }
     protected void OnFeaturedImageChanged(string url) { FeaturedImageUrl = url; MarkDirty(); }
     protected void OnCategoryChanged(string categoryId)
     {
@@ -327,8 +353,8 @@ public partial class PostEditor : ComponentBase, IDisposable
                     Slug = PostSlug,
                     Summary = Excerpt,
                     MarkdownContent = Content,
-                    SeoTitle = PostTitle,
-                    SeoDescription = Excerpt,
+                    SeoTitle = string.IsNullOrWhiteSpace(SeoTitle) ? PostTitle : SeoTitle,
+                    SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
                     PublicationState = PublishedAt.HasValue
                         ? (int)ContentPublicationState.Published
@@ -357,8 +383,8 @@ public partial class PostEditor : ComponentBase, IDisposable
                     Slug = PostSlug,
                     Summary = Excerpt,
                     MarkdownContent = Content,
-                    SeoTitle = PostTitle,
-                    SeoDescription = Excerpt,
+                    SeoTitle = string.IsNullOrWhiteSpace(SeoTitle) ? PostTitle : SeoTitle,
+                    SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
                     PublicationState = (int)ContentPublicationState.Draft
                 };
@@ -473,4 +499,139 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     protected void RemoveToast(string id)
         => Toasts.RemoveAll(t => t.Id == id);
+
+    // ──────────────────────────────────────────────────────────
+    // AI enhancement
+    // ──────────────────────────────────────────────────────────
+
+    protected async Task OpenEnhancePanel()
+    {
+        if (ActiveTab == "code" && _editor is not null)
+        {
+            Content = await _editor.GetValue();
+        }
+
+        EnhanceSuggestion = null;
+        EnhanceRationale = null;
+        EnhanceWarnings = [];
+        IsEnhancePanelOpen = true;
+    }
+
+    protected void CloseEnhancePanel()
+    {
+        IsEnhancePanelOpen = false;
+        IsEnhancing = false;
+    }
+
+    protected void UseQuickPrompt(string prompt)
+    {
+        EnhancePrompt = prompt;
+    }
+
+    protected async Task RunEnhancementAsync()
+    {
+        if (IsEnhancing)
+        {
+            return;
+        }
+
+        if (ActiveTab == "code" && _editor is not null)
+        {
+            Content = await _editor.GetValue();
+        }
+
+        IsEnhancing = true;
+        EnhanceSuggestion = null;
+        EnhanceRationale = null;
+        EnhanceWarnings = [];
+        await InvokeAsync(StateHasChanged);
+
+        var request = new EnhanceContentRequest(
+            ContentKind: "post",
+            TargetField: EnhanceTargetField,
+            CurrentText: GetEnhanceFieldValue(EnhanceTargetField),
+            UserPrompt: string.IsNullOrWhiteSpace(EnhancePrompt) ? null : EnhancePrompt,
+            Title: PostTitle,
+            Summary: Excerpt,
+            Slug: PostSlug,
+            Tone: null,
+            Metadata: BuildEnhanceMetadata());
+
+        var result = await AiClient.EnhanceContentAsync(request);
+        if (result is Result<EnhanceContentResponse, AeroError>.Ok ok)
+        {
+            EnhanceSuggestion = ok.Value.EnhancedText;
+            EnhanceRationale = ok.Value.Rationale;
+            EnhanceWarnings = ok.Value.Warnings;
+        }
+        else if (result is Result<EnhanceContentResponse, AeroError>.Failure failure)
+        {
+            ShowToast($"AI enhancement failed: {failure.Error}", "error");
+        }
+
+        IsEnhancing = false;
+    }
+
+    protected async Task ApplyEnhancementAsync()
+    {
+        if (string.IsNullOrWhiteSpace(EnhanceSuggestion))
+        {
+            return;
+        }
+
+        switch (EnhanceTargetField)
+        {
+            case "body":
+                Content = EnhanceSuggestion;
+                if (_editor is not null && _editorReady)
+                {
+                    await _editor.SetValue(Content);
+                }
+                break;
+            case "title":
+                PostTitle = EnhanceSuggestion;
+                break;
+            case "summary":
+                Excerpt = EnhanceSuggestion;
+                break;
+            case "seoTitle":
+                SeoTitle = EnhanceSuggestion;
+                break;
+            case "seoDescription":
+                SeoDescription = EnhanceSuggestion;
+                break;
+        }
+
+        MarkDirty();
+        CloseEnhancePanel();
+        ShowToast("AI suggestion applied locally", "success");
+    }
+
+    private string GetEnhanceFieldValue(string targetField)
+        => targetField switch
+        {
+            "body" => Content,
+            "title" => PostTitle,
+            "summary" => Excerpt,
+            "seoTitle" => SeoTitle,
+            "seoDescription" => SeoDescription,
+            _ => Content
+        };
+
+    private IReadOnlyDictionary<string, string> BuildEnhanceMetadata()
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            ["publicationState"] = PublishedAt.HasValue ? "published" : "draft"
+        };
+
+        if (Id.HasValue)
+        {
+            metadata["postId"] = Id.Value.ToString();
+        }
+
+        return metadata;
+    }
+
+    protected sealed record EnhanceTargetOption(string Value, string Label);
 }

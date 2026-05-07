@@ -1,5 +1,11 @@
 @page
 @model Aero.Cms.Modules.Pages.Areas.Cms.Pages.DynamicPageModel
+@section cssPartial {
+    <style type="text/tailwindcss" 
+           src="/_content/Aero.Cms.Modules.Pages/css/pages.css"></style>
+    <style type="text/css" 
+           src="/_content/Aero.Cms.Modules.Pages/css/aero-pages.css"></style>
+}
 @{
     var pageDoc = Model.PageDocument;
     ViewBag.Title = pageDoc?.SeoTitle ?? pageDoc?.Title ?? "Page";
@@ -8,8 +14,8 @@
     ViewBag.ShowChatAgent = pageDoc?.ShowChatAgent ?? true;
 }
 
-<h1>Hydro Component Should show Below</h1>
-<page-counter />
+@* <h1>Hydro Component Should show Below</h1>
+<page-counter /> *@
 
 @if (pageDoc is null)
 {

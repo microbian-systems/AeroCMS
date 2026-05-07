@@ -1,0 +1,96 @@
+@page "/manager/ai"
+@attribute [Authorize]
+
+<div class="p-6 space-y-6 max-w-4xl">
+    <div>
+        <h1 class="text-2xl font-bold" style="color: var(--pe-text-primary);">AI Settings</h1>
+        <p class="text-sm mt-1" style="color: var(--pe-text-muted);">Configure provider settings used by manager AI features.</p>
+    </div>
+
+    <div class="rounded-lg border p-5 space-y-5" style="background: var(--pe-bg-secondary); border-color: var(--pe-border); color: var(--pe-text-primary);">
+        <label class="inline-flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked="@Enabled" @onchange="e => Enabled = e.Value is true" />
+            Enabled
+        </label>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Provider</label>
+                <select class="w-full rounded-md shadow-sm sm:text-sm"
+                        style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                        value="@Provider"
+                        @onchange="e => Provider = e.Value?.ToString() ?? Provider">
+                    <option value="Tornado">Tornado</option>
+                    <option value="LmStudio">LM Studio</option>
+                    <option value="OpenCode">OpenCode</option>
+                    <option value="Future">Future providers</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Model</label>
+                <input class="w-full rounded-md shadow-sm sm:text-sm"
+                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                       value="@Model" @oninput="e => Model = e.Value?.ToString() ?? string.Empty" placeholder="gpt-4o-mini or local model name" />
+            </div>
+
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Endpoint / base URL</label>
+                <input class="w-full rounded-md shadow-sm sm:text-sm"
+                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                       value="@Endpoint" @oninput="e => Endpoint = e.Value?.ToString() ?? string.Empty" placeholder="http://localhost:1234/v1" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">API key environment variable</label>
+                <input class="w-full rounded-md shadow-sm sm:text-sm"
+                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                       value="@ApiKeyEnvironmentVariable" @oninput="e => ApiKeyEnvironmentVariable = e.Value?.ToString() ?? string.Empty" placeholder="AERO_AI_API_KEY" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Secret key name</label>
+                <input class="w-full rounded-md shadow-sm sm:text-sm"
+                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                       value="@ApiKeySecretName" @oninput="e => ApiKeySecretName = e.Value?.ToString() ?? string.Empty" placeholder="Reserved for secrets module" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Temperature</label>
+                <input type="number" step="0.1" min="0" max="2" class="w-full rounded-md shadow-sm sm:text-sm"
+                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                       value="@Temperature" @oninput='e => Temperature = e.Value?.ToString() ?? "0.3"' />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Max output tokens</label>
+                <input type="number" min="128" max="32000" class="w-full rounded-md shadow-sm sm:text-sm"
+                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                       value="@MaxOutputTokens" @oninput='e => MaxOutputTokens = e.Value?.ToString() ?? "1200"' />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Timeout seconds</label>
+                <input type="number" min="1" max="300" class="w-full rounded-md shadow-sm sm:text-sm"
+                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                       value="@TimeoutSeconds" @oninput='e => TimeoutSeconds = e.Value?.ToString() ?? "60"' />
+            </div>
+
+            <div class="flex items-center gap-4">
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked="@StreamResponses" @onchange="e => StreamResponses = e.Value is true" />
+                    Stream responses
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked="@SaveUsageTelemetry" @onchange="e => SaveUsageTelemetry = e.Value is true" />
+                    Save usage telemetry
+                </label>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+            <button class="pe-btn pe-btn-ghost" @onclick="LoadAsync" disabled="@IsSaving">Reset</button>
+            <button class="pe-btn pe-btn-primary" @onclick="SaveAsync" disabled="@IsSaving">@(IsSaving ? "Saving..." : "Save")</button>
+        </div>
+    </div>
+</div>
