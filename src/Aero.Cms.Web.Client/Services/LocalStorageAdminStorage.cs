@@ -1,4 +1,4 @@
-using Aero.Cms.Shared.Services;
+using Aero.Cms.Contracts.Abstractions;
 using Microsoft.JSInterop;
 
 namespace Aero.Cms.Web.Client.Services;

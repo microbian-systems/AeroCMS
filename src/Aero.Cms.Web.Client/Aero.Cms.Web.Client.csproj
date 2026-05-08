@@ -6,6 +6,19 @@
     <Nullable>enable</Nullable>
     <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
     <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
+
+    <!-- WASM Performance: trimming reduces download size significantly -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+
+    <!-- Globalization: full ICU data adds ~5-10 MB, not needed in most WASM apps -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <BlazorWebAssemblyLoadAllGlobalizationResources>false</BlazorWebAssemblyLoadAllGlobalizationResources>
+
+    <!-- WASM runtime optimizations -->
+    <WasmNativeStripSymbols>true</WasmNativeStripSymbols>
+    <WasmEnableSIMD>true</WasmEnableSIMD>
+    <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 

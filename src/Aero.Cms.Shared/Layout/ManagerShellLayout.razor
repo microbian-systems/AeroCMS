@@ -1,53 +1,67 @@
 @inherits LayoutComponentBase
 @using Aero.Cms.Shared.Services
 @using Aero.Cms.Shared.Layout
-@using Aero.Cms.Abstractions.Http.Clients
-@using Aero.Cms.Abstractions.Models
+@using Aero.Cms.Contracts.Abstractions
+@using Aero.Cms.Contracts.Models
 @using Aero.Core
 @using Aero.Core.Railway
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Sections
-@using Aero.Cms.Abstractions.Interfaces
+@using System.Security.Claims
+@using Aero.Cms.Contracts.Services
 @inject ManagerThemeService ThemeService
 @inject NavigationManager Navigation
 @inject ICurrentSiteAccessor CurrentSiteAccessor
 @inject AdminStateContainer AdminState
+@inject AppState AppState
 @inject ISitesHttpClient SitesClient
 @implements IDisposable
 
 <div class="pe-root" data-theme="@ThemeService.Theme">
     <ManagerHeader />
 
-    @if (siteContextReady)
+    @switch (shellState)
     {
-        <div class="pe-main-layout">
-            <AeroSidebar Title="Menu"
-                         Side="SidebarSide.Left"
-                         IsCollapsed="@ThemeService.IsSidebarCollapsed"
-                         IsCollapsedChanged="@(async (c) => ThemeService.ToggleSidebar())">
-                <NavMenu IsCollapsed="@ThemeService.IsSidebarCollapsed" />
-            </AeroSidebar>
+        case ShellState.AuthPending:
+            @Body
+            break;
 
-            <div class="pe-editor-area">
-                @Body
+        case ShellState.Unauthenticated:
+            @* Redirect handled in OnAfterRenderAsync *@
+            break;
+
+        case ShellState.SiteResolving:
+            <div class="pe-editor-area flex items-center justify-center min-h-screen">
+                <span class="text-sm text-gray-500">Loading site context...</span>
             </div>
+            break;
 
-            <SectionOutlet SectionName="RightSidebar" />
-        </div>
-    }
-    else
-    {
-        <div class="pe-editor-area flex items-center justify-center min-h-screen">
-            <span class="text-sm text-gray-500">Loading manager...</span>
-        </div>
+        case ShellState.Ready:
+            <div class="pe-main-layout">
+                <AeroSidebar Title="Menu"
+                             Side="SidebarSide.Left"
+                             IsCollapsed="@ThemeService.IsSidebarCollapsed"
+                             IsCollapsedChanged="@(async (c) => ThemeService.ToggleSidebar())">
+                    <NavMenu IsCollapsed="@ThemeService.IsSidebarCollapsed" />
+                </AeroSidebar>
+
+                <div class="pe-editor-area">
+                    @Body
+                </div>
+
+                <SectionOutlet SectionName="RightSidebar" />
+            </div>
+            break;
     }
 </div>
 
 <RadzenComponents />
 
 @code {
+    private enum ShellState { AuthPending, Unauthenticated, SiteResolving, Ready }
+
+    private ShellState shellState = ShellState.AuthPending;
     private string? redirectTarget;
-    private bool siteContextReady;
 
     protected override void OnInitialized()
     {
@@ -63,7 +77,7 @@
         if (relative.StartsWith("manager/login", StringComparison.OrdinalIgnoreCase) ||
             relative.StartsWith("manager/select-site", StringComparison.OrdinalIgnoreCase))
         {
-            siteContextReady = true;
+            shellState = ShellState.Ready;
             return;
         }
 
@@ -73,47 +87,58 @@
             AdminState.LoadFromStorage();
         }
 
-        // Skip redirect if user is already authenticated (cookie present)
+        shellState = ShellState.AuthPending;
+
         if (AuthenticationState is not null)
         {
             var authState = await AuthenticationState;
-            if (authState.User.Identity?.IsAuthenticated == true)
+            if (authState.User.Identity?.IsAuthenticated != true)
             {
-                // After auth, check if a site has been selected
-                // Try in-memory state first, then fall back to HTTP cookie call
-                var siteId = AdminState.CurrentSiteId
-                    ?? await CurrentSiteAccessor.GetCurrentSiteIdAsync();
-
-                if (AdminState.CurrentSiteId.HasValue)
-                {
-                    await CurrentSiteAccessor.SetCurrentSiteAsync(AdminState.CurrentSiteId.Value);
-                }
-
-                // Final fallback: call the default site API (creates one if needed)
-                if (siteId is null)
-                {
-                    siteId = await TryGetDefaultSiteAsync();
-                }
-
-                if (siteId is null)
-                {
-                    redirectTarget = "/manager/select-site";
-                    return;
-                }
-
-                siteContextReady = true;
+                shellState = ShellState.Unauthenticated;
+                redirectTarget = BuildLoginRedirectUrl(relative);
                 return;
             }
+
+            // Auth confirmed — set user info on AppState
+            SetUserFromAuthState(authState);
+
+            // Auth confirmed — resolve site context
+            shellState = ShellState.SiteResolving;
+            var siteId = AdminState.CurrentSiteId
+                ?? await CurrentSiteAccessor.GetCurrentSiteIdAsync();
+
+            if (AdminState.CurrentSiteId.HasValue)
+            {
+                await CurrentSiteAccessor.SetCurrentSiteAsync(AdminState.CurrentSiteId.Value);
+            }
+
+            // Final fallback: call the default site API (creates one if needed)
+            if (siteId is null)
+            {
+                siteId = await TryGetDefaultSiteAsync();
+            }
+
+            if (siteId is null)
+            {
+                redirectTarget = "/manager/select-site";
+                return;
+            }
+
+            // Set site on AppState
+            AppState.SetSite(siteId.Value, AdminState.CurrentSiteName);
+
+            shellState = ShellState.Ready;
+            return;
         }
 
-        redirectTarget = string.IsNullOrWhiteSpace(relative) || relative.Equals("manager", StringComparison.OrdinalIgnoreCase)
-            ? "/manager/login?returnUrl=%2Fmanager"
-            : $"/manager/login?returnUrl={Uri.EscapeDataString("/" + relative)}";
+        // No cascading auth state available
+        shellState = ShellState.Unauthenticated;
+        redirectTarget = BuildLoginRedirectUrl(relative);
     }
 
     protected override Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !string.IsNullOrWhiteSpace(redirectTarget))
+        if (!string.IsNullOrWhiteSpace(redirectTarget))
         {
             Navigation.NavigateTo(redirectTarget, forceLoad: true);
         }
@@ -126,12 +151,43 @@
         ThemeService.OnThemeChanged -= StateHasChanged;
     }
 
+    private static string BuildLoginRedirectUrl(string relative)
+    {
+        return string.IsNullOrWhiteSpace(relative) || relative.Equals("manager", StringComparison.OrdinalIgnoreCase)
+            ? "/manager/login?returnUrl=%2Fmanager"
+            : $"/manager/login?returnUrl={Uri.EscapeDataString("/" + relative)}";
+    }
+
+    private void SetUserFromAuthState(AuthenticationState authState)
+    {
+        var principal = authState.User;
+        var userIdStr = principal.FindFirst("user_id")?.Value;
+        var userName = principal.FindFirst(ClaimTypes.Name)?.Value;
+        var email = principal.FindFirst(ClaimTypes.Email)?.Value;
+        var nickname = principal.FindFirst("nickname")?.Value;
+        var roles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        var isAdmin = principal.HasClaim("is_admin", "true");
+
+        if (userIdStr is not null && long.TryParse(userIdStr, out var userId))
+        {
+            AppState.SetUser(userId, userName ?? "", email, nickname, roles, isAdmin);
+
+            // Load per-site permissions from claims
+            var permValues = principal.FindAll("permission").Select(c => c.Value).ToList();
+            AppState.LoadPermissions(permValues);
+        }
+        else
+        {
+            AppState.ClearUser();
+        }
+    }
+
     private async Task<long?> TryGetDefaultSiteAsync()
     {
         try
         {
             var result = await SitesClient.GetDefaultAsync();
-            if (result is Result<SiteViewModel, AeroError>.Ok ok)
+            if (result is Result<SiteInfo, AeroError>.Ok ok)
             {
                 AdminState.SetSite(ok.Value.Id, ok.Value.Name ?? "Default Site");
                 // Also set the server-side cookie so DefaultSiteContext picks it up

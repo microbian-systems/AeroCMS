@@ -7,6 +7,8 @@ using Aero.Cms.Web.Services;
 using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Core.Extensions;
+using Aero.Cms.Contracts.Abstractions;
+using Aero.Cms.Contracts.Services;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Components;
 using Aero.Web.Exceptions;
@@ -274,6 +276,10 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     services.AddAeroHttpClients(baseUrl is not null ? new Uri(baseUrl) : null);
     services.AddScoped<ManagerThemeService>();
     services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
+    services.AddScoped<Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor, CurrentSiteAccessor>();
+    services.AddScoped<AppState>();
+    services.AddScoped<IAdminStorage, NoopAdminStorage>();
+    services.AddScoped<AdminStateContainer>();
 
     // Override the NoopSiteContext (WASM-safe singleton) with the real server-side
     // DefaultSiteContext that reads IAeroSiteSlice from middleware or AeroCms.SiteId cookie.

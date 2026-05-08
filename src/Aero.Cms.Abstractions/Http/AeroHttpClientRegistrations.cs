@@ -78,6 +78,10 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<IAliasHttpClient, AliasesHttpClient>();
         services.AddHttpClient<IAiHttpClient, AiHttpClient>();
 
+        // Register WASM-safe Contracts interface — resolves via cast to shared implementation
+        services.AddScoped<Aero.Cms.Contracts.Abstractions.ISitesHttpClient>(sp =>
+            (Aero.Cms.Contracts.Abstractions.ISitesHttpClient)sp.GetRequiredService<ISitesHttpClient>());
+
         return services;
     }
 }

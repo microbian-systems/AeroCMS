@@ -41,11 +41,22 @@ public static class IdentityApi
 
         var roles = await userManager.GetRolesAsync(user);
         var isAdmin = roles.Contains("Admin", StringComparer.OrdinalIgnoreCase);
+        var nickName = string.IsNullOrWhiteSpace($"{user.FirstName} {user.LastName}".Trim())
+            ? user.UserName
+            : $"{user.FirstName} {user.LastName}".Trim();
+        var permissions = await userManager.GetClaimsAsync(user);
+        var permValues = permissions
+            .Where(c => c.Type == "permission")
+            .Select(c => c.Value)
+            .ToList();
         return Results.Ok(new CurrentUserResponse(
+            user.Id,
             user.UserName ?? user.Email ?? "Unknown",
             user.Email,
             roles.ToArray(),
-            isAdmin));
+            isAdmin,
+            nickName,
+            permValues));
     }
 
     private static async Task<IResult> LocalLoginAsync(
@@ -109,7 +120,14 @@ public static class IdentityApi
 
     public sealed record AuthenticationConfigResponse(string AuthenticationMode);
 
-    public sealed record CurrentUserResponse(string UserName, string? Email, IReadOnlyList<string> Roles, bool IsAdmin);
+    public sealed record CurrentUserResponse(
+        long UserId,
+        string UserName,
+        string? Email,
+        IReadOnlyList<string> Roles,
+        bool IsAdmin,
+        string? Nickname,
+        IReadOnlyList<string> Permissions);
 
     public sealed record LocalLoginRequest(string EmailOrUserName, string Password, bool RememberMe);
 

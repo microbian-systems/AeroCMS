@@ -2,6 +2,8 @@ using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Contracts.Models;
+using CICurrentSiteAccessor = Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor;
 
 namespace Aero.Cms.Shared.Services;
 
@@ -10,7 +12,7 @@ namespace Aero.Cms.Shared.Services;
 /// Uses HttpClient to call server API endpoints that manage the AeroCms.SiteId cookie.
 /// Works in both InteractiveServer and InteractiveWebAssembly render modes.
 /// </summary>
-public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor
+public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor, CICurrentSiteAccessor
 {
     public event Action? SiteChanged;
 
@@ -29,6 +31,12 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor
         {
             return null;
         }
+    }
+
+    async Task<SiteInfo?> CICurrentSiteAccessor.GetCurrentSiteAsync()
+    {
+        var vm = await GetCurrentSiteAsync();
+        return vm is null ? null : MapToSiteInfo(vm);
     }
 
     public async Task<long?> GetCurrentSiteIdAsync()
@@ -73,4 +81,7 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor
             // Silently fail if circuit is disconnected
         }
     }
+
+    private static SiteInfo MapToSiteInfo(SiteViewModel vm) => new(
+        vm.Id, vm.Name, vm.PrimaryHost, vm.IsEnabled, vm.DefaultCulture, vm.TenantId);
 }

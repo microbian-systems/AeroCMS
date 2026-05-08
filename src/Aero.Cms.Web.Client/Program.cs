@@ -4,6 +4,8 @@ using Aero.Core.Security;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Aero.Cms.Core.Extensions;
+using Aero.Cms.Contracts.Abstractions;
+using Aero.Cms.Contracts.Services;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Client.Services;
 using Radzen;
@@ -42,10 +44,12 @@ builder.Services.AddAeroHttpClients(uri);
 // Client-side state container — replaces per-page HTTP calls for site context
 builder.Services.AddSingleton<IAdminStorage, LocalStorageAdminStorage>();
 builder.Services.AddSingleton<AdminStateContainer>();
+builder.Services.AddSingleton<AppState>();
 
 // Legacy registrations
 builder.Services.AddScoped<ManagerThemeService>();
 builder.Services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
+builder.Services.AddScoped<Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor, CurrentSiteAccessor>();
 builder.Services.AddRadzenComponents();
 
 // Register cross-cutting services that run client-side
