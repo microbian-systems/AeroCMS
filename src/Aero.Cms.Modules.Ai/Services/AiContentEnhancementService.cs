@@ -32,35 +32,6 @@ public sealed class AiContentEnhancementService(
         keep the text conservative. No cussing. No questionable material responses.
         """;
 
-    /// <summary>
-    /// Strips markdown code fences (```json ... ```) and surrounding whitespace from LLM responses
-    /// that wrap JSON in Markdown formatting despite instructions.
-    /// </summary>
-    private static string StripMarkdownFences(string text)
-    {
-        var trimmed = text.Trim();
-        if (trimmed.StartsWith("```", StringComparison.Ordinal))
-        {
-            // Remove opening fence (e.g. "```json" or "```")
-            var firstNewline = trimmed.IndexOf('\n');
-            if (firstNewline > 0)
-            {
-                trimmed = trimmed[(firstNewline + 1)..];
-            }
-
-            // Remove closing fence if present
-            var closingFence = trimmed.LastIndexOf("```", StringComparison.Ordinal);
-            if (closingFence >= 0)
-            {
-                trimmed = trimmed[..closingFence];
-            }
-
-            trimmed = trimmed.Trim();
-        }
-
-        return trimmed;
-    }
-
     public async Task<Result<EnhanceContentResponse, AeroError>> EnhanceAsync(
         EnhanceContentRequest request,
         CancellationToken cancellationToken = default)
@@ -111,24 +82,38 @@ public sealed class AiContentEnhancementService(
             var chatResponse = await client.GetResponseAsync(messages, chatOptions, cancellationToken: timeout.Token);
             var rawText = chatResponse.Messages?.LastOrDefault()?.Text;
 
+            // Detect token-limit truncation via the API's finish reason
+            if (chatResponse.FinishReason == ChatFinishReason.Length)
+            {
+                var outputTokens = chatResponse.Usage?.OutputTokenCount;
+                logger.LogWarning(
+                    "AI response truncated: FinishReason=Length, MaxOutputTokens={MaxTokens}, OutputTokens={OutputTokens}",
+                    settings.MaxOutputTokens, outputTokens);
+                return AeroError.CreateError(
+                    $"AI response was truncated because it hit the output token limit ({settings.MaxOutputTokens}). " +
+                    $"Increase the Max Output Tokens in AI Settings and try again.");
+            }
+
             if (string.IsNullOrWhiteSpace(rawText))
             {
                 return AeroError.CreateError("AI provider returned an empty response.");
             }
 
-            // Some LLMs wrap JSON in markdown code fences — strip them before deserializing
-            var cleaned = StripMarkdownFences(rawText);
-
             EnhanceContentAgentOutput? output;
             try
             {
-                output = JsonSerializer.Deserialize<EnhanceContentAgentOutput>(cleaned, JsonOptions);
+                output = EnhanceContentAgentOutputParser.Deserialize(rawText, JsonOptions);
+            }
+            catch (JsonException ex) when (ex.Message.Contains("end of data", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogError(ex, "AI provider response was truncated — likely MaxOutputTokens too low.");
+                return AeroError.CreateError(
+                    $"AI response was truncated. Try increasing the Max Output Tokens setting for this provider (current: {settings.MaxOutputTokens}) and try again.");
             }
             catch (JsonException ex)
             {
                 logger.LogError(ex, "Error deserializing AI provider response.");
-                // If that fails, try parsing from the raw text as a fallback
-                output = JsonSerializer.Deserialize<EnhanceContentAgentOutput>(rawText, JsonOptions);
+                return AeroError.CreateError("AI provider returned an unparseable response. Try increasing MaxOutputTokens if the content is large.");
             }
 
             if (output is null)
@@ -166,9 +151,4 @@ public sealed class AiContentEnhancementService(
             return AeroError.CreateError("AI enhancement failed. Check provider configuration and try again.");
         }
     }
-
-    private sealed record EnhanceContentAgentOutput(
-        string EnhancedText,
-        string? Rationale,
-        IReadOnlyList<string>? Warnings);
 }

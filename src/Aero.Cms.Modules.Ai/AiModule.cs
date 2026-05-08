@@ -34,6 +34,21 @@ public sealed class AiModule : AeroWebModule, IUiModule
         services.AddScoped<IAiContentEnhancementService, AiContentEnhancementService>();
         services.AddScoped<IEnhanceContentPromptBuilder, EnhanceContentPromptBuilder>();
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.EnhanceContentRequest>, EnhanceContentRequestValidator>();
+        services.AddTransient<TornadoRetryHandler>();
+
+        // Typed HttpClient for outbound LLM provider calls.
+        // Retries only on connection failure / timeout via TornadoRetryHandler.
+        services.AddHttpClient<TornadoProviderClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(120);
+        })
+        .AddHttpMessageHandler<TornadoRetryHandler>()
+        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            MaxConnectionsPerServer = 10,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+        });
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)

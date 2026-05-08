@@ -11,12 +11,17 @@ using Microsoft.Extensions.Logging;
 namespace Aero.Cms.Modules.Ai.Configuration;
 
 public sealed class TornadoAiChatClientFactory(
-    ILogger<TornadoAiChatClientFactory> logger) : IAiChatClientFactory
+    ILogger<TornadoAiChatClientFactory> logger,
+    TornadoProviderClient tornadoClient) : IAiChatClientFactory
 {
+    private static bool _tornadoConfigured;
+
     public Task<Result<IChatClient, AeroError>> CreateAsync(
         AiRuntimeSettings settings,
         CancellationToken cancellationToken = default)
     {
+        ConfigureTornadoOnce();
+
         if (!settings.Enabled)
         {
             return Task.FromResult<Result<IChatClient, AeroError>>(AeroError.ConfigurationError("AI provider is disabled."));
@@ -48,6 +53,16 @@ public sealed class TornadoAiChatClientFactory(
             logger.LogError(ex, "Failed to create AI chat client for provider {ProviderId}.", settings.ProviderId);
             return Task.FromResult<Result<IChatClient, AeroError>>(AeroError.ConfigurationError("AI provider could not be initialized."));
         }
+    }
+
+    private void ConfigureTornadoOnce()
+    {
+        if (_tornadoConfigured) return;
+        _tornadoConfigured = true;
+
+        // Wire Tornado to our DI-managed typed HttpClient — no Polly retry handler attached.
+        TornadoConfig.CreateClient = _ => tornadoClient.HttpClient;
+        logger.LogInformation("LlmTornado HttpClient configured via DI (no automatic retry).");
     }
 
     private static TornadoApi CreateTornadoApi(AiRuntimeSettings settings)

@@ -81,7 +81,7 @@ public static class DefaultAiProviderProfiles
             Get(configuration, $"Ai:Providers:{configurationName}:Model", defaultModel),
             ProtectedApiKey: null,
             GetFloat(configuration, $"Ai:Providers:{configurationName}:Temperature", 0.3f),
-            GetInt(configuration, $"Ai:Providers:{configurationName}:MaxOutputTokens", 1200),
+            GetInt(configuration, $"Ai:Providers:{configurationName}:MaxOutputTokens", 128000),
             GetInt(configuration, $"Ai:Providers:{configurationName}:TimeoutSeconds", 60),
             GetBool(configuration, $"Ai:Providers:{configurationName}:StreamResponses", false),
             GetBool(configuration, $"Ai:Providers:{configurationName}:SaveUsageTelemetry", false),
