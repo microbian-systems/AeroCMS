@@ -272,6 +272,9 @@ internal static class EnhanceContentAgentOutputParser
             case '\t':
                 builder.Append("\\t");
                 break;
+            case '"':
+                builder.Append("\\\"");
+                break;
             case '\b':
                 builder.Append("\\b");
                 break;

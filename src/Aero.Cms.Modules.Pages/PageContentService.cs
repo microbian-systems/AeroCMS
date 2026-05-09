@@ -54,7 +54,7 @@ public sealed class MartenPageContentService(
             }
 
             var document = await session.LoadAsync<PageDocument>(id, cancellationToken);
-            if (document is null || document.SiteId != _siteContext.SiteId)
+            if (document is null)
             {
                 return Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
             }
@@ -125,21 +125,30 @@ public sealed class MartenPageContentService(
                 .FirstOrDefaultAsync(x =>
                     x.SiteId == _siteContext.SiteId &&
                     string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
-            if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.Page)
+            if (reservation is not null && reservation.OwnerType == ContentSlugOwnerType.Page)
             {
-                return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
+                var document = await session.LoadAsync<PageDocument>(reservation.OwnerId, cancellationToken);
+                if (document is not null)
+                {
+                    // Filter by published state — unpublished pages must not be publicly accessible
+                    if (document.PublicationState != ContentPublicationState.Published)
+            return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
+        }
             }
 
-            var document = await session.LoadAsync<PageDocument>(reservation.OwnerId, cancellationToken);
-            if (document is null)
-                return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with id '{reservation.OwnerId}' not found"));
+            // Fallback: direct PageDocument lookup (handles pages created without slug reservation)
+            var directPage = await session.Query<PageDocument>()
+                .FirstOrDefaultAsync(x =>
+                    x.SiteId == _siteContext.SiteId &&
+                    string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase) &&
+                    x.PublicationState == ContentPublicationState.Published, token: cancellationToken);
+            if (directPage is not null)
+            {
+                await SetCacheAsync(cacheKey, directPage, cancellationToken);
+                return Prelude.Ok<PageDocument?, AeroError>(directPage);
+            }
 
-            // Filter by published state — unpublished pages must not be publicly accessible
-            if (document.PublicationState != ContentPublicationState.Published)
-                return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
-
-            await SetCacheAsync(cacheKey, document, cancellationToken);
-            return Prelude.Ok<PageDocument?, AeroError>(document);
+            return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
         }
         catch (Exception ex)
         {

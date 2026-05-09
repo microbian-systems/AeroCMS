@@ -6,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using TickerQ.DependencyInjection;
 using Wolverine;
+using Microsoft.AspNetCore.Builder;
+using TickerQ.Dashboard.DependencyInjection;
 
 
 namespace Aero.AppServer;
@@ -70,7 +72,11 @@ public static class AeroAppServerExtensions
 
         services.AddTickerQ(opts =>
         {
-
+            opts.AddDashboard(dashboard =>
+            {
+                dashboard.SetBasePath("/manager/jobs");
+                dashboard.WithBasicAuth("admin", "*strongPassword1"); // TODO: replace with secure credentials and configuration
+            });
         });
 
         // Marten
@@ -92,5 +98,11 @@ public static class AeroAppServerExtensions
         });
 
         return Task.FromResult(builder);
+    }
+
+    public static WebApplication UseAeroApplicationServer(this WebApplication app)
+    {
+        app.UseTickerQ();
+        return app;
     }
 }

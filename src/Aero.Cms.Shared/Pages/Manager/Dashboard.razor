@@ -3,10 +3,12 @@
 @attribute [Authorize]
 
 <div class="space-y-6">
+
+    @* ── Page Header ──────────────────────────────── *@
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p class="mt-1 text-sm text-gray-500">Welcome back to Aero CMS management console.</p>
+            <h1 class="text-2xl font-bold" style="color: var(--pe-text-primary);">Dashboard</h1>
+            <p class="mt-1 text-sm" style="color: var(--pe-text-secondary);">Welcome back to Aero CMS management console.</p>
         </div>
         <div class="flex space-x-3">
             <RadzenButton Icon="refresh" Text="Refresh" ButtonStyle="ButtonStyle.Light" />
@@ -14,66 +16,359 @@
         </div>
     </div>
 
-    @* Placeholder for stats *@
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <RadzenCard class="flex flex-col items-center justify-center p-6 bg-indigo-50 border-indigo-100">
-            <RadzenText TextStyle="TextStyle.H6" class="text-indigo-600">Total Posts</RadzenText>
-            <RadzenText TextStyle="TextStyle.H3" class="font-bold">124</RadzenText>
-        </RadzenCard>
-        <RadzenCard class="flex flex-col items-center justify-center p-6 bg-emerald-50 border-emerald-100">
-            <RadzenText TextStyle="TextStyle.H6" class="text-emerald-600">Active Pages</RadzenText>
-            <RadzenText TextStyle="TextStyle.H3" class="font-bold">12</RadzenText>
-        </RadzenCard>
-        <RadzenCard class="flex flex-col items-center justify-center p-6 bg-amber-50 border-amber-100">
-            <RadzenText TextStyle="TextStyle.H6" class="text-amber-600">Media Files</RadzenText>
-            <RadzenText TextStyle="TextStyle.H3" class="font-bold">452</RadzenText>
-        </RadzenCard>
-        <RadzenCard class="flex flex-col items-center justify-center p-6 bg-violet-50 border-violet-100">
-            <RadzenText TextStyle="TextStyle.H6" class="text-violet-600">Users</RadzenText>
-            <RadzenText TextStyle="TextStyle.H3" class="font-bold">8</RadzenText>
-        </RadzenCard>
-    </div>
+    @* ── Card Grid ────────────────────────────────── *@
+    <div class="pe-dashboard-grid">
 
-    @* Placeholder for charts *@
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <RadzenCard>
-            <RadzenText TextStyle="TextStyle.H6" class="mb-4">Recent Activity</RadzenText>
-            <RadzenHtml>
-                <div class="space-y-4">
-                    @for (int i = 0; i < 5; i++)
+        @* ════ Card 1: Stat Metrics Row ════════════════ *@
+        <div class="pe-dashboard-card">
+            <div class="pe-dash-card-header">
+                <h2>Overview</h2>
+                <a href="#">View full report &rarr;</a>
+            </div>
+            <div class="pe-dash-card-body">
+                <div class="pe-dash-metrics">
+                    @foreach (var m in metrics)
                     {
-                        <div class="flex items-start space-x-3 pb-3 border-b border-gray-100 last:border-0">
-                            <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-gray-900">New post published: "Getting Started with Aero"</p>
-                                <p class="text-xs text-gray-500">2 hours ago</p>
+                        <div class="pe-dash-metric">
+                            <div class="pe-dash-metric-top">
+                                <div class="pe-dash-metric-icon" style="background: @m.IconBg;">
+                                    @m.IconSvg
+                                </div>
+                                <div>
+                                    <div class="pe-dash-metric-value">@m.Value</div>
+                                    <div class="pe-dash-metric-label">@m.Label</div>
+                                </div>
+                                <span class="pe-dash-metric-delta @(m.IsUp ? "up" : "down")">
+                                    @(m.IsUp ? "↑" : "↓") @m.Delta
+                                </span>
                             </div>
                         </div>
                     }
                 </div>
-            </RadzenHtml>
-        </RadzenCard>
-        <RadzenCard>
-            <RadzenText TextStyle="TextStyle.H6" class="mb-4">System Status</RadzenText>
-            <div class="space-y-4">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">API Health</span>
-                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Operational" />
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Database</span>
-                    <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Healthy" />
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Storage</span>
-                    <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="75% Free" />
+            </div>
+        </div>
+
+        @* ════ Card 2: Recent Activity + Top Pages ═════ *@
+        <div class="pe-dashboard-card">
+            <div class="pe-dash-card-header">
+                <h2>Recent Activity</h2>
+                <a href="#">View all &rarr;</a>
+            </div>
+            <div class="pe-dash-card-body">
+                <div class="pe-dash-split cols-2">
+
+                    @* Left: Activity Feed *@
+                    <div class="pe-dash-split-left">
+                        <div class="pe-dash-section-label">Live Feed</div>
+                        <div class="pe-dash-activity-feed">
+                            @foreach (var a in activities)
+                            {
+                                <div class="pe-dash-activity-item">
+                                    <div class="pe-dash-activity-icon" style="background: @a.IconBg;">
+                                        @a.IconSvg
+                                    </div>
+                                    <div class="pe-dash-activity-content">
+                                        <p class="pe-dash-activity-text">@a.Html</p>
+                                        <div class="pe-dash-activity-time">@a.Time</div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    @* Right: Top Pages *@
+                    <div class="pe-dash-split-right">
+                        <div class="pe-dash-section-label">Top Pages</div>
+                        <table class="pe-dash-pages-table">
+                            <thead>
+                                <tr>
+                                    <th>Page</th>
+                                    <th>Active Users</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in topPages)
+                                {
+                                    <tr>
+                                        <td class="pe-dash-pages-url">@p.Url</td>
+                                        <td class="pe-dash-pages-count">@p.ActiveUsers</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
                 </div>
             </div>
-        </RadzenCard>
+        </div>
+
+        @* ── Cards 3-5: Two-column sub-grid ─────────── *@
+        <div class="pe-dashboard-grid pe-dashboard-grid-cols-2">
+
+            @* ════ Card 3: Content by Category (Radzen BarChart) ═══ *@
+            <div class="pe-dashboard-card">
+                <div class="pe-dash-card-header">
+                    <h2>Content by Category</h2>
+                </div>
+                <div class="pe-dash-card-body">
+                    <div class="pe-dash-chart-wrap">
+                        <RadzenChart>
+                            <RadzenBarSeries Data="@categoryData"
+                                             CategoryProperty="Category"
+                                             ValueProperty="Count"
+                                             ColorProperty="Color"
+                                             Title="Count">
+                                <RadzenSeriesDataLabels Visible="true" />
+                            </RadzenBarSeries>
+                            <RadzenCategoryAxis Visible="false" />
+                            <RadzenValueAxis Visible="false" />
+                        </RadzenChart>
+                    </div>
+                </div>
+            </div>
+
+            @* ════ Card 4: Top Content ═══════════════════ *@
+            <div class="pe-dashboard-card">
+                <div class="pe-dash-card-header">
+                    <h2>Top Content</h2>
+                </div>
+                <div class="pe-dash-card-body">
+                    <div class="pe-dash-report">
+                        @foreach (var c in topContent)
+                        {
+                            <div class="pe-dash-report-item">
+                                <div class="pe-dash-report-row">
+                                    <span class="pe-dash-report-label">@c.Title</span>
+                                    <span class="pe-dash-report-value">@c.Views</span>
+                                </div>
+                                <div class="pe-dash-progress-track">
+                                    <div class="pe-dash-progress-fill @c.BarColor"
+                                         style="width: @c.Percentage%;"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* ════ Card 5: Top Regions ═══════════════════ *@
+            <div class="pe-dashboard-card">
+                <div class="pe-dash-card-header">
+                    <h2>Top Regions</h2>
+                </div>
+                <div class="pe-dash-card-body">
+                    <div class="pe-dash-report">
+                        @foreach (var r in regions)
+                        {
+                            <div class="pe-dash-report-item">
+                                <div class="pe-dash-report-row">
+                                    <span class="pe-dash-report-label">@r.Flag @r.Name</span>
+                                    <span class="pe-dash-report-value">@r.Sessions</span>
+                                </div>
+                                <div class="pe-dash-progress-track">
+                                    <div class="pe-dash-progress-fill @r.BarColor"
+                                         style="width: @r.Percentage%;"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        @* ════ Card 6: Top Content Table ═══════════════ *@
+        <div class="pe-dashboard-card">
+            <div class="pe-dash-card-header">
+                <h2>Top Content</h2>
+                <a href="#">View all &rarr;</a>
+            </div>
+            <div class="pe-dash-card-body pe-dash-table-wrap">
+                <table class="pe-dash-table">
+                    <thead>
+                        <tr>
+                            <th>Content</th>
+                            <th>Author</th>
+                            <th>Category</th>
+                            <th>Views</th>
+                            <th>CTR</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in tableItems)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="pe-dash-table-title">
+                                        <div class="rounded-full" style="width:36px;height:36px;background:@t.BadgeBg;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                            @t.BadgeSvg
+                                        </div>
+                                        @t.Title
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="pe-dash-table-author-avatars">
+                                        @foreach (var avatar in t.AvatarLetters)
+                                        {
+                                            <div style="width:28px;height:28px;border-radius:50%;background:var(--pe-bg-tertiary);border:2px solid var(--pe-bg-secondary);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--pe-text-secondary);margin-right:-6px;">@avatar</div>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="pe-dash-table-category">
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.3 4.5c1.9-1.9 5.1-1.9 7 0 .7.7 1.2 1.7 1.4 2.7l2-.3c-.2-1.5-.9-2.8-1.9-3.8C10.1.4 5.7.4 2.9 3.1L.7.9 0 7.3l6.4-.7-2.1-2.1zM15.6 8.7l-6.4.7 2.1 2.1c-1.9 1.9-5.1 1.9-7 0-.7-.7-1.2-1.7-1.4-2.7l-2 .3c.2 1.5.9 2.8 1.9 3.8 1.4 1.4 3.1 2 4.9 2 1.8 0 3.6-.7 4.9-2l2.2 2.2.8-6.4z"/></svg>
+                                        @t.Category
+                                    </div>
+                                </td>
+                                <td style="font-weight:600;color:var(--pe-text-primary);">@t.Views</td>
+                                <td class="pe-dash-table-ctr">@t.Ctr</td>
+                                <td class="pe-dash-table-value">@t.Value</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 </div>
 
 @code {
+
+    // ── Stat Metrics ─────────────────────────────────
+    private record Metric(
+        string Label, string Value, string Delta, bool IsUp,
+        string IconBg, RenderFragment IconSvg);
+
+    private Metric[] metrics = [
+        new("Total Posts", "24.7K", "49%", true, "rgba(99,102,241,0.15)",
+            builder => { builder.AddContent(0, __svg(16, 16, "M12 4v16m8-8H4", "#6366f1")); }),
+        new("Active Pages", "56.9K", "7%", true, "rgba(34,197,94,0.15)",
+            builder => { builder.AddContent(0, __svg(16, 16, "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", "#22c55e")); }),
+        new("Media Files", "452", "12%", true, "rgba(245,158,11,0.15)",
+            builder => { builder.AddContent(0, __svg(16, 16, "M4 16a1 1 0 01-1-1V1a1 1 0 011-1h8a1 1 0 011 1v14a1 1 0 01-1 1H4zm2-2h4V4H6v10z", "#f59e0b")); }),
+        new("Users", "128", "8%", true, "rgba(59,130,246,0.15)",
+            builder => { builder.AddContent(0, __svg(16, 16, "M12 4a4 4 0 1 0-8 0 4 4 0 0 0 8 0ZM2 14a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1Z", "#3b82f6")); }),
+    ];
+
+    private static RenderFragment __svg(int w, int h, string path, string stroke) => b =>
+    {
+        b.OpenElement(0, "svg");
+        b.AddAttribute(1, "width", w);
+        b.AddAttribute(2, "height", h);
+        b.AddAttribute(3, "viewBox", $"0 0 {24} {24}");
+        b.AddAttribute(4, "fill", "none");
+        b.AddAttribute(5, "stroke", stroke);
+        b.AddAttribute(6, "stroke-width", "2");
+        b.OpenElement(7, "path");
+        b.AddAttribute(8, "d", path);
+        b.CloseElement();
+        b.CloseElement();
+    };
+
+    // ── Activity Feed ────────────────────────────────
+    private record ActivityItem(RenderFragment IconSvg, string IconBg, string Html, string Time);
+
+    private ActivityItem[] activities = [
+        new(_icon("edit"), "rgba(99,102,241,0.15)",
+            "<strong>New post published:</strong> \"Getting Started with Aero\"", "2 hours ago"),
+        new(_icon("user-plus"), "rgba(34,197,94,0.15)",
+            "<strong>New user registered:</strong> jane@example.com", "4 hours ago"),
+        new(_icon("upload"), "rgba(245,158,11,0.15)",
+            "<strong>Media uploaded:</strong> hero-banner-v2.jpg", "6 hours ago"),
+        new(_icon("settings"), "rgba(59,130,246,0.15)",
+            "<strong>Site settings updated:</strong> Default language changed", "12 hours ago"),
+        new(_icon("message"), "rgba(236,72,153,0.15)",
+            "<strong>Comment approved:</strong> on \"Welcome to Aero\"", "1 day ago"),
+    ];
+
+    private static RenderFragment _icon(string name) => name switch
+    {
+        "edit" => __svg(16, 16, "M13.95.879a3 3 0 0 0-4.243 0L1.293 9.293a1 1 0 0 0-.274.51l-1 5a1 1 0 0 0 1.177 1.177l5-1a1 1 0 0 0 .511-.273l8.414-8.414a3 3 0 0 0 0-4.242L13.95.879Z", "#6366f1"),
+        "user-plus" => __svg(16, 16, "M12 4a4 4 0 1 0-8 0 4 4 0 0 0 8 0ZM2 14a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1Z", "#22c55e"),
+        "upload" => __svg(16, 16, "M8 1a1 1 0 0 1 1 1v7.586l2.293-2.293a1 1 0 0 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L7 9.586V2a1 1 0 0 1 1-1Z", "#f59e0b"),
+        "settings" => __svg(16, 16, "M10.5 1a3.502 3.502 0 0 1 3.355 2.5H15a1 1 0 1 1 0 2h-1.145a3.502 3.502 0 0 1-6.71 0H1a1 1 0 0 1 0-2h6.145A3.502 3.502 0 0 1 10.5 1Z", "#3b82f6"),
+        "message" => __svg(16, 16, "M11.92 6.851c.044-.027.09-.05.137-.07.481-.275.758-.68.908-1.256.126-.55.169-.81.357-2.058.075-.498.144-.91.217-1.264-4.122.75-7.087 2.984-9.12 6.284a18.087 18.087 0 0 0-1.985 4.585 17.07 17.07 0 0 0-.354 1.506c-.05.265-.076.448-.086.535a1 1 0 0 1-1.988-.226c.056-.49.209-1.312.502-2.357a20.063 20.063 0 0 1 2.208-5.09C5.31 3.226 9.306.494 14.913.004a1 1 0 0 1 .954 1.494c-.237.414-.375.993-.567 2.267-.197 1.306-.244 1.586-.392 2.235-.285 1.094-.789 1.853-1.552 2.363-.748 3.816-3.976 5.06-8.515 4.326a1 1 0 0 1 .318-1.974c2.954.477 4.918.025 5.808-1.556", "#ec4899"),
+        _ => __svg(16, 16, "M12 4v16m8-8H4", "#6366f1"),
+    };
+
+    // ── Top Pages ────────────────────────────────────
+    private record TopPage(string Url, int ActiveUsers);
+
+    private TopPage[] topPages = [
+        new("preview.aerocms.com/blog/", 94),
+        new("aerocms.com/pricing/", 42),
+        new("aerocms.com/docs/", 12),
+        new("preview.aerocms.com/about/", 4),
+    ];
+
+    // ── Content by Category (Chart) ───────────────────
+    private record CategoryDatum(string Category, int Count, string Color);
+
+    private CategoryDatum[] categoryData = [
+        new("Blog Posts", 128, "#6366f1"),
+        new("Pages", 45, "#22c55e"),
+        new("Media", 452, "#f59e0b"),
+        new("Documents", 67, "#3b82f6"),
+        new("Categories", 24, "#ec4899"),
+    ];
+
+    // ── Top Content (progress bars) ───────────────────
+    private record TopContentItem(string Title, string Views, double Percentage, string BarColor);
+
+    private TopContentItem[] topContent = [
+        new("aerocms.com/", "28K", 82, "violet"),
+        new("preview.aerocms.com/open-pro/", "12K", 70, "green"),
+        new("preview.aerocms.com/appy/", "9.7K", 60, "blue"),
+        new("aerocms.com/about/", "6.4K", 40, "orange"),
+        new("docs.aerocms.com/", "5.4K", 30, "pink"),
+    ];
+
+    // ── Top Regions (progress bars) ───────────────────
+    private record RegionItem(string Flag, string Name, string Sessions, double Percentage, string BarColor);
+
+    private RegionItem[] regions = [
+        new("🇮🇪", "Ireland", "4.2K", 82, "violet"),
+        new("🇺🇸", "United States", "3.4K", 70, "blue"),
+        new("🇩🇪", "Germany", "1.6K", 60, "green"),
+        new("🇮🇹", "Italy", "1.2K", 44, "orange"),
+        new("🇬🇧", "United Kingdom", "912", 40, "teal"),
+    ];
+
+    // ── Top Content Table ─────────────────────────────
+    private record TableItem(
+        string Title, string Category, string Views, string Ctr, string Value,
+        string BadgeBg, RenderFragment BadgeSvg, string[] AvatarLetters);
+
+    private TableItem[] tableItems = [
+        new("Getting Started with Aero", "Post", "20.9K", "27.4%", "$12,499",
+            "rgba(99,102,241,0.15)", _badge("M24.446 19.335a2.5 2.5 0 00-3.522 3.194c-.845.63-1.87.97-2.924.971a4.979 4.979 0 01-1.113-.135 4.436 4.436 0 01-1.343 1.682 6.91 6.91 0 006.9-1.165 2.5 2.5 0 002-4.547h.002zM20.431 11.938a2.5 2.5 0 10-.4 2.014 5.027 5.027 0 012.723 3.078c.148-.018.297-.028.446-.03a4.5 4.5 0 011.7.334 7.023 7.023 0 00-4.469-5.396zM14.969 20.25a2.49 2.49 0 00-1.932-1.234A4.624 4.624 0 0113 18.5a4.97 4.97 0 011.348-3.391 4.456 4.456 0 01-.788-2.016A6.989 6.989 0 0011 18.5c.003.391.04.781.11 1.166a2.5 2.5 0 103.859.584z", "#6366f1"),
+            ["AB", "CD"]),
+        new("Aero CMS Documentation", "Doc", "17.9K", "22.6%", "$4,227",
+            "rgba(34,197,94,0.15)", _badge("M11 22.012a1 1 0 01-.707-1.707l4.5-4.5a1 1 0 011.414 0l3.293 3.293 4.793-4.793a1 1 0 111.414 1.414l-5.5 5.5a1 1 0 01-1.414 0L15.5 17.926l-3.793 3.793a1 1 0 01-.707.293z", "#22c55e"),
+            ["EF", "GH", "IJ"]),
+        new("2024 Web Bootcamp", "Course", "16.1K", "22.4%", "$2,499",
+            "rgba(99,102,241,0.15)", _badge("M24.446 19.335a2.5 2.5 0 00-3.522 3.194c-.845.63-1.87.97-2.924.971a4.979 4.979 0 01-1.113-.135 4.436 4.436 0 01-1.343 1.682 6.91 6.91 0 006.9-1.165 2.5 2.5 0 002-4.547h.002zM20.431 11.938a2.5 2.5 0 10-.4 2.014 5.027 5.027 0 012.723 3.078c.148-.018.297-.028.446-.03a4.5 4.5 0 011.7.334 7.023 7.023 0 00-4.469-5.396zM14.969 20.25a2.49 2.49 0 00-1.932-1.234A4.624 4.624 0 0113 18.5a4.97 4.97 0 011.348-3.391 4.456 4.456 0 01-.788-2.016A6.989 6.989 0 0011 18.5c.003.391.04.781.11 1.166a2.5 2.5 0 103.859.584z", "#6366f1"),
+            ["KL"]),
+        new("Digital Marketing Course", "Course", "13.0K", "22.1%", "$2,224",
+            "rgba(236,72,153,0.15)", _badge("M18 26a8 8 0 118-8 8.009 8.009 0 01-8 8zm0-14a6 6 0 100 12 6 6 0 000-12z", "#ec4899"),
+            ["MN", "OP"]),
+        new("Form Builder PRO", "Tool", "7.1K", "17.4%", "$1,949",
+            "rgba(59,130,246,0.15)", _badge("M13.05 24.363l-.707-.707a8 8 0 010-11.312l.707-.707 1.414 1.414-.707.707a6 6 0 000 8.484l.707.707-1.414 1.414zM22.95 24.363l-1.414-1.414.707-.707a6 6 0 000-8.484l-.707-.707 1.414-1.414.707.707a8 8 0 010 11.312l-.707.707z", "#3b82f6"),
+            ["QR", "ST"]),
+    ];
+
+    private static RenderFragment _badge(string path, string fill) => b =>
+    {
+        b.OpenElement(0, "svg");
+        b.AddAttribute(1, "width", "18");
+        b.AddAttribute(2, "height", "18");
+        b.AddAttribute(3, "viewBox", "0 0 36 36");
+        b.AddAttribute(4, "fill", fill);
+        b.OpenElement(5, "path");
+        b.AddAttribute(6, "d", path);
+        b.CloseElement();
+        b.CloseElement();
+    };
 }

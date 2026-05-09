@@ -218,7 +218,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
     // Add Aero Application Server (Orleans, Marten, Wolverine, etc.)
     // Pass the source-generated Wolverine handler catalog to avoid assembly scanning.
-    await builder.AddAeroApplicationServer(
+    _ = await builder.AddAeroApplicationServer(
         configureWolverine: GeneratedWolverineHandlerCatalog.Register);
 
     // Keep the web data layer aligned with the resolved infrastructure settings.
@@ -330,23 +330,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
 
     app.UseHttpsRedirection();
-
-    app.UseRouting();
-    app.UseAuthentication();
-    app.UseAuthorization();
-    app.UseCmsSetupGate();
-    app.UseAeroCmsModulePipeline();
-    app.UseAntiforgery();
-
-    // Hydro MUST come before MapStaticAssets because it replaces
-    // IWebHostEnvironment.WebRootFileProvider with a CompositeFileProvider
-    // that maps /hydro/* paths to embedded JS resources. MapStaticAssets
-    // snapshots the provider at config time; if placed before UseHydro,
-    // it never sees the Hydro scripts.
-    app.UseHydro(builder.Environment);
-
-    app.MapStaticAssets();
-
+    app.UseAeroApplicationServer();
     app.UseStatusCodePagesWithReExecute("/oops", "?status={0}");
     app.Use(async (context, next) =>
     {
@@ -361,7 +345,20 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
         await next();
     });
+    app.UseRouting();
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.UseCmsSetupGate();
+    app.UseAeroCmsModulePipeline();
+    app.UseAntiforgery();
 
+    // Hydro MUST come before MapStaticAssets because it replaces
+    // IWebHostEnvironment.WebRootFileProvider with a CompositeFileProvider
+    // that maps /hydro/* paths to embedded JS resources. MapStaticAssets
+    // snapshots the provider at config time; if placed before UseHydro,
+    // it never sees the Hydro scripts.
+    app.UseHydro(builder.Environment);
+    app.MapStaticAssets();
     app.MapRazorPages();
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode()

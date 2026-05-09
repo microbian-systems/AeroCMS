@@ -116,6 +116,7 @@
             if (siteId is null)
             {
                 siteId = await TryGetDefaultSiteAsync();
+                if (siteId is not null) return; // TryGetDefaultSiteAsync already called SetSite
             }
 
             if (siteId is null)
@@ -124,8 +125,17 @@
                 return;
             }
 
-            // Set site on AppState
-            AppState.SetSite(siteId.Value, AdminState.CurrentSiteName);
+            // Resolve TenantId from the current site
+            var infoResult = await SitesClient.GetByIdAsync(siteId.Value);
+            if (infoResult is Result<SiteInfo, AeroError>.Ok siteOk)
+            {
+                AppState.SetSite(siteId.Value, siteOk.Value.Name ?? AdminState.CurrentSiteName, siteOk.Value.TenantId);
+            }
+            else
+            {
+                // Site exists (we have the ID) but fetch failed — use 0 which will throw
+                AppState.SetSite(siteId.Value, AdminState.CurrentSiteName ?? "Unknown", 0);
+            }
 
             shellState = ShellState.Ready;
             return;
@@ -192,6 +202,7 @@
                 AdminState.SetSite(ok.Value.Id, ok.Value.Name ?? "Default Site");
                 // Also set the server-side cookie so DefaultSiteContext picks it up
                 await CurrentSiteAccessor.SetCurrentSiteAsync(ok.Value.Id);
+                AppState.SetSite(ok.Value.Id, ok.Value.Name ?? "Default Site", ok.Value.TenantId);
                 return ok.Value.Id;
             }
         }

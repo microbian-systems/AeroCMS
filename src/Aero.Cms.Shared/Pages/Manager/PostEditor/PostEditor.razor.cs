@@ -11,6 +11,9 @@ using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Shared.Services;
 using Aero.Core;
 using Aero.Core.Railway;
 using BlazorMonaco;
@@ -34,6 +37,9 @@ public partial class PostEditor : ComponentBase, IDisposable
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
     [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
+    [Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
+    [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
+    [Inject] protected AdminStateContainer AdminState { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // Editor state
@@ -63,7 +69,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/blog-posts/render-fragment");
     protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
     protected string? PreviewFrameUrl => Id.HasValue
-        ? BuildAbsoluteUrl($"_cms/preview/blog/drafts/{Id.Value}?previewVersion={_previewRefreshVersion}")
+        ? BuildAbsoluteUrl($"_cms/preview/blog/drafts/{Id.Value}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
 
     // Loaded post data
@@ -117,6 +123,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     private const int PreviewDebounceMilliseconds = 300;
     private CancellationTokenSource? _previewDebounceCts;
     private long _previewRefreshVersion;
+    private string? _previewBaseUri;
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle
@@ -124,6 +131,7 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     protected override async Task OnInitializedAsync()
     {
+        await ResolvePreviewBaseUriAsync();
         await LoadReferenceDataAsync();
 
         if (Id.HasValue)
@@ -425,6 +433,74 @@ public partial class PostEditor : ComponentBase, IDisposable
     private string BuildAbsoluteUrl(string relativeUrl, string? baseUri = null)
     {
         return new Uri(new Uri(baseUri ?? NavManager.BaseUri), relativeUrl.TrimStart('/')).ToString();
+    }
+
+    private async Task ResolvePreviewBaseUriAsync()
+    {
+        SiteViewModel? selectedSite = null;
+
+        if (AdminState.CurrentSiteId is { } selectedSiteId)
+        {
+            selectedSite = await LoadSiteByIdAsync(selectedSiteId);
+        }
+
+        if (selectedSite is null)
+        {
+            selectedSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        }
+
+        if (selectedSite is null)
+        {
+            // Fall back to the default site
+            var allSites = await SitesClient.GetAllAsync();
+            if (allSites is Result<IReadOnlyList<SiteViewModel>, AeroError>.Ok ok && ok.Value.Count > 0)
+            {
+                selectedSite = ok.Value.FirstOrDefault(s => s.Id == AdminState.CurrentSiteId) ?? ok.Value[0];
+            }
+        }
+
+        _previewBaseUri = BuildSiteBaseUri(selectedSite) ?? NavManager.BaseUri;
+    }
+
+    private async Task<SiteViewModel?> LoadSiteByIdAsync(long siteId)
+    {
+        var result = await SitesClient.GetByIdAsync(siteId);
+        return result is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
+    }
+
+    private static string? BuildSiteBaseUri(SiteViewModel? site)
+    {
+        var host = site?.PrimaryHost;
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            host = site?.Hosts?.FirstOrDefault(static h => !string.IsNullOrWhiteSpace(h));
+        }
+
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return null;
+        }
+
+        host = host.Trim().TrimEnd('/');
+
+        if (Uri.TryCreate(host, UriKind.Absolute, out var absoluteUri))
+        {
+            return EnsureTrailingSlash(absoluteUri.ToString());
+        }
+
+        var current = new Uri("https://localhost");
+        var authority = host;
+        if (!host.Contains(':', StringComparison.Ordinal))
+        {
+            authority = current.IsDefaultPort ? host : $"{host}:{current.Port}";
+        }
+
+        return EnsureTrailingSlash($"https://{authority}");
+    }
+
+    private static string EnsureTrailingSlash(string uri)
+    {
+        return uri.EndsWith("/", StringComparison.Ordinal) ? uri : $"{uri}/";
     }
 
     // ──────────────────────────────────────────────────────────

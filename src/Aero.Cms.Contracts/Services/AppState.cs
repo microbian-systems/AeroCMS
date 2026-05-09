@@ -31,6 +31,9 @@ public sealed class AppState
     /// <summary>Currently selected site name, or null if none selected.</summary>
     public string? CurrentSiteName { get; private set; }
 
+    /// <summary>Tenant ID for the currently selected site. Never zero once a site is set.</summary>
+    public long CurrentTenantId { get; private set; }
+
     // ── User / Auth ───────────────────────────────────────────────
 
     /// <summary>Authenticated user's ID, or null if not authenticated.</summary>
@@ -167,19 +170,22 @@ public sealed class AppState
     /// Sets the current site. Updates in-memory state and fires StateChanged.
     /// Does NOT persist to localStorage or server cookie — callers must handle that.
     /// </summary>
-    public void SetSite(long siteId, string? siteName)
+    public void SetSite(long siteId, string? siteName, long tenantId)
     {
-        if (CurrentSiteId == siteId && CurrentSiteName == siteName)
+        ArgumentOutOfRangeException.ThrowIfZero(tenantId, nameof(tenantId));
+
+        if (CurrentSiteId == siteId && CurrentSiteName == siteName && CurrentTenantId == tenantId)
             return;
 
         var oldId = CurrentSiteId;
         CurrentSiteId = siteId;
         CurrentSiteName = siteName;
+        CurrentTenantId = tenantId;
         IsSiteContextReady = true;
 
         _logger.LogInformation(
-            "AppState: Site changed {OldId} → {NewId} ({SiteName})",
-            oldId, siteId, siteName);
+            "AppState: Site changed {OldId} → {NewId} ({SiteName}) tenant {TenantId}",
+            oldId, siteId, siteName, tenantId);
 
         StateChanged?.Invoke();
     }
@@ -200,15 +206,17 @@ public sealed class AppState
     public void SetSiteFromRestoredState(
         long? siteId,
         string? siteName,
+        long tenantId,
         bool isSiteContextReady)
     {
         CurrentSiteId = siteId;
         CurrentSiteName = siteName;
+        CurrentTenantId = tenantId;
         IsSiteContextReady = isSiteContextReady;
 
         _logger.LogDebug(
-            "AppState: State restored from prerendering — site {SiteId} ({SiteName})",
-            siteId, siteName);
+            "AppState: State restored from prerendering — site {SiteId} ({SiteName}) tenant {TenantId}",
+            siteId, siteName, tenantId);
 
         StateChanged?.Invoke();
     }
@@ -218,6 +226,6 @@ public sealed class AppState
     /// Caller (root component) uses PersistentComponentState.PersistAsJson
     /// in a RegisterOnPersisting callback.
     /// </summary>
-    public (long? SiteId, string? SiteName, bool IsReady) GetStateForPersistence()
-        => (CurrentSiteId, CurrentSiteName, IsSiteContextReady);
+    public (long? SiteId, string? SiteName, long TenantId, bool IsReady) GetStateForPersistence()
+        => (CurrentSiteId, CurrentSiteName, CurrentTenantId, IsSiteContextReady);
 }

@@ -31,6 +31,7 @@
     <PackageReference Include="System.Numerics.Tensors" />
     <PackageReference Include="TickerQ" />
     <PackageReference Include="TickerQ.Caching.StackExchangeRedis" />
+    <PackageReference Include="TickerQ.Dashboard" />
     <PackageReference Include="TickerQ.EntityFrameworkCore" />
     <PackageReference Include="TickerQ.Instrumentation.OpenTelemetry" />
     <PackageReference Include="TickerQ.SDK" />

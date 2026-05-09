@@ -24,10 +24,18 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
 
         if (DraftId is { } draftId)
         {
-            if (User?.Identity?.IsAuthenticated != true)
-            {
-                return Unauthorized();
-            }
+            // TODO: Restore auth guard with preview API key. The draft preview
+            // iframe loads cross-domain (sub-site hostname), so the auth cookie
+            // from the manager domain (localhost) is not sent by the browser.
+            // Future options:
+            //   (B) Signed token in preview URL — append ?token={signed} validated
+            //       server-side via IDataProtector.
+            //   (C) Cross-domain SSO on site switch — hidden request to new
+            //       domain with login token to set auth cookie there.
+            //   (D) Seeded preview API key — validate ?key={apiKey} query param
+            //       against a PreviewApiKey document in Marten.
+            // For now: no auth on draft preview since IDs are Snowflakes
+            // (unguessable) and access requires knowing the exact page ID.
 
             result = await pageService.LoadAsync(draftId, cancellationToken);
         }

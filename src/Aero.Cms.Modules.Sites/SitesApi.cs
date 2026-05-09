@@ -133,11 +133,11 @@ public static class SitesApi
         if (sites is Result<IEnumerable<SitesModel>, AeroError>.Ok ok && ok.Value.Any())
             return Results.Ok(ok.Value.First());
 
-        // No sites exist — create a default one
+        // No sites exist — create a default one with a new tenant
         var site = new SitesModel
         {
             Id = Snowflake.NewId(),
-            TenantId = 0,
+            TenantId = Snowflake.NewId(),
             Name = "Default Site",
             IsEnabled = true,
             DefaultCulture = "en-US",
@@ -156,14 +156,34 @@ public static class SitesApi
 
     private static async Task<IResult> GetSiteById(
         long id,
-        [FromServices] ISiteService siteService)
+        [FromServices] ISiteService siteService,
+        [FromServices] IQuerySession querySession)
     {
         var site = await siteService.GetSiteByIdAsync(id);
-        return site switch
+        if (site is not Option<SitesModel>.Some some)
+            return Results.NotFound();
+
+        // Enrich with host records so the client gets PrimaryHost and Hosts
+        var hosts = await querySession.Query<SiteHost>()
+            .Where(h => h.SiteId == id)
+            .ToListAsync();
+
+        var hostList = hosts.Select(h => h.Host).ToList();
+        var vm = new SiteViewModel
         {
-            Option<SitesModel>.Some s => Results.Ok(s.Value),
-            _ => Results.NotFound()
+            Id = some.Value.Id,
+            TenantId = some.Value.TenantId,
+            Name = some.Value.Name,
+            PrimaryHost = hosts.FirstOrDefault(h => h.IsPrimary)?.Host ?? hosts.FirstOrDefault()?.Host,
+            Hosts = hostList,
+            IsEnabled = some.Value.IsEnabled,
+            DefaultCulture = some.Value.DefaultCulture,
+            CreatedOn = some.Value.CreatedOn,
+            ModifiedOn = some.Value.ModifiedOn,
+            CreatedBy = some.Value.CreatedBy,
+            ModifiedBy = some.Value.ModifiedBy
         };
+        return Results.Ok(vm);
     }
 
     private static async Task<IResult> CreateSite(
@@ -177,10 +197,20 @@ public static class SitesApi
         if (!validationResult.IsValid)
             return Results.ValidationProblem(validationResult.ToDictionary());
 
+        // Resolve TenantId from the currently selected site's cookie
+        var tenantId = Snowflake.NewId(); // fallback if no current site exists
+        var siteIdCookie = httpContext.Request.Cookies["AeroCms.SiteId"];
+        if (long.TryParse(siteIdCookie, out var currentSiteId))
+        {
+            var currentSite = await siteService.GetSiteByIdAsync(currentSiteId);
+            if (currentSite is Option<SitesModel>.Some someSite)
+                tenantId = someSite.Value.TenantId;
+        }
+
         var site = new SitesModel
         {
             Id = Snowflake.NewId(),
-            TenantId = 1,
+            TenantId = tenantId,
             Name = request.Name,
             Description = request.Description,
             IsEnabled = true,
@@ -346,7 +376,7 @@ public static class SitesApi
         {
             Id = Snowflake.NewId(),
             Kind = PageKind.Standard,
-            Slug = "/oops",
+            Slug = "oops",
             Title = "Oops",
             Summary = "Page not found",
             SiteId = site.Id,
