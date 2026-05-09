@@ -4,18 +4,6 @@
 
 <div class="space-y-6">
 
-    @* ── Page Header ──────────────────────────────── *@
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold" style="color: var(--pe-text-primary);">Dashboard</h1>
-            <p class="mt-1 text-sm" style="color: var(--pe-text-secondary);">Welcome back to Aero CMS management console.</p>
-        </div>
-        <div class="flex space-x-3">
-            <RadzenButton Icon="refresh" Text="Refresh" ButtonStyle="ButtonStyle.Light" />
-            <RadzenButton Icon="add" Text="New Post" ButtonStyle="ButtonStyle.Primary" />
-        </div>
-    </div>
-
     @* ── Card Grid ────────────────────────────────── *@
     <div class="pe-dashboard-grid">
 
@@ -113,11 +101,11 @@
                 <div class="pe-dash-card-body">
                     <div class="pe-dash-chart-wrap">
                         <RadzenChart>
-                            <RadzenBarSeries Data="@categoryData"
-                                             CategoryProperty="Category"
-                                             ValueProperty="Count"
-                                             ColorProperty="Color"
-                                             Title="Count">
+                             <RadzenBarSeries Data="@categoryData"
+                                              CategoryProperty="Category"
+                                              ValueProperty="Count"
+                                              Fills="@categoryColors"
+                                              Title="Count">
                                 <RadzenSeriesDataLabels Visible="true" />
                             </RadzenBarSeries>
                             <RadzenCategoryAxis Visible="false" />
@@ -308,11 +296,13 @@
 
     private CategoryDatum[] categoryData = [
         new("Blog Posts", 128, "#6366f1"),
-        new("Pages", 45, "#22c55e"),
-        new("Media", 452, "#f59e0b"),
+        new("Pages", 45, "#3b82f6"),
+        new("Media", 452, "#6366f1"),
         new("Documents", 67, "#3b82f6"),
-        new("Categories", 24, "#ec4899"),
+        new("Categories", 24, "#6366f1"),
     ];
+
+    private string[] categoryColors => categoryData.Select(d => d.Color).ToArray();
 
     // ── Top Content (progress bars) ───────────────────
     private record TopContentItem(string Title, string Views, double Percentage, string BarColor);

@@ -20,6 +20,7 @@ public static class Schemas
         public const string Blocks = "blocks";
         public const string Categories = "categories";
         public const string Media = "media";
+        public const string Modules = "modules";
         public const string Pages = "pages";
         public const string Posts = "posts";
         public const string Settings = "settings";
