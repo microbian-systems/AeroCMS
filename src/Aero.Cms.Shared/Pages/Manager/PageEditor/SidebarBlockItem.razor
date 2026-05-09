@@ -3,7 +3,10 @@
 <button class="pe-block-item"
         draggable="true"
         @ondragstart="OnDragStart"
-        @onclick="OnClick">
+        @onclick="OnClick"
+        data-pe-tooltip-target
+        data-pe-tooltip="@(IsCollapsed ? Label : null)"
+        data-pe-tooltip-placement="left">
     <div class="pe-block-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             @IconContent

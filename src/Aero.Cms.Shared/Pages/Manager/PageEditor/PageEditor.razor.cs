@@ -9,6 +9,7 @@ using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using Aero.Core;
 using Aero.Cms.Core;
 using Aero.Core.Security;
@@ -45,6 +46,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
     [Inject] protected AdminStateContainer AdminState { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
+    [Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
@@ -252,6 +254,11 @@ public partial class PageEditor : ComponentBase, IDisposable
         _previewDebounceCts?.Dispose();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JSRuntime.InvokeVoidAsync("PeNavTooltip.refresh");
+    }
+
     // ──────────────────────────────────────────────────────────
     // Category toggle  (mirrors toggleCategory())
     // ──────────────────────────────────────────────────────────
@@ -391,7 +398,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                 block.Description = "Our friendly team is always here to chat.";
                 block.ContactDetails = new List<AeroContactDetail>
                 {
-                    new() { Label = "Email", Value = "hello@aerocms.com", Icon = "M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2m20 0v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6m20 0l-10 7L2 6" },
+                    new() { Label = "Email", Value = "hello@getaerocms.net", Icon = "M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2m20 0v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6m20 0l-10 7L2 6" },
                     new() { Label = "Phone", Value = "+1 (555) 000-0000", Icon = "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" }
                 };
                 break;
@@ -992,7 +999,25 @@ public partial class PageEditor : ComponentBase, IDisposable
             }
         }
 
-        _previewBaseUri = BuildSiteBaseUri(selectedSite) ?? NavManager.BaseUri;
+        _previewBaseUri = ResolvePreviewBaseUri(selectedSite) ?? NavManager.BaseUri;
+    }
+
+    private string? ResolvePreviewBaseUri(SiteViewModel? site)
+    {
+        var baseUri = BuildSiteBaseUri(site);
+        if (baseUri is null) return null;
+
+        // The site's PrimaryHost might not include the port we're running on.
+        var previewUri = new Uri(baseUri);
+        var currentUri = new Uri(NavManager.BaseUri);
+
+        if (previewUri.Port != currentUri.Port)
+        {
+            var builder = new UriBuilder(previewUri) { Port = currentUri.Port };
+            return EnsureTrailingSlash(builder.Uri.ToString());
+        }
+
+        return baseUri;
     }
 
     private async Task<SiteViewModel?> LoadSiteByIdAsync(long siteId)
@@ -1309,5 +1334,8 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected void RemoveToast(string id)
         => Toasts.RemoveAll(t => t.Id == id);
+
+    private string TabBtnClass(string tab) =>
+        ActiveTab == tab ? "pe-tab-btn active" : "pe-tab-btn";
 }
 

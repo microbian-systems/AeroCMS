@@ -15,15 +15,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="ts\" />
     <Folder Include="Security\" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
-    <ProjectReference Include="..\Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

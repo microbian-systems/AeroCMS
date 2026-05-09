@@ -14,11 +14,11 @@
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
 
-<div class="space-y-6 px-6 py-6">
+<div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold">Sites</h1>
-            <p class="mt-1 text-sm text-gray-500">Manage all sites in the CMS.</p>
+            <h1 class="text-2xl font-bold pe-heading">Sites</h1>
+            <p class="mt-1 text-sm pe-description">Manage all sites in the CMS.</p>
         </div>
         <div class="flex gap-3">
             <RadzenButton Text="Select Site" ButtonStyle="ButtonStyle.Secondary" Click="@(() => Navigation.NavigateTo("/manager/select-site"))" />
@@ -28,12 +28,12 @@
 
     @if (_showCreateForm)
     {
-        <div class="border rounded-lg p-4 bg-gray-50 mb-4">
-            <h3 class="font-semibold mb-3">Create New Site</h3>
+        <div style="border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg); padding: 16px; background: var(--pe-bg-secondary); margin-bottom: 16px;">
+            <h3 class="font-semibold mb-3" style="color: var(--pe-text-primary);">Create New Site</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Name *</label>
-                    <input @bind="@_createName" class="w-full border rounded px-3 py-2" placeholder="Site name" />
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Name *</label>
+                    <input @bind="@_createName" class="w-full rounded px-3 py-2" style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" placeholder="Site name" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Primary Host *</label>
@@ -57,8 +57,8 @@
 
     @if (_showEditForm && _editSite is not null)
     {
-        <div class="border rounded-lg p-4 bg-blue-50 mb-4">
-            <h3 class="font-semibold mb-3">Edit Site: @_editSite.Name</h3>
+        <div style="border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg); padding: 16px; background: color-mix(in srgb, var(--pe-info) 8%, transparent); margin-bottom: 16px;">
+            <h3 class="font-semibold mb-3" style="color: var(--pe-text-primary);">Edit Site: @_editSite.Name</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">Name *</label>

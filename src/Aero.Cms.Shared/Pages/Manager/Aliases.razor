@@ -19,23 +19,23 @@
     The client interface and stub live in Aero.Cms.Abstractions.Http.Clients.
     Backend endpoints (admin/aliases/) must be registered in Aero.Cms.Modules.Aliases. *@
 
-<div class="space-y-6 px-6 py-6">
+<div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold">Aliases</h1>
-            <p class="mt-1 text-sm text-gray-500">Manage URL redirects for the current site.</p>
+            <h1 class="text-2xl font-bold pe-heading">Aliases</h1>
+            <p class="mt-1 text-sm pe-description">Manage URL redirects for the current site.</p>
         </div>
         <RadzenButton Text="Add Alias" ButtonStyle="ButtonStyle.Primary" Click="@(() => _showCreateForm = true)" />
     </div>
 
     @if (_showCreateForm)
     {
-        <div class="border rounded-lg p-4 bg-gray-50 mb-4">
-            <h3 class="font-semibold mb-3">Create New Alias</h3>
+        <div style="border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg); padding: 16px; background: var(--pe-bg-secondary); margin-bottom: 16px;">
+            <h3 class="font-semibold mb-3" style="color: var(--pe-text-primary);">Create New Alias</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Old URL *</label>
-                    <input @bind="@_createOldPath" class="w-full border rounded px-3 py-2" placeholder="e.g. /old-page" />
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Old URL *</label>
+                    <input @bind="@_createOldPath" class="w-full rounded px-3 py-2" style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" placeholder="e.g. /old-page" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">New URL *</label>

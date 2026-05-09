@@ -4,13 +4,14 @@
     <div class="flex items-center h-5">
         <input id="@Id" type="checkbox" checked="@Value"
                @onchange="OnChanged"
-               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
+               class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 rounded"
+               style="border-color: var(--pe-border);">
     </div>
     <div class="ml-3 text-sm">
-        <label for="@Id" class="font-medium text-gray-700">@Label</label>
+        <label for="@Id" class="font-medium" style="color: var(--pe-text-secondary);">@Label</label>
         @if (!string.IsNullOrEmpty(Description))
         {
-            <p class="text-gray-500">@Description</p>
+            <p style="color: var(--pe-text-muted);">@Description</p>
         }
     </div>
 </div>

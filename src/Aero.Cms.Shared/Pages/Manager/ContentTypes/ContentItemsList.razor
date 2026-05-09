@@ -13,11 +13,11 @@
     .rz-datatable-row:hover { cursor: pointer !important; background-color: rgba(0, 0, 0, 0.02) !important; }
 </style>
 
-<div class="space-y-6">
+<div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">@typeName</h1>
-            <p class="mt-1 text-sm text-gray-500">@($"Managing {count} {typeName?.ToLower()} items.")</p>
+            <h1 class="text-2xl font-bold pe-heading">@typeName</h1>
+            <p class="mt-1 text-sm pe-description">@($"Managing {count} {typeName?.ToLower()} items.")</p>
         </div>
         <div class="flex gap-4">
             <RadzenTextBox Placeholder="Search..." Value="@searchTerm" ValueChanged="@(v => searchTerm = v)" Change="@OnSearch" class="w-64" />
@@ -32,7 +32,7 @@
         <Columns>
             <RadzenDataGridColumn TItem="ContentItemSummary" Property="Title" Title="Title" />
             <RadzenDataGridColumn TItem="ContentItemSummary" Property="Slug" Title="Slug">
-                <Template Context="i"><span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded">@i.Slug</span></Template>
+                <Template Context="i"><span class="text-xs font-mono" style="background: var(--pe-bg-tertiary); color: var(--pe-text-secondary); padding: 2px 8px; border-radius: var(--pe-radius-sm);">@i.Slug</span></Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="ContentItemSummary" Title="Status">
                 <Template Context="i">
@@ -46,7 +46,7 @@
                 <Template Context="i">@(i.PublishedOn?.ToString("MMM dd, yyyy") ?? "-")</Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="ContentItemSummary" Title="Version">
-                <Template Context="i"><span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded">v@(i.VersionNumber)</span></Template>
+                <Template Context="i"><span class="text-xs font-mono" style="background: var(--pe-bg-tertiary); color: var(--pe-text-secondary); padding: 2px 8px; border-radius: var(--pe-radius-sm);">v@(i.VersionNumber)</span></Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="ContentItemSummary" Title="Actions">
                 <Template Context="i">

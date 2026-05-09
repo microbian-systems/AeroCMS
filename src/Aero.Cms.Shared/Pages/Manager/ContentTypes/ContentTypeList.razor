@@ -15,11 +15,11 @@
     }
 </style>
 
-<div class="space-y-6">
+<div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Content Types</h1>
-            <p class="mt-1 text-sm text-gray-500">Manage structured content schemas for your site.</p>
+            <h1 class="text-2xl font-bold pe-heading">Content Types</h1>
+            <p class="mt-1 text-sm pe-description">Manage structured content schemas for your site.</p>
         </div>
         <div class="flex gap-4">
             <RadzenButton Icon="add" Text="New Content Type" ButtonStyle="ButtonStyle.Primary" Click='() => Navigation.NavigateTo("/manager/content-type/editor")' />
@@ -34,7 +34,7 @@
             <RadzenDataGridColumn TItem="ContentTypeSummary" Property="Name" Title="Name" />
             <RadzenDataGridColumn TItem="ContentTypeSummary" Property="Alias" Title="Alias">
                 <Template Context="t">
-                    <span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded">@t.Alias</span>
+                    <span class="text-xs font-mono" style="background: var(--pe-bg-tertiary); color: var(--pe-text-secondary); padding: 2px 8px; border-radius: var(--pe-radius-sm);">@t.Alias</span>
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="ContentTypeSummary" Title="Fields">

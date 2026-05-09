@@ -10,18 +10,18 @@
 @using Microsoft.Extensions.Logging
 @inject ILogger<Media> Logger
 
-<div class="media-container bg-[#f8fafc] dark:bg-[#0f172a] h-full flex flex-col overflow-hidden">
+<div class="media-container h-full flex flex-col overflow-hidden" style="background: var(--pe-bg-primary);">
     <!-- Media Header -->
-    <div class="px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1e293b] shadow-sm z-10">
+    <div class="px-6 py-4 flex items-center justify-between border-b shadow-sm z-10" style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
         <div class="flex items-center space-x-4">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <h1 class="text-2xl font-bold flex items-center gap-2" style="color: var(--pe-text-primary);">
                 <RadzenIcon Icon="@("photo_library")" class="text-indigo-500" />
                 Media Library
             </h1>
             
-            <div class="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-2"></div>
+            <div class="h-6 w-px mx-2" style="background: var(--pe-border);"></div>
             
-            <div class="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
+            <div class="flex items-center space-x-1 text-sm" style="color: var(--pe-text-muted);">
                 <RadzenButton Icon="@("home")" Variant="Variant.Text" Size="ButtonSize.Small" 
                               ButtonStyle="ButtonStyle.Secondary" Click="@(() => NavigateToFolder(null))" 
                               class="hover:text-indigo-500 transition-colors" />
@@ -40,7 +40,7 @@
              <RadzenTextBox Placeholder="@("Search all media...")" 
                             Value="@searchText" 
                             ValueChanged="@(args => OnSearch(args))" 
-                            class="w-72 bg-gray-50 dark:bg-gray-800 border-none rounded-full px-4 text-sm" />
+                            class="w-72 border-none rounded-full px-4 text-sm" style="background: var(--pe-bg-secondary);" />
             
             <RadzenButton Icon="@("create_new_folder")" ButtonStyle="ButtonStyle.Secondary" 
                           Variant="Variant.Flat" Size="ButtonSize.Medium" class="rounded-full" 
@@ -54,10 +54,10 @@
 
     <div class="flex flex-1 overflow-hidden">
         <!-- Sidebar Navigation -->
-        <aside class="w-80 border-r border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-[#1e293b]/50 backdrop-blur-md p-6 overflow-y-auto">
+        <aside class="w-80 border-r backdrop-blur-md p-6 overflow-y-auto" style="border-color: var(--pe-border); background: color-mix(in srgb, var(--pe-bg-secondary) 50%, transparent);">
             <div class="space-y-8">
                 <div>
-                    <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">View Modes</h3>
+                    <h3 class="text-[10px] font-black uppercase tracking-widest mb-4" style="color: var(--pe-text-muted);">View Modes</h3>
                     <div class="grid grid-cols-2 gap-2">
                         <RadzenButton Text="Grid" Icon="@("grid_view")" Variant="@(viewType == ViewType.Grid ? Variant.Filled : Variant.Text)" 
                                      ButtonStyle="@(viewType == ViewType.Grid ? ButtonStyle.Primary : ButtonStyle.Light)"
@@ -69,18 +69,20 @@
                 </div>
 
                 <div>
-                    <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Library Folders</h3>
+                    <h3 class="text-[10px] font-black uppercase tracking-widest mb-4" style="color: var(--pe-text-muted);">Library Folders</h3>
                     <div class="flex flex-col space-y-1">
-                        <div class="flex items-center p-2 rounded-lg cursor-pointer transition-colors @(currentFolderId == null ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300")"
-                             @onclick="@(() => NavigateToFolder(null))">
+<div class="flex items-center p-2 rounded-lg cursor-pointer transition-colors @(currentFolderId == null ? "font-bold" : "hover:bg-gray-100")"
+     style="@(currentFolderId == null ? "background: color-mix(in srgb, var(--pe-primary) 15%, transparent); color: var(--pe-primary);" : "color: var(--pe-text-secondary);")"
+     @onclick="@(() => NavigateToFolder(null))">
                             <RadzenIcon Icon="@("folder")" class="mr-3 w-5 h-5 opacity-70" />
                             <span class="text-sm">Root Content</span>
                         </div>
                         
                         @foreach (var folder in availableFolders)
                         {
-                            <div class="flex items-center p-2 rounded-lg cursor-pointer transition-colors group @(currentFolderId == folder.Id ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300")"
-                                 @onclick="@(() => NavigateToFolder(folder.Id))">
+<div class="flex items-center p-2 rounded-lg cursor-pointer transition-colors group @(currentFolderId == folder.Id ? "font-bold" : "hover:bg-gray-100")"
+     style="@(currentFolderId == folder.Id ? "background: color-mix(in srgb, var(--pe-primary) 15%, transparent); color: var(--pe-primary);" : "color: var(--pe-text-secondary);")"
+     @onclick="@(() => NavigateToFolder(folder.Id))">
                                 <RadzenIcon Icon="@("folder")" class="mr-3 w-5 h-5 opacity-70" />
                                 <span class="truncate flex-1 text-sm">@folder.FileName</span>
                                 <RadzenButton Icon="@("delete")" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Danger" 
@@ -92,14 +94,14 @@
                 </div>
 
                 <div>
-                    <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Quick Insights</h3>
-                    <div class="bg-indigo-50 dark:bg-indigo-900/10 rounded-2xl p-4 border border-indigo-100 dark:border-indigo-900/30">
+                    <h3 class="text-[10px] font-black uppercase tracking-widest mb-4" style="color: var(--pe-text-muted);">Quick Insights</h3>
+                    <div class="rounded-2xl p-4 border" style="background: color-mix(in srgb, var(--pe-primary) 15%, transparent); border-color: color-mix(in srgb, var(--pe-primary) 25%, transparent);">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs text-indigo-700 dark:text-indigo-400 font-bold uppercase tracking-wider">Storage Usage</span>
-                            <span class="text-[10px] text-indigo-600/60 dark:text-indigo-400/60 font-medium">62%</span>
+                            <span class="text-xs font-bold uppercase tracking-wider" style="color: var(--pe-primary);">Storage Usage</span>
+                            <span class="text-[10px] font-medium" style="color: color-mix(in srgb, var(--pe-primary) 60%, transparent);">62%</span>
                         </div>
                         <RadzenProgressBar Value="62" ShowValue="false" class="h-1.5 rounded-full overflow-hidden" Style="@("--rz-progressbar-value-background: var(--rz-primary)")" />
-                        <p class="mt-3 text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                        <p class="mt-3 text-[10px] leading-relaxed" style="color: var(--pe-text-muted);">
                             You have used 1.2 GB of your 2.0 GB allocated space.
                         </p>
                     </div>
@@ -111,7 +113,7 @@
         <main class="flex-1 overflow-y-auto p-8 relative scrollbar-thin">
             @if (isLoading)
             {
-                <div class="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm z-20">
+                <div class="absolute inset-0 flex items-center justify-center backdrop-blur-sm z-20" style="background: color-mix(in srgb, var(--pe-bg-primary) 50%, transparent);">
                     <RadzenProgressBar Circular="true" Value="100" Mode="ProgressBarMode.Indeterminate" Style="@("width: 48px; height: 48px")" />
                 </div>
             }
@@ -119,10 +121,10 @@
             @if (totalCount == 0 && !isLoading)
             {
                 <div class="h-full flex flex-col items-center justify-center text-center opacity-40">
-                    <div class="w-32 h-32 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
+                    <div class="w-32 h-32 rounded-full flex items-center justify-center mb-6" style="background: var(--pe-bg-secondary);">
                         <RadzenIcon Icon="@("cloud_upload")" class="w-16 h-16 text-gray-400" />
                     </div>
-                    <h2 class="text-xl font-bold text-gray-600 dark:text-gray-300">No media found here</h2>
+                    <h2 class="text-xl font-bold" style="color: var(--pe-text-secondary);">No media found here</h2>
                     <p class="mt-2 text-gray-500 max-w-xs mx-auto">Upload your first asset to start organizing your digital content.</p>
                 </div>
             }
@@ -133,10 +135,10 @@
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6">
                         @foreach (var item in mediaItems ?? Enumerable.Empty<MediaSummary>())
                         {
-                            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl p-2 border border-gray-100 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-800 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 cursor-pointer"
+                            <div class="group relative rounded-2xl p-2 border hover:border-indigo-300 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 cursor-pointer" style="background: var(--pe-bg-secondary); border-color: var(--pe-border);"
                                  @onclick="@(() => OnMediaClick(item))" @key="item.Id">
                                 
-                                <div class="aspect-square bg-gray-50 dark:bg-gray-900 rounded-xl flex items-center justify-center relative overflow-hidden mb-3">
+                                <div class="aspect-square rounded-xl flex items-center justify-center relative overflow-hidden mb-3" style="background: var(--pe-bg-primary);">
                                     @if (item.IsFolder)
                                     {
                                         <div class="transform group-hover:scale-110 transition-transform duration-300">
@@ -150,7 +152,7 @@
                                     else
                                     {
                                         <div class="flex flex-col items-center gap-2">
-                                            <RadzenIcon Icon="@("insert_drive_file")" class="text-gray-300 dark:text-gray-700 w-12 h-12" />
+                                            <RadzenIcon Icon="@("insert_drive_file")" class="w-12 h-12" style="color: var(--pe-text-muted);" />
                                             <span class="text-[9px] uppercase font-black text-gray-400 tracking-tighter">@item.MimeType.Split('/').Last()</span>
                                         </div>
                                     }
@@ -163,8 +165,8 @@
                                 </div>
                                 
                                 <div class="px-1 overflow-hidden">
-                                    <div class="truncate text-xs font-bold text-gray-800 dark:text-gray-200 mb-1" title="@item.FileName">@item.FileName</div>
-                                    <div class="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 font-medium font-mono">
+                                    <div class="truncate text-xs font-bold mb-1" style="color: var(--pe-text-primary);" title="@item.FileName">@item.FileName</div>
+                                    <div class="flex items-center justify-between text-[10px] font-medium font-mono" style="color: var(--pe-text-muted);">
                                         <span>@(item.IsFolder ? "Folder" : FormatSize(item.FileSize))</span>
                                         <span>@item.CreatedAt.ToString("MMM dd")</span>
                                     </div>
@@ -182,7 +184,7 @@
                                     <div class="flex items-center py-1 cursor-pointer" @onclick="@(() => OnMediaClick(item))">
                                         <RadzenIcon Icon="@(item.IsFolder ? "folder" : "insert_drive_file")" 
                                                    class="@(item.IsFolder ? "mr-3 text-amber-400" : "mr-3 text-gray-400")" />
-                                        <span class="font-medium text-gray-700 dark:text-gray-200">@item.FileName</span>
+                                        <span class="font-medium" style="color: var(--pe-text-primary);">@item.FileName</span>
                                     </div>
                                 </Template>
                             </RadzenDataGridColumn>
@@ -210,7 +212,7 @@
                 @if (totalCount > pageSize)
                 {
                     <div class="mt-12 flex justify-center pb-12">
-                        <RadzenPager Count="@((int)totalCount)" PageSize="@pageSize" PageChanged="@OnPageChanged" class="rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm" />
+                        <RadzenPager Count="@((int)totalCount)" PageSize="@pageSize" PageChanged="@OnPageChanged" class="rounded-2xl border shadow-sm" style="border-color: var(--pe-border);" />
                     </div>
                 }
             }
@@ -232,8 +234,8 @@
         background: #e2e8f0;
         border-radius: 10px;
     }
-    .dark .scrollbar-thin::-webkit-scrollbar-thumb {
-        background: #334155;
+    [data-theme="dark"] .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: var(--pe-border);
     }
 </style>
 

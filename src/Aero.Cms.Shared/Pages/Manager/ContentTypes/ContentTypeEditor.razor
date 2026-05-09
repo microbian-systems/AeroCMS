@@ -13,11 +13,11 @@
     .field-row:hover { background-color: rgba(0, 0, 0, 0.02); }
 </style>
 
-<div class="space-y-6">
+<div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">@(string.IsNullOrEmpty(Alias) ? "New Content Type" : "Edit Content Type")</h1>
-            <p class="mt-1 text-sm text-gray-500">Define the schema and template for a structured content type.</p>
+            <h1 class="text-2xl font-bold pe-heading">@(string.IsNullOrEmpty(Alias) ? "New Content Type" : "Edit Content Type")</h1>
+            <p class="mt-1 text-sm pe-description">Define the schema and template for a structured content type.</p>
         </div>
         <div class="flex gap-4">
             <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => Navigation.NavigateTo("/manager/content-types"))" />
@@ -41,7 +41,7 @@
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Alias</label>
                     <RadzenTextBox Value="@alias" ValueChanged="@(v => alias = v)" Placeholder="e.g. article, product, team-member" />
-                    <span class="text-xs text-gray-400 mt-1">Auto-generated from Name.</span>
+                    <span class="text-xs mt-1" style="color: var(--pe-text-muted);">Auto-generated from Name.</span>
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Description</label>

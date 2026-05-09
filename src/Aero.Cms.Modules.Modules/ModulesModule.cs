@@ -37,7 +37,7 @@ public sealed class ModulesModule : AeroModuleBase, IConfigureMarten
         opts.Schema.For<ModuleDocument>().DatabaseSchemaName(Schemas.Database);
         opts.Schema.For<ModuleDocument>().DocumentAlias(Schemas.Tables.Modules);
         opts.Schema.For<ModuleDocument>().Identity(x => x.Id);
-        opts.Schema.For<ModuleDocument>().Index(x => x.Name);
+        opts.Schema.For<ModuleDocument>().UniqueIndex(x => x.Name);
         opts.Schema.For<ModuleDocument>().Index(x => x.Category);
         opts.Schema.For<ModuleDocument>().Index(x => x.Disabled);
         opts.Schema.For<ModuleDocument>().Index(x => x.DisabledInProduction);

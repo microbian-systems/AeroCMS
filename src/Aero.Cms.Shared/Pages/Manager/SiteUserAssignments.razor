@@ -14,21 +14,21 @@
 @inject NavigationManager Navigation
 @inject DialogService DialogService
 
-<div class="space-y-6 px-6 py-6">
+<div class="pe-page-content space-y-6">
     <div>
-        <h1 class="text-2xl font-bold mb-2">User Site Assignments</h1>
-        <p class="text-gray-500">Manage which sites this user can access and their permissions.</p>
+        <h1 class="text-2xl font-bold mb-2 pe-heading">User Site Assignments</h1>
+        <p class="pe-description">Manage which sites this user can access and their permissions.</p>
     </div>
 
     @if (_isLoading)
     {
         <div class="flex justify-center py-12">
-            <span class="text-gray-500">Loading...</span>
+            <span style="color: var(--pe-text-muted);">Loading...</span>
         </div>
     }
     else if (_sites.Count == 0)
     {
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div style="background: color-mix(in srgb, var(--pe-warning) 12%, transparent); border: 1px solid color-mix(in srgb, var(--pe-warning) 30%, transparent); border-radius: var(--pe-radius-lg); padding: 16px;">
             No sites found. Create a site first.
         </div>
     }

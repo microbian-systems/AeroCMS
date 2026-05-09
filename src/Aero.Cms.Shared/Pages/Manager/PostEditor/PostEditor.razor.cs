@@ -281,7 +281,12 @@ public partial class PostEditor : ComponentBase, IDisposable
         // Refresh preview when switching to the preview tab
         if (tab == "preview")
         {
+            FullPreviewMode = true;
             _ = RefreshPreviewAsync();
+        }
+        else
+        {
+            FullPreviewMode = false;
         }
 
         StateHasChanged();
@@ -305,6 +310,10 @@ public partial class PostEditor : ComponentBase, IDisposable
             ActiveTab = "preview";
             _previewRefreshVersion++;
             await RefreshPreviewAsync();
+        }
+        else
+        {
+            ActiveTab = "editor";
         }
     }
 
@@ -459,7 +468,26 @@ public partial class PostEditor : ComponentBase, IDisposable
             }
         }
 
-        _previewBaseUri = BuildSiteBaseUri(selectedSite) ?? NavManager.BaseUri;
+        _previewBaseUri = ResolvePreviewBaseUri(selectedSite) ?? NavManager.BaseUri;
+    }
+
+    private string? ResolvePreviewBaseUri(SiteViewModel? site)
+    {
+        var baseUri = BuildSiteBaseUri(site);
+        if (baseUri is null) return null;
+
+        // The site's PrimaryHost might not include the port we're running on.
+        // Merge the port from the current request so preview URLs resolve correctly.
+        var previewUri = new Uri(baseUri);
+        var currentUri = new Uri(NavManager.BaseUri);
+
+        if (previewUri.Port != currentUri.Port)
+        {
+            var builder = new UriBuilder(previewUri) { Port = currentUri.Port };
+            return EnsureTrailingSlash(builder.Uri.ToString());
+        }
+
+        return baseUri;
     }
 
     private async Task<SiteViewModel?> LoadSiteByIdAsync(long siteId)
@@ -931,6 +959,9 @@ public partial class PostEditor : ComponentBase, IDisposable
 
         IsLoadingAiProviders = false;
     }
+
+    private string TabBtnClass(string tab) =>
+        ActiveTab == tab ? "pe-tab-btn active" : "pe-tab-btn";
 
     protected sealed record EnhanceTargetOption(string Value, string Label);
 }

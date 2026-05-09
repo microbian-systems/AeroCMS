@@ -6,19 +6,19 @@
 @inject ISettingsHttpClient SettingsClient
 @inject NotificationService NotificationService
 
-<div class="p-6 max-w-4xl mx-auto">
+<div class="pe-page-content" style="max-width: 900px; margin: 0 auto;">
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Global Settings</h1>
-        <p class="mt-2 text-sm text-gray-600">Configure instance-level settings for the CMS platform. These settings apply globally across all sites.</p>
+        <h1 class="text-3xl font-bold pe-heading">Global Settings</h1>
+        <p class="mt-2 text-sm pe-description">Configure instance-level settings for the CMS platform. These settings apply globally across all sites.</p>
     </div>
 
     <div class="space-y-8">
 
         @* ── Security Section ──────────────────────────────── *@
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">Security</h2>
-                <p class="mt-1 text-sm text-gray-500">Access control and security hardening options.</p>
+        <div style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg);">
+            <div class="px-4 py-5 sm:px-6 border-b" style="border-bottom-color: var(--pe-border);">
+                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">Security</h2>
+                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Access control and security hardening options.</p>
             </div>
             <div class="px-4 py-5 sm:p-6 space-y-5">
                 @if (securityLoading)
@@ -46,7 +46,7 @@
                             @bind-Value="maintenanceMessage" Rows="3" />
                     }
 
-                    <div class="pt-3 flex justify-end border-t border-gray-100">
+                    <div class="pt-3 flex justify-end border-t" style="border-top-color: var(--pe-border);">
                         <button type="button" @onclick="SaveSecurity" disabled="@securitySaving"
                             class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
                             @SpinnerSvg() Save Security
@@ -57,10 +57,10 @@
         </div>
 
         @* ── General Section ───────────────────────────────── *@
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">General</h2>
-                <p class="mt-1 text-sm text-gray-500">Default locale, timezone, and admin experience settings.</p>
+        <div style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg);">
+            <div class="px-4 py-5 sm:px-6 border-b" style="border-bottom-color: var(--pe-border);">
+                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">General</h2>
+                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Default locale, timezone, and admin experience settings.</p>
             </div>
             <div class="px-4 py-5 sm:p-6 space-y-5">
                 @if (generalLoading)
@@ -85,7 +85,7 @@
                         Description="Maximum file size allowed for media uploads."
                         @bind-Value="maxUploadSizeMB" Min="1" Max="500" />
 
-                    <div class="pt-3 flex justify-end border-t border-gray-100">
+                    <div class="pt-3 flex justify-end border-t" style="border-top-color: var(--pe-border);">
                         <button type="button" @onclick="SaveGeneral" disabled="@generalSaving"
                             class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
                             @SpinnerSvg() Save General
@@ -96,10 +96,10 @@
         </div>
 
         @* ── SEO Section ───────────────────────────────────── *@
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">SEO</h2>
-                <p class="mt-1 text-sm text-gray-500">Search engine optimization and crawling settings.</p>
+        <div style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg);">
+            <div class="px-4 py-5 sm:px-6 border-b" style="border-bottom-color: var(--pe-border);">
+                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">SEO</h2>
+                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Search engine optimization and crawling settings.</p>
             </div>
             <div class="px-4 py-5 sm:p-6 space-y-5">
                 @if (seoLoading)
@@ -120,7 +120,7 @@
                         Description="Fallback Open Graph image URL used when content doesn't specify its own."
                         @bind-Value="defaultOgImage" />
 
-                    <div class="pt-3 flex justify-end border-t border-gray-100">
+                    <div class="pt-3 flex justify-end border-t" style="border-top-color: var(--pe-border);">
                         <button type="button" @onclick="SaveSeo" disabled="@seoSaving"
                             class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
                             @SpinnerSvg() Save SEO
@@ -131,10 +131,10 @@
         </div>
 
         @* ── API Section ───────────────────────────────────── *@
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">API</h2>
-                <p class="mt-1 text-sm text-gray-500">Headless API and integration settings.</p>
+        <div style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg);">
+            <div class="px-4 py-5 sm:px-6 border-b" style="border-bottom-color: var(--pe-border);">
+                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">API</h2>
+                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Headless API and integration settings.</p>
             </div>
             <div class="px-4 py-5 sm:p-6 space-y-5">
                 @if (apiLoading)
@@ -155,7 +155,7 @@
                         Description="Allow unauthenticated access to public API endpoints."
                         @bind-Value="enablePublicApi" />
 
-                    <div class="pt-3 flex justify-end border-t border-gray-100">
+                    <div class="pt-3 flex justify-end border-t" style="border-top-color: var(--pe-border);">
                         <button type="button" @onclick="SaveApi" disabled="@apiSaving"
                             class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
                             @SpinnerSvg() Save API

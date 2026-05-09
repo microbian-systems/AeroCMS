@@ -3,6 +3,7 @@
 @using Aero.Core.Railway
 @inject IDocsHttpClient DocsClient
 @inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
 
 <nav class="pe-nav-vertical">
     @* 0. Dashboard *@
@@ -121,5 +122,10 @@
                 Duration = 4000
             });
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JSRuntime.InvokeVoidAsync("PeNavTooltip.refresh");
     }
 }

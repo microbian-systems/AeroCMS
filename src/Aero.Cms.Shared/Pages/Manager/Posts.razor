@@ -10,11 +10,11 @@
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
 
-<div class="space-y-6">
+<div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Posts</h1>
-            <p class="mt-1 text-sm text-gray-500">Manage your blog content and articles.</p>
+            <h1 class="text-2xl font-bold pe-heading">Posts</h1>
+            <p class="mt-1 text-sm pe-description">Manage your blog content and articles.</p>
         </div>
         <div class="flex space-x-3">
              <RadzenTextBox Placeholder="Search posts..." 
@@ -64,13 +64,13 @@
                          {
                              <img src="@post.FeaturedImageUrl" class="w-8 h-8 rounded object-cover shadow-sm" alt="" />
                          }
-                         <span class="font-medium text-gray-900">@post.Title</span>
+                         <span class="font-medium" style="color: var(--pe-text-primary);">@post.Title</span>
                     </div>
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="BlogSummary" Property="Slug" Title="URL Slug">
                  <Template Context="post">
-                      <span class="text-xs font-mono text-gray-500">/@post.Slug</span>
+                      <span class="text-xs font-mono" style="color: var(--pe-text-muted);">/@post.Slug</span>
                  </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="BlogSummary" Property="PublishedAt" Title="Status">
@@ -87,7 +87,7 @@
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="BlogSummary" Property="CreatedAt" Title="Created">
                  <Template Context="post">
-                      <span class="text-sm text-gray-600">@post.CreatedAt.ToShortDateString()</span>
+                      <span style="color: var(--pe-text-secondary);">@post.CreatedAt.ToShortDateString()</span>
                  </Template>
             </RadzenDataGridColumn>
         </Columns>
@@ -96,7 +96,7 @@
     @if (selectedPosts.Count > 0)
     {
         <div class="flex items-center gap-3 justify-end">
-            <span class="text-sm text-gray-500">@selectedPosts.Count selected</span>
+            <span style="color: var(--pe-text-muted);">@selectedPosts.Count selected</span>
             <RadzenButton Icon="delete" Text="Delete Selected" 
                           ButtonStyle="ButtonStyle.Danger" 
                           Variant="Variant.Outlined"
