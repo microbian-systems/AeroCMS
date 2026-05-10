@@ -1453,6 +1453,7 @@
 
 .pe-tab-btn.active {
     color: var(--pe-primary);
+    background: transparent;
     border-bottom-color: var(--pe-primary);
 }
 
