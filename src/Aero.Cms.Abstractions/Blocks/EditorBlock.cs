@@ -60,6 +60,11 @@ public class EditorBlock
     public string Url { get; set; } = string.Empty;
     public bool AutoPlay { get; set; }
 
+    // Carousel
+    public bool   ShowArrows      { get; set; } = true;
+    public int    CarouselInterval { get; set; } = 5000;
+    public string ControlLocation  { get; set; } = "bottom";
+
     // Gallery / Features / Blog / Pricing / Teams / Testimonials
     public List<GalleryImage>   GalleryImages { get; set; } = [];
     public List<AeroFeatureItem> FeatureItems  { get; set; } = [];

@@ -229,13 +229,17 @@ public static class EditorBlockMapper
                 EmbedType = "video",
                 AutoPlay = editorBlock.AutoPlay
             },
-            "gallery" => new CarouselBlock
+            "gallery" or "carousel" => new CarouselBlock
             {
                 Items = editorBlock.GalleryImages.Select(g => new CarouselItem
                 {
                     AltText = g.Alt,
                     Caption = g.Src
-                }).ToList()
+                }).ToList(),
+                AutoPlay = editorBlock.AutoPlay,
+                ShowArrows = editorBlock.ShowArrows,
+                ControlLocation = editorBlock.ControlLocation,
+                Interval = editorBlock.CarouselInterval
             },
             "columns" => MapColumnsBlock(editorBlock),
             _ => null

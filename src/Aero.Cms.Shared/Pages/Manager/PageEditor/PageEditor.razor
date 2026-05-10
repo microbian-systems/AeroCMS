@@ -514,6 +514,11 @@ else if (ActiveTab == "metadata")
                             <circle cx="8.5" cy="8.5" r="1.5"/>
                             <polyline points="21 15 16 10 5 21"/>
                         </SidebarBlockItem>
+                        <SidebarBlockItem Label="Carousel" @ondragstart='e => DragStart(e, "carousel")' OnClick='() => AddBlock("carousel")'>
+                            <rect x="2" y="4" width="20" height="16" rx="2"/>
+                            <rect x="4" y="6" width="16" height="12" rx="1" fill="none"/>
+                            <polyline points="8 12 12 8 16 12"/>
+                        </SidebarBlockItem>
                         <SidebarBlockItem Label="Audio" @ondragstart='e => DragStart(e, "audio")' OnClick='() => AddBlock("audio")'>
                             <path d="M9 18V5l12-2v13"/>
                             <circle cx="6" cy="18" r="3"/>
@@ -655,7 +660,8 @@ else if (ActiveTab == "metadata")
         "columns" => RenderColumnsBlock(block, isSelected),
         "image" => RenderImageBlock(block),
         "video" => RenderVideoBlock(block),
-        "gallery" => RenderGalleryBlock(block),
+        "gallery" => RenderGalleryBlock(block, isSelected),
+        "carousel" => RenderCarouselBlock(block, isSelected),
         "audio" => RenderAudioBlock(block),
         "raw_html" => RenderHtmlBlock(block),
         "dynamic_template" => RenderDynamicTemplateBlock(block),
@@ -1735,9 +1741,9 @@ else if (ActiveTab == "metadata")
     };
 
     // ── Gallery ────────────────────────────────────────────────
-    RenderFragment RenderGalleryBlock(EditorBlock b) => __builder =>
+    RenderFragment RenderGalleryBlock(EditorBlock b, bool sel) => __builder =>
     {
-        <div class="pe-gallery-block">
+        <div class="pe-gallery-block" @onclick:stopPropagation>
             <div class="pe-gallery-grid">
                 @for (var gi = 0; gi < b.GalleryImages.Count; gi++)
                 {
@@ -1760,6 +1766,108 @@ else if (ActiveTab == "metadata")
                     </svg>
                 </button>
             </div>
+
+            @* Carousel/Gallery controls *@
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-carousel-controls" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <label class="pe-field-label" style="display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" @bind="b.AutoPlay" />
+                        Autoscroll
+                    </label>
+                    @if (b.AutoPlay)
+                    {
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--pe-text-secondary);">
+                            Interval (ms):
+                            <input type="number" min="1000" max="30000" step="500"
+                                   value="@b.CarouselInterval"
+                                   @oninput="e => b.CarouselInterval = int.TryParse(e.Value?.ToString(), out var v) ? Math.Clamp(v, 1000, 30000) : 5000"
+                                   style="width: 80px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); border-radius: 4px; padding: 4px 8px;" />
+                        </label>
+                    }
+                    <label class="pe-field-label" style="display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" @bind="b.ShowArrows" />
+                        Show Arrows
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--pe-text-secondary);">
+                        Dots:
+                        <select @bind="b.ControlLocation"
+                                style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); border-radius: 4px; padding: 4px 8px;">
+                            <option value="bottom">Below image</option>
+                            <option value="overlay">Over image</option>
+                            <option value="hidden">Hidden</option>
+                        </select>
+                    </label>
+                </div>
+            }
+        </div>
+    };
+
+    // ── Carousel ────────────────────────────────────────────────
+    RenderFragment RenderCarouselBlock(EditorBlock b, bool sel) => __builder =>
+    {
+        bool showBottomControls = b.ControlLocation != "hidden";
+        <div class="pe-gallery-block" @onclick:stopPropagation>
+            @* Image grid *@
+            @if (showBottomControls || b.ControlLocation == "overlay")
+            {
+                <div class="pe-gallery-grid">
+                    @for (var gi = 0; gi < b.GalleryImages.Count; gi++)
+                    {
+                        var img = b.GalleryImages[gi];
+                        var imgIndex = gi;
+                        <div class="pe-gallery-item">
+                            <img src="@img.Src" alt="@img.Alt"/>
+                            <button class="pe-remove-item" @onclick="() => b.GalleryImages.RemoveAt(imgIndex)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    }
+                    <button class="pe-add-gallery-item" @onclick="() => OpenMediaSelector(b, true)">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                    </button>
+                </div>
+            }
+
+            @* Carousel-specific controls *@
+            @if (sel && !PreviewMode)
+            {
+                <div class="pe-carousel-controls" style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <label class="pe-field-label" style="display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" @bind="b.AutoPlay" />
+                        Autoscroll
+                    </label>
+                    @if (b.AutoPlay)
+                    {
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--pe-text-secondary);">
+                            Interval (ms):
+                            <input type="number" min="1000" max="30000" step="500"
+                                   value="@b.CarouselInterval"
+                                   @oninput="e => b.CarouselInterval = int.TryParse(e.Value?.ToString(), out var v) ? Math.Clamp(v, 1000, 30000) : 5000"
+                                   style="width: 80px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); border-radius: 4px; padding: 4px 8px;" />
+                        </label>
+                    }
+                    <label class="pe-field-label" style="display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" @bind="b.ShowArrows" />
+                        Show Arrows
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--pe-text-secondary);">
+                        Dots:
+                        <select @bind="b.ControlLocation"
+                                style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); border-radius: 4px; padding: 4px 8px;">
+                            <option value="bottom">Below image</option>
+                            <option value="overlay">Over image</option>
+                            <option value="hidden">Hidden</option>
+                        </select>
+                    </label>
+                </div>
+            }
         </div>
     };
 

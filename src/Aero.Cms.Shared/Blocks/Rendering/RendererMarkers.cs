@@ -68,3 +68,6 @@ public partial class AeroTableRenderer;
 
 [CmsBlockRenderer(typeof(AeroAuthBlock))]
 public partial class AeroAuthRenderer;
+
+[CmsBlockRenderer(typeof(CarouselBlock))]
+public partial class CarouselRenderer;
