@@ -216,7 +216,7 @@ public sealed class PageDocument : Entity, ISiteOwned
     /// <summary>
     /// Reference to the parent page. Null for root-level pages.
     /// </summary>
-    public Guid? ParentId { get; set; }
+    public long? ParentId { get; set; }
     
     /// <summary>
     /// Duplicated parent slug for fast indexed queries.
@@ -387,7 +387,7 @@ public sealed class PageVersion : Entity
     /// <summary>
     /// Reference to the original page.
     /// </summary>
-    public Guid PageId { get; set; }
+    public long PageId { get; set; }
     
     /// <summary>
     /// Sequential version number (1, 2, 3, ...).
@@ -423,7 +423,7 @@ public sealed class PageVersion : Entity
     /// Parent at the time of this version.
     /// ⚠️ NOT restored during rollback (tree structure may have changed).
     /// </summary>
-    public Guid? ParentId { get; set; }
+    public long? ParentId { get; set; }
     
     /// <summary>
     /// Path at the time of this version.
@@ -485,12 +485,12 @@ public interface IPageTreeService
     /// - Max depth exceeded
     /// - Slug format is invalid
     /// </exception>
-    Task<PageDocument> CreateAsync(PageDocument page, Guid? parentId, CancellationToken ct = default);
+    Task<PageDocument> CreateAsync(PageDocument page, long? parentId, CancellationToken ct = default);
     
     /// <summary>
     /// Retrieves a page by ID.
     /// </summary>
-    Task<PageDocument?> GetAsync(Guid id, CancellationToken ct = default);
+    Task<PageDocument?> GetAsync(long id, CancellationToken ct = default);
     
     /// <summary>
     /// Gets all immediate children of the specified parent page.
@@ -498,7 +498,7 @@ public interface IPageTreeService
     /// <param name="parentId">Parent page ID.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of child pages ordered by Title.</returns>
-    Task<IReadOnlyList<PageDocument>> GetChildrenAsync(Guid parentId, CancellationToken ct = default);
+    Task<IReadOnlyList<PageDocument>> GetChildrenAsync(long parentId, CancellationToken ct = default);
     
     /// <summary>
     /// Updates an existing page (does NOT move it in the tree).
@@ -519,7 +519,7 @@ public interface IPageTreeService
     /// - Attempting to move a page under itself or its descendants (circular reference)
     /// - Max depth would be exceeded
     /// </exception>
-    Task MoveAsync(Guid pageId, Guid? newParentId, CancellationToken ct = default);
+    Task MoveAsync(long pageId, long? newParentId, CancellationToken ct = default);
     
     /// <summary>
     /// Renames a page's slug and updates Path for it and all descendants.
@@ -533,7 +533,7 @@ public interface IPageTreeService
     /// - New slug already exists at this level
     /// - Slug format is invalid
     /// </exception>
-    Task RenameSlugAsync(Guid pageId, string newSlug, CancellationToken ct = default);
+    Task RenameSlugAsync(long pageId, string newSlug, CancellationToken ct = default);
     
     /// <summary>
     /// Clones a page (and optionally its entire subtree) to a new location.
@@ -544,8 +544,8 @@ public interface IPageTreeService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The root of the cloned tree.</returns>
     Task<PageDocument> CloneAsync(
-        Guid sourcePageId,
-        Guid? targetParentId,
+        long sourcePageId,
+        long? targetParentId,
         bool cloneDescendants = false,
         CancellationToken ct = default);
     
@@ -555,7 +555,7 @@ public interface IPageTreeService
     /// <param name="pageId">Page to delete.</param>
     /// <param name="deleteDescendants">If true, deletes entire subtree. If false, fails if page has children.</param>
     /// <param name="ct">Cancellation token.</param>
-    Task DeleteAsync(Guid pageId, bool deleteDescendants, CancellationToken ct = default);
+    Task DeleteAsync(long pageId, bool deleteDescendants, CancellationToken ct = default);
 }
 ```
 
@@ -588,7 +588,7 @@ public sealed class PageTreeService : IPageTreeService
     // CREATE
     // ========================================================================
     
-    public async Task<PageDocument> CreateAsync(PageDocument page, Guid? parentId, CancellationToken ct = default)
+    public async Task<PageDocument> CreateAsync(PageDocument page, long? parentId, CancellationToken ct = default)
     {
         // ✅ STEP 1: Validate and sanitize slug
         page.Slug = SlugValidator.Sanitize(page.Slug);
@@ -641,10 +641,10 @@ public sealed class PageTreeService : IPageTreeService
     // READ
     // ========================================================================
     
-    public Task<PageDocument?> GetAsync(Guid id, CancellationToken ct = default)
+    public Task<PageDocument?> GetAsync(long id, CancellationToken ct = default)
         => _session.LoadAsync<PageDocument>(id, ct);
     
-    public async Task<IReadOnlyList<PageDocument>> GetChildrenAsync(Guid parentId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<PageDocument>> GetChildrenAsync(long parentId, CancellationToken ct = default)
     {
         return await _session.Query<PageDocument>()
             .Where(x => x.ParentId == parentId)
@@ -666,7 +666,7 @@ public sealed class PageTreeService : IPageTreeService
     // MOVE
     // ========================================================================
     
-    public async Task MoveAsync(Guid pageId, Guid? newParentId, CancellationToken ct = default)
+    public async Task MoveAsync(long pageId, long? newParentId, CancellationToken ct = default)
     {
         const int maxRetries = 3;
         var attempt = 0;
@@ -691,7 +691,7 @@ public sealed class PageTreeService : IPageTreeService
         }
     }
     
-    private async Task MoveAsyncInternal(Guid pageId, Guid? newParentId, CancellationToken ct)
+    private async Task MoveAsyncInternal(long pageId, long? newParentId, CancellationToken ct)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -751,7 +751,7 @@ public sealed class PageTreeService : IPageTreeService
         await _session.SaveChangesAsync(ct);
     }
     
-    private async Task<int> GetMaxDescendantDepth(Guid pageId, CancellationToken ct)
+    private async Task<int> GetMaxDescendantDepth(long pageId, CancellationToken ct)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -768,7 +768,7 @@ public sealed class PageTreeService : IPageTreeService
     // RENAME SLUG
     // ========================================================================
     
-    public async Task RenameSlugAsync(Guid pageId, string newSlug, CancellationToken ct = default)
+    public async Task RenameSlugAsync(long pageId, string newSlug, CancellationToken ct = default)
     {
         const int maxRetries = 3;
         var attempt = 0;
@@ -792,7 +792,7 @@ public sealed class PageTreeService : IPageTreeService
         }
     }
     
-    private async Task RenameSlugAsyncInternal(Guid pageId, string newSlug, CancellationToken ct)
+    private async Task RenameSlugAsyncInternal(long pageId, string newSlug, CancellationToken ct)
     {
         newSlug = SlugValidator.Sanitize(newSlug);
         
@@ -850,8 +850,8 @@ public sealed class PageTreeService : IPageTreeService
     // ========================================================================
     
     public async Task<PageDocument> CloneAsync(
-        Guid sourcePageId,
-        Guid? targetParentId,
+        long sourcePageId,
+        long? targetParentId,
         bool cloneDescendants,
         CancellationToken ct = default)
     {
@@ -864,7 +864,7 @@ public sealed class PageTreeService : IPageTreeService
         // Deep clone content
         var clone = new PageDocument
         {
-            Id = Guid.NewGuid(),
+            Id = long.Newlong(),
             SiteId = source.SiteId,
             Kind = source.Kind,
             Slug = newSlug,
@@ -907,7 +907,7 @@ public sealed class PageTreeService : IPageTreeService
     
     private async Task<string> GenerateUniqueSlugAsync(
         string baseSlug,
-        Guid? parentId,
+        long? parentId,
         long siteId,
         CancellationToken ct)
     {
@@ -922,7 +922,7 @@ public sealed class PageTreeService : IPageTreeService
         return candidate;
     }
     
-    private async Task<bool> SlugExistsAsync(string slug, Guid? parentId, long siteId, CancellationToken ct)
+    private async Task<bool> SlugExistsAsync(string slug, long? parentId, long siteId, CancellationToken ct)
     {
         var exists = await _session.Query<PageDocument>()
             .AnyAsync(x =>
@@ -937,7 +937,7 @@ public sealed class PageTreeService : IPageTreeService
     // DELETE
     // ========================================================================
     
-    public async Task DeleteAsync(Guid pageId, bool deleteDescendants, CancellationToken ct = default)
+    public async Task DeleteAsync(long pageId, bool deleteDescendants, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -1071,12 +1071,12 @@ namespace Aero.Cms.Core.Models;
 /// </summary>
 public sealed class NavigationItem
 {
-    public Guid Id { get; set; }
+    public long Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Url { get; set; } = string.Empty;
     public bool ShowInNavMenu { get; set; }
     public int Depth { get; set; }
-    public Guid? ParentId { get; set; }
+    public long? ParentId { get; set; }
     public List<NavigationItem> Children { get; set; } = [];
 }
 ```
@@ -1103,12 +1103,12 @@ public interface INavigationService
     /// <summary>
     /// Gets breadcrumb trail for a specific page.
     /// </summary>
-    Task<IReadOnlyList<NavigationItem>> GetBreadcrumbAsync(Guid pageId, CancellationToken ct = default);
+    Task<IReadOnlyList<NavigationItem>> GetBreadcrumbAsync(long pageId, CancellationToken ct = default);
     
     /// <summary>
     /// Gets sibling pages (same parent) for a given page.
     /// </summary>
-    Task<IReadOnlyList<NavigationItem>> GetSiblingsAsync(Guid pageId, CancellationToken ct = default);
+    Task<IReadOnlyList<NavigationItem>> GetSiblingsAsync(long pageId, CancellationToken ct = default);
 }
 ```
 
@@ -1151,7 +1151,7 @@ public sealed class NavigationService : INavigationService
         return BuildTree(pages);
     }
     
-    public async Task<IReadOnlyList<NavigationItem>> GetBreadcrumbAsync(Guid pageId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<NavigationItem>> GetBreadcrumbAsync(long pageId, CancellationToken ct = default)
     {
         var page = await _query.LoadAsync<PageDocument>(pageId, ct);
         if (page is null)
@@ -1185,7 +1185,7 @@ public sealed class NavigationService : INavigationService
         return breadcrumb;
     }
     
-    public async Task<IReadOnlyList<NavigationItem>> GetSiblingsAsync(Guid pageId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<NavigationItem>> GetSiblingsAsync(long pageId, CancellationToken ct = default)
     {
         var page = await _query.LoadAsync<PageDocument>(pageId, ct);
         if (page is null)
@@ -1409,10 +1409,10 @@ app.MapGet("/api/pages", async (
 </div>
 
 @code {
-    [Parameter] public Guid? SelectedPageId { get; set; }
-    [Parameter] public EventCallback<Guid?> SelectedPageIdChanged { get; set; }
+    [Parameter] public long? SelectedPageId { get; set; }
+    [Parameter] public EventCallback<long?> SelectedPageIdChanged { get; set; }
     [Parameter] public long SiteId { get; set; }
-    [Parameter] public Guid? ExcludePageId { get; set; } // For preventing circular refs
+    [Parameter] public long? ExcludePageId { get; set; } // For preventing circular refs
     
     private List<PageTreeNode>? _tree;
     
@@ -1442,7 +1442,7 @@ app.MapGet("/api/pages", async (
     
     private async Task OnSelectedChanged(ChangeEventArgs e)
     {
-        if (Guid.TryParse(e.Value?.ToString(), out var id))
+        if (long.TryParse(e.Value?.ToString(), out var id))
             SelectedPageId = id;
         else
             SelectedPageId = null;
@@ -1459,11 +1459,11 @@ namespace Aero.Cms.Core.Models;
 
 public sealed class PageTreeNode
 {
-    public Guid Id { get; set; }
+    public long Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
     public int Depth { get; set; }
-    public Guid? ParentId { get; set; }
+    public long? ParentId { get; set; }
     public List<PageTreeNode> Children { get; set; } = [];
 }
 ```
@@ -1473,7 +1473,7 @@ public sealed class PageTreeNode
 ```csharp
 app.MapGet("/api/page-tree", async (
     long siteId,
-    Guid? excludeId,
+    long? excludeId,
     IQuerySession query,
     CancellationToken ct) =>
 {
@@ -1508,7 +1508,7 @@ app.MapGet("/api/page-tree", async (
     return Results.Ok(roots);
 });
 
-static bool ShouldExclude(PageDocument page, Guid? excludeId, List<PageDocument> allPages)
+static bool ShouldExclude(PageDocument page, long? excludeId, List<PageDocument> allPages)
 {
     if (!excludeId.HasValue)
         return false;
@@ -1543,7 +1543,7 @@ static bool ShouldExclude(PageDocument page, Guid? excludeId, List<PageDocument>
 
 @code {
     [Parameter] public long SiteId { get; set; }
-    [Parameter] public Guid? ParentId { get; set; }
+    [Parameter] public long? ParentId { get; set; }
     [Parameter] public string Slug { get; set; } = string.Empty;
     
     private string _previewPath = "/";
@@ -1608,7 +1608,7 @@ app.MapGet("/api/pages/sanitize-slug", (string slug) =>
 
 ```razor
 @page "/admin/pages/new"
-@page "/admin/pages/{pageId:guid}"
+@page "/admin/pages/{pageId:long}"
 @inject IPageTreeService PageTreeService
 @inject NavigationManager Nav
 
@@ -1674,7 +1674,7 @@ app.MapGet("/api/pages/sanitize-slug", (string slug) =>
 </EditForm>
 
 @code {
-    [Parameter] public Guid? PageId { get; set; }
+    [Parameter] public long? PageId { get; set; }
     [Parameter] public long CurrentSiteId { get; set; } = 1; // TODO: Get from auth context
     
     private PageDocument Model { get; set; } = new();
@@ -1833,9 +1833,9 @@ namespace Aero.Cms.Core.Services;
 
 public interface IPageVersioningService
 {
-    Task<PageVersion> CreateVersionAsync(Guid pageId, string userId, CancellationToken ct = default);
-    Task<IReadOnlyList<PageVersion>> GetVersionHistoryAsync(Guid pageId, CancellationToken ct = default);
-    Task RollbackToVersionAsync(Guid pageId, int versionNumber, CancellationToken ct = default);
+    Task<PageVersion> CreateVersionAsync(long pageId, string userId, CancellationToken ct = default);
+    Task<IReadOnlyList<PageVersion>> GetVersionHistoryAsync(long pageId, CancellationToken ct = default);
+    Task RollbackToVersionAsync(long pageId, int versionNumber, CancellationToken ct = default);
 }
 ```
 
@@ -1859,7 +1859,7 @@ public sealed class PageVersioningService : IPageVersioningService
         _session = session;
     }
     
-    public async Task<PageVersion> CreateVersionAsync(Guid pageId, string userId, CancellationToken ct = default)
+    public async Task<PageVersion> CreateVersionAsync(long pageId, string userId, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -1896,7 +1896,7 @@ public sealed class PageVersioningService : IPageVersioningService
         return version;
     }
     
-    public async Task<IReadOnlyList<PageVersion>> GetVersionHistoryAsync(Guid pageId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<PageVersion>> GetVersionHistoryAsync(long pageId, CancellationToken ct = default)
     {
         return await _session.Query<PageVersion>()
             .Where(x => x.PageId == pageId)
@@ -1904,7 +1904,7 @@ public sealed class PageVersioningService : IPageVersioningService
             .ToListAsync(ct);
     }
     
-    public async Task RollbackToVersionAsync(Guid pageId, int versionNumber, CancellationToken ct = default)
+    public async Task RollbackToVersionAsync(long pageId, int versionNumber, CancellationToken ct = default)
     {
         var version = await _session.Query<PageVersion>()
             .FirstOrDefaultAsync(x => x.PageId == pageId && x.VersionNumber == versionNumber, ct)
@@ -1978,12 +1978,12 @@ namespace Aero.Cms.Core.Services;
 
 public interface IPagePublishingWorkflowService
 {
-    Task SubmitForReviewAsync(Guid pageId, CancellationToken ct = default);
-    Task ApproveAsync(Guid pageId, string reviewerId, string? notes, CancellationToken ct = default);
-    Task RejectAsync(Guid pageId, string reviewerId, string? notes, CancellationToken ct = default);
-    Task SchedulePublishAsync(Guid pageId, DateTimeOffset publishDate, CancellationToken ct = default);
-    Task PublishNowAsync(Guid pageId, CancellationToken ct = default);
-    Task ArchiveAsync(Guid pageId, CancellationToken ct = default);
+    Task SubmitForReviewAsync(long pageId, CancellationToken ct = default);
+    Task ApproveAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default);
+    Task RejectAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default);
+    Task SchedulePublishAsync(long pageId, DateTimeOffset publishDate, CancellationToken ct = default);
+    Task PublishNowAsync(long pageId, CancellationToken ct = default);
+    Task ArchiveAsync(long pageId, CancellationToken ct = default);
 }
 ```
 
@@ -2007,7 +2007,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         _session = session;
     }
     
-    public async Task SubmitForReviewAsync(Guid pageId, CancellationToken ct = default)
+    public async Task SubmitForReviewAsync(long pageId, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -2022,7 +2022,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         // TODO: Send notification to reviewers via email/Slack/etc.
     }
     
-    public async Task ApproveAsync(Guid pageId, string reviewerId, string? notes, CancellationToken ct = default)
+    public async Task ApproveAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -2040,7 +2040,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         await _session.SaveChangesAsync(ct);
     }
     
-    public async Task RejectAsync(Guid pageId, string reviewerId, string? notes, CancellationToken ct = default)
+    public async Task RejectAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -2057,7 +2057,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         await _session.SaveChangesAsync(ct);
     }
     
-    public async Task SchedulePublishAsync(Guid pageId, DateTimeOffset publishDate, CancellationToken ct = default)
+    public async Task SchedulePublishAsync(long pageId, DateTimeOffset publishDate, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -2071,7 +2071,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         // TODO: Queue background job (Hangfire/Quartz/etc.) to publish at scheduled time
     }
     
-    public async Task PublishNowAsync(Guid pageId, CancellationToken ct = default)
+    public async Task PublishNowAsync(long pageId, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -2083,7 +2083,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         await _session.SaveChangesAsync(ct);
     }
     
-    public async Task ArchiveAsync(Guid pageId, CancellationToken ct = default)
+    public async Task ArchiveAsync(long pageId, CancellationToken ct = default)
     {
         var page = await _session.LoadAsync<PageDocument>(pageId, ct)
             ?? throw new InvalidOperationException("Page not found.");
@@ -2305,7 +2305,7 @@ public sealed class PageTreeServiceTests : IClassFixture<MartenFixture>
     public async Task CreateAsync_ExceedsMaxDepth_ThrowsException()
     {
         // Arrange: Create 10 nested levels
-        Guid? parentId = null;
+        long? parentId = null;
         for (int i = 0; i < 10; i++)
         {
             var page = await CreateTestPageAsync($"level-{i}", parentId);
@@ -2355,7 +2355,7 @@ public sealed class PageTreeServiceTests : IClassFixture<MartenFixture>
         return await _service.CreateAsync(page, null);
     }
     
-    private async Task<PageDocument> CreateChildPageAsync(Guid parentId, string slug)
+    private async Task<PageDocument> CreateChildPageAsync(long parentId, string slug)
     {
         var page = new PageDocument
         {
@@ -2366,7 +2366,7 @@ public sealed class PageTreeServiceTests : IClassFixture<MartenFixture>
         return await _service.CreateAsync(page, parentId);
     }
     
-    private async Task<PageDocument> CreateTestPageAsync(string slug, Guid? parentId)
+    private async Task<PageDocument> CreateTestPageAsync(string slug, long? parentId)
     {
         var page = new PageDocument
         {

@@ -36,6 +36,7 @@
     <Project Path="Aero.Cms.Modules.AiAssistant/Aero.Cms.Modules.AiAssistant.csproj" Id="f7200dd4-a7b1-4059-b84e-ead4793161fc" />
     <Project Path="Aero.Cms.Modules.Aliases/Aero.Cms.Modules.Aliases.csproj" Id="db4ae2df-6189-4957-94e6-ed63bc3e2609" />
     <Project Path="Aero.Cms.Modules.Analytics/Aero.Cms.Modules.Analytics.csproj" />
+    <Project Path="Aero.Cms.Modules.Audit/Aero.Cms.Modules.Audit.csproj" Id="96ff8314-4c6e-49f0-8143-55e79a750594" />
     <Project Path="Aero.Cms.Modules.Banner/Aero.Cms.Modules.Banner.csproj" Id="8834deda-d732-4a76-8c0d-07bf534b2f8a" />
     <Project Path="Aero.Cms.Modules.Blog.Importer/Aero.Cms.Modules.Blog.Importer.csproj" Id="e7e2e70d-cb9a-42a0-86d0-c7787cd64f48" />
     <Project Path="Aero.Cms.Modules.Blog/Aero.Cms.Modules.Blog.csproj" Id="84f7df72-76e2-4520-91b0-d4f25d1508dc" />
