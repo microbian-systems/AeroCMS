@@ -1,0 +1,216 @@
+@page "/manager/content-type/editor/{alias?}"
+@using Aero.Cms.Abstractions.Content
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
+@inject NavigationManager Navigation
+@inject IContentTypesHttpClient ContentTypesApi
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<style>
+    .field-row { cursor: pointer; transition: box-shadow 0.15s ease; }
+    .field-row:hover { background-color: rgba(0, 0, 0, 0.02); }
+</style>
+
+<div class="pe-page-content space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold pe-heading">@(string.IsNullOrEmpty(Alias) ? "New Content Type" : "Edit Content Type")</h1>
+            <p class="mt-1 text-sm pe-description">Define the schema and template for a structured content type.</p>
+        </div>
+        <div class="flex gap-4">
+            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => Navigation.NavigateTo("/manager/content-types"))" />
+            <RadzenButton Text="Save" ButtonStyle="ButtonStyle.Primary" Click="@Save" Disabled="@isSaving" />
+        </div>
+    </div>
+
+    <div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
+        <button class="pe-tab-btn @(activeTab == "definition" ? "active" : "")" @onclick='() => activeTab = "definition"'>Definition</button>
+        <button class="pe-tab-btn @(activeTab == "template" ? "active" : "")" @onclick='() => activeTab = "template"'>Template</button>
+    </div>
+
+    @if (activeTab == "definition")
+    {
+        <div class="p-6 rounded-lg shadow-sm space-y-6" style="background: var(--pe-bg-secondary); color: var(--pe-text-primary);">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Name <span class="text-red-500">*</span></label>
+                    <RadzenTextBox Value="@name" ValueChanged="@(v => name = v)" Change="@OnNameChanged" Placeholder="e.g. Article, Product, Team Member" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Alias</label>
+                    <RadzenTextBox Value="@alias" ValueChanged="@(v => alias = v)" Placeholder="e.g. article, product, team-member" />
+                    <span class="text-xs mt-1" style="color: var(--pe-text-muted);">Auto-generated from Name.</span>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Description</label>
+                    <RadzenTextArea Value="@description" ValueChanged="@(v => description = v)" Placeholder="Brief description..." Rows="2" Style="width: 100%;" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Category</label>
+                    <RadzenTextBox Value="@category" ValueChanged="@(v => category = v)" Placeholder="e.g. Content, Marketing" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Render Mode</label>
+                    <RadzenDropDown TValue="string" Value="@renderMode" ValueChanged="@(v => renderMode = v)" Data="@renderModes" TextProperty="Text" ValueProperty="Value" />
+                </div>
+            </div>
+
+            <div class="pt-6 border-t" style="border-top-color: var(--pe-border);">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium" style="color: var(--pe-text-primary);">Fields</h3>
+                    <RadzenButton Text="Add Field" Icon="add" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@AddField" />
+                </div>
+                @if (fields.Count == 0)
+                {
+                    <div class="text-center py-8 text-sm" style="color: var(--pe-text-muted);">No fields defined yet. Click "Add Field" to start building your schema.</div>
+                }
+                <div class="space-y-2">
+                    @for (int i = 0; i < fields.Count; i++)
+                    {
+                        var idx = i;
+                        <div class="field-row border rounded-md p-4 @(selectedFieldIndex == idx ? "ring-2 ring-blue-500" : "")"
+                             style="border-color: var(--pe-border); background: var(--pe-bg-primary);"
+                             @onclick='() => selectedFieldIndex = idx'>
+                            <div class="grid grid-cols-12 gap-3 items-start">
+                                <div class="col-span-3">
+                                    <label class="text-xs font-medium mb-1 block" style="color: var(--pe-text-secondary);">Name</label>
+                                    <RadzenTextBox Value="@fields[idx].Name" ValueChanged="@(v => fields[idx].Name = v)" Placeholder="fieldName" />
+                                </div>
+                                <div class="col-span-3">
+                                    <label class="text-xs font-medium mb-1 block" style="color: var(--pe-text-secondary);">Type</label>
+                                    <RadzenDropDown TValue="string" Value="@fields[idx].FieldType" ValueChanged="@(v => fields[idx].FieldType = v)" Data="@fieldTypeOptions" TextProperty="Text" ValueProperty="Value" />
+                                </div>
+                                <div class="col-span-2 flex items-end pb-2">
+                                    <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                        <RadzenCheckBox TValue="bool" CheckboxValue="@fields[idx].Required" CheckboxValueChanged="@((bool v) => fields[idx].Required = v)" />
+                                        Required
+                                    </label>
+                                </div>
+                                <div class="col-span-2 flex items-end pb-2">
+                                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click='() => RemoveField(idx)' />
+                                </div>
+                            </div>
+                            @if (selectedFieldIndex == idx)
+                            {
+                                <div class="mt-4 pt-4 border-t grid grid-cols-3 gap-4" style="border-top-color: var(--pe-border);">
+                                    <div>
+                                        <label class="text-xs font-medium mb-1 block" style="color: var(--pe-text-secondary);">Label</label>
+                                        <RadzenTextBox Value="@fields[idx].Label" ValueChanged="@(v => fields[idx].Label = v)" Placeholder="Display label" />
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium mb-1 block" style="color: var(--pe-text-secondary);">Default Value</label>
+                                        <RadzenTextBox Value="@fields[idx].DefaultValue" ValueChanged="@(v => fields[idx].DefaultValue = v)" Placeholder="Default value" />
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-medium mb-1 block" style="color: var(--pe-text-secondary);">Placeholder</label>
+                                        <RadzenTextBox Value="@fields[idx].Placeholder" ValueChanged="@(v => fields[idx].Placeholder = v)" Placeholder="Input placeholder" />
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (activeTab == "template")
+    {
+        <div class="p-6 rounded-lg shadow-sm space-y-4" style="background: var(--pe-bg-secondary); color: var(--pe-text-primary);">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-medium" style="color: var(--pe-text-primary);">Scriban Template</h3>
+                <RadzenButton Text="Auto-generate" Icon="auto_fix_high" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@AutoGenerateTemplate" />
+            </div>
+            <p class="text-sm" style="color: var(--pe-text-secondary);">Customize how this content type is rendered. Leave empty for auto-generated.</p>
+            <RadzenTextArea Value="@scribanTemplate" ValueChanged="@(v => scribanTemplate = v)" Rows="20" Style="width: 100%; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.5;" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Alias { get; set; }
+
+    string activeTab = "definition";
+    bool isSaving;
+    string name = string.Empty;
+    string alias = string.Empty;
+    string? description;
+    string? category;
+    string renderMode = "DynamicBlock";
+    string? scribanTemplate;
+    List<ContentFieldDefinition> fields = [];
+    int? selectedFieldIndex;
+
+    readonly List<DropDownItem> renderModes = [new("Dynamic Block", "DynamicBlock"), new("Block Layout", "BlockLayout")];
+    readonly List<DropDownItem> fieldTypeOptions = [
+        new("Text", "text"), new("Rich Text", "richtext"), new("Image", "image"),
+        new("Number", "number"), new("Boolean", "boolean"), new("URL", "url"),
+        new("Date", "date"), new("Reference", "reference"),
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(Alias))
+        {
+            var result = await ContentTypesApi.GetByAliasAsync(Alias);
+            if (result is Result<ContentTypeDetail, AeroError>.Ok ok)
+            {
+                var detail = ok.Value;
+                name = detail.Name; alias = detail.Alias; description = detail.Description;
+                category = detail.Category; renderMode = detail.RenderMode;
+                scribanTemplate = detail.ScribanTemplate; fields = [.. detail.Fields];
+            }
+            else if (result is Result<ContentTypeDetail, AeroError>.Failure fail)
+            {
+                NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Load Failed", Detail = fail.Error.ToString(), Duration = 4000 });
+            }
+        }
+    }
+
+    void OnNameChanged(string value)
+    {
+        name = value;
+        if (string.IsNullOrEmpty(alias)) alias = System.Text.RegularExpressions.Regex.Replace(value.ToLowerInvariant().Trim(), @"[^a-z0-9\s-]", "").Replace(' ', '-');
+    }
+
+    void AddField()
+    {
+        fields.Add(new ContentFieldDefinition { Name = "newField", FieldType = "text", Label = "New Field" });
+        selectedFieldIndex = fields.Count - 1;
+    }
+
+    void RemoveField(int index)
+    {
+        if (index < 0 || index >= fields.Count) return;
+        fields.RemoveAt(index);
+        if (selectedFieldIndex == index) selectedFieldIndex = null;
+        else if (selectedFieldIndex > index) selectedFieldIndex--;
+    }
+
+    void AutoGenerateTemplate()
+    {
+        if (fields.Count == 0) { scribanTemplate = "{{ fields | object.print }}"; return; }
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("<div class=\"content-item\">");
+        foreach (var f in fields) { sb.AppendLine($"  <p>{{{{ item.fields.{f.Name} }}}}</p>"); }
+        sb.AppendLine("</div>");
+        scribanTemplate = sb.ToString();
+    }
+
+    async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(name)) { NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Validation", Detail = "Name is required.", Duration = 4000 }); return; }
+        if (string.IsNullOrWhiteSpace(alias)) alias = name.ToLowerInvariant().Replace(' ', '-');
+        isSaving = true;
+        var request = new CreateContentTypeRequest(alias, name, description, category, null, [.. fields], scribanTemplate, renderMode, null);
+        var result = string.IsNullOrEmpty(Alias) ? await ContentTypesApi.CreateAsync(request) : await ContentTypesApi.UpdateAsync(Alias, request);
+        isSaving = false;
+        if (result is Result<ContentTypeDetail, AeroError>.Failure fail) { NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Save Failed", Detail = fail.Error.ToString(), Duration = 4000 }); return; }
+        NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Saved", Detail = $"Content type '{name}' has been saved.", Duration = 2000 });
+        Navigation.NavigateTo("/manager/content-types");
+    }
+
+    private record DropDownItem(string Text, string Value);
+}

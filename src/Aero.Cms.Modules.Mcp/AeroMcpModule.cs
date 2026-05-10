@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Mcp;
 
+[Module(nameof(AeroMcpModule))]
 public class AeroMcpModule : AeroModuleBase
 {
     public override string Name => nameof(AeroMcpModule);

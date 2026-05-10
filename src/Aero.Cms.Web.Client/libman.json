@@ -1,0 +1,20 @@
+{
+  "version": "3.0",
+  "defaultProvider": "cdnjs",
+  "libraries": [
+    {
+      "provider": "jsdelivr",
+      "library": "@popperjs/core@2.11.8",
+      "destination": "wwwroot/lib/popperjs-core/",
+      "files": [
+        "dist/umd/popper.min.js",
+        "dist/umd/popper.min.js.map"
+      ]
+    },
+    {
+      "provider": "cdnjs",
+      "library": "tippy.js@6.3.7",
+      "destination": "wwwroot/lib/tippy.js/"
+    }
+  ]
+}

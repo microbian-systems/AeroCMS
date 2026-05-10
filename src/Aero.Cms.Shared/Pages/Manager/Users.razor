@@ -7,11 +7,11 @@
 @inject IUsersHttpClient UsersApi
 @inject DialogService DialogService
 
-<div class="space-y-6">
+<div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">User Directory</h1>
-            <p class="mt-1 text-sm text-gray-500">Manage user accounts, roles, and administrative permissions.</p>
+            <h1 class="text-2xl font-bold pe-heading">User Directory</h1>
+            <p class="mt-1 text-sm pe-description">Manage user accounts, roles, and administrative permissions.</p>
         </div>
         <div class="flex space-x-3">
              <RadzenTextBox Placeholder="Search users..." 
@@ -39,12 +39,13 @@
             <RadzenDataGridColumn TItem="UserSummary" Property="DisplayName" Title="Name">
                 <Template Context="user">
                     <div class="flex items-center gap-3">
-                         <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs uppercase">
+                         <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase"
+                               style="background: color-mix(in srgb, var(--pe-info) 12%, transparent); color: var(--pe-info);">
                               @GetInitials(user.DisplayName)
                          </div>
                          <div class="flex flex-col">
-                              <span class="font-medium text-gray-900">@user.DisplayName</span>
-                              <span class="text-[10px] text-gray-500 font-mono">ID: @user.Id</span>
+                              <span class="font-medium" style="color: var(--pe-text-primary);">@user.DisplayName</span>
+                              <span class="text-[10px] font-mono" style="color: var(--pe-text-muted);">ID: @user.Id</span>
                          </div>
                     </div>
                 </Template>
@@ -65,7 +66,7 @@
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="UserSummary" Property="CreatedAt" Title="Joined">
                  <Template Context="user">
-                      <span class="text-sm text-gray-600">@user.CreatedAt.ToShortDateString()</span>
+                      <span style="color: var(--pe-text-secondary);">@user.CreatedAt.ToShortDateString()</span>
                  </Template>
             </RadzenDataGridColumn>
         </Columns>

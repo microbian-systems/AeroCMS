@@ -5,20 +5,20 @@
 @inject NotificationService NotificationService
 @inject DialogService DialogService
 
-<div class="p-6 bg-white dark:bg-gray-900 rounded-2xl">
+<div class="p-6 rounded-2xl" style="background: var(--pe-bg-secondary);">
     <div class="mb-6">
-        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Create New Folder</h3>
+        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">Create New Folder</h3>
         <p class="text-xs text-gray-500 mt-1">Folders help you organize your media library assets.</p>
     </div>
 
     <div class="space-y-4">
         <div class="flex flex-col gap-1.5">
             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Folder Name</label>
-            <RadzenTextBox @bind-Value="@folderName" Placeholder="@("Enter folder name...")" class="w-full bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm px-4 py-2" />
+            <RadzenTextBox @bind-Value="@folderName" Placeholder="@("Enter folder name...")" class="w-full border-none rounded-xl text-sm px-4 py-2" style="background: var(--pe-bg-tertiary);" />
         </div>
     </div>
 
-    <div class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3">
+    <div class="mt-8 pt-6 border-t flex justify-end gap-3" style="border-color: var(--pe-border);">
         <RadzenButton Text="@("Cancel")" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@(() => DialogService.Close(false))" />
         <RadzenButton Text="@("Create Folder")" Icon="@("create_new_folder")" ButtonStyle="ButtonStyle.Primary" Variant="Variant.Filled" 
                      Click="@OnCreate" Disabled="@(string.IsNullOrWhiteSpace(folderName) || isSaving)" class="rounded-xl px-6 shadow-lg shadow-indigo-500/20" />

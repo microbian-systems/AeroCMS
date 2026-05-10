@@ -91,7 +91,12 @@ public class ModuleBuilderTests
 
     private sealed class TestContentPart : IContentPart;
 
-    private sealed class TestFieldEditor : IFieldEditor;
+    private sealed class TestFieldEditor : IFieldEditor
+    {
+        public string FieldType => "test";
+        public string EditorComponent => "aero-test-editor";
+        public object? Normalize(object? value) => value;
+    }
 
     private sealed class TestSearchIndexer : ISearchIndexer;
 }

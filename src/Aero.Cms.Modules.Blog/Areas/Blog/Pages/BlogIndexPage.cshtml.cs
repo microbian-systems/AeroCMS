@@ -8,6 +8,7 @@ using Aero.Core.Railway;
 
 namespace Aero.Cms.Modules.Blog.Areas.Blog.Pages;
 
+[ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, VaryByQueryKeys = ["p"])]
 [OutputCache(PolicyName = "BlogPolicy")]
 public class BlogIndexPageModel(IBlogPostContentService blogService) : PageModel
 {

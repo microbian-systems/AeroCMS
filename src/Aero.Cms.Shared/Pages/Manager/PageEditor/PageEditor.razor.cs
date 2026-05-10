@@ -1,24 +1,26 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System;
-using System.IO;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using Aero.Core;
 using Aero.Cms.Core;
 using Aero.Core.Security;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Models;
 
 using Aero.Core.Railway;
 using CmsPageDetail = Aero.Cms.Abstractions.Http.Clients.PageDetail;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Shared.Services;
 using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
@@ -40,7 +42,11 @@ public partial class PageEditor : ComponentBase, IDisposable
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
     [Inject] protected IUsersHttpClient UsersClient { get; set; } = default!;
     [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
+    [Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
+    [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
+    [Inject] protected AdminStateContainer AdminState { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
+    [Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
@@ -70,7 +76,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string? PreviewError { get; set; }
     protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/pages/render-fragment");
     protected string? PreviewFrameUrl => Id is { } id
-        ? BuildAbsoluteUrl($"api/v1/admin/pages/drafts/{id}?previewVersion={_previewRefreshVersion}")
+        ? BuildAbsoluteUrl($"_cms/preview/pages/drafts/{id}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
     protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
     protected bool   RightSidebarCollapsed { get; set; } = true;
@@ -87,6 +93,10 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Page Settings
     protected string PageSlug { get; set; } = string.Empty;
     protected string Summary { get; set; } = string.Empty;
+
+    /// <summary>Tracks whether the slug should auto-populate from the title.</summary>
+    private enum SlugState { Auto, Loaded, Locked }
+    private SlugState _slugState = SlugState.Auto;
 
     // Redundant ID removed to avoid ambiguity with ManagerComponent Base.Id
     // public string Id { get; set; } = string.Empty; 
@@ -110,18 +120,22 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string?      MediaContext     { get; set; }   // "background" | "nested"
     protected NestedBlock? NestedMediaTarget { get; set; }
 
-    protected List<MediaItem> MediaLibrary { get; set; } = [];
     private Dictionary<string, List<ReferenceItem>> _referenceData = new();
     protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
 
     // Toasts
     protected List<ToastMessage> Toasts { get; set; } = [];
 
-    // Auto-save timer
+    // Auto-save timer & dirty tracking
     private const int PreviewDebounceMilliseconds = 300;
     private System.Timers.Timer? _autoSaveTimer;
     private CancellationTokenSource? _previewDebounceCts;
-    private long _previewRefreshVersion;
+    private string? _previewBaseUri;
+    private long _previewRefreshVersion;	
+
+    /// <summary>Tracks whether unsaved changes exist. Auto-save only fires when Dirty.</summary>
+    private enum PageState { Clean, Dirty }
+    private PageState _pageState = PageState.Dirty;  // new pages start dirty
 
     // ──────────────────────────────────────────────────────────
     // Lifecycle  (mirrors Alpine.js init())
@@ -129,6 +143,8 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected override async Task OnInitializedAsync()
     {
+        await ResolvePreviewBaseUriAsync();
+
         if (Id.HasValue)
         {
             await LoadPageAsync(Id.Value);
@@ -162,6 +178,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             LoadedPage = page;
             PageTitle = page.Title;
             PageSlug = page.Slug;
+            _slugState = SlugState.Loaded;  // preserve DB slug — never auto-overwrite
             Summary = page.Excerpt ?? string.Empty;
             SeoTitle = page.SeoTitle ?? string.Empty;
             SeoDescription = page.SeoDescription ?? string.Empty;
@@ -177,7 +194,20 @@ public partial class PageEditor : ComponentBase, IDisposable
                 Blocks = page.Blocks.ToList();
             }
 
+            // Check for a newer draft — if one exists, use it as the in-progress state
+            var draftResult = await PagesClient.GetDraftAsync(id);
+            if (draftResult is Result<PageDraftSummary?, AeroError>.Ok { Value: not null } draftOk)
+            {
+                var draft = draftOk.Value;
+                PageTitle = draft.Title;
+                PageSlug = draft.Slug;
+                Summary = draft.Summary ?? string.Empty;
+                if (draft.Blocks is not null)
+                    Blocks = draft.Blocks.ToList();
+            }
+
             UpdateLastSaved();
+            _pageState = PageState.Clean;
             await InvokeAsync(StateHasChanged);
         }
         else
@@ -188,15 +218,6 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     private async Task LoadReferenceDataAsync()
     {
-        // Media Gallery
-        var mediaResult = await MediaClient.GetAllAsync(take: 50);
-        if (mediaResult is Result<PagedResult<MediaSummary>, AeroError>.Ok mediaOk)
-        {
-            MediaLibrary = mediaOk.Value.Items
-                .Select(m => new MediaItem(m.Id, m.Url, m.FileName))
-                .ToList();
-        }
-
         // Reference Picker data
         var pagesTask = PagesClient.GetAllAsync(take: 50);
         var blogsTask = BlogClient.GetAllAsync(take: 50);
@@ -233,6 +254,11 @@ public partial class PageEditor : ComponentBase, IDisposable
         _previewDebounceCts?.Dispose();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JSRuntime.InvokeVoidAsync("PeNavTooltip.refresh");
+    }
+
     // ──────────────────────────────────────────────────────────
     // Category toggle  (mirrors toggleCategory())
     // ──────────────────────────────────────────────────────────
@@ -258,6 +284,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         var block = CreateBlock(type);
         Blocks.Add(block);
         SelectBlock(block.EditorId);
+        MarkDirty();
         ShowToast("Block added", "success");
         QueuePreviewRefresh();
     }
@@ -371,7 +398,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                 block.Description = "Our friendly team is always here to chat.";
                 block.ContactDetails = new List<AeroContactDetail>
                 {
-                    new() { Label = "Email", Value = "hello@aerocms.com", Icon = "M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2m20 0v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6m20 0l-10 7L2 6" },
+                    new() { Label = "Email", Value = "hello@getaerocms.net", Icon = "M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2m20 0v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6m20 0l-10 7L2 6" },
                     new() { Label = "Phone", Value = "+1 (555) 000-0000", Icon = "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" }
                 };
                 break;
@@ -444,6 +471,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             case "video":
                 block.Url = string.Empty;
                 block.Src = string.Empty;
+                block.AutoPlay = false;
                 break;
 
             case "gallery":
@@ -473,6 +501,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         Blocks.RemoveAt(index);
         SelectedBlockId = null;
+        MarkDirty();
         ShowToast("Block deleted");
         QueuePreviewRefresh();
     }
@@ -488,6 +517,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             col.ColId = Guid.NewGuid().ToString();
 
         Blocks.Insert(index + 1, copy);
+        MarkDirty();
         ShowToast("Block duplicated", "success");
         QueuePreviewRefresh();
     }
@@ -496,6 +526,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         if (index <= 0) return;
         (Blocks[index], Blocks[index - 1]) = (Blocks[index - 1], Blocks[index]);
+        MarkDirty();
         QueuePreviewRefresh();
     }
 
@@ -503,6 +534,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         if (index >= Blocks.Count - 1) return;
         (Blocks[index], Blocks[index + 1]) = (Blocks[index + 1], Blocks[index]);
+        MarkDirty();
         QueuePreviewRefresh();
     }
 
@@ -761,6 +793,15 @@ public partial class PageEditor : ComponentBase, IDisposable
         {
             CurrentMediaBlock.BackgroundImage = items.First().Src;
         }
+        else if (MediaContext == "video" && CurrentMediaBlock != null)
+        {
+            // Set the URL and auto-load the video (resolves YouTube/Vimeo embeds or direct URL)
+            // LoadVideo handles its own toast — skip the generic one below.
+            CurrentMediaBlock.Url = items.First().Src;
+            LoadVideo(CurrentMediaBlock);
+            MediaModalOpen = false;
+            return;
+        }
         else if (MediaContext == "nested" && NestedMediaTarget is not null)
         {
             NestedMediaTarget.Src = items.First().Src;
@@ -786,27 +827,6 @@ public partial class PageEditor : ComponentBase, IDisposable
         block.Src     = string.Empty;
         block.Alt     = string.Empty;
         block.Caption = string.Empty;
-    }
-
-    protected async Task HandleFileSelect(InputFileChangeEventArgs e)
-    {
-        foreach (var file in e.GetMultipleFiles())
-        {
-            if (!file.ContentType.StartsWith("image/")) continue;
-
-            // Simulate upload: read as base64 for preview
-            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
-            using var ms     = new MemoryStream();
-            await stream.CopyToAsync(ms);
-            var bytes = ms.ToArray();
-            var b64   = Convert.ToBase64String(bytes);
-            var dataUrl = $"data:{file.ContentType};base64,{b64}";
-
-            var newItem = new MediaItem(MediaLibrary.Any() ? MediaLibrary.Max(i => i.Id) + 1 : 1, dataUrl, file.Name);
-            MediaLibrary.Insert(0, newItem);
-        }
-
-        ShowToast("Files uploaded", "success");
     }
 
     // ──────────────────────────────────────────────────────────
@@ -959,9 +979,91 @@ public partial class PageEditor : ComponentBase, IDisposable
         }
     }
 
-    private string BuildAbsoluteUrl(string relativeUrl)
+    private async Task ResolvePreviewBaseUriAsync()
     {
-        return new Uri(new Uri(NavManager.BaseUri), relativeUrl.TrimStart('/')).ToString();
+        SiteViewModel? selectedSite = null;
+
+        if (AdminState.CurrentSiteId is { } selectedSiteId)
+        {
+            selectedSite = await LoadSiteByIdAsync(selectedSiteId);
+        }
+
+        selectedSite ??= await CurrentSiteAccessor.GetCurrentSiteAsync();
+
+        if (selectedSite is null)
+        {
+            var defaultResult = await SitesClient.GetDefaultAsync();
+            if (defaultResult is Result<SiteViewModel, AeroError>.Ok defaultOk)
+            {
+                selectedSite = defaultOk.Value;
+            }
+        }
+
+        _previewBaseUri = ResolvePreviewBaseUri(selectedSite) ?? NavManager.BaseUri;
+    }
+
+    private string? ResolvePreviewBaseUri(SiteViewModel? site)
+    {
+        var baseUri = BuildSiteBaseUri(site);
+        if (baseUri is null) return null;
+
+        // The site's PrimaryHost might not include the port we're running on.
+        var previewUri = new Uri(baseUri);
+        var currentUri = new Uri(NavManager.BaseUri);
+
+        if (previewUri.Port != currentUri.Port)
+        {
+            var builder = new UriBuilder(previewUri) { Port = currentUri.Port };
+            return EnsureTrailingSlash(builder.Uri.ToString());
+        }
+
+        return baseUri;
+    }
+
+    private async Task<SiteViewModel?> LoadSiteByIdAsync(long siteId)
+    {
+        var result = await SitesClient.GetByIdAsync(siteId);
+        return result is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
+    }
+
+    private string BuildAbsoluteUrl(string relativeUrl, string? baseUri = null)
+    {
+        return new Uri(new Uri(baseUri ?? NavManager.BaseUri), relativeUrl.TrimStart('/')).ToString();
+    }
+
+    private string? BuildSiteBaseUri(SiteViewModel? site)
+    {
+        var host = site?.PrimaryHost;
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            host = site?.Hosts.FirstOrDefault(static h => !string.IsNullOrWhiteSpace(h));
+        }
+
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return null;
+        }
+
+        host = host.Trim().TrimEnd('/');
+
+        if (Uri.TryCreate(host, UriKind.Absolute, out var absoluteUri))
+        {
+            return EnsureTrailingSlash(absoluteUri.ToString());
+        }
+
+        var current = new Uri(NavManager.BaseUri);
+        var authority = host;
+        if (!host.Contains(':', StringComparison.Ordinal))
+        {
+            authority = current.IsDefaultPort ? host : $"{host}:{current.Port}";
+        }
+
+        return EnsureTrailingSlash($"{current.Scheme}://{authority}");
+    }
+
+    private static string EnsureTrailingSlash(string uri)
+    {
+        return uri.EndsWith("/", StringComparison.Ordinal) ? uri : $"{uri}/";
     }
 
     private static string BuildPreviewFrameDocument(string? html, string baseUri)
@@ -1002,12 +1104,39 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Save / Publish  (mirrors savePage / publishPage)
     // ──────────────────────────────────────────────────────────
 
+    private void MarkDirty() => _pageState = PageState.Dirty;
+
     private async Task AutoSaveAsync()
     {
-        // One-shot save implementation handles both create and update
-        if (Id == 0 || Id is null) return;
-        
-        await SavePage();
+        if (_pageState != PageState.Dirty) return;
+
+        if (Id == 0 || Id is null)
+        {
+            // New page: only auto-create if there's actual content
+            if (Blocks.Count == 0 && string.IsNullOrWhiteSpace(PageTitle))
+                return;
+
+            await SavePage();  // creates the page via API, sets Id
+            return;
+        }
+
+        // Existing page: upsert draft (not PageDocument — that's for manual save/publish)
+        try
+        {
+            var request = new PageDraftRequest(
+                PageTitle,
+                PageSlug,
+                Summary,
+                Blocks.ToList()
+            );
+            var result = await PagesClient.SaveDraftAsync(Id.Value, request);
+            if (result is Result<bool, AeroError>.Ok)
+                _pageState = PageState.Clean;
+        }
+        catch
+        {
+            // Auto-save failures are non-critical — will retry on next interval
+        }
     }
 
     private async Task SavePage()
@@ -1015,6 +1144,13 @@ public partial class PageEditor : ComponentBase, IDisposable
         if (IsSaving) return;
         IsSaving = true;
         await InvokeAsync(StateHasChanged);
+
+        // Ensure slug has a value before saving — derive from title if empty
+        if (string.IsNullOrWhiteSpace(PageSlug))
+        {
+            PageSlug = TitleToSlug(PageTitle);
+            _slugState = SlugState.Locked;
+        }
 
         try
         {
@@ -1039,6 +1175,8 @@ public partial class PageEditor : ComponentBase, IDisposable
                 if (result is Result<CmsPageDetail, AeroError>.Ok)
                 {
                     UpdateLastSaved();
+                    _pageState = PageState.Clean;
+                    await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
                     ShowToast("Page saved successfully", "success");
                 }
                 else if (result is Result<CmsPageDetail, AeroError>.Failure err)
@@ -1067,6 +1205,8 @@ public partial class PageEditor : ComponentBase, IDisposable
                 if (result is Result<CmsPageDetail, AeroError>.Ok createOk)
                 {
                     Id = createOk.Value.Id;
+                    _slugState = SlugState.Locked;  // preserve generated slug going forward
+                    _pageState = PageState.Clean;
                     UpdateLastSaved();
                     ShowToast("Page created successfully", "success");
                     // Update URL without refreshing
@@ -1102,6 +1242,8 @@ public partial class PageEditor : ComponentBase, IDisposable
             if (result is Result<CmsPageDetail, AeroError>.Ok ok)
             {
                 PublicationState = ok.Value.PublicationState;
+                _pageState = PageState.Clean;
+                await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
                 ShowToast("Page published!", "success");
             }
             else
@@ -1111,8 +1253,67 @@ public partial class PageEditor : ComponentBase, IDisposable
         }
     }
 
+    protected async Task UnpublishPage()
+    {
+        if (Id.HasValue)
+        {
+            var result = await PagesClient.UnpublishAsync(Id.Value);
+            if (result is Result<CmsPageDetail, AeroError>.Ok ok)
+            {
+                PublicationState = ok.Value.PublicationState;
+                _pageState = PageState.Clean;
+                ShowToast("Page unpublished", "success");
+            }
+            else
+            {
+                ShowToast("Failed to unpublish", "error");
+            }
+        }
+    }
+
     protected void UpdateLastSaved()
         => LastSaved = DateTime.Now.ToString("HH:mm");
+
+    // ──────────────────────────────────────────────────────────
+    // Slug auto-population  (mirrors common CMS behavior)
+    // ──────────────────────────────────────────────────────────
+
+    /// <summary>Called when the title changes in either the editor or metadata tab.</summary>
+    protected void OnTitleChanged(string title)
+    {
+        PageTitle = title;
+        MarkDirty();
+        if (_slugState == SlugState.Auto)
+            PageSlug = TitleToSlug(title);
+    }
+
+    /// <summary>Called when the user manually edits the slug. Locks it to prevent title overwrites.</summary>
+    protected void OnSlugChanged(string slug)
+    {
+        PageSlug = slug;
+        MarkDirty();
+        _slugState = SlugState.Locked;
+    }
+
+    /// <summary>Converts a human-readable title to a URL-friendly slug.</summary>
+    private static string TitleToSlug(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+
+        // Decompose diacritics: "café" → "cafe" + combining accent
+        var normalized = title.Normalize(NormalizationForm.FormD);
+        var filtered = normalized.Where(c =>
+            char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) || c == '-');
+
+        var slug = new string(filtered.ToArray())
+            .Normalize(NormalizationForm.FormC)
+            .ToLowerInvariant();
+
+        slug = Regex.Replace(slug, @"[^a-z0-9\s-]", "");  // strip remaining marks
+        slug = Regex.Replace(slug, @"\s+", "-");           // spaces → hyphens
+        slug = Regex.Replace(slug, @"-+", "-");            // collapse dashes
+        return slug.Trim('-');
+    }
 
     // ──────────────────────────────────────────────────────────
     // Toast  (mirrors showToast / removeToast)
@@ -1133,5 +1334,8 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     protected void RemoveToast(string id)
         => Toasts.RemoveAll(t => t.Id == id);
+
+    private string TabBtnClass(string tab) =>
+        ActiveTab == tab ? "pe-tab-btn active" : "pe-tab-btn";
 }
 

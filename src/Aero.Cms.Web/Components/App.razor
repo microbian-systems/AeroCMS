@@ -1,3 +1,11 @@
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using Aero.Cms.Contracts.Models
+@implements IDisposable
+@inject PersistentComponentState PersistentState
+@inject AuthenticationStateProvider AuthProvider
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -8,23 +16,82 @@
     <ResourcePreloader />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/app.css" />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/aero-manager.css" />
+    <link rel="stylesheet" href="_content/Aero.Cms.Shared/dashboard.css" />
     <link rel="stylesheet" href="Aero.Cms.Web.styles.css" />
+    <link href="/lib/tippy.js/tippy.min.css" rel="stylesheet" />
+    <link href="/lib/tippy.js/svg-arrow.min.css" rel="stylesheet" />
     <ImportMap />
     <link rel="icon" type="image/png" href="_content/Aero.Cms.Shared/favicon.png" />
+    <!-- Radzen light theme (default) -->
     <link rel="stylesheet" href="_content/Radzen.Blazor/css/standard-base.css" />
+    <!-- Radzen dark theme (disabled by default, swapped via JS) -->
+    <link id="radzen-theme-link" rel="stylesheet" href="_content/Radzen.Blazor/css/standard-dark-base.css" disabled />
     <script src="https://cdn.jsdelivr.net/npm/@@tailwindcss/browser@@4"></script>
     @* <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script> *@
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
-    <HeadOutlet @rendermode="@(new InteractiveWebAssemblyRenderMode(prerender: false))" />
+    <HeadOutlet @rendermode="@(new InteractiveWebAssemblyRenderMode(prerender: true))" />
 </head>
 
 <body>
-    <Routes @rendermode="@(new InteractiveWebAssemblyRenderMode(prerender: false))" />
+    <!-- Boot splash — covers page until Blazor's interactive renderer is ready -->
+    <div id="app-splash" class="app-splash">
+        <div class="app-splash-inner">
+            <img src="_content/Aero.Cms.Shared/aero-spinner.svg" alt="Loading…" class="app-splash-spinner" />
+            <p class="app-splash-text">Loading AeroCMS…</p>
+        </div>
+    </div>
+
+    <CascadingValue Value="@AppState">
+        <Routes @rendermode="@(new InteractiveWebAssemblyRenderMode(prerender: true))" />
+    </CascadingValue>
     <ReconnectModal />
+    <script src="/lib/popperjs-core/dist/umd/popper.min.js"></script>
+    <script src="/lib/tippy.js/tippy-bundle.umd.min.js"></script>
+    <script src="_content/Aero.Cms.Shared/nav-tooltip.js"></script>
     <script src="_content/BlazorMonaco/jsInterop.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="_content/Aero.Cms.Shared/splash.js"></script>
+    <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
+    <script>
+        // Manual Blazor start so we can hide the splash after FULL initialization
+        // (WASM runtime + assemblies downloaded + DOM hydrated)
+        Blazor.start().then(function () {
+            hideAppSplash();
+        });
+        // Safety timeout: hide splash after 20s no matter what
+        setTimeout(hideAppSplash, 20000);
+    </script>
 </body>
-
 </html>
+
+@code {
+    private PersistingComponentStateSubscription _subscription;
+
+    [Inject] public Aero.Cms.Contracts.Services.AppState AppState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var user = authState.User;
+            var roles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
+            _subscription = PersistentState.RegisterOnPersisting(() =>
+            {
+                PersistentState.PersistAsJson("ClientAuthState", new ClientAuthState(
+                    long.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0,
+                    user.FindFirstValue(ClaimTypes.Name) ?? "",
+                    user.FindFirstValue(ClaimTypes.Email),
+                    roles));
+                return Task.CompletedTask;
+            }, new InteractiveWebAssemblyRenderMode(prerender: true));
+        }
+    }
+
+    public void Dispose()
+    {
+        _subscription.Dispose();
+    }
+}

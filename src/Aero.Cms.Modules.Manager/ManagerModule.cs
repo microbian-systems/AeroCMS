@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Manager;
 
+[Module(nameof(ManagerModule))]
 public class ManagerModule : AeroModuleBase
 {
     public override string Name { get; } = nameof(ManagerModule);

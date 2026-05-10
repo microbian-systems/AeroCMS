@@ -8,6 +8,8 @@
 @using BlazorMonaco
 @using BlazorMonaco.Editor
 @using BlazorMonaco.Languages
+@using Aero.Cms.Shared.Layout
+@using Aero.Cms.Shared.Components
 
 <style>
     #post-markdown-editor {
@@ -20,7 +22,7 @@
 <div class="space-y-6">
     <div class="pe-page-header">
         <input class="pe-page-title-input" type="text" placeholder="Post Title"
-               value="@PostTitle" @oninput="e => PostTitle = e.Value?.ToString() ?? string.Empty"/>
+               value="@PostTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)"/>
         <div class="pe-page-meta">
             <div class="pe-meta-left">
                 <span class="pe-meta-item">
@@ -43,6 +45,13 @@
                 </span>
             </div>
             <div class="pe-meta-right">
+                <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="OpenEnhancePanel" title="Enhance selected post field">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3l1.8 5.4L19 10.2l-5.2 1.8L12 17l-1.8-5L5 10.2l5.2-1.8L12 3z"/>
+                        <path d="M5 16l.9 2.6L8.5 19.5l-2.6.9L5 23l-.9-2.6-2.6-.9 2.6-.9L5 16z"/>
+                    </svg>
+                    Enhance
+                </button>
                 <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="TogglePreview" title="Full page preview">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -58,92 +67,53 @@
                     </svg>
                     @(IsSaving ? "Saving..." : "Save")
                 </button>
-                @if (Id.HasValue)
+                @if (PublishedAt.HasValue)
                 {
-                    @if (PublishedAt.HasValue)
-                    {
-                        <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="UnpublishPost">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Unpublish
-                        </button>
-                    }
-                    else
-                    {
-                        <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPost">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Publish
-                        </button>
-                    }
+                    <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="UnpublishPost">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Unpublish
+                    </button>
+                }
+                else
+                {
+                    <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPost">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Publish
+                    </button>
                 }
             </div>
         </div>
     </div>
 
     @* ── Tab bar ─────────────────────────────────────── *@
-    <div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
-        <button class="pe-tab-btn @(ActiveTab == "editor" ? "active" : "")" 
-                @onclick='() => SwitchToTab("editor")'>
-            Editor
-        </button>
-        <button class="pe-tab-btn @(ActiveTab == "code" ? "active" : "")" 
-                @onclick='() => SwitchToTab("code")'>
-            Code
-        </button>
-        <button class="pe-tab-btn @(ActiveTab == "preview" ? "active" : "")" 
-                @onclick='() => SwitchToTab("preview")'>
-            Preview
-        </button>
-        <button class="pe-tab-btn @(ActiveTab == "metadata" ? "active" : "")" 
-                @onclick='() => SwitchToTab("metadata")'>
-            Metadata
-        </button>
-    </div>
-
-    @* ── Full screen preview mode (overlays tabs) ────── *@
-    @if (FullPreviewMode)
+    @if (ActiveTab != "preview" && !FullPreviewMode)
     {
-        <div class="pe-preview-header">
-            <div class="pe-preview-devices">
-                <button class="pe-device-btn @(PreviewDevice == "desktop" ? "active" : "")" title="Desktop" @onclick='() => PreviewDevice = "desktop"'>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                        <line x1="8" y1="21" x2="16" y2="21"/>
-                        <line x1="12" y1="17" x2="12" y2="21"/>
-                    </svg>
-                </button>
-                <button class="pe-device-btn @(PreviewDevice == "tablet" ? "active" : "")" title="Tablet" @onclick='() => PreviewDevice = "tablet"'>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
-                        <line x1="12" y1="18" x2="12.01" y2="18"/>
-                    </svg>
-                </button>
-                <button class="pe-device-btn @(PreviewDevice == "mobile" ? "active" : "")" title="Mobile" @onclick='() => PreviewDevice = "mobile"'>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                        <line x1="12" y1="18" x2="12.01" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            <button class="pe-btn pe-btn-ghost" @onclick="TogglePreview">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-                Close Preview
+        <div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
+            <button class="@TabBtnClass("editor")" 
+                    @onclick='() => SwitchToTab("editor")'>
+                Editor
+            </button>
+            <button class="@TabBtnClass("code")" 
+                    @onclick='() => SwitchToTab("code")'>
+                Code
+            </button>
+            <button class="@TabBtnClass("preview")" 
+                    @onclick='() => { SwitchToTab("preview"); }'>
+                Preview
+            </button>
+            <button class="@TabBtnClass("metadata")" 
+                    @onclick='() => SwitchToTab("metadata")'>
+                Metadata
             </button>
         </div>
-        <div class="pe-blocks-container preview-@PreviewDevice">
-            <div class="pe-markdown-preview-content">
-                <RadzenMarkdown Text="@Content" AllowHtml="true" />
-            </div>
-        </div>
     }
-    else
-    {
+
+
+
         @* ── Tab: Editor (split view: edit + live preview) ── *@
         @if (ActiveTab == "editor")
         {
@@ -153,7 +123,7 @@
                         @if (_contentInitialized)
                         {
                             <RadzenTextArea Value="@Content"
-                                            @oninput="e => Content = e.Value?.ToString() ?? string.Empty"
+                                            @oninput="e => OnContentChanged(e.Value?.ToString() ?? string.Empty)"
                                             Style="width: 100%; height: calc(100vh - 360px); min-height: 400px; font-family: monospace; font-size: 14px;"
                                             Placeholder="# Start writing markdown..." />
                         }
@@ -180,40 +150,6 @@
                                   OnDidChangeModelContent="OnEditorContentChanged" />
         </div>
 
-        @* ── Tab: Preview ────────────────────────────── *@
-        @if (ActiveTab == "preview")
-        {
-            <div class="pe-preview-tab">
-                <div class="pe-preview-devices mb-4 flex gap-2">
-                    <button class="pe-device-btn @(PreviewDevice == "desktop" ? "active" : "")" title="Desktop" @onclick='() => PreviewDevice = "desktop"'>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                            <line x1="8" y1="21" x2="16" y2="21"/>
-                            <line x1="12" y1="17" x2="12" y2="21"/>
-                        </svg>
-                        Desktop
-                    </button>
-                    <button class="pe-device-btn @(PreviewDevice == "tablet" ? "active" : "")" title="Tablet" @onclick='() => PreviewDevice = "tablet"'>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
-                            <line x1="12" y1="18" x2="12.01" y2="18"/>
-                        </svg>
-                        Tablet
-                    </button>
-                    <button class="pe-device-btn @(PreviewDevice == "mobile" ? "active" : "")" title="Mobile" @onclick='() => PreviewDevice = "mobile"'>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                            <line x1="12" y1="18" x2="12.01" y2="18"/>
-                        </svg>
-                        Mobile
-                    </button>
-                </div>
-                <div class="pe-preview-container preview-@PreviewDevice">
-                    <RadzenMarkdown Text="@Content" AllowHtml="true" />
-                </div>
-            </div>
-        }
-
         @* ── Tab: Metadata ───────────────────────────── *@
         @if (ActiveTab == "metadata")
         {
@@ -226,25 +162,50 @@
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Post Title</label>
                             <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
                                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   @bind="PostTitle" placeholder="e.g. My First Blog Post" />
+                                   value="@PostTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. My First Blog Post" />
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">URL Slug</label>
                             <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
                                    style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
-                                   @bind="PostSlug" placeholder="e.g. my-first-blog-post" />
+                                   value="@PostSlug" @oninput="e => OnSlugChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. my-first-blog-post" />
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Summary / Excerpt</label>
                             <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
                                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                      @bind="Excerpt" placeholder="Brief description..."></textarea>
+                                      @oninput="e => OnExcerptChanged(e.Value?.ToString() ?? string.Empty)">@Excerpt</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">SEO Title</label>
+                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
+                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                   value="@SeoTitle" @oninput="e => OnSeoTitleChanged(e.Value?.ToString() ?? string.Empty)" placeholder="Defaults to post title" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">SEO Description</label>
+                            <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
+                                      style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                      placeholder="Defaults to summary"
+                                      @oninput="e => OnSeoDescriptionChanged(e.Value?.ToString() ?? string.Empty)">@SeoDescription</textarea>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Featured Image URL</label>
-                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   @bind="FeaturedImageUrl" placeholder="https://..." />
+                            <div class="flex gap-2">
+                                <input type="text" class="flex-1 rounded-md shadow-sm sm:text-sm"
+                                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                       value="@FeaturedImageUrl" @oninput="e => OnFeaturedImageChanged(e.Value?.ToString() ?? string.Empty)" placeholder="https://..." />
+                                <button class="pe-btn pe-btn-secondary pe-btn-sm flex items-center gap-1 whitespace-nowrap"
+                                        style="border: 1px solid var(--pe-border);"
+                                        @onclick="OpenMediaSelector" type="button">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                                        <polyline points="21 15 16 10 5 21"/>
+                                    </svg>
+                                    Media
+                                </button>
+                            </div>
                             @if (!string.IsNullOrEmpty(FeaturedImageUrl))
                             {
                                 <div class="mt-2 rounded-xl overflow-hidden shadow-sm border border-gray-100 max-w-xs">
@@ -259,7 +220,7 @@
                             <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Category</label>
                             <select class="w-full rounded-md shadow-sm sm:text-sm"
                                     style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                    @bind="CategoryId">
+                                    value="@CategoryId" @onchange="e => OnCategoryChanged(e.Value?.ToString() ?? string.Empty)">
                                 <option value="0">Uncategorized</option>
                                 @foreach (var cat in Categories)
                                 {
@@ -321,6 +282,120 @@
                 }
             </div>
         }
+    @if (IsEnhancePanelOpen)
+    {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+            <div class="w-full max-w-4xl rounded-lg shadow-xl border overflow-hidden" style="background: var(--pe-bg-secondary); border-color: var(--pe-border); color: var(--pe-text-primary);">
+                <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color: var(--pe-border);">
+                    <div>
+                        <h2 class="text-lg font-semibold">Enhance content</h2>
+                        <p class="text-sm" style="color: var(--pe-text-muted);">Review the suggestion before applying it to the editor.</p>
+                    </div>
+                    <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseEnhancePanel">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                    <div class="p-5 space-y-4 border-r" style="border-color: var(--pe-border);">
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">AI provider</label>
+                            @if (IsLoadingAiProviders)
+                            {
+                                <div class="rounded-md border px-3 py-2 text-sm" style="border-color: var(--pe-border); color: var(--pe-text-muted);">
+                                    Loading providers...
+                                </div>
+                            }
+                            else if (AiProviderOptions.Count == 0)
+                            {
+                                <div class="rounded-md border px-3 py-2 text-sm" style="border-color: #f59e0b; color: #92400e; background: rgba(245, 158, 11, 0.08);">
+                                    Configure and enable an AI provider before generating suggestions.
+                                </div>
+                            }
+                            else
+                            {
+                                <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                        style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                        value="@SelectedAiProviderId"
+                                        @onchange="e => SelectedAiProviderId = e.Value?.ToString()">
+                                    @foreach (var provider in AiProviderOptions)
+                                    {
+                                        <option value="@provider.Id">
+                                            @(provider.IsDefault ? $"{provider.DisplayName} (default)" : provider.DisplayName)
+                                        </option>
+                                    }
+                                </select>
+                            }
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Target field</label>
+                            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                    value="@EnhanceTargetField"
+                                    @onchange='e => EnhanceTargetField = e.Value?.ToString() ?? "body"'>
+                                @foreach (var target in EnhanceTargetOptions)
+                                {
+                                    <option value="@target.Value">@target.Label</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Prompt</label>
+                            <textarea rows="5" class="w-full rounded-md shadow-sm sm:text-sm"
+                                      style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                      placeholder="Tell the assistant what to improve"
+                                      @oninput="e => EnhancePrompt = e.Value?.ToString() ?? string.Empty">@EnhancePrompt</textarea>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick='() => UseQuickPrompt("Sharpen the writing while preserving meaning.")'>Sharpen</button>
+                            <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick='() => UseQuickPrompt("Fix grammar, spelling, and clarity issues.")'>Fix grammar</button>
+                            <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick='() => UseQuickPrompt("Make this concise without losing important details.")'>Make concise</button>
+                            <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick='() => UseQuickPrompt("Expand this with helpful detail, without inventing facts.")'>Expand</button>
+                            <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick='() => UseQuickPrompt("Improve this for SEO while keeping it accurate.")'>Improve SEO</button>
+                        </div>
+
+                        <button class="pe-btn @(IsEnhancing ? "pe-btn-secondary" : "pe-btn-primary") w-full justify-center" @onclick="RunEnhancementAsync" disabled="@(IsEnhancing || IsLoadingAiProviders || AiProviderOptions.Count == 0)">
+                            @(IsEnhancing ? "Enhancing..." : "Generate suggestion")
+                        </button>
+                    </div>
+
+                    <div class="p-5 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Suggestion preview</label>
+                            <textarea rows="12" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
+                                      style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                      readonly>@(EnhanceSuggestion ?? string.Empty)</textarea>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(EnhanceRationale))
+                        {
+                            <p class="text-sm" style="color: var(--pe-text-secondary);">@EnhanceRationale</p>
+                        }
+
+                        @if (EnhanceWarnings.Count > 0)
+                        {
+                            <div class="rounded-md border p-3 text-sm" style="border-color: #f59e0b; color: #92400e; background: rgba(245, 158, 11, 0.08);">
+                                @foreach (var warning in EnhanceWarnings)
+                                {
+                                    <div>@warning</div>
+                                }
+                            </div>
+                        }
+
+                        <div class="flex justify-end gap-2">
+                            <button class="pe-btn pe-btn-ghost" @onclick="CloseEnhancePanel">Discard</button>
+                            <button class="pe-btn pe-btn-primary" @onclick="ApplyEnhancementAsync" disabled="@string.IsNullOrWhiteSpace(EnhanceSuggestion)">Apply</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 
     @* ── Toast notifications ──────────────────────────── *@
@@ -355,4 +430,22 @@
             </div>
         }
     </div>
+
+    @* ── Media selector modal ─────────────────────────── *@
+    <MediaSelectorModal
+        Show="MediaModalOpen"
+        MultiSelect="false"
+        OnClose="() => MediaModalOpen = false"
+        OnConfirm="OnConfirmFeaturedImage"/>
+
+    @* Preview overlay (modal over entire manager) *@
+    <PreviewOverlay Visible="@FullPreviewMode"
+                    OnClose="TogglePreview"
+                    FrameUrl="@PreviewFrameUrl"
+                    FrameDocument="@PreviewFrameDocument"
+                    UrlBarText="@(!string.IsNullOrWhiteSpace(PreviewFrameUrl) ? PreviewFrameUrl : PreviewFragmentUrl)"
+                    Error="@PreviewError"
+                    IsLoading="@IsPreviewRendering"
+                    Title="Post preview" />
+
 </div>

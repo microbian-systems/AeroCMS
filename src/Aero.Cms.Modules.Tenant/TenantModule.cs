@@ -15,6 +15,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Tenant;
 
+[Module(nameof(TenantModule))]
 public class TenantModule : AeroModuleBase, IConfigureMarten
 {
     public override string Name => nameof(TenantModule);

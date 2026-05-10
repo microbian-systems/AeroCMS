@@ -1,0 +1,111 @@
+# ============================================================================
+# .dockerignore — AeroCMS
+# ============================================================================
+# Prevents sending unnecessary files to the Docker daemon build context.
+# The build context root is the repo root (where docker-compose.yml lives).
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Build artifacts (binaries, intermediates, generated)
+# ---------------------------------------------------------------------------
+**/bin/
+**/obj/
+**/.vs/
+**/node_modules/
+**/TestResults/
+
+# Submodule build artifacts (separate Directory.Build.props/Directory.Packages.props)
+Aero/src/**/bin/
+Aero/src/**/obj/
+Aero/**/bin/
+Aero/**/obj/
+Aero/TestResults/
+
+# ---------------------------------------------------------------------------
+# Logs & temporary files
+# ---------------------------------------------------------------------------
+**/*.log
+**/logs/
+**/openobserve_data/
+**/.DS_Store
+**/Thumbs.db
+
+# ---------------------------------------------------------------------------
+# IDE, editor, and user config files
+# ---------------------------------------------------------------------------
+**/.idea/
+**/.vscode/
+**/.vs/
+**/*.user
+**/*.suo
+**/*.lscache
+
+# ---------------------------------------------------------------------------
+# Docker/Compose files (not needed inside image)
+# ---------------------------------------------------------------------------
+docker-compose*.yml
+docker-compose*.yaml
+Dockerfile*
+.dockerignore
+docker/
+manager/
+
+# ---------------------------------------------------------------------------
+# Documentation & markdown (not needed at runtime)
+# ---------------------------------------------------------------------------
+**/*.md
+!AGENTS.md           # Keep AGENTS.md if referenced at build time
+docs/
+
+# ---------------------------------------------------------------------------
+# .NET local tooling, NuGet fallback folder
+# ---------------------------------------------------------------------------
+**/.nuget/
+**/.tools/
+**/.config/
+
+# ---------------------------------------------------------------------------
+# Git metadata
+# ---------------------------------------------------------------------------
+**/.git/
+**/.gitmodules
+**/.gitattributes
+
+# ---------------------------------------------------------------------------
+# Environment & secrets files
+# ---------------------------------------------------------------------------
+**/.env
+**/.env.*
+**/appsettings.*.local.json
+**/secrets.json
+
+# ---------------------------------------------------------------------------
+# Certificates — EXCLUDED from build context
+# (Certs are copied explicitly via Dockerfile COPY instructions, not the wildcard context)
+# ---------------------------------------------------------------------------
+# Uncomment if certs should NOT be included in the build context:
+# **/*.pfx
+# **/*.key
+# **/*.crt
+# **/*.pem
+
+# ---------------------------------------------------------------------------
+# Test projects & test data
+# ---------------------------------------------------------------------------
+src/Tests/
+src/TestModule/
+**/*.Tests/
+
+# ---------------------------------------------------------------------------
+# Package backup / cache
+# ---------------------------------------------------------------------------
+**/package-lock.json
+**/pnpm-lock.yaml
+**/yarn.lock
+**/pnpm.ps1
+
+# ---------------------------------------------------------------------------
+# Specific large/excluded directories
+# ---------------------------------------------------------------------------
+src/Aero.Cms.Web/pg_embed/
+src/Aero.Cms.Web/post-editor-error.log

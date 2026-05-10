@@ -1,0 +1,27 @@
+@page "/nosite"
+@model Aero.Cms.Web.Pages.NoSiteExistsModel
+@{
+    ViewData["Title"] = "No Site Configured";
+}
+
+<div class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="max-w-md w-full px-6 text-center">
+        <div class="text-6xl mb-6 text-gray-300">
+            <svg class="mx-auto h-24 w-24 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-3">No Site Configured</h1>
+        <p class="text-gray-600 mb-6">
+            The domain <strong class="text-gray-800">@Model.RequestedHost</strong> is not registered with any site in this CMS.
+        </p>
+        <p class="text-gray-500 text-sm mb-8">
+            A site administrator can add this domain to an existing site or create a new site through the admin panel.
+        </p>
+        <div class="border-t pt-6">
+            <p class="text-gray-400 text-xs">
+                Aero CMS &mdash; Multi-Site Management
+            </p>
+        </div>
+    </div>
+</div>

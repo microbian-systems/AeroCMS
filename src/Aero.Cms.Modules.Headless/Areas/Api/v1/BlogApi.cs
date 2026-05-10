@@ -3,8 +3,11 @@ using Aero.Cms.Abstractions.Audit;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Modules.Blog.Models;
 using Aero.Cms.Modules.Blog.Requests;
+using Aero.Core.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -44,6 +47,9 @@ public static class BlogApi
 
         group.MapPost("/{id:long}/unpublish", UnpublishPost)
             .WithName("UnpublishPost");
+
+        group.MapPost("/import", ImportPosts)
+            .WithName("ImportPosts");
     }
 
     private static async Task<IResult> ListPosts(
@@ -169,6 +175,7 @@ public static class BlogApi
         [FromServices] IAuditService auditService,
         [FromServices] IHttpContextAccessor httpContextAccessor,
         [FromServices] IDocumentSession session,
+        [FromServices] ISiteContext siteContext,
         CancellationToken cancellationToken)
     {
         try
@@ -176,7 +183,9 @@ public static class BlogApi
             // Check slug uniqueness
             var normalizedSlug = ContentSlugDocument.Normalize(request.Slug);
             var existingSlug = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(s => s.NormalizedSlug == normalizedSlug, cancellationToken);
+                .FirstOrDefaultAsync(
+                    s => s.SiteId == siteContext.SiteId && s.NormalizedSlug == normalizedSlug,
+                    cancellationToken);
             if (existingSlug != null)
             {
                 return TypedResults.BadRequest(new ProblemDetails
@@ -240,6 +249,7 @@ public static class BlogApi
         [FromServices] IAuditService auditService,
         [FromServices] IHttpContextAccessor httpContextAccessor,
         [FromServices] IDocumentSession session,
+        [FromServices] ISiteContext siteContext,
         CancellationToken cancellationToken)
     {
         try
@@ -247,7 +257,11 @@ public static class BlogApi
             // Check slug uniqueness (excluding current post)
             var normalizedSlug = ContentSlugDocument.Normalize(request.Slug);
             var existingSlug = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(s => s.NormalizedSlug == normalizedSlug && s.OwnerId != id, cancellationToken);
+                .FirstOrDefaultAsync(
+                    s => s.SiteId == siteContext.SiteId &&
+                         s.NormalizedSlug == normalizedSlug &&
+                         s.OwnerId != id,
+                    cancellationToken);
             if (existingSlug != null)
             {
                 return TypedResults.BadRequest(new ProblemDetails
@@ -464,6 +478,39 @@ public static class BlogApi
         catch (Exception ex)
         {
             return TypedResults.BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private static async Task<IResult> ImportPosts(
+        [FromBody] ImportFileRequest request,
+        [FromServices] IBlogImportService importService,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(BlogApi));
+        try
+        {
+            var result = await importService.ImportAsync(request, cancellationToken);
+
+            if (result is Result<ImportBlogResult, AeroError>.Failure failure)
+            {
+                logger.LogWarning("Import failed: {Error}", failure.Error);
+                return TypedResults.BadRequest(new { error = failure.Error.ToString() });
+            }
+
+            if (result is Result<ImportBlogResult, AeroError>.Ok ok)
+            {
+                logger.LogInformation("Import completed: {Imported} imported, {Skipped} skipped, {Errors} errors",
+                    ok.Value.TotalImported, ok.Value.TotalSkipped, ok.Value.Errors.Count);
+                return TypedResults.Ok(ok.Value);
+            }
+
+            return TypedResults.BadRequest(new { error = "Unexpected result from import service" });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error importing blog posts");
+            return TypedResults.Problem(detail: ex.Message, statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 

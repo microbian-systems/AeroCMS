@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Core.Entities;
 
 namespace Aero.Cms.Modules.Blog.Models;
@@ -5,8 +6,10 @@ namespace Aero.Cms.Modules.Blog.Models;
 /// <summary>
 /// Represents a tag that can be applied to blog posts for categorization.
 /// </summary>
-public class Tag : Entity
+public class Tag : Entity, ISiteOwned
 {
+    public long SiteId { get; set; }
+
     /// <summary>
     /// Gets or sets the name of the tag.
     /// </summary>

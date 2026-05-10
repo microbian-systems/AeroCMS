@@ -75,6 +75,33 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             .Select(static (candidate, _) => candidate!.Value)
             .Collect();
 
+        // Cross-assembly discovery pipeline: finds BlockBase subclasses from referenced assemblies
+        var crossAssemblyBlockData = context.CompilationProvider
+            .Select(static (compilation, _) =>
+            {
+                var blockMetaAttr = compilation.GetTypeByMetadataName(BlockMetadataAttributeMetadataName);
+                var blockBaseType = compilation.GetTypeByMetadataName(BlockBaseMetadataName);
+                if (blockMetaAttr is null || blockBaseType is null)
+                    return new CrossAssemblyBlockData(ImmutableArray<DiscoveredBlockType>.Empty, "");
+
+                var results = new List<DiscoveredBlockType>();
+
+                foreach (var module in compilation.Assembly.Modules)
+                {
+                    CollectBlockTypes(module.GlobalNamespace, blockMetaAttr, blockBaseType, results);
+                }
+
+                foreach (var reference in compilation.References)
+                {
+                    if (compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol asm)
+                    {
+                        CollectBlockTypes(asm.GlobalNamespace, blockMetaAttr, blockBaseType, results);
+                    }
+                }
+
+                return new CrossAssemblyBlockData(results.ToImmutableArray(), compilation.AssemblyName);
+            });
+
         context.RegisterSourceOutput(blockModels, static (productionContext, candidates) =>
         {
             var descriptors = candidates
@@ -98,6 +125,22 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             productionContext.AddSource(
                 "GeneratedBlockJsonRegistration.g.cs",
                 SourceText.From(RenderBlockJsonRegistrationSource(descriptors), Encoding.UTF8));
+
+            // Only emit BlockBase.Polymorphic.g.cs from the LOCAL pipeline so it only
+            // fires in the project where BlockBase is declared in source (Aero.Cms.Abstractions).
+            // Cross-assembly pipelines see types from DLL references, which can't extend
+            // partial classes across assembly boundaries.
+            productionContext.AddSource(
+                "BlockBase.Polymorphic.g.cs",
+                SourceText.From(RenderBlockBasePolymorphic(descriptors), Encoding.UTF8));
+
+            // Emit GeneratedBlockFactory.g.cs — AOT-safe factory that replaces
+            // Activator.CreateInstance(Type) for block instantiation.
+            // The calling code in BlockEditingService uses this via the block type
+            // discriminator string, eliminating runtime reflection.
+            productionContext.AddSource(
+                "GeneratedBlockFactory.g.cs",
+                SourceText.From(RenderBlockFactory(descriptors), Encoding.UTF8));
         });
 
         context.RegisterSourceOutput(renderers, static (productionContext, candidates) =>
@@ -119,6 +162,26 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             productionContext.AddSource(
                 "CmsBlockRendering.g.cs",
                 SourceText.From(RenderGeneratedSource(descriptors), Encoding.UTF8));
+        });
+
+        // NOTE: GeneratedBlockJsonContext.g.cs emission is DEFERRED.
+        // The RenderGeneratedContext method and crossAssemblyBlockData pipeline
+        // are kept as infrastructure for future use when the Roslyn source
+        // generator chaining limitation is resolved (dotnet/roslyn#57239).
+        // Currently, STJ's JsonSourceGenerator cannot see [JsonSerializable]
+        // attributes emitted by another generator in the same compilation.
+        // See docs/source-generator-chaining-limitation.md for details.
+        // 
+        // To re-enable context emission:
+        // 1. Remove/comment the return statement below
+        // 2. Ensure types in the shim project can be resolved
+        // 3. Verify STJ's source generator produces the implementation
+        context.RegisterSourceOutput(crossAssemblyBlockData, static (spc, data) =>
+        {
+            if (data.Types.IsDefaultOrEmpty) return;
+            // Deferred: uncomment when generator chaining is fixed
+            // spc.AddSource("GeneratedBlockJsonContext.g.cs",
+            //     SourceText.From(RenderGeneratedContext(data.Types), Encoding.UTF8));
         });
     }
 
@@ -621,6 +684,154 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
     private static string Literal(string? value)
         => value is null ? "null" : $"\"{Escape(value)}\"";
 
+    private static void CollectBlockTypes(
+        INamespaceSymbol ns,
+        INamedTypeSymbol blockMetaAttr,
+        INamedTypeSymbol blockBaseType,
+        List<DiscoveredBlockType> results)
+    {
+        foreach (var member in ns.GetTypeMembers())
+        {
+            if (member.IsAbstract) continue;
+            if (IsDerivedFromBlockBase(member, blockBaseType) && HasAttribute(member, blockMetaAttr))
+            {
+                var metadata = member.GetAttributes()
+                    .First(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, blockMetaAttr));
+
+                results.Add(new DiscoveredBlockType(
+                    member.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    (string)metadata.ConstructorArguments[0].Value!,
+                    metadata.ConstructorArguments.Length > 1 ? (string)metadata.ConstructorArguments[1].Value! : ""));
+            }
+        }
+
+        foreach (var nested in ns.GetNamespaceMembers())
+            CollectBlockTypes(nested, blockMetaAttr, blockBaseType, results);
+    }
+
+    private static bool IsDerivedFromBlockBase(ITypeSymbol type, INamedTypeSymbol blockBaseType)
+    {
+        for (var current = type.BaseType; current is not null; current = current.BaseType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(current, blockBaseType))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool HasAttribute(ISymbol symbol, INamedTypeSymbol attrType)
+    {
+        return symbol.GetAttributes().Any(a =>
+            SymbolEqualityComparer.Default.Equals(a.AttributeClass, attrType));
+    }
+
+    private static string RenderGeneratedContext(ImmutableArray<DiscoveredBlockType> types)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.Text.Json;");
+        sb.AppendLine("using System.Text.Json.Serialization;");
+        sb.AppendLine();
+        sb.AppendLine("namespace Aero.Cms.Abstractions.Blocks.Serialization;");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// Source-generated JSON serializer context for all CMS block models.");
+        sb.AppendLine("/// Replaces the hand-maintained BlockJsonContext.cs.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine("[JsonSourceGenerationOptions(");
+        sb.AppendLine("    WriteIndented = false,");
+        sb.AppendLine("    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,");
+        sb.AppendLine("    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,");
+        sb.AppendLine("    GenerationMode = JsonSourceGenerationMode.Default | JsonSourceGenerationMode.Metadata)]");
+        sb.AppendLine("[JsonSerializable(typeof(BlockBase))]");
+        sb.AppendLine("[JsonSerializable(typeof(List<BlockBase>))]");
+
+        foreach (var type in types)
+        {
+            sb.AppendLine($"[JsonSerializable(typeof({type.FullyQualifiedName}))]");
+            sb.AppendLine($"[JsonSerializable(typeof(List<{type.FullyQualifiedName}>))]");
+        }
+
+        sb.AppendLine("[JsonSerializable(typeof(Dictionary<string, string>))]");
+        sb.AppendLine("[JsonSerializable(typeof(JsonElement))]");
+        sb.AppendLine("[JsonSerializable(typeof(JsonDocument))]");
+        sb.AppendLine("[JsonSerializable(typeof(string))]");
+        sb.AppendLine("[JsonSerializable(typeof(int))]");
+        sb.AppendLine("[JsonSerializable(typeof(long))]");
+        sb.AppendLine("[JsonSerializable(typeof(bool))]");
+        sb.AppendLine("[JsonSerializable(typeof(DateTime))]");
+        sb.AppendLine();
+            sb.AppendLine("public partial class GeneratedBlockJsonContext : JsonSerializerContext");
+        sb.AppendLine("{");
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    private static string RenderBlockBasePolymorphic(ImmutableArray<BlockModelDescriptor> descriptors)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using System.Text.Json.Serialization;");
+        sb.AppendLine();
+        sb.AppendLine("namespace Aero.Cms.Abstractions.Blocks;");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// Source-generated polymorphic type discriminators for all CMS block models.");
+        sb.AppendLine("/// Replaces the hand-maintained [JsonDerivedType] list on BlockBase.cs.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine("[JsonPolymorphic(TypeDiscriminatorPropertyName = \"$blockType\")]");
+
+        foreach (var desc in descriptors)
+        {
+            sb.AppendLine($"[JsonDerivedType(typeof({desc.ModelTypeName}), \"{Escape(desc.BlockType)}\")]");
+        }
+
+        sb.AppendLine("public abstract partial class BlockBase");
+        sb.AppendLine("{");
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    private static string RenderBlockFactory(ImmutableArray<BlockModelDescriptor> descriptors)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using Aero.Cms.Abstractions.Blocks;");
+        sb.AppendLine();
+        sb.AppendLine("namespace Aero.Cms.Abstractions.Blocks.Editing;");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// Source-generated AOT-safe factory for creating block instances.");
+        sb.AppendLine("/// Replaces Activator.CreateInstance-based reflection in BlockEditingService.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine("public static class GeneratedBlockFactory");
+        sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Creates a block instance by its type discriminator string.");
+        sb.AppendLine("    /// Returns null for unknown block types.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    public static BlockBase? CreateByTypeName(string typeName) => typeName switch");
+        sb.AppendLine("    {");
+
+        foreach (var desc in descriptors)
+        {
+            sb.AppendLine($"        \"{Escape(desc.BlockType)}\" => new {desc.ModelTypeName}(),");
+        }
+
+        sb.AppendLine("        _ => null");
+        sb.AppendLine("    };");
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
     private readonly struct RendererCandidate
     {
         public RendererCandidate(
@@ -757,5 +968,45 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         public bool HasNavigationParameter { get; }
 
         public Location? Location { get; }
+    }
+
+    private readonly struct CrossAssemblyBlockData
+    {
+        public readonly ImmutableArray<DiscoveredBlockType> Types;
+        public readonly string AssemblyName;
+
+        public CrossAssemblyBlockData(ImmutableArray<DiscoveredBlockType> types, string assemblyName)
+        {
+            Types = types;
+            AssemblyName = assemblyName;
+        }
+    }
+
+    private readonly struct DiscoveredBlockType
+    {
+        public DiscoveredBlockType(
+            string fullyQualifiedName,
+            string blockType,
+            string displayName)
+        {
+            FullyQualifiedName = fullyQualifiedName;
+            BlockType = blockType;
+            DisplayName = displayName;
+        }
+
+        /// <summary>
+        /// Fully qualified type name, e.g. "Aero.Cms.Abstractions.Blocks.Common.RichTextBlock".
+        /// </summary>
+        public string FullyQualifiedName { get; }
+
+        /// <summary>
+        /// Block type discriminator, e.g. "rich_text".
+        /// </summary>
+        public string BlockType { get; }
+
+        /// <summary>
+        /// Display name, e.g. "Rich Text".
+        /// </summary>
+        public string DisplayName { get; }
     }
 }

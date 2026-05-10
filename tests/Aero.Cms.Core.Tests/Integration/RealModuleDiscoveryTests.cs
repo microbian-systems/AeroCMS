@@ -17,6 +17,7 @@ using NSubstitute;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Modular;
+using Aero.Cms.Core.Tests.Services;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -103,7 +104,8 @@ public class RealModuleDiscoveryTests
             })
             .Build();
 
-        await services.AddAeroModulesAsync(configuration, _hostEnvironment);
+        var generatedDescriptors = CreateTestDescriptors();
+        await services.AddAeroModulesAsync(configuration, _hostEnvironment, generatedDescriptors);
 
         await using var provider = services.BuildServiceProvider();
         var modules = provider.GetServices<IAeroModule>().ToList();
@@ -141,7 +143,8 @@ public class RealModuleDiscoveryTests
             })
             .Build();
 
-        await services.AddAeroModulesAsync(configuration, _hostEnvironment);
+        var generatedDescriptors2 = CreateTestDescriptors();
+        await services.AddAeroModulesAsync(configuration, _hostEnvironment, generatedDescriptors2);
 
         await using var provider = services.BuildServiceProvider();
         var orderedModules = provider.GetServices<IAeroModule>()
@@ -415,4 +418,20 @@ public class RealModuleDiscoveryTests
         pass.Should().BeTrue();
         discoveredModules.Should().HaveCount(allKnownModules.Length);
 }
+
+    private static IReadOnlyList<ModuleDescriptor> CreateTestDescriptors()
+        => new List<ModuleDescriptor>
+        {
+            new()
+            {
+                Name = "TestModule",
+                Version = "0.0.0",
+                Author = "Test",
+                ModuleType = typeof(object),
+                AssemblyName = "TestAssembly",
+                PhysicalPath = ".",
+                Category = ["test"],
+                Tags = ["test"]
+            }
+        };
 }

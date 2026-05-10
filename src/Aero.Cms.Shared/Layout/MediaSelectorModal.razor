@@ -1,4 +1,6 @@
 @using Aero.Cms.Abstractions.Blocks.Layout
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Core
 @if (Show)
 {
     <div class="pe-modal-overlay" @onclick="CloseModal">
@@ -20,21 +22,49 @@
                 @if (MediaTab == "gallery")
                 {
                     <div class="pe-media-gallery">
-                        @foreach (var img in Library)
+                        @if (_isLoading)
                         {
-                            var isChecked = SelectedMediaIds.Contains(img.Id.ToString());
-                            <div class="pe-media-item @(isChecked ? "selected" : "")"
-                                 @onclick="() => ToggleMediaSelection(img)">
-                                <img src="@img.Src" alt="@img.Alt"/>
-                                @if (isChecked)
-                                {
-                                    <div class="pe-media-check">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="20 6 9 17 4 12"/>
-                                        </svg>
-                                    </div>
-                                }
+                            <div class="pe-media-status">
+                                <div class="pe-media-spinner"></div>
+                                <p>Loading media...</p>
                             </div>
+                        }
+                        else if (_loadError is not null)
+                        {
+                            <div class="pe-media-status pe-media-error">
+                                <p>@_loadError</p>
+                                <button class="pe-btn pe-btn-primary" @onclick='LoadMediaAsync'>Retry</button>
+                            </div>
+                        }
+                        else if (EffectiveLibrary.Count == 0)
+                        {
+                            <div class="pe-media-status">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                                    <polyline points="21 15 16 10 5 21"/>
+                                </svg>
+                                <p>No media found.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var img in EffectiveLibrary)
+                            {
+                                var isChecked = SelectedMediaIds.Contains(img.Id.ToString());
+                                <div class="pe-media-item @(isChecked ? "selected" : "")"
+                                     @onclick="() => ToggleMediaSelection(img)">
+                                    <img src="@img.Src" alt="@img.Alt"/>
+                                    @if (isChecked)
+                                    {
+                                        <div class="pe-media-check">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="20 6 9 17 4 12"/>
+                                            </svg>
+                                        </div>
+                                    }
+                                </div>
+                            }
                         }
                     </div>
                 }
@@ -46,9 +76,13 @@
                             <polyline points="17 8 12 3 7 8"/>
                             <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        <p>Drag and drop image files here</p>
+                        <p>Drag and drop files here</p>
                         <span>or</span>
-                        <InputFile id="pe-file-upload" multiple accept="image/*" OnChange="HandleFileSelect" class="pe-btn pe-btn-primary"/>
+                        <InputFile id="pe-file-upload" multiple accept="image/*,video/*" OnChange="HandleFileSelect" class="pe-btn pe-btn-primary"/>
+                        @if (_uploadStatus is not null)
+                        {
+                            <p class="pe-upload-status">@_uploadStatus</p>
+                        }
                     </div>
                 }
             </div>
@@ -71,8 +105,11 @@
     /// <summary>Whether multiple images can be selected (Gallery mode).</summary>
     [Parameter] public bool MultiSelect { get; set; }
 
-    /// <summary>The list of media items to display in the gallery.</summary>
-    [Parameter] public List<MediaItem> Library { get; set; } = [];
+    /// <summary>
+    /// Optional externally-provided library. When null or empty, the modal loads media
+    /// from the server automatically.
+    /// </summary>
+    [Parameter] public List<MediaItem>? Library { get; set; }
 
     /// <summary>Callback when the modal is closed without selection.</summary>
     [Parameter] public EventCallback OnClose { get; set; }
@@ -80,26 +117,78 @@
     /// <summary>Callback when media items are selected and confirmed.</summary>
     [Parameter] public EventCallback<List<MediaItem>> OnConfirm { get; set; }
 
-    /// <summary>Callback when files are selected for upload.</summary>
-    [Parameter] public EventCallback<InputFileChangeEventArgs> OnUpload { get; set; }
+    [Inject] private IMediaHttpClient MediaClient { get; set; } = default!;
 
     private string MediaTab { get; set; } = "gallery";
     private List<string> SelectedMediaIds { get; set; } = [];
+    private List<MediaItem> _selfLoadedLibrary = [];
+    private bool _isLoading;
+    private string? _loadError;
+    private string? _uploadStatus;
+    private int _loadId;
+    private bool _previousShow;
 
-    /// <summary>Resets the internal state of the modal when visibility or library parameters change.</summary>
-    protected override void OnParametersSet()
+    /// <summary>
+    /// Returns the parent-provided Library if non-empty, otherwise returns the self-loaded library.
+    /// </summary>
+    private List<MediaItem> EffectiveLibrary => Library is { Count: > 0 } ? Library : _selfLoadedLibrary;
+
+    protected override async Task OnParametersSetAsync()
     {
-        if (Show && SelectedMediaIds.Count > 0 && !MultiSelect)
+        if (Show && !_previousShow)
         {
-             // Clear selection if we are opening in single mode and had previous selection?
-             // Actually it's probably better to let the parent control it, but let's clear it when it opens if needed.
+            // Modal just opened — reset state
+            SelectedMediaIds.Clear();
+            MediaTab = "gallery";
+            _uploadStatus = null;
+
+            // Self-load if no external Library was provided
+            if (Library is null or { Count: 0 })
+            {
+                await LoadMediaAsync();
+            }
         }
-        
+
         if (!Show)
         {
             SelectedMediaIds.Clear();
             MediaTab = "gallery";
         }
+
+        _previousShow = Show;
+    }
+
+    /// <summary>
+    /// Loads media from the server with a request-id guard to avoid stale data
+    /// when the modal is rapidly opened and closed.
+    /// </summary>
+    private async Task LoadMediaAsync()
+    {
+        var thisLoad = ++_loadId;
+        _isLoading = true;
+        _loadError = null;
+        InvokeAsync(StateHasChanged);
+
+        var result = await MediaClient.GetAllAsync(take: 50);
+
+        // Ignore if a newer load was triggered
+        if (_loadId != thisLoad) return;
+
+        if (result is Result<PagedResult<MediaSummary>, AeroError>.Ok ok)
+        {
+            _selfLoadedLibrary = ok.Value.Items
+                .Select(m => new MediaItem(m.Id, m.Url, m.FileName))
+                .ToList();
+            _loadError = null;
+        }
+        else
+        {
+            _selfLoadedLibrary = [];
+            _loadError = "Failed to load media. Please try again.";
+        }
+
+        _isLoading = false;
+        InvokeAsync(StateHasChanged);
     }
 
     private void ToggleMediaSelection(MediaItem img)
@@ -119,17 +208,67 @@
 
     private async Task ConfirmSelection()
     {
-        var selected = Library.Where(img => SelectedMediaIds.Contains(img.Id.ToString())).ToList();
+        var selected = EffectiveLibrary.Where(img => SelectedMediaIds.Contains(img.Id.ToString())).ToList();
         await OnConfirm.InvokeAsync(selected);
     }
 
     private async Task CloseModal()
     {
+        _selfLoadedLibrary = [];
         await OnClose.InvokeAsync();
     }
 
+    /// <summary>
+    /// Handles file upload directly via the media API, then refreshes the gallery.
+    /// Supports both image and video files.
+    /// </summary>
     private async Task HandleFileSelect(InputFileChangeEventArgs e)
     {
-        await OnUpload.InvokeAsync(e);
+        var successCount = 0;
+        var failCount = 0;
+        _uploadStatus = "Uploading...";
+        InvokeAsync(StateHasChanged);
+
+        foreach (var file in e.GetMultipleFiles())
+        {
+            var contentType = file.ContentType;
+            if (!contentType.StartsWith("image/") && !contentType.StartsWith("video/"))
+                continue;
+
+            try
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                var bytes = ms.ToArray();
+                var b64 = Convert.ToBase64String(bytes);
+
+                var request = new UploadMediaRequest(file.Name, contentType, file.Size, Base64Data: b64);
+                var result = await MediaClient.UploadAsync(request);
+
+                if (result is Result<MediaDetail, AeroError>.Ok)
+                    successCount++;
+                else
+                    failCount++;
+            }
+            catch
+            {
+                failCount++;
+            }
+        }
+
+        // Refresh gallery
+        await LoadMediaAsync();
+
+        if (successCount > 0 && failCount == 0)
+            _uploadStatus = $"{successCount} file(s) uploaded successfully.";
+        else if (successCount > 0 && failCount > 0)
+            _uploadStatus = $"{successCount} uploaded, {failCount} failed.";
+        else if (failCount > 0)
+            _uploadStatus = "Upload failed. Please try again.";
+        else
+            _uploadStatus = null;
+
+        InvokeAsync(StateHasChanged);
     }
 }

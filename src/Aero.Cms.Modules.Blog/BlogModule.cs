@@ -1,6 +1,8 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog.Areas.Api.v1;
+using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Modules.Blog.Parsers;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Services.Images;
@@ -12,6 +14,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Blog;
 
+[Module(nameof(BlogModule))]
 public sealed class BlogModule : AeroWebModule, IUiModule
 {
     public override string Name => nameof(BlogModule);
@@ -33,6 +36,12 @@ public sealed class BlogModule : AeroWebModule, IUiModule
             client.BaseAddress = new Uri("https://picsum.photos/");
         });
 
+        // Blog import services
+        services.AddScoped<IBlogImportParser, JsonBlogImportParser>();
+        services.AddScoped<IBlogImportParser, MarkdownBlogImportParser>();
+        services.AddScoped<IBlogImportParser, ZipBlogImportParser>();
+        services.AddScoped<IBlogImportService, BlogImportService>();
+
         // Register this assembly so the Razor Pages in Areas/Blog/Pages are discovered
         services.AddRazorPages()
             .AddApplicationPart(typeof(BlogModule).Assembly);
@@ -44,6 +53,7 @@ public sealed class BlogModule : AeroWebModule, IUiModule
         {
             options.Conventions.AddAreaPageRoute("Blog", "/BlogIndexPage", "/blog");
             options.Conventions.AddAreaPageRoute("Blog", "/BlogDetailPage", "/blog/{slug}");
+            options.Conventions.AddAreaPageRoute("Blog", "/BlogDetailPage", "/_cms/preview/blog/drafts/{draftId:long}");
 
             // Map Admin area routes — these must be explicitly mapped because
             // PagesModule's catch-all /{slug?} route would otherwise intercept them.
@@ -56,10 +66,16 @@ public sealed class BlogModule : AeroWebModule, IUiModule
     {
         opts.Schema.For<BlogPostDocument>().DocumentAlias(Schemas.Tables.Posts);
         opts.Schema.For<BlogPostDocument>().Identity(x => x.Id);
-        //opts.Schema.For<BlogPostDocument>().Duplicate(x => x.Title); // todo - find out what the marten For<T>().Duplicate() method does and if it is needed here
-        opts.Schema.For<BlogPostDocument>().Index(x => x.Slug);
+        opts.Schema.For<BlogPostDocument>().Index(x => x.SiteId);
+        opts.Schema.For<BlogPostDocument>().UniqueIndex(x => x.SiteId, x => x.Slug);
         opts.Schema.For<BlogPostDocument>().Index(x => x.PublishedOn);
         opts.Schema.For<BlogPostDocument>().Index(x => x.CreatedOn);
         opts.Schema.For<BlogPostDocument>().Index(x => x.ModifiedOn);
+        
+        // Tags and Categories
+        opts.Schema.For<Tag>().Index(x => x.SiteId);
+        opts.Schema.For<Tag>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        opts.Schema.For<Category>().Index(x => x.SiteId);
+        opts.Schema.For<Category>().UniqueIndex(x => x.SiteId, x => x.Slug);
     }
 }

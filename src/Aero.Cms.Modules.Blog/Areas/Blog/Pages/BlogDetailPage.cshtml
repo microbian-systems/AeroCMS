@@ -1,8 +1,26 @@
 @page
+@section cssPartial {
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .prose h1 { font-weight: 700; }
+        .prose h2 { font-size: 1.5rem; font-weight: 600; line-height: 2rem; }
+        .prose h3 { font-size: 1.25rem; font-weight: 600; }
+        .prose p { font-size: 1.125rem; line-height: 1.75rem; margin-bottom: 1.25rem; }
+        .prose li { font-size: 1.125rem; line-height: 1.75rem; }
+        .prose ul, .prose ol { margin-bottom: 1.25rem; }
+        .prose pre { padding: 1rem; }
+    </style>
+}
+@using Aero.Cms.Abstractions.Blocks.Common
 @using Aero.Cms.Modules.Blog.Models
 @using Aero.Core
 @using Aero.Core.Railway
 @using Aero.Services.Images
+@using Markdig
 
 @inject Aero.Cms.Modules.Blog.IBlogPostContentService BlogService
 @inject IStaticPhotosClient StaticPhotos
@@ -10,14 +28,14 @@
 @model Aero.Cms.Modules.Blog.Areas.Blog.Pages.BlogDetailPageModel
 
 @{
-    ViewBag.Title = Model.Post?.SeoTitle ?? Model.Post?.Title ?? "Blog Post";
+    ViewBag.Title = (Model.Post?.SeoTitle ?? Model.Post?.Title ?? "Blog Post") + " | Aero CMS";
     var post = Model.Post!;
 }
 
 @{
     var headerImageUrl = post.ImageUrl ?? StaticPhotos.GetPhotoUrl("blurred", "1200x630");
 }
-<article class="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+<article class="max-w-[700px] mx-auto px-4 py-8 sm:px-6 lg:px-8">
     @* Header Image *@
     <div class="mb-10 overflow-hidden rounded-2xl shadow-2xl">
         <img src="@headerImageUrl"
@@ -27,7 +45,7 @@
 
     @* Header Section *@
     <header class="mb-10">
-        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight tracking-tight">
             @post.Title
         </h1>
         
@@ -83,14 +101,16 @@
         </div>
     </header>
 
-    @* Content Blocks *@
-    <div class="prose prose-lg max-w-none">
-        @if (post.Content?.Count > 0)
+    @* Content Blocks — render markdown directly via Markdig *@
+    <div class="prose prose-lg">
+        @{
+            var markdownContent = string.Join("\n\n", post.Content
+                .OfType<MarkdownBlock>()
+                .Select(b => b.Content));
+        }
+        @if (!string.IsNullOrWhiteSpace(markdownContent))
         {
-            foreach (var block in post.Content.OrderBy(b => b.Order))
-            {
-                <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.BlockRenderer)" render-mode="Static" param-Block="block" />
-            }
+            @Html.Raw(Markdown.ToHtml(markdownContent))
         }
         else
         {

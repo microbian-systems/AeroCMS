@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Identity;
 
+[Module(nameof(IdentityModule))]
 public class IdentityModule : AeroWebModule
 {
     public override string Name => nameof(IdentityModule);

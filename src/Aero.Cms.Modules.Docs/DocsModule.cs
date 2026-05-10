@@ -10,6 +10,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Docs;
 
+[Module(nameof(DocsModule))]
 public sealed class DocsModule : AeroModuleBase
 {
     public override string Name => nameof(DocsModule);
@@ -25,8 +26,8 @@ public sealed class DocsModule : AeroModuleBase
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         opts.Schema.For<DocsPage>().DocumentAlias("docs");
-        //opts.Schema.For<DocsPage>().Duplicate(x => x.Title);
-        opts.Schema.For<DocsPage>().Index(x => x.Slug);
+        opts.Schema.For<DocsPage>().Index(x => x.SiteId);
+        opts.Schema.For<DocsPage>().UniqueIndex(x => x.SiteId, x => x.Slug);
         opts.Schema.For<DocsPage>().Index(x => x.ParentId);
         opts.Schema.For<DocsPage>().Index(x => x.Order);
         opts.Schema.For<DocsPage>().Index(x => x.PublishedOn);

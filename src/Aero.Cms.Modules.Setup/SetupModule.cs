@@ -23,6 +23,7 @@ namespace Aero.Cms.Modules.Setup;
 /// <summary>
 /// Aero CMS infrastructure setup (database, caching, etc)
 /// </summary>
+[Module(nameof(SetupModule))]
 public sealed class SetupModule : AeroModuleBase
 {
     public override string Name => nameof(SetupModule);

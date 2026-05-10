@@ -10,9 +10,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Aero.Cms.Core;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Jwt;
 
+[Module(nameof(JwtAuthModule))]
 public class JwtAuthModule : AeroWebModule
 {
     public override string Name => nameof(JwtAuthModule);

@@ -6,9 +6,11 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Rewrite;
 
+[Module(nameof(RewriteModule))]
 public class RewriteModule : AeroModuleBase
 {
     public override string Name => nameof(RewriteModule);

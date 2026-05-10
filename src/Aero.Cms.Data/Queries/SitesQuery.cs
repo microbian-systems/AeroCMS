@@ -1,5 +1,4 @@
-﻿using Aero.Cms.Abstractions.Models;
-using Aero.Cms.Core.Entities;
+﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
 using Aero.Core.Entities;
 using Marten.Linq;
@@ -12,19 +11,13 @@ using System.Threading.Tasks;
 
 namespace Aero.Cms.Data.Queries;
 
-public record SiteContext(SitesModel Site, TenantModel? Tenant);
-
-public sealed class SiteByHostnameQuery : ICompiledQuery<SitesModel, SitesModel?>
+public sealed class SiteByHostnameQuery : ICompiledQuery<SiteHost, SiteHost?>
 {
     public string hostname { get; set; } = null!;
 
-    public IList<TenantModel> Tenants { get; } = new List<TenantModel>();
-
-    public Expression<Func<IMartenQueryable<SitesModel>, SitesModel?>> QueryIs()
+    public Expression<Func<IMartenQueryable<SiteHost>, SiteHost?>> QueryIs()
     {
-        return q => q
-            .Include(x => x.TenantId, Tenants)
-            .FirstOrDefault(x => x.Hostname == hostname);
+        return q => q.FirstOrDefault(x => x.Host == hostname);
     }
 }
 

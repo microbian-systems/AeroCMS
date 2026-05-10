@@ -1,7 +1,7 @@
 # Sitemap Module Implementation Plan
 
 ## Goal
-Implement a Sitemap module (`Aero.Cms.Modules.SiteMap`) that dynamically generates an XML sitemap from Pages, Blog posts, and Docs content, cached via FusionCache and invalidated through Wolverine events.
+Implement a Sitemap module (`Aero.Cms.Modules.SiteMap`) that dynamically generates an XML sitemap from Pages, Blog posts, and Docs content. In production, the generated sitemap is cached via FusionCache and invalidated through Wolverine events; outside production, sitemap data is rebuilt on each request and is not written to cache.
 
 ## Architecture
 
@@ -12,8 +12,8 @@ Implement a Sitemap module (`Aero.Cms.Modules.SiteMap`) that dynamically generat
 **Target state**: Fully functioning module with:
 - A `SiteMapModule : AeroWebModule` that registers services and maps endpoints
 - A `SiteMapService` that gathers content from all 3 sources
-- FusionCache-backed caching (L1 memory + optional L2 Garnet/Redis)
-- Wolverine event handlers that invalidate the cached sitemap when content changes
+- Production-only FusionCache-backed caching (L1 memory + optional L2 Garnet/Redis)
+- Wolverine event handlers that invalidate the cached sitemap when content changes in production
 
 ---
 
@@ -49,15 +49,16 @@ public interface ISiteMapService
 
 `SiteMapService` implementation:
 
-1. **Check cache**: `IFusionCache.TryGetAsync<string>("sitemap:xml")` — return cached XML if found
-2. **On cache miss**, query all 3 sources in parallel:
+1. **Check environment**: use `IHostEnvironment.IsProduction()` to decide whether sitemap caching is active
+2. **In production, check cache**: `IFusionCache.TryGetAsync<string>("sitemap:xml")` — return cached XML if found
+3. **On cache miss or outside production**, query all 3 sources in parallel:
    - `IPageContentService.GetAllPagesAsync()` → filter `PublicationState == Published` → map to sitemap entries
    - Direct Marten query on `BlogPostDocument` → filter `Published`
    - `IDocsService.GetAllAsync()` → filter `IsPubliclyVisible`
-3. **Merge** into unified list sorted by priority (Pages > Blog > Docs)
-4. **Render** XML string
-5. **Cache**: `IFusionCache.SetAsync("sitemap:xml", xml, opts with 5-min TTL)`
-6. **Return** XML string
+4. **Merge** into unified list sorted by priority (Pages > Blog > Docs)
+5. **Render** XML string
+6. **In production only, cache**: `IFusionCache.SetAsync("sitemap:xml", xml, opts with 5-min TTL)`
+7. **Return** XML string
 
 ### 4. Create `SitemapApi.cs` — Minimal API Endpoint
 
@@ -86,7 +87,7 @@ public static class SitemapApi
 ### 5. Create `SitemapInvalidationHandler` — Wolverine Event Handler
 
 ```csharp
-public class SitemapInvalidationHandler(IFusionCache cache) : IWolverineHandler
+public class SitemapInvalidationHandler(IFusionCache cache, IHostEnvironment env) : IWolverineHandler
 {
     public Task Handle(PageCreated _) => Invalidate();
     public Task Handle(PageUpdated _) => Invalidate();
@@ -98,7 +99,13 @@ public class SitemapInvalidationHandler(IFusionCache cache) : IWolverineHandler
     public Task Handle(DocUpdated _) => Invalidate();
     public Task Handle(DocDeleted _) => Invalidate();
 
-    private Task Invalidate() => cache.RemoveAsync("sitemap:xml");
+    private Task Invalidate()
+    {
+        if (!env.IsProduction())
+            return Task.CompletedTask;
+
+        return cache.RemoveAsync("sitemap:xml");
+    }
 }
 ```
 
@@ -160,12 +167,13 @@ Priority mapping:
 
 | Concern | Decision |
 |---|---|
+| **Environment** | Cache sitemap data only when `IHostEnvironment.IsProduction()` is true; non-production rebuilds every request |
 | **Cache key** | `"sitemap:xml"` |
 | **TTL** | 5 minutes (configurable) |
 | **Cache service** | `IFusionCache` (injected directly) — already configured in `AeroAppServerExtensions.cs` with `.WithRegisteredDistributedCache()` |
 | **L1** | In-memory (always on via FusionCache) |
 | **L2** | Garnet/Redis if configured, else `MemoryDistributedCache` fallback |
-| **Invalidation** | Wolverine events → remove cache key → next request rebuilds |
+| **Invalidation** | Wolverine events → remove cache key in production → next request rebuilds |
 | **Cache stampede protection** | FusionCache handles this natively (factory soft/hard timeouts, fail-safe) |
 
 ---

@@ -10,18 +10,14 @@ public sealed class SiteModelValidator : AbstractValidator<SitesModel>
     {
         RuleFor(x => x.Id)
             .GreaterThan(0)
-            .WithMessage(x => $"site requuires a valid id");
+            .WithMessage(x => $"site requires a valid id");
 
         RuleFor(x => x.TenantId)
             .GreaterThan(0)
-            .WithMessage(x => $"site {x.Id} requires a valid tenant id" );
+            .WithMessage(x => $"site {x.Id} requires a valid tenant id");
 
         RuleFor(x => x.Name)
             .NotNullOrEmpty()
             .WithMessage("Site name must have a value");
-
-        RuleFor(x => x.Hostname)
-            .NotNullOrEmpty()
-            .WithMessage("Site host name must have a value");
     }
 }

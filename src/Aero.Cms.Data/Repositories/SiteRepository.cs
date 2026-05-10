@@ -33,8 +33,13 @@ public sealed class SiteRepository : MartenGenericRepositoryOption<SitesModel>, 
     public async Task<IList<SitesModel>> GetByTenantIdAsync(long tenantId, CancellationToken cancellationToken = default)
         => await _session.QueryAsync(new SitesByTenantIdQuery { TenantId = tenantId }, cancellationToken);
 
-    public Task<SitesModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default)
-        => _session.QueryAsync(new SiteByHostnameQuery { hostname = hostname }, cancellationToken);
+    public async Task<SitesModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default)
+    {
+        // hostname is expected to be pre-normalized by the caller (see SiteService)
+        var siteHost = await _session.QueryAsync(new SiteByHostnameQuery { hostname = hostname }, cancellationToken);
+        if (siteHost is null) return null;
+        return await _session.LoadAsync<SitesModel>(siteHost.SiteId, cancellationToken);
+    }
 
     public async Task<IList<SitesModel>> GetByNameAsync(string name, CancellationToken cancellationToken = default)
         => await _session.QueryAsync(new SitesByNameQuery { Name = name }, cancellationToken);

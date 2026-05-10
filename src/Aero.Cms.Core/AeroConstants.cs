@@ -20,13 +20,22 @@ public static class Schemas
         public const string Blocks = "blocks";
         public const string Categories = "categories";
         public const string Media = "media";
+        public const string Modules = "modules";
         public const string Pages = "pages";
         public const string Posts = "posts";
         public const string Settings = "settings";
         public const string Sites = "sites";
+        public const string SiteHosts = "hosts";
+        public const string SitePerms = "site_perms";
+        public const string SlugRegistry = "slugs";
         public const string Tags = "tags";
         public const string Tenants = "tenants";
         public const string Users = "users";
+        public const string Baskets = "baskets";
+        public const string Buyers = "buyers";
+        public const string Orders = "orders";
+        public const string OrderItems = "order_items";
+        public const string Products = "products";
     }
 
 }

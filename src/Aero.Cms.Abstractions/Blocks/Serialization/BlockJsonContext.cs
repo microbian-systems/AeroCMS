@@ -94,6 +94,10 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
 [JsonSerializable(typeof(AnalyticsBlock))]
 [JsonSerializable(typeof(DynamicTemplateBlock))]
 [JsonSerializable(typeof(ScrollingContentBlock))]
+[JsonSerializable(typeof(Aero.Cms.Abstractions.Blocks.Common.ContentEmbedBlock))]
+[JsonSerializable(typeof(List<Aero.Cms.Abstractions.Blocks.Common.ContentEmbedBlock>))]
+[JsonSerializable(typeof(Aero.Cms.Abstractions.Content.ContentItem))]
+[JsonSerializable(typeof(Dictionary<string, System.Text.Json.JsonElement>))]
 [JsonSerializable(typeof(FormEditorBlock))]
 [JsonSerializable(typeof(NavigationBlock))]
 [JsonSerializable(typeof(AeroHeroBlock))]
@@ -138,6 +142,6 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     GenerationMode = JsonSourceGenerationMode.Default | JsonSourceGenerationMode.Metadata)]
-internal partial class BlockJsonContext : JsonSerializerContext
+public partial class BlockJsonContext : JsonSerializerContext
 {
 }

@@ -63,7 +63,8 @@ HTTP Request /en/about
       ├── CultureRedirectMiddleware    (ensure culture prefix)
       ├── RequestLocalizationMiddleware (set CultureInfo)
       ├── ETagMiddleware               (conditional GET handling)
-      ├── OutputCacheMiddleware        (serve from cache if warm)
+      ├── ResponseCachingMiddleware    (public HTTP/client/proxy cache semantics)
+      ├── OutputCacheMiddleware        (public server-side full-response cache)
       │
       └── Request Handler (e.g., /{culture}/{**slug})
                 │
@@ -96,7 +97,7 @@ HTTP Request /en/about
 | Styling | Tailwind CSS |
 | Database | PostgreSQL via Marten (document) + **pg_vector** (semantic) |
 | Identity/Auth | ASP.NET Core Identity (EF Core) |
-| Caching | ASP.NET Core Output Cache + FusionCache |
+| Caching | Public routes: ASP.NET Core Response Cache + Output Cache + FusionCache; Manager/admin routes: FusionCache only |
 | Search | PostgreSQL Full-Text Search + Vector Similarity |
 | Background jobs | TickerQ |
 
@@ -137,6 +138,7 @@ API responses serialize blocks polymorphically using source-generated JSON metad
 1.  **DTO Efficiency:** Use `[JsonSerializable]` for all Headless API DTOs within a `JsonSerializerContext` to support high-performance serialization.
 2.  **Minimal APIs:** Use Route Groups for Headless APIs to apply shared metadata, authorization, and filters.
 3.  **Custom Endpoint Filters:** Implement `IEndpointFilter` for global error handling and request logging on Headless API routes.
-4.  **Direct DI:** Inject `IFusionCache` and `IDocumentSession` (Marten) directly into delegate handlers.
-5.  **Admin Purge:** Implement `POST /admin/clear-cache` to allow manual cache invalidation.
+4.  **Direct DI:** Inject `IFusionCache` and `IDocumentSession` (Marten) directly into delegate handlers and manager/admin data services.
+5.  **Cache Profiles:** Use Response + Output + FusionCache for public-facing CMS routes. Use FusionCache only for Manager/admin data and invalidate it through Wolverine messages.
+6.  **Admin Purge:** Implement `POST /admin/clear-cache` to allow manual cache invalidation.
 

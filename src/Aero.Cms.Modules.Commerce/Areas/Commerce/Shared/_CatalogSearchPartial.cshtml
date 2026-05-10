@@ -1,0 +1,22 @@
+@* Filter sidebar — follows eShop's CatalogSearch.razor pattern *@
+@model CatalogSearchViewModel
+
+<div class="eshop-catalog-search">
+    <div class="eshop-catalog-search-header">
+        <img role="presentation" src="~/icons/filters.svg" alt="" />
+        Filters
+    </div>
+    <div class="eshop-catalog-search-types">
+        <div class="eshop-catalog-search-group">
+            <h3>Category</h3>
+            <div class="eshop-catalog-search-group-tags">
+                <a href="@Model.CategoryUri(null)" class="eshop-catalog-search-tag @(Model.CurrentCategory is null ? "active" : "")">All</a>
+                @foreach (var cat in Model.Categories)
+                {
+                    <a href="@Model.CategoryUri(cat)" class="eshop-catalog-search-tag @(Model.CurrentCategory == cat ? "active" : "")">@cat</a>
+                }
+            </div>
+        </div>
+        @* Price range could be added here *@
+    </div>
+</div>

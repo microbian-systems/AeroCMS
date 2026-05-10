@@ -46,6 +46,16 @@ public static class PagesApi
 
         group.MapPut("/{id:long}/unpublish", UnpublishPage)
             .WithName("UnpublishPage");
+
+        // Draft endpoints — auto-save writes here, manual save/publish promote to PageDocument
+        group.MapGet("/{id:long}/draft", GetPageDraft)
+            .WithName("GetPageDraft");
+
+        group.MapPut("/{id:long}/draft", SavePageDraft)
+            .WithName("SavePageDraft");
+
+        group.MapDelete("/{id:long}/draft", DeletePageDraft)
+            .WithName("DeletePageDraft");
     }
 
     private static async Task<IResult> ListPages(
@@ -223,7 +233,7 @@ public static class PagesApi
 
             if (result is Result<PageDocument, AeroError>.Failure failure)
             {
-                logger.LogWarning("Failed to update page {Id}. Error: {Error}. Request: {@Request}", id, failure.Error, request);
+                logger.LogError("Failed to update page {Id}. Error: {Error}. Request: {@Request}", id, failure.Error, request);
                 return TypedResults.BadRequest(new ProblemDetails
                 {
                     Title = "Failed to update page",
@@ -347,7 +357,7 @@ public static class PagesApi
             p.SeoTitle,
             p.SeoDescription,
             p.CreatedOn.DateTime,
-            p.ModifiedOn.Value.DateTime,
+            (p.ModifiedOn ?? p.CreatedOn).DateTime,
             p.PublishedOn?.DateTime,
             p.PublicationState,
             p.Blocks.Count,
@@ -357,5 +367,78 @@ public static class PagesApi
             p.ShowChatAgent,
             p.Blocks
         );
+    }
+
+    // ── Draft handlers ─────────────────────────────────────────
+
+    private static async Task<IResult> GetPageDraft(
+        long id,
+        IQuerySession querySession)
+    {
+        var draft = await querySession.Query<PageDraft>()
+            .FirstOrDefaultAsync(d => d.PageId == id);
+
+        return TypedResults.Ok(draft);  // returns null (not 404) when no draft exists
+    }
+
+    private static async Task<IResult> SavePageDraft(
+        long id,
+        PageDraftRequest request,
+        IDocumentSession session,
+        IQuerySession querySession)
+    {
+        // Resolve SiteId from the existing page
+        var page = await querySession.LoadAsync<PageDocument>(id);
+        if (page is null)
+            return TypedResults.NotFound();
+
+        // Find existing draft or create new
+        var existing = await querySession.Query<PageDraft>()
+            .FirstOrDefaultAsync(d => d.PageId == id);
+
+        if (existing is not null)
+        {
+            existing.Title = request.Title;
+            existing.Slug = request.Slug;
+            existing.Summary = request.Summary;
+            existing.Blocks = request.Blocks ?? [];
+            existing.DraftedAt = DateTimeOffset.UtcNow;
+            session.Store(existing);
+        }
+        else
+        {
+            var draft = new PageDraft
+            {
+                Id = Snowflake.NewId(),
+                SiteId = page.SiteId,
+                PageId = id,
+                Title = request.Title,
+                Slug = request.Slug,
+                Summary = request.Summary,
+                Blocks = request.Blocks ?? [],
+                DraftedAt = DateTimeOffset.UtcNow
+            };
+            session.Store(draft);
+        }
+
+        await session.SaveChangesAsync();
+        return TypedResults.Ok();
+    }
+
+    private static async Task<IResult> DeletePageDraft(
+        long id,
+        IDocumentSession session,
+        IQuerySession querySession)
+    {
+        var existing = await querySession.Query<PageDraft>()
+            .FirstOrDefaultAsync(d => d.PageId == id);
+
+        if (existing is not null)
+        {
+            session.Delete(existing);
+            await session.SaveChangesAsync();
+        }
+
+        return TypedResults.NoContent();
     }
 }

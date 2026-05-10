@@ -1,0 +1,62 @@
+@page "/admin/commerce/products"
+@attribute [Authorize]
+
+<PageTitle>Products</PageTitle>
+
+<div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-semibold">Products</h1>
+        <button class="btn btn-primary" @onclick="CreateNew">New Product</button>
+    </div>
+
+    @if (products is null)
+    {
+        <p class="text-gray-500">Loading...</p>
+    }
+    else
+    {
+        <table class="w-full border-collapse">
+            <thead>
+                <tr class="border-b text-left">
+                    <th class="p-2">ID</th>
+                    <th class="p-2">Name</th>
+                    <th class="p-2">SKU</th>
+                    <th class="p-2">Category</th>
+                    <th class="p-2">Price</th>
+                    <th class="p-2">Stock</th>
+                    <th class="p-2"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var product in products)
+                {
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2">@product.Id</td>
+                        <td class="p-2">@product.Name</td>
+                        <td class="p-2">@product.Sku</td>
+                        <td class="p-2">@product.Category</td>
+                        <td class="p-2">@product.Price.ToString("C")</td>
+                        <td class="p-2">@product.StockQuantity</td>
+                        <td class="p-2">
+                            <button class="btn btn-sm" @onclick="() => Edit(product.Id)">Edit</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<ProductDto>? products;
+    private ICommerceClientService? Service => null; // TODO: inject via DI
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     Service = /* resolve from DI */;
+    //     products = await Service.GetProductsAsync();
+    // }
+
+    private void CreateNew() { /* navigate to editor */ }
+    private void Edit(long id) { /* navigate to editor */ }
+}

@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Polly;
 
 namespace Aero.Cms.Abstractions.Http;
 
@@ -43,7 +44,14 @@ public static class AeroHttpClientExtensions
                 .AddHttpMessageHandler<JwtTokenHandler>()
                 .AddHttpMessageHandler<AeroHttpLoggingHandler>()
                 .AddHttpMessageHandler<ClientRateLimitHandler>()
-                .AddStandardResilienceHandler();
+                .AddStandardResilienceHandler(options =>
+                {
+                    // Increase timeouts for long-running operations (blog import, etc.).
+                    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(60);
+                    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
+                    // Circuit breaker sampling must be ≥ 2× attempt timeout.
+                    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(120);
+                });
         });
 
         services.AddHttpClient<IBlogHttpClient, BlogHttpClient>();
@@ -64,6 +72,15 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<IPreviewHttpClient, PreviewHttpClient>();
         services.AddHttpClient<IDocsHttpClient, DocsHttpClient>();
         services.AddHttpClient<IAuthClient, AuthClient>();
+        services.AddHttpClient<IContentTypesHttpClient, ContentTypesHttpClient>();
+        services.AddHttpClient<IContentItemsHttpClient, ContentItemsHttpClient>();
+        services.AddHttpClient<ISitesHttpClient, SitesHttpClient>();
+        services.AddHttpClient<IAliasHttpClient, AliasesHttpClient>();
+        services.AddHttpClient<IAiHttpClient, AiHttpClient>();
+
+        // Register WASM-safe Contracts interface — resolves via cast to shared implementation
+        services.AddScoped<Aero.Cms.Contracts.Abstractions.ISitesHttpClient>(sp =>
+            (Aero.Cms.Contracts.Abstractions.ISitesHttpClient)sp.GetRequiredService<ISitesHttpClient>());
 
         return services;
     }

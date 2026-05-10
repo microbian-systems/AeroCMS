@@ -60,7 +60,7 @@ public static class PreviewApi
                 logger.LogWarning("Failed to preview page id={Id}: {Error}", id, failure.Error);
                 return TypedResults.NotFound(new { error = failure.Error });
             }
-
+                
             if (result is Result<PageDocument?, AeroError>.Ok { Value: not null } ok)
             {
                 return TypedResults.Ok(new PreviewResponse<PageDocument>(ok.Value, "page"));

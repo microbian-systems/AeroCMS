@@ -226,7 +226,8 @@ public static class EditorBlockMapper
             "video" => new EmbedBlock
             {
                 SourceUrl = FirstNonEmpty(editorBlock.Url, editorBlock.Src),
-                EmbedType = "video"
+                EmbedType = "video",
+                AutoPlay = editorBlock.AutoPlay
             },
             "gallery" => new CarouselBlock
             {
@@ -270,7 +271,8 @@ public static class EditorBlockMapper
             "video" => new EmbedBlock
             {
                 SourceUrl = FirstNonEmpty(nestedBlock.Url, nestedBlock.Src),
-                EmbedType = "video"
+                EmbedType = "video",
+                AutoPlay = false
             },
             "button" => new CtaBlock
             {

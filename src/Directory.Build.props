@@ -35,4 +35,20 @@
 	<ItemGroup Condition="'$(MSBuildProjectName)' != 'Aero.Cms.Web.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Core' AND '$(MSBuildProjectName)' != 'Aero.Cms.Modules.Modules' AND ($(MSBuildProjectName.StartsWith('Aero.Cms.Modules')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.Banners')) OR $(MSBuildProjectName.StartsWith('Aero.Cms.CookiePolicy')))">
 		<ProjectReference Include="$(MSBuildThisFileDirectory)Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 	</ItemGroup>
+
+
+	<!--
+    Source Generator & Analyzer: Wire Aero.Cms.SourceGenerators to every project
+    in src/ so ModuleManifestGenerator, WolverineHandlerGenerator, and AERO002 analyzer
+    run where needed. Each generator activates only when its conditions are met:
+    - ModuleManifestGenerator: activates when [Module] attribute is found
+    - WolverineHandlerGenerator: activates when [WolverineHandler] attribute is found
+    - HostModuleCatalogGenerator: activates when ModuleManifestProviderAttribute assembly
+      attributes are detected on referenced assemblies (naturally only in Aero.Cms.Web)
+  -->
+	<ItemGroup Condition="'$(MSBuildProjectName)' != 'Aero.Cms.SourceGenerators'">
+		<ProjectReference Include="$(MSBuildThisFileDirectory)Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj"
+			OutputItemType="Analyzer"
+			ReferenceOutputAssembly="false" />
+	</ItemGroup>
 </Project>

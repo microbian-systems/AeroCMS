@@ -69,6 +69,14 @@ public interface IBlogHttpClient
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The updated blog post detail or an error.</returns>
     Task<Result<BlogDetail, AeroError>> UnpublishAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Imports blog posts from a file (JSON, MD, or ZIP containing JSON files).
+    /// </summary>
+    /// <param name="request">The file import request with Base64-encoded content and options.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>The import result with counts of imported/skipped posts.</returns>
+    Task<Result<ImportBlogResult, AeroError>> ImportAsync(ImportFileRequest request, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -127,6 +135,12 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
     public Task<Result<BlogDetail, AeroError>> UnpublishAsync(long id, CancellationToken ct = default)
     {
         return PostAsync<object, BlogDetail>($"{id}/unpublish", new object(), ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<ImportBlogResult, AeroError>> ImportAsync(ImportFileRequest request, CancellationToken ct = default)
+    {
+        return PostAsync<ImportFileRequest, ImportBlogResult>("import", request, ct);
     }
 }
 
@@ -202,3 +216,56 @@ public class UpdateBlogRequest
     public string? ImageUrl { get; set; }
     public int PublicationState { get; set; }
 }
+
+// ─── Import Feature DTOs ─────────────────────────────────────
+
+/// <summary>
+/// Behavior when an imported post's slug already exists.
+/// </summary>
+public static class DuplicateSlugBehavior
+{
+    public const string Skip = "skip";
+    public const string Suffix = "suffix";
+    public const string Overwrite = "overwrite";
+}
+
+/// <summary>
+/// Request to import blog posts from a file (JSON, MD, or ZIP).
+/// </summary>
+public sealed record ImportFileRequest(
+    string FileName,
+    string MimeType,
+    string Base64Data,
+    bool StoreLocalImages,
+    string DuplicateBehavior,
+    long? DefaultAuthorId,
+    bool PublishImported,
+    long SiteId
+);
+
+/// <summary>
+/// Result of a blog post import operation.
+/// </summary>
+public sealed record ImportBlogResult(
+    int TotalProcessed,
+    int TotalImported,
+    int TotalSkipped,
+    IReadOnlyList<ImportedPostSummary> ImportedPosts,
+    IReadOnlyList<SkippedPostInfo> SkippedPosts,
+    IReadOnlyList<ImportError> Errors
+);
+
+/// <summary>
+/// Summary of a successfully imported post.
+/// </summary>
+public sealed record ImportedPostSummary(long Id, string Slug, string Title);
+
+/// <summary>
+/// Information about a skipped post during import.
+/// </summary>
+public sealed record SkippedPostInfo(string Slug, string Reason);
+
+/// <summary>
+/// An error encountered during import processing.
+/// </summary>
+public sealed record ImportError(string Item, string Message);

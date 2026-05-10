@@ -4,6 +4,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Theming;
 
+[Module(nameof(AeroThemeModule))]
 public class AeroThemeModule : AeroModuleBase
 {
     public override string Name { get; } = nameof(AeroThemeModule);
