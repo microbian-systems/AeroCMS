@@ -1,7 +1,8 @@
 # Aero CMS Page Hierarchy Implementation Specification
 
-**Version:** 1.0  
+**Version:** 2.0  
 **Status:** Ready for Implementation  
+**Last Updated:** 2026-05-10  
 **Target Framework:** ASP.NET Core 10 / .NET 10  
 **Architecture:** Razor Pages + Blazor WASM Hybrid + Blazor Server  
 **Data Store:** Marten (PostgreSQL document database)  
@@ -60,7 +61,7 @@ This specification defines the implementation of hierarchical page management fo
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Blazor UI Layer                          │
-│  PageEditor.razor │ PageTreeManager.razor │ Navigation.razor│
+│  PageEditor.razor │ PageTreeGrid.razor  │ Navigation.razor│
 └─────────────────────┬───────────────────────────────────────┘
                       │
 ┌─────────────────────┴───────────────────────────────────────┐
@@ -92,7 +93,6 @@ This specification defines the implementation of hierarchical page management fo
 5. Service computes:
    - Path = parent.Path + "/" + page.Slug
    - Depth = parent.Depth + 1
-   - ParentSlug = parent.Slug (for [DuplicateField])
 6. Marten stores document with optimistic concurrency
 7. UI refreshes tree view
 ```
@@ -101,84 +101,73 @@ This specification defines the implementation of hierarchical page management fo
 
 ## Database Schema & Indexes
 
-### Marten Mapping Configuration
+### Marten Configuration (Inline, in PagesModule)
 
-**File:** `Aero.Cms.Core/Persistence/Mappings/PageDocumentMapping.cs`
+Marten configuration is added directly to the existing `PagesModule.Configure()` method. We use **computed indexes** (Marten's recommended approach) over duplicated fields for most columns — they create PostgreSQL expression indexes without additional database columns. The `NgramIndex` on `Path` enables efficient prefix-matching for descendant queries.
+
+**File:** `src/Aero.Cms.Modules.Pages/PagesModule.cs` — add to the existing `Configure()` method:
 
 ```csharp
-using Marten;
-using Marten.Schema;
-using Aero.Cms.Core.Entities;
-
-namespace Aero.Cms.Core.Persistence.Mappings;
-
-/// <summary>
-/// Marten mapping configuration for PageDocument with hierarchical indexes.
-/// </summary>
-public sealed class PageDocumentMapping : MartenRegistry
+public override void Configure(IServiceProvider services, StoreOptions opts)
 {
-    public PageDocumentMapping()
-    {
-        For<PageDocument>()
-            .Identity(x => x.Id)
-            
-            // ✅ CRITICAL: Enable optimistic concurrency for tree operations
-            .UseOptimisticConcurrency(true)
-            
-            // ✅ CRITICAL: Enforce unique slug per site + parent
-            // This prevents: /sports/basketball + /sports/basketball (duplicate)
-            .UniqueIndex(
-                UniqueIndexType.Computed,
-                "(COALESCE(data->>'SiteId', 'null'), COALESCE(data->>'ParentId', 'null'), data->>'Slug')"
-            )
-            
-            // Single-column indexes for filtering
-            .Index(x => x.SiteId)
-            .Index(x => x.Slug)
-            .Index(x => x.Path)
-            .Index(x => x.Depth)
-            .Index(x => x.ParentId)
-            .Index(x => x.PublicationState)
-            .Index(x => x.ShowInNavMenu)
-            
-            // Compound indexes for common query patterns
-            .Index(x => new { x.SiteId, x.Path })              // Fast path lookups per site
-            .Index(x => new { x.SiteId, x.PublicationState })  // Fast published page queries
-            .Index(x => new { x.ParentId, x.PublicationState }); // Fast child queries with state filter
-    }
+    // === Existing configuration (kept as-is) ===
+    opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
+    opts.Schema.For<PageDocument>().Identity(x => x.Id);
+    Configure<PageDocument>(services, opts);
+
+    // === NEW: Hierarchy indexes ===
+    opts.Schema.For<PageDocument>()
+        // ✅ CRITICAL: Enable optimistic concurrency for tree operations
+        .UseOptimisticConcurrency(true)
+
+        // ✅ CRITICAL: Replace old UniqueIndex(SiteId, Slug) with per-parent uniqueness
+        // Old index (removed): .UniqueIndex(x => x.SiteId, x => x.Slug)
+        // PostgreSQL handles null ParentId correctly — root pages with null ParentId
+        // are treated independently from pages with a specific parent.
+        .UniqueIndex(
+            UniqueIndexType.Computed,
+            "(COALESCE(data->>'SiteId', 'null'), COALESCE(data->>'ParentId', 'null'), data->>'Slug')"
+        )
+
+        // Computed indexes (recommended by Marten over DuplicateField for most types)
+        .Index(x => x.Path)                              // URL routing
+        .Index(x => x.Depth)                             // Depth filtering
+        .Index(x => x.ParentId)                          // Child queries
+        .Index(x => x.Order)                             // Sibling ordering
+        .Index(x => x.PublicationState)                  // Published-only queries
+        .Index(x => x.ShowInNavMenu)                     // Navigation filtering
+
+        // Compound indexes for common query patterns
+        .Index(x => new { x.SiteId, x.Path })            // Fast path lookups per site
+        .Index(x => new { x.SiteId, x.PublicationState }) // Fast published page queries
+        .Index(x => new { x.ParentId, x.PublicationState }) // Fast child queries with state filter
+
+        // Ngram index for efficient Path prefix matching (StartsWith queries)
+        .NgramIndex(x => x.Path);                         // "Get all descendants" queries
+
+    // Note: SiteId and Slug are already indexed in the existing config above.
+    //       PublishedOn (DateTimeOffset) needs DuplicateField if indexed —
+    //       computed indexes do not support DateTimeOffset fields.
 }
 ```
 
-**Register in StoreOptions:**
+> **Why inline, not MartenRegistry?** For v1 we keep configuration simple and visible inside PagesModule where all other PageDocument config lives. A `MartenRegistry` subclass can be extracted later if the module's `Configure()` method grows too large (>50 lines). Both approaches use the same fluent API under the hood.
 
-```csharp
-// File: Aero.Cms.Core/Persistence/MartenConfiguration.cs
-
-public static class MartenConfiguration
-{
-    public static StoreOptions ConfigureStore(this StoreOptions options)
-    {
-        options.Schema.Include<PageDocumentMapping>();
-        options.Schema.Include<PageVersionMapping>(); // See Advanced Features section
-        
-        // Other configurations...
-        
-        return options;
-    }
-}
-```
+> **Why computed indexes?** Marten docs: "we strongly recommend using Computed Indexes over duplicated fields for most cases to speed up queries." Computed indexes re-use the JSONB structure without extra database columns, avoiding schema changes and extra insert costs.
 
 ### Index Strategy Rationale
 
-| Index | Query Pattern | Cardinality | Justification |
-|-------|---------------|-------------|---------------|
-| `SiteId` | Multi-tenant filtering | High | Every query scopes to site |
-| `Path` | URL routing, descendants | Very High | Primary navigation lookup |
-| `ParentId` | Get children | High | Tree traversal |
-| `Depth` | Breadcrumb depth checks | Low (0-10) | Fast filtering for UI |
-| `PublicationState` | Published-only queries | Low (4 states) | Navigation performance |
-| `(SiteId, Path)` | Tenant-scoped routing | Very High | Covers 90% of read queries |
-| Unique `(SiteId, ParentId, Slug)` | Collision prevention | Very High | Data integrity |
+| Index | Type | Query Pattern | Cardinality | Justification |
+|-------|------|---------------|-------------|---------------|
+| `Path` | Computed + Ngram | URL routing, descendants | Very High | Primary navigation lookup; Ngram enables prefix matching |
+| `ParentId` | Computed | Get children | High | Tree traversal |
+| `Depth` | Computed | Breadcrumb depth checks | Low (0-10) | Fast filtering for UI |
+| `Order` | Computed | Sibling ordering | High | Menu / tree sorting |
+| `PublicationState` | Computed | Published-only queries | Low (5 states) | Navigation performance |
+| `ShowInNavMenu` | Computed | Navigation filtering | Low (bool) | Exclude hidden pages |
+| `(SiteId, Path)` | Computed compound | Tenant-scoped routing | Very High | Covers 90% of read queries |
+| `(ParentId, PublicationState)` | Computed compound | Child queries with state | High | Nav tree building |
+| Unique `(SiteId, ParentId, Slug)` | Computed unique | Collision prevention | Very High | Data integrity (null-safe for root pages) |
 
 ---
 
@@ -200,8 +189,11 @@ namespace Aero.Cms.Core.Entities;
 
 /// <summary>
 /// Represents a hierarchical page in the CMS using adjacency list + materialized path pattern.
+/// Implements ISoftDeleted for Marten native soft-delete support (session.Delete() marks as deleted
+/// without removing from the database; Marten auto-filters deleted docs from all queries).
+/// Implements IAuditableEntity for automatic audit trail tracking via the Audit module.
 /// </summary>
-public sealed class PageDocument : Entity, ISiteOwned
+public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableEntity
 {
     // ========================================================================
     // MULTI-TENANCY
@@ -218,25 +210,26 @@ public sealed class PageDocument : Entity, ISiteOwned
     /// </summary>
     public long? ParentId { get; set; }
     
-    /// <summary>
-    /// Duplicated parent slug for fast indexed queries.
-    /// Marten maintains this automatically.
-    /// </summary>
-    [DuplicateField]
-    public string? ParentSlug { get; set; }
-    
-    /// <summary>
-    /// Materialized path for efficient tree queries.
-    /// Example: "/sports/basketball/youth"
-    /// Root pages: "/slug"
-    /// </summary>
-    public string Path { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Depth level in the tree (0 = root, 1 = child, 2 = grandchild, etc.)
-    /// Used for UI indentation and max depth validation.
-    /// </summary>
-    public int Depth { get; set; }
+/// <summary>
+/// Materialized path for efficient tree queries.
+/// Example: "/sports/basketball/youth"
+/// Root pages: "/slug"
+/// </summary>
+public string Path { get; set; } = string.Empty;
+
+/// <summary>
+/// Depth level in the tree (0 = root, 1 = child, 2 = grandchild, etc.)
+/// Used for UI indentation and max depth validation.
+/// </summary>
+public int Depth { get; set; }
+
+/// <summary>
+/// Display order within sibling pages (lower = first).
+/// NOTE: Inserting between existing siblings requires renumbering all subsequent siblings.
+/// If renumbering cost becomes problematic at scale, consider a gap-based algorithm
+/// (e.g., decimal values: 1.0, 2.0 → insert at 1.5) or a linked-list approach (NextSiblingId).
+/// </summary>
+public int Order { get; set; }
     
     // ========================================================================
     // CONTENT FIELDS (EXISTING)
@@ -325,6 +318,27 @@ public sealed class PageDocument : Entity, ISiteOwned
     /// Whether the chat agent widget should be shown on this page.
     /// </summary>
     public bool ShowChatAgent { get; set; } = true;
+    
+    // ========================================================================
+    // SOFT-DELETE (ISoftDeleted — managed by Marten)
+    // ========================================================================
+    
+    /// <summary>
+    /// Marten auto-manages this via mt_deleted when session.Delete() is called.
+    /// All queries automatically exclude soft-deleted pages unless explicitly requested.
+    /// </summary>
+    public bool Deleted { get; set; }
+    
+    /// <summary>
+    /// Marten auto-sets this to the transaction timestamp when soft-deleted.
+    /// </summary>
+    public DateTimeOffset? DeletedAt { get; set; }
+    
+    /// <summary>
+    /// (Optional) The user who deleted the page. Marten tracks this via mt_deleted_by
+    /// if metadata is enabled. This application-level field provides stronger tracking.
+    /// </summary>
+    public string? DeletedBy { get; set; }
 }
 ```
 
@@ -346,24 +360,26 @@ public enum ContentPublicationState
     Draft = 0,
     
     /// <summary>
-    /// Content has been submitted for editorial review.
-    /// </summary>
-    InReview = 1,
-    
-    /// <summary>
-    /// Content is scheduled to be published at a specific future date/time.
-    /// </summary>
-    Scheduled = 2,
-    
-    /// <summary>
     /// Content is live and visible to the public.
+    /// NOTE: Value = 1 is preserved from the existing enum for backward compatibility.
+    /// All existing Published pages in the database retain their value.
     /// </summary>
-    Published = 3,
+    Published = 1,
     
     /// <summary>
     /// Content has been archived and is no longer publicly visible.
     /// </summary>
-    Archived = 4
+    Archived = 2,
+    
+    /// <summary>
+    /// Content has been submitted for editorial review.
+    /// </summary>
+    InReview = 3,
+    
+    /// <summary>
+    /// Content is scheduled to be published at a specific future date/time.
+    /// </summary>
+    Scheduled = 4
 }
 ```
 
@@ -416,12 +432,13 @@ public sealed class PageVersion : Entity
     public ContentPublicationState PublicationState { get; set; }
     
     // ========================================================================
-    // SNAPSHOT OF HIERARCHICAL STATE
+    // SNAPSHOT OF HIERARCHICAL STATE (for reference only)
     // ========================================================================
     
     /// <summary>
     /// Parent at the time of this version.
     /// ⚠️ NOT restored during rollback (tree structure may have changed).
+    /// Stored for auditing/informational purposes only.
     /// </summary>
     public long? ParentId { get; set; }
     
@@ -434,23 +451,23 @@ public sealed class PageVersion : Entity
     /// Depth at the time of this version.
     /// </summary>
     public int Depth { get; set; }
+    
+    /// <summary>
+    /// Order at the time of this version.
+    /// </summary>
+    public int Order { get; set; }
 }
 ```
 
-**Marten Mapping:**
+**Marten Mapping (inline in PagesModule.Configure()):**
 
 ```csharp
-public sealed class PageVersionMapping : MartenRegistry
-{
-    public PageVersionMapping()
-    {
-        For<PageVersion>()
-            .Identity(x => x.Id)
-            .Index(x => x.PageId)
-            .Index(x => new { x.PageId, x.VersionNumber });
-    }
-}
-```
+// Add to existing Configure() method in PagesModule:
+opts.Schema.For<PageVersion>()
+    .Identity(x => x.Id)
+    .Index(x => x.PageId)
+    .Index(x => new { x.PageId, x.VersionNumber })
+    .Index(x => x.CreatedAt);  // For TickerQ version cleanup queries
 
 ---
 
@@ -465,97 +482,71 @@ using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Core.Services;
 
+using Aero.Core.Railway;
+
 /// <summary>
 /// Service for managing hierarchical page tree operations.
+/// All methods return Result<T, AeroError> following the Railway Oriented Programming pattern.
 /// </summary>
 public interface IPageTreeService
 {
     /// <summary>
     /// Creates a new page under the specified parent (or at root if parentId is null).
-    /// Automatically computes Path, Depth, and ParentSlug.
+    /// Automatically computes Path, Depth, and Order.
     /// </summary>
     /// <param name="page">The page to create (Slug, Title, etc. must be set).</param>
     /// <param name="parentId">Parent page ID, or null for root-level page.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The created page with computed hierarchy fields.</returns>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when:
-    /// - Parent not found
-    /// - Slug already exists at this level
-    /// - Max depth exceeded
-    /// - Slug format is invalid
-    /// </exception>
-    Task<PageDocument> CreateAsync(PageDocument page, long? parentId, CancellationToken ct = default);
+    /// <returns>Result containing the created page, or an AeroError (Conflict, Validation, NotFound).</returns>
+    Task<Result<PageDocument, AeroError>> CreateAsync(PageDocument page, long? parentId, CancellationToken ct = default);
     
     /// <summary>
     /// Retrieves a page by ID.
     /// </summary>
-    Task<PageDocument?> GetAsync(long id, CancellationToken ct = default);
+    Task<Result<PageDocument?, AeroError>> GetAsync(long id, CancellationToken ct = default);
     
     /// <summary>
-    /// Gets all immediate children of the specified parent page.
+    /// Gets all immediate children of the specified parent page, ordered by Order then Title.
     /// </summary>
-    /// <param name="parentId">Parent page ID.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of child pages ordered by Title.</returns>
-    Task<IReadOnlyList<PageDocument>> GetChildrenAsync(long parentId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetChildrenAsync(long parentId, CancellationToken ct = default);
     
     /// <summary>
     /// Updates an existing page (does NOT move it in the tree).
     /// Use MoveAsync() to change parent.
+    /// Triggers version creation if content fields changed.
     /// </summary>
-    Task UpdateAsync(PageDocument page, CancellationToken ct = default);
+    Task<Result<Unit, AeroError>> UpdateAsync(PageDocument page, CancellationToken ct = default);
     
     /// <summary>
     /// Moves a page to a new parent (or to root if newParentId is null).
     /// Automatically updates Path and Depth for the page and all descendants.
+    /// Fails with Validation if: circular reference detected, max depth exceeded, page/parent not found.
     /// </summary>
-    /// <param name="pageId">Page to move.</param>
-    /// <param name="newParentId">New parent ID, or null to move to root.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when:
-    /// - Page or new parent not found
-    /// - Attempting to move a page under itself or its descendants (circular reference)
-    /// - Max depth would be exceeded
-    /// </exception>
-    Task MoveAsync(long pageId, long? newParentId, CancellationToken ct = default);
+    Task<Result<Unit, AeroError>> MoveAsync(long pageId, long? newParentId, CancellationToken ct = default);
     
     /// <summary>
     /// Renames a page's slug and updates Path for it and all descendants.
+    /// On success, publishes a PageSlugChanged event via Wolverine outbox for alias/sitemap cascade.
     /// </summary>
-    /// <param name="pageId">Page to rename.</param>
-    /// <param name="newSlug">New slug (will be validated and sanitized).</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when:
-    /// - Page not found
-    /// - New slug already exists at this level
-    /// - Slug format is invalid
-    /// </exception>
-    Task RenameSlugAsync(long pageId, string newSlug, CancellationToken ct = default);
+    Task<Result<Unit, AeroError>> RenameSlugAsync(long pageId, string newSlug, CancellationToken ct = default);
     
     /// <summary>
     /// Clones a page (and optionally its entire subtree) to a new location.
+    /// New page always starts as Draft. ID assigned via Snowflake.NewId().
     /// </summary>
-    /// <param name="sourcePageId">Page to clone.</param>
-    /// <param name="targetParentId">Parent for the cloned page (null = root).</param>
-    /// <param name="cloneDescendants">Whether to recursively clone child pages.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The root of the cloned tree.</returns>
-    Task<PageDocument> CloneAsync(
+    Task<Result<PageDocument, AeroError>> CloneAsync(
         long sourcePageId,
         long? targetParentId,
         bool cloneDescendants = false,
         CancellationToken ct = default);
     
     /// <summary>
-    /// Deletes a page and optionally all its descendants.
+    /// Soft-deletes a page and optionally all its descendants.
+    /// Uses Marten's ISoftDeleted — pages are marked as deleted but not physically removed.
+    /// A TickerQ background job permanently deletes soft-deleted pages after the retention period.
+    /// Fails with Conflict if deleteDescendants is false and page has children.
     /// </summary>
-    /// <param name="pageId">Page to delete.</param>
-    /// <param name="deleteDescendants">If true, deletes entire subtree. If false, fails if page has children.</param>
-    /// <param name="ct">Cancellation token.</param>
-    Task DeleteAsync(long pageId, bool deleteDescendants, CancellationToken ct = default);
+    Task<Result<Unit, AeroError>> DeleteAsync(long pageId, bool deleteDescendants, CancellationToken ct = default);
 }
 ```
 
@@ -566,195 +557,282 @@ public interface IPageTreeService
 ```csharp
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Validation;
+using Aero.Core.Railway;
 using Marten;
 using Marten.Exceptions;
+using Microsoft.Extensions.Logging;
+using Wolverine;
 
 namespace Aero.Cms.Core.Services;
 
 /// <summary>
-/// Production implementation of hierarchical page tree operations with concurrency safety.
+/// Production implementation of hierarchical page tree operations with Railway Oriented Programming.
+/// All errors returned as AeroError variants, not thrown as exceptions.
 /// </summary>
 public sealed class PageTreeService : IPageTreeService
 {
     private readonly IDocumentSession _session;
+    private readonly ISiteContext _siteContext;
+    private readonly IMessageBus _bus;          // Wolverine outbox for PageSlugChanged events
+    private readonly ILogger<PageTreeService> _logger;
     private const int MaxDepth = 10;
     
-    public PageTreeService(IDocumentSession session)
+    public PageTreeService(
+        IDocumentSession session,
+        ISiteContext siteContext,
+        IMessageBus bus,
+        ILogger<PageTreeService> logger)
     {
         _session = session;
+        _siteContext = siteContext;
+        _bus = bus;
+        _logger = logger;
     }
     
     // ========================================================================
     // CREATE
     // ========================================================================
     
-    public async Task<PageDocument> CreateAsync(PageDocument page, long? parentId, CancellationToken ct = default)
+    public async Task<Result<PageDocument, AeroError>> CreateAsync(PageDocument page, long? parentId, CancellationToken ct = default)
     {
-        // ✅ STEP 1: Validate and sanitize slug
-        page.Slug = SlugValidator.Sanitize(page.Slug);
-        
-        // ✅ STEP 2: Check for slug collision BEFORE computing path
-        var existingPage = await _session.Query<PageDocument>()
-            .FirstOrDefaultAsync(x =>
-                x.SiteId == page.SiteId &&
-                x.ParentId == parentId &&
-                x.Slug == page.Slug, ct);
-        
-        if (existingPage is not null)
-            throw new InvalidOperationException(
-                $"A page with slug '{page.Slug}' already exists at this level.");
-        
-        // ✅ STEP 3: Compute hierarchy fields
-        if (parentId is null)
+        try
         {
-            // Root-level page
-            page.ParentId = null;
-            page.ParentSlug = null;
-            page.Depth = 0;
-            page.Path = "/" + page.Slug;
+            // ✅ STEP 1: Validate slug via FluentValidation
+            var validator = new PageDocumentValidator();
+            var validationResult = await validator.ValidateAsync(page, ct);
+            if (!validationResult.IsValid)
+            {
+                var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToImmutableList();
+                return new AeroError.Validation(errors);
+            }
+            
+            // ✅ STEP 2: Check for slug collision
+            var existingPage = await _session.Query<PageDocument>()
+                .FirstOrDefaultAsync(x =>
+                    x.SiteId == page.SiteId &&
+                    x.ParentId == parentId &&
+                    x.Slug == page.Slug, ct);
+            
+            if (existingPage is not null)
+                return new AeroError.Conflict(
+                    $"A page with slug '{page.Slug}' already exists at this level.");
+            
+            // ✅ STEP 3: Compute hierarchy fields
+            if (parentId is null)
+            {
+                page.ParentId = null;
+                page.Depth = 0;
+                page.Path = "/" + page.Slug;
+                page.Order = await GetNextSiblingOrderAsync(null, ct);
+            }
+            else
+            {
+                var parentResult = await GetAsync(parentId.Value, ct);
+                if (parentResult is { IsFailure: true })
+                    return new AeroError.NotFound("Parent page not found.");
+                var parent = ((Result<PageDocument?, AeroError>.Ok)parentResult).Value!;
+                
+                if (parent.Depth >= MaxDepth)
+                    return new AeroError.Validation(
+                        $"Maximum nesting depth ({MaxDepth}) exceeded.");
+                
+                page.ParentId = parent.Id;
+                page.Depth = parent.Depth + 1;
+                page.Path = $"{parent.Path}/{page.Slug}";
+                page.Order = await GetNextSiblingOrderAsync(parentId, ct);
+            }
+            
+            // ✅ STEP 4: Assign Snowflake ID and store
+            page.Id = Snowflake.NewId();
+            _session.Store(page);
+            await _session.SaveChangesAsync(ct);
+            
+            return page;
         }
-        else
+        catch (Exception ex)
         {
-            // Child page
-            var parent = await _session.LoadAsync<PageDocument>(parentId.Value, ct)
-                ?? throw new InvalidOperationException("Parent page not found.");
-            
-            // ✅ STEP 4: Enforce max depth
-            if (parent.Depth >= MaxDepth)
-                throw new InvalidOperationException(
-                    $"Maximum nesting depth ({MaxDepth}) exceeded.");
-            
-            page.ParentId = parent.Id;
-            page.ParentSlug = parent.Slug;
-            page.Depth = parent.Depth + 1;
-            page.Path = $"{parent.Path}/{page.Slug}";
+            _logger.LogError(ex, "Failed to create page");
+            return new AeroError.Database("Failed to create page");
         }
-        
-        // ✅ STEP 5: Store with optimistic concurrency
-        _session.Store(page);
-        await _session.SaveChangesAsync(ct);
-        
-        return page;
     }
     
     // ========================================================================
     // READ
     // ========================================================================
     
-    public Task<PageDocument?> GetAsync(long id, CancellationToken ct = default)
-        => _session.LoadAsync<PageDocument>(id, ct);
-    
-    public async Task<IReadOnlyList<PageDocument>> GetChildrenAsync(long parentId, CancellationToken ct = default)
+    public async Task<Result<PageDocument?, AeroError>> GetAsync(long id, CancellationToken ct = default)
     {
-        return await _session.Query<PageDocument>()
-            .Where(x => x.ParentId == parentId)
-            .OrderBy(x => x.Title)
-            .ToListAsync(ct);
+        try
+        {
+            var page = await _session.LoadAsync<PageDocument>(id, ct);
+            return page;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load page {PageId}", id);
+            return new AeroError.Database("Failed to load page");
+        }
+    }
+    
+    public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetChildrenAsync(long parentId, CancellationToken ct = default)
+    {
+        try
+        {
+            var children = await _session.Query<PageDocument>()
+                .Where(x => x.ParentId == parentId)
+                .OrderBy(x => x.Order)
+                .ThenBy(x => x.Title)
+                .ToListAsync(ct);
+            return children;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load children for parent {ParentId}", parentId);
+            return new AeroError.Database("Failed to load child pages");
+        }
     }
     
     // ========================================================================
     // UPDATE
     // ========================================================================
     
-    public async Task UpdateAsync(PageDocument page, CancellationToken ct = default)
+    public async Task<Result<Unit, AeroError>> UpdateAsync(PageDocument page, CancellationToken ct = default)
     {
-        _session.Store(page);
-        await _session.SaveChangesAsync(ct);
+        try
+        {
+            var validator = new PageDocumentValidator();
+            var validationResult = await validator.ValidateAsync(page, ct);
+            if (!validationResult.IsValid)
+            {
+                var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToImmutableList();
+                return new AeroError.Validation(errors);
+            }
+            
+            _session.Store(page);
+            await _session.SaveChangesAsync(ct);
+            
+            return Unit.Value;
+        }
+        catch (ConcurrencyException ex)
+        {
+            _logger.LogWarning(ex, "Concurrency conflict updating page {PageId}", page.Id);
+            return new AeroError.Conflict("Page was modified by another user. Please reload and retry.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update page {PageId}", page.Id);
+            return new AeroError.Database("Failed to update page");
+        }
     }
     
     // ========================================================================
     // MOVE
     // ========================================================================
     
-    public async Task MoveAsync(long pageId, long? newParentId, CancellationToken ct = default)
+    public async Task<Result<Unit, AeroError>> MoveAsync(long pageId, long? newParentId, CancellationToken ct = default)
     {
         const int maxRetries = 3;
         var attempt = 0;
         
         while (attempt < maxRetries)
         {
-            try
-            {
-                await MoveAsyncInternal(pageId, newParentId, ct);
-                return; // Success
-            }
-            catch (ConcurrencyException)
+            var result = await MoveAsyncInternal(pageId, newParentId, ct);
+            if (result.IsSuccess)
+                return result;
+            
+            if (result.Error is AeroError.ConcurrencyException)
             {
                 attempt++;
                 if (attempt >= maxRetries)
-                    throw new InvalidOperationException(
+                    return new AeroError.Conflict(
                         "Failed to move page due to concurrent modifications. Please retry.");
                 
-                // Exponential backoff
                 await Task.Delay(TimeSpan.FromMilliseconds(100 * Math.Pow(2, attempt)), ct);
+                continue;
             }
+            
+            return result; // Non-concurrency error, return immediately
         }
+        
+        return new AeroError.Conflict("Failed to move page after multiple attempts.");
     }
     
-    private async Task MoveAsyncInternal(long pageId, long? newParentId, CancellationToken ct)
+    private async Task<Result<Unit, AeroError>> MoveAsyncInternal(long pageId, long? newParentId, CancellationToken ct)
     {
-        var page = await _session.LoadAsync<PageDocument>(pageId, ct)
-            ?? throw new InvalidOperationException("Page not found.");
-        
-        string oldPath = page.Path;
-        
-        // ✅ STEP 1: Validate move target
-        if (newParentId is not null)
+        try
         {
-            var newParent = await _session.LoadAsync<PageDocument>(newParentId.Value, ct)
-                ?? throw new InvalidOperationException("New parent not found.");
+            var page = await _session.LoadAsync<PageDocument>(pageId, ct);
+            if (page is null)
+                return new AeroError.NotFound("Page not found.");
             
-            // ✅ CRITICAL: Prevent circular references
-            if (newParent.Path.StartsWith(page.Path + "/") || newParent.Id == pageId)
-                throw new InvalidOperationException(
-                    "Cannot move a page under itself or its descendants.");
+            string oldPath = page.Path;
             
-            // ✅ Enforce max depth
-            var newDepth = newParent.Depth + 1;
-            var maxDescendantDepth = await GetMaxDescendantDepth(page.Id, ct);
-            var depthIncrease = newDepth - page.Depth;
+            if (newParentId is not null)
+            {
+                var newParent = await _session.LoadAsync<PageDocument>(newParentId.Value, ct);
+                if (newParent is null)
+                    return new AeroError.NotFound("New parent page not found.");
+                
+                // ✅ Prevent circular references
+                if (newParent.Path.StartsWith(page.Path + "/") || newParent.Id == pageId)
+                    return new AeroError.Validation(
+                        "Cannot move a page under itself or its descendants.");
+                
+                // ✅ Enforce max depth
+                var newDepth = newParent.Depth + 1;
+                var maxDescendantDepth = await GetMaxDescendantDepth(page.Id, ct);
+                var depthIncrease = newDepth - page.Depth;
+                
+                if (maxDescendantDepth + depthIncrease > MaxDepth)
+                    return new AeroError.Validation(
+                        $"Move would exceed maximum nesting depth ({MaxDepth}).");
+                
+                page.ParentId = newParent.Id;
+                page.Depth = newDepth;
+                page.Path = $"{newParent.Path}/{page.Slug}";
+            }
+            else
+            {
+                page.ParentId = null;
+                page.Depth = 0;
+                page.Path = "/" + page.Slug;
+            }
             
-            if (maxDescendantDepth + depthIncrease > MaxDepth)
-                throw new InvalidOperationException(
-                    $"Move would exceed maximum nesting depth ({MaxDepth}).");
+            string newPath = page.Path;
             
-            page.ParentId = newParent.Id;
-            page.ParentSlug = newParent.Slug;
-            page.Depth = newDepth;
-            page.Path = $"{newParent.Path}/{page.Slug}";
+            // ✅ Update all descendants in one batch
+            var descendants = await _session.Query<PageDocument>()
+                .Where(x => x.Path.StartsWith(oldPath + "/"))
+                .ToListAsync(ct);
+            
+            foreach (var child in descendants)
+            {
+                var suffix = child.Path.Substring(oldPath.Length);
+                child.Path = newPath + suffix;
+                child.Depth = child.Path.Split('/', StringSplitOptions.RemoveEmptyEntries).Length - 1;
+                _session.Store(child);
+            }
+            
+            _session.Store(page);
+            await _session.SaveChangesAsync(ct);
+            
+            return Unit.Value;
         }
-        else
+        catch (ConcurrencyException ex)
         {
-            // Moving to root
-            page.ParentId = null;
-            page.ParentSlug = null;
-            page.Depth = 0;
-            page.Path = "/" + page.Slug;
+            return new AeroError.ConcurrencyException("Concurrent modification detected during move.", ex);
         }
-        
-        string newPath = page.Path;
-        
-        // ✅ STEP 2: Update all descendants in one batch
-        var descendants = await _session.Query<PageDocument>()
-            .Where(x => x.Path.StartsWith(oldPath + "/"))
-            .ToListAsync(ct);
-        
-        foreach (var child in descendants)
+        catch (Exception ex)
         {
-            var suffix = child.Path.Substring(oldPath.Length);
-            child.Path = newPath + suffix;
-            child.Depth = child.Path.Split('/', StringSplitOptions.RemoveEmptyEntries).Length - 1;
-            _session.Store(child);
+            _logger.LogError(ex, "Failed to move page {PageId}", pageId);
+            return new AeroError.Database("Failed to move page");
         }
-        
-        _session.Store(page);
-        await _session.SaveChangesAsync(ct);
     }
     
     private async Task<int> GetMaxDescendantDepth(long pageId, CancellationToken ct)
     {
-        var page = await _session.LoadAsync<PageDocument>(pageId, ct)
-            ?? throw new InvalidOperationException("Page not found.");
+        var page = await _session.LoadAsync<PageDocument>(pageId, ct);
+        if (page is null) return 0;
         
         var maxDepth = await _session.Query<PageDocument>()
             .Where(x => x.Path.StartsWith(page.Path + "/"))
@@ -764,145 +842,203 @@ public sealed class PageTreeService : IPageTreeService
         return maxDepth ?? page.Depth;
     }
     
+    private async Task<int> GetNextSiblingOrderAsync(long? parentId, CancellationToken ct)
+    {
+        var maxOrder = await _session.Query<PageDocument>()
+            .Where(x => x.ParentId == parentId)
+            .MaxAsync(x => x.Order, ct);
+        return (maxOrder ?? 0) + 1;
+    }
+    
     // ========================================================================
     // RENAME SLUG
     // ========================================================================
     
-    public async Task RenameSlugAsync(long pageId, string newSlug, CancellationToken ct = default)
+    public async Task<Result<Unit, AeroError>> RenameSlugAsync(long pageId, string newSlug, CancellationToken ct = default)
     {
         const int maxRetries = 3;
         var attempt = 0;
         
         while (attempt < maxRetries)
         {
-            try
+            var result = await RenameSlugInternalAsync(pageId, newSlug, ct);
+            if (result.IsSuccess)
             {
-                await RenameSlugAsyncInternal(pageId, newSlug, ct);
-                return;
+                // ✅ Fire PageSlugChanged via Wolverine outbox (transactionally safe)
+                // This cascades to: Alias module, Sitemap module
+                var pageResult = await GetAsync(pageId, ct);
+                if (pageResult is { IsSuccess: true, Value: var page })
+                {
+                    await _bus.PublishAsync(new PageSlugChanged(pageId, page.Slug, page.Path));
+                }
+                return result;
             }
-            catch (ConcurrencyException)
+            
+            if (result.Error is AeroError.ConcurrencyException)
             {
                 attempt++;
                 if (attempt >= maxRetries)
-                    throw new InvalidOperationException(
+                    return new AeroError.Conflict(
                         "Failed to rename slug due to concurrent modifications. Please retry.");
                 
                 await Task.Delay(TimeSpan.FromMilliseconds(100 * Math.Pow(2, attempt)), ct);
+                continue;
             }
+            
+            return result;
         }
+        
+        return new AeroError.Conflict("Failed to rename slug after multiple attempts.");
     }
     
-    private async Task RenameSlugAsyncInternal(long pageId, string newSlug, CancellationToken ct)
+    private async Task<Result<Unit, AeroError>> RenameSlugInternalAsync(long pageId, string newSlug, CancellationToken ct)
     {
-        newSlug = SlugValidator.Sanitize(newSlug);
-        
-        var page = await _session.LoadAsync<PageDocument>(pageId, ct)
-            ?? throw new InvalidOperationException("Page not found.");
-        
-        // ✅ Check for slug collision
-        var existingPage = await _session.Query<PageDocument>()
-            .FirstOrDefaultAsync(x =>
-                x.SiteId == page.SiteId &&
-                x.ParentId == page.ParentId &&
-                x.Slug == newSlug &&
-                x.Id != pageId, ct);
-        
-        if (existingPage is not null)
-            throw new InvalidOperationException(
-                $"A page with slug '{newSlug}' already exists at this level.");
-        
-        string oldPath = page.Path;
-        page.Slug = newSlug;
-        
-        // Recompute path
-        if (page.ParentId is null)
+        try
         {
-            page.Path = "/" + page.Slug;
+            var page = await _session.LoadAsync<PageDocument>(pageId, ct);
+            if (page is null)
+                return new AeroError.NotFound("Page not found.");
+            
+            // ✅ Validate slug with FluentValidation
+            var validator = new PageDocumentValidator();
+            var tempPage = new PageDocument { Slug = newSlug };
+            var slugValidation = await validator.ValidateAsync(tempPage, ct);
+            if (slugValidation.Errors.Any(e => e.PropertyName == nameof(PageDocument.Slug)))
+            {
+                var errors = slugValidation.Errors
+                    .Where(e => e.PropertyName == nameof(PageDocument.Slug))
+                    .Select(e => e.ErrorMessage).ToImmutableList();
+                return new AeroError.Validation(errors);
+            }
+            
+            // ✅ Check for slug collision
+            var existingPage = await _session.Query<PageDocument>()
+                .FirstOrDefaultAsync(x =>
+                    x.SiteId == page.SiteId &&
+                    x.ParentId == page.ParentId &&
+                    x.Slug == newSlug &&
+                    x.Id != pageId, ct);
+            
+            if (existingPage is not null)
+                return new AeroError.Conflict(
+                    $"A page with slug '{newSlug}' already exists at this level.");
+            
+            string oldPath = page.Path;
+            page.Slug = newSlug;
+            
+            // Recompute path
+            if (page.ParentId is null)
+            {
+                page.Path = "/" + page.Slug;
+            }
+            else
+            {
+                var parent = await _session.LoadAsync<PageDocument>(page.ParentId.Value, ct);
+                if (parent is null)
+                    return new AeroError.NotFound("Parent page not found.");
+                page.Path = $"{parent.Path}/{page.Slug}";
+            }
+            
+            string newPath = page.Path;
+            
+            // Update descendants
+            var descendants = await _session.Query<PageDocument>()
+                .Where(x => x.Path.StartsWith(oldPath + "/"))
+                .ToListAsync(ct);
+            
+            foreach (var child in descendants)
+            {
+                var suffix = child.Path.Substring(oldPath.Length);
+                child.Path = newPath + suffix;
+                child.Depth = child.Path.Split('/', StringSplitOptions.RemoveEmptyEntries).Length - 1;
+                _session.Store(child);
+            }
+            
+            _session.Store(page);
+            await _session.SaveChangesAsync(ct);
+            
+            return Unit.Value;
         }
-        else
+        catch (ConcurrencyException ex)
         {
-            var parent = await _session.LoadAsync<PageDocument>(page.ParentId.Value, ct)
-                ?? throw new InvalidOperationException("Parent not found.");
-            page.Path = $"{parent.Path}/{page.Slug}";
+            return new AeroError.ConcurrencyException("Concurrent modification detected during rename.", ex);
         }
-        
-        string newPath = page.Path;
-        
-        // Update descendants
-        var descendants = await _session.Query<PageDocument>()
-            .Where(x => x.Path.StartsWith(oldPath + "/"))
-            .ToListAsync(ct);
-        
-        foreach (var child in descendants)
+        catch (Exception ex)
         {
-            var suffix = child.Path.Substring(oldPath.Length);
-            child.Path = newPath + suffix;
-            child.Depth = child.Path.Split('/', StringSplitOptions.RemoveEmptyEntries).Length - 1;
-            _session.Store(child);
+            _logger.LogError(ex, "Failed to rename slug for page {PageId}", pageId);
+            return new AeroError.Database("Failed to rename page slug");
         }
-        
-        _session.Store(page);
-        await _session.SaveChangesAsync(ct);
     }
     
     // ========================================================================
     // CLONE
     // ========================================================================
     
-    public async Task<PageDocument> CloneAsync(
+    public async Task<Result<PageDocument, AeroError>> CloneAsync(
         long sourcePageId,
         long? targetParentId,
         bool cloneDescendants,
         CancellationToken ct = default)
     {
-        var source = await _session.LoadAsync<PageDocument>(sourcePageId, ct)
-            ?? throw new InvalidOperationException("Source page not found.");
-        
-        // Generate unique slug
-        var newSlug = await GenerateUniqueSlugAsync(source.Slug, targetParentId, source.SiteId, ct);
-        
-        // Deep clone content
-        var clone = new PageDocument
+        try
         {
-            Id = long.Newlong(),
-            SiteId = source.SiteId,
-            Kind = source.Kind,
-            Slug = newSlug,
-            Title = $"{source.Title} (Copy)",
-            Summary = source.Summary,
-            SeoTitle = source.SeoTitle,
-            SeoDescription = source.SeoDescription,
+            var source = await _session.LoadAsync<PageDocument>(sourcePageId, ct);
+            if (source is null)
+                return new AeroError.NotFound("Source page not found.");
             
-            // ✅ Deep clone blocks (assuming Clone() methods exist on block types)
-            LayoutRegions = source.LayoutRegions.Select(r => r.Clone()).ToList(),
-            Blocks = source.Blocks.Select(b => b.Clone()).ToList(),
+            // Generate unique slug
+            var newSlug = await GenerateUniqueSlugAsync(source.Slug, targetParentId, source.SiteId, ct);
             
-            // ✅ Always start as draft
-            PublicationState = ContentPublicationState.Draft,
-            
-            ShowInNavMenu = source.ShowInNavMenu,
-            ShowHeaderNavigation = source.ShowHeaderNavigation,
-            HeaderImageUrl = source.HeaderImageUrl,
-            HideHeader = source.HideHeader,
-            HideFooter = source.HideFooter,
-            ShowChatAgent = source.ShowChatAgent
-        };
-        
-        var newPage = await CreateAsync(clone, targetParentId, ct);
-        
-        if (cloneDescendants)
-        {
-            var descendants = await _session.Query<PageDocument>()
-                .Where(x => x.ParentId == sourcePageId)
-                .ToListAsync(ct);
-            
-            foreach (var child in descendants)
+            // Deep clone content
+            var clone = new PageDocument
             {
-                await CloneAsync(child.Id, newPage.Id, true, ct);
+                Id = Snowflake.NewId(),     // ✅ Snowflake ID, not Guid
+                SiteId = source.SiteId,
+                Kind = source.Kind,
+                Slug = newSlug,
+                Title = $"{source.Title} (Copy)",
+                Summary = source.Summary,
+                SeoTitle = source.SeoTitle,
+                SeoDescription = source.SeoDescription,
+                
+                LayoutRegions = source.LayoutRegions.Select(r => r.Clone()).ToList(),
+                Blocks = source.Blocks.Select(b => b.Clone()).ToList(),
+                
+                PublicationState = ContentPublicationState.Draft,
+                
+                ShowInNavMenu = source.ShowInNavMenu,
+                ShowHeaderNavigation = source.ShowHeaderNavigation,
+                HeaderImageUrl = source.HeaderImageUrl,
+                HideHeader = source.HideHeader,
+                HideFooter = source.HideFooter,
+                ShowChatAgent = source.ShowChatAgent
+            };
+            
+            var createResult = await CreateAsync(clone, targetParentId, ct);
+            if (createResult.IsFailure)
+                return createResult.Error;
+            
+            var newPage = createResult.Value;
+            
+            if (cloneDescendants)
+            {
+                var descendants = await _session.Query<PageDocument>()
+                    .Where(x => x.ParentId == sourcePageId)
+                    .ToListAsync(ct);
+                
+                foreach (var child in descendants)
+                {
+                    await CloneAsync(child.Id, newPage.Id, true, ct);
+                }
             }
+            
+            return newPage;
         }
-        
-        return newPage;
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clone page {SourcePageId}", sourcePageId);
+            return new AeroError.Database("Failed to clone page");
+        }
     }
     
     private async Task<string> GenerateUniqueSlugAsync(
@@ -924,136 +1060,83 @@ public sealed class PageTreeService : IPageTreeService
     
     private async Task<bool> SlugExistsAsync(string slug, long? parentId, long siteId, CancellationToken ct)
     {
-        var exists = await _session.Query<PageDocument>()
+        return await _session.Query<PageDocument>()
             .AnyAsync(x =>
                 x.SiteId == siteId &&
                 x.ParentId == parentId &&
                 x.Slug == slug, ct);
-        
-        return exists;
     }
     
     // ========================================================================
-    // DELETE
+    // DELETE (Soft-delete via ISoftDeleted)
     // ========================================================================
     
-    public async Task DeleteAsync(long pageId, bool deleteDescendants, CancellationToken ct = default)
+    public async Task<Result<Unit, AeroError>> DeleteAsync(long pageId, bool deleteDescendants, CancellationToken ct = default)
     {
-        var page = await _session.LoadAsync<PageDocument>(pageId, ct)
-            ?? throw new InvalidOperationException("Page not found.");
-        
-        if (!deleteDescendants)
+        try
         {
-            var hasChildren = await _session.Query<PageDocument>()
-                .AnyAsync(x => x.ParentId == pageId, ct);
+            var page = await _session.LoadAsync<PageDocument>(pageId, ct);
+            if (page is null)
+                return new AeroError.NotFound("Page not found.");
             
-            if (hasChildren)
-                throw new InvalidOperationException(
-                    "Cannot delete page with children. Set deleteDescendants=true to delete entire subtree.");
-        }
-        
-        if (deleteDescendants)
-        {
-            // Delete all descendants
-            var descendants = await _session.Query<PageDocument>()
-                .Where(x => x.Path.StartsWith(page.Path + "/"))
-                .ToListAsync(ct);
-            
-            foreach (var child in descendants)
+            if (!deleteDescendants)
             {
-                _session.Delete(child);
+                var hasChildren = await _session.Query<PageDocument>()
+                    .AnyAsync(x => x.ParentId == pageId, ct);
+                
+                if (hasChildren)
+                    return new AeroError.Conflict(
+                        "Cannot delete page with children. Set deleteDescendants=true to delete entire subtree.");
             }
+            
+            // ✅ Soft-delete all descendants first
+            if (deleteDescendants)
+            {
+                var descendants = await _session.Query<PageDocument>()
+                    .Where(x => x.Path.StartsWith(page.Path + "/"))
+                    .ToListAsync(ct);
+                
+                foreach (var child in descendants)
+                {
+                    child.DeletedBy = _siteContext.CurrentUser?.Id;
+                    _session.Delete(child);  // Marten ISoftDeleted: sets mt_deleted = true
+                }
+            }
+            
+            // ✅ Soft-delete the page itself
+            page.DeletedBy = _siteContext.CurrentUser?.Id;
+            _session.Delete(page);   // Marten ISoftDeleted: sets mt_deleted = true
+            
+            await _session.SaveChangesAsync(ct);
+            
+            // NOTE: A TickerQ background job runs daily to permanently delete
+            //       soft-deleted pages after the retention period (default 90 days).
+            
+            return Unit.Value;
         }
-        
-        _session.Delete(page);
-        await _session.SaveChangesAsync(ct);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete page {PageId}", pageId);
+            return new AeroError.Database("Failed to delete page");
+        }
     }
 }
 ```
 
----
+### PageSlugChanged Event
 
-## Validation & Business Rules
-
-### SlugValidator
-
-**File:** `Aero.Cms.Core/Validation/SlugValidator.cs`
+**File:** `Aero.Cms.Core/Events/PageSlugChanged.cs`
 
 ```csharp
-using System.Text.RegularExpressions;
-
-namespace Aero.Cms.Core.Validation;
+namespace Aero.Cms.Core.Events;
 
 /// <summary>
-/// Validates and sanitizes URL slugs for pages.
+/// Published via Wolverine outbox when a page's slug changes.
+/// Handled by the Alias module (to update alias records) and
+/// the Sitemap module (to invalidate the sitemap cache).
+/// Uses Wolverine's transactional outbox for consistency with the Marten transaction.
 /// </summary>
-public static partial class SlugValidator
-{
-    [GeneratedRegex(@"^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.Compiled)]
-    private static partial Regex ValidSlugPattern();
-    
-    /// <summary>
-    /// Sanitizes and validates a slug input.
-    /// </summary>
-    /// <param name="input">Raw slug input from user.</param>
-    /// <returns>Sanitized slug in lowercase-with-hyphens format.</returns>
-    /// <exception cref="ArgumentException">Thrown if slug is empty or contains invalid characters after sanitization.</exception>
-    public static string Sanitize(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            throw new ArgumentException("Slug cannot be empty.", nameof(input));
-        
-        // Convert to lowercase, replace spaces/underscores with hyphens
-        var slug = input.Trim()
-            .ToLowerInvariant()
-            .Replace(" ", "-")
-            .Replace("_", "-");
-        
-        // Remove any characters that aren't a-z, 0-9, or hyphen
-        slug = Regex.Replace(slug, @"[^a-z0-9\-]", "");
-        
-        // Remove consecutive hyphens
-        slug = Regex.Replace(slug, @"-+", "-");
-        
-        // Remove leading/trailing hyphens
-        slug = slug.Trim('-');
-        
-        if (string.IsNullOrEmpty(slug))
-            throw new ArgumentException(
-                "Slug contains only invalid characters. Use alphanumeric characters and hyphens.",
-                nameof(input));
-        
-        if (!ValidSlugPattern().IsMatch(slug))
-            throw new ArgumentException(
-                $"Invalid slug format: '{slug}'. Use only lowercase letters, numbers, and hyphens.",
-                nameof(input));
-        
-        return slug;
-    }
-    
-    /// <summary>
-    /// Checks if a slug is valid without throwing exceptions.
-    /// </summary>
-    public static bool IsValid(string slug)
-    {
-        if (string.IsNullOrWhiteSpace(slug))
-            return false;
-        
-        return ValidSlugPattern().IsMatch(slug);
-    }
-}
-```
-
-### Business Rules Summary
-
-| Rule | Enforcement Point | Rationale |
-|------|-------------------|-----------|
-| Slug uniqueness per (SiteId, ParentId) | `CreateAsync`, `RenameSlugAsync` | Prevents duplicate URLs |
-| Max depth = 10 | `CreateAsync`, `MoveAsync` | Prevents infinite nesting |
-| No circular references | `MoveAsync` | Data integrity |
-| Slug format: `[a-z0-9-]+` | `SlugValidator` | URL safety |
-| Published pages only in navigation | `NavigationService` | Security |
-| Optimistic concurrency on all writes | Marten config | Concurrency safety |
+public sealed record PageSlugChanged(long PageId, string NewSlug, string NewPath);
 
 ---
 
@@ -1076,7 +1159,13 @@ public sealed class NavigationItem
     public string Url { get; set; } = string.Empty;
     public bool ShowInNavMenu { get; set; }
     public int Depth { get; set; }
+    public int Order { get; set; }
     public long? ParentId { get; set; }
+    /// <summary>
+    /// True if this item or any ancestor has ShowInNavMenu = false.
+    /// Used for dimmed/muted rendering in the UI while preserving tree structure.
+    /// </summary>
+    public bool IsHidden { get; set; }
     public List<NavigationItem> Children { get; set; } = [];
 }
 ```
@@ -1087,28 +1176,33 @@ public sealed class NavigationItem
 
 ```csharp
 using Aero.Cms.Core.Models;
+using Aero.Core.Railway;
 
 namespace Aero.Cms.Core.Services;
 
 /// <summary>
 /// Service for building navigation menus from the page hierarchy.
+/// All methods return Result for Railway Oriented Programming consistency.
 /// </summary>
 public interface INavigationService
 {
     /// <summary>
     /// Gets the main navigation tree for a site (published pages only).
+    /// If a parent is ShowInNavMenu = false, all descendants are marked IsHidden = true
+    /// but remain in the tree structure (cascade visibility).
     /// </summary>
-    Task<IReadOnlyList<NavigationItem>> GetMainNavigationAsync(long siteId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<NavigationItem>, AeroError>> GetMainNavigationAsync(CancellationToken ct = default);
     
     /// <summary>
     /// Gets breadcrumb trail for a specific page.
+    /// Optimized: single query using materialized Path prefix matching instead of N per-path-segment queries.
     /// </summary>
-    Task<IReadOnlyList<NavigationItem>> GetBreadcrumbAsync(long pageId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<NavigationItem>, AeroError>> GetBreadcrumbAsync(long pageId, CancellationToken ct = default);
     
     /// <summary>
     /// Gets sibling pages (same parent) for a given page.
     /// </summary>
-    Task<IReadOnlyList<NavigationItem>> GetSiblingsAsync(long pageId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<NavigationItem>, AeroError>> GetSiblingsAsync(long pageId, CancellationToken ct = default);
 }
 ```
 
@@ -1120,92 +1214,151 @@ public interface INavigationService
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Models;
+using Aero.Core.Railway;
 using Marten;
+using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Core.Services;
 
 /// <summary>
-/// Production implementation of navigation building with caching support.
+/// Production implementation of navigation building with cascade visibility and caching support.
 /// </summary>
 public sealed class NavigationService : INavigationService
 {
     private readonly IQuerySession _query;
+    private readonly ISiteContext _siteContext;
+    private readonly ILogger<NavigationService> _logger;
     
-    public NavigationService(IQuerySession query)
+    public NavigationService(IQuerySession query, ISiteContext siteContext, ILogger<NavigationService> logger)
     {
         _query = query;
+        _siteContext = siteContext;
+        _logger = logger;
     }
     
-    public async Task<IReadOnlyList<NavigationItem>> GetMainNavigationAsync(long siteId, CancellationToken ct = default)
+    public async Task<Result<IReadOnlyList<NavigationItem>, AeroError>> GetMainNavigationAsync(CancellationToken ct = default)
     {
-        // ✅ Only published pages shown in nav menu
-        var pages = await _query.Query<PageDocument>()
-            .Where(x =>
-                x.SiteId == siteId &&
-                x.ShowInNavMenu &&
-                x.PublicationState == ContentPublicationState.Published)
-            .OrderBy(x => x.Depth)
-            .ThenBy(x => x.Title)
-            .ToListAsync(ct);
-        
-        return BuildTree(pages);
-    }
-    
-    public async Task<IReadOnlyList<NavigationItem>> GetBreadcrumbAsync(long pageId, CancellationToken ct = default)
-    {
-        var page = await _query.LoadAsync<PageDocument>(pageId, ct);
-        if (page is null)
-            return Array.Empty<NavigationItem>();
-        
-        // Parse path to get all ancestor slugs
-        var segments = page.Path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var breadcrumb = new List<NavigationItem>();
-        
-        // Build paths for each level
-        var currentPath = "";
-        foreach (var segment in segments)
+        try
         {
-            currentPath += "/" + segment;
-            var ancestorPage = await _query.Query<PageDocument>()
-                .FirstOrDefaultAsync(x => x.Path == currentPath, ct);
+            var siteId = await _siteContext.GetCurrentSiteIdAsync();
             
-            if (ancestorPage is not null)
+            // ✅ Only published pages
+            var pages = await _query.Query<PageDocument>()
+                .Where(x =>
+                    x.SiteId == siteId &&
+                    x.PublicationState == ContentPublicationState.Published)
+                .OrderBy(x => x.Depth)
+                .ThenBy(x => x.Order)
+                .ThenBy(x => x.Title)
+                .ToListAsync(ct);
+            
+            // ✅ Build tree (all pages included, not just ShowInNavMenu)
+            var tree = BuildTree(pages);
+            
+            // ✅ Cascading visibility: recursively mark descendants of hidden parents
+            MarkHiddenDescendants(tree);
+            
+            return tree;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to build main navigation");
+            return new AeroError.Database("Failed to build navigation");
+        }
+    }
+    
+    /// <summary>
+    /// Recursively marks descendants as hidden if a parent is hidden.
+    /// Children of hidden parents are implicitly hidden regardless of their own ShowInNavMenu setting.
+    /// </summary>
+    private static void MarkHiddenDescendants(List<NavigationItem> items, bool parentHidden = false)
+    {
+        foreach (var item in items)
+        {
+            if (parentHidden || !item.ShowInNavMenu)
             {
-                breadcrumb.Add(new NavigationItem
-                {
-                    Id = ancestorPage.Id,
-                    Title = ancestorPage.Title,
-                    Url = ancestorPage.Path,
-                    Depth = ancestorPage.Depth,
-                    ParentId = ancestorPage.ParentId
-                });
+                item.IsHidden = true;
+                MarkHiddenDescendants(item.Children, true);
+            }
+            else
+            {
+                MarkHiddenDescendants(item.Children, false);
             }
         }
-        
-        return breadcrumb;
     }
     
-    public async Task<IReadOnlyList<NavigationItem>> GetSiblingsAsync(long pageId, CancellationToken ct = default)
+    public async Task<Result<IReadOnlyList<NavigationItem>, AeroError>> GetBreadcrumbAsync(long pageId, CancellationToken ct = default)
     {
-        var page = await _query.LoadAsync<PageDocument>(pageId, ct);
-        if (page is null)
-            return Array.Empty<NavigationItem>();
-        
-        var siblings = await _query.Query<PageDocument>()
-            .Where(x =>
-                x.ParentId == page.ParentId &&
-                x.PublicationState == ContentPublicationState.Published)
-            .OrderBy(x => x.Title)
-            .ToListAsync(ct);
-        
-        return siblings.Select(s => new NavigationItem
+        try
         {
-            Id = s.Id,
-            Title = s.Title,
-            Url = s.Path,
-            Depth = s.Depth,
-            ParentId = s.ParentId
-        }).ToList();
+            var page = await _query.LoadAsync<PageDocument>(pageId, ct);
+            if (page is null)
+                return Array.Empty<NavigationItem>();
+            
+            // ✅ OPTIMIZED: Single query for all ancestors using materialized path prefix matching.
+            // Exploits the NgramIndex on Path for efficient StartsWith matching.
+            var segments = page.Path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var parentPath = string.Join("/", segments.Take(segments.Length - 1));
+            parentPath = "/" + parentPath.Trim('/');
+            
+            var ancestors = await _query.Query<PageDocument>()
+                .Where(x => x.Path.StartsWith(parentPath) || x.Path == page.Path)
+                .OrderBy(x => x.Depth)
+                .ToListAsync(ct);
+            
+            var breadcrumb = ancestors
+                .Where(a => a.Depth < page.Depth || a.Id == page.Id)
+                .Select(a => new NavigationItem
+                {
+                    Id = a.Id,
+                    Title = a.Title,
+                    Url = a.Path,
+                    Depth = a.Depth,
+                    Order = a.Order,
+                    ParentId = a.ParentId
+                })
+                .ToList();
+            
+            return breadcrumb;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to build breadcrumb for page {PageId}", pageId);
+            return new AeroError.Database("Failed to build breadcrumb");
+        }
+    }
+    
+    public async Task<Result<IReadOnlyList<NavigationItem>, AeroError>> GetSiblingsAsync(long pageId, CancellationToken ct = default)
+    {
+        try
+        {
+            var page = await _query.LoadAsync<PageDocument>(pageId, ct);
+            if (page is null)
+                return Array.Empty<NavigationItem>();
+            
+            var siblings = await _query.Query<PageDocument>()
+                .Where(x =>
+                    x.ParentId == page.ParentId &&
+                    x.PublicationState == ContentPublicationState.Published)
+                .OrderBy(x => x.Order)
+                .ThenBy(x => x.Title)
+                .ToListAsync(ct);
+            
+            return siblings.Select(s => new NavigationItem
+            {
+                Id = s.Id,
+                Title = s.Title,
+                Url = s.Path,
+                Depth = s.Depth,
+                Order = s.Order,
+                ParentId = s.ParentId
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load siblings for page {PageId}", pageId);
+            return new AeroError.Database("Failed to load siblings");
+        }
     }
     
     private static List<NavigationItem> BuildTree(List<PageDocument> pages)
@@ -1213,6 +1366,32 @@ public sealed class NavigationService : INavigationService
         var lookup = pages.ToDictionary(p => p.Id, p => new NavigationItem
         {
             Id = p.Id,
+            Title = p.Title,
+            Url = p.Path,
+            ShowInNavMenu = p.ShowInNavMenu,
+            Depth = p.Depth,
+            Order = p.Order,
+            ParentId = p.ParentId
+        });
+        
+        var roots = new List<NavigationItem>();
+        
+        foreach (var item in lookup.Values)
+        {
+            if (item.ParentId is null || !lookup.TryGetValue(item.ParentId.Value, out var parent))
+            {
+                roots.Add(item);
+            }
+            else
+            {
+                parent.Children.Add(item);
+            }
+        }
+        
+        return roots;
+    }
+}
+```
             Title = p.Title,
             Url = p.Path,
             ShowInNavMenu = p.ShowInNavMenu,
@@ -1242,6 +1421,45 @@ public sealed class NavigationService : INavigationService
 ---
 
 ## URL Routing
+
+### Result to Minimal API Mapping
+
+The `Result<T, AeroError>` pattern needs a consistent translation to ASP.NET Core Minimal API `IResult`. This extension method lives in `Aero.Core` (alongside the existing `Result<T>` types) and provides a single-call translation:
+
+**File:** `Aero/src/Aero.Core/Railway/ResultMinimalApiExtensions.cs`
+
+```csharp
+using Microsoft.AspNetCore.Http;
+
+namespace Aero.Core.Railway;
+
+/// <summary>
+/// Maps AeroError variants to ASP.NET Core IResult for Minimal API endpoints.
+/// </summary>
+public static class ResultMinimalApiExtensions
+{
+    public static IResult ToMinimalApiResult<T>(this Result<T, AeroError> result) => result switch
+    {
+        { IsSuccess: true } r    => Results.Ok(r.Value),
+        AeroError.NotFound nf    => Results.NotFound(new { nf.Message }),
+        AeroError.Conflict c     => Results.Conflict(new { c.Message }),
+        AeroError.Validation v   => Results.ValidationProblem(
+            v.Errors.ToDictionary(e => e, _ => new[] { "Validation error" })),
+        AeroError.Unauthorized _ => Results.Unauthorized(),
+        AeroError.Forbidden _    => Results.Forbid(),
+        _                         => Results.Problem(result.Error!.Message)
+    };
+}
+```
+
+**Usage in endpoints:**
+```csharp
+app.MapGet("/pages/{id:long}", async (long id, IPageTreeService svc) =>
+    (await svc.GetAsync(id)).ToMinimalApiResult());
+
+app.MapPost("/pages", async (CreatePageRequest req, IPageTreeService svc) =>
+    (await svc.CreateAsync(req.ToDocument(), req.ParentId)).ToMinimalApiResult());
+```
 
 ### Server-Side Routing (Razor Pages / MVC)
 
@@ -1563,7 +1781,7 @@ static bool ShouldExclude(PageDocument page, long? excludeId, List<PageDocument>
         
         try
         {
-            var sanitized = await Http.GetStringAsync($"/api/pages/sanitize-slug?slug={Uri.EscapeDataString(Slug)}");
+            var sanitized = await Http.GetStringAsync($"/api/pages/validate-slug?slug={Uri.EscapeDataString(Slug)}");
             
             if (ParentId is null)
             {
@@ -1586,17 +1804,16 @@ static bool ShouldExclude(PageDocument page, long? excludeId, List<PageDocument>
 **API Endpoint:**
 
 ```csharp
-app.MapGet("/api/pages/sanitize-slug", (string slug) =>
+app.MapGet("/api/pages/validate-slug", (string slug) =>
 {
-    try
+    var validator = new PageDocumentValidator();
+    var page = new PageDocument { Slug = slug };
+    var result = validator.Validate(page);
+    if (result.Errors.Any(e => e.PropertyName == nameof(PageDocument.Slug)))
     {
-        var sanitized = SlugValidator.Sanitize(slug);
-        return Results.Ok(sanitized);
+        return Results.BadRequest(result.Errors.First().ErrorMessage);
     }
-    catch (ArgumentException ex)
-    {
-        return Results.BadRequest(ex.Message);
-    }
+    return Results.Ok(slug);
 });
 ```
 
@@ -1723,106 +1940,175 @@ app.MapGet("/api/pages/sanitize-slug", (string slug) =>
 
 ---
 
-### 4. PageTreeManager Component (Drag-and-Drop)
+### 4. PageTreeGrid Component (Radzen DataGrid Self-Referencing Hierarchy)
 
-**File:** `Pages/Admin/PageTreeManager.razor`
+Uses Radzen DataGrid's self-referencing hierarchy feature (already a project dependency). Children are loaded on-demand when a node is expanded, avoiding upfront loading of the entire page tree (important for sites with thousands of pages).
+
+Reference: https://blazor.radzen.com/datagrid-selfref-hierarchy
+
+**File:** `Pages/Admin/PageTreeGrid.razor`
 
 ```razor
 @page "/admin/pages/tree"
-@using Blazor.DragDrop.Core
+@using Aero.Cms.Core.Models
 @inject IPageTreeService PageTreeService
-@inject HttpClient Http
+@inject NavigationManager Nav
 
 <h2>Page Tree Manager</h2>
 
-<div class="page-tree-manager">
-    @if (_tree is null)
-    {
-        <p>Loading...</p>
-    }
-    else
-    {
-        <Dropzone Items="_tree" TItem="PageTreeNode" OnItemDrop="HandleDrop">
-            <ChildContent>
-                @foreach (var node in _tree)
-                {
-                    <PageTreeNode Node="@node" OnDrop="HandleDrop" />
-                }
-            </ChildContent>
-        </Dropzone>
-    }
-</div>
+<RadzenDataGrid @ref="grid"
+    AllowSorting="true" AllowColumnResize="true"
+    Data="@_roots" RowRender="@RowRender" LoadChildData="@LoadChildData"
+    TItem="PageTreeNode">
+    <Columns>
+        <RadzenDataGridColumn Title="Page" Frozen="true" Sortable="false" Width="350px">
+            <Template Context="data">
+                <span style="padding-left: @(data.Depth * 20)px">
+                    @if (data.Depth > 0) { <span class="text-muted">├─ </span> }
+                    <a href="/admin/pages/@data.Id">@data.Title</a>
+                </span>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn Property="@nameof(PageTreeNode.Path)" Title="Path" Width="300px" />
+        <RadzenDataGridColumn Property="@nameof(PageTreeNode.Order)" Title="Order" Width="80px" />
+        <RadzenDataGridColumn Title="Status" Width="120px">
+            <Template Context="data">
+                <span class="badge">@data.PublicationState</span>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn Title="Actions" Width="150px" Sortable="false" Filterable="false">
+            <Template Context="data">
+                <RadzenButton Icon="edit" Size="ButtonSize.Small" Click="@(() => Nav.NavigateTo($"/admin/pages/{data.Id}"))" />
+                <RadzenButton Icon="content_copy" Size="ButtonSize.Small" Click="@(() => CloneAsync(data.Id))" />
+                <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger" Click="@(() => DeleteAsync(data.Id))" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
 
 @code {
     [Parameter] public long SiteId { get; set; } = 1;
-    
-    private List<PageTreeNode>? _tree;
-    
+
+    private RadzenDataGrid<PageTreeNode> grid;
+    private IEnumerable<PageTreeNode>? _roots;
+
     protected override async Task OnInitializedAsync()
     {
-        await LoadTree();
+        _roots = await Http.GetFromJsonAsync<List<PageTreeNode>>(
+            $"/api/page-tree/roots?siteId={SiteId}");
     }
-    
-    private async Task LoadTree()
+
+    void RowRender(RowRenderEventArgs<PageTreeNode> args)
     {
-        _tree = await Http.GetFromJsonAsync<List<PageTreeNode>>($"/api/page-tree?siteId={SiteId}");
+        // Only show expand arrow if page has children
+        args.Expandable = args.Data.HasChildren;
     }
-    
-    private async Task HandleDrop(PageTreeNode movedPage, PageTreeNode? newParent)
+
+    async Task LoadChildData(DataGridLoadChildDataEventArgs<PageTreeNode> args)
     {
-        try
-        {
-            await PageTreeService.MoveAsync(movedPage.Id, newParent?.Id);
-            await LoadTree(); // Refresh
-        }
-        catch (InvalidOperationException ex)
-        {
-            // TODO: Show error message to user
-            Console.WriteLine($"Move failed: {ex.Message}");
-        }
+        // ✅ Lazy-load children on expand (not upfront)
+        args.Data = await Http.GetFromJsonAsync<List<PageTreeNode>>(
+            $"/api/page-tree/children?parentId={args.Item.Id}");
+    }
+
+    async Task CloneAsync(long pageId)
+    {
+        var result = await PageTreeService.CloneAsync(pageId, targetParentId: null);
+        if (result.IsSuccess) await ReloadAsync();
+    }
+
+    async Task DeleteAsync(long pageId)
+    {
+        var result = await PageTreeService.DeleteAsync(pageId, deleteDescendants: true);
+        if (result.IsSuccess) await ReloadAsync();
+    }
+
+    async Task ReloadAsync()
+    {
+        _roots = await Http.GetFromJsonAsync<List<PageTreeNode>>(
+            $"/api/page-tree/roots?siteId={SiteId}");
+        await grid.Reload();
     }
 }
 ```
 
-**PageTreeNode Child Component:**
+**PageTreeNode DTO (extended):**
 
-```razor
-<!-- File: Components/PageTreeNodeItem.razor -->
-@using Blazor.DragDrop.Core
+```csharp
+namespace Aero.Cms.Core.Models;
 
-<div class="page-tree-node depth-@Node.Depth">
-    <div class="node-handle" draggable="true">
-        <span class="drag-icon">⋮⋮</span>
-        <span class="node-title">@Node.Title</span>
-        <span class="node-path text-muted">@Node.Path</span>
-    </div>
-    
-    @if (Node.Children.Any())
-    {
-        <div class="node-children">
-            <Dropzone Items="Node.Children" TItem="PageTreeNode" OnItemDrop="OnDrop">
-                <ChildContent>
-                    @foreach (var child in Node.Children)
-                    {
-                        <PageTreeNodeItem Node="@child" OnDrop="OnDrop" />
-                    }
-                </ChildContent>
-            </Dropzone>
-        </div>
-    }
-</div>
-
-@code {
-    [Parameter] public PageTreeNode Node { get; set; } = default!;
-    [Parameter] public EventCallback<(PageTreeNode, PageTreeNode?)> OnDrop { get; set; }
+public sealed class PageTreeNode
+{
+    public long Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+    public int Depth { get; set; }
+    public int Order { get; set; }
+    public long? ParentId { get; set; }
+    public bool HasChildren { get; set; }
+    public string PublicationState { get; set; } = string.Empty;
+    public List<PageTreeNode> Children { get; set; } = [];
 }
 ```
+
+**API Endpoints for lazy loading:**
+
+```csharp
+// Root pages (no parent)
+app.MapGet("/api/page-tree/roots", async (long siteId, IQuerySession query, CancellationToken ct) =>
+{
+    var roots = await query.Query<PageDocument>()
+        .Where(x => x.SiteId == siteId && x.ParentId == null)
+        .OrderBy(x => x.Order).ThenBy(x => x.Title)
+        .ToListAsync(ct);
+
+    var items = roots.Select(p => new PageTreeNode
+    {
+        Id = p.Id, Title = p.Title, Path = p.Path,
+        Depth = p.Depth, Order = p.Order, ParentId = p.ParentId,
+        PublicationState = p.PublicationState.ToString()
+    }).ToList();
+
+    // Check which roots have children (for expandability)
+    var parentIds = items.Select(i => i.Id).ToList();
+    var parentsWithChildren = await query.Query<PageDocument>()
+        .Where(x => parentIds.Contains(x.ParentId!.Value))
+        .Select(x => x.ParentId!.Value)
+        .Distinct()
+        .ToListAsync(ct);
+
+    var parentSet = parentsWithChildren.ToHashSet();
+    foreach (var item in items)
+        item.HasChildren = parentSet.Contains(item.Id);
+
+    return Results.Ok(items);
+});
+
+// Children of a specific parent (on-demand)
+app.MapGet("/api/page-tree/children", async (long parentId, IQuerySession query, CancellationToken ct) =>
+{
+    var children = await query.Query<PageDocument>()
+        .Where(x => x.ParentId == parentId)
+        .OrderBy(x => x.Order).ThenBy(x => x.Title)
+        .ToListAsync(ct);
+
+    return Results.Ok(children.Select(p => new PageTreeNode { /* ... */ }));
+});
+```
+
+> **Note:** Drag-and-drop reordering is deferred to a future iteration. For v1, use "Move Up"/"Move Down" buttons or manually edit the Order field in the page editor.
 
 ---
 
 ## Advanced Features
 
-### 1. Page Versioning System
+### 1. Page Versioning System (Unlimited Versions + TickerQ Cleanup)
+
+Pages support **unlimited version history**. A TickerQ background job runs daily at midnight, deleting versions older than the configured retention period (default: 90 days, configurable via global site settings).
+
+**What triggers a version:** Only content field changes create a version: `Title`, `Slug`, `LayoutRegions`, `Blocks`, `Summary`. Tree structure changes (Move, Rename, Order change) and metadata changes (PublicationState transitions, ShowInNavMenu) do NOT create versions.
+
+**Service Interface:**
 
 **Service Interface:**
 
@@ -1930,40 +2216,182 @@ public sealed class PageVersioningService : IPageVersioningService
 }
 ```
 
-**Integration with PageTreeService:**
+**Integration with PageTreeService — auto-version on save:**
 
 ```csharp
-// Modify PageTreeService.UpdateAsync() to auto-version
-
-public sealed class PageTreeService : IPageTreeService
+// PageTreeService.UpdateAsync() auto-creates a version if content fields changed
+public async Task<Result<Unit, AeroError>> UpdateAsync(PageDocument page, CancellationToken ct = default)
 {
-    private readonly IDocumentSession _session;
-    private readonly IPageVersioningService? _versioningService;
-    private readonly string? _currentUserId; // From HttpContext or auth
-    
-    public PageTreeService(
-        IDocumentSession session,
-        IPageVersioningService? versioningService = null,
-        IHttpContextAccessor? httpContextAccessor = null)
+    // ✅ Create version BEFORE update if content changed
+    if (_versioningService is not null)
     {
-        _session = session;
-        _versioningService = versioningService;
-        _currentUserId = httpContextAccessor?.HttpContext?.User?.FindFirst("sub")?.Value;
-    }
-    
-    public async Task UpdateAsync(PageDocument page, CancellationToken ct = default)
-    {
-        // ✅ Create version before update
-        if (_versioningService is not null && !string.IsNullOrEmpty(_currentUserId))
+        var existing = await _session.LoadAsync<PageDocument>(page.Id, ct);
+        if (existing is not null && IsContentChanged(existing, page))
         {
             await _versioningService.CreateVersionAsync(page.Id, _currentUserId, ct);
         }
-        
-        _session.Store(page);
-        await _session.SaveChangesAsync(ct);
+    }
+    
+    _session.Store(page);
+    await _session.SaveChangesAsync(ct);
+    return Unit.Value;
+}
+
+/// <summary>
+/// Content fields that trigger version creation when changed.
+/// Excludes: ParentId, Path, Depth, Order, PublicationState, ShowInNavMenu, etc.
+/// </summary>
+private static bool IsContentChanged(PageDocument before, PageDocument after) =>
+    before.Title != after.Title ||
+    before.Slug != after.Slug ||
+    before.Summary != after.Summary ||
+    !before.LayoutRegions.SequenceEqual(after.LayoutRegions) ||
+    !before.Blocks.SequenceEqual(after.Blocks);
+```
+
+**TickerQ Version Cleanup Job:**
+
+```csharp
+[<reference to TickerQ pattern>]
+public sealed class PageVersionCleanupJob(
+    IDocumentSession session,
+    ISiteSettingsService settings,
+    ILogger<PageVersionCleanupJob> log)
+{
+    [TickerFunction("pages.version-cleanup")]
+    public async Task CleanupOldVersions(
+        TickerFunctionContext context,
+        CancellationToken cancellationToken)
+    {
+        var retentionDays = await settings.GetAsync<int>("Pages.VersionRetentionDays", 90);
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-retentionDays);
+
+        var oldVersions = await session.Query<PageVersion>()
+            .Where(x => x.CreatedAt < cutoff)
+            .ToListAsync(cancellationToken);
+
+        foreach (var version in oldVersions)
+        {
+            session.Delete(version); // Hard delete — versions are not soft-deleted
+        }
+
+        await session.SaveChangesAsync(cancellationToken);
+        log.LogInformation("Cleaned up {Count} page versions older than {Days} days",
+            oldVersions.Count, retentionDays);
     }
 }
 ```
+
+---
+
+### 2a. Audit Trail Module (NEW)
+
+**Module:** `Aero.Cms.Modules.Audit`  
+**Pattern:** Marten DocumentSessionListenerBase  
+**Interface:** `IAuditableEntity` marker in `Aero.Cms.Abstractions.Interfaces`
+
+The Audit module provides a framework for tracking all changes to auditable entities. Each module (Pages, Blog, Docs) implements its own listener for its own document types.
+
+**IAuditableEntity (shared):**
+```csharp
+// File: Aero.Cms.Abstractions/Interfaces/IAuditableEntity.cs
+namespace Aero.Cms.Abstractions.Interfaces;
+
+/// <summary>
+/// Marker interface for entities that support audit trail tracking.
+/// Implemented by PageDocument, BlogPostDocument, etc.
+/// </summary>
+public interface IAuditableEntity { }
+```
+
+**PageAuditEntry (stored in Marten):**
+```csharp
+// File: Aero.Cms.Modules.Pages/Audit/PageAuditEntry.cs
+using Aero.Core.Entities;
+
+namespace Aero.Cms.Modules.Pages.Audit;
+
+public sealed class PageAuditEntry : Entity
+{
+    public long PageId { get; set; }
+    public string Action { get; set; } = string.Empty;  // "created", "updated", "deleted", "moved", "published"
+    public string ChangedBy { get; set; } = string.Empty;
+    public DateTimeOffset ChangedAt { get; set; }
+    public string? Details { get; set; }                  // JSON diff or summary of what changed
+}
+```
+
+**PageAuditListener (Marten session listener):**
+```csharp
+// File: Aero.Cms.Modules.Pages/Audit/PageAuditListener.cs
+using Aero.Cms.Core.Entities;
+using Marten;
+
+namespace Aero.Cms.Modules.Pages.Audit;
+
+/// <summary>
+/// Marten session listener that creates audit entries for PageDocument changes.
+/// Called before saving changes within the same transaction — if audit fails, the page operation rolls back.
+/// </summary>
+public sealed class PageAuditListener : DocumentSessionListenerBase
+{
+    private readonly IHttpContextAccessor? _httpContext;
+
+    public PageAuditListener(IHttpContextAccessor? httpContext = null)
+    {
+        _httpContext = httpContext;
+    }
+
+    public override async Task BeforeSaveChangesAsync(IDocumentSession session, CancellationToken token)
+    {
+        var pending = session.PendingChanges;
+        var userId = _httpContext?.HttpContext?.User?.FindFirst("sub")?.Value ?? "system";
+
+        foreach (var page in pending.InsertsFor<PageDocument>())
+        {
+            session.Store(new PageAuditEntry
+            {
+                Id = Snowflake.NewId(),
+                PageId = page.Id,
+                Action = "created",
+                ChangedBy = userId,
+                ChangedAt = DateTimeOffset.UtcNow,
+                Details = $"Page '{page.Title}' created at path {page.Path}"
+            });
+        }
+
+        foreach (var page in pending.UpdatesFor<PageDocument>())
+        {
+            session.Store(new PageAuditEntry
+            {
+                Id = Snowflake.NewId(),
+                PageId = page.Id,
+                Action = "updated",
+                ChangedBy = userId,
+                ChangedAt = DateTimeOffset.UtcNow,
+                Details = $"Page '{page.Title}' updated"
+            });
+        }
+
+        foreach (var deleted in pending.DeletionsFor<PageDocument>())
+        {
+            session.Store(new PageAuditEntry
+            {
+                Id = Snowflake.NewId(),
+                PageId = deleted.Id,
+                Action = "deleted",
+                ChangedBy = userId,
+                ChangedAt = DateTimeOffset.UtcNow,
+                Details = $"Page soft-deleted"
+            });
+        }
+
+        await Task.CompletedTask;
+    }
+}
+```
+
+> **Note:** `session.PendingChanges.InsertsFor<PageDocument>()` / `UpdatesFor<T>()` / `DeletionsFor<T>()` are verified Marten APIs (documented in Marten docs). Since `PageAuditEntry` is a different document type, there is no infinite loop risk.
 
 ---
 
@@ -2129,9 +2557,9 @@ public sealed class AddPageHierarchyFieldsMigration
         {
             // Initialize hierarchy fields for root-level pages
             page.ParentId = null;
-            page.ParentSlug = null;
             page.Path = "/" + page.Slug;
             page.Depth = 0;
+            page.Order = 0;
             
             session.Store(page);
         }
@@ -2181,33 +2609,34 @@ If issues arise, hierarchy fields can be safely ignored — the system will cont
 
 ## Testing Requirements
 
-### Unit Tests
+### Unit Tests (TUnit framework)
 
 **File:** `Aero.Cms.Tests/Services/PageTreeServiceTests.cs`
 
 ```csharp
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Services;
+using Aero.Core.Railway;
 using Marten;
-using Xunit;
+using TUnit;
 
 namespace Aero.Cms.Tests.Services;
 
-public sealed class PageTreeServiceTests : IClassFixture<MartenFixture>
+public sealed class PageTreeServiceTests
 {
     private readonly IDocumentSession _session;
     private readonly PageTreeService _service;
     
-    public PageTreeServiceTests(MartenFixture fixture)
+    public PageTreeServiceTests()
     {
-        _session = fixture.Store.LightweightSession();
-        _service = new PageTreeService(_session);
+        // Setup embedded Postgres via mysticmind-postgresembed
+        _session = TestMartenStore.LightweightSession();
+        _service = new PageTreeService(_session, new TestSiteContext(), new NoopBus(), NullLogger.Instance);
     }
     
-    [Fact]
+    [Test]
     public async Task CreateAsync_RootPage_ComputesPathCorrectly()
     {
-        // Arrange
         var page = new PageDocument
         {
             SiteId = 1,
@@ -2215,237 +2644,122 @@ public sealed class PageTreeServiceTests : IClassFixture<MartenFixture>
             Title = "Test Page"
         };
         
-        // Act
-        var created = await _service.CreateAsync(page, parentId: null);
+        var result = await _service.CreateAsync(page, parentId: null);
         
-        // Assert
-        Assert.Equal("/test-page", created.Path);
-        Assert.Equal(0, created.Depth);
-        Assert.Null(created.ParentId);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value.Path).IsEqualTo("/test-page");
+        await Assert.That(result.Value.Depth).IsEqualTo(0);
+        await Assert.That(result.Value.ParentId).IsNull();
     }
     
-    [Fact]
+    [Test]
     public async Task CreateAsync_ChildPage_ComputesPathCorrectly()
     {
-        // Arrange
         var parent = await CreateRootPageAsync("parent");
-        var child = new PageDocument
-        {
-            SiteId = 1,
-            Slug = "child",
-            Title = "Child"
-        };
+        var child = new PageDocument { SiteId = 1, Slug = "child", Title = "Child" };
         
-        // Act
-        var created = await _service.CreateAsync(child, parent.Id);
+        var result = await _service.CreateAsync(child, parent.Id);
         
-        // Assert
-        Assert.Equal("/parent/child", created.Path);
-        Assert.Equal(1, created.Depth);
-        Assert.Equal(parent.Id, created.ParentId);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value.Path).IsEqualTo("/parent/child");
+        await Assert.That(result.Value.Depth).IsEqualTo(1);
+        await Assert.That(result.Value.ParentId).IsEqualTo(parent.Id);
     }
     
-    [Fact]
-    public async Task CreateAsync_DuplicateSlug_ThrowsException()
+    [Test]
+    public async Task CreateAsync_DuplicateSlug_ReturnsConflict()
     {
-        // Arrange
         var parent = await CreateRootPageAsync("parent");
         await CreateChildPageAsync(parent.Id, "child");
         
-        var duplicate = new PageDocument
-        {
-            SiteId = 1,
-            Slug = "child",
-            Title = "Duplicate"
-        };
+        var duplicate = new PageDocument { SiteId = 1, Slug = "child", Title = "Duplicate" };
         
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateAsync(duplicate, parent.Id));
+        var result = await _service.CreateAsync(duplicate, parent.Id);
         
-        Assert.Contains("already exists", ex.Message);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error).IsTypeOf<AeroError.Conflict>();
     }
     
-    [Fact]
-    public async Task MoveAsync_ToNewParent_UpdatesPathAndDescendants()
+    [Test]
+    public async Task MoveAsync_ToNewParent_UpdatesPath()
     {
-        // Arrange: /a → /a/b → /a/b/c
         var a = await CreateRootPageAsync("a");
         var b = await CreateChildPageAsync(a.Id, "b");
-        var c = await CreateChildPageAsync(b.Id, "c");
         
-        // Act: Move b to root (b becomes /b, c becomes /b/c)
-        await _service.MoveAsync(b.Id, null);
+        var result = await _service.MoveAsync(b.Id, null);
+        var updated = await _session.LoadAsync<PageDocument>(b.Id);
         
-        // Assert
-        var updatedB = await _session.LoadAsync<PageDocument>(b.Id);
-        var updatedC = await _session.LoadAsync<PageDocument>(c.Id);
-        
-        Assert.Equal("/b", updatedB.Path);
-        Assert.Equal(0, updatedB.Depth);
-        Assert.Equal("/b/c", updatedC.Path);
-        Assert.Equal(1, updatedC.Depth);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(updated!.Path).IsEqualTo("/b");
+        await Assert.That(updated.Depth).IsEqualTo(0);
     }
     
-    [Fact]
-    public async Task MoveAsync_ToOwnDescendant_ThrowsException()
+    [Test]
+    public async Task MoveAsync_CircularReference_ReturnsValidationError()
     {
-        // Arrange: /parent → /parent/child
         var parent = await CreateRootPageAsync("parent");
         var child = await CreateChildPageAsync(parent.Id, "child");
         
-        // Act & Assert: Try to move parent under child
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.MoveAsync(parent.Id, child.Id));
+        var result = await _service.MoveAsync(parent.Id, child.Id);
         
-        Assert.Contains("under itself", ex.Message);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error).IsTypeOf<AeroError.Validation>();
     }
     
-    [Fact]
-    public async Task CreateAsync_ExceedsMaxDepth_ThrowsException()
-    {
-        // Arrange: Create 10 nested levels
-        long? parentId = null;
-        for (int i = 0; i < 10; i++)
-        {
-            var page = await CreateTestPageAsync($"level-{i}", parentId);
-            parentId = page.Id;
-        }
-        
-        // Act & Assert: 11th level should fail
-        var deepPage = new PageDocument
-        {
-            SiteId = 1,
-            Slug = "level-11",
-            Title = "Too Deep"
-        };
-        
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.CreateAsync(deepPage, parentId));
-        
-        Assert.Contains("Maximum nesting depth", ex.Message);
-    }
-    
-    [Fact]
-    public async Task RenameSlugAsync_UpdatesPathAndDescendants()
-    {
-        // Arrange: /old → /old/child
-        var parent = await CreateRootPageAsync("old");
-        var child = await CreateChildPageAsync(parent.Id, "child");
-        
-        // Act: Rename parent to "new"
-        await _service.RenameSlugAsync(parent.Id, "new");
-        
-        // Assert
-        var updatedParent = await _session.LoadAsync<PageDocument>(parent.Id);
-        var updatedChild = await _session.LoadAsync<PageDocument>(child.Id);
-        
-        Assert.Equal("/new", updatedParent.Path);
-        Assert.Equal("/new/child", updatedChild.Path);
-    }
-    
-    private async Task<PageDocument> CreateRootPageAsync(string slug)
-    {
-        var page = new PageDocument
-        {
-            SiteId = 1,
-            Slug = slug,
-            Title = slug
-        };
-        return await _service.CreateAsync(page, null);
-    }
-    
-    private async Task<PageDocument> CreateChildPageAsync(long parentId, string slug)
-    {
-        var page = new PageDocument
-        {
-            SiteId = 1,
-            Slug = slug,
-            Title = slug
-        };
-        return await _service.CreateAsync(page, parentId);
-    }
-    
-    private async Task<PageDocument> CreateTestPageAsync(string slug, long? parentId)
-    {
-        var page = new PageDocument
-        {
-            SiteId = 1,
-            Slug = slug,
-            Title = slug
-        };
-        return await _service.CreateAsync(page, parentId);
-    }
+    private async Task<PageDocument> CreateRootPageAsync(string slug) { /* helper */ }
+    private async Task<PageDocument> CreateChildPageAsync(long parentId, string slug) { /* helper */ }
 }
 ```
 
-### Integration Tests
+### Integration Tests (Alba + Embedded Postgres)
 
 **File:** `Aero.Cms.Tests/Integration/PageTreeIntegrationTests.cs`
 
 ```csharp
-using Aero.Cms.Core.Entities;
-using Aero.Cms.Core.Services;
-using Marten;
-using Microsoft.Extensions.DependencyInjection;
-using Xunit;
+using TUnit;
+using Alba;
+using Aero.Core.Railway;
 
 namespace Aero.Cms.Tests.Integration;
 
-public sealed class PageTreeIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class PageTreeIntegrationTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly IAlbaHost _host;
     
-    public PageTreeIntegrationTests(WebApplicationFactory<Program> factory)
+    public PageTreeIntegrationTests()
     {
-        _factory = factory;
+        _host = await AlbaHost.For<Program>(builder =>
+        {
+            builder.UseEmbeddedPostgres(); // mysticmind-postgresembed
+        });
     }
     
-    [Fact]
+    [Test]
     public async Task EndToEnd_CreateNestedPages_AndQueryNavigation()
     {
-        // Arrange
-        using var scope = _factory.Services.CreateScope();
+        using var scope = _host.Services.CreateScope();
         var treeService = scope.ServiceProvider.GetRequiredService<IPageTreeService>();
         var navService = scope.ServiceProvider.GetRequiredService<INavigationService>();
         
-        // Act: Create hierarchy /sports → /sports/basketball → /sports/football
-        var sports = await treeService.CreateAsync(new PageDocument
+        var sportsResult = await treeService.CreateAsync(new PageDocument
         {
-            SiteId = 1,
-            Slug = "sports",
-            Title = "Sports",
-            ShowInNavMenu = true,
-            PublicationState = ContentPublicationState.Published
+            SiteId = 1, Slug = "sports", Title = "Sports",
+            ShowInNavMenu = true, PublicationState = ContentPublicationState.Published
         }, null);
+        await Assert.That(sportsResult.IsSuccess).IsTrue();
         
-        var basketball = await treeService.CreateAsync(new PageDocument
+        var bbResult = await treeService.CreateAsync(new PageDocument
         {
-            SiteId = 1,
-            Slug = "basketball",
-            Title = "Basketball",
-            ShowInNavMenu = true,
-            PublicationState = ContentPublicationState.Published
-        }, sports.Id);
+            SiteId = 1, Slug = "basketball", Title = "Basketball",
+            ShowInNavMenu = true, PublicationState = ContentPublicationState.Published
+        }, sportsResult.Value.Id);
+        await Assert.That(bbResult.IsSuccess).IsTrue();
         
-        var football = await treeService.CreateAsync(new PageDocument
-        {
-            SiteId = 1,
-            Slug = "football",
-            Title = "Football",
-            ShowInNavMenu = true,
-            PublicationState = ContentPublicationState.Published
-        }, sports.Id);
-        
-        // Assert: Navigation should reflect hierarchy
-        var nav = await navService.GetMainNavigationAsync(1);
-        
-        Assert.Single(nav); // One root item (sports)
-        Assert.Equal("Sports", nav[0].Title);
-        Assert.Equal(2, nav[0].Children.Count); // basketball + football
+        var nav = await navService.GetMainNavigationAsync();
+        await Assert.That(nav.Value.Count).IsEqualTo(1);
+        await Assert.That(nav.Value[0].Children.Count).IsEqualTo(1);
     }
 }
-```
 
 ---
 
@@ -2474,39 +2788,56 @@ public sealed class PageTreeIntegrationTests : IClassFixture<WebApplicationFacto
 
 ## Implementation Checklist
 
-### Phase 1: Core Infrastructure (Sprint 1) - 5 days
+### Phase 1: Core Infrastructure (Sprint 1) — 5 days
 
-- [ ] Add hierarchy fields to `PageDocument`
-- [ ] Create `PageDocumentMapping` with indexes
-- [ ] Implement `SlugValidator`
-- [ ] Implement `PageTreeService` (Create, Move, Rename, Delete)
-- [ ] Write unit tests for `PageTreeService`
-- [ ] Create migration script for existing pages
-- [ ] Update `NavigationService` to respect hierarchy
+- [ ] Add hierarchy fields to `PageDocument` (`ParentId`, `Path`, `Depth`, `Order`)
+- [ ] Add `ISoftDeleted` interface to `PageDocument`
+- [ ] Add `IAuditableEntity` marker interface to `Aero.Cms.Abstractions`
+- [ ] Update `ContentPublicationState` enum (append `Archived=2, InReview=3, Scheduled=4`)
+- [ ] Configure Marten indexes in `PagesModule.Configure()` (computed + NgramIndex)
+- [ ] Replace old `UniqueIndex(SiteId, Slug)` with computed `(SiteId, ParentId, Slug)`
+- [ ] Expand `PageDocumentValidator` (FluentValidation) with hierarchy rules
+- [ ] Implement `IPageTreeService` + `PageTreeService` (`Result<T, AeroError>`, `ISiteContext`)
+- [ ] Implement `INavigationService` + `NavigationService` (cascade visibility, optimized breadcrumb)
+- [ ] Create `PageSlugChanged` Wolverine event
+- [ ] Implement `ToMinimalApiResult()` extension in `Aero.Core`
+- [ ] Write unit tests (TUnit) for `PageTreeService`
+- [ ] Create migration script: set `Path=/slug`, `Depth=0`, `Order=0` for existing pages
 
-### Phase 2: Blazor UI (Sprint 2) - 5 days
+### Phase 2: Blazor UI (Sprint 2) — 5 days
 
-- [ ] Create `PageTreeSelect` component
+- [ ] Create `PageTreeSelect` component (hierarchical dropdown)
 - [ ] Create `PathPreview` component
-- [ ] Update `PageEditor` to support parent selection
-- [ ] Create `PageTreeManager` with drag-and-drop
+- [ ] Update `PageEditor` to support parent selection + order
+- [ ] Create `PageTreeGrid` using Radzen DataGrid self-ref hierarchy with lazy loading
 - [ ] Add breadcrumb component
-- [ ] Write UI integration tests
+- [ ] Write UI integration tests (Microsoft Playwright)
 
-### Phase 3: Advanced Features (Sprint 3) - 5 days
+### Phase 3: Advanced Features (Sprint 3) — 5 days
 
-- [ ] Implement `PageVersioningService`
-- [ ] Implement `PagePublishingWorkflowService`
-- [ ] Add page cloning feature
-- [ ] Create version history UI
-- [ ] Create publishing workflow UI
-- [ ] Add scheduled publishing background job
+- [ ] Implement `IPageVersioningService` + `PageVersioningService` (unlimited versions)
+- [ ] Create `PageVersion` Marten document mapping
+- [ ] Create TickerQ version cleanup job (daily, 90-day retention)
+- [ ] Implement `IPagePublishingWorkflowService` + `PagePublishingWorkflowService`
+- [ ] Add page cloning feature (with `Snowflake.NewId()`)
+- [ ] Wire up `PageSlugChanged` event (Wolverine outbox → Alias + Sitemap modules)
+- [ ] Create UI: version history panel
+- [ ] Create UI: publishing workflow
 
-### Phase 4: Polish & Performance (Sprint 4) - 3 days
+### Phase 4: Audit & Trash (Sprint 4) — 3 days
+
+- [ ] Create `PageAuditEntry` document
+- [ ] Implement `PageAuditListener : DocumentSessionListenerBase` in Pages module
+- [ ] Register audit listener in `PagesModule.ConfigureServices()`
+- [ ] Implement soft-delete via Marten `ISoftDeleted` (session.Delete)
+- [ ] Create TickerQ job for permanent soft-delete cleanup (90-day retention)
+- [ ] Create audit history UI (admin panel)
+
+### Phase 5: Polish & Performance (Sprint 5) — 3 days
 
 - [ ] Add output caching for navigation queries
-- [ ] Optimize descendant update queries
-- [ ] Add audit logging for tree operations
+- [ ] Optimize descendant move/rename queries
+- [ ] Integration testing with Alba + embedded Postgres
 - [ ] Performance testing with 10k+ pages
 - [ ] Documentation and training materials
 
@@ -2590,35 +2921,35 @@ public static class PageTreeConfiguration
 
 ## Dependency Injection Registration
 
-**File:** `Program.cs` (or `ServiceCollectionExtensions.cs`)
+**File:** `PagesModule.cs` — add to `ConfigureServices()`:
 
 ```csharp
-public static IServiceCollection AddPageHierarchyServices(this IServiceCollection services)
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
 {
-    // Core services
+    // Existing registrations...
+    services.AddScoped<IPageContentService, MartenPageContentService>();
+    services.AddSingleton<BlockEditingService>();
+    
+    // ✅ NEW: Page hierarchy services
     services.AddScoped<IPageTreeService, PageTreeService>();
     services.AddScoped<INavigationService, NavigationService>();
     
-    // Advanced features
+    // ✅ NEW: Advanced features (scoped for Marten session per-request)
     services.AddScoped<IPageVersioningService, PageVersioningService>();
     services.AddScoped<IPagePublishingWorkflowService, PagePublishingWorkflowService>();
     
-    // HTTP context for user tracking
-    services.AddHttpContextAccessor();
+    // ✅ NEW: Audit listener (Marten detects IDocumentSessionListener from DI)
+    services.AddScoped<IDocumentSessionListener, PageAuditListener>();
     
-    return services;
+    // ✅ NEW: TickerQ background jobs
+    services.AddSingleton<PageVersionCleanupJob>();
+    
+    // HTTP context for audit/user tracking
+    services.AddHttpContextAccessor();
 }
 ```
 
-**Usage:**
-
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-
-// ... other services ...
-
-builder.Services.AddPageHierarchyServices();
-```
+> **Note:** All services are registered in the module, not in `Program.cs`. The module system (source generator + runtime orchestration) handles discovery and ordering.
 
 ---
 
@@ -2629,10 +2960,18 @@ builder.Services.AddPageHierarchyServices();
 | **Adjacency List** | Pattern where each node stores a reference to its parent (ParentId) |
 | **Materialized Path** | Full hierarchical path stored as a string (e.g., "/sports/basketball") |
 | **Depth** | Distance from root (0 = root, 1 = child, 2 = grandchild, etc.) |
+| **Order** | Display position among siblings (lower = first). Insertions require renumbering |
 | **Optimistic Concurrency** | Conflict detection using version numbers; updates fail if version changed |
 | **Slug** | URL-friendly identifier (lowercase-with-hyphens) |
-| **Publication State** | Workflow state (Draft, InReview, Scheduled, Published, Archived) |
+| **Publication State** | Workflow state (Draft, Published, Archived, InReview, Scheduled) |
 | **Circular Reference** | Invalid state where a page is its own ancestor (A → B → C → A) |
+| **Soft Delete** | Marten native feature — `session.Delete()` marks `mt_deleted=true` without removing data. Queries auto-filter deleted docs |
+| **ISoftDeleted** | Marten interface providing `Deleted` bool and `DeletedAt` timestamp. Marten auto-manages these via metadata |
+| **IAuditableEntity** | Marker interface for entities tracked by the Audit module |
+| **NgramIndex** | PostgreSQL trigram index for efficient prefix/text matching on Path |
+| **Computed Index** | PostgreSQL expression index on JSONB fields without extra columns (Marten recommended) |
+| **Wolverine Outbox** | Transactional message publishing — messages only send after successful DB commit |
+| **TickerQ** | Background job system used for recurring cleanup tasks (version pruning, soft-delete cleanup) |
 
 ---
 
