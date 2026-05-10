@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Jobs;
 
+[Module(nameof(JobsModule))]
 public class JobsModule : AeroModuleBase
 {
     public override string Name => nameof(JobsModule);

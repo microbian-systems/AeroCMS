@@ -1,11 +1,13 @@
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
 using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Entities;
 
-public sealed class DocsPage : Entity
+public sealed class DocsPage : Entity, ISiteOwned
 {
+    public long SiteId { get; set; }
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Summary { get; set; }

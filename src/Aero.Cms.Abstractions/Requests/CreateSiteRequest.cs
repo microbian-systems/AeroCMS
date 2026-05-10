@@ -4,7 +4,8 @@ namespace Aero.Cms.Abstractions.Requests;
 [Alias("CreateSiteRequest")]
 public record CreateSiteRequest(
     string? Name,
-    string? Hostname,
+    string? PrimaryHost,
+    List<string>? Hosts = null,
     string? Description = null,
     bool IsDefault = false
 ) : IRequest;
@@ -14,7 +15,8 @@ public record CreateSiteRequest(
 public record UpdateSiteRequest(
     long Id,
     string? Name,
-    string? Hostname,
+    string? PrimaryHost,
+    List<string>? Hosts = null,
     string? Description = null,
     bool IsDefault = false
 ): IRequest;

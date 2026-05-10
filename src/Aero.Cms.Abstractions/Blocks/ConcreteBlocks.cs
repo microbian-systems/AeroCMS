@@ -156,6 +156,11 @@ public class EmbedBlock : BlockBase
     /// </summary>
     public string? ThumbnailUrl { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether the embedded content should auto-play.
+    /// </summary>
+    public bool AutoPlay { get; set; }
+
     /// <inheritdoc />
     public override string BlockType => "embed";
 

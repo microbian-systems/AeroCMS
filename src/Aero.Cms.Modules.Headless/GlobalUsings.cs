@@ -13,3 +13,4 @@ global using System;
 global using System.Linq;
 global using Aero.Cms.Abstractions.Http.Clients;
 global using Aero.Core.Railway;
+global using Aero.Cms.Abstractions.Blocks;

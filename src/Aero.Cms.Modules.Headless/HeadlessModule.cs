@@ -9,12 +9,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Scalar.AspNetCore;
+using Aero.Modular;
 
 namespace Aero.Cms.Modules.Headless;
 
 /// <summary>
 /// Aero CMS Admin module - provides admin functionality for publishing and previewing content.
 /// </summary>
+[Module(nameof(HeadlessModule))]
 public sealed class HeadlessModule : AeroWebModule
 {
     public override string Name => nameof(HeadlessModule);
@@ -61,8 +63,11 @@ public sealed class HeadlessModule : AeroWebModule
         builder.MapSettingsApi();
         builder.MapProfileApi();
         builder.MapBlocksApi();
+        builder.MapContentTypesApi();
+        builder.MapContentItemsApi();
         builder.MapJwtApi();
         builder.MapAuthApi();
+        builder.MapAliasesApi();
 
         // todo - put scalar behind a gated login (auth filter)
         builder.MapOpenApi();

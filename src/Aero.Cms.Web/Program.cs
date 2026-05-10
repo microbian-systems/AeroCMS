@@ -7,6 +7,8 @@ using Aero.Cms.Web.Services;
 using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Core.Extensions;
+using Aero.Cms.Contracts.Abstractions;
+using Aero.Cms.Contracts.Services;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Components;
 using Aero.Web.Exceptions;
@@ -19,6 +21,14 @@ using System.IO;
 using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Http;
+using Aero.Cms.Web.Generated;
+using Aero.Cms.Modules.Modules.Services;
+using Aero.Social.Abstractions;
+using Aero.Cms.Web.Infrastructure;
+using Aero.Core.Http;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Hydro.Configuration;
 
 
 // Implements a two-stage startup pattern:
@@ -206,8 +216,10 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     // Add service defaults
     builder.AddServiceDefaults();
 
-    // Add Aero Application Server (Orleans, Marten, etc.)
-    await builder.AddAeroApplicationServer();
+    // Add Aero Application Server (Orleans, Marten, Wolverine, etc.)
+    // Pass the source-generated Wolverine handler catalog to avoid assembly scanning.
+    _ = await builder.AddAeroApplicationServer(
+        configureWolverine: GeneratedWolverineHandlerCatalog.Register);
 
     // Keep the web data layer aligned with the resolved infrastructure settings.
     // AddAeroDataLayer currently reads ConnectionStrings:aero from configuration,
@@ -263,6 +275,15 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     var baseUrl = config["ApiSettings:BaseUrl"];
     services.AddAeroHttpClients(baseUrl is not null ? new Uri(baseUrl) : null);
     services.AddScoped<ManagerThemeService>();
+    services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
+    services.AddScoped<Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor, CurrentSiteAccessor>();
+    services.AddScoped<AppState>();
+    services.AddScoped<IAdminStorage, NoopAdminStorage>();
+    services.AddScoped<AdminStateContainer>();
+
+    // Override the NoopSiteContext (WASM-safe singleton) with the real server-side
+    // DefaultSiteContext that reads IAeroSiteSlice from middleware or AeroCms.SiteId cookie.
+    services.Replace(ServiceDescriptor.Scoped<ISiteContext, DefaultSiteContext>());
 
     services.AddProblemDetails(options =>
     {
@@ -273,8 +294,21 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     });
     services.AddExceptionHandler<AeroGlobalExceptionHandler>();
 
-    // Add full Aero CMS runtime services
-    var (_, log) = await builder.AddAeroCmsRuntimeAsync<Program>();
+    // Add full Aero CMS runtime services using source-generated module catalog.
+    // GeneratedRequired ensures startup fails loudly if the generator is broken.
+    var (_, log) = await builder.AddAeroCmsRuntimeAsync<Program>(
+        GeneratedAeroModuleCatalog.Descriptors);
+
+    // Register the generated descriptors so setup seeding services
+    // (resolved from DI) can persist module state without reflection.
+    services.AddSingleton(GeneratedAeroModuleCatalog.Descriptors);
+
+    // Social plug discovery now uses provider-declared plugs via
+    // GetDeclaredPlugs() overrides — no reflection or startup catalog needed.
+    // ReflectionSocialPlugCatalog has been removed.
+
+    services.AddHydro();
+
 
     log.Information("Building main Aero CMS app...");
 
@@ -294,18 +328,37 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
         app.UseHsts();
     }
 
-    app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
     app.UseHttpsRedirection();
-    app.MapStaticAssets();
+    app.UseAeroApplicationServer();
+    app.UseStatusCodePagesWithReExecute("/oops", "?status={0}");
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            var statusCodePagesFeature = context.Features.Get<IStatusCodePagesFeature>();
+            if (statusCodePagesFeature is not null)
+            {
+                statusCodePagesFeature.Enabled = false;
+            }
+        }
+
+        await next();
+    });
     app.UseRouting();
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseCmsSetupGate();
-    // Output caching — policies defined in OutputCacheModule.
-    // TODO: Extract IConfigurePipeline interface so modules can register middleware themselves.
-    app.UseOutputCache();
+    app.UseAeroCmsModulePipeline();
     app.UseAntiforgery();
 
+    // Hydro MUST come before MapStaticAssets because it replaces
+    // IWebHostEnvironment.WebRootFileProvider with a CompositeFileProvider
+    // that maps /hydro/* paths to embedded JS resources. MapStaticAssets
+    // snapshots the provider at config time; if placed before UseHydro,
+    // it never sees the Hydro scripts.
+    app.UseHydro(builder.Environment);
+    app.MapStaticAssets();
     app.MapRazorPages();
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode()

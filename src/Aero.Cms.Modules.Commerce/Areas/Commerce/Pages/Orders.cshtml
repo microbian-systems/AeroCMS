@@ -1,0 +1,41 @@
+@page "/shop/orders"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@model OrdersModel
+@{
+    ViewData["Title"] = "Orders";
+    ViewData["HeaderTitle"] = "Orders";
+    ViewData["HeaderSubtitle"] = "";
+}
+
+<div class="eshop-orders">
+    @if (Model.Orders is null)
+    {
+        <p class="eshop-loading">Loading...</p>
+    }
+    else if (Model.Orders.Count == 0)
+    {
+        <p class="eshop-orders-empty">You haven't yet placed any orders.</p>
+    }
+    else
+    {
+        <ul class="eshop-orders-list" style="list-style:none;padding:0;">
+            <li class="eshop-orders-item eshop-orders-header">
+                <div>Number</div>
+                <div>Date</div>
+                <div class="total-header">Total</div>
+                <div>Status</div>
+            </li>
+            @foreach (var order in Model.Orders)
+            {
+                <li class="eshop-orders-item">
+                    <div class="order-number">@order.Id</div>
+                    <div class="order-date">@order.CreatedOn.ToString("MMM dd, yyyy")</div>
+                    <div class="order-total">$@order.TotalAmount.ToString("0.00")</div>
+                    <div class="order-status">
+                        <span class="status @order.Status.ToString().ToLowerInvariant()">@order.Status</span>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</div>

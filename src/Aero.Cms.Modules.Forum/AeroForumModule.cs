@@ -10,6 +10,7 @@ namespace Aero.Cms.Modules.Forum;
 /// <summary>
 /// reddit style forum module for async discussions
 /// </summary>
+[Module(nameof(AeroForumModule))]
 public class AeroForumModule : AeroModuleBase
 {
     public override string Name { get; } = nameof(AeroForumModule);

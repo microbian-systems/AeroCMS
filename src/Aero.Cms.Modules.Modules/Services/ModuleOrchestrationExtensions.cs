@@ -13,15 +13,16 @@ namespace Aero.Cms.Modules.Modules.Services;
 public static class ModuleOrchestrationExtensions
 {
     /// <summary>
-    /// Registers core module system services (discovery, graph, etc.)
+    /// Registers core module system services (graph, state merger, options).
+    /// Reflection-based discovery is no longer required — use generated descriptors.
     /// </summary>
     public static IServiceCollection AddModuleSystemServices(this IServiceCollection services)
     {
-        // Register discovery service
-        services.TryAddScoped<IModuleDiscoveryService, ModuleDiscoveryService>();
-
         // Register graph service
         services.TryAddScoped<IModuleGraphService, ModuleGraphService>();
+
+        // Register runtime state merger
+        services.TryAddScoped<IModuleRuntimeStateMerger, ModuleRuntimeStateMerger>();
 
         // Register options
         services.AddOptions<ModuleDiscoveryOptions>();
@@ -31,12 +32,14 @@ public static class ModuleOrchestrationExtensions
     }
 
     /// <summary>
-    /// Synchronous wrapper for adding Aero modules.
+    /// Synchronous wrapper for adding Aero modules with generated catalog.
     /// </summary>
     public static IServiceCollection AddAeroModules(
         this IServiceCollection services,
         IConfiguration config,
-        IHostEnvironment env) => services.AddAeroModulesAsync(config, env).GetAwaiter().GetResult();
+        IHostEnvironment env,
+        IReadOnlyList<ModuleDescriptor> generatedDescriptors)
+        => services.AddAeroModulesAsync(config, env, generatedDescriptors).GetAwaiter().GetResult();
 
     /// <summary>
     /// Alias for <see cref="AddAeroModules"/>.
@@ -44,42 +47,68 @@ public static class ModuleOrchestrationExtensions
     public static IServiceCollection AddAeroCmsModules(
         this IServiceCollection services,
         IConfiguration config,
-        IHostEnvironment env) => services.AddAeroModules(config, env);
+        IHostEnvironment env,
+        IReadOnlyList<ModuleDescriptor> generatedDescriptors)
+        => services.AddAeroModules(config, env, generatedDescriptors);
 
     /// <summary>
-    /// Discovers, validates, and registers Aero modules in dependency order.
+    /// Validates and registers source-generated Aero modules in dependency order.
+    /// Requires a non-null, non-empty generated descriptor catalog.
     /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">Application configuration.</param>
+    /// <param name="environment">Host environment.</param>
+    /// <param name="generatedDescriptors">
+    /// Source-generated module descriptors. Must be non-null and non-empty.
+    /// </param>
+    /// <exception cref="ModuleSystemStartupException">
+    /// Thrown when <paramref name="generatedDescriptors"/> is null or empty.
+    /// </exception>
     public static async Task<IServiceCollection> AddAeroModulesAsync(
         this IServiceCollection services,
         IConfiguration configuration,
-        IHostEnvironment environment)
+        IHostEnvironment environment,
+        IReadOnlyList<ModuleDescriptor> generatedDescriptors)
     {
-        // Use local service provider for discovery phase to avoid temporary provider issues
-        var discoveryServices = new ServiceCollection();
-        discoveryServices.AddSingleton(environment);
-        discoveryServices.AddLogging();
-        discoveryServices.AddOptions();
-        discoveryServices.AddModuleSystemServices();
+        ArgumentNullException.ThrowIfNull(generatedDescriptors);
 
-        // Add discovery options from configuration
-        discoveryServices.Configure<ModuleDiscoveryOptions>(configuration.GetSection("ModuleDiscovery"));
+        if (generatedDescriptors.Count == 0)
+        {
+            throw new ModuleSystemStartupException(
+                "Generated module catalog is empty. The source generator or analyzer reference may be misconfigured.");
+        }
 
-        await using var discoveryProvider = discoveryServices.BuildServiceProvider();
-        using var scope = discoveryProvider.CreateScope();
-        var discoveryService = scope.ServiceProvider.GetRequiredService<IModuleDiscoveryService>();
-        var graphService = scope.ServiceProvider.GetRequiredService<IModuleGraphService>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Aero.Cms.Modules.Startup");
+        // Use local service provider for setup phase (logging, graph service)
+        var setupServices = new ServiceCollection();
+        setupServices.AddSingleton(environment);
+        setupServices.AddLogging();
+        setupServices.AddOptions();
+        setupServices.AddModuleSystemServices();
+        setupServices.Configure<ModuleDiscoveryOptions>(configuration.GetSection("ModuleDiscovery"));
 
-        // Discover modules
-        var descriptors = await discoveryService.DiscoverAsync();
+        await using var setupProvider = setupServices.BuildServiceProvider();
+        using var scope = setupProvider.CreateScope();
+        var sp = scope.ServiceProvider;
+
+        var graphService = sp.GetRequiredService<IModuleGraphService>();
+        var stateMerger = new ModuleRuntimeStateMerger(
+            sp.GetService<IModuleStateStore>(),
+            sp.GetRequiredService<ILogger<ModuleRuntimeStateMerger>>());
+        var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("Aero.Cms.Modules.Startup");
+
+        // Use source-generated descriptors merged with stored database state
+        logger.LogInformation("Using source-generated module catalog with {Count} descriptor(s).",
+            generatedDescriptors.Count);
+
+        var descriptors = await stateMerger.MergeAsync(generatedDescriptors);
 
         logger.LogInformation("Discovered {ModuleCount} Aero modules: {ModuleNames}",
             descriptors.Count,
-            string.Join(", ", descriptors.Select(descriptor => descriptor.Name).OrderBy(name => name)));
+            string.Join(", ", descriptors.Select(d => d.Name).OrderBy(name => name)));
 
         if (descriptors.Count == 0)
         {
-            // No modules discovered - register empty module set
+            // No modules discovered — register empty module set
             logger.LogWarning("No Aero modules were discovered. Module registration will be skipped.");
             return services;
         }
@@ -97,7 +126,7 @@ public static class ModuleOrchestrationExtensions
         var graph = graphService.BuildGraph(descriptors);
 
         logger.LogInformation("Resolved Aero module load order: {ModuleLoadOrder}",
-            string.Join(" -> ", graph.LoadOrder.Select(descriptor => descriptor.Name)));
+            string.Join(" -> ", graph.LoadOrder.Select(d => d.Name)));
 
         // Create module builder for composition
         var moduleBuilder = new AeroModuleBuilder(services, configuration, environment);
@@ -110,7 +139,7 @@ public static class ModuleOrchestrationExtensions
             // Also register as self for concrete access
             services.TryAddSingleton(descriptor.ModuleType);
 
-            // Register specialized interfaces
+            // Register specialized interfaces (reflection-free for generated descriptors)
             RegisterSpecializedInterfaces(services, descriptor);
         }
 
@@ -145,52 +174,74 @@ public static class ModuleOrchestrationExtensions
 
     private static void RegisterSpecializedInterfaces(IServiceCollection services, ModuleDescriptor descriptor)
     {
-        if (descriptor.IsUiModule)
+        // Use marker flags from ModuleDescriptor first (source-generated / metadata-driven)
+        // Fall back to IsAssignableFrom for legacy reflection descriptors where flags may be unset
+
+        if (descriptor.IsUiModule || typeof(IUiModule).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IUiModule), descriptor.ModuleType));
         }
 
-        if (typeof(IApiModule).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsApiModule || typeof(IApiModule).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IApiModule), descriptor.ModuleType));
         }
 
-        if (typeof(IBackgroundModule).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsBackgroundModule || typeof(IBackgroundModule).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IBackgroundModule), descriptor.ModuleType));
         }
 
-        if (typeof(IThemeModule).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsThemeModule || typeof(IThemeModule).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IThemeModule), descriptor.ModuleType));
         }
 
-        if (typeof(IAdminModule).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsAdminModule || typeof(IAdminModule).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IAdminModule), descriptor.ModuleType));
         }
 
-        if (typeof(IFilterModule).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsFilterModule || typeof(IFilterModule).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IFilterModule), descriptor.ModuleType));
         }
 
-        if (typeof(IContentDefinitionModule).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsContentDefinitionModule || typeof(IContentDefinitionModule).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IContentDefinitionModule), descriptor.ModuleType));
         }
 
         // Automatically register Marten configuration if implemented by the module
-        if (typeof(global::Marten.IConfigureMarten).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsMartenConfigurator || typeof(global::Marten.IConfigureMarten).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::Marten.IConfigureMarten), descriptor.ModuleType));
         }
 
-        if (typeof(global::Marten.IAsyncConfigureMarten).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsAsyncMartenConfigurator || typeof(global::Marten.IAsyncConfigureMarten).IsAssignableFrom(descriptor.ModuleType))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::Marten.IAsyncConfigureMarten), descriptor.ModuleType));
         }
     }
-
 }
 
+/// <summary>
+/// Controls module catalog sourcing and failure behavior.
+/// </summary>
+public enum ModuleCatalogMode
+{
+    /// <summary>
+    /// When generated descriptors are null, fall back to legacy reflection discovery.
+    /// When generated descriptors are empty, return no modules without error.
+    /// Suitable for tests, tools, and transitional setups.
+    /// </summary>
+    LegacyFallbackAllowed,
+
+    /// <summary>
+    /// Require a non-null, non-empty generated descriptor catalog.
+    /// Throws <see cref="ModuleSystemStartupException"/> if the catalog is
+    /// null or empty. Used by <c>Aero.Cms.Web</c> to fail loudly when the
+    /// source generator or analyzer reference is broken.
+    /// </summary>
+    GeneratedRequired,
+}

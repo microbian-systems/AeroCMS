@@ -5,33 +5,34 @@ using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries.Base;
 
-public class EntityByIdQuery<T> : EntityByIdQuery<T, long>
-    where T : Entity;
-
-public class EntityByIdQuery<T, TKey> : ICompiledQuery<T, T?>
-    where T : IEntity<TKey>
-    where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
+/// <summary>
+/// Compiled query to load a single document by its <c>long</c> identity.
+/// Uses <c>==</c> directly (not <c>IEquatable&lt;&gt;.Equals()</c>) so Marten's LINQ
+/// provider can translate it to SQL.
+/// </summary>
+public class EntityByIdQuery<T> : ICompiledQuery<T, T?>
+    where T : IEntity<long>
 {
-    public required TKey Id { get; set; }
+    public required long Id { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, T?>> QueryIs()
+    public Expression<Func<IMartenQueryable<T>, T?>> QueryIs()
     {
-        return q => q.FirstOrDefault(x => x.Id.Equals(Id));
+        return q => q.FirstOrDefault(x => x.Id == Id);
     }
 }
 
-public abstract class EntityByIdQueryList<T> : EntityByIdQueryList<T, long>
-    where T : notnull, Entity;
-
-public abstract class EntityByIdQueryList<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : notnull, Entity
-    where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
+/// <summary>
+/// Compiled query to load documents by a <c>long</c> identity (returns a list).
+/// Uses <c>==</c> for Marten-compatible SQL translation.
+/// </summary>
+public abstract class EntityByIdQueryList<T> : ICompiledQuery<T, IList<T>>
+    where T : notnull, IEntity<long>
 {
-    public TKey Id { get; set; }
+    public long Id { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
     {
-        return q => q.Where(x => x.Id.Equals(Id)).ToList();
+        return q => q.Where(x => x.Id == Id).ToList();
     }
 }
 

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Grpc;
 
+[Module(nameof(GrpcModule))]
 public class GrpcModule : AeroModuleBase
 {
     public override string Name => nameof(GrpcModule);

@@ -12,17 +12,18 @@
 @using Aero.Cms.Shared.Layout
 @using Microsoft.AspNetCore.Components.Sections
 @using Aero.Cms.Core
+@using Aero.Cms.Shared.Components
 
 @* ── Editor area (Content) ───────────────────────────── *@
 @* Note: .pe-editor-area is now provided by ManagerShellLayout *@
 @* We just need to handle the internal page header and block container *@
 
 <div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
-    <button class="pe-tab-btn @(ActiveTab == "editor" ? "active" : "")" 
+    <button class="@TabBtnClass("editor")" 
             @onclick='() => ActiveTab = "editor"'>
         Content Editor
     </button>
-    <button class="pe-tab-btn @(ActiveTab == "metadata" ? "active" : "")" 
+    <button class="@TabBtnClass("metadata")" 
             @onclick='() => ActiveTab = "metadata"'>
         Metadata
     </button>
@@ -35,7 +36,7 @@
 {
     <div class="pe-page-header">
         <input class="pe-page-title-input" type="text" placeholder="Page Title"
-               value="@PageTitle" @oninput="e => PageTitle = e.Value?.ToString() ?? string.Empty"/>
+               value="@PageTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)"/>
         <div class="pe-page-meta">
             <div class="pe-meta-left">
                 <span class="pe-meta-item">
@@ -69,183 +70,108 @@
                     </svg>
                     @(IsSaving ? "Saving..." : "Save")
                 </button>
-                <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPage">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    Publish
-                </button>
+                @if (PublicationState == ContentPublicationState.Published)
+                {
+                    <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="UnpublishPage">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Unpublish
+                    </button>
+                }
+                else
+                {
+                    <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPage">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Publish
+                    </button>
+                }
             </div>
         </div>
-    </div>
-}
-
-@* Preview device toolbar *@
-@if (PreviewMode)
-{
-    <div class="pe-preview-header">
-        <div class="pe-preview-devices">
-            <button class="pe-device-btn @(PreviewDevice == "desktop" ? "active" : "")" title="Desktop" @onclick='() => PreviewDevice = "desktop"'>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                    <line x1="8" y1="21" x2="16" y2="21"/>
-                    <line x1="12" y1="17" x2="12" y2="21"/>
-                </svg>
-            </button>
-            <button class="pe-device-btn @(PreviewDevice == "tablet" ? "active" : "")" title="Tablet" @onclick='() => PreviewDevice = "tablet"'>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
-                    <line x1="12" y1="18" x2="12.01" y2="18"/>
-                </svg>
-            </button>
-            <button class="pe-device-btn @(PreviewDevice == "mobile" ? "active" : "")" title="Mobile" @onclick='() => PreviewDevice = "mobile"'>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                    <line x1="12" y1="18" x2="12.01" y2="18"/>
-                </svg>
-            </button>
-        </div>
-        <button class="pe-btn pe-btn-ghost" @onclick="TogglePreview">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-            Close Preview
-        </button>
     </div>
 }
 
 @* Blocks canvas *@
-<div class="pe-blocks-container @(PreviewMode ? "preview-" + PreviewDevice : "")"
+<div class="pe-blocks-container @(PreviewMode ? "pe-hidden" : "")"
      @ondragover:preventDefault
      @ondrop="OnDropCanvas">
 
-    @if (PreviewMode)
+    @* Empty state *@
+    @if (Blocks.Count == 0)
     {
-        @if (IsPreviewRendering)
-        {
-            <div class="pe-empty-state">
-                <h3>Rendering preview...</h3>
-            </div>
-        }
-        else if (!string.IsNullOrWhiteSpace(PreviewError))
-        {
-            <div class="pe-empty-state">
-                <h3>Preview unavailable</h3>
-                <p>@PreviewError</p>
-            </div>
-        }
-        else if (!string.IsNullOrWhiteSpace(PreviewFrameUrl) || !string.IsNullOrWhiteSpace(PreviewHtml))
-        {
-            @if (!string.IsNullOrWhiteSpace(PreviewFrameUrl))
-            {
-                <div class="pe-preview-url-bar">
-                    <span>Preview URL</span>
-                    <code>@PreviewFrameUrl</code>
-                </div>
-                <iframe class="pe-preview-frame"
-                        title="Page preview"
-                        sandbox="allow-scripts allow-forms allow-popups"
-                        src="@PreviewFrameUrl"
-                        @key="PreviewFrameUrl"></iframe>
-            }
-            else
-            {
-                <div class="pe-preview-url-bar">
-                    <span>Preview URL</span>
-                    <code>@PreviewFragmentUrl</code>
-                </div>
-                <iframe class="pe-preview-frame"
-                        title="Page preview"
-                        sandbox=""
-                        srcdoc="@PreviewFrameDocument"
-                        @key="PreviewFrameDocument"></iframe>
-            }
-        }
-        else
-        {
-            <div class="pe-empty-state">
-                <h3>No preview content</h3>
-            </div>
-        }
+        <div class="pe-empty-state">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                 style="cursor: pointer" @onclick="() => RightSidebarCollapsed = false">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <h3>Start building your page</h3>
+            <p>Drag blocks from the sidebar or click to add them here</p>
+        </div>
     }
-    else
+
+    @* Block list *@
+    @for (var i = 0; i < Blocks.Count; i++)
     {
-        @* Empty state *@
-        @if (Blocks.Count == 0)
-        {
-            <div class="pe-empty-state">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
-                     style="cursor: pointer" @onclick="() => RightSidebarCollapsed = false">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="12" y1="8" x2="12" y2="16"/>
-                    <line x1="8" y1="12" x2="16" y2="12"/>
-                </svg>
-                <h3>Start building your page</h3>
-                <p>Drag blocks from the sidebar or click to add them here</p>
-            </div>
-        }
+        var block = Blocks[i];
+        var index = i; // capture for lambda
+        var isSelected = SelectedBlockId == block.EditorId;
 
-        @* Block list *@
-        @for (var i = 0; i < Blocks.Count; i++)
-        {
-            var block = Blocks[i];
-            var index = i; // capture for lambda
-            var isSelected = SelectedBlockId == block.EditorId;
+        <div class="pe-block-wrapper @(isSelected ? "selected" : "") @(DraggedBlockId == block.EditorId ? "dragging" : "") @(DragOverIndex == index ? "drag-over" : "")"
+             @onclick="() => SelectBlock(block.EditorId)"
+             draggable="true"
+             @ondragstart="e => DragStartBlock(e, block.EditorId, index)"
+             @ondragover="e => DragOverBlock(e, index)"
+             @ondragover:preventDefault
+             @ondrop="e => DropBlock(e, index)"
+             @ondrop:stopPropagation>
 
-            <div class="pe-block-wrapper @(isSelected ? "selected" : "") @(DraggedBlockId == block.EditorId ? "dragging" : "") @(DragOverIndex == index ? "drag-over" : "")"
-                 @onclick="() => SelectBlock(block.EditorId)"
-                 draggable="true"
-                 @ondragstart="e => DragStartBlock(e, block.EditorId, index)"
-                 @ondragover="e => DragOverBlock(e, index)"
-                 @ondragover:preventDefault
-                 @ondrop="e => DropBlock(e, index)"
-                 @ondrop:stopPropagation>
-
-                @* Toolbar *@
-                @if (isSelected)
-                {
-                    <div class="pe-block-toolbar">
-                        <button class="pe-toolbar-btn" title="Move up"
-                                disabled="@(index == 0)"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => MoveBlockUp(index)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="18 15 12 9 6 15"/>
-                            </svg>
-                        </button>
-                        <button class="pe-toolbar-btn" title="Move down"
-                                disabled="@(index == Blocks.Count - 1)"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => MoveBlockDown(index)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"/>
-                            </svg>
-                        </button>
-                        <button class="pe-toolbar-btn" title="Duplicate"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => DuplicateBlock(index)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                            </svg>
-                        </button>
-                        <button class="pe-toolbar-btn delete" title="Delete"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => DeleteBlock(index)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="3 6 5 6 21 6"/>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                            </svg>
-                        </button>
-                    </div>
-                }
-
-                <div class="pe-block-content">
-                    @RenderBlock(block, isSelected)
+            @* Toolbar *@
+            @if (isSelected)
+            {
+                <div class="pe-block-toolbar">
+                    <button class="pe-toolbar-btn" title="Move up"
+                            disabled="@(index == 0)"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => MoveBlockUp(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="18 15 12 9 6 15"/>
+                        </svg>
+                    </button>
+                    <button class="pe-toolbar-btn" title="Move down"
+                            disabled="@(index == Blocks.Count - 1)"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => MoveBlockDown(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                    <button class="pe-toolbar-btn" title="Duplicate"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => DuplicateBlock(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                    </button>
+                    <button class="pe-toolbar-btn delete" title="Delete"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => DeleteBlock(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
                 </div>
+            }
+
+            <div class="pe-block-content">
+                @RenderBlock(block, isSelected)
             </div>
-        }
+        </div>
     }
 </div>
 }
@@ -260,13 +186,13 @@ else if (ActiveTab == "metadata")
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Page Title</label>
                     <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                           @bind="PageTitle" placeholder="e.g. About Us" />
+                           value="@PageTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. About Us" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">URL Slug</label>
                     <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
                            style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
-                           @bind="PageSlug" placeholder="e.g. about-us" />
+                           value="@PageSlug" @oninput="e => OnSlugChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. about-us" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Summary / Excerpt</label>
@@ -352,7 +278,10 @@ else if (ActiveTab == "metadata")
         <div class="pe-blocks-sidebar">
             @* UI category *@
             <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("content")'>
+                <button class="pe-category-header" @onclick='() => ToggleCategory("content")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? "UI" : null)"
+                        data-pe-tooltip-placement="left">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14 2 14 8 20 8"/>
@@ -426,7 +355,10 @@ else if (ActiveTab == "metadata")
  
             @* Aero Meraki category *@
             <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("aero")'>
+                <button class="pe-category-header" @onclick='() => ToggleCategory("aero")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? "Aero UX" : null)"
+                        data-pe-tooltip-placement="left">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                     </svg>
@@ -546,7 +478,10 @@ else if (ActiveTab == "metadata")
 
             @* Media category *@
             <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("media")'>
+                <button class="pe-category-header" @onclick='() => ToggleCategory("media")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? "Media" : null)"
+                        data-pe-tooltip-placement="left">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                         <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -590,7 +525,10 @@ else if (ActiveTab == "metadata")
 
             @* References category *@
             <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("references")'>
+                <button class="pe-category-header" @onclick='() => ToggleCategory("references")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? "References" : null)"
+                        data-pe-tooltip-placement="left">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
@@ -642,10 +580,8 @@ else if (ActiveTab == "metadata")
 <MediaSelectorModal
     Show="MediaModalOpen"
     MultiSelect="IsGalleryMode"
-    Library="MediaLibrary"
     OnClose="() => MediaModalOpen = false"
-    OnConfirm="OnConfirmMediaSelection"
-    OnUpload="e => HandleFileSelect(e)"/>
+    OnConfirm="OnConfirmMediaSelection"/>
 
 @* ── Toast notifications ─────────────────────────────────── *@
 <div class="pe-toast-container">
@@ -680,6 +616,16 @@ else if (ActiveTab == "metadata")
     }
 </div>
 @* ... (Toasts and Modals retained) ... *@
+
+@* Preview overlay (modal over entire manager) *@
+<PreviewOverlay Visible="@PreviewMode"
+                OnClose="TogglePreview"
+                FrameUrl="@PreviewFrameUrl"
+                FrameDocument="@PreviewFrameDocument"
+                UrlBarText="@(!string.IsNullOrWhiteSpace(PreviewFrameUrl) ? PreviewFrameUrl : PreviewFragmentUrl)"
+                Error="@PreviewError"
+                IsLoading="@IsPreviewRendering"
+                Title="Page preview" />
 
 @* ── Inline render helpers ───────────────────────────────── *@
 
@@ -1740,21 +1686,49 @@ else if (ActiveTab == "metadata")
             @if (string.IsNullOrEmpty(b.Src))
             {
                 <div class="pe-video-input">
-                    <input type="text" placeholder="Enter video URL (YouTube, Vimeo, or direct link)"
-                           @bind="b.Url"/>
+                    <div class="pe-input-with-btn">
+                        <input type="text" placeholder="Enter video URL (YouTube, Vimeo, or direct link)"
+                               @bind="b.Url"/>
+                        <button class="pe-btn pe-btn-sm" title="Browse media"
+                                @onclick='() => OpenMediaSelector(b, false, "video")'>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                        </button>
+                    </div>
                     <button class="pe-btn pe-btn-primary" @onclick="() => LoadVideo(b)">Add Video</button>
                 </div>
             }
             else
             {
+                var videoSrc = b.Src;
+                if (b.AutoPlay)
+                {
+                    var sep = videoSrc.Contains('?') ? '&' : '?';
+                    videoSrc += $"{sep}autoplay=1";
+                }
+
                 <div class="pe-video-wrapper">
-                    <iframe src="@b.Src" frameborder="0" allowfullscreen></iframe>
+                    @if (b.Src.Contains("youtube.com/embed/") || b.Src.Contains("player.vimeo.com"))
+                    {
+                        <iframe src="@videoSrc" frameborder="0" allowfullscreen></iframe>
+                    }
+                    else
+                    {
+                        <video controls src="@b.Src" autoplay="@(b.AutoPlay ? true : null)" muted="@(b.AutoPlay ? true : null)" style="max-width:100%;border-radius:8px;"></video>
+                    }
                     <button class="pe-remove-video" @onclick="() => RemoveVideo(b)">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"/>
                             <line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
                     </button>
+                    <label class="pe-auto-play-bar">
+                        <input type="checkbox" @bind="b.AutoPlay" />
+                        Auto-play
+                    </label>
                 </div>
             }
         </div>

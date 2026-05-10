@@ -1,12 +1,14 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Interfaces;
 
 using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Entities;
 
-public sealed class BlogPostDocument : Entity
+public sealed class BlogPostDocument : Entity, ISiteOwned
 {
+    public long SiteId { get; set; }
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Excerpt { get; set; }

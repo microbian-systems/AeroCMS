@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.SimpleSecurity;
 
+[Module(nameof(SimpleSecurityModule))]
 public class SimpleSecurityModule : AeroModuleBase
 {
     public override string Name => nameof(SimpleSecurityModule);

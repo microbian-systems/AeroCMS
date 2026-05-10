@@ -1,0 +1,38 @@
+using System.Text.Json;
+using Aero.Cms.Abstractions.Content;
+
+namespace Aero.Cms.Core.Blocks.Dynamic;
+
+public static class ContentTypeSchemaGenerator
+{
+    public static JsonDocument GenerateSchema(ContentTypeDefinition definition)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new Utf8JsonWriter(stream);
+
+        writer.WriteStartObject();
+        writer.WriteString("type", "object");
+        writer.WriteStartObject("properties");
+
+        foreach (var field in definition.Fields)
+        {
+            writer.WriteStartObject(field.Name);
+            writer.WriteString("type", MapFieldType(field.FieldType));
+            writer.WriteString("title", field.Label ?? field.Name);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+        writer.Flush();
+
+        stream.Position = 0;
+        return JsonDocument.Parse(stream);
+    }
+
+    private static string MapFieldType(string ft) => ft switch
+    {
+        "number" => "number", "boolean" => "boolean",
+        _ => "string"
+    };
+}

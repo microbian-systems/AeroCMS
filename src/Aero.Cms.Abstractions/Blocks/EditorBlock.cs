@@ -58,6 +58,7 @@ public class EditorBlock
 
     // Video
     public string Url { get; set; } = string.Empty;
+    public bool AutoPlay { get; set; }
 
     // Gallery / Features / Blog / Pricing / Teams / Testimonials
     public List<GalleryImage>   GalleryImages { get; set; } = [];

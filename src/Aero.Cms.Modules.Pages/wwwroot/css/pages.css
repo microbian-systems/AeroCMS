@@ -1,0 +1,33 @@
+
+@import "tailwindcss";
+/* 
+  Aero CMS Pages — Public Styles
+  Processed by @tailwindcss/browser via type="text/tailwindcss"
+  Page content uses the block renderer pipeline, not prose.
+*/
+
+
+
+@layer base {
+  /* Page article — test override */
+  /* If you see a red 5px border on the page content, the CSS is loaded */
+  article.min-h-screen {
+    border: 5px solid red !important;
+    color: red;
+  }
+}
+
+@layer components {
+  /* Style blocks rendered inside page regions */
+  /* Inspect the rendered HTML to find the actual class names used
+     by the block renderer, then add rules here, for example:
+
+  .block-text {
+    @apply text-lg font-sans text-gray-700 leading-relaxed;
+  }
+  .block-hero h1 {
+    @apply text-5xl font-extrabold text-gray-900;
+  }
+  */
+}
+

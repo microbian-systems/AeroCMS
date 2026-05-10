@@ -84,10 +84,22 @@ public interface IPagesHttpClient
     /// <summary>
     /// Unpublishes a page.
     /// </summary>
-    /// <param name="id">The page identifier to unpublish.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>The updated page detail or an error.</returns>
     Task<Result<PageDetail, AeroError>> UnpublishAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets the latest draft for a page, if one exists.
+    /// </summary>
+    Task<Result<PageDraftSummary?, AeroError>> GetDraftAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Upserts a draft for a page. Used by auto-save.
+    /// </summary>
+    Task<Result<bool, AeroError>> SaveDraftAsync(long id, PageDraftRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes the draft for a page. Called after manual save or publish.
+    /// </summary>
+    Task<Result<bool, AeroError>> DeleteDraftAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -164,6 +176,24 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     {
         return PutAsync<object, PageDetail>($"{id}/unpublish", new object(), ct);
     }
+
+    /// <inheritdoc />
+    public Task<Result<PageDraftSummary?, AeroError>> GetDraftAsync(long id, CancellationToken ct = default)
+    {
+        return GetAsync<PageDraftSummary?>($"{id}/draft", ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<bool, AeroError>> SaveDraftAsync(long id, PageDraftRequest request, CancellationToken ct = default)
+    {
+        return MapBoolResult(PutAsync<PageDraftRequest, HttpResponseMessage>($"{id}/draft", request, ct));
+    }
+
+    /// <inheritdoc />
+    public Task<Result<bool, AeroError>> DeleteDraftAsync(long id, CancellationToken ct = default)
+    {
+        return MapBoolResult(base.DeleteAsync($"{id}/draft", ct));
+    }
 }
 
 #pragma warning disable SA1402 // File may only contain a single type
@@ -228,3 +258,25 @@ public record UpdatePageRequest(
     bool HideFooter = false,
     bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null);
+
+/// <summary>
+/// Summary of a page draft returned by the draft API.
+/// </summary>
+public record PageDraftSummary(
+    long Id,
+    long PageId,
+    long SiteId,
+    string Title,
+    string Slug,
+    string? Summary,
+    IReadOnlyList<EditorBlock>? Blocks,
+    DateTimeOffset DraftedAt);
+
+/// <summary>
+/// Request to upsert a page draft (used by auto-save).
+/// </summary>
+public record PageDraftRequest(
+    string Title,
+    string Slug,
+    string? Summary,
+    List<EditorBlock>? Blocks = null);

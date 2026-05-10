@@ -3,8 +3,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
-
 namespace Aero.Cms.Modules.Headless.Areas.Api.v1;
 
 /// <summary>
@@ -37,6 +35,13 @@ public static class UsersApi
 
         group.MapPost("/{id:long}/password", ChangePassword)
             .WithName("ChangeUserPassword");
+
+        // User-site assignment endpoints
+        group.MapGet("/{userId:long}/sites", GetUserSiteAssignments)
+            .WithName("GetUserSiteAssignments");
+
+        group.MapPut("/{userId:long}/sites", UpdateUserSiteAssignments)
+            .WithName("UpdateUserSiteAssignments");
     }
 
     private static async Task<IResult> GetAllUsers(
@@ -296,4 +301,85 @@ public static class UsersApi
             return TypedResults.Problem(ex.Message);
         }
     }
+
+    // ── User-Site Assignment handlers ──────────────────────
+
+    private static async Task<IResult> GetUserSiteAssignments(
+        long userId,
+        IQuerySession querySession,
+        CancellationToken cancellationToken,
+        [FromServices] ILoggerFactory loggerFactory)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(UsersApi));
+        try
+        {
+            var assignments = await querySession.Query<UserSiteAssignment>()
+                .Where(a => a.UserId == userId)
+                .ToListAsync(cancellationToken);
+
+            return TypedResults.Ok(assignments.Select(a => new UserSiteAssignmentResponse(
+                a.Id, a.UserId, a.SiteId, a.Permissions)));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting site assignments for user id={UserId}", userId);
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> UpdateUserSiteAssignments(
+        long userId,
+        UserSiteAssignmentBatch request,
+        IDocumentSession session,
+        IQuerySession querySession,
+        CancellationToken cancellationToken,
+        [FromServices] ILoggerFactory loggerFactory)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(UsersApi));
+        try
+        {
+            // Delete all existing assignments for this user
+            var existing = await querySession.Query<UserSiteAssignment>()
+                .Where(a => a.UserId == userId)
+                .ToListAsync(cancellationToken);
+
+            session.DeleteObjects(existing);
+
+            // Create new assignments
+            foreach (var item in request.Assignments)
+            {
+                var assignment = new UserSiteAssignment
+                {
+                    Id = Snowflake.NewId(),
+                    UserId = userId,
+                    SiteId = item.SiteId,
+                    Permissions = item.Permissions?.ToList() ?? []
+                };
+                session.Store(assignment);
+            }
+
+            await session.SaveChangesAsync(cancellationToken);
+            return TypedResults.Ok();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error updating site assignments for user id={UserId}", userId);
+            return TypedResults.Problem(ex.Message);
+        }
+    }
 }
+
+/// <summary>
+/// Response model for a user-site assignment.
+/// </summary>
+public record UserSiteAssignmentResponse(long Id, long UserId, long SiteId, List<string> Permissions);
+
+/// <summary>
+/// Request batch for updating user-site assignments.
+/// </summary>
+public record UserSiteAssignmentItem(long SiteId, List<string>? Permissions);
+
+/// <summary>
+/// Batch request for user-site assignments.
+/// </summary>
+public record UserSiteAssignmentBatch(List<UserSiteAssignmentItem> Assignments);

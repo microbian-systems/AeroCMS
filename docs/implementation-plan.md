@@ -48,7 +48,7 @@ Deliverable: host can boot with core module loading and tenant resolution.
 - [ ] Implement frontend Razor rendering pipeline for pages/blog
 - [ ] Implement content read pipeline hooks (core + extension points)
 - [ ] Add public Minimal API endpoints for pages/blog (`/api/v1/...`)
-- [ ] Add output caching tags and invalidation hooks for page/blog publish
+- [ ] Add public response/output caching policies and FusionCache invalidation hooks for page/blog publish
 
 ### 1.5 Admin CMS Essentials
 - [ ] Implement basic admin shell for Pages and Blog management
@@ -110,13 +110,15 @@ Exit criteria: published content is queryable via keyword and semantic search.
 
 ## Phase 7 - Caching Strategy (Triple Threat)
 
-- [ ] Apply output cache policies for pages/blog route groups
-- [ ] Integrate FusionCache for hot data and fail-safe reads
+- [ ] Apply response/output cache policies for public pages, blog, docs, sitemap, and public headless route groups
+- [ ] Keep manager/admin routes out of response and output cache policies
+- [ ] Integrate FusionCache for public hot data, manager/admin data, and fail-safe reads
 - [ ] Add tenant/culture/theme-scoped cache key conventions
-- [ ] Implement cache tag eviction on content and media mutations
+- [ ] Implement Wolverine-driven FusionCache tag/key eviction on content, manager data, and media mutations
+- [ ] Implement output cache tag eviction for public content mutations
 - [ ] Implement admin purge endpoint (`POST /admin/clear-cache`)
 
-Exit criteria: stable low-latency reads with deterministic invalidation.
+Exit criteria: stable low-latency public reads through Response + Output + Fusion caching, manager/admin reads through FusionCache only, and deterministic invalidation for both profiles.
 
 ## Phase 8 - Plugin Packaging and Marketplace Readiness
 

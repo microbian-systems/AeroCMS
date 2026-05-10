@@ -9,10 +9,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Aero.Cms.Core.Entities;
 using Aero.Modular;
+using Hydro.Configuration;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
 
 namespace Aero.Cms.Modules.Pages;
 
-public sealed class PagesModule : AeroModuleBase, IConfigureMarten
+[Module(nameof(PagesModule))]
+public sealed class PagesModule : AeroWebModule, IConfigureMarten
 {
     public override string Name => nameof(PagesModule);
     public override string Version => AeroConstants.Version;
@@ -46,10 +50,20 @@ public sealed class PagesModule : AeroModuleBase, IConfigureMarten
     {
         opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
         opts.Schema.For<PageDocument>().Identity(x => x.Id);
-        //opts.Schema.For<PageDocument>().Duplicate(x => x.Title); // todo - find out what the marten For<T>().Duplicate() method does and if it is needed here
-        opts.Schema.For<PageDocument>().Index(x => x.Slug);
-        opts.Schema.For<PageDocument>().Index(x => x.PublishedOn);
-        opts.Schema.For<PageDocument>().Index(x => x.CreatedOn);
-        opts.Schema.For<PageDocument>().Index(x => x.ModifiedOn);
+        opts.Schema.For<PageDocument>().Index(x => x.SiteId);
+        opts.Schema.For<PageDocument>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        Configure<PageDocument>(services, opts);
+        
+        // ContentSlugDocument — composite unique on (SiteId, NormalizedSlug)
+        opts.Schema.For<ContentSlugDocument>().DocumentAlias(Schemas.Tables.SlugRegistry);
+        opts.Schema.For<ContentSlugDocument>().Index(x => x.SiteId);
+        opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => x.SiteId, x => x.NormalizedSlug);
+        Configure<ContentSlugDocument>(services, opts);
+
+        // PageDraft — one per page, upserted on auto-save, deleted on publish/manual save
+        opts.Schema.For<PageDraft>().Index(x => x.PageId);
+        opts.Schema.For<PageDraft>().Index(x => x.SiteId);
+        opts.Schema.For<PageDraft>().Index(x => x.DraftedAt);
+        Configure<PageDraft>(services, opts);
     }
 }

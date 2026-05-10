@@ -1,0 +1,117 @@
+@page "/manager/content-types"
+@attribute [Authorize]
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
+@inject NavigationManager Navigation
+@inject IContentTypesHttpClient ContentTypesApi
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<style>
+    .rz-datatable-row:hover {
+        cursor: pointer !important;
+        background-color: rgba(0, 0, 0, 0.02) !important;
+    }
+</style>
+
+<div class="pe-page-content space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold pe-heading">Content Types</h1>
+            <p class="mt-1 text-sm pe-description">Manage structured content schemas for your site.</p>
+        </div>
+        <div class="flex gap-4">
+            <RadzenButton Icon="add" Text="New Content Type" ButtonStyle="ButtonStyle.Primary" Click='() => Navigation.NavigateTo("/manager/content-type/editor")' />
+        </div>
+    </div>
+
+    <RadzenDataGrid @ref="grid" Data="@types" TItem="ContentTypeSummary" LoadData="@LoadData" Count="@count"
+                    IsLoading="@isLoading" AllowPaging="true" PageSize="10"
+                    AllowSorting="true" EmptyText="No content types yet. Create one to get started!"
+                    RowClick="@OnRowClick">
+        <Columns>
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="Name" Title="Name" />
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="Alias" Title="Alias">
+                <Template Context="t">
+                    <span class="text-xs font-mono" style="background: var(--pe-bg-tertiary); color: var(--pe-text-secondary); padding: 2px 8px; border-radius: var(--pe-radius-sm);">@t.Alias</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Title="Fields">
+                <Template Context="t">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">@t.FieldCount fields</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="Category" Title="Category">
+                <Template Context="t">
+                    @if (!string.IsNullOrEmpty(t.Category))
+                    {
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">@t.Category</span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Title="Template">
+                <Template Context="t">
+                    @if (t.HasCustomTemplate)
+                    {
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Custom</span>
+                    }
+                    else
+                    {
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Auto</span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Title="Actions">
+                <Template Context="t">
+                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click='(args) => OnDeleteType(t.Alias, args)' />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</div>
+
+@code {
+    RadzenDataGrid<ContentTypeSummary>? grid;
+    IEnumerable<ContentTypeSummary>? types;
+    int count;
+    bool isLoading = true;
+
+    async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        var result = await ContentTypesApi.GetAllAsync();
+        if (result is Result<IReadOnlyList<ContentTypeSummary>, AeroError>.Ok ok)
+        {
+            types = ok.Value;
+            count = ok.Value.Count;
+        }
+        else
+        {
+            types = Enumerable.Empty<ContentTypeSummary>();
+            count = 0;
+        }
+        isLoading = false;
+    }
+
+    void OnRowClick(DataGridRowMouseEventArgs<ContentTypeSummary> args)
+    {
+        if (args.Data == null) return;
+        Navigation.NavigateTo($"/manager/content-type/editor/{Uri.EscapeDataString(args.Data.Alias)}");
+    }
+
+    async Task OnDeleteType(string alias, EventArgs args)
+    {
+        var confirmed = await DialogService.Confirm($"Delete content type '{alias}'? This cannot be undone.",
+            "Delete Content Type", new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+        if (confirmed == true)
+        {
+            var result = await ContentTypesApi.DeleteAsync(alias);
+            if (result is Result<bool, AeroError>.Failure fail)
+            {
+                NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Delete Failed", Detail = fail.Error.ToString(), Duration = 4000 });
+            }
+            if (grid != null) await grid.Reload();
+        }
+    }
+}

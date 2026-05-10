@@ -45,13 +45,12 @@ public static class AeroWebAppExtensions
     }
 
     public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
-        this WebApplicationBuilder builder)
-        where T : class => await builder.AddAeroCmsRuntimeAsync<T>([]);
-
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
-        this WebApplicationBuilder builder, string[] args)
+        this WebApplicationBuilder builder,
+        IReadOnlyList<ModuleDescriptor> generatedDescriptors,
+        string[]? args = null)
         where T : class
     {
+        args ??= [];
         var config = builder.Configuration;
         var services = builder.Services;
         var env = builder.Environment;
@@ -64,20 +63,10 @@ public static class AeroWebAppExtensions
         services.AddScoped<CmsBlockHtmlRenderer>();
         services.AddScoped<IBlockSliceRenderer, CmsBlockSliceRenderer>();
         services.AddModuleSystemServices();
-        await services.AddAeroModulesAsync(config, env);
+        await services.AddAeroModulesAsync(config, env, generatedDescriptors);
         services.AddAeroDataLayer(config, env);
 
         return (builder, log);
-    }
-
-    public static IApplicationBuilder UseAeroCmsModules(this IApplicationBuilder app)
-    {
-        if (app is IEndpointRouteBuilder endpoints)
-        {
-            endpoints.MapAeroCmsEndpoints();
-        }
-
-        return app;
     }
 
     /// <summary>
@@ -213,5 +202,34 @@ public static class AeroWebAppExtensions
         }
 
         return endpoints;
+    }
+
+    /// <summary>
+    /// Applies middleware contributed by Aero CMS modules in explicit pipeline order.
+    /// The host chooses the insertion point; modules own their middleware details.
+    /// </summary>
+    public static IApplicationBuilder UseAeroCmsModulePipeline(
+        this IApplicationBuilder app)
+    {
+        var graph = app.ApplicationServices.GetService<ModuleGraph>();
+
+        var modules = graph is not null
+            ? graph.LoadOrder
+                .Select(descriptor => app.ApplicationServices.GetService(descriptor.ModuleType))
+                .OfType<IAeroPipelineModule>()
+                .ToList()
+            : app.ApplicationServices
+                .GetServices<IAeroModule>()
+                .OfType<IAeroPipelineModule>()
+                .ToList();
+
+        foreach (var module in modules
+                     .OrderBy(module => module.PipelineOrder)
+                     .ThenBy(module => module.Order))
+        {
+            module.ConfigurePipeline(app);
+        }
+
+        return app;
     }
 }

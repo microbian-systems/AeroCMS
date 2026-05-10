@@ -18,6 +18,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Security;
 
+[Module(nameof(SecurityModule))]
 public class SecurityModule : AeroModuleBase
 {
     public override string Name => nameof(SecurityModule);

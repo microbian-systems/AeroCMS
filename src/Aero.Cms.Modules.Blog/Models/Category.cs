@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Core.Entities;
 
 namespace Aero.Cms.Modules.Blog.Models;
@@ -5,8 +6,10 @@ namespace Aero.Cms.Modules.Blog.Models;
 /// <summary>
 /// Represents a category for organizing blog posts in a hierarchical structure.
 /// </summary>
-public class Category : Entity
+public class Category : Entity, ISiteOwned
 {
+    public long SiteId { get; set; }
+
     /// <summary>
     /// Gets or sets the name of the category.
     /// </summary>

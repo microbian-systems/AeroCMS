@@ -22,7 +22,7 @@ public sealed class DynamicScribanTierTests
     [Test]
     public void DynamicTemplateBlock_IsDiscoveredForGeneratedModelRegistration()
     {
-        GeneratedBlockModelManifest.Blocks.Should().HaveCount(34);
+        GeneratedBlockModelManifest.Blocks.Should().HaveCount(36);
         GeneratedBlockModelManifest.Blocks["dynamic_template"].ModelType.Should().Be(typeof(DynamicTemplateBlock));
         GeneratedBlockJsonRegistration.ModelTypes.Should().Contain(typeof(DynamicTemplateBlock));
         GeneratedBlockJsonRegistration.CollectionTypes.Should().Contain(typeof(List<DynamicTemplateBlock>));

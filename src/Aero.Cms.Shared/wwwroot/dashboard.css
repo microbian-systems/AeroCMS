@@ -1,0 +1,493 @@
+/* ── Dashboard Card Grid ──────────────────────────────── */
+.pe-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+@media (min-width: 1024px) {
+    .pe-dashboard-grid-cols-2 {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ── Dashboard Card ──────────────────────────────────── */
+.pe-dashboard-card {
+    background: var(--pe-bg-secondary);
+    border: 1px solid var(--pe-border);
+    border-radius: var(--pe-radius-lg);
+    box-shadow: var(--pe-shadow-sm);
+    transition: box-shadow .2s ease, border-color .2s ease;
+    overflow: hidden;
+}
+
+    .pe-dashboard-card:hover {
+        box-shadow: var(--pe-shadow-md);
+        border-color: var(--pe-border-light);
+    }
+
+.pe-dash-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--pe-border);
+}
+
+    .pe-dash-card-header h2 {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--pe-text-primary);
+        margin: 0;
+    }
+
+    .pe-dash-card-header a {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--pe-primary);
+        text-decoration: none;
+        transition: opacity .2s;
+    }
+
+        .pe-dash-card-header a:hover {
+            opacity: .8;
+        }
+
+.pe-dash-card-body {
+    padding: 20px 24px;
+}
+
+/* ── Stat Metrics Row ──────────────────────────────────── */
+.pe-dash-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+}
+
+@media (min-width: 768px) {
+    .pe-dash-metrics {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.pe-dash-metric {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-right: 1px solid var(--pe-border);
+}
+
+    .pe-dash-metric:last-child {
+        border-right: none;
+    }
+
+@media (max-width: 767px) {
+    .pe-dash-metric:nth-child(even) {
+        border-right: none;
+    }
+
+    .pe-dash-metric:nth-child(n+3) {
+        border-top: 1px solid var(--pe-border);
+    }
+}
+
+.pe-dash-metric-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pe-dash-metric-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+    .pe-dash-metric-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+.pe-dash-metric-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--pe-text-primary);
+    line-height: 1.1;
+}
+
+.pe-dash-metric-label {
+    font-size: 13px;
+    color: var(--pe-text-secondary);
+    margin-top: 2px;
+}
+
+.pe-dash-metric-delta {
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 8px;
+    border-radius: 20px;
+    margin-left: auto;
+}
+
+    .pe-dash-metric-delta.up {
+        color: #16a34a;
+        background: rgba(22, 163, 74, 0.1);
+    }
+
+    .pe-dash-metric-delta.down {
+        color: #dc2626;
+        background: rgba(220, 38, 38, 0.1);
+    }
+
+/* ── Activity Feed ──────────────────────────────────────── */
+.pe-dash-activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.pe-dash-activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--pe-border);
+}
+
+    .pe-dash-activity-item:last-child {
+        border-bottom: none;
+    }
+
+.pe-dash-activity-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+    .pe-dash-activity-icon svg {
+        width: 16px;
+        height: 16px;
+    }
+
+.pe-dash-activity-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.pe-dash-activity-text {
+    font-size: 13px;
+    color: var(--pe-text-primary);
+    margin: 0;
+    line-height: 1.4;
+}
+
+    .pe-dash-activity-text strong {
+        font-weight: 600;
+    }
+
+.pe-dash-activity-time {
+    font-size: 12px;
+    color: var(--pe-text-muted);
+    margin-top: 2px;
+}
+
+/* ── Top Pages Table (inside Card 2) ──────────────────── */
+.pe-dash-pages-table {
+    width: 100%;
+}
+
+    .pe-dash-pages-table th {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: var(--pe-text-muted);
+        padding: 8px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--pe-border);
+    }
+
+    .pe-dash-pages-table td {
+        font-size: 13px;
+        color: var(--pe-text-secondary);
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--pe-border);
+    }
+
+    .pe-dash-pages-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .pe-dash-pages-table .pe-dash-pages-url {
+        color: var(--pe-text-primary);
+        font-weight: 500;
+    }
+
+    .pe-dash-pages-table .pe-dash-pages-count {
+        color: var(--pe-text-primary);
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .pe-dash-pages-table th:last-child,
+    .pe-dash-pages-table td:last-child {
+        text-align: right;
+    }
+
+/* ── Progress Bar Report ───────────────────────────────── */
+.pe-dash-report {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.pe-dash-report-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 0 8px 0;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--pe-text-muted);
+    border-bottom: 1px solid var(--pe-border);
+}
+
+.pe-dash-report-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pe-border);
+}
+
+    .pe-dash-report-item:last-child {
+        border-bottom: none;
+    }
+
+.pe-dash-report-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pe-dash-report-label {
+    font-size: 13px;
+    color: var(--pe-text-primary);
+    font-weight: 500;
+}
+
+.pe-dash-report-value {
+    font-size: 13px;
+    color: var(--pe-text-primary);
+    font-weight: 600;
+}
+
+.pe-dash-progress-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 20px;
+    background: var(--pe-bg-tertiary);
+    overflow: hidden;
+}
+
+.pe-dash-progress-fill {
+    height: 100%;
+    border-radius: 20px;
+    transition: width .6s ease;
+}
+
+    .pe-dash-progress-fill.violet {
+        background: var(--pe-primary);
+    }
+
+    .pe-dash-progress-fill.green {
+        background: #22c55e;
+    }
+
+    .pe-dash-progress-fill.orange {
+        background: #f59e0b;
+    }
+
+    .pe-dash-progress-fill.blue {
+        background: #3b82f6;
+    }
+
+    .pe-dash-progress-fill.red {
+        background: #ef4444;
+    }
+
+    .pe-dash-progress-fill.teal {
+        background: #14b8a6;
+    }
+
+    .pe-dash-progress-fill.pink {
+        background: #ec4899;
+    }
+
+/* ── Dashboard Table (Card 6) ──────────────────────────── */
+.pe-dash-table-wrap {
+    overflow-x: auto;
+}
+
+.pe-dash-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+    .pe-dash-table thead th {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: var(--pe-text-muted);
+        padding: 10px 16px;
+        text-align: left;
+        border-bottom: 1px solid var(--pe-border);
+        white-space: nowrap;
+    }
+
+    .pe-dash-table tbody td {
+        padding: 12px 16px;
+        color: var(--pe-text-secondary);
+        border-bottom: 1px solid var(--pe-border);
+        vertical-align: middle;
+    }
+
+    .pe-dash-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .pe-dash-table tbody tr:hover td {
+        background: var(--pe-bg-tertiary);
+    }
+
+.pe-dash-table-title {
+    color: var(--pe-text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pe-dash-table-author-avatars {
+    display: flex;
+    align-items: center;
+}
+
+    .pe-dash-table-author-avatars img {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 2px solid var(--pe-bg-secondary);
+        margin-right: -6px;
+    }
+
+        .pe-dash-table-author-avatars img:first-child {
+            margin-left: 0;
+        }
+
+.pe-dash-table-category {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+    .pe-dash-table-category svg {
+        width: 16px;
+        height: 16px;
+        color: var(--pe-text-muted);
+    }
+
+.pe-dash-table-ctr {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.pe-dash-table-value {
+    color: var(--pe-text-primary);
+    font-weight: 600;
+}
+
+/* ── Chart Container ──────────────────────────────────── */
+.pe-dash-chart-wrap {
+    width: 100%;
+    height: 280px;
+}
+
+/* ── Card 2 two-column split ──────────────────────────── */
+.pe-dash-split {
+    display: grid;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+    .pe-dash-split.cols-2 {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.pe-dash-split-left {
+    padding: 0 0 20px 0;
+    border-bottom: 1px solid var(--pe-border);
+}
+
+.pe-dash-split-right {
+    padding: 20px 0 0 0;
+}
+
+@media (min-width: 768px) {
+    .pe-dash-split-left {
+        padding: 0 20px 0 0;
+        border-bottom: none;
+        border-right: 1px solid var(--pe-border);
+    }
+
+    .pe-dash-split-right {
+        padding: 0 0 0 20px;
+    }
+}
+
+/* ── Section label inside cards ───────────────────────── */
+.pe-dash-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--pe-text-muted);
+    margin-bottom: 12px;
+}
+
+/* ── Card footer link ──────────────────────────────────── */
+.pe-dash-card-footer {
+    padding: 12px 24px;
+    border-top: 1px solid var(--pe-border);
+    display: flex;
+    justify-content: flex-end;
+}
+
+    .pe-dash-card-footer a {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--pe-primary);
+        text-decoration: none;
+        transition: opacity .2s;
+    }
+
+        .pe-dash-card-footer a:hover {
+            opacity: .8;
+        }

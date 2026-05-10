@@ -258,7 +258,7 @@ public sealed class BlockRendererBaselineTests
     [Test]
     public void GeneratedBlockModelManifest_ExposesAllDiscoveredBlockModelsForJsonAndMarten()
     {
-        GeneratedBlockModelManifest.Blocks.Should().HaveCount(34);
+        GeneratedBlockModelManifest.Blocks.Should().HaveCount(36);
         GeneratedBlockModelManifest.Blocks["markdown"].ModelType.Should().Be(typeof(MarkdownBlock));
         GeneratedBlockModelManifest.Blocks["markdown"].SchemaVersion.Should().Be(1);
         GeneratedBlockModelManifest.Blocks["youtube_player"].ModelType.Should().Be(typeof(YouTubeBlock));

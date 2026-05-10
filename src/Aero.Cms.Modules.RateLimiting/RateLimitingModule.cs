@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.RateLimiting;
 
+[Module(nameof(RateLimitingModule))]
 public class RateLimitingModule : AeroModuleBase
 {
     public override string Name => nameof(RateLimitingModule);

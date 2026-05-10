@@ -34,7 +34,7 @@ public sealed class ModuleStateStore : IModuleStateStore
     /// <inheritdoc/>
     public Task<ModuleDocument?> GetByNameAsync(string name, CancellationToken ct = default)
     {
-        var id = $"{ModuleDocument.ModuleIdPrefix}{name}";
-        return _session.LoadAsync<ModuleDocument>(id, ct);
+        var module = _session.Query<ModuleDocument>().FirstOrDefaultAsync(m => m.Name == name);
+        return module;
     }
 }

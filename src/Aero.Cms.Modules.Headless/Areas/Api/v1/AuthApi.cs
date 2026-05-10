@@ -127,7 +127,7 @@ public static class AuthApi
             var apiKey = await apiKeyService.CreateKeyAsync(user.Id, user.Email!, cancellationToken: cancellationToken);
 
             // Step 3: Get user roles
-            var roles = (await userManager.GetRolesAsync(user)).ToList();
+             var roles = (await userManager.GetRolesAsync(user)).ToList();
 
             // Step 4: Return user info with API key
             return TypedResults.Ok(new AuthLoginResponse(

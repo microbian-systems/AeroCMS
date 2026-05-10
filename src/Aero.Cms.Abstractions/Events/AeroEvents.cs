@@ -13,6 +13,31 @@ public record SlugUpdated(
     string NewSlug,
     string? OldSlug = null) : AeroEvent($"{OldSlug}->{NewSlug}");
 
+public abstract record ContentUpdatedEvent(
+    long ContentId,
+    long SiteId,
+    string NewSlug,
+    string? OldSlug,
+    string ContentType) : AeroEvent($"{ContentType} content updated for site {SiteId}: {OldSlug}->{NewSlug}");
+
+public sealed record PageContentUpdatedEvent(
+    long ContentId,
+    long SiteId,
+    string NewSlug,
+    string? OldSlug = null) : ContentUpdatedEvent(ContentId, SiteId, NewSlug, OldSlug, "page");
+
+public sealed record BlogPostContentUpdatedEvent(
+    long ContentId,
+    long SiteId,
+    string NewSlug,
+    string? OldSlug = null) : ContentUpdatedEvent(ContentId, SiteId, NewSlug, OldSlug, "blog");
+
+public sealed record DocsPageContentUpdatedEvent(
+    long ContentId,
+    long SiteId,
+    string NewSlug,
+    string? OldSlug = null) : ContentUpdatedEvent(ContentId, SiteId, NewSlug, OldSlug, "docs");
+
 
 public abstract record AeroEvent<T>(T record, string? msg = null) : AeroEvent(msg!)
 {

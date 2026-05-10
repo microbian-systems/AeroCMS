@@ -1,19 +1,32 @@
-using System.Reflection;
+using Aero.Cms.Abstractions.Blocks.Serialization;
 
 namespace Aero.Cms.Abstractions.Blocks.Editing;
 
 /// <summary>
 /// Service for block editing operations, providing methods to create, update, delete, and manage CMS blocks.
+/// Block types are sourced from the generated <see cref="GeneratedBlockModelManifest"/>,
+/// eliminating runtime reflection-based assembly scanning.
 /// </summary>
 public sealed class BlockEditingService
 {
     private static readonly List<BlockTypeInfo> BlockTypes;
 
-    // todo - we should abstract the scanning logic of block types from this service
-    // - add error logging (ILogger<T> injected)
     static BlockEditingService()
     {
-        BlockTypes = ScanBlockTypes();
+        BlockTypes = GeneratedBlockModelManifest.Blocks.Values
+            .Select(d => new BlockTypeInfo
+            {
+                Name = d.BlockType,
+                DisplayName = d.DisplayName,
+                Description = d.Description,
+                Category = d.Category ?? "General",
+                Icon = d.Icon,
+                SortOrder = d.SortOrder,
+                Type = d.ModelType
+            })
+            .OrderBy(b => b.SortOrder)
+            .ThenBy(b => b.DisplayName)
+            .ToList();
     }
 
     /// <summary>
@@ -44,13 +57,19 @@ public sealed class BlockEditingService
     /// <returns>A Result containing the created block or an error message.</returns>
     public Result<BlockBase, AeroError> CreateBlock(string blockTypeName, int order = 0)
     {
-        var blockTypeInfo = GetBlockTypeInfo(blockTypeName);
+        // Use the source-generated factory instead of Activator.CreateInstance.
+        // GeneratedBlockFactory.CreateByTypeName is emitted by BlockRendererGenerator
+        // and produces a compiled switch expression — zero reflection.
+        var instance = GeneratedBlockFactory.CreateByTypeName(blockTypeName);
         
-        return blockTypeInfo switch
+        if (instance is null)
         {
-            Option<BlockTypeInfo>.Some(var info) => CreateBlockInstance(info.Type, order),
-            _ => AeroError.NotFoundError($"Block type '{blockTypeName}' not found.")
-        };
+            return AeroError.NotFoundError($"Block type '{blockTypeName}' not found.");
+        }
+
+        instance.Id = Snowflake.NewId();
+        instance.Order = order;
+        return instance;
     }
 
     /// <summary>
@@ -66,13 +85,18 @@ public sealed class BlockEditingService
             return AeroError.CreateError("Source block cannot be null.");
         }
 
-        var json = System.Text.Json.JsonSerializer.Serialize(sourceBlock, sourceBlock.GetType());
-        var duplicate = System.Text.Json.JsonSerializer.Deserialize(json, sourceBlock.GetType()) as BlockBase;
+        // Use BlockSerializer which leverages BlockJsonContext.Default (source-generated)
+        // for AOT-safe polymorphic serialization. No runtime GetType() needed — STJ
+        // polymorphic serialization uses [JsonDerivedType] on BlockBase.
+        var json = BlockSerializer.Serialize(sourceBlock);
+        var result = BlockSerializer.Deserialize(json);
         
-        if (duplicate is null)
+        if (result is Result<BlockBase, AeroError>.Failure)
         {
             return AeroError.CreateError("Failed to duplicate block.");
         }
+
+        var duplicate = ((Result<BlockBase, AeroError>.Ok)result).Value;
 
         duplicate.Id = Snowflake.NewId();
         duplicate.Order = newOrder;
@@ -336,56 +360,6 @@ public sealed class BlockEditingService
         }
     }
 
-    private static List<BlockTypeInfo> ScanBlockTypes()
-    {
-        var types = new List<BlockTypeInfo>();
-        var assembly = typeof(BlockBase).Assembly;
-
-        var blockTypes = assembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(BlockBase)));
-
-        foreach (var type in blockTypes)
-        {
-            var metadata = type.GetCustomAttribute<BlockMetadataAttribute>();
-            if (metadata is not null)
-            {
-                types.Add(new BlockTypeInfo
-                {
-                    Name = metadata.Name,
-                    DisplayName = metadata.DisplayName,
-                    Description = metadata.Description,
-                    Category = metadata.Category ?? "General",
-                    Icon = metadata.Icon,
-                    SortOrder = metadata.SortOrder,
-                    Type = type
-                });
-            }
-        }
-
-        return types;
-    }
-
-    private static Result<BlockBase, AeroError> CreateBlockInstance(Type blockType, int order)
-    {
-        try
-        {
-            var instance = Activator.CreateInstance(blockType) as BlockBase;
-            if (instance is null)
-            {
-                return AeroError.CreateError($"Failed to create instance of {blockType.Name}.");
-            }
-
-            instance.Id = Snowflake.NewId();
-            instance.Order = order;
-            
-            return instance;
-        }
-        catch (Exception ex)
-        {
-            
-            return AeroError.CreateError($"Error creating block: {ex.Message}");
-        }
-    }
 }
 
 /// <summary>

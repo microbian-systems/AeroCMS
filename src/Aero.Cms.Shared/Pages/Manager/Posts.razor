@@ -2,23 +2,26 @@
 @page "/manager/posts/general"
 @attribute [Authorize]
 @using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Shared.Pages.Manager
 @using Aero.Core
 @using Aero.Core.Railway
 @inject IBlogHttpClient BlogApi
 @inject DialogService DialogService
+@inject NotificationService NotificationService
 @inject NavigationManager Navigation
 
-<div class="space-y-6">
+<div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Posts</h1>
-            <p class="mt-1 text-sm text-gray-500">Manage your blog content and articles.</p>
+            <h1 class="text-2xl font-bold pe-heading">Posts</h1>
+            <p class="mt-1 text-sm pe-description">Manage your blog content and articles.</p>
         </div>
         <div class="flex space-x-3">
              <RadzenTextBox Placeholder="Search posts..." 
                             Value="@searchText" 
                             ValueChanged="@(args => OnSearch(args))" 
                             class="w-64" />
+            <RadzenButton Icon="file_upload" Text="Import" ButtonStyle="ButtonStyle.Secondary" Click="@OpenImportDialog" />
             <RadzenButton Icon="add" Text="New Post" ButtonStyle="ButtonStyle.Primary" Click="@(() => Navigation.NavigateTo("/manager/post/editor"))" />
         </div>
     </div>
@@ -30,13 +33,30 @@
                     LoadData="@LoadData"
                     IsLoading="@isLoading"
                     AllowPaging="true" 
-                    PageSize="10" 
+                    @bind-PageSize="@pageSize"
+                    PageSizeOptions="@(new List<int> { 10, 20, 50, 100 })"
                     PagerHorizontalAlign="HorizontalAlign.Left"
                     ShowPagingSummary="true"
-                    RowClick="@(args => OnRowClick(args.Data))"
                     class="aero-grid cursor-pointer"
+                    RowClick="@(args => HandleRowClick(args.Data))"
                     EmptyText="No posts found. Time to write something!">
         <Columns>
+            <RadzenDataGridColumn TItem="BlogSummary" Width="48px" Filterable="false" Sortable="false">
+                <HeaderTemplate>
+                    <input type="checkbox" 
+                           @onchange="ToggleSelectAll" 
+                           checked="@AreAllSelected()" 
+                           @onclick:stopPropagation="true"
+                           class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                </HeaderTemplate>
+                <Template Context="post">
+                    <input type="checkbox" 
+                           checked="@IsSelected(post)" 
+                           @onchange="() => ToggleSelection(post)" 
+                           @onclick:stopPropagation="true"
+                           class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                </Template>
+            </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="BlogSummary" Property="Title" Title="Title">
                 <Template Context="post">
                     <div class="flex items-center gap-3">
@@ -44,13 +64,13 @@
                          {
                              <img src="@post.FeaturedImageUrl" class="w-8 h-8 rounded object-cover shadow-sm" alt="" />
                          }
-                         <span class="font-medium text-gray-900">@post.Title</span>
+                         <span class="font-medium" style="color: var(--pe-text-primary);">@post.Title</span>
                     </div>
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="BlogSummary" Property="Slug" Title="URL Slug">
                  <Template Context="post">
-                      <span class="text-xs font-mono text-gray-500">/@post.Slug</span>
+                      <span class="text-xs font-mono" style="color: var(--pe-text-muted);">/@post.Slug</span>
                  </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="BlogSummary" Property="PublishedAt" Title="Status">
@@ -67,11 +87,23 @@
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="BlogSummary" Property="CreatedAt" Title="Created">
                  <Template Context="post">
-                      <span class="text-sm text-gray-600">@post.CreatedAt.ToShortDateString()</span>
+                      <span style="color: var(--pe-text-secondary);">@post.CreatedAt.ToShortDateString()</span>
                  </Template>
             </RadzenDataGridColumn>
         </Columns>
     </RadzenDataGrid>
+
+    @if (selectedPosts.Count > 0)
+    {
+        <div class="flex items-center gap-3 justify-end">
+            <span style="color: var(--pe-text-muted);">@selectedPosts.Count selected</span>
+            <RadzenButton Icon="delete" Text="Delete Selected" 
+                          ButtonStyle="ButtonStyle.Danger" 
+                          Variant="Variant.Outlined"
+                          class="rounded-xl px-6 font-bold text-xs"
+                          Click="@DeleteSelected" />
+        </div>
+    }
 </div>
 
 @code {
@@ -80,10 +112,13 @@
     int count;
     bool isLoading = true;
     string searchText = "";
+    int pageSize = 10;
+    IList<BlogSummary> selectedPosts = new List<BlogSummary>();
 
     async Task LoadData(LoadDataArgs args)
     {
         isLoading = true;
+        selectedPosts.Clear();
         
         var result = await BlogApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchText);
         
@@ -103,9 +138,90 @@
         grid?.Reload();
     }
 
-    void OnRowClick(BlogSummary? post)
+    void HandleRowClick(BlogSummary? post)
     {
         if (post == null) return;
         Navigation.NavigateTo($"/manager/post/editor/{post.Id}");
+    }
+
+    bool IsSelected(BlogSummary post) => selectedPosts.Contains(post);
+
+    bool AreAllSelected()
+    {
+        var list = posts?.ToList();
+        return list is { Count: > 0 } && selectedPosts.Count == list.Count;
+    }
+
+    void ToggleSelection(BlogSummary post)
+    {
+        if (selectedPosts.Contains(post))
+            selectedPosts.Remove(post);
+        else
+            selectedPosts.Add(post);
+    }
+
+    void ToggleSelectAll(ChangeEventArgs args)
+    {
+        if (args.Value is bool isChecked && isChecked)
+        {
+            selectedPosts.Clear();
+            if (posts is not null)
+            {
+                foreach (var p in posts)
+                    selectedPosts.Add(p);
+            }
+        }
+        else
+        {
+            selectedPosts.Clear();
+        }
+    }
+
+    async Task DeleteSelected()
+    {
+        if (selectedPosts.Count == 0) return;
+
+        var confirm = await DialogService.Confirm(
+            $"Are you sure you want to delete {selectedPosts.Count} post(s)? This action cannot be undone.",
+            "Delete Posts",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirm != true) return;
+
+        var deleted = 0;
+        var failed = 0;
+
+        foreach (var post in selectedPosts.ToList())
+        {
+            var result = await BlogApi.DeleteAsync(post.Id);
+            if (result is Result<bool, AeroError>.Ok { Value: true })
+            {
+                deleted++;
+                selectedPosts.Remove(post);
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        if (deleted > 0)
+            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"{deleted} post(s) removed.");
+
+        if (failed > 0)
+            NotificationService.Notify(NotificationSeverity.Error, "Delete Failed", $"{failed} post(s) could not be deleted.");
+
+        grid?.Reload();
+    }
+
+    async Task OpenImportDialog()
+    {
+        var result = await DialogService.OpenAsync<ImportDialog>("Import Posts",
+            null,
+            new DialogOptions { Width = "640px" });
+        if (result is true)
+        {
+            grid?.Reload();
+        }
     }
 }

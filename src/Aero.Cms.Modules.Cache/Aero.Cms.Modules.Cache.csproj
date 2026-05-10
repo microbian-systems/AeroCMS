@@ -2,6 +2,7 @@
 
 
   <ItemGroup>
+    <PackageReference Include="WolverineFx" />
     <PackageReference Include="ZiggyCreatures.FusionCache" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" />
@@ -9,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.OutputCache\Aero.Cms.Modules.OutputCache.csproj" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

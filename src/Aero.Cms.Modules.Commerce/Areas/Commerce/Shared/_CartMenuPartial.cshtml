@@ -1,0 +1,19 @@
+@* Cart badge — follows eShop's CartMenu.razor pattern *@
+@inject IBasketService BasketService
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@{
+    var customerId = User.Identity?.IsAuthenticated == true
+        ? User.Identity.Name
+        : HttpContextAccessor?.HttpContext?.Request.Cookies["shop_cart_id"];
+    var basketResult = customerId is not null
+        ? await BasketService.GetOrCreateBasketAsync(customerId)
+        : null;
+    var itemCount = basketResult is Result<BasketDocument, AeroError>.Ok(var b) ? b.Items.Sum(i => i.Quantity) : 0;
+}
+<a aria-label="cart" href="/shop/cart">
+    <img role="presentation" src="~/icons/cart.svg" alt="Cart" />
+    @if (itemCount > 0)
+    {
+        <span class="eshop-cart-badge">@itemCount</span>
+    }
+</a>

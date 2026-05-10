@@ -68,7 +68,7 @@ public partial class Setup : ComponentBase
             SecretProvider = "Local Certificate",
             AuthenticationMode = "Local",
             AdminUserName = "admin",
-            AdminEmail = "hello@aerocms.com",
+            AdminEmail = "hello@getaerocms.net",
             SiteName = "Aero CMS",
             HomepageTitle = "Welcome to Aero CMS",
             BlogName = "Blog",
@@ -311,7 +311,7 @@ public class SetupInput
 
     [Required]
     [EmailAddress]
-    public string AdminEmail { get; set; } = "hello@aerocms.com";
+    public string AdminEmail { get; set; } = "hello@getaerocms.net";
 
     [Required]
     [StringLength(100, MinimumLength = 8)]

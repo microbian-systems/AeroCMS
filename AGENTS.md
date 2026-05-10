@@ -10,11 +10,13 @@
 - **ORM**: Entityframework Core (npgsql)
 - Scalar for API
 - **Patterns**:
-    - Heavy use of the repository pattern (`IRepository<T>`) between MartenDB and database.
+    - Heavy use of the repository pattern (`IGenericMartenRepository<T>` and `GenericMartenRepository<T>`) between MartenDB and database.
     - HTMX.NET for server-side interactivity.
 - Open Telemetry using serilog and openobserve (serilog sinkg for openobserve)
 
 ## Frontend
+- Prefer Blazor/Razor over JS libs/frameworks
+- If creating Razor/Blazor/Cshtml files - always prefer code behinds instead of inline code
 - **Language**: TypeScript first (using `Microsoft.Typescript.MSBuild` for compilation).
 - **Strategy**: Using CDN first.
 - **CSS Framework**: Tailwind CSS

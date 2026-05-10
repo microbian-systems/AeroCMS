@@ -1,4 +1,7 @@
-<NavLink class="pe-nav-link" href="@Href" Match="@Match">
+<NavLink class="pe-nav-link" href="@Href" Match="@Match"
+         data-pe-tooltip-target
+         data-pe-tooltip="@(IsCollapsed ? Label : null)"
+         data-pe-tooltip-placement="right">
     <div class="pe-nav-icon">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="@Icon" />

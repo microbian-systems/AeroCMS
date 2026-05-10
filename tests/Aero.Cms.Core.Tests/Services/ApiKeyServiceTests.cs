@@ -99,6 +99,8 @@ public class ApiKeyServiceTests
             ApiKey = hash, // Store hash
             Email = "test@test.com",
             Enabled = true,
+            CreatedBy = "test",
+            ModifiedBy = "test",
             RefreshToken = "token",
             RefreshTokenExpiry = DateTimeOffset.UtcNow.AddDays(1)
         });
@@ -142,6 +144,8 @@ public class ApiKeyServiceTests
             ApiKey = apiKey,
             Email = "disabled@test.com",
             Enabled = false,
+            CreatedBy = "test",
+            ModifiedBy = "test",
             RefreshToken = "token",
             RefreshTokenExpiry = DateTimeOffset.UtcNow.AddDays(1)
         });

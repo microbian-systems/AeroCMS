@@ -7,6 +7,7 @@ namespace Aero.Cms.Modules.Logging;
 /// <summary>
 /// Design to trap errors in the manager application (errors only)
 /// </summary>
+[Module(nameof(AeroLoggingModule))]
 public class AeroLoggingModule : AeroModuleBase
 {
     public override string Name => nameof(AeroLoggingModule);

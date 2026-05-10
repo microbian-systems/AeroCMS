@@ -4,10 +4,10 @@ using Aero.Secrets;
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.Reflection;
-using Aero.Modular;
 using TickerQ.DependencyInjection;
 using Wolverine;
+using Microsoft.AspNetCore.Builder;
+using TickerQ.Dashboard.DependencyInjection;
 
 
 namespace Aero.AppServer;
@@ -16,7 +16,23 @@ namespace Aero.AppServer;
 
 public static class AeroAppServerExtensions
 {
-    public static Task<IHostApplicationBuilder> AddAeroApplicationServer(this IHostApplicationBuilder builder)
+    /// <summary>
+    /// Adds Aero application server services (Orleans, Marten, TickerQ, Wolverine).
+    /// Wolverine handler discovery is driven by the source-generated
+    /// <c>GeneratedWolverineHandlerCatalog.Register</c> callback.
+    /// No AppDomain assembly scanning is performed.
+    /// </summary>
+    /// <param name="builder">The host application builder.</param>
+    /// <param name="configureWolverine">
+    /// Optional callback to configure Wolverine options.
+    /// The main host call site passes <c>GeneratedWolverineHandlerCatalog.Register</c>,
+    /// which disables conventional discovery and registers only the source-generated
+    /// handler types via explicit <c>IncludeType&lt;T&gt;()</c> calls.
+    /// When null, conventional discovery is disabled and no handlers are registered.
+    /// </param>
+    public static Task<IHostApplicationBuilder> AddAeroApplicationServer(
+        this IHostApplicationBuilder builder,
+        Action<WolverineOptions>? configureWolverine = null)
     {
         var services = builder.Services;
         var config = builder.Configuration;
@@ -56,60 +72,37 @@ public static class AeroAppServerExtensions
 
         services.AddTickerQ(opts =>
         {
-
+            opts.AddDashboard(dashboard =>
+            {
+                dashboard.SetBasePath("/manager/jobs");
+                dashboard.WithBasicAuth("admin", "*strongPassword1"); // TODO: replace with secure credentials and configuration
+            });
         });
 
         // Marten
         services.AddMarten(opts =>
         {
             opts.Connection(connString);
-        });
+        })
+        .UseLightweightSessions();
 
-
-        // For IHostApplicationBuilder, use AddWolverine on services
+        // Wolverine — handler discovery is driven by the source-generated
+        // GeneratedWolverineHandlerCatalog callback, which disables conventional
+        // discovery and includes only explicitly registered handler types.
+        // When no callback is provided, conventional discovery is still disabled
+        // and no handler scanning occurs (safe default: empty handler set).
         services.AddWolverine(ExtensionDiscovery.ManualOnly, opts =>
         {
-            // 2. This disables the handler conventions (Handle/Consume naming rules)
             opts.Discovery.DisableConventionalDiscovery();
-
-            // 3. Manually scan the AppDomain safely
-            var moduleAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(a => !a.IsDynamic)
-                .Where(a =>
-                {
-                    var name = a.GetName().Name;
-                    return name != null &&
-                           !name.StartsWith("Microsoft.") &&
-                           !name.StartsWith("System.") &&
-                           !name.StartsWith("Orleans.") &&
-                           !name.StartsWith("Radzen") &&
-                           !name.StartsWith("TickerQ") &&
-                           !name.StartsWith("Serilog") &&
-                           !name.StartsWith("Ziggy") &&
-                           !name.StartsWith("StackExchange") &&
-                           !name.StartsWith("Npgsql")
-                           ;
-                })
-                .ToList();
-
-            foreach (var assembly in moduleAssemblies)
-            {
-                try
-                {
-                    // Only include if it actually implements your marker interface
-                    if (assembly.GetTypes().Any(@type => typeof(IAeroModule).IsAssignableFrom(@type)))
-                    {
-                        opts.Discovery.IncludeAssembly(assembly);
-                    }
-                }
-                catch (ReflectionTypeLoadException) { /* Skip problematic DLLs */ }
-            }
-
-            // 4. Don't forget entry assembly! 
-            opts.Discovery.IncludeAssembly(Assembly.GetEntryAssembly()!);
-
-        }); // <--- Use .None instead of .ManualOnly
+            configureWolverine?.Invoke(opts);
+        });
 
         return Task.FromResult(builder);
+    }
+
+    public static WebApplication UseAeroApplicationServer(this WebApplication app)
+    {
+        app.UseTickerQ();
+        return app;
     }
 }

@@ -4,6 +4,7 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Blog.Importer;
 
+[Module(nameof(BlogImporterModule))]
 public class BlogImporterModule : AeroModuleBase
 {
     public override string Name => nameof(BlogImporterModule);

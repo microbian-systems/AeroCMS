@@ -1,0 +1,74 @@
+@page "/manager/aliases"
+@attribute [Authorize]
+
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Abstractions.Interfaces
+@using Aero.Cms.Abstractions.Models
+@using Aero.Cms.Abstractions.Requests
+@using Aero.Cms.Shared.Services
+@using Aero.Core
+@using Aero.Core.Railway
+@inject IAliasHttpClient AliasClient
+@inject ISitesHttpClient SitesClient
+@inject AdminStateContainer AdminState
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+
+@* NOTE: This page requires IAliasHttpClient (and its backend API endpoints) to be fully implemented.
+    The client interface and stub live in Aero.Cms.Abstractions.Http.Clients.
+    Backend endpoints (admin/aliases/) must be registered in Aero.Cms.Modules.Aliases. *@
+
+<div class="pe-page-content space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold pe-heading">Aliases</h1>
+            <p class="mt-1 text-sm pe-description">Manage URL redirects for the current site.</p>
+        </div>
+        <RadzenButton Text="Add Alias" ButtonStyle="ButtonStyle.Primary" Click="@(() => _showCreateForm = true)" />
+    </div>
+
+    @if (_showCreateForm)
+    {
+        <div style="border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg); padding: 16px; background: var(--pe-bg-secondary); margin-bottom: 16px;">
+            <h3 class="font-semibold mb-3" style="color: var(--pe-text-primary);">Create New Alias</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Old URL *</label>
+                    <input @bind="@_createOldPath" class="w-full rounded px-3 py-2" style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" placeholder="e.g. /old-page" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">New URL *</label>
+                    <input @bind="@_createNewPath" class="w-full border rounded px-3 py-2" placeholder="e.g. /new-page" />
+                </div>
+            </div>
+            <div class="flex gap-3 mt-4">
+                <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Create" Click="@HandleCreate" />
+                <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="Cancel" Click="@(() => _showCreateForm = false)" />
+            </div>
+        </div>
+    }
+
+    <RadzenDataGrid @ref="@_grid"
+                    Data="@_aliases"
+                    TItem="AliasViewModel"
+                    Count="@_count"
+                    LoadData="@LoadData"
+                    IsLoading="@_isLoading"
+                    AllowPaging="true"
+                    PageSize="10"
+                    PagerHorizontalAlign="HorizontalAlign.Center"
+                    ShowPagingSummary="true"
+                    EmptyText="No aliases found. Create your first redirect!">
+        <Columns>
+            <RadzenDataGridColumn TItem="AliasViewModel" Property="OldPath" Title="Old URL" />
+            <RadzenDataGridColumn TItem="AliasViewModel" Property="NewPath" Title="Redirects To" />
+            <RadzenDataGridColumn TItem="AliasViewModel" Title="Actions" Width="150px">
+                <Template Context="alias">
+                    <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger" Text="Delete" Click="@(() => DeleteAliasAsync(alias))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</div>
+

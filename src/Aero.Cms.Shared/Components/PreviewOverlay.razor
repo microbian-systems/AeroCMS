@@ -1,0 +1,122 @@
+@* Full-screen preview overlay for page/post editors.
+    Renders as a position:fixed overlay covering the entire viewport,
+    outside any editor chrome or layout constraints. *@
+
+@if (Visible)
+{
+    <div class="pe-preview-overlay">
+        <div class="pe-preview-overlay-backdrop" @onclick="OnClose"></div>
+        <div class="pe-preview-overlay-content" @onclick:stopPropagation>
+            @* Toolbar *@
+            <div class="pe-preview-overlay-toolbar">
+                <div class="flex items-center gap-3">
+                    <div class="pe-preview-devices">
+                        <button class="pe-device-btn @(Device == "desktop" ? "active" : "")"
+                                @onclick='() => Device = "desktop"' title="Desktop">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                                <line x1="8" y1="21" x2="16" y2="21"/>
+                                <line x1="12" y1="17" x2="12" y2="21"/>
+                            </svg>
+                        </button>
+                        <button class="pe-device-btn @(Device == "tablet" ? "active" : "")"
+                                @onclick='() => Device = "tablet"' title="Tablet">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+                                <line x1="12" y1="18" x2="12.01" y2="18"/>
+                            </svg>
+                        </button>
+                        <button class="pe-device-btn @(Device == "mobile" ? "active" : "")"
+                                @onclick='() => Device = "mobile"' title="Mobile">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                <line x1="12" y1="18" x2="12.01" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(UrlBarText))
+                    {
+                        <div class="pe-preview-url-bar-mini">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                            </svg>
+                            <code>@UrlBarText</code>
+                        </div>
+                    }
+                </div>
+                <button class="pe-btn pe-btn-ghost pe-btn-sm flex items-center gap-1.5" @onclick="OnClose">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    Close Preview
+                </button>
+            </div>
+
+            @* Preview frame *@
+            <div class="pe-preview-overlay-frame @("device-" + Device)">
+                @if (IsLoading)
+                {
+                    <div class="pe-preview-status">
+                        <svg class="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
+                        </svg>
+                        <span>Rendering preview...</span>
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(Error))
+                {
+                    <div class="pe-preview-status error">
+                        <h3>Preview unavailable</h3>
+                        <p>@Error</p>
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(FrameUrl))
+                {
+                    <iframe class="pe-preview-iframe"
+                            src="@FrameUrl"
+                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                            title="@Title"
+                            @key="FrameUrl"></iframe>
+                }
+                else if (!string.IsNullOrWhiteSpace(FrameDocument))
+                {
+                    <iframe class="pe-preview-iframe"
+                            srcdoc="@FrameDocument"
+                            sandbox="allow-scripts allow-same-origin"
+                            title="@Title"
+                            @key="FrameDocument"></iframe>
+                }
+                else
+                {
+                    <div class="pe-preview-status">
+                        <h3>No preview content</h3>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public string? FrameUrl { get; set; }
+    [Parameter] public string? FrameDocument { get; set; }
+    [Parameter] public string? UrlBarText { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public string Title { get; set; } = "Preview";
+
+    private string _device = "desktop";
+    private string Device
+    {
+        get => _device;
+        set
+        {
+            _device = value;
+            StateHasChanged();
+        }
+    }
+}
