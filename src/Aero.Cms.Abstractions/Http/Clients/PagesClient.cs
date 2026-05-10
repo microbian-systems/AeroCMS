@@ -4,6 +4,8 @@ using Aero.Cms.Abstractions.Blocks.Layout;
 namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Layout;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -100,6 +102,28 @@ public interface IPagesHttpClient
     /// Deletes the draft for a page. Called after manual save or publish.
     /// </summary>
     Task<Result<bool, AeroError>> DeleteDraftAsync(long id, CancellationToken ct = default);
+
+    // ── Tree / Hierarchy methods ──────────────────────────────────────
+
+    /// <summary>
+    /// Gets all pages as a flat, depth-ordered tree list for the current site.
+    /// </summary>
+    Task<Result<IReadOnlyList<PageTreeItem>, AeroError>> GetTreeAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets immediate children of a parent page (or root-level pages).
+    /// </summary>
+    Task<Result<IReadOnlyList<PageTreeItem>, AeroError>> GetChildrenAsync(long? parentId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets breadcrumb trail for a page.
+    /// </summary>
+    Task<Result<IReadOnlyList<TreeBreadcrumbItem>, AeroError>> GetBreadcrumbAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Computes the full path for a slug under a given parent. Validates uniqueness.
+    /// </summary>
+    Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -194,6 +218,32 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     {
         return MapBoolResult(base.DeleteAsync($"{id}/draft", ct));
     }
+
+    // ── Tree / Hierarchy implementations ──────────────────────────────
+
+    public Task<Result<IReadOnlyList<PageTreeItem>, AeroError>> GetTreeAsync(CancellationToken ct = default)
+    {
+        return GetAsync<IReadOnlyList<PageTreeItem>>("tree", ct);
+    }
+
+    public Task<Result<IReadOnlyList<PageTreeItem>, AeroError>> GetChildrenAsync(long? parentId, CancellationToken ct = default)
+    {
+        var url = "tree/children";
+        if (parentId.HasValue) url += $"?parentId={parentId}";
+        return GetAsync<IReadOnlyList<PageTreeItem>>(url, ct);
+    }
+
+    public Task<Result<IReadOnlyList<TreeBreadcrumbItem>, AeroError>> GetBreadcrumbAsync(long id, CancellationToken ct = default)
+    {
+        return GetAsync<IReadOnlyList<TreeBreadcrumbItem>>($"tree/breadcrumb/{id}", ct);
+    }
+
+    public Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, CancellationToken ct = default)
+    {
+        var url = $"tree/compute-path?slug={Uri.EscapeDataString(slug)}";
+        if (parentId.HasValue) url += $"&parentId={parentId}";
+        return PostAsync<object, ComputedPathResult>(url, new {}, ct);
+    }
 }
 
 #pragma warning disable SA1402 // File may only contain a single type
@@ -234,7 +284,8 @@ public record CreatePageRequest(
     string? Summary, 
     string? SeoTitle, 
     string? SeoDescription, 
-    ContentPublicationState PublicationState, 
+    ContentPublicationState PublicationState,
+    long? ParentId = null,
     IReadOnlyList<LayoutRegion>? LayoutRegions = null, 
     bool ShowInNavMenu = false, 
     bool ShowHeaderNavigation = true,
@@ -252,6 +303,7 @@ public record UpdatePageRequest(
     string? SeoTitle,
     string? SeoDescription,
     ContentPublicationState PublicationState,
+    long? ParentId = null,
     IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
     bool ShowHeaderNavigation = true,
@@ -280,3 +332,36 @@ public record PageDraftRequest(
     string Slug,
     string? Summary,
     List<EditorBlock>? Blocks = null);
+
+/// <summary>
+/// Flat tree node model for page hierarchy display.
+/// </summary>
+public record PageTreeItem(
+    long Id,
+    string Title,
+    string Slug,
+    string Path,
+    int Depth,
+    int Order,
+    long? ParentId,
+    string PublicationState,
+    bool IsHidden,
+    bool HasChildren);
+
+/// <summary>
+/// Single breadcrumb trail item.
+/// </summary>
+public record TreeBreadcrumbItem(
+    long Id,
+    string Title,
+    string Slug,
+    string Path);
+
+/// <summary>
+/// Result of slug + parent path validation.
+/// </summary>
+public record ComputedPathResult(
+    string Path,
+    int Depth,
+    bool IsValid,
+    string? ErrorMessage);

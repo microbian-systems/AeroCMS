@@ -1,17 +1,20 @@
 using Aero.Cms.Abstractions.Blocks.Editing;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
-
+using Aero.Cms.Core.Entities;
+using Aero.Cms.Modules.Pages.Validators;
 using Aero.Cms.Web.Core.Modules;
+using Aero.Modular;
+using FluentValidation;
+using Hydro.Configuration;
+using Marten;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Routing;
-using Aero.Cms.Core.Entities;
-using Aero.Modular;
-using Hydro.Configuration;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Builder;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -32,11 +35,24 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         services.AddScoped<IPageContentService, MartenPageContentService>();
         services.AddSingleton<BlockEditingService>();
 
+        // Page hierarchy services
+        services.AddScoped<IPageTreeService, PageTreeService>();
+        services.AddScoped<INavigationService, NavigationService>();
+
+        // Publishing workflow (event sourcing)
+        services.AddScoped<IPagePublishingWorkflowService, PagePublishingWorkflowService>();
+
+        // FluentValidation
+        services.AddScoped<IValidator<PageDocument>, PageDocumentValidator>();
+
+        // HTTP context for audit/user tracking
+        services.AddHttpContextAccessor();
+
         // Register this assembly so the Razor Pages in Areas/Cms/Pages are discovered
         services.AddRazorPages()
             .AddApplicationPart(typeof(PagesModule).Assembly);
 
-        // Map area page routes — without this, pages in Areas/Cms/Pages/ are only
+        // Map area page routes ― without this, pages in Areas/Cms/Pages/ are only
         // reachable via the area-prefixed default (e.g. /Cms/Page). These conventions
         // expose them at the desired public URLs.
         services.Configure<RazorPagesOptions>(options =>
@@ -48,19 +64,44 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
 
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
+        // ── Event Store (see also: AeroAppServer for global Marten event config) ──
+        // StreamIdentity and Snapshot projection are registered in the
+        // global Marten configuration (Program.cs / AeroAppServerExtensions.cs)
+        // to avoid namespace collisions between Marten and Aero.Marten packages.
+
+        // ── PageDocument ──────────────────────────────────────────────────
         opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
         opts.Schema.For<PageDocument>().Identity(x => x.Id);
         opts.Schema.For<PageDocument>().Index(x => x.SiteId);
-        opts.Schema.For<PageDocument>().UniqueIndex(x => x.SiteId, x => x.Slug);
+
+        // Unique index: no two pages share (SiteId, ParentId, Slug)
+        // Marten defaults to computed index type
+        opts.Schema.For<PageDocument>()
+            .UniqueIndex(x => x.SiteId, x => x.ParentId, x => x.Slug);
+
+        // Hierarchy indexes (default to computed indexes in Marten)
+        opts.Schema.For<PageDocument>()
+            .Index(x => x.Path);
+        opts.Schema.For<PageDocument>()
+            .Index(x => x.ParentId);
+        opts.Schema.For<PageDocument>()
+            .NgramIndex(x => x.Path);
+
+        // Soft-delete — auto-configured via ISoftDeleted on PageDocument
+        opts.Schema.For<PageDocument>().SoftDeleted();
+
+        // DuplicateField for DateTimeOffset (computed indexes don't support this type)
+        opts.Schema.For<PageDocument>().Duplicate(x => x.PublishedOn);
+
         Configure<PageDocument>(services, opts);
-        
-        // ContentSlugDocument — composite unique on (SiteId, NormalizedSlug)
+
+        // ── ContentSlugDocument ───────────────────────────────────────────
         opts.Schema.For<ContentSlugDocument>().DocumentAlias(Schemas.Tables.SlugRegistry);
         opts.Schema.For<ContentSlugDocument>().Index(x => x.SiteId);
         opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => x.SiteId, x => x.NormalizedSlug);
         Configure<ContentSlugDocument>(services, opts);
 
-        // PageDraft — one per page, upserted on auto-save, deleted on publish/manual save
+        // ── PageDraft ─────────────────────────────────────────────────────
         opts.Schema.For<PageDraft>().Index(x => x.PageId);
         opts.Schema.For<PageDraft>().Index(x => x.SiteId);
         opts.Schema.For<PageDraft>().Index(x => x.DraftedAt);

@@ -8,6 +8,7 @@ using TickerQ.DependencyInjection;
 using Wolverine;
 using Microsoft.AspNetCore.Builder;
 using TickerQ.Dashboard.DependencyInjection;
+using JasperFx.Events;
 
 
 namespace Aero.AppServer;
@@ -83,6 +84,9 @@ public static class AeroAppServerExtensions
         services.AddMarten(opts =>
         {
             opts.Connection(connString);
+
+            // Event sourcing for PageDocument (string-based stream identity)
+            opts.Events.StreamIdentity = StreamIdentity.AsString;
         })
         .UseLightweightSessions();
 

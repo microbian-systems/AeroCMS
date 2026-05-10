@@ -7,6 +7,9 @@ using Aero.Core.Http;
 using Aero.Core.Railway;
 using FluentAssertions;
 using Marten;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using TUnit.Core;
 using Wolverine;
@@ -20,6 +23,8 @@ public sealed class PageContentServiceTests
     private IMessageBus _bus = null!;
     private ISiteContext _siteContext = null!;
     private MartenPageContentService _service = null!;
+
+    private static readonly ILogger<MartenPageContentService> NullLogger = NullLogger<MartenPageContentService>.Instance;
 
     [Before(Test)]
     public async Task Setup()
@@ -38,7 +43,8 @@ public sealed class PageContentServiceTests
             _session,
             _blockService,
             _bus,
-            _siteContext
+            _siteContext,
+            NullLogger
         );
     }
 
@@ -59,7 +65,7 @@ public sealed class PageContentServiceTests
             .Returns((PageDocument?)null);
 
         var page = new PageDocument { Id = Snowflake.NewId(), Title = "Test", Slug = "test" };
-        var service = new MartenPageContentService(session, Substitute.For<IBlockService>(), Substitute.For<IMessageBus>(), CreateSiteContext(42));
+        var service = new MartenPageContentService(session, Substitute.For<IBlockService>(), Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
 
         var result = await service.SaveAsync(page, CancellationToken.None);
 
@@ -92,7 +98,7 @@ public sealed class PageContentServiceTests
             SeoDescription: null
         );
 
-        var service = new MartenPageContentService(session, Substitute.For<IBlockService>(), Substitute.For<IMessageBus>(), CreateSiteContext(42));
+        var service = new MartenPageContentService(session, Substitute.For<IBlockService>(), Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
 
         var result = await service.CreateAsync(request, CancellationToken.None);
 

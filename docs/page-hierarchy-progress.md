@@ -10,21 +10,23 @@
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| 1.1 | Add hierarchy fields to `PageDocument` (`ParentId`, `Path`, `Depth`, `Order`) | ⬜ Pending | |
-| 1.2 | Remove `ParentSlug` from `PageDocument` | ⬜ Pending | Redundant; use `ParentId` + `Path` |
-| 1.3 | Add `ISoftDeleted` interface to `PageDocument` | ⬜ Pending | Marten native soft-delete |
-| 1.4 | Add `IAuditableEntity` marker to `PageDocument` | ⬜ Pending | From `Aero.Cms.Abstractions.Interfaces` |
-| 1.5 | Update `ContentPublicationState` enum (append new values) | ⬜ Pending | `Published=1, Archived=2, InReview=3, Scheduled=4` |
-| 1.6 | Configure Marten indexes on `PageDocument` in `PagesModule.Configure()` | ⬜ Pending | Computed indexes + NgramIndex on Path |
-| 1.7 | Replace old `UniqueIndex(SiteId, Slug)` with `UniqueIndexType.Computed(SiteId, ParentId, Slug)` | ⬜ Pending | |
-| 1.8 | Implement `SlugValidator` → FluentValidation `PageDocumentValidator` expansion | ⬜ Pending | |
-| 1.9 | Implement `IPageTreeService` + `PageTreeService` | ⬜ Pending | `Result<T, AeroError>`, `ISiteContext` |
-| 1.10 | Implement `INavigationService` + `NavigationService` | ⬜ Pending | Cascade hidden parent visibility |
-| 1.11 | Optimize breadcrumb query (single query, not N+1) | ⬜ Pending | |
-| 1.12 | Register services in `PagesModule.ConfigureServices()` | ⬜ Pending | |
+| 1.1 | Add hierarchy fields to `PageDocument` (`ParentId`, `Path`, `Depth`, `Order`, `IsHidden`) | ✅ Complete | `src/Aero.Cms.Core.Entities/PageDocument.cs` |
+| 1.2 | Remove `ParentSlug` from `PageDocument` | ✅ Complete | Not present in existing code; no removal needed |
+| 1.3 | Add `ISoftDeleted` interface to `PageDocument` | ✅ Complete | Uses `Marten.Metadata.ISoftDeleted` |
+| 1.4 | Add `IAuditableEntity` marker to `PageDocument` | ✅ Complete | `src/Aero.Cms.Abstractions/Interfaces/IAuditableEntity.cs` |
+| 1.5 | Update `ContentPublicationState` enum (append new values) | ✅ Complete | Added `Archived=2, InReview=3, Scheduled=4` |
+| 1.6 | Configure Marten indexes on `PageDocument` in `PagesModule.Configure()` | ✅ Complete | Computed: Path, ParentId; NgramIndex: Path; SoftDeleted; DuplicateField: PublishedOn |
+| 1.7 | Replace old `UniqueIndex(SiteId, Slug)` with `UniqueIndex(SiteId, ParentId, Slug)` | ✅ Complete | Marten defaults to computed index type |
+| 1.8 | Expand FluentValidation `PageDocumentValidator` | ✅ Complete | Slug pattern, Path, Depth, Order, ParentId, PublicationState rules |
+| 1.9 | Implement `IPageTreeService` + `PageTreeService` | ✅ Complete | `PageTreeService.cs` (310 lines): GetTree, GetChildren, GetAncestors, Move, ComputePath, GetNextSiblingOrder, UpdateDescendantPaths |
+| 1.10 | Implement `INavigationService` + `NavigationService` | ✅ Complete | `NavigationService.cs` (295 lines): GetNavigationTree, GetBreadcrumb, SetHidden, MarkHiddenDescendants |
+| 1.11 | Optimize breadcrumb query (single query, not N+1) | ✅ Complete | Uses materialized path with `Contains` query |
+| 1.12 | Register services in `PagesModule.ConfigureServices()` | ✅ Complete | IPageTreeService, INavigationService, IValidator<PageDocument>, IHttpContextAccessor |
 | 1.13 | Write unit tests (TUnit) for `PageTreeService` | ⬜ Pending | |
-| 1.14 | Create migration script for existing pages | ⬜ Pending | Set `Path=/slug`, `Depth=0`, `Order=0` |
-| 1.15 | Create `IAuditableEntity` marker interface in `Aero.Cms.Abstractions` | ⬜ Pending | |
+| 1.14 | Create migration script for existing pages | ✅ Complete | `PageHierarchyMigration.cs` — tree-aware migration with orphan handling |
+| 1.15 | Create `IAuditableEntity` marker interface in `Aero.Cms.Abstractions` | ✅ Complete | `src/Aero.Cms.Abstractions/Interfaces/IAuditableEntity.cs` |
+
+**Phase 1 Progress: 12/13 complete (1 remaining: tests)**
 
 ---
 
@@ -32,27 +34,43 @@
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| 2.1 | Create `PageTreeSelect` component | ⬜ Pending | Hierarchical dropdown |
-| 2.2 | Create `PathPreview` component | ⬜ Pending | |
-| 2.3 | Update `PageEditor` to support parent selection | ⬜ Pending | |
-| 2.4 | Create page tree manager using **Radzen DataGrid self-ref hierarchy** | ⬜ Pending | `LoadChildData` callback for lazy loading |
-| 2.5 | Add breadcrumb component | ⬜ Pending | |
-| 2.6 | Write UI integration tests | ⬜ Pending | Microsoft Playwright |
+| 2.0 | Create tree API endpoints in Headless module | ✅ Complete | `PagesTreeApi.cs` — 8 endpoints |
+| 2.1 | Create `PageTreeSelect` component | ⬜ Pending | Needs PageTree HTTP client integration in Shared |
+| 2.2 | Create `PathPreview` component | ⬜ Pending | Needs PageTree HTTP client integration in Shared |
+| 2.3 | Update `PageEditor` to support parent selection | ✅ Complete | `ParentId` added to CreatePageRequest/UpdatePageRequest; PageEditor passes it |
+| 2.4 | Create page tree manager using **Radzen DataGrid** | ✅ Complete | `PageTreeGrid.razor` in Pages module — flat list with depth indentation, hide toggle, delete confirm |
+| 2.5 | Add breadcrumb component | ⬜ Pending | Needs Nav HTTP client in Shared |
+| 2.6 | Write Playwright UI integration tests | ⬜ Pending | |
+
+**Phase 2 Progress: 3/7 complete** (+ tree API + client DTOs)
 
 ---
 
-## Phase 3: Advanced Features (Sprint 3) — 5 days
+## Phase 3: Event Sourcing (Sprint 3) — 5 days
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| 3.1 | Implement `IPageVersioningService` + `PageVersioningService` | ⬜ Pending | Unlimited versions |
-| 3.2 | Create `PageVersion` Marten document + mapping | ⬜ Pending | |
-| 3.3 | Create TickerQ job for version cleanup (daily, 90-day retention) | ⬜ Pending | Configurable via site settings |
-| 3.4 | Implement `IPagePublishingWorkflowService` + `PagePublishingWorkflowService` | ⬜ Pending | |
-| 3.5 | Add page cloning feature (CloneAsync) | ⬜ Pending | `Snowflake.NewId()` for new pages |
-| 3.6 | Add `PageSlugChanged` Wolverine event + handlers | ⬜ Pending | Alias module + Sitemap module |
-| 3.7 | Create UI: version history panel | ⬜ Pending | |
-| 3.8 | Create UI: publishing workflow (submit, approve, reject, schedule) | ⬜ Pending | |
+| 3.1 | Create event record types in `Aero.Cms.Abstractions/Events/` | ✅ Complete | 8 events: PageCreated, PageContentUpdated, PagePublished, PageArchived, PageDeleted, PageRestored, PageMoved, PageVisibilityChanged |
+| 3.2 | Add `Create()` / `Apply()` methods to `PageDocument` | ✅ Complete | Self-aggregating snapshot pattern |
+| 3.3 | Configure Marten event store in `PagesModule.Configure()` | ✅ Complete | `StreamIdentity.AsString`, `Snapshot<PageDocument>(Inline)` |
+| 3.4 | Rewrite `PageContentService` for event sourcing | ✅ Complete | CreateAsync → StartStream; UpdateAsync → FetchForWriting+AppendOne; DeleteAsync → AppendOne(PageDeleted) |
+| 3.5 | Rewrite `PageTreeService.MoveAsync()` for event sourcing | ✅ Complete | FetchForWriting + AppendOne(PageMoved); descendants updated directly |
+| 3.6 | Rewrite `NavigationService.SetHiddenAsync()` for event sourcing | ✅ Complete | FetchForWriting + AppendOne(PageVisibilityChanged); cascade via direct update |
+| 3.7 | Bootstrap event streams for existing pages | ✅ Complete | `EventStreamBootstrapMigration.cs` |
+| 3.8 | Implement `IPagePublishingWorkflowService` | ✅ Complete | `PagePublishingWorkflowService.cs` — uses `PageStateChanged` event |
+| 3.9 | Create TickerQ event archiving job | ✅ Complete | `PageEventArchiveJob.cs` — `[TickerFunction("pages.archive-events")]` |
+| 3.10 | Global Marten event store config (StreamIdentity.AsString) | ✅ Complete | `AeroAppServerExtensions.cs` |
+| 3.11 | Create UI: version history panel | ⬜ Pending | Query `mt_events` via FetchStreamAsync |
+
+**Phase 3 Progress: 8/11 complete**
+
+### Removed from Spec (replaced by event sourcing)
+
+- ❌ `IPageVersioningService` + `PageVersioningService`
+- ❌ `PageVersion` entity + Marten mapping
+- ❌ `PageAuditEntry` + `PageAuditListener : DocumentSessionListenerBase`
+- ❌ `IsContentChanged()` predicate
+- ❌ `PageVersionCleanupJob` (old TickerQ job)
 
 ---
 

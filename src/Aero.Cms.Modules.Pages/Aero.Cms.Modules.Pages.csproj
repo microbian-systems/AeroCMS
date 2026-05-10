@@ -13,6 +13,7 @@
     <PackageReference Include="Hydro" />
     <PackageReference Include="Markdig" />
     <PackageReference Include="Marten" />
+    <PackageReference Include="TickerQ" />
     <PackageReference Include="WolverineFx" />
     <PackageReference Include="ZiggyCreatures.FusionCache" />
   </ItemGroup>

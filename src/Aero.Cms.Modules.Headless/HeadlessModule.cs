@@ -50,6 +50,7 @@ public sealed class HeadlessModule : AeroWebModule
         builder.MapPreviewApi();
         builder.MapBlogApi();
         builder.MapPagesApi();
+        builder.MapPagesTreeApi();
         builder.MapMediaApi();
         builder.MapDashboardApi();
         builder.MapNavigationsApi();

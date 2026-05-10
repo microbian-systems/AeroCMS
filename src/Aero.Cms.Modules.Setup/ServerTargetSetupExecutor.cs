@@ -1,19 +1,16 @@
 using Aero.Cms.Abstractions.Services;
-using Aero.Cms.Core;
-using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Blog;
 using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
-using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Modules.Modules.Services;
-using Aero.Core.Data;
 using Aero.Core.Http;
 using Aero.EfCore;
 using Aero.Models.Entities;
 using Aero.Core.Identity;
+using JasperFx.Events;
 using Marten;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +58,7 @@ public sealed class ServerTargetSetupExecutor(
             options.Connection(serverConnectionString);
             options.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
             options.UseAeroGeneratedJsonContext();
+            options.Events.StreamIdentity = StreamIdentity.AsString;
             options.Schema.For<AeroRole>().Identity(x => x.Id);
             options.Schema.For<AeroUser>().Identity(x => x.Id);
 
@@ -74,7 +72,8 @@ public sealed class ServerTargetSetupExecutor(
         var blockService = new MartenBlockService(session);
         var bus = rootServiceProvider.GetRequiredService<IMessageBus>();
         var noopSiteContext = new NoopSiteContext();
-        var pageContentService = new MartenPageContentService(session, blockService, bus, noopSiteContext);
+        var pageContentService = new MartenPageContentService(session, blockService, bus, noopSiteContext,
+            rootServiceProvider.GetRequiredService<ILogger<MartenPageContentService>>());
         var blogPostContentService = new MartenBlogPostContentService(session, noopSiteContext);
         var userStore = CreateUserStore(session, rootServiceProvider);
         var userManager = CreateUserManager(userStore, rootServiceProvider);

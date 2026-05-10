@@ -12,5 +12,6 @@ public enum PageKind
     Homepage = 1,
     BlogListing = 2,
     Markdown = 3,
-    Razor = 4
+    Razor = 4,
+    Scriban = 5
 }

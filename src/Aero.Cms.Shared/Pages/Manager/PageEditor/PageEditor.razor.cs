@@ -108,6 +108,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool   HideFooter { get; set; }
     protected bool   ShowChatAgent { get; set; } = true;
     protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+    protected long? ParentId { get; set; }
 
     protected CmsPageDetail? LoadedPage { get; set; }
 
@@ -1163,6 +1164,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                     SeoTitle,
                     SeoDescription,
                     PublicationState,
+                    ParentId,
                     null, // LayoutRegions are mapped on backend from EditorBlocks
                     ShowInNavMenu,
                     ShowHeaderNavigation,
@@ -1193,6 +1195,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                     SeoTitle,
                     SeoDescription,
                     PublicationState,
+                    ParentId,
                     null,
                     ShowInNavMenu,
                     ShowHeaderNavigation,

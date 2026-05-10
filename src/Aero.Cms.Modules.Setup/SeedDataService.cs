@@ -264,19 +264,23 @@ public sealed class SeedDatabaseService(
         // Store pages and their blocks
         homepage.SiteId = siteId;
         foreach (var block in homepageBlocks) session.Store(block);
-        await pageContentService.SaveAsync(homepage, cancellationToken);
+        var homeR = await pageContentService.SaveAsync(homepage, cancellationToken);
+        if (homeR.IsFailure) Log.Warning("Failed to seed homepage: {Error}", ErrMsg(homeR));
 
         blogListing.SiteId = siteId;
         foreach (var block in blogListingBlocks) session.Store(block);
-        await pageContentService.SaveAsync(blogListing, cancellationToken);
+        var blogR = await pageContentService.SaveAsync(blogListing, cancellationToken);
+        if (blogR.IsFailure) Log.Warning("Failed to seed blog listing page: {Error}", ErrMsg(blogR));
 
         aboutPage.SiteId = siteId;
         foreach (var block in aboutBlocks) session.Store(block);
-        await pageContentService.SaveAsync(aboutPage, cancellationToken);
+        var aboutR = await pageContentService.SaveAsync(aboutPage, cancellationToken);
+        if (aboutR.IsFailure) Log.Warning("Failed to seed about page: {Error}", ErrMsg(aboutR));
 
         contactPage.SiteId = siteId;
         foreach (var block in contactBlocks) session.Store(block);
-        await pageContentService.SaveAsync(contactPage, cancellationToken);
+        var contactR = await pageContentService.SaveAsync(contactPage, cancellationToken);
+        if (contactR.IsFailure) Log.Warning("Failed to seed contact page: {Error}", ErrMsg(contactR));
         
         foreach (var doc in docs)
         {
@@ -370,6 +374,9 @@ public sealed class SeedDatabaseService(
             Id = Snowflake.NewId(),
             Kind = PageKind.Standard,
             Slug = "oops",
+            Path = "/oops",
+            Depth = 0,
+            Order = 0,
             Title = "Page Not Found",
             Summary = "The page you're looking for doesn't exist or has been moved.",
             SeoTitle = "Page Not Found",
@@ -584,6 +591,9 @@ public sealed class SeedDatabaseService(
                 Id = Snowflake.NewId(),
                 Kind = PageKind.Homepage,
                 Slug = "/",
+                Path = "/",
+                Depth = 0,
+                Order = 0,
                 Title = Normalize(request.HomepageTitle),
                 Summary = homepageSummary,
                 SeoTitle = $"{Normalize(request.HomepageTitle)} | {Normalize(request.SiteName)}",
@@ -642,6 +652,9 @@ public sealed class SeedDatabaseService(
                 Id = Snowflake.NewId(),
                 Kind = PageKind.BlogListing,
                 Slug = "blog",
+                Path = "/blog",
+                Depth = 0,
+                Order = 0,
                 Title = Normalize(request.BlogName),
                 Summary = $"Updates and field notes from {Normalize(request.SiteName)}.",
                 SeoTitle = $"{Normalize(request.BlogName)} | {Normalize(request.SiteName)}",
@@ -703,6 +716,9 @@ public sealed class SeedDatabaseService(
                 Id = Snowflake.NewId(),
                 Kind = PageKind.Standard,
                 Slug = "about",
+                Path = "/about",
+                Depth = 0,
+                Order = 0,
                 Title = "About Us",
                 Summary = summary,
                 SeoTitle = "About Us | Aero CMS",
@@ -771,6 +787,9 @@ public sealed class SeedDatabaseService(
                 Id = Snowflake.NewId(),
                 Kind = PageKind.Standard,
                 Slug = "contact",
+                Path = "/contact",
+                Depth = 0,
+                Order = 0,
                 Title = "Contact Us",
                 Summary = summary,
                 SeoTitle = "Contact Us | Aero CMS",
@@ -933,6 +952,9 @@ public sealed class SeedDatabaseService(
 
     private static string Normalize(string value)
         => value.Trim();
+
+    private static string ErrMsg(Result<PageDocument, AeroError> r) =>
+        r is Result<PageDocument, AeroError>.Failure f && f.Error is AeroError.Error e ? e.msg : "seed save failed";
 
     private static List<Tag> CreateTags()
     {

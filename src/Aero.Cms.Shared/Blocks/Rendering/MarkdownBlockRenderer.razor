@@ -1,7 +1,9 @@
+@using Markdig
+
 @if (Block != null && !string.IsNullOrEmpty(Block.Content))
 {
-    <div class="markdown-block-content">
-        <RadzenMarkdown Text="@Block.Content" AllowHtml="false" />
+    <div class="markdown-block-content prose prose-slate max-w-none">
+        @((MarkupString)Markdown.ToHtml(Block.Content))
     </div>
 }
 

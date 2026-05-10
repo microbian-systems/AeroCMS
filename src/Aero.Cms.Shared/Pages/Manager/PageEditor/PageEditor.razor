@@ -8,6 +8,7 @@
 @using Aero.Cms.Abstractions.Blocks.Layout
 @using Aero.Cms.Abstractions.Enums
 @using Aero.Cms.Core.Blocks
+@using Aero.Cms.Shared.Pages.Manager.PageTree
 @using Aero.Cms.Shared.Blocks.Rendering
 @using Aero.Cms.Shared.Layout
 @using Microsoft.AspNetCore.Components.Sections
@@ -193,6 +194,13 @@ else if (ActiveTab == "metadata")
                     <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
                            style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
                            value="@PageSlug" @oninput="e => OnSlugChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. about-us" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Parent Page</label>
+                    <PageTreeSelect @bind-SelectedParentId="ParentId"
+                                    ExcludePageId="@Id"
+                                    Placeholder="(root — no parent)" />
+                    <PathPreview ParentId="ParentId" Slug="@PageSlug" SiteId="1" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Summary / Excerpt</label>

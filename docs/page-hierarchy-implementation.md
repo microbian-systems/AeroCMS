@@ -1,7 +1,7 @@
 # Aero CMS Page Hierarchy Implementation Specification
 
-**Version:** 2.0  
-**Status:** Ready for Implementation  
+**Version:** 3.0  
+**Status:** Implementating (Phase 2)  
 **Last Updated:** 2026-05-10  
 **Target Framework:** ASP.NET Core 10 / .NET 10  
 **Architecture:** Razor Pages + Blazor WASM Hybrid + Blazor Server  
@@ -66,17 +66,17 @@ This specification defines the implementation of hierarchical page management fo
                       │
 ┌─────────────────────┴───────────────────────────────────────┐
 │                  Service Layer                              │
-│  IPageTreeService │ INavigationService │ IVersioningService │
+│  IPageTreeService │ INavigationService                     │
 └─────────────────────┬───────────────────────────────────────┘
                       │
 ┌─────────────────────┴───────────────────────────────────────┐
 │                 Domain Layer                                │
-│         PageDocument │ PageVersion │ NavigationItem         │
+│         PageDocument (self-aggregating snapshot)            │
 └─────────────────────┬───────────────────────────────────────┘
                       │
 ┌─────────────────────┴───────────────────────────────────────┐
 │              Marten (PostgreSQL)                            │
-│  pages (JSONB) │ page_versions (JSONB) │ GIN indexes        │
+│  pages (JSONB) │ mt_events (event store) │ mt_streams      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -93,8 +93,9 @@ This specification defines the implementation of hierarchical page management fo
 5. Service computes:
    - Path = parent.Path + "/" + page.Slug
    - Depth = parent.Depth + 1
-6. Marten stores document with optimistic concurrency
-7. UI refreshes tree view
+6. Service appends PageCreated event to the page's event stream
+7. Marten inline snapshot projection updates PageDocument
+8. UI refreshes tree view
 ```
 
 ---
@@ -383,91 +384,9 @@ public enum ContentPublicationState
 }
 ```
 
-### PageVersion Entity (for Versioning Feature)
+### PageVersion Entity — REMOVED
 
-**File:** `Aero.Cms.Core/Entities/PageVersion.cs`
-
-```csharp
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Layout;
-using Aero.Cms.Abstractions.Enums;
-using Aero.Core.Entities;
-
-namespace Aero.Cms.Core.Entities;
-
-/// <summary>
-/// Represents a historical snapshot of a PageDocument for versioning and rollback.
-/// </summary>
-public sealed class PageVersion : Entity
-{
-    /// <summary>
-    /// Reference to the original page.
-    /// </summary>
-    public long PageId { get; set; }
-    
-    /// <summary>
-    /// Sequential version number (1, 2, 3, ...).
-    /// </summary>
-    public int VersionNumber { get; set; }
-    
-    /// <summary>
-    /// User who created this version.
-    /// </summary>
-    public string CreatedByUserId { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Timestamp when this version was created.
-    /// </summary>
-    public DateTimeOffset CreatedAt { get; set; }
-    
-    // ========================================================================
-    // SNAPSHOT OF CONTENT STATE
-    // ========================================================================
-    
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public List<LayoutRegion> LayoutRegions { get; set; } = [];
-    public List<EditorBlock> Blocks { get; set; } = [];
-    public string? Summary { get; set; }
-    public ContentPublicationState PublicationState { get; set; }
-    
-    // ========================================================================
-    // SNAPSHOT OF HIERARCHICAL STATE (for reference only)
-    // ========================================================================
-    
-    /// <summary>
-    /// Parent at the time of this version.
-    /// ⚠️ NOT restored during rollback (tree structure may have changed).
-    /// Stored for auditing/informational purposes only.
-    /// </summary>
-    public long? ParentId { get; set; }
-    
-    /// <summary>
-    /// Path at the time of this version.
-    /// </summary>
-    public string Path { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Depth at the time of this version.
-    /// </summary>
-    public int Depth { get; set; }
-    
-    /// <summary>
-    /// Order at the time of this version.
-    /// </summary>
-    public int Order { get; set; }
-}
-```
-
-**Marten Mapping (inline in PagesModule.Configure()):**
-
-```csharp
-// Add to existing Configure() method in PagesModule:
-opts.Schema.For<PageVersion>()
-    .Identity(x => x.Id)
-    .Index(x => x.PageId)
-    .Index(x => new { x.PageId, x.VersionNumber })
-    .Index(x => x.CreatedAt);  // For TickerQ version cleanup queries
+> **Replaced by Marten event sourcing (see §10.1).** The `mt_events` table serves as the version history. No separate `PageVersion` document is needed. Every state-changing event is captured as an immutable event record with full metadata (timestamp, user, version, causation/correlation IDs).
 
 ---
 
@@ -2102,298 +2021,287 @@ app.MapGet("/api/page-tree/children", async (long parentId, IQuerySession query,
 
 ## Advanced Features
 
-### 1. Page Versioning System (Unlimited Versions + TickerQ Cleanup)
+### 1. Marten Event Sourcing — Versioning, Audit, and Workflow
 
-Pages support **unlimited version history**. A TickerQ background job runs daily at midnight, deleting versions older than the configured retention period (default: 90 days, configurable via global site settings).
+Pages use **Marten's built-in event sourcing** for versioning, audit trails, and publishing workflow. Every state change to a page is captured as an immutable event appended to the page's event stream. Marten's `Snapshot` projection keeps the current `PageDocument` in sync at all times.
 
-**What triggers a version:** Only content field changes create a version: `Title`, `Slug`, `LayoutRegions`, `Blocks`, `Summary`. Tree structure changes (Move, Rename, Order change) and metadata changes (PublicationState transitions, ShowInNavMenu) do NOT create versions.
+**Why event sourcing over manual versioning:**
+- **Version history is free**: The `mt_events` table IS the version history — no separate `PageVersion` documents needed
+- **Audit trail is automatic**: Every event carries metadata (timestamp, user ID, causation/correlation IDs)
+- **No `IsContentChanged()` comparisons**: Every save appends the event; the events themselves describe what changed
+- **Simpler code**: Removes `IPageVersioningService`, `PageVersion`, `PageAuditEntry`, and `PageAuditListener`
+- **Stream identity**: `pageId.ToString()` — string-based stream keys
 
-**Service Interface:**
+**Architecture:**
 
-**Service Interface:**
-
-```csharp
-// File: Aero.Cms.Core/Services/IPageVersioningService.cs
-
-namespace Aero.Cms.Core.Services;
-
-public interface IPageVersioningService
-{
-    Task<PageVersion> CreateVersionAsync(long pageId, string userId, CancellationToken ct = default);
-    Task<IReadOnlyList<PageVersion>> GetVersionHistoryAsync(long pageId, CancellationToken ct = default);
-    Task RollbackToVersionAsync(long pageId, int versionNumber, CancellationToken ct = default);
-}
+```
+┌──────────────────────────────────────────────────────────┐
+│  Service Layer (PageContentService, PageTreeService)      │
+│                                                          │
+│  var stream = await session.Events                       │
+│      .FetchForWriting<PageDocument>(pageId.ToString());  │
+│  stream.AppendOne(new PageContentUpdated { ... });       │
+│  await session.SaveChangesAsync();                        │
+└─────────────────┬────────────────────────────────────────┘
+                  │
+                  ▼
+┌──────────────────────────────────────────────────────────┐
+│  Marten Event Store                                      │
+│                                                          │
+│  mt_streams ← one stream per page (keyed by pageId str)  │
+│  mt_events ← all state-change events with metadata       │
+│      (version, timestamp, causation_id, correlation_id)  │
+└─────────────────┬────────────────────────────────────────┘
+                  │
+                  ▼
+┌──────────────────────────────────────────────────────────┐
+│  Inline Snapshot Projection                               │
+│                                                          │
+│  opts.Projections                                        │
+│      .Snapshot<PageDocument>(SnapshotLifecycle.Inline);  │
+│                                                          │
+│  PageDocument.Create() / Apply() methods evolve the       │
+│  snapshot from events. Current state always up to date.  │
+└──────────────────────────────────────────────────────────┘
 ```
 
-**Implementation:**
+#### Event Record Types
+
+**File:** `src/Aero.Cms.Abstractions/Events/PageEvents.cs`
 
 ```csharp
-// File: Aero.Cms.Core/Services/PageVersioningService.cs
+namespace Aero.Cms.Abstractions.Events;
 
-using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Core.Entities;
-using Marten;
+/// <summary>
+/// Appended when a new page is created.
+/// </summary>
+public sealed record PageCreated(
+    long SiteId,
+    string Title,
+    string Slug,
+    long? ParentId,
+    int Order);
 
-namespace Aero.Cms.Core.Services;
+/// <summary>
+/// Appended when content fields change: Title, Slug, LayoutRegions, Blocks, Summary, SEO fields.
+/// </summary>
+public sealed record PageContentUpdated(
+    string Title,
+    string Slug,
+    string? Summary,
+    string? SeoTitle,
+    string? SeoDescription,
+    List<LayoutRegion>? LayoutRegions,
+    List<EditorBlock>? Blocks);
 
-public sealed class PageVersioningService : IPageVersioningService
+/// <summary>
+/// Appended when the page is published. PublicationState → Published.
+/// </summary>
+public sealed record PagePublished;
+
+/// <summary>
+/// Appended when the page is archived. PublicationState → Archived.
+/// </summary>
+public sealed record PageArchived;
+
+/// <summary>
+/// Appended when the page is soft-deleted.
+/// </summary>
+public sealed record PageDeleted(string? Reason);
+
+/// <summary>
+/// Appended when a soft-deleted page is restored.
+/// </summary>
+public sealed record PageRestored;
+
+/// <summary>
+/// Appended when the page moves in the hierarchy (parent change, reorder).
+/// </summary>
+public sealed record PageMoved(
+    long? NewParentId,
+    string NewPath,
+    int NewDepth,
+    int NewOrder);
+
+/// <summary>
+/// Appended when the page's hidden/visible state changes.
+/// </summary>
+public sealed record PageVisibilityChanged(bool IsHidden);
+```
+
+#### PageDocument as Self-Aggregating Snapshot
+
+**File:** `src/Aero.Cms.Core.Entities/PageDocument.cs` — ADD these methods:
+
+```csharp
+// ── Event Sourcing: Create / Apply methods ──
+
+/// <summary>
+/// Creates a new PageDocument from a PageCreated event.
+/// The service layer computes Path, Depth before calling this.
+/// </summary>
+public static PageDocument Create(PageCreated e) => new()
+{
+    SiteId = e.SiteId,
+    Title = e.Title,
+    Slug = e.Slug,
+    ParentId = e.ParentId,
+    Order = e.Order,
+    PublicationState = ContentPublicationState.Draft
+};
+
+public void Apply(PageContentUpdated e)
+{
+    Title = e.Title;
+    Slug = e.Slug;
+    Summary = e.Summary;
+    SeoTitle = e.SeoTitle;
+    SeoDescription = e.SeoDescription;
+    if (e.LayoutRegions is not null) LayoutRegions = e.LayoutRegions.ToList();
+    if (e.Blocks is not null) Blocks = e.Blocks.ToList();
+    ModifiedOn = DateTimeOffset.UtcNow;
+}
+
+public void Apply(PagePublished _)
+{
+    PublicationState = ContentPublicationState.Published;
+    PublishedOn = DateTimeOffset.UtcNow;
+}
+
+public void Apply(PageArchived _) =>
+    PublicationState = ContentPublicationState.Archived;
+
+public void Apply(PageDeleted _) =>
+    Deleted = true;
+
+public void Apply(PageRestored _) =>
+    Deleted = false;
+
+public void Apply(PageMoved e)
+{
+    ParentId = e.NewParentId;
+    Path = e.NewPath;
+    Depth = e.NewDepth;
+    Order = e.NewOrder;
+}
+
+public void Apply(PageVisibilityChanged e) =>
+    IsHidden = e.IsHidden;
+```
+
+#### Configuring the Event Store
+
+**File:** `src/Aero.Cms.Modules.Pages/PagesModule.cs` — ADD in `Configure()`:
+
+```csharp
+// Enable event sourcing with string stream identity
+opts.Events.StreamIdentity = StreamIdentity.AsString;
+
+// Inline snapshot projection — keeps PageDocument current at all times
+opts.Projections.Snapshot<PageDocument>(SnapshotLifecycle.Inline);
+```
+
+#### Service Patterns
+
+**Create a page:**
+```csharp
+var streamId = page.Id.ToString();
+session.Events.StartStream<PageDocument>(streamId,
+    new PageCreated(siteId, title, slug, parentId, order));
+await session.SaveChangesAsync(ct);
+```
+
+**Update content:**
+```csharp
+var stream = await session.Events
+    .FetchForWriting<PageDocument>(pageId.ToString());
+stream.AppendOne(new PageContentUpdated(title, slug, ...));
+await session.SaveChangesAsync(ct);
+```
+
+**Publish:**
+```csharp
+var stream = await session.Events
+    .FetchForWriting<PageDocument>(pageId.ToString());
+stream.AppendOne(new PagePublished());
+await session.SaveChangesAsync(ct);
+```
+
+**Get version history (all events for a page):**
+```csharp
+var events = await session.Events.FetchStreamAsync(pageId.ToString());
+// events contains all IEvent with metadata (version, timestamp, user)
+```
+
+**Rollback:** Fetch events up to desired version, compute the state at that version, then append a new `PageContentUpdated` event with the rolled-back content.
+
+#### Audit Trail
+
+With Marten event sourcing, **a separate audit module is unnecessary**. Every event is immutable and carries:
+
+| Metadata | Source |
+|----------|--------|
+| User ID | `IEvent.Data` or HTTP context injected into event |
+| Timestamp | `IEvent.Timestamp` |
+| Version | `IEvent.Version` |
+| Causation ID | `IEvent.CausationId` |
+| Correlation ID | `IEvent.CorrelationId` |
+| Stream identity | `IEvent.StreamId` |
+
+The `mt_events` table serves as a complete, append-only audit log. No `PageAuditEntry`, `PageAuditListener`, or `DocumentSessionListenerBase` needed.
+
+#### TickerQ Cleanup
+
+Instead of pruning `PageVersion` documents, the cleanup job prunes old events from `mt_events` beyond the retention period (default: 90 days, configurable):
+
+```csharp
+// Event archival: Marten supports archiving events older than a threshold
+session.Events.ArchiveStream(pageId, cutoffDate);
+```
+
+---
+
+### 2. Publishing Workflow Service
+
+The publishing workflow now uses event appends instead of direct document mutation. Same interface, different implementation:
+
+```csharp
+public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowService
 {
     private readonly IDocumentSession _session;
-    
-    public PageVersioningService(IDocumentSession session)
+
+    public async Task<Result<Unit, AeroError>> PublishNowAsync(long pageId, CancellationToken ct = default)
     {
-        _session = session;
-    }
-    
-    public async Task<PageVersion> CreateVersionAsync(long pageId, string userId, CancellationToken ct = default)
-    {
-        var page = await _session.LoadAsync<PageDocument>(pageId, ct)
-            ?? throw new InvalidOperationException("Page not found.");
-        
-        var latestVersion = await _session.Query<PageVersion>()
-            .Where(x => x.PageId == pageId)
-            .OrderByDescending(x => x.VersionNumber)
-            .FirstOrDefaultAsync(ct);
-        
-        var version = new PageVersion
-        {
-            PageId = pageId,
-            VersionNumber = (latestVersion?.VersionNumber ?? 0) + 1,
-            CreatedByUserId = userId,
-            CreatedAt = DateTimeOffset.UtcNow,
-            
-            // Snapshot content
-            Title = page.Title,
-            Slug = page.Slug,
-            LayoutRegions = page.LayoutRegions.Select(r => r.Clone()).ToList(),
-            Blocks = page.Blocks.Select(b => b.Clone()).ToList(),
-            Summary = page.Summary,
-            PublicationState = page.PublicationState,
-            
-            // Snapshot hierarchy (for reference only)
-            ParentId = page.ParentId,
-            Path = page.Path,
-            Depth = page.Depth
-        };
-        
-        _session.Store(version);
+        var stream = await _session.Events
+            .FetchForWriting<PageDocument>(pageId.ToString(), ct);
+        stream.AppendOne(new PagePublished());
         await _session.SaveChangesAsync(ct);
-        
-        return version;
+        return Unit.Value;
     }
-    
-    public async Task<IReadOnlyList<PageVersion>> GetVersionHistoryAsync(long pageId, CancellationToken ct = default)
+
+    public async Task<Result<Unit, AeroError>> ArchiveAsync(long pageId, CancellationToken ct = default)
     {
-        return await _session.Query<PageVersion>()
-            .Where(x => x.PageId == pageId)
-            .OrderByDescending(x => x.VersionNumber)
-            .ToListAsync(ct);
-    }
-    
-    public async Task RollbackToVersionAsync(long pageId, int versionNumber, CancellationToken ct = default)
-    {
-        var version = await _session.Query<PageVersion>()
-            .FirstOrDefaultAsync(x => x.PageId == pageId && x.VersionNumber == versionNumber, ct)
-            ?? throw new InvalidOperationException("Version not found.");
-        
-        var page = await _session.LoadAsync<PageDocument>(pageId, ct)
-            ?? throw new InvalidOperationException("Page not found.");
-        
-        // Restore content (but NOT hierarchy - tree may have changed)
-        page.Title = version.Title;
-        page.Slug = version.Slug;
-        page.LayoutRegions = version.LayoutRegions.Select(r => r.Clone()).ToList();
-        page.Blocks = version.Blocks.Select(b => b.Clone()).ToList();
-        page.Summary = version.Summary;
-        
-        // ✅ CRITICAL: Always set to Draft after rollback
-        page.PublicationState = ContentPublicationState.Draft;
-        page.PublishedOn = null;
-        
-        _session.Store(page);
+        var stream = await _session.Events
+            .FetchForWriting<PageDocument>(pageId.ToString(), ct);
+        stream.AppendOne(new PageArchived());
         await _session.SaveChangesAsync(ct);
+        return Unit.Value;
     }
 }
 ```
 
-**Integration with PageTreeService — auto-version on save:**
+> **Note:** `SubmitForReview`, `Approve`, and `Reject` map to `ContentPublicationState` transitions and are handled similarly. `ScheduledPublish` stores the target date on the document and a TickerQ job fires the event at the scheduled time.
 
-```csharp
-// PageTreeService.UpdateAsync() auto-creates a version if content fields changed
-public async Task<Result<Unit, AeroError>> UpdateAsync(PageDocument page, CancellationToken ct = default)
-{
-    // ✅ Create version BEFORE update if content changed
-    if (_versioningService is not null)
-    {
-        var existing = await _session.LoadAsync<PageDocument>(page.Id, ct);
-        if (existing is not null && IsContentChanged(existing, page))
-        {
-            await _versioningService.CreateVersionAsync(page.Id, _currentUserId, ct);
-        }
-    }
-    
-    _session.Store(page);
-    await _session.SaveChangesAsync(ct);
-    return Unit.Value;
-}
+#### What Gets Removed vs. the Old Spec
 
-/// <summary>
-/// Content fields that trigger version creation when changed.
-/// Excludes: ParentId, Path, Depth, Order, PublicationState, ShowInNavMenu, etc.
-/// </summary>
-private static bool IsContentChanged(PageDocument before, PageDocument after) =>
-    before.Title != after.Title ||
-    before.Slug != after.Slug ||
-    before.Summary != after.Summary ||
-    !before.LayoutRegions.SequenceEqual(after.LayoutRegions) ||
-    !before.Blocks.SequenceEqual(after.Blocks);
-```
-
-**TickerQ Version Cleanup Job:**
-
-```csharp
-[<reference to TickerQ pattern>]
-public sealed class PageVersionCleanupJob(
-    IDocumentSession session,
-    ISiteSettingsService settings,
-    ILogger<PageVersionCleanupJob> log)
-{
-    [TickerFunction("pages.version-cleanup")]
-    public async Task CleanupOldVersions(
-        TickerFunctionContext context,
-        CancellationToken cancellationToken)
-    {
-        var retentionDays = await settings.GetAsync<int>("Pages.VersionRetentionDays", 90);
-        var cutoff = DateTimeOffset.UtcNow.AddDays(-retentionDays);
-
-        var oldVersions = await session.Query<PageVersion>()
-            .Where(x => x.CreatedAt < cutoff)
-            .ToListAsync(cancellationToken);
-
-        foreach (var version in oldVersions)
-        {
-            session.Delete(version); // Hard delete — versions are not soft-deleted
-        }
-
-        await session.SaveChangesAsync(cancellationToken);
-        log.LogInformation("Cleaned up {Count} page versions older than {Days} days",
-            oldVersions.Count, retentionDays);
-    }
-}
-```
-
----
-
-### 2a. Audit Trail Module (NEW)
-
-**Module:** `Aero.Cms.Modules.Audit`  
-**Pattern:** Marten DocumentSessionListenerBase  
-**Interface:** `IAuditableEntity` marker in `Aero.Cms.Abstractions.Interfaces`
-
-The Audit module provides a framework for tracking all changes to auditable entities. Each module (Pages, Blog, Docs) implements its own listener for its own document types.
-
-**IAuditableEntity (shared):**
-```csharp
-// File: Aero.Cms.Abstractions/Interfaces/IAuditableEntity.cs
-namespace Aero.Cms.Abstractions.Interfaces;
-
-/// <summary>
-/// Marker interface for entities that support audit trail tracking.
-/// Implemented by PageDocument, BlogPostDocument, etc.
-/// </summary>
-public interface IAuditableEntity { }
-```
-
-**PageAuditEntry (stored in Marten):**
-```csharp
-// File: Aero.Cms.Modules.Pages/Audit/PageAuditEntry.cs
-using Aero.Core.Entities;
-
-namespace Aero.Cms.Modules.Pages.Audit;
-
-public sealed class PageAuditEntry : Entity
-{
-    public long PageId { get; set; }
-    public string Action { get; set; } = string.Empty;  // "created", "updated", "deleted", "moved", "published"
-    public string ChangedBy { get; set; } = string.Empty;
-    public DateTimeOffset ChangedAt { get; set; }
-    public string? Details { get; set; }                  // JSON diff or summary of what changed
-}
-```
-
-**PageAuditListener (Marten session listener):**
-```csharp
-// File: Aero.Cms.Modules.Pages/Audit/PageAuditListener.cs
-using Aero.Cms.Core.Entities;
-using Marten;
-
-namespace Aero.Cms.Modules.Pages.Audit;
-
-/// <summary>
-/// Marten session listener that creates audit entries for PageDocument changes.
-/// Called before saving changes within the same transaction — if audit fails, the page operation rolls back.
-/// </summary>
-public sealed class PageAuditListener : DocumentSessionListenerBase
-{
-    private readonly IHttpContextAccessor? _httpContext;
-
-    public PageAuditListener(IHttpContextAccessor? httpContext = null)
-    {
-        _httpContext = httpContext;
-    }
-
-    public override async Task BeforeSaveChangesAsync(IDocumentSession session, CancellationToken token)
-    {
-        var pending = session.PendingChanges;
-        var userId = _httpContext?.HttpContext?.User?.FindFirst("sub")?.Value ?? "system";
-
-        foreach (var page in pending.InsertsFor<PageDocument>())
-        {
-            session.Store(new PageAuditEntry
-            {
-                Id = Snowflake.NewId(),
-                PageId = page.Id,
-                Action = "created",
-                ChangedBy = userId,
-                ChangedAt = DateTimeOffset.UtcNow,
-                Details = $"Page '{page.Title}' created at path {page.Path}"
-            });
-        }
-
-        foreach (var page in pending.UpdatesFor<PageDocument>())
-        {
-            session.Store(new PageAuditEntry
-            {
-                Id = Snowflake.NewId(),
-                PageId = page.Id,
-                Action = "updated",
-                ChangedBy = userId,
-                ChangedAt = DateTimeOffset.UtcNow,
-                Details = $"Page '{page.Title}' updated"
-            });
-        }
-
-        foreach (var deleted in pending.DeletionsFor<PageDocument>())
-        {
-            session.Store(new PageAuditEntry
-            {
-                Id = Snowflake.NewId(),
-                PageId = deleted.Id,
-                Action = "deleted",
-                ChangedBy = userId,
-                ChangedAt = DateTimeOffset.UtcNow,
-                Details = $"Page soft-deleted"
-            });
-        }
-
-        await Task.CompletedTask;
-    }
-}
-```
-
-> **Note:** `session.PendingChanges.InsertsFor<PageDocument>()` / `UpdatesFor<T>()` / `DeletionsFor<T>()` are verified Marten APIs (documented in Marten docs). Since `PageAuditEntry` is a different document type, there is no infinite loop risk.
-
----
+| Removed | Reason |
+|---------|--------|
+| `PageVersion` entity + Marten mapping | Events in `mt_events` are the version history |
+| `IPageVersioningService` + `PageVersioningService` | `FetchStreamAsync()` gives history; `FetchForWriting` gives rollback |
+| `PageAuditEntry` document | Event table IS the audit log |
+| `PageAuditListener : DocumentSessionListenerBase` | No listener needed |
+| `IsContentChanged()` predicate | Every save appends an event; no comparison needed |
+| `PageVersionCleanupJob` (old) | Replaced by Marten event archiving |
 
 ### 2. Publishing Workflow Service
 
@@ -2813,28 +2721,24 @@ public sealed class PageTreeIntegrationTests
 - [ ] Add breadcrumb component
 - [ ] Write UI integration tests (Microsoft Playwright)
 
-### Phase 3: Advanced Features (Sprint 3) — 5 days
+### Phase 3: Event Sourcing (Sprint 3) — 5 days
 
-- [ ] Implement `IPageVersioningService` + `PageVersioningService` (unlimited versions)
-- [ ] Create `PageVersion` Marten document mapping
-- [ ] Create TickerQ version cleanup job (daily, 90-day retention)
-- [ ] Implement `IPagePublishingWorkflowService` + `PagePublishingWorkflowService`
-- [ ] Add page cloning feature (with `Snowflake.NewId()`)
-- [ ] Wire up `PageSlugChanged` event (Wolverine outbox → Alias + Sitemap modules)
-- [ ] Create UI: version history panel
-- [ ] Create UI: publishing workflow
+- [ ] Create event record types in `Aero.Cms.Abstractions/Events/` (8 events: PageCreated, PageContentUpdated, PagePublished, PageArchived, PageDeleted, PageRestored, PageMoved, PageVisibilityChanged)
+- [ ] Add `Create()` / `Apply()` methods to `PageDocument` for snapshot replay
+- [ ] Configure Marten event store: `StreamIdentity.AsString`, `Snapshot<PageDocument>(Inline)` in PagesModule
+- [ ] Rewrite `PageContentService` to use `StartStream` / `FetchForWriting` / `AppendOne` instead of direct mutation
+- [ ] Rewrite `PageTreeService.MoveAsync()` to append `PageMoved` event
+- [ ] Rewrite `NavigationService.SetHiddenAsync()` to append `PageVisibilityChanged` event
+- [ ] Implement `IPagePublishingWorkflowService` with event appends (Publish, Archive, Submit/Approve/Reject)
+- [ ] Bootstrap event streams for existing pages (migration: append synthetic `PageCreated` for pages without streams)
+- [ ] Create UI: version history panel (query `mt_events` stream)
+- [ ] Create UI: publishing workflow buttons (submit, approve, reject, schedule)
 
-### Phase 4: Audit & Trash (Sprint 4) — 3 days
+### Phase 4: Polish & Performance (Sprint 4) — 5 days
 
-- [ ] Create `PageAuditEntry` document
-- [ ] Implement `PageAuditListener : DocumentSessionListenerBase` in Pages module
-- [ ] Register audit listener in `PagesModule.ConfigureServices()`
-- [ ] Implement soft-delete via Marten `ISoftDeleted` (session.Delete)
-- [ ] Create TickerQ job for permanent soft-delete cleanup (90-day retention)
-- [ ] Create audit history UI (admin panel)
-
-### Phase 5: Polish & Performance (Sprint 5) — 3 days
-
+- [ ] Wire up `PageSlugChanged` Wolverine event (outbox → Alias + Sitemap modules)
+- [ ] Create TickerQ job for event archiving (90-day retention, configurable)
+- [ ] Add page cloning feature (append `PageCreated` event to new stream)
 - [ ] Add output caching for navigation queries
 - [ ] Optimize descendant move/rename queries
 - [ ] Integration testing with Alba + embedded Postgres
@@ -2872,9 +2776,9 @@ GET    /api/pages/{id}/siblings
 ### Versioning Endpoints
 
 ```http
-GET    /api/pages/{id}/versions
-POST   /api/pages/{id}/versions
-POST   /api/pages/{id}/rollback?versionNumber={num}
+GET    /api/pages/{id}/events          # Full event stream for a page (version history)
+GET    /api/pages/{id}/events/{version} # Events up to a specific version
+POST   /api/pages/{id}/rollback        # Rollback to a specific version
 ```
 
 ### Publishing Endpoints
@@ -2934,17 +2838,13 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     services.AddScoped<IPageTreeService, PageTreeService>();
     services.AddScoped<INavigationService, NavigationService>();
     
-    // ✅ NEW: Advanced features (scoped for Marten session per-request)
-    services.AddScoped<IPageVersioningService, PageVersioningService>();
+    // ✅ NEW: Publishing workflow (uses event appends)
     services.AddScoped<IPagePublishingWorkflowService, PagePublishingWorkflowService>();
     
-    // ✅ NEW: Audit listener (Marten detects IDocumentSessionListener from DI)
-    services.AddScoped<IDocumentSessionListener, PageAuditListener>();
-    
     // ✅ NEW: TickerQ background jobs
-    services.AddSingleton<PageVersionCleanupJob>();
+    services.AddSingleton<PageEventArchiveJob>();
     
-    // HTTP context for audit/user tracking
+    // HTTP context for user tracking in event metadata
     services.AddHttpContextAccessor();
 }
 ```
@@ -2967,11 +2867,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 | **Circular Reference** | Invalid state where a page is its own ancestor (A → B → C → A) |
 | **Soft Delete** | Marten native feature — `session.Delete()` marks `mt_deleted=true` without removing data. Queries auto-filter deleted docs |
 | **ISoftDeleted** | Marten interface providing `Deleted` bool and `DeletedAt` timestamp. Marten auto-manages these via metadata |
-| **IAuditableEntity** | Marker interface for entities tracked by the Audit module |
+| **Event Stream** | An append-only sequence of state-change events for a single page. Keyed by `pageId.ToString()`. The `mt_events` table IS the audit log |
+| **Snapshot Projection** | Marten projection that computes the current `PageDocument` state by replaying all events in the stream. Runs `Inline` for immediate consistency |
+| **FetchForWriting** | Marten API that loads the current aggregate state from events, returns a writeable stream. Includes optimistic concurrency check |
+| **Self-Aggregating Snapshot** | A document type with `Create()` / `Apply()` methods that evolves its state from events. No separate projection class needed |
 | **NgramIndex** | PostgreSQL trigram index for efficient prefix/text matching on Path |
 | **Computed Index** | PostgreSQL expression index on JSONB fields without extra columns (Marten recommended) |
 | **Wolverine Outbox** | Transactional message publishing — messages only send after successful DB commit |
-| **TickerQ** | Background job system used for recurring cleanup tasks (version pruning, soft-delete cleanup) |
+| **TickerQ** | Background job system used for recurring cleanup tasks (event archiving, soft-delete cleanup) |
 
 ---
 

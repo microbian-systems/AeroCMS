@@ -1,7 +1,8 @@
-    using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Events;
 using CreatePageRequest = Aero.Cms.Abstractions.Requests.CreatePageRequest;
 using UpdatePageRequest = Aero.Cms.Abstractions.Requests.UpdatePageRequest;
 
@@ -165,6 +166,7 @@ public static class PagesApi
                 request.SeoTitle,
                 request.SeoDescription,
                 request.PublicationState,
+                request.ParentId,
                 request.LayoutRegions,
                 request.ShowInNavMenu,
                 request.ShowHeaderNavigation,
@@ -217,6 +219,7 @@ public static class PagesApi
                 request.SeoTitle,
                 request.SeoDescription,
                 request.PublicationState,
+                request.ParentId,
                 request.LayoutRegions,
                 request.ShowInNavMenu,
                 request.ShowHeaderNavigation,
@@ -291,15 +294,12 @@ public static class PagesApi
             var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
 
             if (page is null)
-            {
                 return TypedResults.NotFound(new { error = $"Page with id '{id}' not found." });
-            }
 
-            var now = DateTimeOffset.UtcNow;
             page.PublicationState = ContentPublicationState.Published;
-            page.PublishedOn ??= now;
-            page.ModifiedOn = now;
+            page.PublishedOn = DateTimeOffset.UtcNow;
 
+            session.Events.Append($"page-{id}", new PageStateChanged(ContentPublicationState.Published));
             session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 
@@ -325,15 +325,12 @@ public static class PagesApi
             var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
 
             if (page is null)
-            {
                 return TypedResults.NotFound(new { error = $"Page with id '{id}' not found." });
-            }
 
-            var now = DateTimeOffset.UtcNow;
             page.PublicationState = ContentPublicationState.Draft;
             page.PublishedOn = null;
-            page.ModifiedOn = now;
 
+            session.Events.Append($"page-{id}", new PageStateChanged(ContentPublicationState.Draft));
             session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 

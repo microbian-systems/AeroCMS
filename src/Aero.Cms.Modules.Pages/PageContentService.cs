@@ -5,15 +5,15 @@ using Aero.Core.Extensions;
 using Wolverine;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Core.Http;
-using Aero.Core.Railway;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using ZiggyCreatures.Caching.Fusion;
+using static Aero.Core.Railway.Prelude;
 
 
 namespace Aero.Cms.Modules.Pages;
@@ -36,6 +36,7 @@ public sealed class MartenPageContentService(
     IBlockService blockService,
     IMessageBus bus,
     ISiteContext siteContext,
+    ILogger<MartenPageContentService> logger,
     IHttpContextAccessor? httpContextAccessor = null,
     IFusionCache? cache = null) : IPageContentService
 {
@@ -56,7 +57,7 @@ public sealed class MartenPageContentService(
             var document = await session.LoadAsync<PageDocument>(id, cancellationToken);
             if (document is null)
             {
-                return Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
+                return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
             }
 
             await SetCacheAsync(cacheKey, document, cancellationToken);
@@ -64,7 +65,8 @@ public sealed class MartenPageContentService(
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to load page {PageId}", id);
+            return Prelude.Fail<PageDocument?, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -106,7 +108,8 @@ public sealed class MartenPageContentService(
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to query all pages (skip={Skip}, take={Take})", skip, take);
+            return Prelude.Fail<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -152,55 +155,35 @@ public sealed class MartenPageContentService(
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to find page by slug {Slug}", slug);
+            return Prelude.Fail<PageDocument?, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
     public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default)
     {
-        var page = new PageDocument
-        {
-            Id = Snowflake.NewId(),
-            SiteId = _siteContext.SiteId,
-            Title = request.Title,
-            Slug = string.IsNullOrEmpty(request.Slug)
-                ? request.Title.GenerateSlug()
-                : request.Slug,
-            Summary = request.Summary,
-            SeoTitle = request.SeoTitle,
-            SeoDescription = request.SeoDescription,
-            PublicationState = request.PublicationState,
-            ShowInNavMenu = request.ShowInNavMenu,
-            ShowHeaderNavigation = request.ShowHeaderNavigation,
-            HideFooter = request.HideFooter,
-            ShowChatAgent = request.ShowChatAgent
-        };
-
-        if (request.EditorBlocks is { Count: > 0 })
-        {
-            page.Blocks = request.EditorBlocks.ToList();
-            page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
-        }
-        else
-        {
-            page.Blocks = new List<EditorBlock>();
-            page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
-        }
-
-        return await SaveAsync(page, cancellationToken);
-    }
-
-    public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default)
-    {
         try
         {
-            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
-            if (page is null || page.SiteId != _siteContext.SiteId)
-            {
-                return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
-            }
+            var slug = string.IsNullOrEmpty(request.Slug)
+                ? request.Title.GenerateSlug()
+                : request.Slug;
 
-            ApplyUpdateRequest(page, request);
+            var siteId = _siteContext.SiteId;
+            var page = new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                SiteId = siteId,
+                Title = request.Title,
+                Slug = slug,
+                Summary = request.Summary,
+                SeoTitle = request.SeoTitle,
+                SeoDescription = request.SeoDescription,
+                PublicationState = request.PublicationState,
+                ShowInNavMenu = request.ShowInNavMenu,
+                ShowHeaderNavigation = request.ShowHeaderNavigation,
+                HideFooter = request.HideFooter,
+                ShowChatAgent = request.ShowChatAgent
+            };
 
             if (request.EditorBlocks is { Count: > 0 })
             {
@@ -213,12 +196,120 @@ public sealed class MartenPageContentService(
                 page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
             }
 
-            return await SaveAsync(page, cancellationToken);
-        }
+            var validationResult = await ValidatePage(page);
+            if (validationResult is Result<bool, AeroError>.Failure vf)
+            {
+                logger.LogWarning("Validation failed creating page '{Title}' (slug={Slug}): {Errors}", request.Title, request.Slug ?? "(auto)", vf.Error);
+                return Prelude.Fail<PageDocument, AeroError>(vf.Error);
+            }
 
+            // Reserve slug (new page, no previous slug)
+            await ContentSlugReservation.ReserveAsync(
+                session,
+                page.Id,
+                ContentSlugOwnerType.Page,
+                page.Slug,
+                siteId,
+                previousSlug: null,
+                cancellationToken: cancellationToken);
+
+            // Store the page and start an event stream for versioning
+            session.Store(page);
+            session.Events.StartStream($"page-{page.Id}",
+                new PageCreated(siteId, page.Title, page.Slug, null, 0));
+            await session.SaveChangesAsync(cancellationToken);
+
+            // Publish for cache invalidation
+            await bus.PublishAsync(new PageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, null));
+
+            logger.LogInformation("Created page {PageId}: {Title} (slug={Slug})", page.Id, page.Title, page.Slug);
+            return Prelude.Ok<PageDocument, AeroError>(page);
+        }
         catch (Exception ex)
         {
-            return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to create page '{Title}' (slug={Slug})", request.Title, request.Slug ?? "(auto)");
+            return Prelude.Fail<PageDocument, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+
+            if (page is null || page.SiteId != _siteContext.SiteId)
+            {
+                return Fail<PageDocument, AeroError>(
+                    AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
+            }
+
+            var oldSlug = page.Slug;
+
+            // Apply metadata update to the document
+            ApplyUpdateRequest(page, request);
+
+            // Process editor blocks — map to layout regions and persist BlockBase entities
+            if (request.EditorBlocks is { Count: > 0 })
+            {
+                page.Blocks = request.EditorBlocks.ToList();
+                page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
+                logger.LogInformation("Mapped {BlockCount} editor blocks to layout regions for page {PageId}", request.EditorBlocks.Count, id);
+            }
+            else if (request.LayoutRegions is { Count: > 0 })
+            {
+                page.LayoutRegions = request.LayoutRegions.ToList();
+            }
+
+            // Validate the updated page
+            var validationResult = await ValidatePage(page);
+            if (validationResult is Result<bool, AeroError>.Failure vf)
+            {
+                logger.LogWarning("Validation failed updating page {PageId}: {Errors}", id, vf.Error);
+                return Prelude.Fail<PageDocument, AeroError>(vf.Error);
+            }
+
+            // Reserve the new slug (if changed)
+            if (oldSlug != request.Slug)
+            {
+                await ContentSlugReservation.ReserveAsync(
+                    session,
+                    id,
+                    ContentSlugOwnerType.Page,
+                    request.Slug,
+                    _siteContext.SiteId,
+                    oldSlug,
+                    cancellationToken);
+            }
+
+            // Append update event for version history
+            session.Events.Append($"page-{id}", new PageContentUpdated(
+                Title: request.Title,
+                Slug: request.Slug,
+                Summary: request.Summary,
+                SeoTitle: request.SeoTitle,
+                SeoDescription: request.SeoDescription,
+                LayoutRegions: request.LayoutRegions?.ToList(),
+                Blocks: request.EditorBlocks?.ToList()));
+
+            session.Store(page);
+            await session.SaveChangesAsync(cancellationToken);
+
+            // Publish events via Wolverine outbox
+            if (page.PublicationState == ContentPublicationState.Published)
+            {
+                await bus.PublishAsync(new SlugUpdated(id, "Page", request.Slug, oldSlug));
+            }
+
+            await bus.PublishAsync(new PageContentUpdatedEvent(id, _siteContext.SiteId, request.Slug, oldSlug));
+
+            logger.LogInformation("Updated page {PageId}: {Title} (slug={Slug})", id, page.Title, page.Slug);
+            return Prelude.Ok<PageDocument, AeroError>(page);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to update page {PageId}", id);
+            return Prelude.Fail<PageDocument, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -227,8 +318,9 @@ public sealed class MartenPageContentService(
         try
         {
             var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+
             if (page is null || page.SiteId != _siteContext.SiteId)
-                return Prelude.Fail<bool, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
+                return Prelude.Fail<bool, AeroError>(AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
 
             var reservation = await session.Query<ContentSlugDocument>()
                 .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.Page && x.SiteId == _siteContext.SiteId, token: cancellationToken);
@@ -238,14 +330,20 @@ public sealed class MartenPageContentService(
                 session.Delete(reservation);
             }
 
-            session.Delete<PageDocument>(id);
+            // Append delete event for version history, then soft-delete via Marten ISoftDeleted
+            session.Events.Append($"page-{id}", new PageDeleted(null));
+            session.Delete(page);
+
             await session.SaveChangesAsync(cancellationToken);
-            await bus.PublishAsync(new PageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, page.Slug));
+            await bus.PublishAsync(new PageContentUpdatedEvent(id, _siteContext.SiteId, page.Slug, page.Slug));
+
+            logger.LogInformation("Deleted page {PageId}: {Slug}", id, page.Slug);
             return Prelude.Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<bool, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to delete page {PageId}", id);
+            return Prelude.Fail<bool, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -259,12 +357,17 @@ public sealed class MartenPageContentService(
                 page.SiteId = _siteContext.SiteId;
             }
 
-            await ValidatePage(page);
+            var validationResult = await ValidatePage(page);
+            if (validationResult is Result<bool, AeroError>.Failure vf)
+            {
+                logger.LogWarning("Validation failed saving page {PageId}: {Errors}", page.Id, vf.Error);
+                return Prelude.Fail<PageDocument, AeroError>(vf.Error);
+            }
 
             var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
             if (existingPage is not null && existingPage.SiteId != _siteContext.SiteId)
             {
-                return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError($"Page with id '{page.Id}' not found or access denied"));
+                return Prelude.Fail<PageDocument, AeroError>(AeroError.NotFoundError($"Page with id '{page.Id}' not found or access denied"));
             }
 
             var targetPage = existingPage ?? page;
@@ -272,6 +375,15 @@ public sealed class MartenPageContentService(
             if (existingPage is not null && !ReferenceEquals(page, existingPage))
             {
                 ApplyPersistedValues(page, existingPage);
+            }
+
+            // If the caller provided editor blocks but no layout regions, map them now.
+            // This handles both new pages (no existing) and updates where blocks were
+            // added but not yet persisted as BlockBase entities.
+            if (targetPage.Blocks.Count > 0 && targetPage.LayoutRegions.Count == 0)
+            {
+                targetPage.LayoutRegions = await MapEditorBlocksToLayoutRegions(targetPage.Blocks, cancellationToken);
+                logger.LogInformation("Generated layout regions from {BlockCount} blocks for page {PageId}", targetPage.Blocks.Count, targetPage.Id);
             }
 
             await ContentSlugReservation.ReserveAsync(
@@ -302,16 +414,14 @@ public sealed class MartenPageContentService(
 
             await bus.PublishAsync(new PageContentUpdatedEvent(targetPage.Id, targetPage.SiteId, targetPage.Slug, oldSlug));
 
+            logger.LogInformation("Saved page {PageId}: {Title} (slug={Slug})", targetPage.Id, targetPage.Title, targetPage.Slug);
             return Prelude.Ok<PageDocument, AeroError>(targetPage);
 
         }
-        catch (ArgumentException ex)
-        {
-            return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError(ex.Message));
-        }
         catch (Exception ex)
         {
-            return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to save page {PageId} (slug={Slug})", page.Id, page.Slug);
+            return Prelude.Fail<PageDocument, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -351,15 +461,15 @@ public sealed class MartenPageContentService(
         ];
     }
 
-    private static async Task ValidatePage(PageDocument page)
+    private static async Task<Result<bool, AeroError>> ValidatePage(PageDocument page)
     {
         var validator = new PageDocumentValidator();
         var valid = await validator.ValidateAsync(page);
 
         if (valid.Errors.Any())
-        {
-            throw new ArgumentException($"page errors: {string.Join(", ", valid.Errors.Select(e => e.ErrorMessage))}");
-        }
+            return Prelude.Fail<bool, AeroError>(AeroError.ValidationError(valid.Errors.Select(e => e.ErrorMessage)));
+
+        return Prelude.Ok<bool, AeroError>(true);
     }
 
     private static void ApplyUpdateRequest(PageDocument page, UpdatePageRequest request)
