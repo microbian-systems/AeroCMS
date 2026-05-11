@@ -214,14 +214,22 @@ public sealed class MartenPageContentService(
                 previousSlug: null,
                 cancellationToken: cancellationToken);
 
-            // Store the page and start an event stream for versioning
-            session.Store(page);
+            // Start an event stream for versioning (projection handles document persistence).
+            // PageCreated establishes the page; PageContentUpdated carries blocks + layout.
             session.Events.StartStream($"page-{page.Id}",
                 new PageCreated(siteId, page.Title, page.Slug, null, 0));
+            session.Events.Append($"page-{page.Id}", new PageContentUpdated(
+                page.Title,
+                page.Slug,
+                page.Summary,
+                page.SeoTitle,
+                page.SeoDescription,
+                page.LayoutRegions,
+                page.Blocks));
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish events via Wolverine outbox
-            await bus.PublishAsync(new AeroEvent<PageViewModel>.PageCreated(
+            await bus.PublishAsync(new PageViewModelCreated(
                 page.ToViewModel(), $"Page created: {page.Title}"));
             await bus.PublishAsync(new PageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, null));
 
@@ -298,11 +306,10 @@ public sealed class MartenPageContentService(
                 LayoutRegions: page.LayoutRegions,
                 Blocks: page.Blocks));
 
-            session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish events via Wolverine outbox
-            await bus.PublishAsync(new AeroEvent<PageViewModel>.PageUpdated(
+            await bus.PublishAsync(new PageViewModelUpdated(
                 page.ToViewModel(), $"Page updated: {page.Title}"));
 
             if (page.PublicationState == ContentPublicationState.Published)
@@ -344,7 +351,7 @@ public sealed class MartenPageContentService(
             session.Delete(page);
 
             await session.SaveChangesAsync(cancellationToken);
-            await bus.PublishAsync(new AeroEvent<PageViewModel>.PageDeleted(
+            await bus.PublishAsync(new PageViewModelDeleted(
                 page.ToViewModel(), $"Page deleted: {page.Title}"));
             await bus.PublishAsync(new PageContentUpdatedEvent(id, _siteContext.SiteId, page.Slug, page.Slug));
 
@@ -416,15 +423,32 @@ public sealed class MartenPageContentService(
                 ? existingPage?.PublishedOn ?? now
                 : null;
 
-            session.Store(targetPage);
+            // Append events so the inline projection persists the page document.
+            // PageCreated for new pages; PageContentUpdated carries blocks + layout regions.
+            if (existingPage is null)
+            {
+                session.Events.StartStream($"page-{targetPage.Id}",
+                    new PageCreated(targetPage.SiteId, targetPage.Title, targetPage.Slug,
+                                    targetPage.ParentId, targetPage.Order));
+            }
+            session.Events.Append($"page-{targetPage.Id}", new PageContentUpdated(
+                targetPage.Title,
+                targetPage.Slug,
+                targetPage.Summary,
+                targetPage.SeoTitle,
+                targetPage.SeoDescription,
+                targetPage.LayoutRegions,
+                targetPage.Blocks));
+
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish rich event + keep lean events for existing subscribers
             var vm = targetPage.ToViewModel();
+
             if (existingPage is null)
-                await bus.PublishAsync(new AeroEvent<PageViewModel>.PageCreated(vm, $"Page saved: {targetPage.Title}"));
+                await bus.PublishAsync(new PageViewModelCreated(vm, $"Page saved: {targetPage.Title}"));
             else
-                await bus.PublishAsync(new AeroEvent<PageViewModel>.PageUpdated(vm, $"Page saved: {targetPage.Title}"));
+                await bus.PublishAsync(new PageViewModelUpdated(vm, $"Page saved: {targetPage.Title}"));
 
             if (targetPage.PublicationState == ContentPublicationState.Published)
             {

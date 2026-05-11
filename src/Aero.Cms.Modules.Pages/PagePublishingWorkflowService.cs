@@ -39,9 +39,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page.PublicationState != ContentPublicationState.Draft)
                 return AeroError.ConflictError("Only draft pages can be submitted for review.");
 
-            page.PublicationState = ContentPublicationState.InReview;
             _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.InReview));
-            _session.Store(page);
             await _session.SaveChangesAsync(ct);
 
             _logger.LogInformation("Page {PageId} submitted for review", pageId);
@@ -66,9 +64,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page.PublicationState != ContentPublicationState.InReview)
                 return AeroError.ConflictError("Page must be in review to approve.");
 
-            page.PublicationState = ContentPublicationState.Published;
             _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.Published));
-            _session.Store(page);
             await _session.SaveChangesAsync(ct);
 
             _logger.LogInformation("Page {PageId} approved by {Reviewer}", pageId, reviewerId);
@@ -93,9 +89,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page.PublicationState != ContentPublicationState.InReview)
                 return AeroError.ConflictError("Page must be in review to reject.");
 
-            page.PublicationState = ContentPublicationState.Draft;
             _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.Draft));
-            _session.Store(page);
             await _session.SaveChangesAsync(ct);
 
             _logger.LogInformation("Page {PageId} rejected by {Reviewer}", pageId, reviewerId);
@@ -117,10 +111,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page is null)
                 return AeroError.NotFoundError($"Page {pageId} not found.");
 
-            page.PublicationState = ContentPublicationState.Published;
-            page.PublishedOn = DateTimeOffset.UtcNow;
             _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.Published));
-            _session.Store(page);
             await _session.SaveChangesAsync(ct);
 
             _logger.LogInformation("Page {PageId} published", pageId);
@@ -142,9 +133,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page is null)
                 return AeroError.NotFoundError($"Page {pageId} not found.");
 
-            page.PublicationState = ContentPublicationState.Archived;
             _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.Archived));
-            _session.Store(page);
             await _session.SaveChangesAsync(ct);
 
             _logger.LogInformation("Page {PageId} archived", pageId);

@@ -216,15 +216,8 @@ public sealed class PageTreeService : IPageTreeService
                 newDepth = 0;
             }
 
-            // Append PageMoved event for version history
+            // Append PageMoved event for version history (projection handles document update)
             _session.Events.Append($"page-{pageId}", new PageMoved(newParentId, newPath, newDepth, order ?? 0));
-
-            // Apply move to the document directly
-            page.ParentId = newParentId;
-            page.Path = newPath;
-            page.Depth = newDepth;
-            if (order.HasValue) page.Order = order.Value;
-            _session.Store(page);
 
             // Update descendant paths directly (derived fields, not historical events)
             if (oldPath != newPath)

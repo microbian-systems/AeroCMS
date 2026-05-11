@@ -61,7 +61,7 @@
 | 3.9 | Create TickerQ event archiving job | ✅ Complete | `PageEventArchiveJob.cs` — `[TickerFunction("pages.archive-events")]` |
 | 3.10 | Global Marten event store config (StreamIdentity.AsString) | ✅ Complete | `AeroAppServerExtensions.cs` |
 | 3.11 | Create UI: version history panel | ✅ Complete | `PageVersionHistory.razor` + `.razor.cs` in Shared — modal timeline with event icons. API endpoint `GET /admin/pages/{id}/events` in `PagesApi.cs`. HTTP client method `GetEventHistoryAsync` on `IPagesHttpClient`. Integrated into `PageEditor` metadata tab via "Version History" button. |
-| 3.12 | Register `Snapshot<PageDocument>(SnapshotLifecycle.Inline)` + remove `session.Store()` | ⚠️ Deferred | Marten `Snapshot<T>()` does not support `long` (Snowflake) identity types — requires `Guid` or `string`. Dual-write (Store + Events) retained. Rich events (`PageCreated/Updated/Deleted`) now carry `PageViewModel`. See ADR #19. |
+| 3.12 | Register `Snapshot<PageDocument>` + remove `session.Store()` | ✅ Complete | Custom `PageDocumentProjection : IProjection` bypasses `SingleStreamProjection<T,TId>` long-identity limitation. Registered `ProjectionLifecycle.Inline`. Removed all `session.Store(page)` from: `PageContentService` (3), `PagePublishingWorkflowService` (5), `PageTreeService` (1), `NavigationService` (1), `PagesApi` (2). Descendant paths + soft-delete retained as hybrid. See ADR #19. |
 
 **Phase 3 Progress: 12/12 complete ✅**
 
@@ -131,6 +131,7 @@
 | 16 | Snapshot projections per-module, not global | Each module owns its document projection (e.g., `PagesModule` registers `Snapshot<PageDocument>(Inline)`, `BlogModule` registers `Snapshot<BlogPostDocument>(Inline)`) | 2026-05-11 |
 | 17 | Pragmatic hybrid for descendant paths + soft-delete | Descendant path updates and soft-delete metadata kept as direct writes; the event stream is authoritative for content state changes | 2026-05-11 |
 | 18 | Event-store-native audit (no separate audit module) | `mt_events` IS the audit log. Every state change is an immutable event with metadata. Per-doc history via `FetchStreamAsync()`, global audit via `QueryAllRawEvents()`. No `PageAuditEntry`, no `IDocumentSessionListener`, no separate audit storage. | 2026-05-11 |
+| 19 | Custom `IProjection` for `long` Snowflake identity | `PageDocumentProjection : IProjection` manually parses IDs from stream keys (`$"page-{id}"` → `long`) and calls `PageDocument.Create()`/`Apply()` via `IDocumentOperations`. Bypasses `SingleStreamProjection<T,TId>` which rejects raw `long`. | 2026-05-11 |
 
 ---
 

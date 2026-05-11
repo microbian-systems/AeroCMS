@@ -1,20 +1,15 @@
 using Aero.Cms.Abstractions.Blocks.Editing;
-using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages.Validators;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using FluentValidation;
-using Hydro.Configuration;
-using Marten;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ProjectionLifecycle = JasperFx.Events.Projections.ProjectionLifecycle;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -27,7 +22,6 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
     public override IReadOnlyList<string> Dependencies => [];
     public override IReadOnlyList<string> Category => ["content", "pages"];
     public override IReadOnlyList<string> Tags => ["content", "pages", "cms"];
-
 
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
@@ -57,18 +51,17 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         // expose them at the desired public URLs.
         services.Configure<RazorPagesOptions>(options =>
         {
-            options.Conventions.AddAreaPageRoute("Cms", "/Page", "/{slug?}");
-            options.Conventions.AddAreaPageRoute("Cms", "/Page", "/_cms/preview/pages/drafts/{draftId:long}");
+            options.Conventions.AddAreaPageRoute("Cms", "/page", "/{slug?}");
+            options.Conventions.AddAreaPageRoute("Cms", "/page", "/_cms/preview/pages/drafts/{draftId:long}");
         });
     }
 
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         // ── Event Store ──────────────────────────────────────────────────
-        // StreamIdentity is set globally in AeroAppServerExtensions.cs.
-        // NOTE: Snapshot<T>() does not support long identity types (Snowflake).
-        // Events are stored for audit/version history; documents use dual-write
-        // (session.Store + session.Events.Append). See ADR #19.
+        // Custom IProjection registers inline. Uses MartenReal alias because
+        // global using Marten resolves to Aero.Marten (shim), not real Marten NuGet.
+        opts.Projections.Add(new PageDocumentProjection(), ProjectionLifecycle.Inline);
 
         // ── PageDocument ──────────────────────────────────────────────────
         opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);

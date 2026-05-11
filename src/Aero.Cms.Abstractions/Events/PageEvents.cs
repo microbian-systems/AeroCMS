@@ -63,7 +63,7 @@ public sealed record PageMoved(
 /// <summary>
 /// Appended when the page's visibility changes.
 /// </summary>
-public sealed record PageVisibilityChanged(bool IsHidden);
+public sealed record PageVisibilityChanged(bool IsHidden, bool ShowInNavMenu);
 
 /// <summary>
 /// Appended when the publication state transitions during workflow

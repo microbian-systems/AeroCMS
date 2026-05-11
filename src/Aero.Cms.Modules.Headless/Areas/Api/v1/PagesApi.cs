@@ -300,11 +300,7 @@ public static class PagesApi
             if (page is null)
                 return TypedResults.NotFound(new { error = $"Page with id '{id}' not found." });
 
-            page.PublicationState = ContentPublicationState.Published;
-            page.PublishedOn = DateTimeOffset.UtcNow;
-
             session.Events.Append($"page-{id}", new PageStateChanged(ContentPublicationState.Published));
-            session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 
             logger.LogInformation("Published page id={Id}, slug={Slug}", id, page.Slug);
@@ -331,11 +327,7 @@ public static class PagesApi
             if (page is null)
                 return TypedResults.NotFound(new { error = $"Page with id '{id}' not found." });
 
-            page.PublicationState = ContentPublicationState.Draft;
-            page.PublishedOn = null;
-
             session.Events.Append($"page-{id}", new PageStateChanged(ContentPublicationState.Draft));
-            session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 
             logger.LogInformation("Unpublished page id={Id}, slug={Slug}", id, page.Slug);

@@ -1,30 +1,158 @@
+using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Core.Entities;
-using Marten.Events.Aggregation;
+using JasperFx.Events;
+using Marten.Events;
 using Marten.Events.Projections;
 
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
-/// Inline snapshot projection for <see cref="PageDocument"/> that works
-/// around Marten 8's lack of <c>long</c> identity support by using
-/// <c>string</c> as the projection identity type and manually mapping
-/// stream keys back to Snowflake IDs.
+/// Custom IProjection for <see cref="PageDocument"/> that works with <c>long</c> (Snowflake)
+/// stream identities.  Marten's built-in <c>SingleStreamProjection&lt;T, TId&gt;</c> only
+/// supports <c>string</c> or <c>Guid</c> as TId, so we implement the low-level
+/// <see cref="IProjection"/> interface directly.
 /// </summary>
-/// <remarks>
-/// Marten 8's <c>Snapshot&lt;T&gt;()</c> shorthand auto-detects identity
-/// from <c>T.Id</c>, which is <c>long</c> for <c>PageDocument</c>.
-/// <c>SingleStreamProjection&lt;T, TId&gt;</c> requires <c>TId</c> to
-/// be <c>Guid</c> or <c>string</c>.  We use <c>string</c> (matching
-/// <c>StreamIdentity.AsString</c>) and resolve the Snowflake ID from
-/// the stream key at projection time.
-/// </remarks>
-public sealed class PageDocumentProjection : SingleStreamProjection<PageDocument, string>
+public sealed class PageDocumentProjection : IProjection
 {
-    public PageDocumentProjection()
+    // ── IProjection (sync) ──────────────────────────────────────────────
+
+    public void Apply(
+        IDocumentOperations operations,
+        IReadOnlyList<IEvent> events)
     {
-        // Use the self-aggregating conventional methods (Create / Apply)
-        // already defined on PageDocument. Marten auto-discovers them
-        // via reflection on the aggregate type.
-        Lifecycle = ProjectionLifecycle.Inline;
+        foreach (var group in events.GroupBy(e => e.StreamKey!))
+        {
+            ApplyStreamSync(operations, group);
+        }
+    }
+
+    // ── IProjection (async) ─────────────────────────────────────────────
+
+    public async Task ApplyAsync(
+        IDocumentOperations operations,
+        IReadOnlyList<IEvent> events,
+        CancellationToken ct)
+    {
+        foreach (var group in events.GroupBy(e => e.StreamKey!))
+        {
+            await ApplyStreamAsync(operations, group, ct);
+        }
+    }
+
+    // ── Per-stream processing ──────────────────────────────────────────
+
+    private static void ApplyStreamSync(
+        IDocumentOperations operations,
+        IGrouping<string, IEvent> streamEvents)
+    {
+        var id = ExtractLongId(streamEvents.Key);
+
+        // Sync mode: we don't pre-load the existing aggregate.
+        // The events in this batch should be sufficient to rebuild state.
+        PageDocument? aggregate = null;
+
+        foreach (var @event in streamEvents)
+        {
+            aggregate = ApplyEvent(aggregate, id, @event.Data);
+        }
+
+        if (aggregate is not null)
+        {
+            aggregate.Id = id;
+            operations.Store(aggregate);
+        }
+    }
+
+    private static async Task ApplyStreamAsync(
+        IDocumentOperations operations,
+        IGrouping<string, IEvent> streamEvents,
+        CancellationToken ct)
+    {
+        var id = ExtractLongId(streamEvents.Key);
+
+        // Async mode: load the existing aggregate so we apply new events
+        // on top of the current persisted state.
+        var aggregate = await operations.LoadAsync<PageDocument>(id, ct);
+
+        foreach (var @event in streamEvents)
+        {
+            aggregate = ApplyEvent(aggregate, id, @event.Data);
+        }
+
+        if (aggregate is not null)
+        {
+            aggregate.Id = id;
+            operations.Store(aggregate);
+        }
+    }
+
+    // ── Event → Aggregate evolution ────────────────────────────────────
+
+    private static PageDocument? ApplyEvent(
+        PageDocument? current,
+        long id,
+        object eventData)
+    {
+        switch (eventData)
+        {
+            case PageCreated e:
+                var doc = PageDocument.Create(e);
+                doc.Id = id;
+                return doc;
+
+            case PageContentUpdated e:
+                current?.Apply(e);
+                return current;
+
+            case PagePublished:
+                current?.Apply(new PagePublished());
+                return current;
+
+            case PageArchived:
+                current?.Apply(new PageArchived());
+                return current;
+
+            case PageStateChanged e:
+                current?.Apply(e);
+                return current;
+
+            case PageDeleted e:
+                current?.Apply(e);
+                return current;
+
+            case PageRestored:
+                current?.Apply(new PageRestored());
+                return current;
+
+            case PageMoved e:
+                current?.Apply(e);
+                return current;
+
+            case PageVisibilityChanged e:
+                current?.Apply(e);
+                return current;
+
+            default:
+                return current;
+        }
+    }
+
+    // ── Stream key → long ID ────────────────────────────────────────────
+
+    private static long ExtractLongId(string streamKey)
+    {
+        if (long.TryParse(streamKey, out var id))
+            return id;
+
+        const string prefix = "page-";
+        if (streamKey.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            && long.TryParse(streamKey.AsSpan(prefix.Length), out id))
+        {
+            return id;
+        }
+
+        throw new InvalidOperationException(
+            $"Cannot extract long ID from stream key: '{streamKey}'. " +
+            $"Expected format: '{{id}}' or 'page-{{id}}'.");
     }
 }

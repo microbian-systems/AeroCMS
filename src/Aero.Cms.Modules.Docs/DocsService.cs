@@ -116,9 +116,9 @@ public sealed class DocsService(
             await session.SaveChangesAsync(cancellationToken);
 
             if (isNew)
-                await bus.PublishAsync(new AeroEvent<DocViewModel>.DocCreated(ToViewModel(page), $"Doc created: {page.Slug}"));
+                await bus.PublishAsync(new DocViewModelCreated(ToViewModel(page), $"Doc created: {page.Slug}"));
             else
-                await bus.PublishAsync(new AeroEvent<DocViewModel>.DocUpdated(ToViewModel(page), $"Doc updated: {page.Slug}"));
+                await bus.PublishAsync(new DocViewModelUpdated(ToViewModel(page), $"Doc updated: {page.Slug}"));
 
             await bus.PublishAsync(new DocsPageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, oldSlug));
 
@@ -143,7 +143,7 @@ public sealed class DocsService(
 
             if (page is not null)
             {
-                await bus.PublishAsync(new AeroEvent<DocViewModel>.DocDeleted(ToViewModel(page), $"Doc deleted: {page.Slug}"));
+                await bus.PublishAsync(new DocViewModelDeleted(ToViewModel(page), $"Doc deleted: {page.Slug}"));
                 await bus.PublishAsync(new DocsPageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, page.Slug));
             }
 

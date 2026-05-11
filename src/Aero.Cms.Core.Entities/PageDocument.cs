@@ -174,8 +174,11 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         Order = e.NewOrder;
     }
 
-    public void Apply(PageVisibilityChanged e) =>
+    public void Apply(PageVisibilityChanged e)
+    {
         IsHidden = e.IsHidden;
+        ShowInNavMenu = e.ShowInNavMenu;
+    }
 
     /// <summary>
     /// Maps this document to a <see cref="PageViewModel"/> for Wolverine

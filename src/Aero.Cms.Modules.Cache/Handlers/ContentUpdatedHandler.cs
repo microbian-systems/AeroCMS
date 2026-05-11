@@ -19,15 +19,15 @@ public sealed class ContentUpdatedHandler(ICacheInvalidationService cacheInvalid
         => cacheInvalidationService.InvalidateContentAsync(@event, cancellationToken);
 
     // Rich events — carry PageViewModel for zero-DB consumers
-    public Task Handle(AeroEvent<PageViewModel>.PageCreated @event, CancellationToken ct)
+    public Task Handle(PageViewModelCreated @event, CancellationToken ct)
         => cacheInvalidationService.InvalidateContentAsync(
             new PageContentUpdatedEvent(@event.record.Id, @event.record.SiteId, @event.record.Slug ?? "", null), ct);
 
-    public Task Handle(AeroEvent<PageViewModel>.PageUpdated @event, CancellationToken ct)
+    public Task Handle(PageViewModelUpdated @event, CancellationToken ct)
         => cacheInvalidationService.InvalidateContentAsync(
             new PageContentUpdatedEvent(@event.record.Id, @event.record.SiteId, @event.record.Slug ?? "", null), ct);
 
-    public Task Handle(AeroEvent<PageViewModel>.PageDeleted @event, CancellationToken ct)
+    public Task Handle(PageViewModelDeleted @event, CancellationToken ct)
         => cacheInvalidationService.InvalidateContentAsync(
             new PageContentUpdatedEvent(@event.record.Id, @event.record.SiteId, @event.record.Slug ?? "", null), ct);
 }
