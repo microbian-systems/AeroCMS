@@ -129,7 +129,8 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         Slug = e.Slug,
         ParentId = e.ParentId,
         Order = e.Order,
-        PublicationState = ContentPublicationState.Draft
+        PublicationState = e.PublicationState,
+        Kind = e.Kind
     };
 
     public void Apply(PageContentUpdated e)
@@ -141,6 +142,13 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         SeoDescription = e.SeoDescription;
         if (e.LayoutRegions is not null) LayoutRegions = e.LayoutRegions.ToList();
         if (e.Blocks is not null) Blocks = e.Blocks.ToList();
+        Kind = e.Kind;
+        ShowHeaderNavigation = e.ShowHeaderNavigation;
+        HeaderImageUrl = e.HeaderImageUrl;
+        HideHeader = e.HideHeader;
+        HideFooter = e.HideFooter;
+        ShowChatAgent = e.ShowChatAgent;
+        if (e.BlockIdMap is not null) BlockIdMap = new Dictionary<string, long>(e.BlockIdMap);
         ModifiedOn = DateTimeOffset.UtcNow;
     }
 

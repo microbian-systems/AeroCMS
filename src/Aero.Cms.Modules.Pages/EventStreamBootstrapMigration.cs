@@ -82,7 +82,9 @@ public sealed class EventStreamBootstrapMigration
                     Title: page.Title,
                     Slug: page.Slug,
                     ParentId: page.ParentId,
-                    Order: page.Order));
+                    Order: page.Order,
+                    PublicationState: page.PublicationState,
+                    Kind: page.Kind));
 
             count++;
         }

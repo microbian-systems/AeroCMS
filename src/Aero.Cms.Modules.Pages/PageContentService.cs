@@ -217,7 +217,7 @@ public sealed class MartenPageContentService(
             // Start an event stream for versioning (projection handles document persistence).
             // PageCreated establishes the page; PageContentUpdated carries blocks + layout.
             session.Events.StartStream($"page-{page.Id}",
-                new PageCreated(siteId, page.Title, page.Slug, null, 0));
+                new PageCreated(siteId, page.Title, page.Slug, null, 0, page.PublicationState, page.Kind));
             session.Events.Append($"page-{page.Id}", new PageContentUpdated(
                 page.Title,
                 page.Slug,
@@ -225,7 +225,14 @@ public sealed class MartenPageContentService(
                 page.SeoTitle,
                 page.SeoDescription,
                 page.LayoutRegions,
-                page.Blocks));
+                page.Blocks,
+                Kind: page.Kind,
+                ShowHeaderNavigation: page.ShowHeaderNavigation,
+                HeaderImageUrl: page.HeaderImageUrl,
+                HideHeader: page.HideHeader,
+                HideFooter: page.HideFooter,
+                ShowChatAgent: page.ShowChatAgent,
+                BlockIdMap: page.BlockIdMap));
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish events via Wolverine outbox
@@ -304,7 +311,14 @@ public sealed class MartenPageContentService(
                 SeoTitle: page.SeoTitle,
                 SeoDescription: page.SeoDescription,
                 LayoutRegions: page.LayoutRegions,
-                Blocks: page.Blocks));
+                Blocks: page.Blocks,
+                Kind: page.Kind,
+                ShowHeaderNavigation: page.ShowHeaderNavigation,
+                HeaderImageUrl: page.HeaderImageUrl,
+                HideHeader: page.HideHeader,
+                HideFooter: page.HideFooter,
+                ShowChatAgent: page.ShowChatAgent,
+                BlockIdMap: page.BlockIdMap));
 
             await session.SaveChangesAsync(cancellationToken);
 
@@ -429,7 +443,8 @@ public sealed class MartenPageContentService(
             {
                 session.Events.StartStream($"page-{targetPage.Id}",
                     new PageCreated(targetPage.SiteId, targetPage.Title, targetPage.Slug,
-                                    targetPage.ParentId, targetPage.Order));
+                                    targetPage.ParentId, targetPage.Order, targetPage.PublicationState,
+                                    targetPage.Kind));
             }
             session.Events.Append($"page-{targetPage.Id}", new PageContentUpdated(
                 targetPage.Title,
@@ -438,7 +453,14 @@ public sealed class MartenPageContentService(
                 targetPage.SeoTitle,
                 targetPage.SeoDescription,
                 targetPage.LayoutRegions,
-                targetPage.Blocks));
+                targetPage.Blocks,
+                Kind: targetPage.Kind,
+                ShowHeaderNavigation: targetPage.ShowHeaderNavigation,
+                HeaderImageUrl: targetPage.HeaderImageUrl,
+                HideHeader: targetPage.HideHeader,
+                HideFooter: targetPage.HideFooter,
+                ShowChatAgent: targetPage.ShowChatAgent,
+                BlockIdMap: targetPage.BlockIdMap));
 
             await session.SaveChangesAsync(cancellationToken);
 

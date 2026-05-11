@@ -66,20 +66,29 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         // ── PageDocument ──────────────────────────────────────────────────
         opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
         opts.Schema.For<PageDocument>().Identity(x => x.Id);
+        opts.Schema.For<PageDocument>().UseOptimisticConcurrency(true);
+
+        // Scalar indexes
         opts.Schema.For<PageDocument>().Index(x => x.SiteId);
+        opts.Schema.For<PageDocument>().Index(x => x.Depth);
+        opts.Schema.For<PageDocument>().Index(x => x.Order);
+        opts.Schema.For<PageDocument>().Index(x => x.ParentId);
+        opts.Schema.For<PageDocument>().Index(x => x.Path);
+        opts.Schema.For<PageDocument>().Index(x => x.PublicationState);
+        opts.Schema.For<PageDocument>().Index(x => x.IsHidden);
+        opts.Schema.For<PageDocument>().Index(x => x.ShowInNavMenu);
+
+        // Compound indexes for common query patterns
+        opts.Schema.For<PageDocument>().Index(x => new { x.SiteId, x.Path });
+        opts.Schema.For<PageDocument>().Index(x => new { x.SiteId, x.PublicationState });
+        opts.Schema.For<PageDocument>().Index(x => new { x.ParentId, x.PublicationState });
 
         // Unique index: no two pages share (SiteId, ParentId, Slug)
-        // Marten defaults to computed index type
         opts.Schema.For<PageDocument>()
             .UniqueIndex(x => x.SiteId, x => x.ParentId, x => x.Slug);
 
-        // Hierarchy indexes (default to computed indexes in Marten)
-        opts.Schema.For<PageDocument>()
-            .Index(x => x.Path);
-        opts.Schema.For<PageDocument>()
-            .Index(x => x.ParentId);
-        opts.Schema.For<PageDocument>()
-            .NgramIndex(x => x.Path);
+        // Ngram index for efficient Path prefix matching (StartsWith queries)
+        opts.Schema.For<PageDocument>().NgramIndex(x => x.Path);
 
         // Soft-delete — auto-configured via ISoftDeleted on PageDocument
         opts.Schema.For<PageDocument>().SoftDeleted();

@@ -3,6 +3,7 @@ using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 
 namespace Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 
@@ -12,6 +13,9 @@ public partial class Setup : ComponentBase
 
     [Inject]
     private ISetupBootstrapHandoffService SetupBootstrapHandoffService { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = default!;
 
     [Inject]
     private ILogger<Setup> Logger { get; set; } = default!;
@@ -163,6 +167,9 @@ public partial class Setup : ComponentBase
         
         // Force UI update to show the message before the async operation
         await InvokeAsync(StateHasChanged);
+
+        // Clear browser storage so the fresh app starts clean
+        await JSRuntime.InvokeVoidAsync("aero.setup.clearStorage");
 
         // Create the seed request with all setup configuration
         var seedRequest = new SeedDatabaseRequest(

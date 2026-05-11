@@ -13,7 +13,9 @@ public sealed record PageCreated(
     string Title,
     string Slug,
     long? ParentId,
-    int Order);
+    int Order,
+    ContentPublicationState PublicationState = ContentPublicationState.Draft,
+    PageKind Kind = PageKind.Standard);
 
 /// <summary>
 /// Appended when content fields change: Title, Slug, LayoutRegions,
@@ -26,7 +28,14 @@ public sealed record PageContentUpdated(
     string? SeoTitle,
     string? SeoDescription,
     List<LayoutRegion>? LayoutRegions,
-    List<EditorBlock>? Blocks);
+    List<EditorBlock>? Blocks,
+    PageKind Kind = PageKind.Standard,
+    bool ShowHeaderNavigation = true,
+    string? HeaderImageUrl = null,
+    bool HideHeader = false,
+    bool HideFooter = false,
+    bool ShowChatAgent = true,
+    Dictionary<string, long>? BlockIdMap = null);
 
 /// <summary>
 /// Appended when the page is published. Sets PublicationState = Published.
