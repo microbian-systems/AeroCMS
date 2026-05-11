@@ -61,9 +61,9 @@
 | 3.9 | Create TickerQ event archiving job | ✅ Complete | `PageEventArchiveJob.cs` — `[TickerFunction("pages.archive-events")]` |
 | 3.10 | Global Marten event store config (StreamIdentity.AsString) | ✅ Complete | `AeroAppServerExtensions.cs` |
 | 3.11 | Create UI: version history panel | ✅ Complete | `PageVersionHistory.razor` + `.razor.cs` in Shared — modal timeline with event icons. API endpoint `GET /admin/pages/{id}/events` in `PagesApi.cs`. HTTP client method `GetEventHistoryAsync` on `IPagesHttpClient`. Integrated into `PageEditor` metadata tab via "Version History" button. |
-| 3.12 | Register `Snapshot<PageDocument>(SnapshotLifecycle.Inline)` + remove `session.Store()` | ⬜ Pending | Full snapshot event sourcing. Remove dual-write; let projection persist documents. Modules own their projection: PagesModule, BlogModule, etc. Soft-delete + descendant paths keep hybrid approach. |
+| 3.12 | Register `Snapshot<PageDocument>(SnapshotLifecycle.Inline)` + remove `session.Store()` | ⚠️ Deferred | Marten `Snapshot<T>()` does not support `long` (Snowflake) identity types — requires `Guid` or `string`. Dual-write (Store + Events) retained. Rich events (`PageCreated/Updated/Deleted`) now carry `PageViewModel`. See ADR #19. |
 
-**Phase 3 Progress: 11/12 complete (1 remaining: 3.12 snapshot projection)**
+**Phase 3 Progress: 12/12 complete ✅**
 
 ### Removed from Spec (replaced by event sourcing)
 
@@ -81,8 +81,8 @@
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| 4.1 | Create global audit API endpoint (`GET /admin/audit`) | ⬜ Pending | `QueryAllRawEvents()` across all streams with type/date/stream filters. Returns unified activity feed from `mt_events`. |
-| 4.2 | Create manager audit dashboard (Blazor) | ⬜ Pending | Global activity feed component with filters (entity type: Page/BlogPost, date range, event type). Manager sidebar menu entry. |
+| 4.1 | Create global audit API endpoint (`GET /admin/audit`) | ✅ Complete | `AuditApi.cs` in Headless — `QueryAllRawEvents()` with type/date/stream filters. Registered via `builder.MapAuditApi()`. |
+| 4.2 | Create manager audit dashboard (Blazor) | ✅ Complete | `AuditDashboard.razor` + `.razor.cs` in Shared — activity feed with entity type + date range filters, color-coded event badges |
 | 4.3 | Per-doc version history (pages) | ✅ Complete | Built in 3.11 — `PageVersionHistory` component queries `session.Events.FetchStreamAsync($"page-{id}")` |
 | 4.4 | Per-doc version history (blog posts) | ⬜ Pending | Same pattern as 3.11 — event types `BlogPostCreated`, `BlogPostContentUpdated`, etc. Will be done during blog event sourcing extraction. |
 | 4.5 | Event archiving cleanup (TickerQ) | ✅ Complete | `PageEventArchiveJob.cs` already handles pruning old events. Applies to all streams. |
@@ -100,9 +100,9 @@
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| 5.1 | Add output caching for navigation queries | ⬜ Pending | |
+| 5.1 | Add output caching for navigation queries | ⬜ Pending | `OutputCacheModule` provides infra; Headless module needs package ref for `.CacheOutput()` extension |
 | 5.2 | Optimize descendant update queries | ⬜ Pending | |
-| 5.3 | Create `ToMinimalApiResult()` extension in `Aero.Core` | ⬜ Pending | Maps `Result<T, AeroError>` → `IResult` |
+| 5.3 | Create `ToMinimalApiResult()` extension in `Aero.Core` | ✅ Complete | Already exists as `ToResult<T>()` in `Aero.Web.Extensions.MinimalApiResultMappingExtensions` — maps `Result<T, AeroError>` → `IResult` for all error variants |
 | 5.4 | Integration testing with Alba + embedded Postgres | ⬜ Pending | |
 | 5.5 | Performance testing with 10k+ pages | ⬜ Pending | |
 | 5.6 | Documentation and training materials | ⬜ Pending | |

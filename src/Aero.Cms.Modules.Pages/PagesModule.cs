@@ -64,10 +64,11 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
 
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
-        // ── Event Store (see also: AeroAppServer for global Marten event config) ──
-        // StreamIdentity and Snapshot projection are registered in the
-        // global Marten configuration (Program.cs / AeroAppServerExtensions.cs)
-        // to avoid namespace collisions between Marten and Aero.Marten packages.
+        // ── Event Store ──────────────────────────────────────────────────
+        // StreamIdentity is set globally in AeroAppServerExtensions.cs.
+        // NOTE: Snapshot<T>() does not support long identity types (Snowflake).
+        // Events are stored for audit/version history; documents use dual-write
+        // (session.Store + session.Events.Append). See ADR #19.
 
         // ── PageDocument ──────────────────────────────────────────────────
         opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);

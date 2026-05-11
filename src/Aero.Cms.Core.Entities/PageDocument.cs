@@ -3,6 +3,7 @@ using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core;
 using Aero.Core.Entities;
 using Marten.Metadata;
@@ -175,4 +176,29 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
 
     public void Apply(PageVisibilityChanged e) =>
         IsHidden = e.IsHidden;
+
+    /// <summary>
+    /// Maps this document to a <see cref="PageViewModel"/> for Wolverine
+    /// message bus publishing.  Avoids exposing the internal PageDocument
+    /// type to downstream consumers.
+    /// </summary>
+    public PageViewModel ToViewModel() => new()
+    {
+        Id = Id,
+        Title = Title,
+        Slug = Slug,
+        Kind = Kind,
+        Summary = Summary,
+        SeoTitle = SeoTitle,
+        SeoDescription = SeoDescription,
+        PublishedOn = PublishedOn,
+        IsPublished = PublicationState == ContentPublicationState.Published,
+        SiteId = SiteId,
+        ParentId = ParentId,
+        Path = Path,
+        Depth = Depth,
+        Order = Order,
+        IsHidden = IsHidden,
+        ShowInNavMenu = ShowInNavMenu
+    };
 }

@@ -7,6 +7,7 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Core.Http;
@@ -219,7 +220,9 @@ public sealed class MartenPageContentService(
                 new PageCreated(siteId, page.Title, page.Slug, null, 0));
             await session.SaveChangesAsync(cancellationToken);
 
-            // Publish for cache invalidation
+            // Publish events via Wolverine outbox
+            await bus.PublishAsync(new AeroEvent<PageViewModel>.PageCreated(
+                page.ToViewModel(), $"Page created: {page.Title}"));
             await bus.PublishAsync(new PageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, null));
 
             logger.LogInformation("Created page {PageId}: {Title} (slug={Slug})", page.Id, page.Title, page.Slug);
@@ -299,6 +302,9 @@ public sealed class MartenPageContentService(
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish events via Wolverine outbox
+            await bus.PublishAsync(new AeroEvent<PageViewModel>.PageUpdated(
+                page.ToViewModel(), $"Page updated: {page.Title}"));
+
             if (page.PublicationState == ContentPublicationState.Published)
             {
                 await bus.PublishAsync(new SlugUpdated(id, "Page", request.Slug, oldSlug));
@@ -338,6 +344,8 @@ public sealed class MartenPageContentService(
             session.Delete(page);
 
             await session.SaveChangesAsync(cancellationToken);
+            await bus.PublishAsync(new AeroEvent<PageViewModel>.PageDeleted(
+                page.ToViewModel(), $"Page deleted: {page.Title}"));
             await bus.PublishAsync(new PageContentUpdatedEvent(id, _siteContext.SiteId, page.Slug, page.Slug));
 
             logger.LogInformation("Deleted page {PageId}: {Slug}", id, page.Slug);
@@ -410,6 +418,13 @@ public sealed class MartenPageContentService(
 
             session.Store(targetPage);
             await session.SaveChangesAsync(cancellationToken);
+
+            // Publish rich event + keep lean events for existing subscribers
+            var vm = targetPage.ToViewModel();
+            if (existingPage is null)
+                await bus.PublishAsync(new AeroEvent<PageViewModel>.PageCreated(vm, $"Page saved: {targetPage.Title}"));
+            else
+                await bus.PublishAsync(new AeroEvent<PageViewModel>.PageUpdated(vm, $"Page saved: {targetPage.Title}"));
 
             if (targetPage.PublicationState == ContentPublicationState.Published)
             {

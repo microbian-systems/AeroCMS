@@ -1,0 +1,90 @@
+@using Aero.Cms.Abstractions.Http.Clients
+@attribute [Authorize]
+
+<PageTitle>Audit Log</PageTitle>
+
+<div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-semibold">Activity Feed</h2>
+        <RadzenButton Text="Refresh" Icon="refresh" ButtonStyle="ButtonStyle.Light" Click="@LoadFeedAsync" />
+    </div>
+
+    @* ── Filters ── *@
+    <div class="flex flex-wrap gap-3 mb-6 p-4 bg-gray-50 rounded-lg border">
+        <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium text-gray-500">Entity Type</label>
+            <RadzenDropDown TValue="string" Data="@_typeOptions" @bind-Value="_selectedType"
+                            Change="@(_ => LoadFeedAsync())" Placeholder="All types" style="min-width: 140px;" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium text-gray-500">From</label>
+            <RadzenDatePicker @bind-Value="_fromDate" Change="@(_ => LoadFeedAsync())" style="min-width: 160px;" />
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs font-medium text-gray-500">To</label>
+            <RadzenDatePicker @bind-Value="_toDate" Change="@(_ => LoadFeedAsync())" style="min-width: 160px;" />
+        </div>
+    </div>
+
+    @* ── Error ── *@
+    @if (_error is not null)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">@_error</div>
+    }
+
+    @* ── Loading ── *@
+    @if (_loading)
+    {
+        <div class="flex justify-center py-12">
+            <RadzenProgressBarCircular />
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="text-center py-12 text-gray-400">
+            <RadzenIcon Icon="history" class="text-4xl mb-2" />
+            <p>No activity recorded yet.</p>
+            <p class="text-xs mt-1">Events appear here when pages or blog posts are created, updated, or published.</p>
+        </div>
+    }
+    else
+    {
+        <div class="text-sm text-gray-500 mb-3">
+            Showing @_items.Count event@(_items.Count == 1 ? "" : "s")
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="text-left px-4 py-3 font-medium text-gray-500">Entity</th>
+                        <th class="text-left px-4 py-3 font-medium text-gray-500">Event</th>
+                        <th class="text-left px-4 py-3 font-medium text-gray-500">Version</th>
+                        <th class="text-right px-4 py-3 font-medium text-gray-500">Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    @foreach (var item in _items)
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3">
+                                <span class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">
+                                    @item.StreamKey
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="@GetEventBadgeClass(item.EventType) text-xs font-medium">
+                                    @FormatEventType(item.EventType)
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-gray-400 font-mono text-xs">v@(item.Version)</td>
+                            <td class="px-4 py-3 text-right text-gray-400 text-xs">
+                                @item.Timestamp.ToString("MMM dd, yyyy h:mm tt")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

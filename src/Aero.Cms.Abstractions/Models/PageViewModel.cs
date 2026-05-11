@@ -27,6 +27,26 @@ public record PageViewModel : AeroEntityViewModel
     public bool IsPublished { get; init; }
     [Id(9)]
     public DateTimeOffset? PublishedOn { get; init; }
+    [Id(10)]
+    public long SiteId { get; init; }
+    [Id(11)]
+    public long? ParentId { get; init; }
+    [Id(12)]
+    public string? Path { get; init; }
+    [Id(13)]
+    public int Depth { get; init; }
+    [Id(14)]
+    public int Order { get; init; }
+    [Id(15)]
+    public bool IsHidden { get; init; }
+    [Id(16)]
+    public bool ShowInNavMenu { get; init; } = true;
+    [Id(17)]
+    public string? Summary { get; init; }
+    [Id(18)]
+    public string? SeoTitle { get; init; }
+    [Id(19)]
+    public string? SeoDescription { get; init; }
 }
 
 [GenerateSerializer]

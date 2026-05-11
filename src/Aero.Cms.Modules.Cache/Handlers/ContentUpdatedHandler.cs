@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Modules.Cache.Services;
 using Wolverine.Attributes;
 
@@ -7,6 +8,7 @@ namespace Aero.Cms.Modules.Cache.Handlers;
 [WolverineHandler]
 public sealed class ContentUpdatedHandler(ICacheInvalidationService cacheInvalidationService)
 {
+    // Lean events (existing subscribers — keep for backward compat)
     public Task Handle(PageContentUpdatedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateContentAsync(@event, cancellationToken);
 
@@ -15,4 +17,17 @@ public sealed class ContentUpdatedHandler(ICacheInvalidationService cacheInvalid
 
     public Task Handle(DocsPageContentUpdatedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateContentAsync(@event, cancellationToken);
+
+    // Rich events — carry PageViewModel for zero-DB consumers
+    public Task Handle(AeroEvent<PageViewModel>.PageCreated @event, CancellationToken ct)
+        => cacheInvalidationService.InvalidateContentAsync(
+            new PageContentUpdatedEvent(@event.record.Id, @event.record.SiteId, @event.record.Slug ?? "", null), ct);
+
+    public Task Handle(AeroEvent<PageViewModel>.PageUpdated @event, CancellationToken ct)
+        => cacheInvalidationService.InvalidateContentAsync(
+            new PageContentUpdatedEvent(@event.record.Id, @event.record.SiteId, @event.record.Slug ?? "", null), ct);
+
+    public Task Handle(AeroEvent<PageViewModel>.PageDeleted @event, CancellationToken ct)
+        => cacheInvalidationService.InvalidateContentAsync(
+            new PageContentUpdatedEvent(@event.record.Id, @event.record.SiteId, @event.record.Slug ?? "", null), ct);
 }
