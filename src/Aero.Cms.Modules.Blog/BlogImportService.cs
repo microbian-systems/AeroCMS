@@ -438,6 +438,12 @@ public sealed class BlogImportService : IBlogImportService
 
     private async Task<string?> SearchPexelsWithRetryAsync(ImportablePost post, CancellationToken ct)
     {
+        // Pexels requires a non-empty query
+        if (string.IsNullOrWhiteSpace(post.Title))
+        {
+            _log.LogWarning("Skipping Pexels search — post has no title");
+            return PlaceholderImage;
+        }
         for (int attempt = 0; attempt <= MaxPexelsRetries; attempt++)
         {
             try
