@@ -1,0 +1,84 @@
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Core
+@using Aero.Core.Railway
+@inject IPagesHttpClient PagesApi
+@inject NavigationManager Navigation
+
+<RadzenDataGrid @ref="grid" Data="@pages" TItem="PageSummary" LoadData="@LoadData" Count="@count" 
+                IsLoading="@isLoading" AllowPaging="true" PageSize="10" 
+                AllowSorting="true" EmptyText="No pages found. Start building!"
+                RowClick="@OnRowClick">
+    <Columns>
+        <RadzenDataGridColumn TItem="PageSummary" Property="Title" Title="Title" />
+        <RadzenDataGridColumn TItem="PageSummary" Property="Slug" Title="Slug">
+            <Template Context="p">
+                <span class="text-xs font-mono" style="background: var(--pe-bg-tertiary); color: var(--pe-text-secondary); padding: 2px 8px; border-radius: var(--pe-radius-sm);">@p.Slug</span>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageSummary" Property="Excerpt" Title="Summary" />
+        <RadzenDataGridColumn TItem="PageSummary" Property="CreatedAt" Title="Created">
+            <Template Context="p">
+                @p.CreatedAt.ToString("MMM dd, yyyy")
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageSummary" Title="Status">
+            <Template Context="p">
+                @if (p.PublishedAt.HasValue)
+                {
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Published
+                    </span>
+                }
+                else
+                {
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        Draft
+                    </span>
+                }
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    RadzenDataGrid<PageSummary>? grid;
+    IEnumerable<PageSummary>? pages;
+    int count;
+    bool isLoading = true;
+    string? searchTerm;
+
+    async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        
+        var result = await PagesApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchTerm);
+        
+        if (result is Result<PagedResult<PageSummary>, AeroError>.Ok ok)
+        {
+            pages = ok.Value.Items;
+            count = (int)ok.Value.TotalCount;
+        }
+        else
+        {
+            pages = Enumerable.Empty<PageSummary>();
+            count = 0;
+        }
+        
+        isLoading = false;
+    }
+
+    async Task OnSearch(string value)
+    {
+        searchTerm = value;
+        if (grid != null)
+        {
+            await grid.FirstPage();
+        }
+    }
+
+    void OnRowClick(DataGridRowMouseEventArgs<PageSummary> args)
+    {
+        if (args.Data == null) return;
+        Navigation.NavigateTo($"/manager/page/editor/{args.Data.Id}");
+    }
+}

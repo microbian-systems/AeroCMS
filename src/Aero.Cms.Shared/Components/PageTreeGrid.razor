@@ -1,0 +1,119 @@
+@using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Core.Railway
+@inject IPagesHttpClient PagesApi
+@inject NavigationManager Navigation
+@inject Radzen.DialogService DialogService
+
+<RadzenDataGrid TItem="PageTreeItem"
+                Data="@_rootNodes"
+                AllowRowSelectOnRowClick="true"
+                AllowColumnResize="true"
+                RowRender="@RowRender"
+                LoadChildData="@LoadChildData"
+                style="max-height: 70vh; overflow-y: auto;">
+    <Columns>
+        <RadzenDataGridColumn TItem="PageTreeItem" Title="" Width="50px" Sortable="false">
+            <Template Context="node">
+                @if (node.HasChildren)
+                { <RadzenIcon Icon="folder_open" class="text-yellow-500" /> }
+                else
+                { <RadzenIcon Icon="description" class="text-gray-400" /> }
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.Title)" Title="Title" Width="250px" Sortable="true" />
+        <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.Slug)" Title="Slug" Width="180px" Sortable="true" />
+        <RadzenDataGridColumn TItem="PageTreeItem" Title="Path" Width="300px" Sortable="true">
+            <Template Context="node">
+                <span class="text-gray-500 text-sm font-mono">@node.Path</span>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.PublicationState)" Title="Status" Width="110px" Sortable="true">
+            <Template Context="node">
+                <RadzenBadge Text="@node.PublicationState" BadgeStyle="@GetBadgeStyle(node.PublicationState)" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.Depth)" Title="Depth" Width="70px" Sortable="true" />
+        <RadzenDataGridColumn TItem="PageTreeItem" Title="Hidden" Width="70px" Sortable="true">
+            <Template Context="node">
+                @if (node.IsHidden)
+                { <RadzenIcon Icon="visibility_off" class="text-gray-400" /> }
+                else
+                { <RadzenIcon Icon="visibility" class="text-green-500" /> }
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTreeItem" Title="Actions" Width="130px" Sortable="false">
+            <Template Context="node">
+                <div class="flex gap-1">
+                    <RadzenButton Icon="edit" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                  Click="@(() => EditAsync(node))" />
+                    <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                  Click="@(() => ConfirmDeleteAsync(node))" />
+                </div>
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    private List<PageTreeItem> _rootNodes = [];
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await LoadRootsAsync();
+
+    private async Task LoadRootsAsync()
+    {
+        _error = null;
+        try
+        {
+            var result = await PagesApi.GetChildrenAsync(parentId: null);
+            _rootNodes = result is Result<IReadOnlyList<PageTreeItem>, AeroError>.Ok ok
+                ? ok.Value.ToList()
+                : [];
+        }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task LoadChildData(DataGridLoadChildDataEventArgs<PageTreeItem> args)
+    {
+        try
+        {
+            var result = await PagesApi.GetChildrenAsync(args.Item!.Id);
+            args.Data = result is Result<IReadOnlyList<PageTreeItem>, AeroError>.Ok ok
+                ? ok.Value.ToList()
+                : [];
+        }
+        catch { /* children silently fail */ }
+    }
+
+    private static void RowRender(RowRenderEventArgs<PageTreeItem> args)
+    {
+        args.Expandable = args.Data.HasChildren;
+    }
+
+    private static Radzen.BadgeStyle GetBadgeStyle(string state) => state switch
+    {
+        "Published" => Radzen.BadgeStyle.Success,
+        "Draft" => Radzen.BadgeStyle.Secondary,
+        "Archived" => Radzen.BadgeStyle.Dark,
+        "InReview" => Radzen.BadgeStyle.Warning,
+        "Scheduled" => Radzen.BadgeStyle.Info,
+        _ => Radzen.BadgeStyle.Light
+    };
+
+    private void EditAsync(PageTreeItem node)
+    {
+        Navigation.NavigateTo($"/manager/page/editor/{node.Id}");
+    }
+
+    private async Task ConfirmDeleteAsync(PageTreeItem node)
+    {
+        var confirmed = await DialogService.Confirm(
+            $"Delete page '{node.Title}'?", "Confirm Delete",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+        if (confirmed == true)
+        {
+            await PagesApi.DeleteAsync(node.Id);
+            await LoadRootsAsync();
+        }
+    }
+}
