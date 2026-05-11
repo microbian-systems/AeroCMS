@@ -61,6 +61,14 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
     /// </summary>
     public List<EditorBlock> Blocks { get; set; } = [];
 
+    /// <summary>
+    /// Maps each client-side <see cref="EditorBlock.EditorId"/> to the persisted
+    /// <see cref="BlockBase.Id"/> of the corresponding block entity.  Rebuilt by
+    /// the service layer on every save so that existing blocks are updated in-place
+    /// rather than being re-created.
+    /// </summary>
+    public Dictionary<string, long> BlockIdMap { get; set; } = [];
+
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset? PublishedOn { get; set; } = null;
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;

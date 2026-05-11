@@ -188,7 +188,7 @@ public sealed class MartenPageContentService(
             if (request.EditorBlocks is { Count: > 0 })
             {
                 page.Blocks = request.EditorBlocks.ToList();
-                page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
+                (page.LayoutRegions, page.BlockIdMap) = await ProcessEditorBlocks(request.EditorBlocks, [], cancellationToken);
             }
             else
             {
@@ -253,7 +253,10 @@ public sealed class MartenPageContentService(
             if (request.EditorBlocks is { Count: > 0 })
             {
                 page.Blocks = request.EditorBlocks.ToList();
-                page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
+                (page.LayoutRegions, page.BlockIdMap) = await ProcessEditorBlocks(
+                    request.EditorBlocks,
+                    page.BlockIdMap,
+                    cancellationToken);
                 logger.LogInformation("Mapped {BlockCount} editor blocks to layout regions for page {PageId}", request.EditorBlocks.Count, id);
             }
             else if (request.LayoutRegions is { Count: > 0 })
@@ -284,13 +287,13 @@ public sealed class MartenPageContentService(
 
             // Append update event for version history
             session.Events.Append($"page-{id}", new PageContentUpdated(
-                Title: request.Title,
-                Slug: request.Slug,
-                Summary: request.Summary,
-                SeoTitle: request.SeoTitle,
-                SeoDescription: request.SeoDescription,
-                LayoutRegions: request.LayoutRegions?.ToList(),
-                Blocks: request.EditorBlocks?.ToList()));
+                Title: page.Title,
+                Slug: page.Slug,
+                Summary: page.Summary,
+                SeoTitle: page.SeoTitle,
+                SeoDescription: page.SeoDescription,
+                LayoutRegions: page.LayoutRegions,
+                Blocks: page.Blocks));
 
             session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
@@ -382,7 +385,8 @@ public sealed class MartenPageContentService(
             // added but not yet persisted as BlockBase entities.
             if (targetPage.Blocks.Count > 0 && targetPage.LayoutRegions.Count == 0)
             {
-                targetPage.LayoutRegions = await MapEditorBlocksToLayoutRegions(targetPage.Blocks, cancellationToken);
+                (targetPage.LayoutRegions, targetPage.BlockIdMap) = await ProcessEditorBlocks(
+                    targetPage.Blocks, targetPage.BlockIdMap, cancellationToken);
                 logger.LogInformation("Generated layout regions from {BlockCount} blocks for page {PageId}", targetPage.Blocks.Count, targetPage.Id);
             }
 
@@ -425,40 +429,80 @@ public sealed class MartenPageContentService(
         }
     }
 
-    private async Task<List<LayoutRegion>> MapEditorBlocksToLayoutRegions(IReadOnlyList<EditorBlock> editorBlocks, CancellationToken cancellationToken)
+    /// <summary>
+    /// Maps editor blocks to <see cref="BlockBase"/> entities, persists them via
+    /// <see cref="IBlockService"/>, and produces an ordered list of
+    /// <see cref="LayoutRegion"/>s.  Uses <paramref name="existingMap"/> to reuse
+    /// block IDs for blocks that have been saved before (keyed by
+    /// <see cref="EditorBlock.EditorId"/>), avoiding orphaned duplicate blocks on
+    /// every save.  Returns the updated map together with the layout regions.
+    /// </summary>
+    /// <param name="editorBlocks">The current set of editor blocks from the client.</param>
+    /// <param name="existingMap">
+    /// The previous <c>EditorId → BlockId</c> map (may be empty on first save).
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// A tuple containing the generated <see cref="LayoutRegion"/> list and the
+    /// updated <see cref="PageDocument.BlockIdMap"/>.
+    /// </returns>
+    private async Task<(List<LayoutRegion> LayoutRegions, Dictionary<string, long> BlockIdMap)>
+        ProcessEditorBlocks(
+            IReadOnlyList<EditorBlock> editorBlocks,
+            Dictionary<string, long> existingMap,
+            CancellationToken cancellationToken)
     {
+        var newMap = new Dictionary<string, long>();
         var placements = new List<BlockPlacement>();
         int order = 0;
 
         foreach (var eb in editorBlocks)
         {
             var block = EditorBlockMapper.MapBlock(eb);
-            if (block != null)
+            if (block is null)
+                continue;
+
+            if (!string.IsNullOrEmpty(eb.EditorId) && existingMap.TryGetValue(eb.EditorId, out var existingBlockId))
             {
+                // Block already exists — update in-place (upsert via Marten)
+                block.Id = existingBlockId;
                 await blockService.SaveAsync(block, cancellationToken);
-                placements.Add(new BlockPlacement
-                {
-                    BlockId = block.Id,
-                    Order = order++
-                });
+                newMap[eb.EditorId] = existingBlockId;
             }
+            else
+            {
+                // First-time save — get a fresh Snowflake ID
+                block.Id = Snowflake.NewId();
+                var saved = await blockService.SaveAsync(block, cancellationToken);
+                newMap[eb.EditorId] = saved.Id;
+            }
+
+            placements.Add(new BlockPlacement
+            {
+                BlockId = block.Id,
+                BlockType = block.BlockType,
+                Order = order++
+            });
         }
 
-        // For now, put all editor blocks in a single column in one "Main" region
+        // Put all editor blocks into a single full-width column in the "Main" region
         var column = new LayoutColumn
         {
-            Width = 12, // full width
+            Width = 12,
             Blocks = placements
         };
 
-        return [
-            new LayoutRegion
+        var regions = new List<LayoutRegion>
+        {
+            new()
             {
                 Name = "Main",
                 Order = 0,
                 Columns = [column]
             }
-        ];
+        };
+
+        return (regions, newMap);
     }
 
     private static async Task<Result<bool, AeroError>> ValidatePage(PageDocument page)
@@ -496,6 +540,7 @@ public sealed class MartenPageContentService(
         target.SeoDescription = source.SeoDescription;
         target.LayoutRegions = source.LayoutRegions;
         target.Blocks = source.Blocks;
+        target.BlockIdMap = source.BlockIdMap;
         target.PublicationState = source.PublicationState;
         target.ShowInNavMenu = source.ShowInNavMenu;
         target.ShowHeaderNavigation = source.ShowHeaderNavigation;
