@@ -57,6 +57,10 @@ public static class PagesApi
 
         group.MapDelete("/{id:long}/draft", DeletePageDraft)
             .WithName("DeletePageDraft");
+
+        // Event sourcing — version history
+        group.MapGet("/{id:long}/events", GetPageEvents)
+            .WithName("GetPageEvents");
     }
 
     private static async Task<IResult> ListPages(
@@ -438,4 +442,65 @@ public static class PagesApi
 
         return TypedResults.NoContent();
     }
+
+    // ── Event sourcing — version history ────────────────────────
+
+    private static async Task<IResult> GetPageEvents(
+        long id,
+        IQuerySession querySession,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PagesApi));
+        try
+        {
+            var streamKey = $"page-{id}";
+
+            // Verify the page exists first
+            var page = await querySession.LoadAsync<PageDocument>(id, cancellationToken);
+            if (page is null)
+                return TypedResults.NotFound(new { error = $"Page with id '{id}' not found." });
+
+            // Fetch all events from the stream (version history)
+            var events = await querySession.Events.FetchStreamAsync(streamKey, token: cancellationToken);
+
+            var history = events.Select(e => new PageEventItem(
+                Version: e.Version,
+                EventType: e.EventType.Name,
+                Timestamp: e.Timestamp,
+                StreamKey: e.StreamKey ?? streamKey,
+                IsArchived: e.IsArchived
+            )).ToList();
+
+            return TypedResults.Ok(new PageEventHistory(
+                PageId: id,
+                PageTitle: page.Title,
+                TotalEvents: history.Count,
+                Events: history));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching event history for page {PageId}", id);
+            return TypedResults.Problem(ex.Message, statusCode: 500);
+        }
+    }
 }
+
+/// <summary>
+/// DTO for a single event in a page's version history.
+/// </summary>
+public sealed record PageEventItem(
+    long Version,
+    string EventType,
+    DateTimeOffset Timestamp,
+    string StreamKey,
+    bool IsArchived);
+
+/// <summary>
+/// DTO for a page's full event history response.
+/// </summary>
+public sealed record PageEventHistory(
+    long PageId,
+    string PageTitle,
+    int TotalEvents,
+    IReadOnlyList<PageEventItem> Events);

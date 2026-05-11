@@ -124,6 +124,13 @@ public interface IPagesHttpClient
     /// Computes the full path for a slug under a given parent. Validates uniqueness.
     /// </summary>
     Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, CancellationToken ct = default);
+
+    // ── Event sourcing / version history ────────────────────────────
+
+    /// <summary>
+    /// Gets the full event history (version timeline) for a page.
+    /// </summary>
+    Task<Result<PageEventHistory, AeroError>> GetEventHistoryAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -243,6 +250,13 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
         var url = $"tree/compute-path?slug={Uri.EscapeDataString(slug)}";
         if (parentId.HasValue) url += $"&parentId={parentId}";
         return PostAsync<object, ComputedPathResult>(url, new {}, ct);
+    }
+
+    // ── Event sourcing / version history ────────────────────────────
+
+    public Task<Result<PageEventHistory, AeroError>> GetEventHistoryAsync(long id, CancellationToken ct = default)
+    {
+        return GetAsync<PageEventHistory>($"{id}/events", ct);
     }
 }
 
@@ -365,3 +379,22 @@ public record ComputedPathResult(
     int Depth,
     bool IsValid,
     string? ErrorMessage);
+
+/// <summary>
+/// A single event in a page's version history timeline.
+/// </summary>
+public record PageEventItem(
+    long Version,
+    string EventType,
+    DateTime Timestamp,
+    string StreamKey,
+    bool IsArchived);
+
+/// <summary>
+/// Full version history for a page, returned by the event sourcing API.
+/// </summary>
+public record PageEventHistory(
+    long PageId,
+    string PageTitle,
+    int TotalEvents,
+    IReadOnlyList<PageEventItem> Events);

@@ -21,6 +21,7 @@ using Aero.Core.Railway;
 using CmsPageDetail = Aero.Cms.Abstractions.Http.Clients.PageDetail;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Shared.Services;
+using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
@@ -1340,5 +1341,19 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     private string TabBtnClass(string tab) =>
         ActiveTab == tab ? "pe-tab-btn active" : "pe-tab-btn";
+
+    // ──────────────────────────────────────────────────────────
+    // Version History  (event sourcing — mt_events timeline)
+    // ──────────────────────────────────────────────────────────
+
+    private PageVersionHistory? _historyPanel;
+
+    private async Task ShowHistoryAsync()
+    {
+        if (_historyPanel is not null && Id.HasValue)
+        {
+            await _historyPanel.OpenAsync();
+        }
+    }
 }
 

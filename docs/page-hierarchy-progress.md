@@ -1,8 +1,8 @@
 # Page Hierarchy Implementation — Progress Tracker
 
 **Spec:** `docs/page-hierarchy-implementation.md`  
-**Version:** 2.0  
-**Last Updated:** 2026-05-10
+**Version:** 2.1  
+**Last Updated:** 2026-05-11
 
 ---
 
@@ -22,11 +22,11 @@
 | 1.10 | Implement `INavigationService` + `NavigationService` | ✅ Complete | `NavigationService.cs` (295 lines): GetNavigationTree, GetBreadcrumb, SetHidden, MarkHiddenDescendants |
 | 1.11 | Optimize breadcrumb query (single query, not N+1) | ✅ Complete | Uses materialized path with `Contains` query |
 | 1.12 | Register services in `PagesModule.ConfigureServices()` | ✅ Complete | IPageTreeService, INavigationService, IValidator<PageDocument>, IHttpContextAccessor |
-| 1.13 | Write unit tests (TUnit) for `PageTreeService` | ⬜ Pending | |
+| 1.13 | Write unit tests (TUnit) for `PageTreeService` | ✅ Complete | `tests/Aero.Cms.Core.Tests/Services/PageTreeServiceTests.cs` — 529 lines, 18 tests (GetTree, GetChildren, GetAncestors, ComputePath, GetNextSiblingOrder, Move, UpdateDescendantPaths) |
 | 1.14 | Create migration script for existing pages | ✅ Complete | `PageHierarchyMigration.cs` — tree-aware migration with orphan handling |
 | 1.15 | Create `IAuditableEntity` marker interface in `Aero.Cms.Abstractions` | ✅ Complete | `src/Aero.Cms.Abstractions/Interfaces/IAuditableEntity.cs` |
 
-**Phase 1 Progress: 12/13 complete (1 remaining: tests)**
+**Phase 1 Progress: 15/15 complete ✅**
 
 ---
 
@@ -35,14 +35,14 @@
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
 | 2.0 | Create tree API endpoints in Headless module | ✅ Complete | `PagesTreeApi.cs` — 8 endpoints |
-| 2.1 | Create `PageTreeSelect` component | ⬜ Pending | Needs PageTree HTTP client integration in Shared |
-| 2.2 | Create `PathPreview` component | ⬜ Pending | Needs PageTree HTTP client integration in Shared |
+| 2.1 | Create `PageTreeSelect` component | ✅ Complete | `PageTreeSelect.razor` + `.razor.cs` in Shared — hierarchical RadzenDropDown with circular-ref exclusion |
+| 2.2 | Create `PathPreview` component | ✅ Complete | `PathPreview.razor` + `.razor.cs` in Shared — live path preview with validity badge |
 | 2.3 | Update `PageEditor` to support parent selection | ✅ Complete | `ParentId` added to CreatePageRequest/UpdatePageRequest; PageEditor passes it |
 | 2.4 | Create page tree manager using **Radzen DataGrid** | ✅ Complete | `PageTreeGrid.razor` in Pages module — flat list with depth indentation, hide toggle, delete confirm |
-| 2.5 | Add breadcrumb component | ⬜ Pending | Needs Nav HTTP client in Shared |
+| 2.5 | Add breadcrumb component | ✅ Complete | `BreadcrumbNav.razor` + `.razor.cs` in Shared — full breadcrumb nav with links |
 | 2.6 | Write Playwright UI integration tests | ⬜ Pending | |
 
-**Phase 2 Progress: 3/7 complete** (+ tree API + client DTOs)
+**Phase 2 Progress: 6/7 complete (1 remaining: Playwright tests)**
 
 ---
 
@@ -52,17 +52,18 @@
 |----|------|--------|-------|
 | 3.1 | Create event record types in `Aero.Cms.Abstractions/Events/` | ✅ Complete | 8 events: PageCreated, PageContentUpdated, PagePublished, PageArchived, PageDeleted, PageRestored, PageMoved, PageVisibilityChanged |
 | 3.2 | Add `Create()` / `Apply()` methods to `PageDocument` | ✅ Complete | Self-aggregating snapshot pattern |
-| 3.3 | Configure Marten event store in `PagesModule.Configure()` | ✅ Complete | `StreamIdentity.AsString`, `Snapshot<PageDocument>(Inline)` |
-| 3.4 | Rewrite `PageContentService` for event sourcing | ✅ Complete | CreateAsync → StartStream; UpdateAsync → FetchForWriting+AppendOne; DeleteAsync → AppendOne(PageDeleted) |
-| 3.5 | Rewrite `PageTreeService.MoveAsync()` for event sourcing | ✅ Complete | FetchForWriting + AppendOne(PageMoved); descendants updated directly |
-| 3.6 | Rewrite `NavigationService.SetHiddenAsync()` for event sourcing | ✅ Complete | FetchForWriting + AppendOne(PageVisibilityChanged); cascade via direct update |
+| 3.3 | Configure Marten event store in `PagesModule.Configure()` | ⚠️ Partial | `StreamIdentity.AsString` in global config. **Snapshot projection NOT registered** — events + `session.Store()` dual-write pattern in use. See 3.12. |
+| 3.4 | Append events in `PageContentService` (Create/Update/Delete) | ✅ Complete | CreateAsync → StartStream + Store; UpdateAsync → Append + Store; DeleteAsync → Append + Delete |
+| 3.5 | Append events in `PageTreeService.MoveAsync()` | ✅ Complete | AppendOne(PageMoved); descendants updated directly (pragmatic hybrid) |
+| 3.6 | Append events in `NavigationService.SetHiddenAsync()` | ✅ Complete | AppendOne(PageVisibilityChanged); cascade via direct update |
 | 3.7 | Bootstrap event streams for existing pages | ✅ Complete | `EventStreamBootstrapMigration.cs` |
 | 3.8 | Implement `IPagePublishingWorkflowService` | ✅ Complete | `PagePublishingWorkflowService.cs` — uses `PageStateChanged` event |
 | 3.9 | Create TickerQ event archiving job | ✅ Complete | `PageEventArchiveJob.cs` — `[TickerFunction("pages.archive-events")]` |
 | 3.10 | Global Marten event store config (StreamIdentity.AsString) | ✅ Complete | `AeroAppServerExtensions.cs` |
-| 3.11 | Create UI: version history panel | ⬜ Pending | Query `mt_events` via FetchStreamAsync |
+| 3.11 | Create UI: version history panel | ✅ Complete | `PageVersionHistory.razor` + `.razor.cs` in Shared — modal timeline with event icons. API endpoint `GET /admin/pages/{id}/events` in `PagesApi.cs`. HTTP client method `GetEventHistoryAsync` on `IPagesHttpClient`. Integrated into `PageEditor` metadata tab via "Version History" button. |
+| 3.12 | Register `Snapshot<PageDocument>(SnapshotLifecycle.Inline)` + remove `session.Store()` | ⬜ Pending | Full snapshot event sourcing. Remove dual-write; let projection persist documents. Modules own their projection: PagesModule, BlogModule, etc. Soft-delete + descendant paths keep hybrid approach. |
 
-**Phase 3 Progress: 8/11 complete**
+**Phase 3 Progress: 11/12 complete (1 remaining: 3.12 snapshot projection)**
 
 ### Removed from Spec (replaced by event sourcing)
 
@@ -76,13 +77,22 @@
 
 ## Phase 4: Audit & Observability (Sprint 4) — 3 days
 
+> **Revised 2026-05-11:** The `mt_events` table IS the audit log. No separate `PageAuditEntry` document or `IDocumentSessionListener` needed. Every create/update/delete/publish/move already appends an event with full metadata (timestamp, version, causation ID). See ADR #18.
+
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| 4.1 | Create `Aero.Cms.Modules.Audit` module scaffold | ⬜ Pending | `[Module("Audit")]` |
-| 4.2 | Create `PageAuditEntry` document (Marten) | ⬜ Pending | PageId, Action, ChangedBy, Details |
-| 4.3 | Implement `PageAuditListener : DocumentSessionListenerBase` | ⬜ Pending | Uses `session.PendingChanges.InsertsFor/UpdatesFor/DeletionsFor<PageDocument>()` |
-| 4.4 | Register audit listener in `PagesModule.ConfigureServices()` | ⬜ Pending | |
-| 4.5 | Create TickerQ job for audit log cleanup (configurable retention) | ⬜ Pending | |
+| 4.1 | Create global audit API endpoint (`GET /admin/audit`) | ⬜ Pending | `QueryAllRawEvents()` across all streams with type/date/stream filters. Returns unified activity feed from `mt_events`. |
+| 4.2 | Create manager audit dashboard (Blazor) | ⬜ Pending | Global activity feed component with filters (entity type: Page/BlogPost, date range, event type). Manager sidebar menu entry. |
+| 4.3 | Per-doc version history (pages) | ✅ Complete | Built in 3.11 — `PageVersionHistory` component queries `session.Events.FetchStreamAsync($"page-{id}")` |
+| 4.4 | Per-doc version history (blog posts) | ⬜ Pending | Same pattern as 3.11 — event types `BlogPostCreated`, `BlogPostContentUpdated`, etc. Will be done during blog event sourcing extraction. |
+| 4.5 | Event archiving cleanup (TickerQ) | ✅ Complete | `PageEventArchiveJob.cs` already handles pruning old events. Applies to all streams. |
+
+### Removed from Audit Spec (replaced by event-store-native approach)
+
+- ❌ `PageAuditEntry` document — `mt_events` IS the audit log; no separate document needed
+- ❌ `PageAuditListener : DocumentSessionListenerBase` — events are already written on every state change; no listener needed
+- ❌ Separate `Aero.Cms.Modules.Audit` module scaffold — audit is a cross-cutting query, not a separate persistence layer
+- ❌ TickerQ cleanup for `PageAuditEntry` — event archiving already handled by `PageEventArchiveJob`
 
 ---
 
@@ -118,6 +128,9 @@
 | 13 | Radzen DataGrid self-ref hierarchy for tree UI | Already a project dependency, avoids new package | 2026-05-10 |
 | 14 | Skip separate `PageTree` document for v1 | Complexity not justified for expected scale | 2026-05-10 |
 | 15 | Inline Marten config in `PagesModule` for v1 | Simpler than `MartenRegistry` subclass; can refactor later | 2026-05-10 |
+| 16 | Snapshot projections per-module, not global | Each module owns its document projection (e.g., `PagesModule` registers `Snapshot<PageDocument>(Inline)`, `BlogModule` registers `Snapshot<BlogPostDocument>(Inline)`) | 2026-05-11 |
+| 17 | Pragmatic hybrid for descendant paths + soft-delete | Descendant path updates and soft-delete metadata kept as direct writes; the event stream is authoritative for content state changes | 2026-05-11 |
+| 18 | Event-store-native audit (no separate audit module) | `mt_events` IS the audit log. Every state change is an immutable event with metadata. Per-doc history via `FetchStreamAsync()`, global audit via `QueryAllRawEvents()`. No `PageAuditEntry`, no `IDocumentSessionListener`, no separate audit storage. | 2026-05-11 |
 
 ---
 

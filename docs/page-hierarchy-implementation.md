@@ -2241,14 +2241,33 @@ With Marten event sourcing, **a separate audit module is unnecessary**. Every ev
 
 | Metadata | Source |
 |----------|--------|
-| User ID | `IEvent.Data` or HTTP context injected into event |
+| Event type | `IEvent.EventType.Name` (`PageCreated`, `PageStateChanged`, etc.) |
 | Timestamp | `IEvent.Timestamp` |
 | Version | `IEvent.Version` |
+| Stream identity | `IEvent.StreamKey` (e.g., `"page-1503"`, `"blog-2001"`) |
 | Causation ID | `IEvent.CausationId` |
 | Correlation ID | `IEvent.CorrelationId` |
-| Stream identity | `IEvent.StreamId` |
 
-The `mt_events` table serves as a complete, append-only audit log. No `PageAuditEntry`, `PageAuditListener`, or `DocumentSessionListenerBase` needed.
+The `mt_events` table serves as a complete, append-only audit log across all entity types. Two query patterns:
+
+**Per-document audit (specific page/post):**
+```csharp
+// Fetch all events for a single page — already built (3.11)
+var events = await session.Events.FetchStreamAsync($"page-{pageId}");
+// → timeline of every create, update, publish, move, delete
+```
+
+**Global audit (all activity):**
+```csharp
+// Cross-stream activity feed for the manager dashboard
+var allEvents = await session.Events.QueryAllRawEvents()
+    .Where(e => e.Timestamp >= fromDate && e.Timestamp <= toDate)
+    .OrderByDescending(e => e.Timestamp)
+    .Take(100)
+    .ToListAsync(ct);
+```
+
+**No `PageAuditEntry`, `PageAuditListener`, or `DocumentSessionListenerBase` needed.** The events are already written on every state change. The audit query is a read operation over existing data, not a separate write path.
 
 #### TickerQ Cleanup
 
@@ -2734,13 +2753,21 @@ public sealed class PageTreeIntegrationTests
 - [ ] Create UI: version history panel (query `mt_events` stream)
 - [ ] Create UI: publishing workflow buttons (submit, approve, reject, schedule)
 
-### Phase 4: Polish & Performance (Sprint 4) — 5 days
+### Phase 4: Audit & Observability (Sprint 4) — 3 days
 
-- [ ] Wire up `PageSlugChanged` Wolverine event (outbox → Alias + Sitemap modules)
-- [ ] Create TickerQ job for event archiving (90-day retention, configurable)
-- [ ] Add page cloning feature (append `PageCreated` event to new stream)
+> **Revised:** The `mt_events` table IS the audit log. No separate `PageAuditEntry` or `IDocumentSessionListener`. Audit is a read operation over existing event data.
+
+- [ ] Create global audit API endpoint: `GET /admin/audit` using `QueryAllRawEvents()` with type/date/stream filters
+- [ ] Create manager audit dashboard Blazor component (activity feed, entity type filter, date range)
+- [ ] Add audit menu entry in manager sidebar navigation
+- [ ] Create per-doc version history for blog posts (same pattern as pages — 3.11)
+- [ ] Event archiving cleanup via TickerQ (already built — PageEventArchiveJob)
+
+### Phase 5: Polish & Performance (Sprint 5) — 3 days
+
 - [ ] Add output caching for navigation queries
-- [ ] Optimize descendant move/rename queries
+- [ ] Optimize descendant update queries
+- [ ] Create `ToMinimalApiResult()` extension in `Aero.Core`
 - [ ] Integration testing with Alba + embedded Postgres
 - [ ] Performance testing with 10k+ pages
 - [ ] Documentation and training materials
@@ -2790,6 +2817,14 @@ POST   /api/pages/{id}/reject
 POST   /api/pages/{id}/schedule-publish
 POST   /api/pages/{id}/publish
 POST   /api/pages/{id}/archive
+```
+
+### Audit Endpoints
+
+```http
+GET    /admin/audit?type={Page|BlogPost}&from={iso}&to={iso}&take={n}
+       # Global activity feed — queries all mt_events streams
+       # Returns: [{ streamKey, eventType, timestamp, version, entityId }]
 ```
 
 ---

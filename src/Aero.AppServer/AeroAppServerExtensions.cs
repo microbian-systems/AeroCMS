@@ -9,11 +9,15 @@ using Wolverine;
 using Microsoft.AspNetCore.Builder;
 using TickerQ.Dashboard.DependencyInjection;
 using JasperFx.Events;
+using Aero.Marten.Extensions;
 
 
 namespace Aero.AppServer;
 
-// todo - move the aero.appserver project to its own sln and git repo
+// todo - move the aero.appserver project to its own sln and git repo for max config options. it can also be used as standalone
+// library for hosting the core services (orleans, marten, etc.) without the web server if desired.  This will also allow
+// us to target netstandard for the library and net10 for the web server project, which is currently not possible with them
+// combined in one project.  Can be combined with Aero.Modular (like aero.cms uses)
 
 public static class AeroAppServerExtensions
 {
@@ -37,6 +41,7 @@ public static class AeroAppServerExtensions
     {
         var services = builder.Services;
         var config = builder.Configuration;
+        var env = builder.Environment;
 
         builder.AddAeroLogging();
 
@@ -76,19 +81,11 @@ public static class AeroAppServerExtensions
             opts.AddDashboard(dashboard =>
             {
                 dashboard.SetBasePath("/manager/jobs");
-                dashboard.WithBasicAuth("admin", "*strongPassword1"); // TODO: replace with secure credentials and configuration
+                dashboard.WithBasicAuth("admin", "*strongPassword1"); // TODO: replace tickerq creds with secure credentials and configuration
             });
         });
 
-        // Marten
-        services.AddMarten(opts =>
-        {
-            opts.Connection(connString);
-
-            // Event sourcing for PageDocument (string-based stream identity)
-            opts.Events.StreamIdentity = StreamIdentity.AsString;
-        })
-        .UseLightweightSessions();
+        services.ConfigureMartenDb(config, env, connString);
 
         // Wolverine — handler discovery is driven by the source-generated
         // GeneratedWolverineHandlerCatalog callback, which disables conventional

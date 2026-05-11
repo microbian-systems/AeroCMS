@@ -52,7 +52,12 @@ public static class PagesTreeApi
         CancellationToken ct)
     {
         var result = await treeService.GetTreeAsync(ct);
-        return ToApiResult(result);
+        return result switch
+        {
+            Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok =>
+                Results.Ok(ok.Value.Select(MapToTreeItem).ToList()),
+            _ => ToApiResult(result)
+        };
     }
 
     private static async Task<IResult> GetChildren(
@@ -61,7 +66,12 @@ public static class PagesTreeApi
         CancellationToken ct)
     {
         var result = await treeService.GetChildrenAsync(parentId, ct);
-        return ToApiResult(result);
+        return result switch
+        {
+            Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok =>
+                Results.Ok(ok.Value.Select(MapToTreeItem).ToList()),
+            _ => ToApiResult(result)
+        };
     }
 
     private static async Task<IResult> GetNavigation(
@@ -143,4 +153,23 @@ public static class PagesTreeApi
             _ => Results.Problem("Unknown result state.")
         };
     }
+
+    /// <summary>
+    /// Maps a <see cref="PageDocument"/> to a tree item DTO for the client.
+    /// Ensures <c>publicationState</c> is serialized as a string to match
+    /// the <see cref="Aero.Cms.Abstractions.Http.Clients.PageTreeItem"/> contract.
+    /// </summary>
+    private static object MapToTreeItem(PageDocument p) => new
+    {
+        p.Id,
+        p.Title,
+        p.Slug,
+        p.Path,
+        p.Depth,
+        p.Order,
+        p.ParentId,
+        PublicationState = p.PublicationState.ToString(),
+        p.IsHidden,
+        HasChildren = false // filled by client if needed
+    };
 }
