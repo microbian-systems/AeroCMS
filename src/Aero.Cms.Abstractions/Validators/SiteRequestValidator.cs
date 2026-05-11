@@ -13,8 +13,7 @@ public class SiteRequestValidator : AbstractValidator<CreateSiteRequest>
         RuleFor(x => x.PrimaryHost)
             .NotEmpty().WithMessage("PrimaryHost is required.")
             .MaximumLength(255).WithMessage("PrimaryHost cannot exceed 255 characters.");
-        RuleFor(x => x.Hosts)
-            .NotEmpty().WithMessage("At least one host must be provided.");
+        // Hosts is optional — PrimaryHost is always automatically registered as a host.
     }
 }
 
@@ -30,8 +29,7 @@ public class UpdateSiteRequestValidator : AbstractValidator<UpdateSiteRequest>
         RuleFor(x => x.PrimaryHost)
             .NotEmpty().WithMessage("PrimaryHost is required.")
             .MaximumLength(255).WithMessage("PrimaryHost cannot exceed 255 characters.");
-        RuleFor(x => x.Hosts)
-            .NotEmpty().WithMessage("At least one host must be provided.");
+        // Hosts is optional — PrimaryHost is always automatically registered as a host.
     }
 }
 
