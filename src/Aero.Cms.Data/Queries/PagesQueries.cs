@@ -1,5 +1,7 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
+using Marten.Linq;
+using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries;
 
@@ -14,3 +16,24 @@ public sealed class PagesByCreatedByInDateRangeQuery : EntitiesByCreatedByInDate
 public sealed class PagesByModifiedByInDateRangeQuery : EntitiesByModifiedByInDateRangeQuery<PageDocument>;
 public sealed class LatestPageCreatedByQuery : LatestCreatedByQuery<PageDocument>;
 public sealed class LatestPageModifiedByQuery : LatestModifiedByQuery<PageDocument>;
+
+/// <summary>
+/// Compiled query: finds all descendant pages by materialized path prefix.
+/// Used by PageTreeService.MoveAsync and NavigationService.MarkHiddenDescendantsAsync
+/// to avoid re-compiling the LINQ expression tree on each call.
+///
+/// Marten's LINQ provider translates <c>Path.StartsWith(prefix)</c> to a
+/// PostgreSQL prefix match (leveraging the NgramIndex on Path).
+/// </summary>
+public sealed class PagesByPathPrefixQuery : ICompiledQuery<PageDocument, IList<PageDocument>>
+{
+    public required long SiteId { get; set; }
+    public required string PathPrefix { get; set; }
+
+    public Expression<Func<IMartenQueryable<PageDocument>, IList<PageDocument>>> QueryIs()
+    {
+        return q => q
+            .Where(x => x.SiteId == SiteId && x.Path.StartsWith(PathPrefix))
+            .ToList();
+    }
+}

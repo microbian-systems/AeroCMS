@@ -19,6 +19,14 @@
 </style>
 
 @* ── Header ──────────────────────────────────────────── *@
+@* Inline preview icon — always visible, toggles the preview overlay *@
+<button class="pe-btn pe-btn-ghost pe-btn-sm absolute top-3 left-3 z-10" @onclick="TogglePreview" title="Preview post">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+        <circle cx="12" cy="12" r="3"/>
+    </svg>
+</button>
+
 <div class="space-y-6">
     <div class="pe-page-header">
         <input class="pe-page-title-input" type="text" placeholder="Post Title"

@@ -8,6 +8,7 @@
 @using Aero.Cms.Shared.Services
 @using Aero.Core
 @using Aero.Core.Railway
+
 @inject IAliasHttpClient AliasClient
 @inject ISitesHttpClient SitesClient
 @inject AdminStateContainer AdminState
@@ -25,7 +26,12 @@
             <h1 class="text-2xl font-bold pe-heading">Aliases</h1>
             <p class="mt-1 text-sm pe-description">Manage URL redirects for the current site.</p>
         </div>
-        <RadzenButton Text="Add Alias" ButtonStyle="ButtonStyle.Primary" Click="@(() => _showCreateForm = true)" />
+        <div class="flex items-center gap-2">
+            <RadzenButton Icon="refresh" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                          Click="@(async () => { if (_grid is not null) await _grid.Reload(); })"
+                          Title="Refresh list" />
+            <RadzenButton Text="Add Alias" ButtonStyle="ButtonStyle.Primary" Click="@(() => _showCreateForm = true)" />
+        </div>
     </div>
 
     @if (_showCreateForm)
@@ -35,11 +41,11 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Old URL *</label>
-                    <input @bind="@_createOldPath" class="w-full rounded px-3 py-2" style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" placeholder="e.g. /old-page" />
+                    <input @bind="@_createOldPath" class="w-full rounded px-3 py-2" style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" placeholder="e.g. old-page (no leading / needed)" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">New URL *</label>
-                    <input @bind="@_createNewPath" class="w-full border rounded px-3 py-2" placeholder="e.g. /new-page" />
+                    <input @bind="@_createNewPath" class="w-full border rounded px-3 py-2" placeholder="e.g. new-page (no leading / needed)" />
                 </div>
             </div>
             <div class="flex gap-3 mt-4">

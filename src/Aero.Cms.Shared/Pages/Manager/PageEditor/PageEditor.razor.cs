@@ -109,7 +109,12 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool   HideFooter { get; set; }
     protected bool   ShowChatAgent { get; set; } = true;
     protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+    /// <summary>Optional parent page ID to pre-select when creating a new child page.</summary>
+    [SupplyParameterFromQuery(Name = "parentId")]
     protected long? ParentId { get; set; }
+
+    /// <summary>Read-only parent path prefix shown as a pill before the slug input.</summary>
+    protected string ParentSlugPrefix { get; set; } = "";
 
     protected CmsPageDetail? LoadedPage { get; set; }
 
@@ -143,6 +148,17 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Lifecycle  (mirrors Alpine.js init())
     // ──────────────────────────────────────────────────────────
 
+    private long? _previousParentId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_previousParentId != ParentId)
+        {
+            _previousParentId = ParentId;
+            await RefreshParentSlugPrefixAsync();
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await ResolvePreviewBaseUriAsync();
@@ -155,6 +171,8 @@ public partial class PageEditor : ComponentBase, IDisposable
         {
             UpdateLastSaved();
         }
+
+        await RefreshParentSlugPrefixAsync();
 
         _autoSaveTimer = new System.Timers.Timer(30_000);
         _autoSaveTimer.Elapsed += async (_, _) => await InvokeAsync(AutoSaveAsync);
@@ -189,6 +207,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             ShowHeaderNavigation = page.ShowHeaderNavigation;
             HideFooter = page.HideFooter;
             ShowChatAgent = page.ShowChatAgent;
+            ParentId = page.ParentId;
             
             // Load blocks if available in API
             if (page.Blocks != null)
@@ -216,6 +235,41 @@ public partial class PageEditor : ComponentBase, IDisposable
         {
             ShowToast("Error loading page", "error");
         }
+    }
+
+    /// <summary>
+    /// Sets <see cref="ParentSlugPrefix"/> from the loaded page's Path
+    /// or by loading the parent page via the API.
+    /// </summary>
+    private async Task RefreshParentSlugPrefixAsync()
+    {
+        if (ParentId is null or <= 0)
+        {
+            ParentSlugPrefix = "";
+            return;
+        }
+
+        // Try to derive from the loaded page's Path first
+        if (LoadedPage is { Path: { Length: > 1 } path })
+        {
+            var trimmed = path.TrimStart('/');
+            var lastSlash = trimmed.LastIndexOf('/');
+            ParentSlugPrefix = lastSlash > 0 ? trimmed[..lastSlash] : "";
+            if (!string.IsNullOrEmpty(ParentSlugPrefix))
+                return;
+        }
+
+        // Fallback: load the parent page to get its slug
+        try
+        {
+            var result = await PagesClient.GetByIdAsync(ParentId.Value);
+            if (result is Result<CmsPageDetail, AeroError>.Ok { Value: var parent })
+            {
+                var parentPath = !string.IsNullOrEmpty(parent.Path) ? parent.Path.TrimStart('/').TrimEnd('/') : parent.Slug;
+                ParentSlugPrefix = parentPath;
+            }
+        }
+        catch { ParentSlugPrefix = ""; }
     }
 
     private async Task LoadReferenceDataAsync()

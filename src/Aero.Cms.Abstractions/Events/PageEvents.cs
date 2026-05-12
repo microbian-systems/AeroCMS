@@ -14,6 +14,8 @@ public sealed record PageCreated(
     string Slug,
     long? ParentId,
     int Order,
+    string Path = "",
+    int Depth = 0,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
     PageKind Kind = PageKind.Standard);
 

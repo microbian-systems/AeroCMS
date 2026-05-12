@@ -122,8 +122,9 @@ public interface IPagesHttpClient
 
     /// <summary>
     /// Computes the full path for a slug under a given parent. Validates uniqueness.
+    /// Pass <paramref name="excludePageId"/> when editing so the page doesn't conflict with itself.
     /// </summary>
-    Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, CancellationToken ct = default);
+    Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, long? excludePageId = null, CancellationToken ct = default);
 
     // ── Event sourcing / version history ────────────────────────────
 
@@ -245,10 +246,11 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
         return GetAsync<IReadOnlyList<TreeBreadcrumbItem>>($"tree/breadcrumb/{id}", ct);
     }
 
-    public Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, CancellationToken ct = default)
+    public Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, long? excludePageId = null, CancellationToken ct = default)
     {
         var url = $"tree/compute-path?slug={Uri.EscapeDataString(slug)}";
         if (parentId.HasValue) url += $"&parentId={parentId}";
+        if (excludePageId.HasValue) url += $"&excludePageId={excludePageId}";
         return PostAsync<object, ComputedPathResult>(url, new {}, ct);
     }
 
@@ -287,7 +289,10 @@ public record PageDetail(
     bool ShowHeaderNavigation,
     bool HideFooter,
     bool ShowChatAgent,
-    IReadOnlyList<EditorBlock>? Blocks);
+    IReadOnlyList<EditorBlock>? Blocks = null,
+    long? ParentId = null,
+    string Path = "",
+    int Depth = 0);
 
 /// <summary>
 /// Request to create a new page.

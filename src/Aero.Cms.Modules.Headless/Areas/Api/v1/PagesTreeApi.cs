@@ -3,6 +3,7 @@ using Aero.Cms.Modules.Pages;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
+using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -49,19 +50,21 @@ public static class PagesTreeApi
 
     private static async Task<IResult> GetTree(
         [FromServices] IPageTreeService treeService,
+        [FromServices] IQuerySession query,
         CancellationToken ct)
     {
         var result = await treeService.GetTreeAsync(ct);
         return result switch
         {
             Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok =>
-                Results.Ok(ok.Value.Select(MapToTreeItem).ToList()),
+                Results.Ok(await MapToTreeItemsAsync(query, ok.Value, ct)),
             _ => ToApiResult(result)
         };
     }
 
     private static async Task<IResult> GetChildren(
         [FromServices] IPageTreeService treeService,
+        [FromServices] IQuerySession query,
         [FromQuery] long? parentId,
         CancellationToken ct)
     {
@@ -69,7 +72,7 @@ public static class PagesTreeApi
         return result switch
         {
             Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok =>
-                Results.Ok(ok.Value.Select(MapToTreeItem).ToList()),
+                Results.Ok(await MapToTreeItemsAsync(query, ok.Value, ct)),
             _ => ToApiResult(result)
         };
     }
@@ -116,12 +119,13 @@ public static class PagesTreeApi
         [FromServices] ISiteContext siteContext,
         [FromQuery] long? parentId,
         [FromQuery] string slug,
+        [FromQuery] long? excludePageId,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(slug))
             return Results.BadRequest("Slug is required.");
 
-        var result = await treeService.ComputePathAsync(siteContext.SiteId, parentId, slug, ct);
+        var result = await treeService.ComputePathAsync(siteContext.SiteId, parentId, slug, excludePageId, ct);
         return ToApiResult(result);
     }
 
@@ -155,21 +159,41 @@ public static class PagesTreeApi
     }
 
     /// <summary>
-    /// Maps a <see cref="PageDocument"/> to a tree item DTO for the client.
-    /// Ensures <c>publicationState</c> is serialized as a string to match
-    /// the <see cref="Aero.Cms.Abstractions.Http.Clients.PageTreeItem"/> contract.
+    /// Maps a list of PageDocuments to tree item DTOs, resolving the
+    /// <c>hasChildren</c> flag via a single batch query.
     /// </summary>
-    private static object MapToTreeItem(PageDocument p) => new
+    private static async Task<List<object>> MapToTreeItemsAsync(
+        IQuerySession query,
+        IReadOnlyList<PageDocument> pages,
+        CancellationToken ct)
     {
-        p.Id,
-        p.Title,
-        p.Slug,
-        p.Path,
-        p.Depth,
-        p.Order,
-        p.ParentId,
-        PublicationState = p.PublicationState.ToString(),
-        p.IsHidden,
-        HasChildren = false // filled by client if needed
-    };
+        var pageIds = pages.Select(p => p.Id).ToList();
+        if (pageIds.Count == 0)
+            return [];
+
+        // Single batch query: find which IDs are parents of non-deleted pages
+        var parentIds = await query.Query<PageDocument>()
+            .Where(x => x.ParentId.HasValue
+                && pageIds.Contains(x.ParentId!.Value)
+                && x.Deleted == false)
+            .Select(x => x.ParentId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var parentSet = parentIds.ToHashSet();
+
+        return pages.Select(p => (object)new
+        {
+            p.Id,
+            p.Title,
+            p.Slug,
+            p.Path,
+            p.Depth,
+            p.Order,
+            p.ParentId,
+            PublicationState = p.PublicationState.ToString(),
+            p.IsHidden,
+            HasChildren = parentSet.Contains(p.Id)
+        }).ToList();
+    }
 }

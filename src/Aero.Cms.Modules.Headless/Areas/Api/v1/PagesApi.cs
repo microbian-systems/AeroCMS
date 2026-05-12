@@ -358,7 +358,10 @@ public static class PagesApi
             p.ShowHeaderNavigation,
             p.HideFooter,
             p.ShowChatAgent,
-            p.Blocks
+            p.Blocks,
+            p.ParentId,
+            p.Path,
+            p.Depth
         );
     }
 

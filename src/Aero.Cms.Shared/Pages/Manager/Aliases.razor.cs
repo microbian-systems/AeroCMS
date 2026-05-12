@@ -1,15 +1,18 @@
 ﻿using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Abstractions.Validators;
 using Aero.Cms.Shared.Services;
 using Aero.Core;
 using Aero.Core.Railway;
+using FluentValidation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
 using Radzen;
 using Radzen.Blazor;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
@@ -89,7 +92,28 @@ public partial class Aliases
             if (siteId is null) return;
         }
 
-        var request = new CreateAliasRequest(siteId.Value, _createOldPath, _createNewPath);
+        var oldPath = SanitizePath(_createOldPath);
+        var newPath = SanitizePath(_createNewPath);
+
+        if (string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Both Old URL and New URL are required.");
+            return;
+        }
+
+        var request = new CreateAliasRequest(siteId.Value, oldPath, newPath);
+
+        // Client-side validation via FluentValidation
+        var validator = new CreateAliasRequestValidator();
+        var validationResult = await validator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            NotificationService.Notify(NotificationSeverity.Error,
+                string.Join("; ", errors), duration: 6000);
+            return;
+        }
+
         var result = await AliasClient.CreateAsync(request);
         if (result is Result<AliasViewModel, AeroError>.Ok ok)
         {
@@ -122,5 +146,17 @@ public partial class Aliases
         {
             NotificationService.Notify(NotificationSeverity.Error, fail.Error.ToString(), duration: 4000);
         }
+    }
+
+    /// <summary>
+    /// Normalizes a URL path by trimming whitespace, stripping leading/trailing slashes,
+    /// then prepending a single leading slash. Accepts "old-page", "/old-page/", etc.
+    /// </summary>
+    private static string SanitizePath(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return string.Empty;
+
+        return "/" + raw.Trim().TrimStart('/').TrimEnd('/');
     }
 }

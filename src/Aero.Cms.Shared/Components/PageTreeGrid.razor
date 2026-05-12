@@ -3,6 +3,7 @@
 @inject IPagesHttpClient PagesApi
 @inject NavigationManager Navigation
 @inject Radzen.DialogService DialogService
+@inject Radzen.ContextMenuService ContextMenuService
 
 <RadzenDataGrid TItem="PageTreeItem"
                 Data="@_rootNodes"
@@ -11,14 +12,19 @@
                 AllowColumnResize="true"
                 RowRender="@RowRender"
                 LoadChildData="@LoadChildData"
+                CellContextMenu="@OnCellContextMenu"
                 style="max-height: 70vh; overflow-y: auto;">
     <Columns>
         <RadzenDataGridColumn TItem="PageTreeItem" Title="" Width="50px" Sortable="false">
             <Template Context="node">
-                @if (node.HasChildren)
-                { <RadzenIcon Icon="folder_open" class="text-yellow-500" /> }
-                else
-                { <RadzenIcon Icon="description" class="text-gray-400" /> }
+                <button @onclick="() => PreviewAsync(node)" @onclick:stopPropagation="true"
+                        class="hover:opacity-70 cursor-pointer border-0 bg-transparent p-0"
+                        title="Preview page">
+                    @if (node.HasChildren)
+                    { <RadzenIcon Icon="folder_open" class="text-yellow-500" /> }
+                    else
+                    { <RadzenIcon Icon="description" class="text-gray-400" /> }
+                </button>
             </Template>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.Title)" Title="Title" Width="250px" Sortable="true" />
@@ -42,9 +48,11 @@
                 { <RadzenIcon Icon="visibility" class="text-green-500" /> }
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="PageTreeItem" Title="Actions" Width="130px" Sortable="false">
+        <RadzenDataGridColumn TItem="PageTreeItem" Title="Actions" Width="170px" Sortable="false">
             <Template Context="node">
                 <div class="flex gap-1">
+                    <RadzenButton Icon="control_point" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                  Click="@(() => AddChildAsync(node))" Title="Add child page" />
                     <RadzenButton Icon="edit" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
                                   Click="@(() => EditAsync(node))" />
                     <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
@@ -59,7 +67,16 @@
     private List<PageTreeItem> _rootNodes = [];
     private string? _error;
 
-    protected override async Task OnInitializedAsync() => await LoadRootsAsync();
+    /// <summary>
+    /// Optional callback: when the icon column is clicked, fires so
+    /// the parent page can show a preview overlay instead of navigating.
+    /// </summary>
+    [Parameter] public EventCallback<PageTreeItem> OnPreview { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRootsAsync();
+    }
 
     private async Task LoadRootsAsync()
     {
@@ -101,9 +118,24 @@
         _ => Radzen.BadgeStyle.Light
     };
 
+    // ── Inline row actions ────────────────────────────────────────
+
+    private async Task PreviewAsync(PageTreeItem node)
+    {
+        if (OnPreview.HasDelegate)
+            await OnPreview.InvokeAsync(node);
+        else
+            Navigation.NavigateTo($"/manager/page/editor/{node.Id}");
+    }
+
     private void EditAsync(PageTreeItem node)
     {
         Navigation.NavigateTo($"/manager/page/editor/{node.Id}");
+    }
+
+    private void AddChildAsync(PageTreeItem node)
+    {
+        Navigation.NavigateTo($"/manager/page/editor?parentId={node.Id}");
     }
 
     private void OnRowClick(DataGridRowMouseEventArgs<PageTreeItem> args)
@@ -122,5 +154,35 @@
             await PagesApi.DeleteAsync(node.Id);
             await LoadRootsAsync();
         }
+    }
+
+    // ── Right-click context menu ──────────────────────────────────
+
+    private void OnCellContextMenu(DataGridCellMouseEventArgs<PageTreeItem> args)
+    {
+        if (args.Data is null) return;
+
+        ContextMenuService.Open(args,
+        [
+            new() { Text = "Edit", Value = "edit", Icon = "edit" },
+            new() { Text = "Add child page", Value = "add-child", Icon = "control_point" },
+            new() { Text = "Delete", Value = "delete", Icon = "delete" },
+        ],
+        (item) =>
+        {
+            var node = args.Data;
+            switch (item.Value as string)
+            {
+                case "edit":
+                    Navigation.NavigateTo($"/manager/page/editor/{node.Id}");
+                    break;
+                case "add-child":
+                    Navigation.NavigateTo($"/manager/page/editor?parentId={node.Id}");
+                    break;
+                case "delete":
+                    _ = ConfirmDeleteAsync(node);
+                    break;
+            }
+        });
     }
 }

@@ -128,6 +128,8 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         Title = e.Title,
         Slug = e.Slug,
         ParentId = e.ParentId,
+        Path = e.Path,
+        Depth = e.Depth,
         Order = e.Order,
         PublicationState = e.PublicationState,
         Kind = e.Kind

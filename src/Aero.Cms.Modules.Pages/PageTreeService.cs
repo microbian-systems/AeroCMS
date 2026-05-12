@@ -1,5 +1,6 @@
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Data.Queries;
 using Aero.Cms.Modules.Pages.Validators;
 using Aero.Core;
 using Aero.Core.Http;
@@ -37,10 +38,14 @@ public interface IPageTreeService
 
     /// <summary>
     /// Creates the hierarchy path for a new/updated page.
+    /// Use <paramref name="excludePageId"/> when editing an existing page
+    /// to prevent the page from conflicting with itself.
     /// Returns the computed Path and Depth.
     /// </summary>
     Task<Result<(string Path, int Depth), AeroError>> ComputePathAsync(
-        long siteId, long? parentId, string slug, CancellationToken ct = default);
+        long siteId, long? parentId, string slug,
+        long? excludePageId = null,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Gets the next available Order value for siblings (max + 1).
@@ -223,9 +228,11 @@ public sealed class PageTreeService : IPageTreeService
             if (oldPath != newPath)
             {
                 var descendants = await _session
-                    .Query<PageDocument>()
-                    .Where(x => x.SiteId == siteId && x.Path.StartsWith(oldPath + "/"))
-                    .ToListAsync(ct);
+                    .QueryAsync(new PagesByPathPrefixQuery
+                    {
+                        SiteId = siteId,
+                        PathPrefix = oldPath + "/"
+                    }, ct);
 
                 foreach (var descendant in descendants)
                 {
@@ -258,7 +265,9 @@ public sealed class PageTreeService : IPageTreeService
     }
 
     public async Task<Result<(string Path, int Depth), AeroError>> ComputePathAsync(
-        long siteId, long? parentId, string slug, CancellationToken ct = default)
+        long siteId, long? parentId, string slug,
+        long? excludePageId = null,
+        CancellationToken ct = default)
     {
         try
         {
@@ -274,15 +283,19 @@ public sealed class PageTreeService : IPageTreeService
                     AeroError.NotFoundError($"Parent page {parentId} not found."));
             }
 
-            var path = parent.Path.TrimEnd('/') + "/" + slug;
+            var parentPath = string.IsNullOrEmpty(parent.Path) || parent.Path == "/"
+                ? "/" + parent.Slug
+                : parent.Path;
+            var path = parentPath.TrimEnd('/') + "/" + slug;
             var depth = parent.Depth + 1;
 
-            // Check uniqueness: no sibling with same slug
+            // Check uniqueness: no OTHER sibling with same slug
             var exists = await _session
                 .Query<PageDocument>()
                 .AnyAsync(x => x.SiteId == siteId
                     && x.ParentId == parentId
                     && x.Slug == slug
+                    && x.Id != excludePageId
                     && x.Deleted == false, ct);
 
             if (exists)
@@ -345,9 +358,11 @@ public sealed class PageTreeService : IPageTreeService
             }
 
             var descendants = await _session
-                .Query<PageDocument>()
-                .Where(x => x.SiteId == siteId && x.Path.StartsWith(oldPath + "/"))
-                .ToListAsync(ct);
+                .QueryAsync(new PagesByPathPrefixQuery
+                {
+                    SiteId = siteId,
+                    PathPrefix = oldPath + "/"
+                }, ct);
 
             var depthDelta = newPath.Count(c => c == '/') - oldPath.Count(c => c == '/');
 

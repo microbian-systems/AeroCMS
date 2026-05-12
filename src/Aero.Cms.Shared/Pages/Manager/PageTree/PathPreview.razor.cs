@@ -19,6 +19,13 @@ public partial class PathPreview
     [Parameter]
     public string Slug { get; set; } = "";
 
+    /// <summary>
+    /// When editing an existing page, pass its ID here so the uniqueness
+    /// check excludes the page itself (prevents self-conflict).
+    /// </summary>
+    [Parameter]
+    public long? ExcludePageId { get; set; }
+
     private ComputedPathResult? _result;
 
     protected override async Task OnParametersSetAsync()
@@ -36,7 +43,7 @@ public partial class PathPreview
 
         try
         {
-            var result = await PagesClient.ComputePathAsync(ParentId, Slug);
+            var result = await PagesClient.ComputePathAsync(ParentId, Slug, ExcludePageId);
             if (result is Result<ComputedPathResult, AeroError>.Ok ok)
             {
                 _result = ok.Value;

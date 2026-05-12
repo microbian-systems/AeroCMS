@@ -1,10 +1,12 @@
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Data.Queries;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -30,6 +32,7 @@ public interface INavigationService
     /// <summary>
     /// Gets the full navigation tree for the current site.
     /// Hidden nodes are excluded and their descendants are also hidden (cascading).
+    /// Results are cached via FusionCache for 5 minutes when available.
     /// </summary>
     Task<Result<IReadOnlyList<NavigationNode>, AeroError>> GetNavigationTreeAsync(
         CancellationToken ct = default);
@@ -43,12 +46,15 @@ public interface INavigationService
 
     /// <summary>
     /// Toggles the hidden state of a page. When hiding a parent, all descendants are also hidden.
+    /// Evicts the navigation tree cache on success.
     /// </summary>
     Task<Result<bool, AeroError>> SetHiddenAsync(
         long pageId, bool isHidden, CancellationToken ct = default);
 
     /// <summary>
     /// Marks all descendants of a hidden parent as hidden (cascade).
+    /// Uses the compiled PagesByPathPrefixQuery for efficient materialized-path prefix matching.
+    /// Evicts the navigation tree cache on success.
     /// </summary>
     Task<Result<bool, AeroError>> MarkHiddenDescendantsAsync(
         long parentId, CancellationToken ct = default);
@@ -59,19 +65,43 @@ public sealed class NavigationService : INavigationService
     private readonly IDocumentSession _session;
     private readonly ISiteContext _siteContext;
     private readonly ILogger<NavigationService> _logger;
+    private readonly IFusionCache? _cache;
+    private static readonly TimeSpan NavCacheDuration = TimeSpan.FromMinutes(5);
 
     public NavigationService(
         IDocumentSession session,
         ISiteContext siteContext,
-        ILogger<NavigationService> logger)
+        ILogger<NavigationService> logger,
+        IFusionCache? cache = null)
     {
         _session = session;
         _siteContext = siteContext;
         _logger = logger;
+        _cache = cache;
     }
+
+    // ── Navigation Tree ───────────────────────────────────────────────────
 
     public async Task<Result<IReadOnlyList<NavigationNode>, AeroError>> GetNavigationTreeAsync(
         CancellationToken ct = default)
+    {
+        if (_cache is not null)
+        {
+            var key = $"nav:tree:{_siteContext.SiteId}";
+            var cached = await _cache.TryGetAsync<Result<IReadOnlyList<NavigationNode>, AeroError>>(key);
+            if (cached.HasValue)
+                return cached.Value;
+
+            var result = await LoadNavigationTreeAsync(ct);
+            await _cache.SetAsync(key, result, token: ct);
+            return result;
+        }
+
+        return await LoadNavigationTreeAsync(ct);
+    }
+
+    private async Task<Result<IReadOnlyList<NavigationNode>, AeroError>> LoadNavigationTreeAsync(
+        CancellationToken ct)
     {
         try
         {
@@ -156,6 +186,8 @@ public sealed class NavigationService : INavigationService
         }
     }
 
+    // ── Breadcrumb ────────────────────────────────────────────────────────
+
     public async Task<Result<BreadcrumbItem[], AeroError>> GetBreadcrumbAsync(
         long pageId, CancellationToken ct = default)
     {
@@ -214,6 +246,8 @@ public sealed class NavigationService : INavigationService
         }
     }
 
+    // ── Hide / Cascade ────────────────────────────────────────────────────
+
     public async Task<Result<bool, AeroError>> SetHiddenAsync(
         long pageId, bool isHidden, CancellationToken ct = default)
     {
@@ -241,6 +275,8 @@ public sealed class NavigationService : INavigationService
             }
 
             _logger.LogInformation("Page {PageId} hidden state set to {IsHidden}", pageId, isHidden);
+
+            EvictNavigationCache();
             return Prelude.Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
@@ -267,9 +303,11 @@ public sealed class NavigationService : INavigationService
             }
 
             var descendants = await _session
-                .Query<PageDocument>()
-                .Where(x => x.SiteId == siteId && x.Path.StartsWith(parent.Path + "/"))
-                .ToListAsync(ct);
+                .QueryAsync(new PagesByPathPrefixQuery
+                {
+                    SiteId = siteId,
+                    PathPrefix = parent.Path + "/"
+                }, ct);
 
             foreach (var descendant in descendants)
             {
@@ -283,6 +321,7 @@ public sealed class NavigationService : INavigationService
                 "Marked {Count} descendants as hidden for page {PageId}",
                 descendants.Count, parentId);
 
+            EvictNavigationCache();
             return Prelude.Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
@@ -290,6 +329,21 @@ public sealed class NavigationService : INavigationService
             _logger.LogError(ex, "Failed to mark hidden descendants for page {ParentId}", parentId);
             return Prelude.Fail<bool, AeroError>(
                 AeroError.DatabaseError("Failed to cascade hidden state."));
+        }
+    }
+
+    // ── Cache Helpers ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Evicts the navigation tree cache for the current site.
+    /// Called after any write operation that affects navigation (hide, move, publish, etc.).
+    /// </summary>
+    private void EvictNavigationCache()
+    {
+        if (_cache is not null)
+        {
+            var key = $"nav:tree:{_siteContext.SiteId}";
+            _cache.Remove(key);
         }
     }
 }

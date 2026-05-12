@@ -19,8 +19,10 @@ public static class PageRouteHandler
             .WithName("GetHomepage")
             .WithTags("Pages");
 
-        // Dynamic page route at /{slug}
-        app.MapGet("/{slug}", GetPageBySlug)
+        // Dynamic page route at /{*slug} — catch-all for hierarchical paths
+        // NOTE: Public HTML rendering is handled by the Razor Page at Areas/Cms/Pages/Page.cshtml
+        // which also uses a catch-all (/{**slug}). This Minimal API is for headless/programmatic access.
+        app.MapGet("/{*slug}", GetPageBySlug)
             .WithName("GetPageBySlug")
             .WithTags("Pages");
     }

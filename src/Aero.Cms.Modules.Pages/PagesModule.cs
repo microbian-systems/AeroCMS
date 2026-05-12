@@ -51,7 +51,8 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         // expose them at the desired public URLs.
         services.Configure<RazorPagesOptions>(options =>
         {
-            options.Conventions.AddAreaPageRoute("Cms", "/page", "/{slug?}");
+            options.Conventions.AddAreaPageRoute("Cms", "/page", "/");
+            options.Conventions.AddAreaPageRoute("Cms", "/page", "/{**slug}");
             options.Conventions.AddAreaPageRoute("Cms", "/page", "/_cms/preview/pages/drafts/{draftId:long}");
         });
     }

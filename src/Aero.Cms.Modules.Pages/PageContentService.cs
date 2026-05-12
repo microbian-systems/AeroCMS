@@ -39,7 +39,8 @@ public sealed class MartenPageContentService(
     ISiteContext siteContext,
     ILogger<MartenPageContentService> logger,
     IHttpContextAccessor? httpContextAccessor = null,
-    IFusionCache? cache = null) : IPageContentService
+    IFusionCache? cache = null,
+    IPageTreeService? pageTreeService = null) : IPageContentService
 {
     private const string PageCacheTag = "pages-list";
     private readonly ISiteContext _siteContext = siteContext;
@@ -125,10 +126,12 @@ public sealed class MartenPageContentService(
                 return Prelude.Ok<PageDocument?, AeroError>(cached);
             }
 
+            var normalized = ContentSlugDocument.Normalize(slug);
+
             var reservation = await session.Query<ContentSlugDocument>()
                 .FirstOrDefaultAsync(x =>
                     x.SiteId == _siteContext.SiteId &&
-                    string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
+                    string.Equals(normalized, x.NormalizedSlug, StringComparison.OrdinalIgnoreCase), token: cancellationToken);
             if (reservation is not null && reservation.OwnerType == ContentSlugOwnerType.Page)
             {
                 var document = await session.LoadAsync<PageDocument>(reservation.OwnerId, cancellationToken);
@@ -136,15 +139,20 @@ public sealed class MartenPageContentService(
                 {
                     // Filter by published state — unpublished pages must not be publicly accessible
                     if (document.PublicationState != ContentPublicationState.Published)
-            return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
-        }
+                        return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
+
+                    await SetCacheAsync(cacheKey, document, cancellationToken);
+                    return Prelude.Ok<PageDocument?, AeroError>(document);
+                }
             }
 
-            // Fallback: direct PageDocument lookup (handles pages created without slug reservation)
+            // Fallback: direct Path lookup (handles pages created without slug reservation)
+            // PageDocument.Path stores the leading "/" (e.g., "/main-page/child-page")
+            var pathToMatch = "/" + normalized;
             var directPage = await session.Query<PageDocument>()
                 .FirstOrDefaultAsync(x =>
                     x.SiteId == _siteContext.SiteId &&
-                    string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase) &&
+                    string.Equals(pathToMatch, x.Path, StringComparison.OrdinalIgnoreCase) &&
                     x.PublicationState == ContentPublicationState.Published, token: cancellationToken);
             if (directPage is not null)
             {
@@ -197,6 +205,34 @@ public sealed class MartenPageContentService(
                 page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
             }
 
+            // Compute hierarchy fields (Path, Depth, Order) BEFORE validation
+            // so Path is available for both the validator and slug reservation.
+            var parentId = request.ParentId;
+            var path = "/" + page.Slug;
+            var depth = 0;
+            var order = 0;
+
+            if (parentId is not null and > 0 && pageTreeService is not null)
+            {
+                var pathResult = await pageTreeService.ComputePathAsync(siteId, parentId, page.Slug, ct: cancellationToken);
+                if (pathResult is Result<(string Path, int Depth), AeroError>.Ok pathOk)
+                {
+                    path = pathOk.Value.Path;
+                    depth = pathOk.Value.Depth;
+                }
+
+                var orderResult = await pageTreeService.GetNextSiblingOrderAsync(siteId, parentId, cancellationToken);
+                if (orderResult is Result<int, AeroError>.Ok orderOk)
+                {
+                    order = orderOk.Value;
+                }
+            }
+
+            page.ParentId = parentId;
+            page.Path = path;
+            page.Depth = depth;
+            page.Order = order;
+
             var validationResult = await ValidatePage(page);
             if (validationResult is Result<bool, AeroError>.Failure vf)
             {
@@ -204,12 +240,14 @@ public sealed class MartenPageContentService(
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
             }
 
-            // Reserve slug (new page, no previous slug)
+            // Reserve slug for public URL routing — use the full Path for
+            // hierarchical pages so /parent/child resolves correctly.
+            var publicSlug = page.Path.TrimStart('/'); // "/about/team" → "about/team"
             await ContentSlugReservation.ReserveAsync(
                 session,
                 page.Id,
                 ContentSlugOwnerType.Page,
-                page.Slug,
+                publicSlug,
                 siteId,
                 previousSlug: null,
                 cancellationToken: cancellationToken);
@@ -217,7 +255,7 @@ public sealed class MartenPageContentService(
             // Start an event stream for versioning (projection handles document persistence).
             // PageCreated establishes the page; PageContentUpdated carries blocks + layout.
             session.Events.StartStream($"page-{page.Id}",
-                new PageCreated(siteId, page.Title, page.Slug, null, 0, page.PublicationState, page.Kind));
+                new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind));
             session.Events.Append($"page-{page.Id}", new PageContentUpdated(
                 page.Title,
                 page.Slug,
@@ -290,16 +328,22 @@ public sealed class MartenPageContentService(
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
             }
 
-            // Reserve the new slug (if changed)
+            // Reserve the new slug path (if changed) — uses full Path so
+            // hierarchical pages like /parent/child route correctly.
             if (oldSlug != request.Slug)
             {
+                var oldPublicSlug = page.Path.TrimStart('/');
+                var segments = oldPublicSlug.Split('/');
+                segments[^1] = request.Slug;
+                var newPublicSlug = string.Join('/', segments);
+
                 await ContentSlugReservation.ReserveAsync(
                     session,
                     id,
                     ContentSlugOwnerType.Page,
-                    request.Slug,
+                    newPublicSlug,
                     _siteContext.SiteId,
-                    oldSlug,
+                    oldPublicSlug,
                     cancellationToken);
             }
 
@@ -419,13 +463,14 @@ public sealed class MartenPageContentService(
                 logger.LogInformation("Generated layout regions from {BlockCount} blocks for page {PageId}", targetPage.Blocks.Count, targetPage.Id);
             }
 
+            var targetPublicSlug = targetPage.Path.TrimStart('/');
             await ContentSlugReservation.ReserveAsync(
                 session,
                 targetPage.Id,
                 ContentSlugOwnerType.Page,
-                targetPage.Slug,
+                targetPublicSlug,
                 targetPage.SiteId,
-                oldSlug,
+                oldSlug,  // oldSlug is the leaf; reservation handles full-path matching
                 cancellationToken);
 
             var now = DateTimeOffset.UtcNow;
@@ -443,8 +488,8 @@ public sealed class MartenPageContentService(
             {
                 session.Events.StartStream($"page-{targetPage.Id}",
                     new PageCreated(targetPage.SiteId, targetPage.Title, targetPage.Slug,
-                                    targetPage.ParentId, targetPage.Order, targetPage.PublicationState,
-                                    targetPage.Kind));
+                                    targetPage.ParentId, targetPage.Order, targetPage.Path, targetPage.Depth,
+                                    targetPage.PublicationState, targetPage.Kind));
             }
             session.Events.Append($"page-{targetPage.Id}", new PageContentUpdated(
                 targetPage.Title,
