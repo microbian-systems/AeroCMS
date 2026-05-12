@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Http.Clients;
 using CreatePageRequest = Aero.Cms.Abstractions.Requests.CreatePageRequest;
 using UpdatePageRequest = Aero.Cms.Abstractions.Requests.UpdatePageRequest;
 
@@ -41,6 +42,12 @@ public static class PagesApi
 
         group.MapDelete("/{id:long}", DeletePage)
             .WithName("DeletePage");
+
+        group.MapDelete("/{id:long}/cascade", DeletePageCascade)
+            .WithName("DeletePageCascade");
+
+        group.MapPost("/delete-multiple", DeleteMultiplePages)
+            .WithName("DeleteMultiplePages");
 
         group.MapPut("/{id:long}/publish", PublishPage)
             .WithName("PublishPage");
@@ -262,12 +269,13 @@ public static class PagesApi
         long id,
         [FromServices] IPageContentService pageService,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromQuery] bool deleteDescendants = false,
         CancellationToken cancellationToken = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var result = await pageService.DeleteAsync(id, cancellationToken);
+            var result = await pageService.DeleteAsync(id, deleteDescendants, cancellationToken);
             if (result is Result<bool, AeroError>.Ok { Value: true })
             {
                 return TypedResults.Ok(true);
@@ -281,6 +289,62 @@ public static class PagesApi
             return TypedResults.BadRequest(new ProblemDetails
             {
                 Title = "Failed to delete page",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    private static async Task<IResult> DeletePageCascade(
+        long id,
+        [FromServices] IPageContentService pageService,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken = default)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PagesApi));
+        try
+        {
+            var result = await pageService.DeleteAsync(id, deleteDescendants: true, cancellationToken);
+            if (result is Result<bool, AeroError>.Ok { Value: true })
+                return TypedResults.Ok(true);
+
+            return TypedResults.NotFound();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error cascade-deleting page id={Id}", id);
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to cascade-delete page",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    private static async Task<IResult> DeleteMultiplePages(
+        [FromBody] DeleteMultiplePagesRequest request,
+        [FromServices] IPageContentService pageService,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken = default)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PagesApi));
+        try
+        {
+            var result = await pageService.DeleteMultipleAsync(request.Ids, request.DeleteDescendants, cancellationToken);
+            if (result is Result<int, AeroError>.Ok ok)
+                return TypedResults.Ok(new { deleted = ok.Value });
+
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to delete pages",
+                Detail = result is Result<int, AeroError>.Failure f ? f.Error.ToString() : "Unknown error"
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error bulk-deleting pages");
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to bulk-delete pages",
                 Detail = ex.Message
             });
         }

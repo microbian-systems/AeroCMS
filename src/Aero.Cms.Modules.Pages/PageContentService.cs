@@ -30,6 +30,8 @@ public interface IPageContentService
     Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default);
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
+    Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDescendants, CancellationToken cancellationToken = default);
+    Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants, CancellationToken cancellationToken = default);
 }
 
 public sealed class MartenPageContentService(
@@ -420,6 +422,123 @@ public sealed class MartenPageContentService(
         {
             logger.LogError(ex, "Failed to delete page {PageId}", id);
             return Prelude.Fail<bool, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDescendants, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+            if (page is null || page.SiteId != _siteContext.SiteId)
+                return Prelude.Fail<bool, AeroError>(AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
+
+            if (!deleteDescendants)
+            {
+                // Unpublish the parent page — children remain as-is
+                var previousState = page.PublicationState;
+                page.PublicationState = ContentPublicationState.Draft;
+                session.Events.Append($"page-{id}", new PageStateChanged(ContentPublicationState.Draft));
+                session.Store(page);
+                await session.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("Unpublished page {PageId} (was {PreviousState})", id, previousState);
+                return Prelude.Ok<bool, AeroError>(true);
+            }
+
+            // Cascade delete: find all descendants by Path prefix using NgramIndex
+            var prefix = page.Path == "/" ? "/" : page.Path.TrimEnd('/') + "/";
+            var descendants = await session.Query<PageDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId
+                    && x.Path.StartsWith(prefix)
+                    && x.Deleted == false)
+                .ToListAsync(cancellationToken);
+
+            // Exclude self — for root pages the prefix "/" matches everything
+            descendants = descendants.Where(d => d.Id != page.Id).ToList();
+
+            // Delete parent + descendants (deepest first)
+            var toDelete = new List<PageDocument> { page };
+            toDelete.AddRange(descendants.OrderByDescending(d => d.Path.Length));
+
+            logger.LogInformation("Cascade-deleting page {PageId} ({Path}) with {Count} descendants",
+                id, page.Path, descendants.Count);
+
+            foreach (var doc in toDelete)
+            {
+                var reservation = await session.Query<ContentSlugDocument>()
+                    .FirstOrDefaultAsync(x => x.OwnerId == doc.Id
+                        && x.OwnerType == ContentSlugOwnerType.Page
+                        && x.SiteId == _siteContext.SiteId, token: cancellationToken);
+                if (reservation is not null)
+                    session.Delete(reservation);
+
+                session.Events.Append($"page-{doc.Id}", new PageDeleted(null));
+                session.Delete(doc);
+            }
+
+            await session.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Cascade-deleted page {PageId} and {DescendantCount} descendants", id, descendants.Count);
+            return Prelude.Ok<bool, AeroError>(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete page {PageId}", id);
+            return Prelude.Fail<bool, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants, CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+            return Prelude.Ok<int, AeroError>(0);
+
+        try
+        {
+            var idList = ids.ToList();
+
+            // If cascade requested, expand the id list to include all descendants
+            if (deleteDescendants)
+            {
+                var pages = await session.Query<PageDocument>()
+                    .Where(x => x.SiteId == _siteContext.SiteId && idList.Contains(x.Id) && x.Deleted == false)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var page in pages)
+                {
+                    var prefix = page.Path == "/" ? "/" : page.Path.TrimEnd('/') + "/";
+                    var descendants = await session.Query<PageDocument>()
+                        .Where(x => x.SiteId == _siteContext.SiteId
+                            && x.Path.StartsWith(prefix)
+                            && x.Deleted == false)
+                        .ToListAsync(cancellationToken);
+                    idList.AddRange(descendants.Where(d => d.Id != page.Id).Select(d => d.Id));
+                }
+
+                idList = idList.Distinct().ToList();
+            }
+
+            // Bulk soft-delete documents via single SQL UPDATE (ISoftDeleted)
+            session.DeleteWhere<PageDocument>(x =>
+                x.SiteId == _siteContext.SiteId && idList.Contains(x.Id));
+
+            // Bulk-clean slug reservations
+            session.DeleteWhere<ContentSlugDocument>(x =>
+                x.SiteId == _siteContext.SiteId
+                && idList.Contains(x.OwnerId)
+                && x.OwnerType == ContentSlugOwnerType.Page);
+
+            // Append PageDeleted events to each stream (audit trail)
+            foreach (var id in idList)
+                session.Events.Append($"page-{id}", new PageDeleted(null));
+
+            await session.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Bulk-deleted {Count} pages (deleteDescendants={Cascade})", idList.Count, deleteDescendants);
+            return Prelude.Ok<int, AeroError>(idList.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to bulk-delete {Count} pages", ids.Count);
+            return Prelude.Fail<int, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 

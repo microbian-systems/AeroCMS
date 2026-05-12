@@ -76,6 +76,16 @@ public interface IPagesHttpClient
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
 
     /// <summary>
+    /// Deletes a page and all its descendants.
+    /// </summary>
+    Task<Result<bool, AeroError>> DeleteCascadeAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes multiple pages by ID, optionally including descendants.
+    /// </summary>
+    Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants = false, CancellationToken ct = default);
+
+    /// <summary>
     /// Publishes a page.
     /// </summary>
     /// <param name="id">The page identifier to publish.</param>
@@ -184,6 +194,26 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
         return MapBoolResult(base.DeleteAsync(id.ToString(), ct));
+    }
+
+    public Task<Result<bool, AeroError>> DeleteCascadeAsync(long id, CancellationToken ct = default)
+    {
+        return MapBoolResult(base.DeleteAsync($"{id}/cascade", ct));
+    }
+
+    public async Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants = false, CancellationToken ct = default)
+    {
+        var result = await base.PostAsync<DeleteMultiplePagesRequest, DeleteMultipleResult>(
+            "delete-multiple",
+            new DeleteMultiplePagesRequest(ids, deleteDescendants),
+            ct);
+
+        return result switch
+        {
+            Result<DeleteMultipleResult, AeroError>.Ok ok => new Result<int, AeroError>.Ok(ok.Value.Deleted),
+            Result<DeleteMultipleResult, AeroError>.Failure f => new Result<int, AeroError>.Failure(f.Error),
+            _ => new Result<int, AeroError>.Failure(AeroError.CreateError("Bulk delete failed"))
+        };
     }
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
@@ -403,3 +433,15 @@ public record PageEventHistory(
     string PageTitle,
     int TotalEvents,
     IReadOnlyList<PageEventItem> Events);
+
+/// <summary>
+/// Request body for bulk page deletion.
+/// </summary>
+public sealed record DeleteMultiplePagesRequest(
+    IReadOnlyList<long> Ids,
+    bool DeleteDescendants = false);
+
+/// <summary>
+/// Response from bulk page deletion.
+/// </summary>
+public sealed record DeleteMultipleResult(int Deleted);

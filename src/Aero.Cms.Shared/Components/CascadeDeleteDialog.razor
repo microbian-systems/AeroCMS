@@ -1,0 +1,47 @@
+@inject DialogService DialogService
+
+<div class="p-4 space-y-4" style="max-width: 520px;">
+    <h3 class="text-lg font-semibold" style="color: var(--pe-text-primary);">Delete page</h3>
+
+    <div class="rounded-md border p-3 text-sm space-y-2"
+         style="border-color: #f59e0b; color: #92400e; background: rgba(245, 158, 11, 0.08);">
+        <div class="flex items-start gap-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="flex-shrink-0 mt-0.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div>
+                <strong>Warning:</strong> The page <em>'@Title'</em> has child pages.
+                When deleted, all descendants will be permanently removed. This action cannot be undone.
+            </div>
+        </div>
+    </div>
+
+    <label class="flex items-start gap-3 cursor-pointer text-sm" style="color: var(--pe-text-primary);">
+        <input type="checkbox"
+               @bind="DeleteChildren"
+               class="mt-0.5 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+        <span>I understand that <strong>all child pages</strong> will be permanently deleted.</span>
+    </label>
+
+    <div class="flex justify-end gap-2 pt-2">
+        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => DialogService.Close(false))" />
+        <RadzenButton Text="Convert to Draft (Keep Children)"
+                      ButtonStyle="ButtonStyle.Warning"
+                      Click="@Unpublish" />
+        <RadzenButton Text="Delete Page and Children"
+                      ButtonStyle="ButtonStyle.Danger"
+                      Disabled="@(!DeleteChildren)"
+                      Click="@DeleteWithChildren" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+
+    private bool DeleteChildren;
+
+    private void Unpublish() => DialogService.Close("unpublish");
+    private void DeleteWithChildren() => DialogService.Close("delete");
+}

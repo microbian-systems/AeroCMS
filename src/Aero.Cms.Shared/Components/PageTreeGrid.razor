@@ -4,6 +4,7 @@
 @inject NavigationManager Navigation
 @inject Radzen.DialogService DialogService
 @inject Radzen.ContextMenuService ContextMenuService
+@inject Radzen.NotificationService NotificationService
 
 <RadzenDataGrid TItem="PageTreeItem"
                 Data="@_rootNodes"
@@ -15,6 +16,25 @@
                 CellContextMenu="@OnCellContextMenu"
                 style="max-height: 70vh; overflow-y: auto;">
     <Columns>
+        @* Checkbox column — multi-select *@
+        <RadzenDataGridColumn TItem="PageTreeItem" Title="" Width="48px" Filterable="false" Sortable="false">
+            <HeaderTemplate>
+                <input type="checkbox"
+                       @onchange="ToggleSelectAll"
+                       checked="@AreAllVisibleSelected()"
+                       @onclick:stopPropagation="true"
+                       class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+            </HeaderTemplate>
+            <Template Context="node">
+                <input type="checkbox"
+                       checked="@_selectedIds.Contains(node.Id)"
+                       @onchange="() => ToggleSelection(node.Id)"
+                       @onclick:stopPropagation="true"
+                       class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+            </Template>
+        </RadzenDataGridColumn>
+
+        @* Icon / preview column *@
         <RadzenDataGridColumn TItem="PageTreeItem" Title="" Width="50px" Sortable="false">
             <Template Context="node">
                 <button @onclick="() => PreviewAsync(node)" @onclick:stopPropagation="true"
@@ -27,6 +47,7 @@
                 </button>
             </Template>
         </RadzenDataGridColumn>
+
         <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.Title)" Title="Title" Width="250px" Sortable="true" />
         <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.Slug)" Title="Slug" Width="180px" Sortable="true" />
         <RadzenDataGridColumn TItem="PageTreeItem" Title="Path" Width="300px" Sortable="true">
@@ -63,9 +84,23 @@
     </Columns>
 </RadzenDataGrid>
 
+@* Bulk delete bar *@
+@if (_selectedIds.Count > 0)
+{
+    <div class="flex items-center gap-3 justify-end mt-3">
+        <span style="color: var(--pe-text-muted);">@_selectedIds.Count selected</span>
+        <RadzenButton Icon="delete" Text="Delete Selected"
+                      ButtonStyle="ButtonStyle.Danger"
+                      Variant="Variant.Outlined"
+                      class="rounded-xl px-6 font-bold text-xs"
+                      Click="@DeleteSelectedAsync" />
+    </div>
+}
+
 @code {
     private List<PageTreeItem> _rootNodes = [];
     private string? _error;
+    private HashSet<long> _selectedIds = [];
 
     /// <summary>
     /// Optional callback: when the icon column is clicked, fires so
@@ -81,6 +116,7 @@
     private async Task LoadRootsAsync()
     {
         _error = null;
+        _selectedIds.Clear();
         try
         {
             var result = await PagesApi.GetChildrenAsync(parentId: null);
@@ -118,6 +154,34 @@
         _ => Radzen.BadgeStyle.Light
     };
 
+    // ── Selection ──────────────────────────────────────────────────
+
+    private bool AreAllVisibleSelected()
+    {
+        return _rootNodes.Count > 0 && _rootNodes.All(n => _selectedIds.Contains(n.Id));
+    }
+
+    private void ToggleSelection(long id)
+    {
+        if (_selectedIds.Contains(id))
+            _selectedIds.Remove(id);
+        else
+            _selectedIds.Add(id);
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs args)
+    {
+        if (args.Value is bool isChecked && isChecked)
+        {
+            foreach (var node in _rootNodes)
+                _selectedIds.Add(node.Id);
+        }
+        else
+        {
+            _selectedIds.Clear();
+        }
+    }
+
     // ── Inline row actions ────────────────────────────────────────
 
     private async Task PreviewAsync(PageTreeItem node)
@@ -144,15 +208,77 @@
             Navigation.NavigateTo($"/manager/page/editor/{args.Data.Id}");
     }
 
+    // ── Delete (with cascade support) ─────────────────────────────
+
     private async Task ConfirmDeleteAsync(PageTreeItem node)
     {
-        var confirmed = await DialogService.Confirm(
-            $"Delete page '{node.Title}'?", "Confirm Delete",
-            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
-        if (confirmed == true)
+        if (node.HasChildren)
         {
-            await PagesApi.DeleteAsync(node.Id);
+            var choice = await DialogService.OpenAsync<CascadeDeleteDialog>(
+                "Delete page",
+                new Dictionary<string, object>
+                {
+                    ["Title"] = node.Title
+                },
+                new DialogOptions { Width = "520px", CloseDialogOnOverlayClick = false });
+
+            if (choice is null or false) return;
+
+            var action = choice?.ToString();
+            if (action == "delete")
+            {
+                var result = await PagesApi.DeleteCascadeAsync(node.Id);
+                if (result is Result<bool, AeroError>.Ok)
+                    NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"Page '{node.Title}' and its descendants removed.");
+                else
+                    NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to delete page.");
+            }
+            else if (action == "unpublish")
+            {
+                var result = await PagesApi.UnpublishAsync(node.Id);
+                if (result is Result<PageDetail, AeroError>.Ok)
+                    NotificationService.Notify(NotificationSeverity.Success, "Draft", $"Page '{node.Title}' converted to draft. Children preserved.");
+                else
+                    NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to update page.");
+            }
             await LoadRootsAsync();
+        }
+        else
+        {
+            var confirmed = await DialogService.Confirm(
+                $"Delete page '{node.Title}'?", "Confirm Delete",
+                new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+            if (confirmed == true)
+            {
+                await PagesApi.DeleteAsync(node.Id);
+                await LoadRootsAsync();
+            }
+        }
+    }
+
+    private async Task DeleteSelectedAsync()
+    {
+        if (_selectedIds.Count == 0) return;
+
+        var confirm = await DialogService.Confirm(
+            $"Are you sure you want to delete {_selectedIds.Count} page(s)? This action cannot be undone.",
+            "Delete Pages",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirm != true) return;
+
+        var ids = _selectedIds.ToList();
+        var result = await PagesApi.DeleteMultipleAsync(ids, deleteDescendants: false);
+
+        if (result is Result<int, AeroError>.Ok ok)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"{ok.Value} page(s) removed.");
+            _selectedIds.Clear();
+            await LoadRootsAsync();
+        }
+        else if (result is Result<int, AeroError>.Failure f)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Delete Failed", f.Error.ToString());
         }
     }
 

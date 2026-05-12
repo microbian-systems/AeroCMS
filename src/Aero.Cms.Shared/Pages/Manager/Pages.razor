@@ -4,7 +4,6 @@
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Cms.Shared.Components
 @inject NavigationManager Navigation
-@inject Aero.Cms.Abstractions.Http.Clients.IPagesHttpClient PagesApi
 
 <PageTitle>Pages</PageTitle>
 
@@ -27,9 +26,9 @@
 {
     <PreviewOverlay Visible="true"
                     OnClose="() => _previewVisible = false"
-                    FrameUrl="@($"https://localhost:333/{_previewSlug}")"
+                    FrameUrl="@_previewFrameUrl"
                     FrameDocument=""
-                    UrlBarText="@($"/{_previewSlug}")"
+                    UrlBarText="@_previewUrlBarText"
                     Error=""
                     IsLoading="false"
                     Title="Page preview" />
@@ -38,13 +37,24 @@
 @code {
     private bool _previewVisible;
     private long? _previewPageId;
-    private string _previewSlug = "";
+    private string _previewBaseUri = "";
+    private string _previewFrameUrl = "";
+    private string _previewUrlBarText = "";
+
+    protected override void OnInitialized()
+    {
+        // Use the current app's base URI so preview works across dev/prod environments.
+        // Homepage (Path="/") → FrameUrl = "https://mysite.com/"
+        // About page (Path="/about") → FrameUrl = "https://mysite.com/about"
+        _previewBaseUri = Navigation.BaseUri.TrimEnd('/');
+    }
 
     private async Task OpenPreviewAsync(PageTreeItem item)
     {
         _previewVisible = true;
         _previewPageId = item.Id;
-        _previewSlug = item.Path.TrimStart('/');
+        _previewFrameUrl = $"{_previewBaseUri}{item.Path}";
+        _previewUrlBarText = item.Path;
         await InvokeAsync(StateHasChanged);
     }
 }
