@@ -7,6 +7,7 @@
 <RadzenDataGrid TItem="PageTreeItem"
                 Data="@_rootNodes"
                 AllowRowSelectOnRowClick="true"
+                RowClick="@OnRowClick"
                 AllowColumnResize="true"
                 RowRender="@RowRender"
                 LoadChildData="@LoadChildData"
@@ -103,6 +104,12 @@
     private void EditAsync(PageTreeItem node)
     {
         Navigation.NavigateTo($"/manager/page/editor/{node.Id}");
+    }
+
+    private void OnRowClick(DataGridRowMouseEventArgs<PageTreeItem> args)
+    {
+        if (args.Data is not null)
+            Navigation.NavigateTo($"/manager/page/editor/{args.Data.Id}");
     }
 
     private async Task ConfirmDeleteAsync(PageTreeItem node)

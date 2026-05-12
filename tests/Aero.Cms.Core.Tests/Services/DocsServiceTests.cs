@@ -98,8 +98,8 @@ public sealed class DocsServiceTests
         // Assert — the event published via bus contains a DocViewModel with SiteId=42,
         // proving that the private ToViewModel method correctly mapped the property.
         publishedMessage.Should().NotBeNull();
-        publishedMessage.Should().BeOfType<AeroEvent<DocViewModel>.DocCreated>();
-        var docCreated = (AeroEvent<DocViewModel>.DocCreated)publishedMessage!;
+        publishedMessage.Should().BeOfType<DocViewModelCreated>();
+        var docCreated = (DocViewModelCreated)publishedMessage!;
         docCreated.doc.SiteId.Should().Be(42);
     }
 
