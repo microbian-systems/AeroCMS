@@ -1,5 +1,7 @@
 # Aero CMS — Page Document Architecture (v2)
 
+> **See also:** [`aero-blocks-renderers-neoui.md`](aero-blocks-renderers-neoui.md) — Editor/renderer implementation contract that consumes this data model. The current document defines the data model (documents, events, pipelines); the NeoUI doc defines the PageEditor shell, block composition catalog, public Razor component rendering, output caching, and legacy migration implementation.
+
 ## Changelog from v1
 
 | # | Change | Reason |
@@ -203,6 +205,10 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
 
 The editor's draft workspace. The public renderer never reads this document.
 Loaded by the editor API. Written on every draft save.
+
+V1 decision: `PageEditorState` remains a flat top-level block placement document. It is intentionally not a page-level `NeoPageNode` tree. Nested composition for custom Neo-authored content lives inside a `NeoCompositionBlock : BlockBase`. A later PageEditor tree-view/outline may project this data visually for easier navigation, but that tree-view is a UX layer, not the V1 persistence model.
+
+Product UX goal: the PageEditor should be simple for non-technical users. Authors should build pages by adding recognizable sections/blocks, editing obvious fields, and seeing WYSIWYG previews. The data model should support that experience without forcing users or implementers to treat the entire page as a developer-facing component tree.
 
 **Deletion policy:** `PageEditorState` is hard-deleted when its corresponding
 `PageDocument` is deleted (soft or hard). It carries no audit requirement and
@@ -636,10 +642,13 @@ namespace Aero.Cms.Abstractions.Events;
 
 // Renamed from PageContentUpdated.
 // Carries metadata only — no block/body content, no LayoutRegions.
+// OldSlug is populated only when Slug has changed (for cache eviction).
 public sealed record PageMetadataUpdated(
     long PageId,
+    long SiteId,
     string Title,
     string Slug,
+    string? OldSlug,
     string? Summary,
     string? SeoTitle,
     string? SeoDescription,

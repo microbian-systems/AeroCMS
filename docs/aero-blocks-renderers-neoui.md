@@ -1,5 +1,7 @@
 # Aero CMS - Blocks, Renderers, PageEditor, and NeoUI Refactor
 
+> **See also:** [`aero-page-document-refactor.md`](aero-page-document-refactor.md) — Data model contract that this editor/renderer implementation depends on. That document defines the core documents (`PageDocument`, `PageEditorState`, `BlockBase`), event shapes (`PageMetadataUpdated`, `PagePublished`), the `IPageLayoutManifestBuilder`, preview/publish pipelines, and value objects. This document assumes that model; changes to the data contract must be reflected in both.
+
 ## Purpose
 
 This document is the implementation contract for refactoring Aero CMS page-editor and block-renderer functionality while integrating NeoUI.
@@ -12,6 +14,22 @@ The refactor is intentionally scoped to:
 - source-generated block metadata/registration where it supports the editor and renderer
 
 This is not a full manager-shell rewrite, not a site-builder rewrite, and not a public theming module implementation.
+
+## Product UX Principle
+
+The PageEditor must be easy for non-technical users. The default experience should feel like a simple WYSIWYG page builder, not a developer component tree.
+
+V1 authoring rules:
+
+- Users primarily add and reorder page sections as blocks.
+- Blocks are recognizable page sections such as Hero, CTA, Feature Grid, Gallery, Image, Video, and Separator.
+- Every new block needs a quick visual preview on the canvas.
+- Editing should favor plain-language fields, inline affordances, and obvious controls.
+- Neo primitives/components should be progressively disclosed inside composition-capable blocks.
+- A visual tree/outline can be added later, but it is not required for users to build a normal page in V1.
+- Do not make users understand `NeoPageNode`, catalog IDs, renderers, or layout manifests.
+
+Architecture consequence: V1 uses flat top-level page placement with optional nested composition inside `NeoCompositionBlock`. Do not store a page-level `NeoPageNode` tree in `PageEditorState` for this refactor.
 
 ## Executive Decision
 
@@ -44,13 +62,14 @@ The target public rendering pipeline is:
 Routable static SSR Razor component
   -> PageRenderView.razor
   -> LayoutRegionRenderer.razor
-  -> LayoutColumnRenderer.razor
   -> BlockPlacementRenderer.razor
   -> BlockRenderer.razor
   -> CmsBlockRenderRegistry
   -> ICmsBlockRenderAdapter
   -> block-specific Razor renderer
 ```
+
+The live code may still contain `LayoutColumnRenderer`, but the target data model in `aero-page-document-refactor.md` is flatter: `LayoutRegion` owns ordered `BlockPlacement` entries directly. Treat any `LayoutColumn` wording in this document as current-state context only, not the target PageDocument contract.
 
 ## Current Codebase Anchors
 
@@ -71,7 +90,7 @@ Before implementing, verify these files in the current checkout:
 - `src/Aero.Cms.SourceGenerators/BlockRendererGenerator.cs`
   - generates block manifests, renderer adapters, registry, factory, and `BlockBase` polymorphic metadata
 - `src/Aero.Cms.Core.Entities/PageDocument.cs`
-  - persists both `LayoutRegions` and editor `Blocks`
+  - currently persists both `LayoutRegions` and editor `Blocks`; target refactor keeps only published `LayoutRegions` on `PageDocument`
 - `src/Aero.Cms.Modules.Pages/EditorBlockMapper.cs`
   - maps flat `EditorBlock` data into typed `BlockBase` instances
 - `src/Aero.Cms.Shared/Pages/Manager/PageEditor/PageEditor.razor`
@@ -300,7 +319,9 @@ Do not redesign the editor around a different interaction model unless the user 
 
 `EditorBlock` is part of the legacy PageEditor design. Do not make it the permanent DTO for the new Neo editor.
 
-The new editor should use a structured composition model that can represent:
+The new editor should use a structured composition model inside composition-capable blocks. It should not replace `PageEditorState.Blocks` with a page-level tree in V1.
+
+The nested composition model can represent:
 
 - full page blocks
 - layout/container nodes
@@ -312,7 +333,9 @@ The new editor should use a structured composition model that can represent:
 
 Marten persistence still flows through `BlockBase` page content. A structured `NeoPageNode` tree is persisted only as the payload of a `NeoCompositionBlock : BlockBase` or converted into a typed block such as `Hero01Block`. Do not persist a second standalone Neo page tree beside the block list.
 
-`PageDocument.LayoutRegions` is still part of the published render contract. It is the placement manifest that tells public rendering which block documents appear in which regions/columns and in what order. The new editor should produce validated `BlockBase` documents, then generate/update `LayoutRegions` and `BlockIdMap` through the existing page service flow. Do not bypass `LayoutRegions` by saving only a loose block list and expecting public pages to render it.
+`PageDocument.LayoutRegions` is still part of the published render contract. It is the placement manifest that tells public rendering which block documents appear in which regions and in what order. The new editor should produce validated `BlockBase` documents during draft save, update `PageEditorState.BlockIdMap`, and generate `PageDocument.LayoutRegions` only during publish through the existing page service flow. Do not bypass `LayoutRegions` by saving only a loose block list and expecting public pages to render it.
+
+Decision for V1: keep top-level page authoring flat. A future tree-view should be a UI projection over `PageEditorState.Blocks` plus nested `NeoCompositionBlock.Nodes`, not a new persisted page-level tree.
 
 Do not persist arbitrary Razor source, arbitrary C# expressions, or runtime component type names supplied by users. Persist stable catalog identifiers and validated property bags. Raw HTML is allowed only through the explicit Raw HTML block path and must preserve the existing safety/permission rules.
 
@@ -729,15 +752,24 @@ When content is saved, published, unpublished, moved, or its slug changes, inval
 Example:
 
 ```csharp
+// Wolverine message used for output-cache eviction.
+// The Marten event PageMetadataUpdated (see aero-page-document-refactor.md)
+// feeds this handler after a draft metadata save.
+public sealed record PageMetadataUpdatedEvent(
+    long PageId,
+    long SiteId,
+    string Slug,
+    string? OldSlug);
+
 public sealed class CmsOutputCacheInvalidationHandler(IOutputCacheStore cache)
 {
-    public async Task Handle(PageContentUpdatedEvent evt, CancellationToken ct)
+    public async Task Handle(PageMetadataUpdatedEvent evt, CancellationToken ct)
     {
         await Task.WhenAll(
             cache.EvictByTagAsync("pages-list", ct),
             cache.EvictByTagAsync($"site:{evt.SiteId}", ct),
-            cache.EvictByTagAsync($"content:{evt.ContentId}", ct),
-            cache.EvictByTagAsync($"slug:{evt.NewSlug}", ct),
+            cache.EvictByTagAsync($"page:{evt.PageId}", ct),
+            cache.EvictByTagAsync($"slug:{evt.Slug}", ct),
             string.IsNullOrWhiteSpace(evt.OldSlug)
                 ? Task.CompletedTask
                 : cache.EvictByTagAsync($"slug:{evt.OldSlug}", ct));
@@ -804,6 +836,8 @@ The codebase already has:
 - `BlockPlacement`
 - `ColumnsBlock`
 - `ColumnItem`
+
+`LayoutColumn` is current implementation context only. The target PageDocument refactor defines `LayoutRegion` as a flat published manifest with ordered `BlockPlacement` entries. Column/grid authoring should be modeled as block content, such as `ColumnsBlock` or a future Neo layout/composition node, not as a new `PageDocument.LayoutRegions` shape.
 
 The original proposal's `SectionBlock` can still be valuable, but it must be introduced as an additive block type that composes with existing layout infrastructure.
 
@@ -933,8 +967,9 @@ Implement the chosen path:
 2. Migration may run before final typed Aero UI blocks exist. In that phase, migrate legacy content into `NeoCompositionBlock` payloads that use stable catalog IDs and public-safe node renderers.
 3. After `Hero01Block`, `BasicHeroBlock`, or other typed blocks exist, later migration improvements may map selected legacy content directly into those typed `BlockBase` models.
 4. Migrate composed layout/content into `NeoCompositionBlock` when it is naturally a composition tree.
-5. Regenerate `PageDocument.LayoutRegions` and `BlockIdMap` for every migrated page so the existing public render pipeline still has a placement manifest.
-6. Keep a read-only legacy viewer or "migrate this page now" action only as an interim safety valve if the global migration cannot run before the new editor is enabled.
+5. For migrated draft/editor state, rebuild `PageEditorState.BlockIdMap` from client IDs to saved `BlockBase.Id` values.
+6. For migrated published pages, regenerate `PageDocument.LayoutRegions` through `IPageLayoutManifestBuilder` so the existing public render pipeline still has a placement manifest.
+7. Keep a read-only legacy viewer or "migrate this page now" action only as an interim safety valve if the global migration cannot run before the new editor is enabled.
 
 Do not build a legacy compatibility editor. Do not add new features to old block types. Do not remove old editability until the migration path or interim safety valve exists.
 
@@ -961,7 +996,8 @@ Controlled upgrade command
   -> optionally produce typed BlockBase models only for types already implemented
   -> validate generated NeoPageNode composition where used
   -> save BlockBase documents
-  -> generate PageDocument.LayoutRegions and BlockIdMap placements
+  -> rebuild PageEditorState.BlockIdMap for draft/editor state
+  -> generate PageDocument.LayoutRegions through IPageLayoutManifestBuilder for publish
   -> save only when explicitly approved or run as a migration job
 ```
 
@@ -1535,6 +1571,8 @@ PageEditor.razor
 
 `PageEditor.razor.cs` owns loading, saving, publishing, preview URL behavior, dirty state, selected node state, and conversion between persisted page content and the editor model.
 
+The primary editor surface should remain visual and block-first. A later tree-view/outline may help users navigate large pages, but V1 should not require that tree-view for normal editing. The tree-view, when added, should display top-level block placements and nested composition nodes as an outline over existing data.
+
 It should not contain:
 
 - per-block preview markup
@@ -1689,7 +1727,7 @@ Do not persist raw .NET component type names as user-authored content. Persist c
 
 ### Editor Node Model and Persistence Rule
 
-The editor should use structured composition data instead of the old all-purpose `EditorBlock` bag, but the page persistence contract is still `BlockBase` in Marten.
+The editor should use structured composition data inside composition-capable blocks instead of the old all-purpose `EditorBlock` bag, but the page persistence contract is still `BlockBase` in Marten.
 
 Persistence decision for V1:
 
@@ -1698,6 +1736,8 @@ Persistence decision for V1:
 - A user-composed primitive/component tree persists as a `NeoCompositionBlock : BlockBase` that contains validated `NeoPageNode` children.
 - Do not persist a second parallel page tree beside `BlockBase` output.
 - Do not persist both a separate `NeoPageNode` page document and duplicate typed block output for the same page.
+- `PageEditorState.Blocks` remains a flat list of top-level `EditorBlockPlacement` entries.
+- A visual tree/outline is allowed later as a UX projection, not as the V1 storage model.
 
 ```csharp
 using System.Text.Json.Nodes;
@@ -1766,10 +1806,9 @@ Marten serialization for `NeoCompositionBlock` must be tested before migration i
 
 Current behavior:
 
-- `PageDocument.Blocks` stores editor-facing block data.
+- Existing/live `PageDocument.Blocks` stores editor-facing block data before the PageDocument refactor.
 - `PageDocument.LayoutRegions` stores render-facing placement data.
-- `LayoutRegionRenderer` renders regions and columns.
-- `LayoutColumnRenderer` renders placements.
+- Existing/live `LayoutRegionRenderer` and `LayoutColumnRenderer` render the current region/column shape.
 - `BlockPlacementRenderer` loads each `BlockBase` by `BlockPlacement.BlockId` and delegates to `BlockRenderer`.
 - `PageContentService.ProcessEditorBlocks(...)` currently turns editor blocks into saved `BlockBase` documents, `BlockIdMap`, and one full-width `Main` region.
 
@@ -1781,13 +1820,21 @@ Neo editor state
   -> map first-class Aero UI nodes to typed BlockBase documents
   -> map user-composed node trees to NeoCompositionBlock documents
   -> save BlockBase documents through the block service
-  -> generate PageDocument.LayoutRegions and BlockIdMap
+  -> [DRAFT SAVE] update BlockIdMap on PageEditorState (not PageDocument)
+  -> [PUBLISH]    generate PageDocument.LayoutRegions via IPageLayoutManifestBuilder
   -> public static SSR page renders LayoutRegions
 ```
 
-This keeps the current public rendering contract intact while replacing the editor authoring model. The first slice may continue generating a single `Main` region with one full-width column, matching the current editor behavior. More advanced multi-region layout editing can be added later without changing the public block renderer contract.
+Key data-contract changes from the old model (aligned with `aero-page-document-refactor.md`):
 
-Migration must also handle `LayoutRegions`-only pages. Seeded or older pages can render today even when `PageDocument.Blocks` is empty because public pages read `LayoutRegions`. The migration must load the placed `BlockBase` documents referenced by `LayoutRegions`, convert supported legacy placements into new blocks or `NeoCompositionBlock` payloads, and regenerate the placement manifest.
+- **`PageDocument.Blocks` is removed.** Editor block placement is no longer stored on `PageDocument`. It lives in `PageEditorState.EditorBlockPlacement[]`.
+- **`PageDocument.BlockIdMap` is removed.** The ClientId→BlockId map lives in `PageEditorState.BlockIdMap`, rebuilt on every draft save.
+- **`PageDocument.LayoutRegions` is preserved** as the published render manifest. Written only by the publish path — draft saves never touch it.
+- **`PageEditorState` is a separate document** with `DraftVersion`, `Blocks` (as `EditorBlockPlacement[]`), `BlockIdMap`, and `LastModified`. Hard-deleted when its page is deleted.
+
+This keeps the public rendering contract intact while replacing the editor authoring model. In the target model, the first slice may continue generating a single `main` region with ordered placements. More advanced multi-region layout editing can be added later without changing the public block renderer contract. Do not reintroduce `LayoutColumn` as part of `PageDocument.LayoutRegions`.
+
+Migration must also handle `LayoutRegions`-only pages. Seeded or older pages can render today even when `PageDocument.Blocks` is empty because public pages read `LayoutRegions`. Align with `aero-page-document-refactor.md`: the PageDocument migration first creates an empty `PageEditorState` for these pages so they remain safe and show as published/no draft changes. A later Neo legacy-content migration may optionally load the placed `BlockBase` documents referenced by `LayoutRegions`, convert supported legacy placements into editable Neo blocks or `NeoCompositionBlock` payloads, rebuild `PageEditorState.BlockIdMap`, and republish through `IPageLayoutManifestBuilder`.
 
 ### NeoCompositionBlock Public Rendering
 
@@ -2032,8 +2079,9 @@ PageEditor state
      -> BasicHeroBlock for Basic Hero
      -> NeoCompositionBlock for composed primitive/component trees
   -> save BlockBase documents
-  -> generate PageDocument.LayoutRegions and BlockIdMap
-  -> Marten persists the page through the existing PageDocument/page-service pipeline
+  -> [DRAFT SAVE] update PageEditorState.Blocks and PageEditorState.BlockIdMap
+  -> [PUBLISH] generate PageDocument.LayoutRegions through IPageLayoutManifestBuilder
+  -> Marten persists the affected documents through the existing page-service pipeline
 ```
 
 There is no separate Neo page tree persisted beside the block list. `LayoutRegions` is not a second content tree; it is the published placement manifest that points at saved block documents.
@@ -2353,7 +2401,9 @@ The property panel renders fields from the selected node's catalog metadata. Com
 
 ### Save and Publish Flow
 
-First slice save flow:
+Per the data model in `aero-page-document-refactor.md`, draft save and publish are **strictly separated** pipelines. A single "save" operation may trigger both (save draft then publish), but the two paths must not be conflated — `LayoutRegions` is written only by the publish path.
+
+#### Draft Save Path
 
 ```text
 PageEditor state
@@ -2361,14 +2411,39 @@ PageEditor state
   -> map Aero UI nodes to typed BlockBase models
   -> map composed primitive/component trees to NeoCompositionBlock
   -> persist the resulting BlockBase documents through the block service
-  -> generate PageDocument.LayoutRegions and BlockIdMap placements
-  -> persist the PageDocument through Marten/page service
-  -> publish through existing page service flow
-  -> emit existing page content update events
-  -> evict existing output cache tags
+  -> update PageEditorState:
+       Blocks      = EditorBlockPlacement[] from current tree
+       BlockIdMap  = rebuilt mapping of ClientId → BlockBase.Id
+       DraftVersion = increment
+       LastModified = now
+  -> emit PageMetadataUpdated event (metadata-only — no blocks, no LayoutRegions)
+  -> evict output cache tags for this page
 ```
 
-Do not bypass the existing page save/publish pipeline. The new editor model should feed it. Do not persist a separate Neo page tree beside the block list. Do not skip `LayoutRegions`; without placements, public page rendering has no region/column/block manifest to render.
+The draft save **does NOT** write to `PageDocument.LayoutRegions`. LayoutRegions belongs exclusively to the publish path. This is a hard rule — see `IPageLayoutManifestBuilder` and the publish pipeline below.
+
+#### Publish Path
+
+```text
+PageEditor state (latest draft)
+  -> load all BlockBase documents referenced by PageEditorState.Blocks
+  -> call IPageLayoutManifestBuilder.BuildAsync(editor, blocks)
+       -> produces IReadOnlyList<LayoutRegion>
+  -> compute next version: newVersion = PageDocument.PublishedVersion + 1
+  -> append PagePublished event:
+       PagePublished {
+           PageId,
+           Version:   newVersion,
+           LayoutRegions: builtRegions,
+       }
+  -> PageDocument.Apply(PagePublished) writes LayoutRegions + bumps PublishedVersion
+  -> PageEditorState.DraftVersion is NOT modified by publish
+       (DraftVersion > PublishedVersion remains true — the editor knows
+        the last draft hasn't been superseded by a new draft save)
+  -> evict output cache tags
+```
+
+Do not bypass the existing page save/publish pipeline. The new editor model should feed it. Do not persist a separate Neo page tree beside the block list. Do not skip `LayoutRegions`; without ordered `BlockPlacement` entries, public page rendering has no published manifest to render.
 
 ### Output Cache Rules for New Blocks
 
@@ -2399,8 +2474,9 @@ Add focused tests for the new architecture:
 - `Hero01BlockMapper` round-trips node data.
 - `boring_hero` migration maps to the `aero.hero.basic` catalog ID, initially inside a `NeoCompositionBlock` if `BasicHeroBlock` does not exist yet.
 - Early migration can output `NeoCompositionBlock` without referencing typed blocks that do not exist yet.
-- Migrated pages regenerate `PageDocument.LayoutRegions` and `BlockIdMap`.
-- `LayoutRegions`-only pages are discovered by migration and do not become uneditable by accident.
+- Migrated draft/editor state rebuilds `PageEditorState.BlockIdMap`.
+- Migrated published pages regenerate `PageDocument.LayoutRegions` through `IPageLayoutManifestBuilder`.
+- `LayoutRegions`-only pages get an empty `PageEditorState` during the PageDocument migration and are optionally reconstructed by the later Neo legacy-content migration.
 - PageEditor canvas reorders nodes through the Sortable-backed path.
 - Palette drag creates a new node and does not remove the palette item.
 - Public `Hero01BlockRenderer` renders static HTML with the configured text and contains no NeoUI component tags.
