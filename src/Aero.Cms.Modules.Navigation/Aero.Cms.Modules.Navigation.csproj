@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Marten" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core.Entities\Aero.Cms.Core.Entities.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
+  </ItemGroup>
+
+</Project>

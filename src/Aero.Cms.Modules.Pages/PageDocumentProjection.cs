@@ -20,7 +20,7 @@ public sealed class PageDocumentProjection : IProjection
         IDocumentOperations operations,
         IReadOnlyList<IEvent> events)
     {
-        foreach (var group in events.GroupBy(e => e.StreamKey!))
+        foreach (var group in PageEvents(events).GroupBy(e => e.StreamKey!))
         {
             ApplyStreamSync(operations, group);
         }
@@ -33,11 +33,22 @@ public sealed class PageDocumentProjection : IProjection
         IReadOnlyList<IEvent> events,
         CancellationToken ct)
     {
-        foreach (var group in events.GroupBy(e => e.StreamKey!))
+        foreach (var group in PageEvents(events).GroupBy(e => e.StreamKey!))
         {
             await ApplyStreamAsync(operations, group, ct);
         }
     }
+
+    private static IEnumerable<IEvent> PageEvents(IEnumerable<IEvent> events)
+        => events.Where(e => e.Data is PageCreated
+            or PageContentUpdated
+            or PagePublished
+            or PageArchived
+            or PageStateChanged
+            or PageDeleted
+            or PageRestored
+            or PageMoved
+            or PageVisibilityChanged);
 
     // ── Per-stream processing ──────────────────────────────────────────
 

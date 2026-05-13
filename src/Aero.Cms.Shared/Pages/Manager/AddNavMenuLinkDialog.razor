@@ -1,0 +1,104 @@
+@using Aero.Cms.Abstractions.Http.Clients
+
+<div class="p-6 rounded-2xl" style="background: var(--pe-bg-secondary);">
+    <div class="mb-6">
+        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">Add Header Link</h3>
+        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">Enter a URL manually or choose an existing page.</p>
+    </div>
+
+    <div class="space-y-4">
+        <div class="flex flex-col gap-1.5">
+            <label for="addNavLinkLabel" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Label</label>
+            <RadzenTextBox id="addNavLinkLabel"
+                           @bind-Value="_label"
+                           Placeholder="About"
+                           class="w-full border-none rounded-xl text-sm px-4 py-2"
+                           style="background: var(--pe-bg-tertiary);" />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+            <label for="addNavLinkUrl" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">URL</label>
+            <div class="flex gap-2">
+                <RadzenTextBox id="addNavLinkUrl"
+                               Value="@_url"
+                               ValueChanged="@OnUrlChanged"
+                               Placeholder="/about"
+                               class="flex-1 border-none rounded-xl text-sm px-4 py-2"
+                               style="background: var(--pe-bg-tertiary);" />
+                <RadzenButton Icon="search"
+                              Text="Pages"
+                              ButtonStyle="ButtonStyle.Light"
+                              Variant="Variant.Filled"
+                              Click="@TogglePageSearch" />
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+            <label for="addNavLinkAltText" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Alt Text</label>
+            <RadzenTextBox id="addNavLinkAltText"
+                           @bind-Value="_altText"
+                           Placeholder="Optional link description"
+                           class="w-full border-none rounded-xl text-sm px-4 py-2"
+                           style="background: var(--pe-bg-tertiary);" />
+        </div>
+
+        @if (_showPageSearch)
+        {
+            <div class="rounded-xl border p-4 space-y-3" style="border-color: var(--pe-border); background: var(--pe-bg-primary);">
+                <div class="flex gap-2">
+                    <RadzenTextBox Value="@_pageSearch"
+                                   ValueChanged="@OnPageSearchChanged"
+                                   Placeholder="Search pages..."
+                                   class="flex-1 border-none rounded-xl text-sm px-4 py-2"
+                                   style="background: var(--pe-bg-secondary);" />
+                    <RadzenButton Icon="search"
+                                  Text="Search"
+                                  ButtonStyle="ButtonStyle.Primary"
+                                  Variant="Variant.Filled"
+                                  Click="@SearchPagesAsync"
+                                  Disabled="@_isSearching" />
+                </div>
+
+                <RadzenDataGrid Data="@_pages"
+                                TItem="PageSummary"
+                                IsLoading="@_isSearching"
+                                AllowPaging="true"
+                                PageSize="5"
+                                class="aero-grid cursor-pointer"
+                                RowClick="@(args => SelectPageAsync(args.Data))"
+                                EmptyText="No matching pages found.">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="PageSummary" Property="Title" Title="Page">
+                            <Template Context="pageItem">
+                                <div class="flex flex-col gap-1">
+                                    <span class="font-medium" style="color: var(--pe-text-primary);">@pageItem.Title</span>
+                                    <span class="text-xs" style="color: var(--pe-text-secondary);">/@pageItem.Slug.TrimStart('/')</span>
+                                </div>
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="PageSummary" Title="Status" Width="120px">
+                            <Template Context="pageItem">
+                                <RadzenBadge BadgeStyle="@(pageItem.PublishedAt.HasValue ? BadgeStyle.Success : BadgeStyle.Info)"
+                                             Text="@(pageItem.PublishedAt.HasValue ? "Published" : "Draft")" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            </div>
+        }
+    </div>
+
+    <div class="mt-8 pt-6 border-t flex justify-end gap-3" style="border-color: var(--pe-border);">
+        <RadzenButton Text="Cancel"
+                      ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text"
+                      Click="@Cancel" />
+        <RadzenButton Text="Add Link"
+                      Icon="add"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Variant="Variant.Filled"
+                      Disabled="@IsSubmitDisabled"
+                      class="rounded-xl px-6 shadow-lg shadow-indigo-500/20"
+                      Click="@Submit" />
+    </div>
+</div>

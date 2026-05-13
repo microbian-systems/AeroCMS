@@ -15,6 +15,8 @@ using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Cms.Modules.Commerce.Data;
+using Aero.Cms.Modules.Navigation.Domain;
+using Aero.Cms.Modules.Navigation.Events;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Hosting;
 using Serilog;
@@ -283,6 +285,8 @@ public sealed class SeedDatabaseService(
             session.Store(doc);
         }
 
+        await SeedDefaultNavMenuAsync(siteId, homepage.Id, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
+
         // Seed starter media assets from wwwroot/media
         await SeedStarterMediaAsync(cancellationToken);
 
@@ -311,6 +315,67 @@ public sealed class SeedDatabaseService(
 
         // Seed default global settings
         SeedDefaultSettings();
+    }
+
+    private async Task SeedDefaultNavMenuAsync(
+        long siteId,
+        long homepageId,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        CancellationToken cancellationToken)
+    {
+        const string navMenuName = "Header Menu";
+        const string navMenuKey = "header-menu";
+
+        var existingMenu = await session.Query<NavMenuDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Key == navMenuKey, cancellationToken);
+        var settings = await session.Query<SiteNavigationSettingsDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId, cancellationToken);
+
+        if (existingMenu is not null)
+        {
+            if (settings?.DefaultNavMenuId is null)
+            {
+                var changed = new SiteDefaultNavMenuChanged(siteId, existingMenu.Id, UserId: null, DateTimeOffset.UtcNow);
+                if (settings is null)
+                    session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), changed);
+                else
+                    session.Events.Append(NavMenuStreams.SiteSettings(siteId), changed);
+            }
+
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var navMenuId = Snowflake.NewId();
+        var snapshot = new NavMenuSnapshot(
+            NavMenuLayout.Default,
+            NavMenuResponsiveSettings.Default,
+            NavMenuStyleSettings.Default,
+            [
+                new NavLink { Key = "home", Label = "Home", Href = "/", PageId = homepageId, AltText = "Home Page", Alignment = NavAlignment.Left },
+                new NavLink { Key = "about", Label = "About", Href = "/about", PageId = aboutPageId, AltText = "About Us", Alignment = NavAlignment.Left },
+                new NavLink { Key = "contact", Label = "Contact", Href = "/contact", PageId = contactPageId, AltText = "Contact Us", Alignment = NavAlignment.Left },
+                new NavLink { Key = "docs", Label = "Docs", Href = "/docs", AltText = "Documentation", Alignment = NavAlignment.Left },
+                new NavLink { Key = "blog", Label = "Blog", Href = "/blog", PageId = blogListingPageId, AltText = "Blog and Field Notes", Alignment = NavAlignment.Left }
+            ]);
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            NavMenuStreams.Menu(navMenuId),
+            new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now),
+            new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded starter navigation"),
+            new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded starter navigation"));
+
+        if (settings?.DefaultNavMenuId is null)
+        {
+            var defaultChanged = new SiteDefaultNavMenuChanged(siteId, navMenuId, UserId: null, now);
+            if (settings is null)
+                session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), defaultChanged);
+            else
+                session.Events.Append(NavMenuStreams.SiteSettings(siteId), defaultChanged);
+        }
     }
 
     private void SeedDefaultSettings()

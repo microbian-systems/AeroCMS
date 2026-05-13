@@ -6,6 +6,7 @@ using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
+using System.Text;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.Pages;
@@ -286,6 +287,7 @@ public sealed class NavigationService : INavigationService
                 AeroError.DatabaseError("Failed to update hidden state."));
         }
     }
+
 
     public async Task<Result<bool, AeroError>> MarkHiddenDescendantsAsync(
         long parentId, CancellationToken ct = default)

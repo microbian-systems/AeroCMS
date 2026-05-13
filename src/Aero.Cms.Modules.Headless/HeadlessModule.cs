@@ -40,6 +40,9 @@ public sealed class HeadlessModule : AeroWebModule
         services.AddScoped<IAuditService, AuditService>();
     }
 
+
+    // todo - move the APIs to their respective modules. No need for the headless module to own all the APIs, and it will be easier to maintain if the APIs are owned by the modules that own the aggregates and projections they interact with. The only reason they are all here is because of the way the
+    // module system was originally designed, but now that we have a better understanding of how to use it, we can refactor to a more modular approach.
     public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         var scope = builder.ServiceProvider.CreateAsyncScope();
@@ -54,7 +57,9 @@ public sealed class HeadlessModule : AeroWebModule
         builder.MapAuditApi();
         builder.MapMediaApi();
         builder.MapDashboardApi();
-        builder.MapNavigationsApi();
+        // Navigation is now owned by Aero.Cms.Modules.Navigation so it can map
+        // the event-sourced manager API from the same module that owns the
+        // aggregate, projections, and Marten configuration.
         builder.MapModulesApi();
         builder.MapDocsApi();
         builder.MapCategoriesApi();

@@ -1,0 +1,175 @@
+@page "/manager/nav-menu/editor/{Id:long}"
+@page "/manager/navigations/editor/{Id:long}"
+@attribute [Authorize]
+
+@using Aero.Cms.Abstractions.Http.Clients
+
+<div class="pe-page-content space-y-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+            <div class="mb-3">
+                <RadzenButton Icon="arrow_back"
+                              Text="Back to Header Menus"
+                              ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small"
+                              Click="@BackToList" />
+            </div>
+            <h1 class="text-2xl font-bold pe-heading">@(_selected?.Name ?? "Header Menu")</h1>
+            <p class="mt-1 text-sm pe-description">Draft changes stay private until the menu is published.</p>
+        </div>
+        @if (_selected is not null)
+        {
+            <div class="flex flex-wrap gap-2">
+                <RadzenButton Icon="save"
+                              Text="Save Draft"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small"
+                              Click="@SaveDraftAsync"
+                              Disabled="@_isSaving" />
+                <RadzenButton Icon="publish"
+                              Text="Publish"
+                              ButtonStyle="ButtonStyle.Success"
+                              Size="ButtonSize.Small"
+                              Click="@PublishAsync"
+                              Disabled="@_isSaving" />
+                <RadzenButton Icon="home"
+                              Text="Set Default"
+                              ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small"
+                              Click="@SetDefaultAsync"
+                              Disabled="@_isSaving" />
+                <RadzenButton Icon="delete"
+                              Text="Archive"
+                              ButtonStyle="ButtonStyle.Danger"
+                              Size="ButtonSize.Small"
+                              Click="@ArchiveAsync"
+                              Disabled="@_isSaving" />
+            </div>
+        }
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex min-h-64 items-center justify-center rounded"
+             style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary);">
+            <RadzenProgressBar Circular="true"
+                               Value="100"
+                               Mode="ProgressBarMode.Indeterminate"
+                               Style="width: 48px; height: 48px" />
+        </div>
+    }
+    else if (_selected is null)
+    {
+        <div class="flex min-h-64 items-center justify-center rounded"
+             style="border: 1px dashed var(--pe-border); background: var(--pe-bg-secondary);">
+            <div class="max-w-md text-center">
+                <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Header menu not found</h2>
+                <p class="mt-2 text-sm pe-description">Return to the list and choose another menu.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="space-y-5">
+            <div class="grid grid-cols-1 gap-4 rounded md:grid-cols-2"
+                  style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary); padding: 16px;">
+                <div>
+                    <label for="editMenuName" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Name</label>
+                    <input id="editMenuName"
+                           @bind="_editName"
+                           class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                </div>
+                <div>
+                    <label for="editMenuDescription" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Description</label>
+                    <input id="editMenuDescription"
+                           @bind="_editDescription"
+                           class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                </div>
+                <div class="md:col-span-2">
+                    <label for="editSiteLogoUrl" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Site Logo URL</label>
+                    <input id="editSiteLogoUrl"
+                           @bind="_editSiteLogoUrl"
+                           class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);"
+                           placeholder="/img/logo.svg" />
+                    <p class="mt-1 text-xs pe-description">Leave blank to use the built-in placeholder mark.</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Links</h2>
+                    <p class="mt-1 text-sm pe-description">Arrange the links shown in the public site header.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <RadzenButton Icon="refresh"
+                                  Text="Refresh"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small"
+                                  Click="@RefreshLinksAsync"
+                                  Disabled="@(_isLoading || _isSaving)" />
+                    <RadzenButton Icon="add"
+                                  Text="Add Link"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small"
+                                  Click="@AddItem"
+                                  Disabled="@(_isLoading || _isSaving)" />
+                </div>
+            </div>
+
+            <RadzenDataGrid @ref="_itemsGrid"
+                            Data="@_items"
+                            TItem="NavItemEditorModel"
+                            AllowPaging="false"
+                            EmptyText="This menu has no links yet. Add a link to start building it.">
+                <Columns>
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Label">
+                        <Template Context="item">
+                            <input @bind="item.Label"
+                                   aria-label="Link label"
+                                   class="w-full rounded px-3 py-2"
+                                   style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="URL">
+                        <Template Context="item">
+                            <input @bind="item.Url"
+                                   aria-label="Link URL"
+                                   class="w-full rounded px-3 py-2"
+                                   style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);"
+                                   placeholder="/about" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Alt Text">
+                        <Template Context="item">
+                            <input @bind="item.AltText"
+                                   aria-label="Link alternative text"
+                                   class="w-full rounded px-3 py-2"
+                                   style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Order" Width="150px">
+                        <Template Context="item">
+                            <div class="flex items-center gap-1">
+                                <RadzenButton Icon="keyboard_arrow_up" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Click="@(() => MoveItemAsync(item, -1))" />
+                                <RadzenButton Icon="keyboard_arrow_down" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Click="@(() => MoveItemAsync(item, 1))" />
+                                <span class="text-sm" style="color: var(--pe-text-secondary);">@((item.Order + 1).ToString())</span>
+                            </div>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Actions" Width="110px">
+                        <Template Context="item">
+                            <RadzenButton Icon="delete"
+                                          Text="Remove"
+                                          Size="ButtonSize.ExtraSmall"
+                                          ButtonStyle="ButtonStyle.Danger"
+                                          Click="@(() => RemoveItemAsync(item))" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </div>
+    }
+</div>
