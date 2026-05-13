@@ -15,6 +15,8 @@ using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Cms.Modules.Commerce.Data;
+using Aero.Cms.Modules.Footer.Domain;
+using Aero.Cms.Modules.Footer.Events;
 using Aero.Cms.Modules.Navigation.Domain;
 using Aero.Cms.Modules.Navigation.Events;
 using Aero.Cms.Modules.Setup.Bootstrap;
@@ -286,6 +288,7 @@ public sealed class SeedDatabaseService(
         }
 
         await SeedDefaultNavMenuAsync(siteId, homepage.Id, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
+        await SeedDefaultFooterAsync(siteId, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
 
         // Seed starter media assets from wwwroot/media
         await SeedStarterMediaAsync(cancellationToken);
@@ -375,6 +378,110 @@ public sealed class SeedDatabaseService(
                 session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), defaultChanged);
             else
                 session.Events.Append(NavMenuStreams.SiteSettings(siteId), defaultChanged);
+        }
+    }
+
+    private async Task SeedDefaultFooterAsync(
+        long siteId,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        CancellationToken cancellationToken)
+    {
+        const string footerName = "Site Footer";
+        const string footerKey = "site-footer";
+
+        var existingFooter = await session.Query<FooterDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Key == footerKey, cancellationToken);
+        var settings = await session.Query<SiteFooterSettingsDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId, cancellationToken);
+
+        if (existingFooter is not null)
+        {
+            if (settings?.DefaultFooterId is null)
+            {
+                var changed = new SiteDefaultFooterChanged(siteId, existingFooter.Id, UserId: null, DateTimeOffset.UtcNow);
+                if (settings is null)
+                    session.Events.StartStream(FooterStreams.SiteSettings(siteId), changed);
+                else
+                    session.Events.Append(FooterStreams.SiteSettings(siteId), changed);
+            }
+
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var footerId = Snowflake.NewId();
+        var snapshot = new FooterSnapshot
+        {
+            Brand = new FooterBrandSettings
+            {
+                CompanyName = "Aero CMS",
+                Tagline = "A fast, modular CMS for modern .NET sites.",
+                LogoAltText = "Aero CMS logo"
+            },
+            Legal = FooterLegalSettings.Default with
+            {
+                CopyrightText = "Aero CMS. All rights reserved.",
+                LegalLinks =
+                [
+                    new FooterLink("Privacy", "/privacy"),
+                    new FooterLink("Terms", "/terms"),
+                    new FooterLink("Cookies", "/cookies")
+                ]
+            },
+            Sections =
+            [
+                new FooterLinkGroup
+                {
+                    Key = "company",
+                    Title = "Company",
+                    Order = 0,
+                    Links =
+                    [
+                        new FooterLink("About", "/about"),
+                        new FooterLink("Contact", "/contact")
+                    ]
+                },
+                new FooterLinkGroup
+                {
+                    Key = "content",
+                    Title = "Content",
+                    Order = 1,
+                    Links =
+                    [
+                        new FooterLink("Blog", "/blog"),
+                        new FooterLink("Docs", "/docs")
+                    ]
+                },
+                new FooterLinkGroup
+                {
+                    Key = "site",
+                    Title = "Site",
+                    Order = 2,
+                    Links =
+                    [
+                        new FooterLink("Home", "/"),
+                        new FooterLink("Sitemap", "/sitemap.xml")
+                    ]
+                }
+            ]
+        };
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            FooterStreams.Footer(footerId),
+            new FooterCreated(siteId, footerName, footerKey, "Default seeded site footer", UserId: null, now),
+            new FooterDraftSaved(siteId, footerName, footerKey, "Default seeded site footer", snapshot, UserId: null, now, "Seeded starter footer"),
+            new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded starter footer"));
+
+        if (settings?.DefaultFooterId is null)
+        {
+            var defaultChanged = new SiteDefaultFooterChanged(siteId, footerId, UserId: null, now);
+            if (settings is null)
+                session.Events.StartStream(FooterStreams.SiteSettings(siteId), defaultChanged);
+            else
+                session.Events.Append(FooterStreams.SiteSettings(siteId), defaultChanged);
         }
     }
 

@@ -1,0 +1,192 @@
+@page "/manager/footers/editor/{Id:long}"
+@attribute [Authorize]
+
+@using Aero.Cms.Abstractions.Http.Clients
+
+<div class="pe-page-content space-y-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+            <div class="mb-3">
+                <RadzenButton Icon="arrow_back"
+                              Text="Back to Footers"
+                              ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small"
+                              Click="@BackToList" />
+            </div>
+            <h1 class="text-2xl font-bold pe-heading">@(_selected?.Name ?? "Footer")</h1>
+            <p class="mt-1 text-sm pe-description">Draft changes stay private until the footer is published.</p>
+        </div>
+        @if (_selected is not null)
+        {
+            <div class="flex flex-wrap gap-2">
+                <RadzenButton Icon="save"
+                              Text="Save Draft"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small"
+                              Click="@SaveDraftAsync"
+                              Disabled="@_isSaving" />
+                <RadzenButton Icon="publish"
+                              Text="Publish"
+                              ButtonStyle="ButtonStyle.Success"
+                              Size="ButtonSize.Small"
+                              Click="@PublishAsync"
+                              Disabled="@_isSaving" />
+                <RadzenButton Icon="home"
+                              Text="Set Default"
+                              ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small"
+                              Click="@SetDefaultAsync"
+                              Disabled="@_isSaving" />
+                <RadzenButton Icon="delete"
+                              Text="Archive"
+                              ButtonStyle="ButtonStyle.Danger"
+                              Size="ButtonSize.Small"
+                              Click="@ArchiveAsync"
+                              Disabled="@_isSaving" />
+            </div>
+        }
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex min-h-64 items-center justify-center rounded"
+             style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary);">
+            <RadzenProgressBar Circular="true"
+                               Value="100"
+                               Mode="ProgressBarMode.Indeterminate"
+                               Style="width: 48px; height: 48px" />
+        </div>
+    }
+    else if (_selected is null)
+    {
+        <div class="flex min-h-64 items-center justify-center rounded"
+             style="border: 1px dashed var(--pe-border); background: var(--pe-bg-secondary);">
+            <div class="max-w-md text-center">
+                <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Footer not found</h2>
+                <p class="mt-2 text-sm pe-description">Return to the list and choose another footer.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="space-y-5">
+            <div class="grid grid-cols-1 gap-4 rounded md:grid-cols-2"
+                 style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary); padding: 16px;">
+                <div>
+                    <label for="editFooterName" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Name</label>
+                    <input id="editFooterName" @bind="_editName" class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                </div>
+                <div>
+                    <label for="editFooterDescription" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Description</label>
+                    <input id="editFooterDescription" @bind="_editDescription" class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                </div>
+                <div>
+                    <label for="editCompanyName" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Company Name</label>
+                    <input id="editCompanyName" @bind="_companyName" class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                </div>
+                <div>
+                    <label for="editTagline" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Tagline</label>
+                    <input id="editTagline" @bind="_tagline" class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                </div>
+                <div>
+                    <label for="editLogoUrl" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Logo URL</label>
+                    <input id="editLogoUrl" @bind="_logoUrl" placeholder="/img/logo.svg" class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                </div>
+                <div>
+                    <label for="editBackgroundImageUrl" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Background Image URL</label>
+                    <input id="editBackgroundImageUrl" @bind="_backgroundImageUrl" placeholder="/media/footer.jpg" class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                </div>
+                <div>
+                    <label for="editOverlayOpacity" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Overlay Opacity</label>
+                    <RadzenSlider id="editOverlayOpacity" @bind-Value="_overlayOpacity" Min="0m" Max="1m" Step="0.05m" />
+                </div>
+                <div>
+                    <label for="editCopyright" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Copyright Text</label>
+                    <input id="editCopyright" @bind="_copyrightText" class="w-full rounded px-3 py-2"
+                           style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Link Groups</h2>
+                    <p class="mt-1 text-sm pe-description">Organize footer columns and their links.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <RadzenButton Icon="refresh"
+                                  Text="Refresh"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small"
+                                  Click="@RefreshGroupsAsync"
+                                  Disabled="@(_isLoading || _isSaving)" />
+                    <RadzenButton Icon="add"
+                                  Text="Add Group"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small"
+                                  Click="@AddGroupAsync"
+                                  Disabled="@(_isLoading || _isSaving)" />
+                </div>
+            </div>
+
+            <RadzenDataGrid @ref="_groupsGrid"
+                            Data="@_groups"
+                            TItem="FooterGroupEditorModel"
+                            AllowPaging="false"
+                            EmptyText="This footer has no link groups yet. Add a group to start building it.">
+                <Columns>
+                    <RadzenDataGridColumn TItem="FooterGroupEditorModel" Title="Title">
+                        <Template Context="group">
+                            <input @bind="group.Title" aria-label="Group title" class="w-full rounded px-3 py-2"
+                                   style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="FooterGroupEditorModel" Title="Links">
+                        <Template Context="group">
+                            <div class="space-y-2">
+                                @foreach (var link in group.Links.OrderBy(x => x.Order))
+                                {
+                                    <div class="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]">
+                                        <input @bind="link.Label" aria-label="Link label" placeholder="Label" class="rounded px-3 py-2"
+                                               style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                                        <input @bind="link.Href" aria-label="Link href" placeholder="/about" class="rounded px-3 py-2"
+                                               style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                                        <RadzenButton Icon="close" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Click="@(() => RemoveLinkAsync(group, link))" />
+                                    </div>
+                                }
+                                <RadzenButton Icon="add_link"
+                                              Text="Add Link"
+                                              Size="ButtonSize.ExtraSmall"
+                                              ButtonStyle="ButtonStyle.Light"
+                                              Click="@(() => AddLinkAsync(group))" />
+                            </div>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="FooterGroupEditorModel" Title="Order" Width="150px">
+                        <Template Context="group">
+                            <div class="flex items-center gap-1">
+                                <RadzenButton Icon="keyboard_arrow_up" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Click="@(() => MoveGroupAsync(group, -1))" />
+                                <RadzenButton Icon="keyboard_arrow_down" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Click="@(() => MoveGroupAsync(group, 1))" />
+                                <span class="text-sm" style="color: var(--pe-text-secondary);">@((group.Order + 1).ToString())</span>
+                            </div>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="FooterGroupEditorModel" Title="Actions" Width="110px">
+                        <Template Context="group">
+                            <RadzenButton Icon="delete"
+                                          Text="Remove"
+                                          Size="ButtonSize.ExtraSmall"
+                                          ButtonStyle="ButtonStyle.Danger"
+                                          Click="@(() => RemoveGroupAsync(group))" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </div>
+    }
+</div>

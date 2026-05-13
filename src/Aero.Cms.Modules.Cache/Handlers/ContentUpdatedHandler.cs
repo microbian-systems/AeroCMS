@@ -18,6 +18,12 @@ public sealed class ContentUpdatedHandler(ICacheInvalidationService cacheInvalid
     public Task Handle(DocsPageContentUpdatedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateContentAsync(@event, cancellationToken);
 
+    public Task Handle(NavigationMenuChangedEvent @event, CancellationToken cancellationToken)
+        => cacheInvalidationService.InvalidateNavigationAsync(@event, cancellationToken);
+
+    public Task Handle(FooterChangedEvent @event, CancellationToken cancellationToken)
+        => cacheInvalidationService.InvalidateFooterAsync(@event, cancellationToken);
+
     // Rich events — carry PageViewModel for zero-DB consumers
     public Task Handle(PageViewModelCreated @event, CancellationToken ct)
         => cacheInvalidationService.InvalidateContentAsync(

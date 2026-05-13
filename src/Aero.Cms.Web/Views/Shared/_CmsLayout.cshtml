@@ -44,13 +44,7 @@
 
     @if (!hideFooter)
     {
-        <footer class="bg-white border-t border-slate-200 py-12 mt-auto">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center text-slate-500 text-sm">
-                    &copy; @DateTime.Now.Year Aero CMS. All rights reserved.
-                </div>
-            </div>
-        </footer>
+        @await Component.InvokeAsync("AeroFooter")
     }
 
     <script src="/js/app.js" type="module"></script>

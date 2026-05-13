@@ -283,6 +283,7 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Mcp\Aero.Cms.Modules.Mcp.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Media\Aero.Cms.Modules.Media.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Navigation\Aero.Cms.Modules.Navigation.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Footer\Aero.Cms.Modules.Footer.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Members\Aero.Cms.Modules.Members.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.MiniProfiler\Aero.Cms.Modules.MiniProfiler.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.OneTimePasscode\Aero.Cms.Modules.OneTimePasscode.csproj" />

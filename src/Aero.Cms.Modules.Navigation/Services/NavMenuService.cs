@@ -1,7 +1,9 @@
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Modules.Navigation.Domain;
 using Aero.Cms.Modules.Navigation.Events;
+using Wolverine;
 using static Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Modules.Navigation.Services;
@@ -9,7 +11,8 @@ namespace Aero.Cms.Modules.Navigation.Services;
 public sealed class NavMenuService(
     IDocumentSession session,
     ISiteContext siteContext,
-    ILogger<NavMenuService> logger) : INavMenuService
+    ILogger<NavMenuService> logger,
+    IMessageBus? bus = null) : INavMenuService
 {
     public async Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount), AeroError>> ListAsync(
         int skip = 0,
@@ -268,6 +271,12 @@ public sealed class NavMenuService(
             await session.SaveChangesAsync(cancellationToken);
 
             menu.Apply(published);
+            await PublishNavigationChangedAsync(
+                menu.Id,
+                menu.SiteId,
+                NavigationMenuChangeKind.Published,
+                published.PublishedOn,
+                cancellationToken);
             return Ok<NavMenuDocument, AeroError>(menu);
         }
         catch (InvalidOperationException ex)
@@ -311,6 +320,12 @@ public sealed class NavMenuService(
                 session.Events.Append(streamKey, changed);
 
             await session.SaveChangesAsync(cancellationToken);
+            await PublishNavigationChangedAsync(
+                menu.Id,
+                menu.SiteId,
+                NavigationMenuChangeKind.DefaultChanged,
+                changed.ChangedOn,
+                cancellationToken);
             return Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
@@ -337,11 +352,19 @@ public sealed class NavMenuService(
             var menu = ((Result<NavMenuDocument, AeroError>.Ok)menuResult).Value;
             await EnsureExpectedVersionAsync(id, expectedVersion, cancellationToken);
 
+            var archived = new NavMenuArchived(menu.SiteId, userId, DateTimeOffset.UtcNow);
             await session.Events.AppendOptimistic(
                 NavMenuStreams.Menu(id),
                 cancellationToken,
-                new NavMenuArchived(menu.SiteId, userId, DateTimeOffset.UtcNow));
+                archived);
             await session.SaveChangesAsync(cancellationToken);
+            menu.Apply(archived);
+            await PublishNavigationChangedAsync(
+                menu.Id,
+                menu.SiteId,
+                NavigationMenuChangeKind.Archived,
+                archived.ArchivedOn,
+                cancellationToken);
             return Ok<bool, AeroError>(true);
         }
         catch (InvalidOperationException ex)
@@ -418,6 +441,16 @@ public sealed class NavMenuService(
             throw new InvalidOperationException("Navigation menu was modified by another user.");
         }
     }
+
+    private Task PublishNavigationChangedAsync(
+        long navMenuId,
+        long siteId,
+        NavigationMenuChangeKind changeKind,
+        DateTimeOffset changedOn,
+        CancellationToken cancellationToken)
+        => bus is null
+            ? Task.CompletedTask
+            : bus.PublishAsync(new NavigationMenuChangedEvent(navMenuId, siteId, changeKind, changedOn)).AsTask();
 
     private static NavMenuSnapshot MapSnapshot(IReadOnlyList<CreateNavigationItemRequest> items, string? siteLogoUrl)
         => new(

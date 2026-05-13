@@ -17,6 +17,20 @@ public sealed class FusionCacheInvalidationService(
         ["docs"] = new("docs-index")
     };
 
+    private static readonly CacheTagSet[] NavigationAffectedTags =
+    [
+        new("pages-list"),
+        new("blog-index"),
+        new("docs-index")
+    ];
+
+    private static readonly CacheTagSet[] FooterAffectedTags =
+    [
+        new("pages-list"),
+        new("blog-index"),
+        new("docs-index")
+    ];
+
     public async Task InvalidateContentAsync(ContentUpdatedEvent @event, CancellationToken cancellationToken = default)
     {
         if (!CacheTags.TryGetValue(@event.ContentType, out var tags))
@@ -41,6 +55,36 @@ public sealed class FusionCacheInvalidationService(
             @event.ContentType,
             @event.SiteId,
             tags.FusionCacheTag);
+    }
+
+    public async Task InvalidateNavigationAsync(NavigationMenuChangedEvent @event, CancellationToken cancellationToken = default)
+    {
+        foreach (var tags in NavigationAffectedTags)
+        {
+            await cache.RemoveByTagAsync(tags.FusionCacheTag, token: cancellationToken);
+            await outputCacheStore.EvictByTagAsync(tags.OutputCacheTag, cancellationToken);
+        }
+
+        logger.LogDebug(
+            "Invalidated navigation-dependent cache for site {SiteId} after nav menu {NavMenuId} was {ChangeKind}",
+            @event.SiteId,
+            @event.NavMenuId,
+            @event.ChangeKind);
+    }
+
+    public async Task InvalidateFooterAsync(FooterChangedEvent @event, CancellationToken cancellationToken = default)
+    {
+        foreach (var tags in FooterAffectedTags)
+        {
+            await cache.RemoveByTagAsync(tags.FusionCacheTag, token: cancellationToken);
+            await outputCacheStore.EvictByTagAsync(tags.OutputCacheTag, cancellationToken);
+        }
+
+        logger.LogDebug(
+            "Invalidated footer-dependent cache for site {SiteId} after footer {FooterId} was {ChangeKind}",
+            @event.SiteId,
+            @event.FooterId,
+            @event.ChangeKind);
     }
 
     private async Task RemoveSlugKeyAsync(string contentType, long siteId, string? slug, CancellationToken cancellationToken)

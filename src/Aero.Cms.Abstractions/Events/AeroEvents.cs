@@ -31,6 +31,32 @@ public sealed record DocsPageContentUpdatedEvent(
     string NewSlug,
     string? OldSlug = null) : ContentUpdatedEvent(ContentId, SiteId, NewSlug, OldSlug, "docs");
 
+public sealed record NavigationMenuChangedEvent(
+    long NavMenuId,
+    long SiteId,
+    NavigationMenuChangeKind ChangeKind,
+    DateTimeOffset ChangedOn) : AeroEvent($"navigation menu {NavMenuId} {ChangeKind} for site {SiteId}");
+
+public enum NavigationMenuChangeKind
+{
+    Published,
+    DefaultChanged,
+    Archived
+}
+
+public sealed record FooterChangedEvent(
+    long FooterId,
+    long SiteId,
+    FooterChangeKind ChangeKind,
+    DateTimeOffset ChangedOn) : AeroEvent($"footer {FooterId} {ChangeKind} for site {SiteId}");
+
+public enum FooterChangeKind
+{
+    Published,
+    DefaultChanged,
+    Archived
+}
+
 public abstract record ContentUpdatedEvent<T>(
     T document,
     string NewSlug,

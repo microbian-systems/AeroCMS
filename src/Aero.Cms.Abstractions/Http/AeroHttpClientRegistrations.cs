@@ -61,6 +61,7 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<IMediaHttpClient, MediaHttpClient>();
         services.AddHttpClient<IModulesHttpClient, ModulesHttpClient>();
         services.AddHttpClient<INavigationsHttpClient, NavigationsHttpClient>();
+        services.AddHttpClient<IFootersHttpClient, FootersHttpClient>();
         services.AddHttpClient<IPagesHttpClient, PagesHttpClient>();
         services.AddHttpClient<IProfileHttpClient, ProfileHttpClient>();
         services.AddHttpClient<ISettingsHttpClient, SettingsHttpClient>();
