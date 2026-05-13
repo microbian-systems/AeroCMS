@@ -463,6 +463,9 @@ public sealed class NavMenuService(
                     Key = Snowflake.NewId().ToString(),
                     Label = x.Label,
                     Href = x.Url ?? string.Empty,
+                    IsExternal = x.IsExternal,
+                    Target = NormalizeTarget(x.Target, x.IsExternal),
+                    OpenInNewTab = NormalizeTarget(x.Target, x.IsExternal) == "_blank",
                     PageId = x.PageId,
                     AltText = x.AltText,
                     Alignment = NavAlignment.Left
@@ -482,6 +485,9 @@ public sealed class NavMenuService(
                     Key = (x.Id == 0 ? Snowflake.NewId() : x.Id).ToString(),
                     Label = x.Label,
                     Href = x.Url ?? string.Empty,
+                    IsExternal = x.IsExternal,
+                    Target = NormalizeTarget(x.Target, x.IsExternal),
+                    OpenInNewTab = NormalizeTarget(x.Target, x.IsExternal) == "_blank",
                     PageId = x.PageId,
                     AltText = x.AltText,
                     Alignment = NavAlignment.Left
@@ -496,7 +502,17 @@ public sealed class NavMenuService(
             menu.Name,
             menu.Key,
             snapshot.Components.OfType<NavLink>()
-                .Select((x, index) => new NavigationItemDetail(ParseKey(x.Key), x.Label, x.Href, x.PageId, index, x.AltText))
+                .Select((x, index) => new NavigationItemDetail(
+                    ParseKey(x.Key),
+                    x.Label,
+                    x.Href,
+                    x.PageId,
+                    index,
+                    x.AltText,
+                    x.IsExternal || IsHttpUrl(x.Href),
+                    string.IsNullOrWhiteSpace(x.Target)
+                        ? (x.OpenInNewTab ? "_blank" : "_self")
+                        : x.Target))
                 .ToList(),
             menu.CreatedOn.DateTime,
             (menu.ModifiedOn ?? menu.CreatedOn).DateTime,
@@ -506,4 +522,13 @@ public sealed class NavMenuService(
 
     private static long ParseKey(string key)
         => long.TryParse(key, out var id) ? id : 0;
+
+    private static string NormalizeTarget(string? target, bool isExternal)
+        => target is "_self" or "_blank" or "_parent" or "_top"
+            ? target
+            : isExternal ? "_blank" : "_self";
+
+    private static bool IsHttpUrl(string? url)
+        => Uri.TryCreate(url, UriKind.Absolute, out var uri)
+           && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }

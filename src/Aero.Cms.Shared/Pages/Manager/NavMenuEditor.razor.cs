@@ -25,6 +25,13 @@ public partial class NavMenuEditor
     private string _editName = string.Empty;
     private string? _editDescription;
     private string? _editSiteLogoUrl;
+    private static readonly IReadOnlyList<LinkTargetOption> TargetOptions =
+    [
+        new("_self", "Same tab"),
+        new("_blank", "New tab"),
+        new("_parent", "Parent frame"),
+        new("_top", "Top frame")
+    ];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -78,6 +85,8 @@ public partial class NavMenuEditor
             Url = link.Url,
             PageId = link.PageId,
             AltText = link.AltText,
+            IsExternal = link.IsExternal,
+            Target = link.Target,
             Order = nextOrder
         };
 
@@ -149,7 +158,19 @@ public partial class NavMenuEditor
                 _editDescription?.Trim(),
                 _items
                     .OrderBy(x => x.Order)
-                    .Select(x => new UpdateNavigationItemRequest(x.Id, x.Label.Trim(), x.Url?.Trim(), x.PageId, x.Order, x.AltText?.Trim()))
+                    .Select(x =>
+                    {
+                        var isExternal = x.IsExternal;
+                        return new UpdateNavigationItemRequest(
+                            x.Id,
+                            x.Label.Trim(),
+                            NormalizeUrl(x.Url, isExternal),
+                            isExternal ? null : x.PageId,
+                            x.Order,
+                            x.AltText?.Trim(),
+                            isExternal,
+                            NormalizeTarget(x.Target, isExternal));
+                    })
                     .ToList(),
                 _editSiteLogoUrl?.Trim());
 
@@ -285,6 +306,8 @@ public partial class NavMenuEditor
                 Url = x.Url,
                 PageId = x.PageId,
                 AltText = x.AltText,
+                IsExternal = x.IsExternal || IsHttpUrl(x.Url),
+                Target = NormalizeTarget(x.Target, x.IsExternal || IsHttpUrl(x.Url)),
                 Order = x.Order
             })
             .ToList();
@@ -313,7 +336,25 @@ public partial class NavMenuEditor
         }
 
         var invalid = _items.FirstOrDefault(x => string.IsNullOrWhiteSpace(x.Label) || string.IsNullOrWhiteSpace(x.Url));
-        return invalid is null ? null : "Every link needs a label and URL.";
+        if (invalid is not null)
+        {
+            return "Every link needs a label and URL.";
+        }
+
+        var invalidExternal = _items.FirstOrDefault(x => x.IsExternal && !IsHttpUrl(NormalizeUrl(x.Url, true)));
+        if (invalidExternal is not null)
+        {
+            return $"External link '{invalidExternal.Label}' must start with http:// or https://.";
+        }
+
+        var invalidInternal = _items.FirstOrDefault(x => !x.IsExternal && x.PageId is null && !IsRelativeUrl(x.Url));
+        if (invalidInternal is not null)
+        {
+            return $"Internal link '{invalidInternal.Label}' must use a site-relative URL that starts with '/'.";
+        }
+
+        var invalidTarget = _items.FirstOrDefault(x => !IsValidTarget(x.Target));
+        return invalidTarget is null ? null : $"Link '{invalidTarget.Label}' has an invalid target.";
     }
 
     private void NormalizeOrders()
@@ -337,6 +378,60 @@ public partial class NavMenuEditor
         }
     }
 
+    private void OnItemExternalChanged(NavItemEditorModel item, ChangeEventArgs args)
+    {
+        item.IsExternal = args.Value is bool value ? value : bool.TryParse(args.Value?.ToString(), out var parsed) && parsed;
+        if (item.IsExternal)
+        {
+            item.PageId = null;
+            item.Target = "_blank";
+            return;
+        }
+
+        item.Target = "_self";
+    }
+
+    private static string? NormalizeUrl(string? value, bool isExternal)
+    {
+        var url = value?.Trim();
+        if (!isExternal || string.IsNullOrWhiteSpace(url) || url.Contains("://", StringComparison.Ordinal))
+        {
+            return url;
+        }
+
+        return $"https://{url}";
+    }
+
+    private static string NormalizeTarget(string? target, bool isExternal)
+    {
+        var normalized = string.IsNullOrWhiteSpace(target) ? "_self" : target.Trim();
+        return normalized switch
+        {
+            "_self" or "_blank" or "_parent" or "_top" => normalized,
+            _ => isExternal ? "_blank" : "_self"
+        };
+    }
+
+    private static bool IsHttpUrl(string? value)
+    {
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    private static bool IsRelativeUrl(string? value)
+    {
+        var url = value?.Trim();
+        return !string.IsNullOrWhiteSpace(url)
+            && url.StartsWith("/", StringComparison.Ordinal)
+            && !url.StartsWith("//", StringComparison.Ordinal);
+    }
+
+    private static bool IsValidTarget(string? target)
+    {
+        return string.IsNullOrWhiteSpace(target)
+            || target is "_self" or "_blank" or "_parent" or "_top";
+    }
+
     private void Notify(NotificationSeverity severity, string summary, string? detail = null)
     {
         NotificationService.Notify(new NotificationMessage
@@ -355,6 +450,10 @@ public partial class NavMenuEditor
         public string? Url { get; set; }
         public long? PageId { get; set; }
         public string? AltText { get; set; }
+        public bool IsExternal { get; set; }
+        public string Target { get; set; } = "_self";
         public int Order { get; set; }
     }
+
+    private sealed record LinkTargetOption(string Value, string Text);
 }

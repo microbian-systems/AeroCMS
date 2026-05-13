@@ -59,6 +59,14 @@ public sealed class CreateNavigationItemRequestValidator : AbstractValidator<Cre
         RuleFor(x => x)
             .Must(x => x.PageId is > 0 || !string.IsNullOrWhiteSpace(x.Url))
             .WithMessage("Navigation links require either PageId or Url.");
+
+        RuleFor(x => x)
+            .Must(NavigationUrlRules.IsValid)
+            .WithMessage("External links require an absolute http/https URL. Internal links require a relative URL or selected page.");
+
+        RuleFor(x => x.Target)
+            .Must(NavigationUrlRules.IsValidTarget)
+            .WithMessage("Navigation link target must be _self, _blank, _parent, or _top.");
     }
 }
 
@@ -76,5 +84,44 @@ public sealed class UpdateNavigationItemRequestValidator : AbstractValidator<Upd
         RuleFor(x => x)
             .Must(x => x.PageId is > 0 || !string.IsNullOrWhiteSpace(x.Url))
             .WithMessage("Navigation links require either PageId or Url.");
+
+        RuleFor(x => x)
+            .Must(NavigationUrlRules.IsValid)
+            .WithMessage("External links require an absolute http/https URL. Internal links require a relative URL or selected page.");
+
+        RuleFor(x => x.Target)
+            .Must(NavigationUrlRules.IsValidTarget)
+            .WithMessage("Navigation link target must be _self, _blank, _parent, or _top.");
+    }
+}
+
+internal static class NavigationUrlRules
+{
+    public static bool IsValid(CreateNavigationItemRequest request)
+        => IsValid(request.Url, request.PageId, request.IsExternal);
+
+    public static bool IsValid(UpdateNavigationItemRequest request)
+        => IsValid(request.Url, request.PageId, request.IsExternal);
+
+    public static bool IsValidTarget(string? target)
+        => string.IsNullOrWhiteSpace(target) || target is "_self" or "_blank" or "_parent" or "_top";
+
+    private static bool IsValid(string? url, long? pageId, bool isExternal)
+    {
+        if (isExternal)
+        {
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        }
+
+        if (pageId is > 0)
+        {
+            return true;
+        }
+
+        var trimmed = url?.Trim();
+        return !string.IsNullOrWhiteSpace(trimmed)
+            && trimmed.StartsWith('/')
+            && !trimmed.StartsWith("//", StringComparison.Ordinal);
     }
 }

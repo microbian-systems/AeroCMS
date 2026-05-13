@@ -185,7 +185,15 @@ public record NavigationDetail(
 /// <summary>
 /// Detailed navigation item information.
 /// </summary>
-public record NavigationItemDetail(long Id, string Label, string? Url, long? PageId, int Order, string? AltText);
+public record NavigationItemDetail(
+    long Id,
+    string Label,
+    string? Url,
+    long? PageId,
+    int Order,
+    string? AltText,
+    bool IsExternal = false,
+    string? Target = null);
 
 /// <summary>
 /// Request to create a new navigation menu.
@@ -200,9 +208,24 @@ public record UpdateNavigationRequest(string Name, string? Title, IReadOnlyList<
 /// <summary>
 /// Request to create a navigation menu item.
 /// </summary>
-public record CreateNavigationItemRequest(string Label, string? Url, long? PageId, int Order, string? AltText);
+public record CreateNavigationItemRequest(
+    string Label,
+    string? Url,
+    long? PageId,
+    int Order,
+    string? AltText,
+    bool IsExternal = false,
+    string? Target = null);
 
 /// <summary>
 /// Request to update a navigation menu item.
 /// </summary>
-public record UpdateNavigationItemRequest(long Id, string Label, string? Url, long? PageId, int Order, string? AltText);
+public record UpdateNavigationItemRequest(
+    long Id,
+    string Label,
+    string? Url,
+    long? PageId,
+    int Order,
+    string? AltText,
+    bool IsExternal = false,
+    string? Target = null);

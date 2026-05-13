@@ -47,10 +47,14 @@ public sealed class NavMenuHtmlRenderer : INavMenuHtmlRenderer
             var css = mode == NavMenuRenderMode.Mobile
                 ? "block px-4 py-4 rounded-2xl text-lg font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200"
                 : "px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-all duration-200";
-            var target = link.OpenInNewTab ? " target=\"_blank\" rel=\"noopener noreferrer\"" : string.Empty;
+            var targetValue = string.IsNullOrWhiteSpace(link.Target)
+                ? (link.OpenInNewTab ? "_blank" : "_self")
+                : link.Target;
+            var target = targetValue == "_self" ? string.Empty : $" target=\"{Encode(targetValue)}\"";
+            var rel = targetValue == "_blank" ? " rel=\"noopener noreferrer\"" : string.Empty;
 
             return new HtmlString(
-                $"<a href=\"{Encode(link.Href)}\" class=\"{css}\"{target}>{Encode(link.Label)}</a>");
+                $"<a href=\"{Encode(link.Href)}\" class=\"{css}\"{target}{rel}>{Encode(link.Label)}</a>");
         }
 
         public IHtmlContent Visit(NavMenu menu)

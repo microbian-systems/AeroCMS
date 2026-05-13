@@ -33,6 +33,29 @@
             </div>
         </div>
 
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="flex items-center gap-2 rounded-xl px-3 py-2 text-sm"
+                   style="border: 1px solid var(--pe-border); background: var(--pe-bg-tertiary); color: var(--pe-text-primary);">
+                <input type="checkbox"
+                       checked="@_isExternal"
+                       @onchange="OnExternalChanged" />
+                <span>External link</span>
+            </label>
+
+            <div class="flex flex-col gap-1.5">
+                <label for="addNavLinkTarget" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Target</label>
+                <select id="addNavLinkTarget"
+                        @bind="_target"
+                        class="w-full rounded-xl px-3 py-2 text-sm"
+                        style="border: 1px solid var(--pe-border); background: var(--pe-bg-tertiary); color: var(--pe-text-primary);">
+                    @foreach (var option in TargetOptions)
+                    {
+                        <option value="@option.Value">@option.Text (@option.Value)</option>
+                    }
+                </select>
+            </div>
+        </div>
+
         <div class="flex flex-col gap-1.5">
             <label for="addNavLinkAltText" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Alt Text</label>
             <RadzenTextBox id="addNavLinkAltText"

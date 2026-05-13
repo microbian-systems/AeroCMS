@@ -7,7 +7,13 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
-public sealed record AddNavMenuLinkDialogResult(string Label, string Url, long? PageId, string? AltText);
+public sealed record AddNavMenuLinkDialogResult(
+    string Label,
+    string Url,
+    long? PageId,
+    string? AltText,
+    bool IsExternal,
+    string Target);
 
 public partial class AddNavMenuLinkDialog
 {
@@ -20,9 +26,18 @@ public partial class AddNavMenuLinkDialog
     private string? _altText;
     private string? _pageSearch;
     private long? _selectedPageId;
+    private bool _isExternal;
+    private string _target = "_self";
     private IReadOnlyList<PageSummary> _pages = Array.Empty<PageSummary>();
     private bool _showPageSearch;
     private bool _isSearching;
+    private static readonly IReadOnlyList<LinkTargetOption> TargetOptions =
+    [
+        new("_self", "Same tab"),
+        new("_blank", "New tab"),
+        new("_parent", "Parent frame"),
+        new("_top", "Top frame")
+    ];
 
     private bool IsSubmitDisabled => string.IsNullOrWhiteSpace(_label) || string.IsNullOrWhiteSpace(_url);
 
@@ -40,6 +55,20 @@ public partial class AddNavMenuLinkDialog
     {
         _url = value ?? string.Empty;
         _selectedPageId = null;
+    }
+
+    private void OnExternalChanged(ChangeEventArgs args)
+    {
+        _isExternal = args.Value is bool value ? value : bool.TryParse(args.Value?.ToString(), out var parsed) && parsed;
+        if (_isExternal)
+        {
+            _selectedPageId = null;
+            _showPageSearch = false;
+            _target = "_blank";
+            return;
+        }
+
+        _target = "_self";
     }
 
     private void OnPageSearchChanged(string? value)
@@ -88,6 +117,8 @@ public partial class AddNavMenuLinkDialog
             _label = string.IsNullOrWhiteSpace(_label) ? detail.Title : _label;
             _url = NormalizePageUrl(detail);
             _selectedPageId = detail.Id;
+            _isExternal = false;
+            _target = "_self";
             _showPageSearch = false;
             return;
         }
@@ -95,6 +126,8 @@ public partial class AddNavMenuLinkDialog
         _label = string.IsNullOrWhiteSpace(_label) ? page.Title : _label;
         _url = NormalizeSlug(page.Slug);
         _selectedPageId = page.Id;
+        _isExternal = false;
+        _target = "_self";
         _showPageSearch = false;
     }
 
@@ -107,9 +140,11 @@ public partial class AddNavMenuLinkDialog
 
         DialogService.Close(new AddNavMenuLinkDialogResult(
             _label.Trim(),
-            _url.Trim(),
-            _selectedPageId,
-            _altText?.Trim()));
+            NormalizeSubmittedUrl(_url, _isExternal),
+            _isExternal ? null : _selectedPageId,
+            _altText?.Trim(),
+            _isExternal,
+            NormalizeTarget(_target, _isExternal)));
     }
 
     private void Cancel()
@@ -136,4 +171,27 @@ public partial class AddNavMenuLinkDialog
 
         return $"/{slug.Trim().TrimStart('/')}";
     }
+
+    private static string NormalizeSubmittedUrl(string value, bool isExternal)
+    {
+        var url = value.Trim();
+        if (!isExternal || string.IsNullOrWhiteSpace(url) || url.Contains("://", StringComparison.Ordinal))
+        {
+            return url;
+        }
+
+        return $"https://{url}";
+    }
+
+    private static string NormalizeTarget(string? target, bool isExternal)
+    {
+        var normalized = string.IsNullOrWhiteSpace(target) ? "_self" : target.Trim();
+        return normalized switch
+        {
+            "_self" or "_blank" or "_parent" or "_top" => normalized,
+            _ => isExternal ? "_blank" : "_self"
+        };
+    }
+
+    private sealed record LinkTargetOption(string Value, string Text);
 }

@@ -142,6 +142,30 @@
                                    placeholder="/about" />
                         </Template>
                     </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="External" Width="110px">
+                        <Template Context="item">
+                            <label class="inline-flex items-center justify-center gap-2 rounded px-2 py-2"
+                                   style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);">
+                                <input type="checkbox"
+                                       checked="@item.IsExternal"
+                                       @onchange="args => OnItemExternalChanged(item, args)"
+                                       aria-label="External link" />
+                            </label>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Target" Width="170px">
+                        <Template Context="item">
+                            <select @bind="item.Target"
+                                    aria-label="Link target"
+                                    class="w-full rounded px-3 py-2"
+                                    style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);">
+                                @foreach (var option in TargetOptions)
+                                {
+                                    <option value="@option.Value">@option.Text</option>
+                                }
+                            </select>
+                        </Template>
+                    </RadzenDataGridColumn>
                     <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Alt Text">
                         <Template Context="item">
                             <input @bind="item.AltText"

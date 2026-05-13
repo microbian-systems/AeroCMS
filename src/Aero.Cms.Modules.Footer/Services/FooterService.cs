@@ -136,9 +136,27 @@ public sealed class FooterService(
         }
 
         var footerId = ((Result<long?, AeroError>.Ok)defaultResult).Value;
-        return footerId is null
-            ? Ok<FooterSnapshot?, AeroError>(null)
-            : await GetPublishedSnapshotAsync(footerId.Value, cancellationToken);
+        if (footerId is not null)
+        {
+            return await GetPublishedSnapshotAsync(footerId.Value, cancellationToken);
+        }
+
+        try
+        {
+            var fallback = await session.Query<FooterDocument>()
+                .Where(x => x.SiteId == siteId && x.State != FooterLifecycleState.Archived && x.HasPublishedSnapshot)
+                .OrderBy(x => x.CreatedOn)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return fallback is null
+                ? Ok<FooterSnapshot?, AeroError>(null)
+                : await GetPublishedSnapshotAsync(fallback.Id, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load fallback footer snapshot for site {SiteId}", siteId);
+            return Fail<FooterSnapshot?, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
     }
 
     public async Task<Result<FooterDocument, AeroError>> CreateAsync(

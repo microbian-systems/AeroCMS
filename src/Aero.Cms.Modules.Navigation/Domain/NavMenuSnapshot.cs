@@ -76,6 +76,9 @@ public sealed record NavMenuSnapshot
 
                 if (string.IsNullOrWhiteSpace(link.Href))
                     throw new InvalidOperationException("Link href is required.");
+
+                ValidateLinkUrl(link);
+                ValidateLinkTarget(link.Target);
                 break;
 
             case NavMenu menu:
@@ -98,6 +101,43 @@ public sealed record NavMenuSnapshot
                     throw new InvalidOperationException("Search navigation component requires an action route.");
                 break;
         }
+    }
+
+    private static void ValidateLinkUrl(NavLink link)
+    {
+        var href = link.Href.Trim();
+        if (link.IsExternal)
+        {
+            if (Uri.TryCreate(href, UriKind.Absolute, out var uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                return;
+            }
+
+            throw new InvalidOperationException("External navigation links must use an absolute http or https URL.");
+        }
+
+        if (href.StartsWith('/') && !href.StartsWith("//", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (link.PageId is > 0)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException("Internal navigation links must use a relative URL or selected page.");
+    }
+
+    private static void ValidateLinkTarget(string? target)
+    {
+        if (string.IsNullOrWhiteSpace(target) || target is "_self" or "_blank" or "_parent" or "_top")
+        {
+            return;
+        }
+
+        throw new InvalidOperationException("Navigation link target must be _self, _blank, _parent, or _top.");
     }
 }
 
@@ -126,6 +166,8 @@ public sealed record NavLink : INavMenuComponent
     public string Label { get; init; } = string.Empty;
     public string Href { get; init; } = string.Empty;
     public bool OpenInNewTab { get; init; }
+    public bool IsExternal { get; init; }
+    public string? Target { get; init; }
     public long? PageId { get; init; }
     public string? AltText { get; init; }
 }
