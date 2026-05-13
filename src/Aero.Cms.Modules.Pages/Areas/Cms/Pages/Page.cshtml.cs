@@ -1,3 +1,5 @@
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Entities;
 using Aero.Core;
 using Microsoft.AspNetCore.Diagnostics;
@@ -8,7 +10,10 @@ using Microsoft.AspNetCore.OutputCaching;
 namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 
 [OutputCache(PolicyName = "PagesPolicy")]
-public class DynamicPageModel(IPageContentService pageService) : PageModel
+public class DynamicPageModel(
+    IPageContentService pageService,
+    IBlockService blockService,
+    BlockRenderCache blockCache) : PageModel
 {
     [BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
@@ -64,9 +69,61 @@ public class DynamicPageModel(IPageContentService pageService) : PageModel
         }
 
         PageDocument = page;
+
+        // Store page ID + slug in HttpContext.Items so CmsOutputCachePolicy
+        // can read them during ServeResponseAsync and tag the cached response
+        // with fine-grained per-page identifiers (page-id-{id}, page-slug-{slug}).
+        // This enables single-page OutputCache eviction without invalidating
+        // the entire pages-list tag.
+        HttpContext.Items["AeroCms.PageId"] = page.Id;
+        HttpContext.Items["AeroCms.PageSlug"] = page.Slug;
+
+        // Preload all block IDs from the page's layout regions into BlockRenderCache.
+        // This eliminates N+1 database round-trips during page rendering: instead of
+        // each BlockPlacementRenderer calling IBlockService.GetByIdAsync individually
+        // (one Marten LoadAsync per block), we batch-load all blocks in a single
+        // WHERE Id = ANY(@ids) query. The cached result is then served to each
+        // BlockPlacementRenderer via O(1) dictionary lookup in GetBlock().
+        await PreloadBlockCacheAsync(page, cancellationToken);
+
         PreserveReExecutedStatusCode();
         ApplyResponseCacheHeaders();
         return Page();
+    }
+
+    /// <summary>
+    /// Collects all distinct block IDs from every LayoutRegion/Column/Placement
+    /// on the page and bulk-loads them into the request-scoped BlockRenderCache.
+    /// 
+    /// N+1 REMEDY: Without this preload, the <c>&lt;component type="LayoutRegionRenderer"&gt;</c>
+    /// components in Page.cshtml would each independently call IBlockService.GetByIdAsync
+    /// for every block placement. A page with N blocks makes N database round-trips.
+    /// With this preload, all N blocks are resolved in a single batch query, then
+    /// served from an in-memory dictionary during rendering.
+    /// </summary>
+    private async Task PreloadBlockCacheAsync(PageDocument page, CancellationToken ct)
+    {
+        // Collect all distinct BlockIds from the published layout manifest.
+        // LayoutRegions → LayoutColumns → Blocks (List<BlockPlacement>) → BlockId
+        var blockIds = page.LayoutRegions
+            .SelectMany(r => r.Columns)
+            .SelectMany(c => c.Blocks)
+            .Where(p => p.BlockId > 0)       // skip unset / sentinel values
+            .Select(p => p.BlockId)
+            .Distinct()
+            .ToList();
+
+        if (blockIds.Count == 0)
+            return;
+
+        // Fire-and-forget? No — we must await the preload so the cache is
+        // fully populated BEFORE the Blazor component tree renders (which
+        // happens synchronously after OnGetAsync returns).
+        // BlockRenderCache is registered as AddScoped → same instance shared
+        // between DynamicPageModel and all <component> tag helpers in this request.
+        // We don't store the IBlockService reference in the cache; instead we
+        // pass it as a parameter so the cache stays a pure data holder.
+        await blockCache.PreloadAsync(blockIds, blockService, ct);
     }
 
     private void PreserveReExecutedStatusCode()

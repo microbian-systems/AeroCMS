@@ -1,0 +1,159 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor
+@using System.Text.Json
+@using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Blocks.Neo
+@using Aero.Cms.Shared.Blocks.Rendering
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Hero01
+
+@switch (Block.Type)
+{
+    // ── Neo blocks ────────────────────────────────────────────
+    case "aero.hero.01":
+        <Hero01BlockEditorPreview Node="MapToNeoNode(Block)" />
+        break;
+    case "aero.hero.basic":
+        <BasicHeroBlockEditorPreview Node="MapToNeoNode(Block)" />
+        break;
+    case "media.image":
+        <ImageBlockEditorPreview Node="MapToNeoNode(Block)" />
+        break;
+    case "media.video":
+        <VideoBlockEditorPreview Node="MapToNeoNode(Block)" />
+        break;
+    case "media.audio":
+        <AudioBlockEditorPreview Node="MapToNeoNode(Block)" />
+        break;
+    case "media.gallery":
+        <GalleryBlockEditorPreview Node="MapToNeoNode(Block)" />
+        break;
+    case "ui.raw-html":
+        <NeoRawHtmlBlockEditorPreview Node="MapToNeoNode(Block)" />
+        break;
+    case "ui.separator":
+        <SeparatorBlockEditorPreview Node="MapToNeoNode(Block)" />
+        break;
+    case "neo.layout.columns":
+        <div class="pe-block-placeholder">Columns Layout</div>
+        break;
+    case "neo.template.scriban":
+        <div class="pe-block-placeholder">Scriban Template</div>
+        break;
+    default:
+        <div class="pe-block-placeholder">@Block.Type</div>
+        break;
+}
+
+@code {
+    [Parameter] public EditorBlock Block { get; set; } = default!;
+    [Parameter] public bool IsSelected { get; set; }
+    [CascadingParameter] public IBlockEditorCallbacks Editor { get; set; } = default!;
+
+    // ── Neo node mapping ────────────────────────────────────────────
+    private NeoPageNode MapToNeoNode(EditorBlock block) => block.Type switch
+    {
+        "media.image" => new NeoPageNode
+        {
+            CatalogId = "media.image", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["src"] = JsonSerializer.SerializeToElement(block.Src),
+                ["alt"] = JsonSerializer.SerializeToElement(block.Alt),
+                ["caption"] = JsonSerializer.SerializeToElement(block.Caption ?? string.Empty)
+            }
+        },
+        "media.video" => new NeoPageNode
+        {
+            CatalogId = "media.video", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["src"] = JsonSerializer.SerializeToElement(block.Src),
+                ["autoplay"] = JsonSerializer.SerializeToElement(block.AutoPlay),
+                ["controls"] = JsonSerializer.SerializeToElement(true)
+            }
+        },
+        "media.audio" => new NeoPageNode
+        {
+            CatalogId = "media.audio", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["src"] = JsonSerializer.SerializeToElement(block.Src),
+                ["controls"] = JsonSerializer.SerializeToElement(true)
+            }
+        },
+        "media.gallery" => new NeoPageNode
+        {
+            CatalogId = "media.gallery", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["images"] = JsonSerializer.SerializeToElement(
+                    block.GalleryImages.Select(g => g.Src).ToList()),
+                ["columns"] = JsonSerializer.SerializeToElement(3)
+            }
+        },
+        "ui.raw-html" => new NeoPageNode
+        {
+            CatalogId = "ui.raw-html", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["html"] = JsonSerializer.SerializeToElement(block.Content)
+            }
+        },
+        "ui.separator" => new NeoPageNode
+        {
+            CatalogId = "ui.separator", Kind = NeoPageNodeKind.Block,
+            Properties = []
+        },
+        "aero.hero.01" => new NeoPageNode
+        {
+            CatalogId = "aero.hero.01", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["eyebrow"] = JsonSerializer.SerializeToElement("Introducing NeoUI v3"),
+                ["title"] = JsonSerializer.SerializeToElement(block.MainText),
+                ["highlight"] = JsonSerializer.SerializeToElement("faster than ever"),
+                ["description"] = JsonSerializer.SerializeToElement(block.SubText),
+                ["primaryText"] = JsonSerializer.SerializeToElement(block.CtaText),
+                ["primaryUrl"] = JsonSerializer.SerializeToElement(block.CtaUrl),
+                ["secondaryText"] = JsonSerializer.SerializeToElement(block.CtaText2),
+                ["secondaryUrl"] = JsonSerializer.SerializeToElement(block.CtaUrl2),
+                ["trustMarkers"] = JsonSerializer.SerializeToElement(new List<string>())
+            }
+        },
+        "aero.hero.basic" => new NeoPageNode
+        {
+            CatalogId = "aero.hero.basic", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["title"] = JsonSerializer.SerializeToElement(block.MainText),
+                ["subtitle"] = JsonSerializer.SerializeToElement(block.SubText),
+                ["backgroundImageUrl"] = JsonSerializer.SerializeToElement(block.BackgroundImage),
+                ["ctaText"] = JsonSerializer.SerializeToElement(block.CtaText),
+                ["ctaUrl"] = JsonSerializer.SerializeToElement(block.CtaUrl)
+            }
+        },
+        _ => new NeoPageNode
+        {
+            CatalogId = block.Type, Kind = NeoPageNodeKind.Block,
+            Properties = []
+        }
+    };
+
+    /// <summary>
+    /// Converts an EditorBlock to its corresponding BlockBase for property editing.
+    /// Uses MapToNeoNode + block-specific mapper for Neo blocks.
+    /// </summary>
+    public BlockBase? GetBlockBase(EditorBlock block) => block.Type switch
+    {
+        "aero.hero.01" => Hero01BlockMapper.FromNode(MapToNeoNode(block)),
+        "aero.hero.basic" => BasicHeroBlockMapper.FromNode(MapToNeoNode(block)),
+        "media.image" => ImageBlockMapper.FromNode(MapToNeoNode(block)),
+        "media.video" => VideoBlockMapper.FromNode(MapToNeoNode(block)),
+        "media.audio" => AudioBlockMapper.FromNode(MapToNeoNode(block)),
+        "media.gallery" => GalleryBlockMapper.FromNode(MapToNeoNode(block)),
+        "ui.raw-html" => NeoRawHtmlBlockMapper.FromNode(MapToNeoNode(block)),
+        "ui.separator" => SeparatorBlockMapper.FromNode(MapToNeoNode(block)),
+        "neo.layout.columns" => NeoColumnsBlockMapper.FromNode(MapToNeoNode(block)),
+        _ => null
+    };
+
+}

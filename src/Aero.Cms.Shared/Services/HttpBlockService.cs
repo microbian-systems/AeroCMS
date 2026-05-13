@@ -29,6 +29,27 @@ public sealed class HttpBlockService : IBlockService
         }
     }
 
+    /// <summary>
+    /// Client-side batch-load: issues individual HTTP requests per block ID.
+    /// This is NOT optimized for bulk retrieval (unlike the server-side
+    /// MartenBlockService which uses a single PostgreSQL query). The N+1
+    /// public page rendering path runs server-side (static SSR), so this
+    /// method exists only to satisfy the IBlockService contract in WASM
+    /// contexts where bulk-load is not on the hot path.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<long, BlockBase>> GetByIdsAsync(
+        IEnumerable<long> ids, CancellationToken ct = default)
+    {
+        var result = new Dictionary<long, BlockBase>();
+        foreach (var id in ids)
+        {
+            var block = await GetByIdAsync(id, ct);
+            if (block is not null)
+                result[id] = block;
+        }
+        return result;
+    }
+
     public async Task<BlockBase> SaveAsync(BlockBase block, CancellationToken ct = default)
     {
         // On the client side, we usually save blocks as part of the page in a "one-shot" save.

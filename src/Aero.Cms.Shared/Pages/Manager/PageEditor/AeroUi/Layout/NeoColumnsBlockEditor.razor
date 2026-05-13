@@ -1,0 +1,30 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Gap between columns</label>
+        <RadzenNumeric @bind-Value="Block.Gap" Min="0" Max="12" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <RadzenCheckBox @bind-Value="Block.EqualHeight">
+            Equal Height Columns
+        </RadzenCheckBox>
+    </div>
+    @for (int i = 0; i < Block.Items.Count; i++)
+    {
+        var index = i;
+        <div class="pe-property-group">
+            <label class="pe-property-label">Column @(index + 1) — Content</label>
+            <RadzenTextArea @bind-Value="Block.Items[index].Content" Class="w-full" Rows="3" />
+        </div>
+        <div class="pe-property-group">
+            <label class="pe-property-label">Column @(index + 1) — Span (1-12)</label>
+            <RadzenNumeric @bind-Value="Block.Items[index].Span" Min="1" Max="12" Class="w-full" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoColumnsBlock Block { get; set; } = default!;
+}

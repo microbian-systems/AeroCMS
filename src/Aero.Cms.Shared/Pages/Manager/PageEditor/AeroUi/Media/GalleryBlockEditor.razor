@@ -1,0 +1,24 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Images (@Block.Images.Count total)</label>
+    </div>
+    @for (int i = 0; i < Block.Images.Count; i++)
+    {
+        var index = i;
+        <div class="pe-property-group">
+            <label class="pe-property-label">Image @(index + 1)</label>
+            <RadzenTextArea @bind-Value="Block.Images[index]" Class="w-full" Rows="2" />
+        </div>
+    }
+    <div class="pe-property-group">
+        <label class="pe-property-label">Columns</label>
+        <RadzenNumeric @bind-Value="Block.Columns" Min="1" Max="6" Class="w-full" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public GalleryBlock Block { get; set; } = default!;
+}

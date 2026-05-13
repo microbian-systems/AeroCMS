@@ -1,0 +1,17 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+@if (Block != null)
+{
+    <figure class="my-8">
+        <audio src="@Block.Src" controls="@Block.Controls" autoplay="@Block.Autoplay" class="w-full">
+        </audio>
+        @if (!string.IsNullOrEmpty(Block.Caption))
+        {
+            <figcaption class="mt-2 text-sm text-muted-foreground text-center">@Block.Caption</figcaption>
+        }
+    </figure>
+}
+
+@code {
+    [Parameter, EditorRequired] public AudioBlock? Block { get; set; }
+}

@@ -34,6 +34,11 @@ public class PageCacheHook(IFusionCache cache) : IPageReadHook
 
 /// <summary>
 /// Hook to store successfully read pages into the cache.
+///
+/// Tags entries with both coarse (<c>pages-list</c>) and fine-grained
+/// (<c>page-slug-{tenantId}:{slug}</c>) tags so <c>FusionCacheInvalidationService</c>
+/// can evict a single page via <c>RemoveByTagAsync("page-slug-...")</c>
+/// without blowing away the entire page cache.
 /// </summary>
 public class PageCacheStoreHook(IFusionCache cache) : IPageReadHook
 {
@@ -45,7 +50,18 @@ public class PageCacheStoreHook(IFusionCache cache) : IPageReadHook
         if (ctx.Page != null && !ctx.IsShortCircuited)
         {
             var key = GetCacheKey(ctx);
-            await cache.SetAsync(key, ctx.Page, token: ct);
+
+            // Tag with both coarse and fine-grained tags so individual
+            // pages can be evicted without invalidating the entire cache.
+            // Coarse tag "pages-list" → evict all pages (publish, navigation/footer change)
+            // Fine tag "page-slug-{tenantId}:{slug}" → evict single page (slug update)
+            var tags = new List<string>(2)
+            {
+                "pages-list",
+                $"page-slug-{ctx.TenantId ?? 0}:{ctx.Slug.ToLowerInvariant()}"
+            };
+
+            await cache.SetAsync(key, ctx.Page, tags: tags, token: ct);
         }
     }
 

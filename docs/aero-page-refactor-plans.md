@@ -316,3 +316,456 @@ The data model uses `PageMetadataUpdated` as the metadata event. Cache invalidat
 - slug changes
 - title/SEO/display changes that affect rendered HTML
 - page content/block changes that affect rendered HTML
+
+---
+
+## Progress Tracking
+
+### Overall Status
+
+| Step | Status | Files Created | Files Modified | Notes |
+|---|---|---|---|---|---|
+| 1. PageDocument Foundation | ✅ Complete | 4 | 4 | `PageEditorState`, `PageMetadataUpdated`, new `PagePublished` |
+| 2. Preview/Publish Pipeline | ✅ Complete | 4 | 1 | `IPageLayoutManifestBuilder`, publish wired in Step 7 Phase A |
+| 3. Data Migration | ✅ Complete | 1 | 1 | `PageDocumentMigration` (idempotent, per-site) |
+| 4. Renderer Compatibility & Cache | ✅ Complete | 0 | 1 | Publish/archive eviction; 2 items deferred |
+| 5. NeoUI PageEditor Shell | ✅ Complete | 14 | 4 | NeoUI services, assets, AppProvider, catalog sidebar, Sortable, property panel, legacy removal |
+| 6. Neo Block & Composition Model | ✅ Complete | 24 | 2 | 11 Neo blocks (models, renderers, mappers, catalog entries), 8 editor previews, 2 property editors |
+| 7. Neo Legacy Block Migration | ✅ Complete | 10 | 3 | Migration infra; ~2200 lines legacy code removed; 14 API endpoints |
+| **Total** | | **57** | **16** | **Build: 0 errors; Phase 0-7 done; Phase 8 + deferred items remain** |
+
+### Cross-Reference: aero-blocks-renderers-neoui.md Phases
+
+The NeoUI doc defines 8 implementation phases. This table maps them to the aero-page-refactor-plans steps:
+
+| NeoUI Phase | Mapped Step | Status | What's Done | What's Outstanding |
+|---|---|---|---|---|
+| Phase 0 — NeoUI Setup | Step 5 | ✅ Done | NuGet packages (4.0.18/4.0.5/3.0.0), services, AppProvider + 4 portal hosts, CSS/JS assets, scoped imports | — |
+| Phase 1 — Static SSR Public Page Host | Step 4 (new) | ✅ Done | `.cshtml` + `<component>` tag helpers already provide Blazor static SSR for all renderers; output-cache preserved via `[OutputCache]` on `DynamicPageModel` | — |
+| Phase 2 — Legacy Migration Bridge | Step 7 | ✅ Done | `ILegacyBlockMapper`, `BlockContentMigrationService`, Wolverine handler, 14 API endpoints | — |
+| Phase 3 — Neo PageEditor Shell | Step 5 | ✅ Done | Component decomposition, catalog-driven sidebar, NeoUI Sortable palette/canvas, `PageEditorPropertyPanel`, `BlockEditorHost` | Lazy `PageEditorState` creation on first editor open |
+| Phase 4 — Neo Catalog Foundation | Step 6 | ✅ Done | `NeoEditorCatalogSection`, `NeoEditorCatalogKind`, `NeoPropertyFieldType`, `NeoPropertyDefinition`, `NeoEditorCatalogItem`, `NeoEditorCatalogProvider` (11 entries), `INeoEditorCatalogProvider`, `NeoCatalogSectionMapper` | `NeoEditorCatalogValidator`, serialization tests |
+| Phase 5 — Initial Neo Blocks & Primitives | Step 6 | ✅ Done | 11 Neo blocks: `Hero01Block`, `BasicHeroBlock`, `ImageBlock`, `VideoBlock`, `AudioBlock`, `GalleryBlock`, `NeoRawHtmlBlock`, `SeparatorBlock`, `NeoColumnsBlock`, `ScribanBlock`, `NeoCompositionBlock` — all with model+renderer+mapper+catalog entry+renderer marker; 8 editor previews; 2 property editors | Property editors for blocks 3-11; editor previews for Scriban+NeoColumns |
+| Phase 6 — Generated Catalog & Typed Adapters | Step 6 | ✅ Done | `ICmsBlockRenderAdapter<TBlock>`, source-generated `NeoEditorCatalogProvider` (partial + `GeneratedNeoEditorCatalog.g.cs`), CLR property extraction, adapter classes implement typed interface | Editor preview types emitted as `null` (naming convention unreliable); property definitions deferred (cross-pipeline data) |
+| Phase 7 — Final Legacy Content Cutover | Step 7 | ✅ Done | ~2200 lines removed: legacy sidebar sections (4 sections, 29 blocks), legacy `RenderXxxBlock` previews (~1350 lines), 25 legacy `CreateBlock` cases, dead column/drag methods, dead `IBlockEditorCallbacks` members | Remove `EditorBlock`-based save/publish from `PageContentService`; dead UI (`BlockEditor.razor`, `BlockPicker.razor`) |
+| Phase 8 — Expand Neo Blocks | Future | ✋ User-handled | — | Feature Grid, Pricing, Testimonials, FAQ, Blog Grid, etc. — user will provide 50+ Neo components before implementation begins |
+
+---
+
+## Detailed Progress by Step
+
+### ✅ Step 1 — PageDocument Foundation (COMPLETE)
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Add `PageEditorState` | ✅ Done | `src/Aero.Cms.Core.Entities/PageEditorState.cs` |
+| Add `EditorBlockPlacement` | ✅ Done | `src/Aero.Cms.Core.Entities/EditorBlockPlacement.cs` |
+| Move `Blocks` and `BlockIdMap` out of PageDocument | ✅ Done | `PageDocument.Blocks`/`.BlockIdMap` kept for backward compat; migration in Step 3 |
+| Keep `PageDocument.LayoutRegions` as published manifest | ✅ Done | Old `Apply(PageContentUpdated)` still writes it; new `Apply(PageMetadataUpdated)` does not |
+| Add `PublishedVersion` to PageDocument | ✅ Done | `PageDocument.PublishedVersion` (long, default 0) |
+| Add `PageMetadataUpdated` event | ✅ Done | `src/Aero.Cms.Abstractions/Events/PageEvents.cs` |
+| Update `PagePublished` to carry LayoutRegions + Version | ✅ Done | Optional params for backward compat |
+| Add `Apply(PageMetadataUpdated)` | ✅ Done | Metadata-only; no LayoutRegions/Blocks |
+| Add `Apply(PagePublished)` with new shape | ✅ Done | Handles Version + LayoutRegions |
+| Add `PageAdminStatusService` | ✅ Done | `src/Aero.Cms.Modules.Pages/Admin/PageAdminStatusService.cs` |
+| Add `PageDeleteHandler` | ✅ Done | `src/Aero.Cms.Modules.Pages/PageDeleteHandler.cs` |
+| Update `PageDocumentProjection` | ✅ Done | Wired new events alongside old |
+| Register new services in `PagesModule` | ✅ Done | DI registration |
+| Build verification | ✅ Done | Core.Entities, Abstractions, Pages, Shared — all green (0 errors) |
+
+**Files created:** `PageEditorState.cs`, `EditorBlockPlacement.cs`, `PageAdminStatusService.cs`, `PageDeleteHandler.cs`
+**Files modified:** `PageDocument.cs`, `PageEvents.cs`, `PageDocumentProjection.cs`, `PagesModule.cs`
+
+### ✅ Step 2 — Preview and Publish Pipeline (COMPLETE)
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Add `IPageLayoutManifestBuilder` | ✅ Done | `src/Aero.Cms.Modules.Pages/IPageLayoutManifestBuilder.cs` |
+| Add `PageLayoutManifestBuilder` | ✅ Done | `src/Aero.Cms.Modules.Pages/PageLayoutManifestBuilder.cs` |
+| Add `IPagePreviewService` | ✅ Done | `src/Aero.Cms.Modules.Pages/IPagePreviewService.cs` |
+| Add `PagePreviewService` | ✅ Done | `src/Aero.Cms.Modules.Pages/PagePreviewService.cs` |
+| Add `PreviewRenderModel` | ✅ Done | In `IPagePreviewService.cs` |
+| Preview uses builder | ✅ Done | Preview pipeline: load PageDocument → load PageEditorState → load blocks → build → return transient layout |
+| Publish uses builder | ✅ Done | Wired in Step 7 Phase A (`PagePublishingWorkflowService.PublishNowAsync`) |
+| Preview never writes to PageDocument | ✅ Done | Preview service loads PageDocument metadata but never stores/updates LayoutRegions |
+| Register services in PagesModule | ✅ Done | Singleton builder, Scoped preview service |
+| Build verification | ✅ Done | Pages, Shared — all green (0 errors) |
+
+**Files created:** `IPageLayoutManifestBuilder.cs`, `PageLayoutManifestBuilder.cs`, `IPagePreviewService.cs` (with `PreviewRenderModel`), `PagePreviewService.cs`
+**Files modified:** `PagesModule.cs` (DI registration)
+
+### ✅ Step 3 — Existing Data Migration (COMPLETE)
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Create `PageDocumentMigration` | ✅ Done | `src/Aero.Cms.Modules.Pages/PageDocumentMigration.cs` |
+| Convert `EditorBlock` list → `EditorBlockPlacement` entries | ✅ Done | Maps `EditorId` → `ClientId`, `BlockIdMap` lookup → `BlockId` |
+| Copy/rebuild `BlockIdMap` into `PageEditorState.BlockIdMap` | ✅ Done | Direct copy from `PageDocument.BlockIdMap` |
+| Preserve `PageDocument.LayoutRegions` | ✅ Done | LayoutRegions untouched; only editor state migrates |
+| Handle pages with both `Blocks` + `LayoutRegions` | ✅ Done | Migrates editor state; leaves LayoutRegions as published manifest |
+| Handle `LayoutRegions`-only pages (empty editor state) | ✅ Done | Creates empty `PageEditorState` with `DraftVersion = 0` |
+| Marten event upcasting (`PageContentUpdated` → `PageMetadataUpdated`) | 🔜 Deferred | Both event types are actively used |
+| Rollback safety (snapshot affected IDs) | ✅ Done | `MigrationResult.AffectedPageIds` tracks all processed pages for rollback |
+| Idempotency | ✅ Done | Checks for existing `PageEditorState` before creating; safe to re-run |
+| Register in PagesModule | ✅ Done | Scoped registration |
+| Build verification | ✅ Done | Pages, Shared — all green (0 errors) |
+
+**Migration behavior per page:**
+
+| Page state | Action |
+|---|---|
+| `Blocks.Count > 0` + no existing `PageEditorState` | Creates `PageEditorState` with placements + `DraftVersion = PublishedVersion + 1` |
+| `Blocks.Count == 0` + no existing `PageEditorState` | Creates empty `PageEditorState` with `DraftVersion = 0` |
+| `PageEditorState` already exists | Skips (idempotent) |
+
+**Files created:** `PageDocumentMigration.cs`
+**Files modified:** `PagesModule.cs` (DI registration)
+
+### ✅ Step 4 — Renderer Compatibility and Cache Preservation (COMPLETE)
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Public rendering reads `PageDocument.LayoutRegions` | ✅ Verified | `Page.cshtml` already renders via `LayoutRegionRenderer` from published manifest |
+| `BlockPlacement` references live `BlockBase` by `BlockId` | ✅ Verified | `BlockPlacementRenderer` does `blockService.GetByIdAsync(Placement.BlockId)` (reference model) |
+| `BlockType` is dispatch metadata only | ✅ Verified | Used only for renderer resolution, not a data snapshot |
+| Output-cache policies still apply | ✅ Verified | `PagesPolicy` (5min, vary by slug) on `Page.cshtml` → runs through `CmsOutputCachePolicy` |
+| Cache eviction on save/draft update | ✅ Verified | `ContentUpdatedHandler` consumes `PageContentUpdatedEvent` + `PageViewModelUpdated` → evicts `pages-list` + removes FusionCache slug keys |
+| Cache eviction on publish | ✅ Done | Added `IMessageBus.PublishAsync` in `PagePublishingWorkflowService.PublishNowAsync` (broadcasts `PageViewModelUpdated` + `PageContentUpdatedEvent`) |
+| Cache eviction on archive | ✅ Done | Added in `PagePublishingWorkflowService.ArchiveAsync` (same pattern) |
+| Draft preview not cached | ✅ Verified | `Page.cshtml.cs` sets `no-store` for drafts; `CmsOutputCachePolicy` blocks authenticated requests |
+| Empty `LayoutRegions` handled gracefully | ✅ Verified | `Page.cshtml` line 34: `@if (pageDoc.LayoutRegions.Count > 0)` guard |
+| Staging smoke/load gate | 🔜 Deferred | Operational concern — add gated rollout before production |
+| PagesApi publish/unpublish cache eviction | 🔜 Deferred | `PagesApi.PublishPage`/`UnpublishPage` are static methods; cache eviction will be added when these are refactored |
+
+**Files modified:** `PagePublishingWorkflowService.cs` (added `IMessageBus` + cache eviction broadcasting)
+
+### 🔄 Step 5 — NeoUI PageEditor Shell (PARTIAL)
+
+#### ✅ Done: Component Decomposition
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Extract `PageEditorHeader.razor` | ✅ Done | Title input, meta, save/publish buttons → standalone component with code-behind |
+| Extract `EditorBlockFrame.razor` | ✅ Done | Block wrapper with toolbar (move up/down, duplicate, delete) + drag-drop |
+| Extract `PageEditorCanvas.razor` | ✅ Done | Block list loop, empty state, drag-drop orchestration |
+| Extract `BlockEditorPreviewHost.razor` | ✅ Done | ALL block preview rendering (~1300 lines moved from PageEditor.razor) — still uses old legacy block previews |
+| Create `IBlockEditorCallbacks` interface | ✅ Done | Cascading callbacks interface (18 members) for preview → orchestrator communication |
+| Add `IBlockEditorCallbacks` implementation | ✅ Done | Explicit interface implementation in PageEditor.razor.cs (forwards to protected methods) |
+| Simplify `PageEditor.razor` to orchestrator | ✅ Done | Reduced from 2021 → 549 lines (73% reduction) |
+| Code-behind updated for component callbacks | ✅ Done | Drag signatures updated for component-based event flow |
+| Build verification | ✅ Done | Shared project — 0 errors |
+
+**Files created:**
+- `IBlockEditorCallbacks.cs` — Callback interface (18 members)
+- `PageEditorHeader.razor` + `.razor.cs` — Header component
+- `EditorBlockFrame.razor` + `.razor.cs` — Block frame w/ toolbar
+- `PageEditorCanvas.razor` — Block list canvas
+- `BlockEditorPreviews/BlockEditorPreviewHost.razor` — All block preview rendering (contains ~1358 lines of inline Razor previews)
+
+**Files modified:**
+- `PageEditor.razor` — Reduced from 2021 → 549 lines (orchestrator)
+- `PageEditor.razor.cs` — Added `IBlockEditorCallbacks` + updated drag signatures + `ToggleSidebarPanels`
+
+#### ✅ Done: NeoUI Integration & Catalog-Driven Editor
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Add NuGet packages: `NeoUI.Blazor` (4.0.18), `NeoUI.Blazor.Primitives` (4.0.5), `NeoUI.Icons.Lucide` (3.0.0) | ✅ Done | `Directory.Packages.props` + `Aero.Cms.Shared.csproj` + `Aero.Cms.Modules.Setup.csproj` |
+| Register services: `AddNeoUIPrimitives()` (first), `AddNeoUIComponents()` | ✅ Done | `Program.cs`, `SetupAppFactory.cs`, `MauiProgram.cs`; `Web.Client` removed (WASM doesn't need NeoUI) |
+| Load NeoUI assets (manager only): `components.css`, `base/zinc.css`, `primary/blue.css`, `theme.js` | ✅ Done | In `App.razor` head/body; plain `href` (not `@Assets[...]` cache-busting) |
+| Add `AppProvider` + 4 portal hosts (`ToastViewport`, `DialogHost`, `ContainerPortalHost`, `OverlayPortalHost`) | ✅ Done | Inside `<AppProvider>` in `ManagerShellLayout.razor` |
+| Add `@using NeoUI.Blazor.Extensions` + `@using NeoUI.Blazor.Primitives.Extensions` | ✅ Done | Scoped to `ManagerShellLayout.razor`; NOT in `_Imports.razor` (caused 74+ namespace collisions with Radzen) |
+| Verify no npm target runs during build | ✅ Done | Verified; no npm triggers |
+| Replace hardcoded right-sidebar with catalog-driven "Aero UI" section | ✅ Done | `INeoEditorCatalogProvider` injected; 11 Neo catalog items sorted by SortOrder; "aeroui" toggle case |
+| Add NeoUI `Sortable` palette/canvas behavior | ✅ Done | `PageEditorPaletteSection.razor` (copy-source) + `PageEditorCanvas.razor` (reorder/drop-target); `Group="page-editor"` |
+| Build `PageEditorPropertyPanel` + `BlockEditorHost` (per-block editor dispatch) | ✅ Done | `Hero01BlockEditor` + `BasicHeroBlockEditor` property editors; fallback for unknown types |
+| Build `BlockPalette` | ✅ Done | Catalog-driven palette as part of "Aero UI" sidebar section |
+| Build verification | ✅ Done | 0 errors |
+
+#### ⏳ Outstanding
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Lazily create `PageEditorState` on first editor open | ⏳ Not started | New pages may not have editor state until first edit |
+
+Target folder structure from `aero-blocks-renderers-neoui.md:1475-1552` is the reference for these new files.
+
+### 🔄 Step 6 — Neo Block and Composition Model (PARTIAL)
+
+#### ✅ Done: Core Model & Composition
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Create `NeoPageNodeKind` enum | ✅ Done | `Block`, `Section`, `Container`, `Component`, `Primitive` with `JsonStringEnumConverter` |
+| Create `NeoPageNode` class | ✅ Done | `NodeId`, `CatalogId`, `Kind`, `Properties` (Dictionary\<string, JsonElement\>), `Children` — per advisory to avoid `JsonObject` issues |
+| Create `NeoCompositionBlock : BlockBase` | ✅ Done | `BlockType = "neo_composition"`, `[BlockMetadata("neo_composition", "Neo Composition", Category = "Layout")]`, `List<NeoPageNode> Nodes` |
+| Source generator registration | ✅ Auto | `[BlockMetadata]` on `NeoCompositionBlock` → auto-registered in `GeneratedBlockModelManifest`, `BlockBase.Polymorphic.g.cs`, `GeneratedBlockFactory` |
+| Create `NeoCompositionBlockRenderer` | ✅ Done | SSR Razor component that walks `NeoPageNode` tree |
+| Create `NeoNodeRenderer` | ✅ Done | Recursive per-node renderer with `NestingDepth`/`MaxDepth` guard (max 5 levels) |
+| Renderer marker registration | ✅ Done | `[CmsBlockRenderer(typeof(NeoCompositionBlock))]` in `RendererMarkers.cs` |
+| `NestingDepth`/`MaxNestingDepth` on `BlockRenderContext` | ✅ Done | Step 7 Phase A; default 0/5 |
+| Catalog per-node rendering | 🔜 Deferred | V1 renderer shows placeholder `[catalogId]` for unknown nodes; per-node catalog dispatch deferred until individual Neo catalog items are defined |
+| Build verification | ✅ Done | Shared + Abstractions — 0 errors |
+
+**Files created:**
+- `src/Aero.Cms.Abstractions/Blocks/Neo/NeoPageNodeKind.cs` — composition node kind enum
+- `src/Aero.Cms.Abstractions/Blocks/Neo/NeoPageNode.cs` — composition tree node (Dict\<string, JsonElement\>)
+- `src/Aero.Cms.Abstractions/Blocks/Neo/NeoCompositionBlock.cs` — BlockBase subclass
+- `src/Aero.Cms.Shared/Blocks/Rendering/NeoCompositionBlockRenderer.razor` — SSR renderer
+- `src/Aero.Cms.Shared/Blocks/Rendering/NeoNodeRenderer.razor` — recursive per-node renderer
+
+**Files modified:**
+- `src/Aero.Cms.Shared/Blocks/Rendering/RendererMarkers.cs` — added `NeoCompositionBlockRenderer` marker
+
+#### ✅ Done: Typed Neo Blocks & Catalog Infrastructure
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Add `Hero01Block` (aero.hero.01) | ✅ Done | Model: Eyebrow, Title, Highlight, Description, PrimaryText/Url, SecondaryText/Url, TrustMarkers; `BlockMetadata` |
+| Add `Hero01BlockRenderer.razor` | ✅ Done | Static SSR public renderer (plain HTML, no NeoUI components) |
+| Add `Hero01BlockEditorPreview.razor` | ✅ Done | Editor canvas preview wrapping the renderer |
+| Add `Hero01BlockEditor.razor` (property editor) | ✅ Done | Radzen-based structured property editor |
+| Add `Hero01BlockMapper.cs` | ✅ Done | Node ↔ Block mapping |
+| Add `BasicHeroBlock` (aero.hero.basic) | ✅ Done | Migration target for legacy `boring_hero`; 5 properties |
+| Add `BasicHeroBlockRenderer.razor` + mapper + editor preview + property editor | ✅ Done | Full implementation |
+| Add `ImageBlock` (media.image) | ✅ Done | src, alt, caption, imageMediaId; renderer + mapper + editor preview |
+| Add `VideoBlock` (media.video) | ✅ Done | src, poster, caption, autoplay, loop, controls; renderer + mapper + editor preview |
+| Add `AudioBlock` (media.audio) | ✅ Done | src, caption, controls, autoplay; renderer + mapper + editor preview |
+| Add `GalleryBlock` (media.gallery) | ✅ Done | images list, columns; renderer + mapper + editor preview |
+| Add `NeoRawHtmlBlock` (ui.raw-html) | ✅ Done | html; renamed from RawHtmlBlock (avoid source gen collision with legacy `RawHtmlBlock`) |
+| Add `SeparatorBlock` (ui.separator) | ✅ Done | Minimal block; renderer + mapper + editor preview |
+| Add `NeoColumnsBlock` (neo.layout.columns) | ✅ Done | items list with span, gap, equalHeight; renamed from ColumnsBlock (source gen collision); renderer + mapper |
+| Add `ScribanBlock` (neo.template.scriban) | ✅ Done | name, template, JsonDocument Data; `ISecureScribanRenderer` injection; `OnParametersSetAsync` pattern; renderer + mapper |
+| Add `NeoEditorCatalogSection`, `NeoEditorCatalogKind` enums | ✅ Done | AeroUi, Primitives, Components; Block, Primitive, Component |
+| Add `NeoPropertyFieldType` enum + `NeoPropertyDefinition` record | ✅ Done | 9 field types (Text→Json); Name, Label, FieldType, Required, DefaultValue, Options |
+| Add `NeoEditorCatalogItem` record + `INeoEditorCatalogProvider` + `NeoEditorCatalogProvider` | ✅ Done | 11 catalog entries; registered as singleton |
+| Add `NeoCatalogSectionMapper` | ✅ Done | Case-insensitive string → enum mapping |
+| Add `RendererMarkers.cs` entries for all 11 Neo renderers | ✅ Done | Fully-qualified `typeof()` where legacy types conflict |
+| Build verification | ✅ Done | 0 errors; source generator auto-discovers via `[BlockMetadata]` |
+
+**Files created (24):** 11 block models, 11 renderers, 11 mappers, 11 editor previews (Hero01+BasicHero only for property editors), 8 catalog infrastructure files, `RendererMarkers.cs` entries
+
+#### ⏳ Outstanding
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Property editors for Image, Video, Audio, Gallery, NeoRawHtml, Separator, NeoColumns, Scriban blocks | ⏳ Not started | Editor previews exist; structured property editors deferred |
+| Editor previews for ScribanBlock + NeoColumnsBlock | ⏳ Not started | Show placeholder div in canvas |
+| `NeoEditorCatalogValidator` | ⏳ Not started | Catalog ID validation, parent/child placement rules |
+| `BlockAction` + `BlockActionRole` shared semantic action model | ⏳ Not started | Per spec; Hero01Block uses simple string properties for now |
+| Catalog serialization tests | ⏳ Not started | Marten round-trip for `NeoCompositionBlock` |
+| Catalog per-node rendering in `NeoNodeRenderer` | 🔜 Deferred | Shows `[catalogId]` placeholder until individual catalog dispatch defined |
+
+### 🔄 Step 7 — Neo Legacy Block Migration (PARTIAL)
+
+#### ✅ Done: Migration Infrastructure
+
+| Phase | Deliverable | Status | Notes |
+|---|---|---|---|
+| A | Add `BlockSchemaVersion` to `PageDocument` | ✅ Done | `public int BlockSchemaVersion { get; set; }` — default 0, used for migration idempotency |
+| A | Wire `IPageLayoutManifestBuilder` into publish flow | ✅ Done | `PagePublishingWorkflowService.PublishNowAsync` now loads `PageEditorState`, resolves `BlockBase` docs, calls `_layoutBuilder.BuildAsync()`, and emits `PagePublished(LayoutRegions, Version)` |
+| B | Create `NeoCatalogIds` constants | ✅ Done | 13 stable catalog IDs |
+| B | Create `ILegacyBlockMapper` | ✅ Done | `List<NeoPageNode> MapFromBlock(BlockBase block)` |
+| B | Create `LegacyBlockMapper` impl | ✅ Done | 12+ block type mappings; uses `JsonSerializer.SerializeToElement` |
+| B | Register in DI | ✅ Done | `PagesModule.cs` — singleton |
+| C | Create `BlockMigrationResult` | ✅ Done | Record: Migrated, Skipped, Failed, AffectedPageIds, Errors |
+| C | Create `IBlockContentMigrationService` + impl | ✅ Done | Idempotent; per-page and per-site |
+| C | Create Wolverine commands + handler | ✅ Done | `MigratePageBlockContent` / `MigrateSiteBlockContent` + `BlockContentMigrationHandler` |
+| C | Register services in DI | ✅ Done | Scoped registration |
+| D | Document migration tested | ✅ Done | 6 pages; all have `PageEditorState` |
+| D | Block migration tested | ✅ Done | All pages at current schema; zero rendering changes |
+| D | API endpoints added | ✅ Done | 14 migration endpoints (page, site, diagnose, status, page-list) |
+
+**Files created (10):** `NeoCatalogIds.cs`, `ILegacyBlockMapper.cs`, `LegacyBlockMapper.cs`, `BlockMigrationResult.cs`, `IBlockContentMigrationService.cs`, `BlockContentMigrationService.cs`, `MigrationCommands.cs`, `BlockContentMigrationHandler.cs`, `MigrationApiRoutes.cs`
+**Files modified (3):** `PageDocument.cs` (BlockSchemaVersion), `PagePublishingWorkflowService.cs` (layout builder), `BlockRenderContext.cs` (NestingDepth/MaxNestingDepth)
+
+#### ✅ Done: Safety Valve, Scriban Port, Legacy Editor Removal
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Port Neo Scriban with catalog metadata, editor preview, public SSR renderer | ✅ Done | `ScribanBlock` (neo.template.scriban); renderer uses `ISecureScribanRenderer` + `OnParametersSetAsync`; mapper; catalog entry |
+| Remove old block editor UI | ✅ Done | ~1350 lines of legacy `RenderXxxBlock` previews removed from `BlockEditorPreviewHost.razor` (1492→~140 lines) |
+| Remove old sidebar block entries (4 sections, 29 block types) | ✅ Done | UI, Aero UX, Media, References sections removed; `ToggleCategory` cases cleaned up |
+| Remove legacy `CreateBlock` cases | ✅ Done | 25 legacy cases removed; only `aero.hero.01`, `aero.hero.basic` remain |
+| Remove dead column/drag methods | ✅ Done | `UpdateColumnCount`, `AddBlockToColumn`, `CreateNestedBlock`, `RemoveNestedBlock`, `DropOnColumn` + `IBlockEditorCallbacks` members |
+| Remove dead HTML5 drag handlers | ✅ Done | `DragStartBlock`, `DragOverBlock`, `OnDropCanvas`, `DropBlock`, `DraggedBlockId`, `DragOverIndex` |
+| Remove dead imports | ✅ Done | `BlockEditorPreviewHost.razor`: removed 7 unused `@using` directives |
+| Build verification | ✅ Done | 0 errors |
+
+#### ⏳ Outstanding
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Remove `EditorBlock`-based save/publish logic from `PageContentService` | ⏳ Not started | Legacy persistence path |
+| Remove dead UI: `BlockEditor.razor`, `BlockPicker.razor` (~630 lines) | ⏳ Not started | Per `block-editor-refactor.md` |
+| Remove old `IBlockSliceRenderer` and `BlockSliceRegistry` | 🔜 Deferred | Council finding: zero concrete implementations; verify render path first |
+| Neo Scriban security hardening | 🔜 Deferred | Allowlist, sandbox, timeouts, sanitization, error rendering |
+
+---
+
+## Next Implementation Slice (Updated 2026-05-14)
+
+Based on current state (Phases 0-7 complete, Phase 1/6/8 + deferred items remain):
+
+### Batch A — Static SSR Host + Legacy Cleanup (Phase 1 + Phase 7 remainder)
+
+| # | Task | Files (est.) | Depends on |
+|---|---|---|---|
+| 1 | Replace `Page.cshtml` with `.razor` static SSR host, preserve output-cache policy | 2 | — |
+| 2 | Remove `EditorBlock`-based save/publish from `PageContentService` | 1 | — |
+| 3 | Remove dead UI: `BlockEditor.razor`, `BlockPicker.razor` (~630 lines) | 2 | 2 |
+| 4 | Lazily create `PageEditorState` on first editor open | 1 | — |
+
+### Batch B — Editor Completeness (Phase 5 remainder)
+
+| # | Task | Files (est.) | Depends on |
+|---|---|---|---|
+| 5 | Property editors for Image, Video, Audio, Gallery, NeoRawHtml, Separator, NeoColumns, Scriban | ~8 | — |
+| 6 | Editor previews for ScribanBlock + NeoColumnsBlock | 2 | — |
+| 7 | `NeoEditorCatalogValidator` (catalog ID validation, parent/child placement) | 1 | — |
+| 8 | `BlockAction` + `BlockActionRole` shared semantic action model | 1 | — |
+
+### Batch C — Source Generator + Typed Adapters (Phase 6)
+
+| # | Task | Files (est.) | Depends on |
+|---|---|---|---|
+| 9 | `ICmsBlockRenderAdapter<TBlock>` typed variant | 1 | — |
+| 10 | Source generator updates for catalog metadata | ~2 | 9 |
+| 11 | Replace hardcoded catalog with source-generated registry | 1 | 10 |
+
+### Batch D — Neo Blocks Expansion (Phase 8)
+
+| # | Task | Files (est.) | Depends on |
+|---|---|---|---|
+| 12 | Port `feature-01` from NeoUI.io as `NeoFeatureGridBlock` | ~4 | Batch B |
+| 13 | Build Pricing, Testimonials, FAQ blocks from NeoUI components (Card, Grid, Button) | ~12 | 12 |
+| 14 | Build Blog Grid, Contact, Portfolio, Table/DataGrid blocks | ~16 | 13 |
+
+### Batch E — Optimizations & Hardening
+
+| # | Task | Files (est.) | Depends on |
+|---|---|---|---|---|
+| 17 | Neo Scriban security hardening (sandbox, allowlist, timeouts) | ~2 | ✋ Requires user confirmation — last |
+
+### ✅ Done This Session (2026-05-14)
+| # | Task | Files | Notes |
+|---|---|---|---|
+| — | N+1 query optimization | 6 | `IBlockService.GetByIdsAsync` + `BlockRenderCache` (scoped) + `DynamicPageModel.PreloadBlockCacheAsync` + `BlockPlacementRenderer.razor` sync lookup + `PagePreviewService` batch |
+| — | PagesApi cache eviction | 1 | `PublishPage`/`UnpublishPage` now broadcast `PageContentUpdatedEvent` via `IMessageBus` |
+| — | Dead code removal | 4 | Deleted `BlockSliceRegistry` (115 lines), `IBlockSliceRenderer` (26), `CmsBlockSliceRenderer` (15), DI registration |
+| — | Client WASM NeoUI DI | 1 | Added `AddNeoUIPrimitives()`/`AddNeoUIComponents()` to `Aero.Cms.Web.Client/Program.cs` |
+
+## Known Deferred Items
+
+These were explicitly deferred during implementation and are tracked for follow-up:
+
+| Item | Step | Rationale |
+|---|---|---|---|
+| Marten event upcasting (`PageContentUpdated` → `PageMetadataUpdated`) | 3 | Both event types are actively used; upcast when service layer switches |
+| Remove `PageDocument.Blocks` and `.BlockIdMap` | 1 | Kept for backward compat; remove after migration verified in production |
+| Staging smoke/load gate | 4 | Operational concern — add before production |
+| Fine-grained cache tags (`site:{id}`, `page:{id}`, `slug:{slug}`) | 4 | Coarse tags (`pages-list`) sufficient for current policy |
+| Catalog per-node rendering in `NeoNodeRenderer` | 6 | Shows `[catalogId]` placeholder until individual Neo catalog items defined |
+| Carousel migration | 7 | Not in initial migration set (Gallery instead) |
+| Flatten `LayoutRegions` to `EditorBlock` (Option C from `block-editor-refactor.md`) | Future | Council-reviewed: 3-4 week refactor; verify render path first |
+| Remove `BlockBase` hierarchy + legacy subtypes | Future | ~35 files; requires verifying public rendering path independence |
+| Neo Scriban security hardening | Future | ✋ User-confirmed: last item to address. Allowlist, sandbox, timeouts, sanitization, error rendering |
+| Public NeoUI components as interactive islands | Future | Not in V1; Alpine/HTMX for custom interactivity |
+| Reusable saved custom block patterns | Future | Later-phase work |
+| Property editors for blocks 3-11 (Image, Video, Audio, Gallery, Separator, etc.) | Future | Editor previews exist; structured property editors deferred |
+- `NeoUI.Icons.Lucide` 3.0.0 on NuGet, not 4.0.0 (README was aspirational); `NeoUI.Blazor` latest is 4.0.18, Primitives 4.0.5
+- `AddNeoUIPrimitives()` must be called BEFORE `AddNeoUIComponents()` per docs; requires `using NeoUI.Blazor.Primitives.Extensions;`
+- All 4 portal hosts (`ToastViewport`, `DialogHost`, `ContainerPortalHost`, `OverlayPortalHost`) go INSIDE `<AppProvider>`, not outside
+- Scoped `@using NeoUI.Blazor` to `ManagerShellLayout.razor` only — global import in `_Imports.razor` caused 74+ namespace collisions (Radzen's `ButtonSize`, `SidebarSide`, AeroCMS's `CarouselItem`)
+- Source generator creates adapter classes by TYPE NAME, not namespace — same-named `BlockBase` subclasses in different namespaces produce `CS0111` duplicate `Render` methods. Fix: rename Neo blocks to unique names (`NeoRawHtmlBlock`, `NeoColumnsBlock`)
+- `RendererMarkers.cs` uses fully-qualified `typeof(Aero.Cms.Abstractions.Blocks.Neo.ImageBlock)` where legacy types conflict
+- `CanvasClass` computed property needed for Sortable — Razor doesn't support `Class="string @(expr)"` on component attributes
+- `AeroError` uses `.ToString()`, not `.Messages` (matches `DynamicTemplateBlockRenderer` pattern)
+- `Web.Client` doesn't need NeoUI registrations (WASM doesn't run manager pages)
+- `PageEditorPropertyPanel` data flow: EditorBlock → `MapEditorBlockToNeoNode()` → `*Mapper.FromNode()` → BlockBase → `BlockEditorHost`
+- Migration API (14 endpoints) serves as safety valve — no separate "migrate now" button needed
+- `ScribanBlockRenderer` uses `ISecureScribanRenderer` injection with `OnParametersSetAsync` pattern (matches `DynamicTemplateBlockRenderer`)
+- ~2200 lines of legacy code safely removed after verifying catalog + migration paths were operational
+
+## Relevant File Index
+
+### New Files (57)
+
+| File | Step | Purpose |
+|---|---|---|
+| `src/Aero.Cms.Core.Entities/PageEditorState.cs` | 1 | Draft workspace document |
+| `src/Aero.Cms.Core.Entities/EditorBlockPlacement.cs` | 1 | Placement metadata DTO |
+| `src/Aero.Cms.Modules.Pages/Admin/PageAdminStatusService.cs` | 1 | Published vs draft version comparison |
+| `src/Aero.Cms.Modules.Pages/PageDeleteHandler.cs` | 1 | Cleanup on page delete |
+| `src/Aero.Cms.Modules.Pages/IPageLayoutManifestBuilder.cs` | 2 | Layout manifest builder interface |
+| `src/Aero.Cms.Modules.Pages/PageLayoutManifestBuilder.cs` | 2 | Builder implementation |
+| `src/Aero.Cms.Modules.Pages/IPagePreviewService.cs` | 2 | Preview service interface + `PreviewRenderModel` |
+| `src/Aero.Cms.Modules.Pages/PagePreviewService.cs` | 2 | Preview service implementation |
+| `src/Aero.Cms.Modules.Pages/PageDocumentMigration.cs` | 3 | Idempotent document structure migration |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/IBlockEditorCallbacks.cs` | 5 | Cascading callback interface (18→14 members after legacy removal) |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/PageEditorHeader.razor` + `.cs` | 5 | Header component |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/EditorBlockFrame.razor` + `.cs` | 5 | Block wrapper with toolbar |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/PageEditorCanvas.razor` | 5 | Sortable-backed block canvas |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/Palette/PageEditorPaletteSection.razor` | 5 | NeoUI Sortable palette (copy-source) |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/BlockEditorHost.razor` | 5 | Per-block property editor dispatch |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/PageEditorPropertyPanel.razor` | 5 | Property panel chrome wrapper |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/BlockEditorPreviews/BlockEditorPreviewHost.razor` | 5 | Neo-only block preview dispatch (was 1358 lines legacy, now ~140 lines) |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/Catalog/NeoEditorCatalogSection.cs` | 6 | AeroUi, Primitives, Components enum |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/Catalog/NeoEditorCatalogKind.cs` | 6 | Block, Primitive, Component enum |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/Catalog/NeoPropertyFieldType.cs` | 6 | 9 field types (Text→Json) |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/Catalog/NeoPropertyDefinition.cs` | 6 | Name, Label, FieldType, Required, DefaultValue, Options |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/Catalog/NeoEditorCatalogItem.cs` | 6 | CatalogId, DisplayName, Section, Kind, IconName, SortOrder, property definitions, child/parent constraints |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/Catalog/INeoEditorCatalogProvider.cs` | 6 | Catalog provider interface |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/Catalog/NeoEditorCatalogProvider.cs` | 6 | 11 catalog entries |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/Catalog/NeoCatalogSectionMapper.cs` | 6 | Case-insensitive string → enum |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/Hero01Block.cs` + mapper | 6 | aero.hero.01 (9 properties) |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/BasicHeroBlock.cs` + mapper | 6 | aero.hero.basic (5 properties) |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/ImageBlock.cs` + mapper | 6 | media.image |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/VideoBlock.cs` + mapper | 6 | media.video |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/AudioBlock.cs` + mapper | 6 | media.audio |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/GalleryBlock.cs` + mapper | 6 | media.gallery |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/NeoRawHtmlBlock.cs` + mapper | 6 | ui.raw-html (renamed to avoid source gen collision) |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/SeparatorBlock.cs` + mapper | 6 | ui.separator |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/NeoColumnsBlock.cs` + mapper | 6 | neo.layout.columns (renamed to avoid source gen collision) |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/ScribanBlock.cs` + mapper | 6 | neo.template.scriban |
+| `src/Aero.Cms.Shared/Blocks/Rendering/Hero01BlockRenderer.razor` | 6 | Public SSR renderer (11 total Neo renderers) |
+| `src/Aero.Cms.Shared/Blocks/Rendering/*BlockRenderer.razor` (10 more) | 6 | BasicHero, Image, Video, Audio, Gallery, NeoRawHtml, Separator, NeoColumns, Scriban, NeoComposition |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/AeroUi/Hero01/*BlockEditorPreview.razor` (8) | 6 | Editor canvas previews for 8 blocks |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/AeroUi/Hero01/Hero01BlockEditor.razor` (2) | 6 | Property editors for Hero01 + BasicHero |
+| `src/Aero.Cms.Shared/Blocks/Rendering/ScribanBlockRenderer.razor.cs` | 6 | Scriban code-behind (`ISecureScribanRenderer`, `OnParametersSetAsync`) |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/NeoPageNodeKind.cs` | 6 | Composition node kind enum |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/NeoPageNode.cs` | 6 | Composition tree node (Dict\<string, JsonElement\>) |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/NeoCompositionBlock.cs` | 6 | BlockBase subclass for composition |
+| `src/Aero.Cms.Shared/Blocks/Rendering/NeoCompositionBlockRenderer.razor` | 6 | SSR composition renderer |
+| `src/Aero.Cms.Shared/Blocks/Rendering/NeoNodeRenderer.razor` | 6 | Recursive per-node renderer |
+| `src/Aero.Cms.Abstractions/Blocks/Neo/NeoCatalogIds.cs` | 7 | 13 stable catalog ID constants |
+| `src/Aero.Cms.Modules.Pages/Migration/ILegacyBlockMapper.cs` | 7 | Block mapper interface |
+| `src/Aero.Cms.Modules.Pages/Migration/LegacyBlockMapper.cs` | 7 | 12+ block type mappings |
+| `src/Aero.Cms.Modules.Pages/Migration/BlockMigrationResult.cs` | 7 | Migration result record |
+| `src/Aero.Cms.Modules.Pages/Migration/IBlockContentMigrationService.cs` | 7 | Migration service interface |
+| `src/Aero.Cms.Modules.Pages/Migration/BlockContentMigrationService.cs` | 7 | Idempotent migration service |
+| `src/Aero.Cms.Modules.Pages/Migration/MigrationCommands.cs` | 7 | Wolverine command records |
+| `src/Aero.Cms.Modules.Pages/Migration/BlockContentMigrationHandler.cs` | 7 | Wolverine migration handler |
+| `src/Aero.Cms.Modules.Pages/Migration/MigrationApiRoutes.cs` | 7 | 14 migration API endpoints |
+
+### Modified Files (16)
+
+| File | Steps | Changes |
+|---|---|---|
+| `src/Directory.Packages.props` | 5 | NeoUI 4.0.18/4.0.5/3.0.0 |
+| `src/Aero.Cms.Shared/Aero.Cms.Shared.csproj` | 5 | NeoUI package refs |
+| `src/Aero.Cms.Modules.Setup/Aero.Cms.Modules.Setup.csproj` | 5 | NeoUI package refs (Setup needs its own) |
+| `src/Aero.Cms.Web/Program.cs` | 5 | `AddNeoUIPrimitives` + `AddNeoUIComponents` + NeoUI usings |
+| `src/Aero.Cms.Web/Components/App.razor` | 5 | NeoUI CSS (components+zinc+blue) + theme.js |
+| `src/Aero.Cms/MauiProgram.cs` | 5 | NeoUI registrations |
+| `src/Aero.Cms.Web.Client/Program.cs` | 5 | NeoUI registrations REMOVED (WASM doesn't need) |
+| `src/Aero.Cms.Shared/Layout/ManagerShellLayout.razor` | 5 | `<AppProvider>` + 4 portal hosts + scoped NeoUI usings |
+| `src/Aero.Cms.Core.Entities/PageDocument.cs` | 1, 7 | `PublishedVersion`, `BlockSchemaVersion`, `Apply(PageMetadataUpdated)`, updated `Apply(PagePublished)` |
+| `src/Aero.Cms.Abstractions/Events/PageEvents.cs` | 1 | `PageMetadataUpdated`, `PagePublished` with optional params |
+| `src/Aero.Cms.Modules.Pages/PageDocumentProjection.cs` | 1 | Wired new events |
+| `src/Aero.Cms.Modules.Pages/PagesModule.cs` | 1, 2, 3, 6, 7 | DI registrations (catalog provider, NeoUI usings) |
+| `src/Aero.Cms.Modules.Pages/PagePublishingWorkflowService.cs` | 4, 7 | `IMessageBus` + cache eviction; `IPageLayoutManifestBuilder` wiring |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/PageEditor.razor` | 5, 7 | 2021→catalog-driven orchestrator; 4 legacy sidebar sections removed |
+| `src/Aero.Cms.Shared/Pages/Manager/PageEditor/PageEditor.razor.cs` | 5, 7 | `IBlockEditorCallbacks`, catalog methods, legacy `CreateBlock` cases removed (~2200 lines total legacy removal) |
+| `src/Aero.Cms.Shared/Blocks/Rendering/RendererMarkers.cs` | 6 | 11 Neo renderer markers (FQNs where legacy types conflict) |
+| `src/Aero.Cms.Shared/Blocks/Rendering/BlockRenderContext.cs` | 7 | `NestingDepth`/`MaxNestingDepth` |

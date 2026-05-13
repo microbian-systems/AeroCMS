@@ -164,6 +164,27 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
                 SourceText.From(RenderGeneratedSource(descriptors), Encoding.UTF8));
         });
 
+        // Neo editor catalog — emitted from the renderers pipeline so it lands
+        // in Aero.Cms.Shared where NeoEditorCatalogProvider lives.
+        context.RegisterSourceOutput(renderers, static (productionContext, candidates) =>
+        {
+            var descriptors = candidates
+                .Select(candidate => CreateDescriptor(productionContext, candidate))
+                .Where(static descriptor => descriptor is not null)
+                .Select(static descriptor => descriptor!.Value)
+                .OrderBy(static descriptor => descriptor.BlockType, StringComparer.Ordinal)
+                .ToImmutableArray();
+
+            if (descriptors.Length == 0)
+            {
+                return;
+            }
+
+            productionContext.AddSource(
+                "GeneratedNeoEditorCatalog.g.cs",
+                SourceText.From(RenderNeoEditorCatalog(descriptors), Encoding.UTF8));
+        });
+
         // NOTE: GeneratedBlockJsonContext.g.cs emission is DEFERRED.
         // The RenderGeneratedContext method and crossAssemblyBlockData pipeline
         // are kept as infrastructure for future use when the Roslyn source
@@ -201,7 +222,128 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             return null;
         }
 
-        return new BlockModelCandidate(modelType, metadata);
+        // Extract public settable properties
+        var properties = ExtractPropertyDescriptors(modelType);
+
+        // Resolve editor preview + property editor types by naming convention.
+        // All current Neo editor previews live under AeroUi.Hero01.
+        var compilation = context.SemanticModel.Compilation;
+        var modelName = modelType.Name; // e.g. "Hero01Block"
+        var editorPreviewName = modelName + "EditorPreview";
+        var propertyEditorName = modelName + "Editor";
+        var previewBase = "Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Hero01.";
+
+        var editorPreviewType = compilation.GetTypeByMetadataName(previewBase + editorPreviewName);
+        var propertyEditorType = compilation.GetTypeByMetadataName(previewBase + propertyEditorName);
+
+        return new BlockModelCandidate(
+            modelType,
+            metadata,
+            properties.ToImmutableArray(),
+            editorPreviewType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            propertyEditorType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+    }
+
+    private static ImmutableArray<PropertyDescriptor>.Builder ExtractPropertyDescriptors(INamedTypeSymbol modelType)
+    {
+        var builder = ImmutableArray.CreateBuilder<PropertyDescriptor>();
+
+        foreach (var member in modelType.GetMembers())
+        {
+            if (member is not IPropertySymbol prop)
+                continue;
+
+            // Skip BlockType, Order, Id (inherited)
+            if (prop is { IsStatic: true } or { SetMethod: null } or { IsIndexer: true })
+                continue;
+            if (prop.Name is "Id" or "Order")
+                continue;
+            // Skip visitor + abstract members
+            if (prop is { IsAbstract: true } or { IsOverride: true } or { IsVirtual: true })
+                continue;
+
+            var label = PascalToLabel(prop.Name);
+            var propertyTypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var fieldType = MapClrTypeToFieldType(prop);
+            builder.Add(new PropertyDescriptor(prop.Name, label, propertyTypeName, fieldType));
+        }
+
+        return builder;
+    }
+
+    private static string MapClrTypeToFieldType(IPropertySymbol prop)
+    {
+        var type = prop.Type;
+        var typeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var name = prop.Name;
+
+        // Check for URL-named properties
+        if (name.EndsWith("Url", StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith("Uri", StringComparison.OrdinalIgnoreCase) ||
+            typeName is "string" && (name.Contains("url", StringComparison.OrdinalIgnoreCase)))
+            return "Url";
+
+        // Simple type mapping
+        return type.SpecialType switch
+        {
+            SpecialType.System_String
+                when name.Contains("escription", StringComparison.OrdinalIgnoreCase)
+                  || name.Contains("ummary", StringComparison.OrdinalIgnoreCase)
+                  || name.Contains("ontent", StringComparison.OrdinalIgnoreCase)
+                  || name.Contains("emplate", StringComparison.OrdinalIgnoreCase)
+                  || name.Contains("html", StringComparison.OrdinalIgnoreCase)
+                  || name.Contains("Html", StringComparison.Ordinal)
+                => "TextArea",
+            SpecialType.System_String
+                => "Text",
+            SpecialType.System_Boolean => "Boolean",
+            SpecialType.System_Int32 or SpecialType.System_Int64
+                or SpecialType.System_Double or SpecialType.System_Decimal
+                or SpecialType.System_Single
+                => "Number",
+            _ => typeName switch
+            {
+                "System.DateTime" or "System.DateTimeOffset" => "DateTime",
+                "System.Text.Json.JsonDocument" or "System.Text.Json.JsonElement" => "Json",
+                _ when IsStringListType(type) => "StringList",
+                _ => "Text"
+            }
+        };
+    }
+
+    private static bool IsStringListType(ITypeSymbol type)
+    {
+        var typeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        // string[]
+        if (type is IArrayTypeSymbol ats
+            && ats.ElementType.SpecialType == SpecialType.System_String)
+            return true;
+        // List<string>, IList<string>, IReadOnlyList<string>, IEnumerable<string>, ICollection<string>
+        if (type is INamedTypeSymbol nts
+            && nts.IsGenericType
+            && nts.TypeArguments.Length == 1
+            && nts.TypeArguments[0].SpecialType == SpecialType.System_String)
+            return true;
+        return false;
+    }
+
+    private static string PascalToLabel(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return name;
+        var builder = new StringBuilder(name.Length + 4);
+        builder.Append(name[0]);
+        for (int i = 1; i < name.Length; i++)
+        {
+            // Insert space before uppercase that follows lowercase or before last uppercase in acronym at end
+            var prev = name[i - 1];
+            var cur = name[i];
+            if (char.IsUpper(cur) && (char.IsLower(prev) || (i + 1 < name.Length && char.IsLower(name[i + 1]))))
+            {
+                builder.Append(' ');
+            }
+            builder.Append(cur);
+        }
+        return builder.ToString();
     }
 
     private static RendererCandidate? GetRendererCandidate(GeneratorAttributeSyntaxContext context)
@@ -346,7 +488,10 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             GetNamedString(candidate.Metadata, "Icon"),
             GetNamedInt(candidate.Metadata, "SortOrder"),
             GetNamedInt(candidate.Metadata, "SchemaVersion", 1),
-            candidate.ModelType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            candidate.ModelType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            candidate.PropertyDescriptors,
+            candidate.EditorPreviewTypeName,
+            candidate.PropertyEditorTypeName);
     }
 
     private static string RenderGeneratedSource(ImmutableArray<BlockRendererDescriptor> descriptors)
@@ -520,10 +665,24 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
     {
         foreach (var descriptor in descriptors)
         {
-            source.AppendLine($"internal sealed class {descriptor.AdapterName} : ICmsBlockRenderAdapter");
+            source.AppendLine($"internal sealed class {descriptor.AdapterName} : ICmsBlockRenderAdapter, ICmsBlockRenderAdapter<{descriptor.ModelTypeName}>");
             source.AppendLine("{");
             source.AppendLine($"    public string BlockType => \"{Escape(descriptor.BlockType)}\";");
             source.AppendLine($"    public Type ModelType => typeof({descriptor.ModelTypeName});");
+            source.AppendLine();
+            source.AppendLine($"    RenderFragment ICmsBlockRenderAdapter<{descriptor.ModelTypeName}>.Render({descriptor.ModelTypeName} block, BlockRenderContext context)");
+            source.AppendLine("    {");
+            source.AppendLine("        return builder =>");
+            source.AppendLine("        {");
+            source.AppendLine($"            builder.OpenComponent<{descriptor.RendererTypeName}>(1);");
+            source.AppendLine($"            builder.AddAttribute(2, \"{Escape(descriptor.ParameterName)}\", block);");
+            if (descriptor.HasNavigationParameter)
+            {
+                source.AppendLine("            builder.AddAttribute(3, \"Navigation\", context.Navigation);");
+            }
+            source.AppendLine("            builder.CloseComponent();");
+            source.AppendLine("        };");
+            source.AppendLine("    }");
             source.AppendLine();
             source.AppendLine("    public RenderFragment Render(IBlock block, BlockRenderContext context)");
             source.AppendLine("    {");
@@ -832,6 +991,106 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
+    private static string RenderNeoEditorCatalog(
+        ImmutableArray<BlockRendererDescriptor> descriptors)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;");
+        sb.AppendLine();
+        sb.AppendLine("namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// Source-generated catalog population for NeoEditorCatalogProvider.");
+        sb.AppendLine("/// Replaces the hand-maintained constructor with auto-discovered block metadata.");
+        sb.AppendLine("/// Each adapter implementation also implements ICmsBlockRenderAdapter<TBlock> for typed access.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine("public partial class NeoEditorCatalogProvider");
+        sb.AppendLine("{");
+        sb.AppendLine("    partial void PopulateGeneratedCatalog(List<NeoEditorCatalogItem> items)");
+        sb.AppendLine("    {");
+
+        foreach (var rd in descriptors)
+        {
+            var section = MapCatalogSection(rd.Category);
+
+            sb.AppendLine($"        // {rd.DisplayName}");
+            sb.AppendLine($"        items.Add(new NeoEditorCatalogItem");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            CatalogId = \"{Escape(rd.BlockType)}\",");
+            sb.AppendLine($"            DisplayName = \"{Escape(rd.DisplayName)}\",");
+            sb.AppendLine($"            Description = {Literal(rd.Description)},");
+            sb.AppendLine($"            Section = NeoEditorCatalogSection.{section},");
+            sb.AppendLine($"            Kind = NeoEditorCatalogKind.Block,");
+            sb.AppendLine($"            IconName = \"{Escape(rd.Icon ?? "box")}\",");
+            sb.AppendLine($"            SortOrder = {rd.SortOrder},");
+            sb.AppendLine($"            PublicStaticSsrSafe = true,");
+            // Editor preview types are deferred — source generator can't reliably
+            // detect which editor previews exist via naming convention alone.
+            // The hand-coded NeoEditorCatalogProvider.cs is now partial;
+            // add EditorPreviewComponentType / PropertyEditorComponentType
+            // in a separate partial file or use a naming convention at runtime.
+            sb.AppendLine($"            EditorPreviewComponentType = null,");
+            sb.AppendLine($"            PropertyEditorComponentType = null,");
+
+            sb.AppendLine($"            PublicRendererComponentType = typeof({rd.RendererTypeName}),");
+            sb.AppendLine("            PropertyDefinitions = new List<NeoPropertyDefinition>()");
+            sb.AppendLine("        });");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    private static string MapCatalogSection(string? category)
+    {
+        if (category is null) return "AeroUi";
+        return category.Trim() switch
+        {
+            "Aero UI" => "AeroUi",
+            "Primitives" => "Primitives",
+            "Components" => "Components",
+            _ => "AeroUi"
+        };
+    }
+
+    /// <summary>
+    /// Derives the editor preview component type name by replacing "Blocks.Rendering"
+    /// with "Pages.Manager.PageEditor.AeroUi.Hero01" and "Renderer" with "EditorPreview".
+    /// </summary>
+    private static string? DeriveEditorPreviewTypeName(string rendererTypeName)
+    {
+        // e.g. "Aero.Cms.Shared.Blocks.Rendering.Hero01BlockRenderer"
+        //   → "Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Hero01.Hero01BlockEditorPreview"
+        var index = rendererTypeName.IndexOf(".Blocks.Rendering.", StringComparison.Ordinal);
+        if (index < 0) return null;
+        var prefix = rendererTypeName.Substring(0, index);
+        var typeName = rendererTypeName.Substring(index + ".Blocks.Rendering.".Length);
+        if (!typeName.EndsWith("Renderer")) return null;
+        var baseName = typeName.Substring(0, typeName.Length - "Renderer".Length);
+        return $"{prefix}.Pages.Manager.PageEditor.AeroUi.Hero01.{baseName}EditorPreview";
+    }
+
+    /// <summary>
+    /// Derives the property editor component type name from the renderer type.
+    /// </summary>
+    private static string? DerivePropertyEditorTypeName(string rendererTypeName)
+    {
+        var index = rendererTypeName.IndexOf(".Blocks.Rendering.", StringComparison.Ordinal);
+        if (index < 0) return null;
+        var prefix = rendererTypeName.Substring(0, index);
+        var typeName = rendererTypeName.Substring(index + ".Blocks.Rendering.".Length);
+        if (!typeName.EndsWith("Renderer")) return null;
+        var baseName = typeName.Substring(0, typeName.Length - "Renderer".Length);
+        return $"{prefix}.Pages.Manager.PageEditor.AeroUi.Hero01.{baseName}Editor";
+    }
+
     private readonly struct RendererCandidate
     {
         public RendererCandidate(
@@ -859,17 +1118,47 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         public Location? Location { get; }
     }
 
+    private readonly struct PropertyDescriptor
+    {
+        public PropertyDescriptor(string name, string label, string propertyTypeName, string fieldType)
+        {
+            Name = name;
+            Label = label;
+            PropertyTypeName = propertyTypeName;
+            FieldType = fieldType;
+        }
+
+        public string Name { get; }
+        public string Label { get; }
+        public string PropertyTypeName { get; }
+        public string FieldType { get; }
+    }
+
     private readonly struct BlockModelCandidate
     {
-        public BlockModelCandidate(INamedTypeSymbol modelType, AttributeData metadata)
+        public BlockModelCandidate(
+            INamedTypeSymbol modelType,
+            AttributeData metadata,
+            ImmutableArray<PropertyDescriptor> propertyDescriptors,
+            string? editorPreviewTypeName,
+            string? propertyEditorTypeName)
         {
             ModelType = modelType;
             Metadata = metadata;
+            PropertyDescriptors = propertyDescriptors;
+            EditorPreviewTypeName = editorPreviewTypeName;
+            PropertyEditorTypeName = propertyEditorTypeName;
         }
 
         public INamedTypeSymbol ModelType { get; }
 
         public AttributeData Metadata { get; }
+
+        public ImmutableArray<PropertyDescriptor> PropertyDescriptors { get; }
+
+        public string? EditorPreviewTypeName { get; }
+
+        public string? PropertyEditorTypeName { get; }
     }
 
     private readonly struct BlockModelDescriptor
@@ -882,7 +1171,10 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             string? icon,
             int sortOrder,
             int schemaVersion,
-            string modelTypeName)
+            string modelTypeName,
+            ImmutableArray<PropertyDescriptor> propertyDescriptors,
+            string? editorPreviewTypeName,
+            string? propertyEditorTypeName)
         {
             BlockType = blockType;
             DisplayName = displayName;
@@ -892,6 +1184,9 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             SortOrder = sortOrder;
             SchemaVersion = schemaVersion;
             ModelTypeName = modelTypeName;
+            PropertyDescriptors = propertyDescriptors;
+            EditorPreviewTypeName = editorPreviewTypeName;
+            PropertyEditorTypeName = propertyEditorTypeName;
         }
 
         public string BlockType { get; }
@@ -909,6 +1204,12 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         public int SchemaVersion { get; }
 
         public string ModelTypeName { get; }
+
+        public ImmutableArray<PropertyDescriptor> PropertyDescriptors { get; }
+
+        public string? EditorPreviewTypeName { get; }
+
+        public string? PropertyEditorTypeName { get; }
     }
 
     private readonly struct BlockRendererDescriptor

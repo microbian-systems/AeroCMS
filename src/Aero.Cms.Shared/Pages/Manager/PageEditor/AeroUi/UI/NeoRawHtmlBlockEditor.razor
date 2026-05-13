@@ -1,0 +1,13 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">HTML Content</label>
+        <RadzenTextArea @bind-Value="Block.Html" Class="w-full" Rows="10" Style="font-family: monospace;" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoRawHtmlBlock Block { get; set; } = default!;
+}

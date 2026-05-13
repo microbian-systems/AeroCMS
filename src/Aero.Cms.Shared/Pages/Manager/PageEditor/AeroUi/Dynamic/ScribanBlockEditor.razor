@@ -1,0 +1,17 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Display Name</label>
+        <RadzenTextBox @bind-Value="Block.Name" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Scriban Template</label>
+        <RadzenTextArea @bind-Value="Block.Template" Class="w-full" Rows="12" Style="font-family: monospace;" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ScribanBlock Block { get; set; } = default!;
+}

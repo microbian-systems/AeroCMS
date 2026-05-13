@@ -14,6 +14,8 @@ using Aero.Cms.Web.Components;
 using Aero.Web.Exceptions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
+using NeoUI.Blazor.Extensions;
+using NeoUI.Blazor.Primitives.Extensions;
 using Radzen;
 using Serilog;
 using Serilog.Events;
@@ -255,6 +257,8 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     services.AddAuthorization();
     services.AddHttpContextAccessor();
     services.AddRadzenComponents();
+    services.AddNeoUIPrimitives();
+    services.AddNeoUIComponents();
 
     services.AddRazorPages()
         .AddApplicationPart(typeof(SetupModule).Assembly)

@@ -1,0 +1,29 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Title *</label>
+        <RadzenTextBox @bind-Value="Block.Title" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Subtitle</label>
+        <RadzenTextArea @bind-Value="Block.Subtitle" Class="w-full" Rows="2" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Background Image URL</label>
+        <RadzenTextBox @bind-Value="Block.BackgroundImageUrl" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">CTA Button Text</label>
+        <RadzenTextBox @bind-Value="Block.CtaText" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">CTA Button URL</label>
+        <RadzenTextBox @bind-Value="Block.CtaUrl" Class="w-full" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public BasicHeroBlock Block { get; set; } = default!;
+}

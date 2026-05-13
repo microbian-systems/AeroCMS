@@ -10,6 +10,9 @@
     <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+    <PackageReference Include="NeoUI.Blazor" />
+    <PackageReference Include="NeoUI.Blazor.Primitives" />
+    <PackageReference Include="NeoUI.Icons.Lucide" />
     <PackageReference Include="Radzen.Blazor" />
     <PackageReference Include="Serilog.Sinks.OpenObserve" />
   </ItemGroup>

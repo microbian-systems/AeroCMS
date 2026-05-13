@@ -95,6 +95,9 @@
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="1.3.0" />
     <PackageVersion Include="ModelContextProtocol.Core" Version="1.3.0" />
     <PackageVersion Include="MysticMind.PostgresEmbed" Version="4.0.0" />
+    <PackageVersion Include="NeoUI.Blazor" Version="4.0.18" />
+    <PackageVersion Include="NeoUI.Blazor.Primitives" Version="4.0.5" />
+    <PackageVersion Include="NeoUI.Icons.Lucide" Version="3.0.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />

@@ -1,3 +1,5 @@
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
@@ -49,7 +51,10 @@ public class DynamicPageModelStatusCodeTests
             .FindBySlugAsync(page.Slug, Arg.Any<CancellationToken>())
             .Returns(new Result<PageDocument?, AeroError>.Ok(page));
 
-        return new DynamicPageModel(pageService)
+        var blockService = Substitute.For<IBlockService>();
+        var blockCache = new BlockRenderCache();
+
+        return new DynamicPageModel(pageService, blockService, blockCache)
         {
             PageContext = new PageContext
             {

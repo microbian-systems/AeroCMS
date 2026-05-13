@@ -1,0 +1,10 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-property-panel p-4 text-muted-foreground text-sm">
+    <p>Separator block — no properties to configure.</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public SeparatorBlock Block { get; set; } = default!;
+}

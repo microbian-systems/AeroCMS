@@ -1,0 +1,70 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor
+@using Aero.Cms.Abstractions.Blocks
+@using NeoUI.Blazor
+@using NeoUI.Blazor.Primitives
+
+<Sortable TItem="EditorBlock"
+          Items="Blocks"
+          GetItemId="block => block.EditorId"
+          Group="page-editor"
+          OnItemsReordered="OnCanvasReordered"
+          OnItemTransferredIn="OnCatalogItemTransferred"
+          Class="@CanvasClass">
+    <SortableContent Class="pe-blocks-list">
+        @* Empty state *@
+        @if (Blocks.Count == 0)
+        {
+            <div class="pe-empty-state">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                     style="cursor: pointer" @onclick="() => OnToggleSidebar.InvokeAsync()">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                <h3>Start building your page</h3>
+                <p>Drag blocks from the sidebar or click to add them here</p>
+            </div>
+        }
+
+        @* Block list *@
+        @for (var i = 0; i < Blocks.Count; i++)
+        {
+            var block = Blocks[i];
+            var index = i;
+            var isSelected = SelectedBlockId == block.EditorId;
+
+            <SortableItem Value="@block.EditorId" Class="pe-block-wrapper">
+                <EditorBlockFrame BlockEditorId="@block.EditorId"
+                                  Index="@index"
+                                  TotalCount="@Blocks.Count"
+                                  IsSelected="@isSelected"
+                                  Dragging="false"
+                                  IsDragOver="false"
+                                  OnSelect="() => OnSelectBlock.InvokeAsync(block.EditorId)"
+                                  OnMoveUp="(i) => OnMoveBlockUp.InvokeAsync(i)"
+                                  OnMoveDown="(i) => OnMoveBlockDown.InvokeAsync(i)"
+                                  OnDuplicate="(i) => OnDuplicateBlock.InvokeAsync(i)"
+                                  OnDelete="(i) => OnDeleteBlock.InvokeAsync(i)">
+                    <BlockEditorPreviewHost Block="@block" IsSelected="@isSelected" />
+                </EditorBlockFrame>
+            </SortableItem>
+        }
+    </SortableContent>
+</Sortable>
+
+@code {
+    [Parameter] public List<EditorBlock> Blocks { get; set; } = [];
+    [Parameter] public string SelectedBlockId { get; set; } = string.Empty;
+    [Parameter] public bool PreviewMode { get; set; }
+
+    [Parameter] public EventCallback OnToggleSidebar { get; set; }
+    [Parameter] public EventCallback<string> OnSelectBlock { get; set; }
+    [Parameter] public EventCallback<int> OnMoveBlockUp { get; set; }
+    [Parameter] public EventCallback<int> OnMoveBlockDown { get; set; }
+    [Parameter] public EventCallback<int> OnDuplicateBlock { get; set; }
+    [Parameter] public EventCallback<int> OnDeleteBlock { get; set; }
+    [Parameter] public EventCallback<IList<EditorBlock>> OnCanvasReordered { get; set; }
+    [Parameter] public EventCallback<SortableTransferArgs> OnCatalogItemTransferred { get; set; }
+
+    private string CanvasClass => $"pe-blocks-container {(PreviewMode ? "pe-hidden" : "")}";
+}

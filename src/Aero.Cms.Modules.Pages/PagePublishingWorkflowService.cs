@@ -1,9 +1,12 @@
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Core;
 using Marten;
 using Microsoft.Extensions.Logging;
+using Wolverine;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -19,11 +22,19 @@ public interface IPagePublishingWorkflowService
 public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowService
 {
     private readonly IDocumentSession _session;
+    private readonly IMessageBus _bus;
+    private readonly IPageLayoutManifestBuilder _layoutBuilder;
     private readonly ILogger<PagePublishingWorkflowService> _logger;
 
-    public PagePublishingWorkflowService(IDocumentSession session, ILogger<PagePublishingWorkflowService> logger)
+    public PagePublishingWorkflowService(
+        IDocumentSession session,
+        IMessageBus bus,
+        IPageLayoutManifestBuilder layoutBuilder,
+        ILogger<PagePublishingWorkflowService> logger)
     {
         _session = session;
+        _bus = bus;
+        _layoutBuilder = layoutBuilder;
         _logger = logger;
     }
 
@@ -111,10 +122,46 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page is null)
                 return AeroError.NotFoundError($"Page {pageId} not found.");
 
-            _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.Published));
+            // ── Build layout manifest from editor state ──────────────
+            List<LayoutRegion>? layoutRegions = null;
+            var editorState = await _session.LoadAsync<PageEditorState>(pageId, ct);
+            if (editorState?.Blocks is { Count: > 0 })
+            {
+                var blockIds = editorState.Blocks
+                    .Where(p => p.BlockId.HasValue)
+                    .Select(p => p.BlockId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                if (blockIds.Count > 0)
+                {
+                    var blocks = await _session.Query<BlockBase>()
+                        .Where(b => b.Id.IsOneOf(blockIds.ToArray()))
+                        .ToListAsync(ct);
+                    var blockDict = blocks
+                        .Where(b => b is not null)
+                        .ToDictionary(b => b.Id);
+
+                    var regions = await _layoutBuilder.BuildAsync(editorState, blockDict, ct);
+                    layoutRegions = regions.ToList();
+                }
+            }
+
+            // ── Emit publish events ──────────────────────────────────
+            var version = page.PublishedVersion + 1;
+            _session.Events.Append($"page-{pageId}",
+                new PagePublished(PageId: pageId, Version: version, LayoutRegions: layoutRegions));
+            _session.Events.Append($"page-{pageId}",
+                new PageStateChanged(ContentPublicationState.Published));
             await _session.SaveChangesAsync(ct);
 
-            _logger.LogInformation("Page {PageId} published", pageId);
+            // Broadcast for cache eviction
+            await _bus.PublishAsync(new PageViewModelUpdated(
+                page.ToViewModel(), $"Page published: {page.Title}"));
+            await _bus.PublishAsync(new PageContentUpdatedEvent(pageId, page.SiteId, page.Slug, page.Slug));
+
+            _logger.LogInformation("Page {PageId} published (version {Version}, {RegionCount} layout regions)",
+                pageId, version, layoutRegions?.Count ?? 0);
             return Prelude.Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
@@ -135,6 +182,11 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
 
             _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.Archived));
             await _session.SaveChangesAsync(ct);
+
+            // Broadcast for cache eviction
+            await _bus.PublishAsync(new PageViewModelUpdated(
+                page.ToViewModel(), $"Page archived: {page.Title}"));
+            await _bus.PublishAsync(new PageContentUpdatedEvent(pageId, page.SiteId, page.Slug, page.Slug));
 
             _logger.LogInformation("Page {PageId} archived", pageId);
             return Prelude.Ok<bool, AeroError>(true);

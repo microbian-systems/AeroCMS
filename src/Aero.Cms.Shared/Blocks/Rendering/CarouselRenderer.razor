@@ -149,7 +149,7 @@
     [Parameter]
     public CarouselBlock? Block { get; set; }
 
-    private static string ResolveImageSrc(CarouselItem item)
+    private static string ResolveImageSrc(Aero.Cms.Abstractions.Blocks.Common.CarouselItem item)
     {
         if (item.ImageMediaId > 0)
             return $"/api/media/{item.ImageMediaId}";

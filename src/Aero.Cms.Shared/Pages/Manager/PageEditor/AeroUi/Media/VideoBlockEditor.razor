@@ -1,0 +1,36 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Video URL</label>
+        <RadzenTextBox @bind-Value="Block.Src" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Poster Image URL</label>
+        <RadzenTextBox @bind-Value="Block.Poster" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Caption</label>
+        <RadzenTextBox @bind-Value="Block.Caption" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <RadzenCheckBox @bind-Value="Block.Autoplay">
+            Autoplay
+        </RadzenCheckBox>
+    </div>
+    <div class="pe-property-group">
+        <RadzenCheckBox @bind-Value="Block.Loop">
+            Loop
+        </RadzenCheckBox>
+    </div>
+    <div class="pe-property-group">
+        <RadzenCheckBox @bind-Value="Block.Controls">
+            Show Controls
+        </RadzenCheckBox>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public VideoBlock Block { get; set; } = default!;
+}

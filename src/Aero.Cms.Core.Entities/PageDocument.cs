@@ -72,7 +72,24 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
 
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset? PublishedOn { get; set; } = null;
-    public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+
+    /// <summary>
+    /// Monotonic counter incremented on every publish.
+    /// Compared against <see cref="PageEditorState.DraftVersion"/> in the admin
+    /// service layer to detect unpublished changes. Not compared here.
+    /// </summary>
+    public long PublishedVersion { get; set; }
+
+    /// <summary>
+    /// Tracks the block content schema version. Incremented by migration when
+    /// legacy block content is transformed into Neo blocks. Used for idempotency:
+    /// the migration skips pages already at the current schema version.
+    /// Default 0 means not yet migrated to any Neo block schema.
+    /// </summary>
+    public int BlockSchemaVersion { get; set; }
+
+    public bool IsPubliclyVisible =>
+        PublicationState == ContentPublicationState.Published && !Deleted;
 
     /// <summary>
     /// Gets or sets whether this page should be displayed in the main navigation menu.
@@ -154,10 +171,40 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         ModifiedOn = DateTimeOffset.UtcNow;
     }
 
-    public void Apply(PagePublished _)
+    /// <summary>
+    /// Metadata-only draft save. Updates title, slug, SEO, display settings.
+    /// LayoutRegions, Blocks, and BlockIdMap deliberately NOT touched.
+    /// </summary>
+    public void Apply(PageMetadataUpdated e)
+    {
+        Title = e.Title;
+        Slug = e.Slug;
+        Summary = e.Summary;
+        SeoTitle = e.SeoTitle;
+        SeoDescription = e.SeoDescription;
+        Kind = e.Kind;
+        ShowHeaderNavigation = e.ShowHeaderNavigation;
+        HeaderImageUrl = e.HeaderImageUrl;
+        HideHeader = e.HideHeader;
+        HideFooter = e.HideFooter;
+        ShowChatAgent = e.ShowChatAgent;
+        ModifiedOn = DateTimeOffset.UtcNow;
+        // ── LayoutRegions, Blocks, BlockIdMap: intentionally absent ─────────
+        // Publish path owns LayoutRegions. Block state lives in PageEditorState.
+    }
+
+    public void Apply(PagePublished e)
     {
         PublicationState = ContentPublicationState.Published;
         PublishedOn = DateTimeOffset.UtcNow;
+
+        // Bump version: use the computed version from the event when available,
+        // otherwise increment locally (backward compat with old marker events).
+        PublishedVersion = e.Version > 0 ? e.Version : PublishedVersion + 1;
+
+        // Write layout manifest only when the event carries one.
+        if (e.LayoutRegions is not null)
+            LayoutRegions = e.LayoutRegions.ToList();
     }
 
     public void Apply(PageArchived _) =>

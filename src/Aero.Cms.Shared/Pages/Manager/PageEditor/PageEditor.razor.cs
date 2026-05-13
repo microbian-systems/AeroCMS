@@ -7,6 +7,7 @@ using System;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Neo;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -23,10 +24,12 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
+using NeoUI.Blazor;
+using NeoUI.Blazor.Primitives;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
-public partial class PageEditor : ComponentBase, IDisposable
+public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallbacks
 {
     // ──────────────────────────────────────────────────────────
     // Parameters
@@ -49,6 +52,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
     [Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
+    [Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
@@ -63,10 +67,8 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     // Selection / drag state
     protected string? SelectedBlockId  { get; set; }
-    protected string? DraggedBlockId   { get; set; }
     protected string? DraggedType      { get; set; }
     protected int?    DraggedIndex     { get; set; }
-    protected int     DragOverIndex    { get; set; } = -1;
 
     // UI state
     protected bool   SidebarCollapsed { get; set; }
@@ -85,11 +87,8 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string ActiveTab             { get; set; } = "editor";
 
     // Sidebar category toggles
-    protected bool CategoryContent    { get; set; } = true;
-    protected bool CategoryMedia      { get; set; } = true;
-    protected bool CategoryReferences { get; set; } = true;
+    protected bool CategoryAeroUi    { get; set; } = true;
     protected bool CategorySettings   { get; set; } = true;
-    protected bool CategoryAero       { get; set; } = true;
 
     // Page Settings
     protected string PageSlug { get; set; } = string.Empty;
@@ -323,11 +322,8 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         switch (category)
         {
-            case "content":    CategoryContent    = !CategoryContent;    break;
-            case "media":      CategoryMedia      = !CategoryMedia;      break;
-            case "references": CategoryReferences = !CategoryReferences; break;
+            case "aeroui":    CategoryAeroUi    = !CategoryAeroUi;    break;
             case "settings":   CategorySettings   = !CategorySettings;   break;
-            case "aero":       CategoryAero       = !CategoryAero;       break;
         }
     }
 
@@ -351,205 +347,137 @@ public partial class PageEditor : ComponentBase, IDisposable
 
         switch (type)
         {
-            case "boring_hero":
-                block.MainText        = "Page Title";
-                block.SubText         = "A simple full-width page intro.";
+            // Neo catalog blocks
+            case "aero.hero.01":
+                block.MainText        = "Build beautiful Blazor apps";
+                block.SubText         = "100+ production-ready components for .NET Blazor. Accessible, customizable, and built for speed.";
+                block.CtaText         = "Get started for free";
+                block.CtaUrl          = "#";
+                block.CtaText2        = "View on GitHub";
+                block.CtaUrl2         = "#";
+                block.BackgroundImage = string.Empty;
+                break;
+            case "aero.hero.basic":
+                block.MainText        = "Welcome";
+                block.SubText         = "Your message goes here.";
+                block.CtaText         = "";
+                block.CtaUrl          = "";
                 block.BackgroundImage = string.Empty;
                 block.FullWidth       = true;
                 break;
-            case "hero":
-                block.MainText = string.Empty;
-                block.SubText  = string.Empty;
-                block.CtaText  = string.Empty;
-                block.CtaUrl   = string.Empty;
-                block.BackgroundImage = string.Empty;
-                block.Height = 512;
-                block.FullScreen = false;
-                break;
-            case "aero_hero":
-                block.MainText        = "Building Your Next Idea";
-                block.SubText         = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.";
-                block.CtaText         = "Get Started";
-                block.CtaUrl          = "#";
-                block.CtaText2        = "Learn More";
-                block.CtaUrl2         = "#";
-                block.AeroLayout      = "SideImage";
-                block.Button1Style    = "Primary";
-                block.Button2Style    = "Secondary";
-                block.BackgroundImage = "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800";
-                break;
-            case "aero_features":
-                block.MainText        = "Everything you need to build";
-                block.SubText         = "Focus on your business and let us handle the technical complexities.";
-                block.AeroLayout      = "Simple";
-                block.FeatureItems    = new List<AeroFeatureItem>
-                {
-                    new() { Title = "Fast & Reliable", Description = "Built for performance.", Icon = "M13 10V3L4 14h7v7l9-11h-7z" },
-                    new() { Title = "Modular Design", Description = "Customizable UI.", Icon = "M19 11H5m14 0V9a2-2 0 00-2-2M5 11V9a2 2 0 012-2" }
-                };
-                break;
-            case "aero_cta":
-                block.MainText    = "Build Your New Idea";
-                block.Description = "Lorem, ipsum dolor sit amet consectetur adipisicing elit. Quidem modi reprehenderit vitae exercitationem aliquid dolores ullam temporibus enim expedita aperiam.";
-                block.CtaText     = "Start Now";
-                block.CtaUrl      = "#";
-                block.AeroLayout  = "Card";
-                break;
-            case "aero_blog":
-                block.SectionTitle = "From the blog";
-                block.Description  = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Iure veritatis sint autem nesciunt.";
-                block.BlogPosts    = new List<AeroBlogItem>
-                {
-                    new() { Title = "All the features you want to know", Description = "Lorem ipsum dolor sit amet...", PublishedAt = "21 Oct 2025", Category = "Product", ImageUrl = "https://images.unsplash.com/photo-1644018335954-ab54c83e007f?w=800" },
-                    new() { Title = "Sticky note for problem solving", Description = "Lorem ipsum dolor sit amet...", PublishedAt = "20 Oct 2025", Category = "Design", ImageUrl = "https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?w=800" }
-                };
-                break;
-            case "aero_pricing":
-                block.PageTitle       = "Pricing Plans";
-                block.PageDescription = "Choose the plan that's right for you.";
-                block.PricingPlans    = new List<AeroPricingPlan>
-                {
-                    new() { Name = "Free", Price = "$0", Period = "mo", Description = "Essential features", Features = ["Basic Analytics", "1 Project"], CtaText = "Free trial", CtaUrl = "#" },
-                    new() { Name = "Pro", Price = "$29", Period = "mo", Description = "For growing teams", Features = ["Advanced Analytics", "10 Projects", "24/7 Support"], CtaText = "Get Pro", CtaUrl = "#", IsPopular = true }
-                };
-                break;
-            case "aero_teams":
-                block.SectionTitle = "Our Executive Team";
-                block.Description  = "Lorem ipsum dolor sit amet consectetur adipisicing elit.";
-                block.TeamMembers  = new List<AeroTeamMember>
-                {
-                    new() { Name = "Arthur Melo", Role = "Design Director", AvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400" },
-                    new() { Name = "Alice Williams", Role = "Senior Developer", AvatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400" }
-                };
-                break;
-            case "aero_testimonials":
-                block.SectionTitle = "What our clients say";
-                block.Description  = "Lorem ipsum dolor sit amet consectetur adipisicing elit.";
-                block.Testimonials  = new List<AeroTestimonialItem>
-                {
-                    new() { AuthorName = "John Doe", AuthorRole = "CEO", CompanyName = "Tech Corp", Content = "Excellent service and results." },
-                    new() { AuthorName = "Jane Smith", AuthorRole = "Product Manager", CompanyName = "Scale Up", Content = "Aero CMS transformed our workflow." }
-                };
-                break;
-            case "aero_faq":
-                block.Title = "Frequently Asked Questions";
-                block.Description = "Everything you need to know about the product and billing.";
-                block.FaqItems = new List<AeroFaqItem>
-                {
-                    new() { Question = "What is Aero CMS?", Answer = "Aero CMS is a modern, block-based content management system built with .NET." },
-                    new() { Question = "How do I get started?", Answer = "Simply drag and drop blocks from the sidebar to compose your page." }
-                };
-                break;
-            case "aero_portfolio":
-                block.Title = "Our Recent Work";
-                block.Description = "Explore some of the projects we've completed for our valued clients.";
-                block.PortfolioItems = new List<AeroPortfolioItem>
-                {
-                    new() { ProjectTitle = "Project One", ProjectDescription = "A brief description of this amazing project.", ProjectImageUrl = "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800", ProjectCategory = "Web Design" },
-                    new() { ProjectTitle = "Project Two", ProjectDescription = "Another great project with a different focus.", ProjectImageUrl = "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800", ProjectCategory = "Development" }
-                };
-                break;
-            case "aero_contact":
-                block.Title = "Get in Touch";
-                block.Description = "Our friendly team is always here to chat.";
-                block.ContactDetails = new List<AeroContactDetail>
-                {
-                    new() { Label = "Email", Value = "hello@getaerocms.net", Icon = "M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2m20 0v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6m20 0l-10 7L2 6" },
-                    new() { Label = "Phone", Value = "+1 (555) 000-0000", Icon = "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" }
-                };
-                break;
-            case "aero_table":
-                block.Title = "Resource List";
-                block.Description = "A summary of available resources and their status.";
-                block.TableHeaders = new List<AeroTableHeader> { new() { Label = "Name" }, new() { Label = "Status" }, new() { Label = "Date" } };
-                block.TableRows = new List<AeroTableRow>
-                {
-                    new() { Cells = new List<string> { "Resource A", "Active", "2025-01-01" } },
-                    new() { Cells = new List<string> { "Resource B", "Pending", "2025-01-15" } }
-                };
-                break;
-            case "aero_auth":
-                block.Title = "Sign in to your account";
-                block.CtaText = "Sign in";
-                break;
-            case "raw_html":
-                block.Content = "<!-- Custom HTML -->\n<div class=\"p-4 bg-gray-100\">Hello World</div>";
-                block.MarkdownView = "edit";
-                break;
-            case "text":
-                block.Content = string.Empty;
-                break;
-
-            case "content":
-                block.Content = "<p>Start typing your content here...</p>";
-                break;
-
-            case "markdown":
-                block.Content      = "# Heading\n\nYour markdown content here...";
-                block.MarkdownView = "edit";
-                break;
-
-            case "dynamic_template":
-                block.ScribanTemplate = "<section class=\"p-6 rounded-lg bg-slate-50\"><h2>{{ block.title }}</h2><p>{{ block.body }}</p></section>";
-                block.ScribanDataJson = """
-                    {
-                      "title": "Dynamic Template",
-                      "body": "Rendered with Scriban."
-                    }
-                    """;
-                block.ScribanView = "code";
-                break;
-
-            case "quote":
-                block.Content = string.Empty;
-                block.Author  = string.Empty;
-                break;
-
-            case "separator":
-                break;
-
-            case "columns":
-                block.ColumnCount   = 2;
-                block.Gap           = 16;
-                block.EditorColumns =
-                [
-                    new EditorColumn { Blocks = [] },
-                    new EditorColumn { Blocks = [] },
-                ];
-                break;
-
-            case "image":
-                block.Src     = string.Empty;
-                block.Alt     = string.Empty;
-                block.Caption = string.Empty;
-                break;
-
-            case "video":
-                block.Url = string.Empty;
-                block.Src = string.Empty;
-                block.AutoPlay = false;
-                break;
-
-            case "gallery":
-                block.GalleryImages = [];
-                break;
-
-            case "audio":
-                block.Src = string.Empty;
-                break;
-
-            // Reference types
-            case "pages":
-            case "posts":
-            case "categories":
-            case "tags":
-            case "authors":
-                block.SelectedReferenceId = string.Empty;
+            default:
                 break;
         }
 
         return block;
     }
+
+    /// <summary>
+    /// Converts an EditorBlock to its corresponding BlockBase for property editing.
+    /// </summary>
+    private BlockBase? GetBlockBaseForEditor(EditorBlock? block)
+    {
+        if (block == null) return null;
+
+        var node = MapEditorBlockToNeoNode(block);
+        return block.Type switch
+        {
+            "aero.hero.01" => Hero01BlockMapper.FromNode(node),
+            "aero.hero.basic" => BasicHeroBlockMapper.FromNode(node),
+            "media.image" => ImageBlockMapper.FromNode(node),
+            "media.video" => VideoBlockMapper.FromNode(node),
+            "media.audio" => AudioBlockMapper.FromNode(node),
+            "media.gallery" => GalleryBlockMapper.FromNode(node),
+            "ui.raw-html" => NeoRawHtmlBlockMapper.FromNode(node),
+            "ui.separator" => SeparatorBlockMapper.FromNode(node),
+            "neo.layout.columns" => NeoColumnsBlockMapper.FromNode(node),
+            _ => null
+        };
+    }
+
+    private static NeoPageNode MapEditorBlockToNeoNode(EditorBlock block) => block.Type switch
+    {
+        "aero.hero.01" => new NeoPageNode
+        {
+            CatalogId = "aero.hero.01", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["eyebrow"] = System.Text.Json.JsonSerializer.SerializeToElement("Introducing NeoUI v3"),
+                ["title"] = System.Text.Json.JsonSerializer.SerializeToElement(block.MainText),
+                ["highlight"] = System.Text.Json.JsonSerializer.SerializeToElement("faster than ever"),
+                ["description"] = System.Text.Json.JsonSerializer.SerializeToElement(block.SubText),
+                ["primaryText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText),
+                ["primaryUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl),
+                ["secondaryText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText2),
+                ["secondaryUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl2),
+                ["trustMarkers"] = System.Text.Json.JsonSerializer.SerializeToElement(new List<string>())
+            }
+        },
+        "aero.hero.basic" => new NeoPageNode
+        {
+            CatalogId = "aero.hero.basic", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["title"] = System.Text.Json.JsonSerializer.SerializeToElement(block.MainText),
+                ["subtitle"] = System.Text.Json.JsonSerializer.SerializeToElement(block.SubText),
+                ["backgroundImageUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.BackgroundImage),
+                ["ctaText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText),
+                ["ctaUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl)
+            }
+        },
+        "media.image" => new NeoPageNode
+        {
+            CatalogId = "media.image", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["src"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Src),
+                ["alt"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Alt ?? string.Empty),
+                ["caption"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Caption ?? string.Empty)
+            }
+        },
+        "media.video" => new NeoPageNode
+        {
+            CatalogId = "media.video", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["src"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Src),
+                ["autoplay"] = System.Text.Json.JsonSerializer.SerializeToElement(block.AutoPlay),
+                ["controls"] = System.Text.Json.JsonSerializer.SerializeToElement(true)
+            }
+        },
+        "media.audio" => new NeoPageNode
+        {
+            CatalogId = "media.audio", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["src"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Src),
+                ["controls"] = System.Text.Json.JsonSerializer.SerializeToElement(true)
+            }
+        },
+        "media.gallery" => new NeoPageNode
+        {
+            CatalogId = "media.gallery", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["images"] = System.Text.Json.JsonSerializer.SerializeToElement(block.GalleryImages.Select(g => g.Src).ToList()),
+                ["columns"] = System.Text.Json.JsonSerializer.SerializeToElement(3)
+            }
+        },
+        "ui.raw-html" => new NeoPageNode
+        {
+            CatalogId = "ui.raw-html", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["html"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Content)
+            }
+        },
+        "ui.separator" => new NeoPageNode
+        {
+            CatalogId = "ui.separator", Kind = NeoPageNodeKind.Block,
+            Properties = []
+        },
+        _ => new NeoPageNode { CatalogId = block.Type, Kind = NeoPageNodeKind.Block, Properties = [] }
+    };
 
     protected void SelectBlock(string id) => SelectedBlockId = id;
 
@@ -601,128 +529,25 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected void DragStart(DragEventArgs e, string type)
     {
         DraggedType  = type;
-        DraggedBlockId = null;
         DraggedIndex   = null;
     }
 
-    protected void DragStartBlock(DragEventArgs e, string id, int index)
+    /// <summary>Handle canvas reorder from Sortable.</summary>
+    protected void OnCanvasReordered(IList<EditorBlock> reordered)
     {
-        DraggedBlockId = id;
-        DraggedIndex   = index;
-        DraggedType    = null;
-    }
-
-    protected void DragOverBlock(DragEventArgs e, int index)
-    {
-        DragOverIndex = index;
-
-        // Reorder while dragging (live preview – like the Alpine version)
-        if (DraggedIndex is not null && DraggedIndex != index)
-        {
-            var block = Blocks[DraggedIndex.Value];
-            Blocks.RemoveAt(DraggedIndex.Value);
-            Blocks.Insert(index, block);
-            DraggedIndex = index;
-            QueuePreviewRefresh();
-        }
-    }
-
-    protected void OnDropCanvas(DragEventArgs e)
-    {
-        if (DraggedType is not null)
-        {
-            AddBlock(DraggedType);
-            DraggedType = null;
-        }
-
-        DraggedBlockId = null;
-        DraggedIndex   = null;
-        DragOverIndex  = -1;
+        Blocks = reordered.ToList();
+        MarkDirty();
         QueuePreviewRefresh();
     }
 
-    protected void DropBlock(DragEventArgs e, int index)
+    /// <summary>Handle catalog item dropped onto canvas from Sortable palette.</summary>
+    protected void OnCatalogItemTransferred(SortableTransferArgs args)
     {
-        DraggedBlockId = null;
-        DraggedIndex   = null;
-        DragOverIndex  = -1;
-        QueuePreviewRefresh();
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Column management  (mirrors updateColumnCount / addBlockToColumn / etc.)
-    // ──────────────────────────────────────────────────────────
-
-    protected void UpdateColumnCount(EditorBlock block, int newCount)
-    {
-        var current = block.EditorColumns.Count;
-
-        if (newCount > current)
+        var catalogId = args.ActiveId;
+        if (!string.IsNullOrEmpty(catalogId))
         {
-            for (var i = current; i < newCount; i++)
-                block.EditorColumns.Add(new EditorColumn { Blocks = [] });
+            AddBlock(catalogId);
         }
-        else if (newCount < current)
-        {
-            // Check for content in columns to be removed
-            var hasContent = block.EditorColumns.Skip(newCount).Any(c => c.Blocks.Count > 0);
-            if (hasContent)
-            {
-                // In Blazor we can't show a JS confirm() — show a toast warning instead.
-                // A future iteration can use RadzenDialogService.
-                ShowToast("Some columns have content; reduce columns in the settings panel to confirm.");
-                return;
-            }
-
-            block.EditorColumns.RemoveRange(newCount, current - newCount);
-        }
-
-        block.ColumnCount = newCount;
-        QueuePreviewRefresh();
-    }
-
-    protected void AddBlockToColumn(EditorBlock block, int colIndex, string type)
-    {
-        var nb = CreateNestedBlock(type);
-        block.EditorColumns[colIndex].Blocks.Add(nb);
-        QueuePreviewRefresh();
-    }
-
-    private static NestedBlock CreateNestedBlock(string type) => type switch
-    {
-        "text"   => new NestedBlock { Type = "text",   Content = string.Empty },
-        "image"  => new NestedBlock { Type = "image",  Src     = string.Empty, Alt = string.Empty },
-        "video"  => new NestedBlock { Type = "video",  Url     = string.Empty, Src = string.Empty },
-        "button" => new NestedBlock { Type = "button", Text    = "Click Me",   Url = "#", Style = "primary" },
-        _        => new NestedBlock { Type = type },
-    };
-
-    protected void RemoveNestedBlock(EditorBlock block, int colIndex, int nestedIndex)
-    {
-        block.EditorColumns[colIndex].Blocks.RemoveAt(nestedIndex);
-        QueuePreviewRefresh();
-    }
-
-    protected void DropOnColumn(DragEventArgs e, EditorBlock block, int colIndex)
-    {
-        if (DraggedType is null) return;
-
-        var mapped = DraggedType switch
-        {
-            "text"  => "text",
-            "image" => "image",
-            "video" => "video",
-            _       => null,
-        };
-
-        if (mapped is not null)
-        {
-            block.EditorColumns[colIndex].Blocks.Add(CreateNestedBlock(mapped));
-            ShowToast($"{DraggedType} added to column", "success");
-            QueuePreviewRefresh();
-        }
-
-        DraggedType = null;
     }
 
     // ──────────────────────────────────────────────────────────
@@ -1395,6 +1220,39 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     private string TabBtnClass(string tab) =>
         ActiveTab == tab ? "pe-tab-btn active" : "pe-tab-btn";
+
+    // ──────────────────────────────────────────────────────────
+    // IBlockEditorCallbacks explicit implementation
+    // These forward to protected methods and properties used by
+    // BlockEditorPreviewHost via the cascading IBlockEditorCallbacks.
+    // ──────────────────────────────────────────────────────────
+
+    bool IBlockEditorCallbacks.PreviewMode => PreviewMode;
+    Dictionary<string, string> IBlockEditorCallbacks.DynamicTemplatePreviewHtml => DynamicTemplatePreviewHtml;
+
+    void IBlockEditorCallbacks.SelectBlock(string editorId) => SelectBlock(editorId);
+    void IBlockEditorCallbacks.OpenMediaSelector(EditorBlock block, bool multiSelect, string field)
+        => OpenMediaSelector(block, multiSelect, field);
+    void IBlockEditorCallbacks.OpenAudioSelector(EditorBlock block) => OpenAudioSelector(block);
+    void IBlockEditorCallbacks.RemoveImage(EditorBlock block) => RemoveImage(block);
+    void IBlockEditorCallbacks.RemoveVideo(EditorBlock block) => RemoveVideo(block);
+    void IBlockEditorCallbacks.LoadVideo(EditorBlock block) => LoadVideo(block);
+    Task IBlockEditorCallbacks.RefreshDynamicTemplatePreviewAsync(EditorBlock block)
+        => RefreshDynamicTemplatePreviewAsync(block);
+    void IBlockEditorCallbacks.LoadNestedVideo(NestedBlock nb) => LoadNestedVideo(nb);
+    void IBlockEditorCallbacks.OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb)
+        => OpenMediaSelectorForNested(parent, colIndex, nb);
+    List<ReferenceItem> IBlockEditorCallbacks.GetReferenceItems(string type) => GetReferenceItems(type);
+
+    string IBlockEditorCallbacks.RenderDynamicTemplateIfCached(EditorBlock block)
+    {
+        return DynamicTemplatePreviewHtml.TryGetValue(block.EditorId, out var html)
+            ? html
+            : string.Empty;
+    }
+
+    /// <summary>Toggle sidebar panels (from empty-state click).</summary>
+    protected void ToggleSidebarPanels() => RightSidebarCollapsed = false;
 
     // ──────────────────────────────────────────────────────────
     // Version History  (event sourcing — mt_events timeline)

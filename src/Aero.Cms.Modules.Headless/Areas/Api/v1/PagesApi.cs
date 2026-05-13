@@ -1,3 +1,4 @@
+using Wolverine;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -353,6 +354,7 @@ public static class PagesApi
     private static async Task<IResult> PublishPage(
         long id,
         IDocumentSession session,
+        IMessageBus bus,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -367,6 +369,13 @@ public static class PagesApi
             session.Events.Append($"page-{id}", new PageStateChanged(ContentPublicationState.Published));
             await session.SaveChangesAsync(cancellationToken);
 
+            // Publish cache-invalidation event so the OutputCache "PagesPolicy"
+            // (tagged "pages-list") and FusionCache entries are evicted.
+            // Without this, CDN/browser caches may serve stale page content
+            // after a publish action. The ContentUpdatedHandler picks this up
+            // and invalidates both cache layers in a single handler call.
+            await bus.PublishAsync(new PageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, page.Slug));
+
             logger.LogInformation("Published page id={Id}, slug={Slug}", id, page.Slug);
             return TypedResults.Ok(MapToDetail(page));
         }
@@ -380,6 +389,7 @@ public static class PagesApi
     private static async Task<IResult> UnpublishPage(
         long id,
         IDocumentSession session,
+        IMessageBus bus,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -393,6 +403,10 @@ public static class PagesApi
 
             session.Events.Append($"page-{id}", new PageStateChanged(ContentPublicationState.Draft));
             await session.SaveChangesAsync(cancellationToken);
+
+            // Same cache eviction as PublishPage — unpublishing changes
+            // the visible state of the page, so cached copies must be evicted.
+            await bus.PublishAsync(new PageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, page.Slug));
 
             logger.LogInformation("Unpublished page id={Id}, slug={Slug}", id, page.Slug);
             return TypedResults.Ok(MapToDetail(page));

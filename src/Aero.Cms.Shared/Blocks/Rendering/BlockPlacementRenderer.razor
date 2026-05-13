@@ -4,7 +4,7 @@
 @using Aero.Cms.Abstractions.Http.Clients
 @using global::Marten
 @using Marten
-@inject IBlockService BlockService
+@inject BlockRenderCache BlockCache
 @inject IDocumentSession MartenSession
 
 @if (Placement != null)
@@ -33,32 +33,51 @@
     private NavigationDetail? _navigation;
     private bool _loadingAttempted;
 
+    /// <summary>
+    /// Resolves the block from the request-scoped BlockRenderCache instead of
+    /// calling IBlockService.GetByIdAsync directly.
+    /// 
+    /// N+1 REMEDY: The page model (DynamicPageModel) preloads all block IDs
+    /// from every LayoutRegion into BlockRenderCache in a single batch query
+    /// BEFORE this component tree renders. This method performs an O(1)
+    /// dictionary lookup instead of a database round-trip.
+    /// 
+    /// When the cache has NOT been preloaded (shouldn't happen in normal
+    /// operation), the attempted flag prevents repeated failed lookups.
+    /// </summary>
     protected override async Task OnParametersSetAsync()
     {
-        if (Placement != null && (_block == null || _block.Id != Placement.BlockId))
+        if (Placement is not null && (_block is null || _block.Id != Placement.BlockId))
         {
             _loadingAttempted = false;
-            _block = await BlockService.GetByIdAsync(Placement.BlockId);
             
+            // O(1) dictionary lookup — no async, no DB, no HTTP.
+            // The cache was populated by DynamicPageModel.PreloadBlockCacheAsync()
+            // using a single batched Marten query (WHERE Id = ANY(@ids)).
+            _block = BlockCache.GetBlock(Placement.BlockId);
+
             if (_block is NavigationBlock navBlock)
             {
-                // Scenario 1: Block points to a shared navigation structure
+                // Navigation blocks may need to load shared navigation structures.
+                // This is a separate concern from the N+1 block-loading; the
+                // NavigationBlock resolution remains asynchronous.
                 if (navBlock.NavigationId > 0)
                 {
+                    // Note: NavigationBlock referenced by ID may also need batch-load
+                    // in the future. For now, this is a second-hop lookup.
                     var sharedNav = await MartenSession.LoadAsync<NavigationBlock>(navBlock.NavigationId);
-                    if (sharedNav != null)
+                    if (sharedNav is not null)
                     {
                         _navigation = MapToDetail(sharedNav);
                     }
                 }
-                
-                // Scenario 2: Block has inline items (Fallback or primary if NavigationId is 0)
-                if (_navigation == null && navBlock.Items != null && navBlock.Items.Count > 0)
+
+                if (_navigation is null && navBlock.Items is { Count: > 0 })
                 {
                     _navigation = MapToDetail(navBlock);
                 }
             }
-            
+
             _loadingAttempted = true;
         }
     }

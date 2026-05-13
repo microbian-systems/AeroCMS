@@ -42,6 +42,7 @@ public sealed class PageDocumentProjection : IProjection
     private static IEnumerable<IEvent> PageEvents(IEnumerable<IEvent> events)
         => events.Where(e => e.Data is PageCreated
             or PageContentUpdated
+            or PageMetadataUpdated
             or PagePublished
             or PageArchived
             or PageStateChanged
@@ -115,8 +116,12 @@ public sealed class PageDocumentProjection : IProjection
                 current?.Apply(e);
                 return current;
 
-            case PagePublished:
-                current?.Apply(new PagePublished());
+            case PageMetadataUpdated e:
+                current?.Apply(e);
+                return current;
+
+            case PagePublished e:
+                current?.Apply(e);
                 return current;
 
             case PageArchived:

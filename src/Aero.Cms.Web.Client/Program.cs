@@ -6,8 +6,11 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Web.Client.Services;
+using NeoUI.Blazor.Extensions;
+using NeoUI.Blazor.Primitives.Extensions;
 using Radzen;
 using Aero.Cms.Abstractions.Blocks;
 
@@ -48,8 +51,11 @@ builder.Services.AddSingleton<AppState>();
 
 // Legacy registrations
 builder.Services.AddScoped<ManagerThemeService>();
+builder.Services.AddSingleton<INeoEditorCatalogProvider, NeoEditorCatalogProvider>();
 builder.Services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
 builder.Services.AddScoped<Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor, CurrentSiteAccessor>();
+builder.Services.AddNeoUIPrimitives();
+builder.Services.AddNeoUIComponents();
 builder.Services.AddRadzenComponents();
 
 // Register cross-cutting services that run client-side

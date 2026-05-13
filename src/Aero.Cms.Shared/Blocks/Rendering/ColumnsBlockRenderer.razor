@@ -1,0 +1,21 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+@if (Block != null)
+{
+    var gapClass = Block.Gap switch { 0 => "gap-0", 2 => "gap-2", 6 => "gap-6", 8 => "gap-8", _ => "gap-4" };
+    var heightClass = Block.EqualHeight ? "items-stretch" : "items-start";
+
+    <div class="grid grid-cols-12 @gapClass @heightClass my-8">
+        @foreach (var item in Block.Items)
+        {
+            var span = Math.Clamp(item.Span, 1, 12);
+            <div class="col-span-@span">
+                @((MarkupString)item.Content)
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public NeoColumnsBlock? Block { get; set; }
+}

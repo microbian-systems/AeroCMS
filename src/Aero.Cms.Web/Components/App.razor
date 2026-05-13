@@ -26,6 +26,12 @@
     <link rel="stylesheet" href="_content/Radzen.Blazor/css/standard-base.css" />
     <!-- Radzen dark theme (disabled by default, swapped via JS) -->
     <link id="radzen-theme-link" rel="stylesheet" href="_content/Radzen.Blazor/css/standard-dark-base.css" disabled />
+    <!-- NeoUI components styles -->
+    <link rel="stylesheet" href="_content/NeoUI.Blazor/components.css" />
+    <!-- NeoUI theme: base color -->
+    <link rel="stylesheet" href="_content/NeoUI.Blazor/css/themes/base/zinc.css" />
+    <!-- NeoUI theme: primary accent color -->
+    <link rel="stylesheet" href="_content/NeoUI.Blazor/css/themes/primary/blue.css" />
     <script src="https://cdn.jsdelivr.net/npm/@@tailwindcss/browser@@4"></script>
     @* <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script> *@
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
@@ -51,6 +57,7 @@
     <script src="_content/BlazorMonaco/jsInterop.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
+    <script src="_content/NeoUI.Blazor/js/theme.js"></script>
     <script src="_content/Aero.Cms.Shared/splash.js"></script>
     <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
     <script>

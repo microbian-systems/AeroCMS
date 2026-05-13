@@ -9,6 +9,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NeoUI.Blazor.Extensions;
+using NeoUI.Blazor.Primitives.Extensions;
 using Radzen;
 using Serilog;
 
@@ -63,6 +65,8 @@ public static class SetupAppFactory
 
         // Add Radzen components
         services.AddRadzenComponents();
+        services.AddNeoUIPrimitives();
+        services.AddNeoUIComponents();
 
         // Add memory cache for bootstrap operations
         services.AddMemoryCache();
