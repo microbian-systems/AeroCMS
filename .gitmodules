@@ -1,3 +1,6 @@
 [submodule "Aero"]
 	path = Aero
 	url = git@github.com:microbian-systems/Aero.git
+[submodule "NeoUI"]
+	path = NeoUI
+	url = git@github.com:microbian-systems/NeoUI.git
