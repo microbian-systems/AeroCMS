@@ -2,7 +2,6 @@ using Aero.Cms.Abstractions.Blocks.Editing;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages.Admin;
-using Aero.Cms.Modules.Pages.Migration;
 using Aero.Cms.Modules.Pages.Validators;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Web.Core.Modules;
@@ -55,14 +54,8 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         // One-time migration: PageDocument → PageEditorState
         services.AddScoped<PageDocumentMigration>();
 
-        // Legacy block content → NeoPageNode mapper
-        services.AddSingleton<ILegacyBlockMapper, LegacyBlockMapper>();
-
         // Neo editor catalog
         services.AddSingleton<INeoEditorCatalogProvider, NeoEditorCatalogProvider>();
-
-        // Block content migration (legacy → Neo)
-        services.AddScoped<IBlockContentMigrationService, BlockContentMigrationService>();
 
         // FluentValidation
         services.AddScoped<IValidator<PageDocument>, PageDocumentValidator>();
@@ -142,7 +135,6 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
 
     public override Task RunAsync(IEndpointRouteBuilder builder)
     {
-        builder.MapMigrationRoutes();
         return Task.CompletedTask;
     }
 }
