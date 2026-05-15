@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Rendering;
 
 namespace Aero.Cms.Shared.Blocks.Rendering;
 
@@ -102,3 +103,4 @@ public partial class ColumnsBlockRenderer;
 
 [CmsBlockRenderer(typeof(ScribanBlock))]
 public partial class ScribanBlockRenderer;
+

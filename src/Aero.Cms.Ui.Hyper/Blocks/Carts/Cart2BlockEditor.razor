@@ -1,0 +1,14 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Cart Item Count</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.CartItemCount"
+               @oninput="e => Block.CartItemCount = e.Value?.ToString() ?? string.Empty" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Cart2Block Block { get; set; } = default!;
+}

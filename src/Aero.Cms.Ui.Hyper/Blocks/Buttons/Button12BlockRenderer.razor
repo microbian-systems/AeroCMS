@@ -1,0 +1,30 @@
+@* Button 12 — HyperUI marketing/buttons/12 *@
+@* Source: hyperui/public/examples/marketing/buttons/12.html *@
+@using Aero.Cms.Ui.Hyper.Blocks.Buttons
+@if (Block is not null)
+{
+    var isSolid = string.Equals(Block.Style, "solid", StringComparison.OrdinalIgnoreCase);
+
+    if (isSolid)
+    {
+        <a class="group relative inline-block text-sm font-medium text-white" href="@Block.Url">
+            <span class="absolute inset-0 border border-red-600"></span>
+            <span class="block border border-red-600 bg-red-600 px-12 py-3 transition-transform group-hover:-translate-x-1 group-hover:-translate-y-1">
+                @Block.Text
+            </span>
+        </a>
+    }
+    else
+    {
+        <a class="group relative inline-block text-sm font-medium text-red-600" href="@Block.Url">
+            <span class="absolute inset-0 border border-current"></span>
+            <span class="block border border-current bg-white px-12 py-3 transition-transform group-hover:-translate-x-1 group-hover:-translate-y-1">
+                @Block.Text
+            </span>
+        </a>
+    }
+}
+@code {
+    [Parameter, EditorRequired]
+    public Button12Block? Block { get; set; }
+}

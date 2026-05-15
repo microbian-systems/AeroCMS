@@ -1,0 +1,19 @@
+@* Button 3 — HyperUI marketing/buttons/3 *@
+@* Source: hyperui/public/examples/marketing/buttons/3.html *@
+@using Aero.Cms.Ui.Hyper.Blocks.Buttons
+@if (Block is not null)
+{
+    var isPill = string.Equals(Block.RoundedStyle, "full", StringComparison.OrdinalIgnoreCase);
+    var outerRounded = isPill ? "rounded-full" : "rounded-sm";
+    var innerRounded = isPill ? "rounded-full" : "rounded-xs";
+
+    <a class="group inline-block bg-linear-to-r from-pink-500 via-red-500 to-yellow-500 p-0.5 @outerRounded hover:text-white" href="@Block.Url">
+        <span class="block @innerRounded bg-white px-8 py-3 text-sm font-medium group-hover:bg-transparent">
+            @Block.Text
+        </span>
+    </a>
+}
+@code {
+    [Parameter, EditorRequired]
+    public Button3Block? Block { get; set; }
+}

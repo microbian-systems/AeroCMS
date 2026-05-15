@@ -1,0 +1,30 @@
+@using Aero.Cms.Ui.Hyper.Blocks.ProductCards
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Title</label>
+        <input class="w-full rounded-md shadow-xs sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.Title"
+               @oninput="e => Block.Title = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Description</label>
+        <textarea rows="3" class="w-full rounded-md shadow-xs sm:text-sm"
+                  style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                   value="@Block.Price"
+                   @oninput="e => Block.Price = e.Value?.ToString() ?? string.Empty"></textarea>
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">CTA Text</label>
+        <input class="w-full rounded-md shadow-xs sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.CtaText"
+               @oninput="e => Block.CtaText = e.Value?.ToString() ?? string.Empty" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ProductCard6Block Block { get; set; } = default!;
+}

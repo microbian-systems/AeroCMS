@@ -1,0 +1,13 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+@using Aero.Cms.Ui.Hyper.Blocks.Buttons
+
+<div class="pe-neo-preview">
+    <Button4BlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private Button4Block PreviewBlock => Button4BlockMapper.FromNode(Node);
+}

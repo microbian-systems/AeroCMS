@@ -12,7 +12,7 @@ namespace Aero.Cms.SourceGenerators;
 [Generator]
 public sealed class BlockRendererGenerator : IIncrementalGenerator
 {
-    private const string RendererAttributeMetadataName = "Aero.Cms.Shared.Blocks.Rendering.CmsBlockRendererAttribute";
+    private const string RendererAttributeMetadataName = "Aero.Cms.Abstractions.Blocks.Rendering.CmsBlockRendererAttribute";
     private const string BlockMetadataAttributeMetadataName = "Aero.Cms.Abstractions.Blocks.BlockMetadataAttribute";
     private const string BlockBaseMetadataName = "Aero.Cms.Abstractions.Blocks.BlockBase";
     private const string IBlockMetadataName = "Aero.Cms.Abstractions.Blocks.IBlock";
@@ -67,6 +67,9 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             .Select(static (candidate, _) => candidate!.Value)
             .Collect();
 
+        var assemblyName = context.CompilationProvider
+            .Select(static (compilation, _) => compilation.AssemblyName ?? string.Empty);
+
         var renderers = context.SyntaxProvider.ForAttributeWithMetadataName(
             RendererAttributeMetadataName,
             static (node, _) => node is ClassDeclarationSyntax,
@@ -102,8 +105,14 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
                 return new CrossAssemblyBlockData(results.ToImmutableArray(), compilation.AssemblyName);
             });
 
-        context.RegisterSourceOutput(blockModels, static (productionContext, candidates) =>
+        context.RegisterSourceOutput(blockModels.Combine(assemblyName), static (productionContext, source) =>
         {
+            var (candidates, assembly) = source;
+            if (!string.Equals(assembly, "Aero.Cms.Abstractions", StringComparison.Ordinal))
+            {
+                return;
+            }
+
             var descriptors = candidates
                 .Select(CreateBlockModelDescriptor)
                 .Where(static descriptor => descriptor is not null)
@@ -166,8 +175,14 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
 
         // Neo editor catalog — emitted from the renderers pipeline so it lands
         // in Aero.Cms.Shared where NeoEditorCatalogProvider lives.
-        context.RegisterSourceOutput(renderers, static (productionContext, candidates) =>
+        context.RegisterSourceOutput(renderers.Combine(assemblyName), static (productionContext, source) =>
         {
+            var (candidates, assembly) = source;
+            if (!string.Equals(assembly, "Aero.Cms.Shared", StringComparison.Ordinal))
+            {
+                return;
+            }
+
             var descriptors = candidates
                 .Select(candidate => CreateDescriptor(productionContext, candidate))
                 .Where(static descriptor => descriptor is not null)
@@ -354,8 +369,10 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         }
 
         var attribute = context.Attributes.FirstOrDefault(static attr =>
-            attr.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                == "global::" + RendererAttributeMetadataName);
+        {
+            var attributeName = attr.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            return attributeName == "global::" + RendererAttributeMetadataName;
+        });
 
         if (attribute?.ConstructorArguments.Length != 1)
         {
@@ -731,6 +748,15 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
         source.AppendLine("    public static bool TryGet(string blockType, out ICmsBlockRenderAdapter adapter)");
         source.AppendLine("        => Adapters.TryGetValue(blockType, out adapter!);");
         source.AppendLine("}");
+        source.AppendLine();
+        source.AppendLine("/// <summary>");
+        source.AppendLine("/// DI-friendly wrapper for the source-generated block renderer adapter lookup.");
+        source.AppendLine("/// </summary>");
+        source.AppendLine("public sealed class GeneratedCmsBlockRenderRegistry : ICmsBlockRenderRegistry");
+        source.AppendLine("{");
+        source.AppendLine("    public bool TryGet(string blockType, out ICmsBlockRenderAdapter adapter)");
+        source.AppendLine("        => CmsBlockRenderRegistry.TryGet(blockType, out adapter);");
+        source.AppendLine("}");
     }
 
     private static void ReportDuplicateBlockTypes(
@@ -1056,6 +1082,7 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             "Aero UI" => "AeroUi",
             "Primitives" => "Primitives",
             "Components" => "Components",
+            "Hyper" => "Hyper",
             _ => "AeroUi"
         };
     }

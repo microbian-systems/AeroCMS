@@ -20,6 +20,29 @@ Use **Option A** for V1:
 
 The product goal is a simple WYSIWYG PageEditor for non-technical users. Authors should be able to build pages by adding obvious page sections, editing text/images/buttons in-place, and seeing quick previews. Advanced primitives/components should support composition inside blocks without making the first editing experience feel like a developer tool or component inspector.
 
+## Block UI Package Boundary
+
+For new UI libraries such as HyperUI, use a vertical package boundary. A package like `Aero.Cms.Ui.Hyper` owns the block model, mapper, public static SSR renderer, package-local renderer marker, editor preview, modal editor, and `IPageEditorBlockDefinition` for each Hyper block. `Aero.Cms.Shared` remains the PageEditor shell and block rendering host; it should not receive per-block Hyper switch cases, Hyper renderer markers, or Hyper editor files.
+
+Stable contracts live in `Aero.Cms.Abstractions`:
+
+- `BlockBase`
+- `BlockMetadataAttribute`
+- `CmsBlockRendererAttribute`
+- `ICmsBlockModelProvider`
+- `IPageEditorBlockDefinition`
+- `IPageEditorBlockProvider`
+
+The public/server host and the WebAssembly client both reference the UI package and call one extension method, for example:
+
+```csharp
+services.AddAeroCmsHyperUiBlocks();
+```
+
+That extension registers the package's editor provider, block model provider, and generated renderer registry. The server call lets public `.cshtml` rendering resolve Hyper renderers; the WebAssembly client call lets PageEditor resolve palette items, previews, and modal editors. Adding the next Hyper block should normally touch only files under `src/Aero.Cms.Ui.Hyper/Blocks/{Slice}/` plus the package provider list.
+
+Renderer discovery for package-owned blocks uses a normal `.cs` partial marker with `[CmsBlockRenderer(typeof(BlockType))]`. Do not rely on Razor `@attribute [CmsBlockRenderer(...)]` for new Hyper blocks, and do not add Hyper entries to `Aero.Cms.Shared/Blocks/Rendering/RendererMarkers.cs`.
+
 ## Required Order
 
 ### 1. PageDocument Foundation

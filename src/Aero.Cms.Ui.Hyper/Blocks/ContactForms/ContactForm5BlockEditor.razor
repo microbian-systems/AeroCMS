@@ -1,0 +1,56 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Title</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.Title"
+               @oninput="e => Block.Title = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Description</label>
+        <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
+                  style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                  value="@Block.Description"
+                  @oninput="e => Block.Description = e.Value?.ToString() ?? string.Empty"></textarea>
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Phone Label</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.PhoneLabel"
+               @oninput="e => Block.PhoneLabel = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Email Label</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.EmailLabel"
+               @oninput="e => Block.EmailLabel = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Location Label</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.LocationLabel"
+               @oninput="e => Block.LocationLabel = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Button Text</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.CtaText"
+               @oninput="e => Block.CtaText = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Form Action URL</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.FormAction"
+               @oninput="e => Block.FormAction = e.Value?.ToString() ?? string.Empty" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ContactForm5Block Block { get; set; } = default!;
+}

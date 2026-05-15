@@ -34,6 +34,17 @@
   <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Ui.Hyper\Aero.Cms.Ui.Hyper.csproj" />
   </ItemGroup>
+
+  <Target Name="AeroCompileClientTypeScriptBeforeStaticWebAssets"
+          BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets"
+          Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
+    <PropertyGroup>
+      <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>
+      <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>
+    </PropertyGroup>
+    <Exec Command="&quot;$(AeroTscToolExe)&quot; &quot;$(TSJavaScriptFile)&quot; -p &quot;$(MSBuildProjectDirectory)\tsconfig.json&quot;" />
+  </Target>
 
 </Project>

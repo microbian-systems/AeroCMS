@@ -1,0 +1,31 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Button Text</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.Text"
+               @oninput="e => Block.Text = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">URL</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.Url"
+               @oninput="e => Block.Url = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Style</label>
+        <select class="w-full rounded-md shadow-sm sm:text-sm"
+                style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                value="@Block.Style"
+                @onchange='e => Block.Style = e.Value?.ToString() ?? "solid"'>
+            <option value="solid">Solid</option>
+            <option value="bordered">Bordered</option>
+        </select>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Button11Block Block { get; set; } = default!;
+}

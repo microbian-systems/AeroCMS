@@ -15,6 +15,9 @@ public static class NeoCatalogSectionMapper
             case "COMPONENTS":
                 section = NeoEditorCatalogSection.Components;
                 return true;
+            case "HYPER":
+                section = NeoEditorCatalogSection.Hyper;
+                return true;
             default:
                 section = default;
                 return false;

@@ -1,0 +1,49 @@
+@* Poll 1 — HyperUI marketing/polls/1 *@
+@* Source: hyperui/public/examples/marketing/polls/1.html *@
+@using Aero.Cms.Ui.Hyper.Blocks.Polls
+@if (Block is not null && Block.Options.Count > 0)
+{
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div class="max-w-prose">
+            <h2 class="text-2xl font-semibold text-gray-900 sm:text-3xl dark:text-white">@Block.Question</h2>
+            @if (!string.IsNullOrEmpty(Block.Description))
+            {
+                <p class="mt-4 text-pretty text-gray-700 dark:text-gray-200">@Block.Description</p>
+            }
+        </div>
+
+        <form action="#" class="mt-6 space-y-4">
+            <fieldset class="space-y-4">
+                <legend class="sr-only">Select an option</legend>
+                @foreach (var option in Block.Options)
+                {
+                    <div class="flex items-center gap-4">
+                        <label for="Poll1_@option.GetHashCode()"
+                               class="relative block flex-1 overflow-hidden rounded border border-gray-300 px-4 py-2 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white">
+                            <div class="absolute inset-y-0 left-0 rounded bg-gray-100 dark:bg-gray-800"
+                                 style="width: @(option.Percentage)%"></div>
+                            <div class="relative flex items-center gap-4">
+                                <input type="radio" id="Poll1_@option.GetHashCode()" name="Poll1"
+                                       class="size-5 border-gray-300 shadow-sm dark:border-gray-600" />
+                                <span class="font-medium text-gray-900 dark:text-white">@option.Label</span>
+                            </div>
+                        </label>
+                        <span class="text-gray-700 dark:text-gray-200">@option.Percentage%</span>
+                    </div>
+                }
+            </fieldset>
+        </form>
+
+        @if (!string.IsNullOrEmpty(Block.EndDate))
+        {
+            <p class="mt-4 text-sm text-gray-700 dark:text-gray-200">
+                Ends on <time datetime="@Block.EndDateIso">@Block.EndDate</time>
+            </p>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Poll1Block? Block { get; set; }
+}

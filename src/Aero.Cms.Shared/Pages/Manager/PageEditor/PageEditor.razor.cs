@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System;
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Blocks.Neo;
@@ -22,6 +23,7 @@ using Aero.Core.Railway;
 using CmsPageDetail = Aero.Cms.Abstractions.Http.Clients.PageDetail;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Shared.Services;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
 using NeoUI.Blazor;
@@ -54,6 +56,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     [Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
     [Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
+    [Inject] protected IEnumerable<IPageEditorBlockProvider> PageEditorBlockProviders { get; set; } = [];
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
@@ -94,6 +97,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected bool CategoryMedia     { get; set; } = true;
     protected bool CategoryReferences { get; set; }
     protected bool CategorySettings   { get; set; } = true;
+    protected bool CategoryHyper      { get; set; } = true;
 
     // Page Settings
     protected string PageSlug { get; set; } = string.Empty;
@@ -173,6 +177,8 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     protected override async Task OnInitializedAsync()
     {
+        PageEditorBlockRegistry.RegisterProviders(PageEditorBlockProviders);
+
         await ResolvePreviewBaseUriAsync();
 
         if (Id.HasValue)
@@ -341,6 +347,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             case "media":     CategoryMedia     = !CategoryMedia;     break;
             case "references": CategoryReferences = !CategoryReferences; break;
             case "settings":   CategorySettings   = !CategorySettings;   break;
+            case "hyper":      CategoryHyper      = !CategoryHyper;      break;
         }
     }
 
@@ -398,6 +405,49 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         CatalogItem("authors", "Authors", 50)
     ];
 
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoHyperCatalogItems =>
+        Catalog.GetCatalogItems()
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
+            .Concat(PageEditorBlockRegistry.All.Select(ToCatalogItem))
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
+            .GroupBy(i => i.CatalogId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+    private static PageEditorCatalog.NeoEditorCatalogItem ToCatalogItem(IPageEditorBlockDefinition definition) =>
+        new()
+        {
+            CatalogId = definition.CatalogId,
+            DisplayName = definition.DisplayName,
+            Description = definition.Description,
+            Section = ToCatalogSection(definition.Category),
+            Kind = ToCatalogKind(definition.Kind),
+            SortOrder = definition.SortOrder,
+            IconName = definition.IconName,
+            PublicStaticSsrSafe = definition.PublicStaticSsrSafe,
+            EditorPreviewComponentType = definition.PreviewComponentType,
+            PropertyEditorComponentType = definition.PropertyEditorComponentType
+        };
+
+    private static PageEditorCatalog.NeoEditorCatalogSection ToCatalogSection(string? category) =>
+        category?.Trim().ToLowerInvariant() switch
+        {
+            "aero ui" or "aeroui" or "aero" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
+            "primitive" or "primitives" => PageEditorCatalog.NeoEditorCatalogSection.Primitives,
+            "component" or "components" => PageEditorCatalog.NeoEditorCatalogSection.Components,
+            "hyper" or "hyperui" or "hyper ui" => PageEditorCatalog.NeoEditorCatalogSection.Hyper,
+            _ => PageEditorCatalog.NeoEditorCatalogSection.AeroUi
+        };
+
+    private static PageEditorCatalog.NeoEditorCatalogKind ToCatalogKind(string? kind) =>
+        kind?.Trim().ToLowerInvariant() switch
+        {
+            "primitive" => PageEditorCatalog.NeoEditorCatalogKind.Primitive,
+            "component" => PageEditorCatalog.NeoEditorCatalogKind.Component,
+            _ => PageEditorCatalog.NeoEditorCatalogKind.Block
+        };
+
     private static PageEditorCatalog.NeoEditorCatalogItem CatalogItem(string id, string name, int sortOrder) =>
         new()
         {
@@ -452,6 +502,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected string GetBlockDisplayName(EditorBlock block)
     {
         var allItems = NeoAeroCatalogItems
+            .Concat(NeoHyperCatalogItems)
             .Concat(LegacyUiCatalogItems)
             .Concat(AeroUxCatalogItems)
             .Concat(MediaCatalogItems)
@@ -463,6 +514,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     private EditorBlock CreateBlock(string type)
     {
+        if (PageEditorBlockRegistry.TryGet(type, out var definition))
+        {
+            return definition.CreateDefaultEditorBlock();
+        }
+
         var block = new EditorBlock { Type = type };
 
         switch (type)
@@ -612,6 +668,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     {
         if (block == null) return null;
 
+        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        {
+            return definition.ToBlockBase(block);
+        }
+
         var node = MapEditorBlockToNeoNode(block);
         return block.Type switch
         {
@@ -628,8 +689,15 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         };
     }
 
-    private static NeoPageNode MapEditorBlockToNeoNode(EditorBlock block) => block.Type switch
+    private static NeoPageNode MapEditorBlockToNeoNode(EditorBlock block)
     {
+        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        {
+            return definition.ToNeoPageNode(block);
+        }
+
+        return block.Type switch
+        {
         "aero.hero.01" => new NeoPageNode
         {
             CatalogId = "aero.hero.01", Kind = NeoPageNodeKind.Block,
@@ -710,7 +778,8 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             Properties = []
         },
         _ => new NeoPageNode { CatalogId = block.Type, Kind = NeoPageNodeKind.Block, Properties = [] }
-    };
+        };
+    }
 
     protected void SelectBlock(string id) => SelectedBlockId = id;
 

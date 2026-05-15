@@ -1,4 +1,5 @@
 @using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Blocks.Common
 
 <div class="pe-property-panel-shell">
     @if (ShowHeader)
@@ -29,6 +30,11 @@
                         @TextField("Secondary Button Text", Block.CtaText2, value => Block.CtaText2 = value)
                         @TextField("Secondary Button URL", Block.CtaUrl2, value => Block.CtaUrl2 = value)
                         @TextAreaField("Trust Markers", string.Join(", ", Block.TrustMarkers), SetTrustMarkers)
+                        break;
+                    case "hyper.pricing.1":
+                        @TextField("Title", Block.MainText, value => Block.MainText = value)
+                        @TextAreaField("Description", FirstNonEmpty(Block.Description, Block.SubText), value => { Block.Description = value; Block.SubText = value; })
+                        @PricingPlansField()
                         break;
                     case "aero.hero.basic":
                     case "boring_hero":
@@ -166,6 +172,32 @@
         </button>
     </div>;
 
+    private RenderFragment PricingPlansField() => @<div class="pe-property-group">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px;">
+            <label class="pe-property-label" style="margin: 0;">Plans</label>
+            <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="AddPricingPlan">Add Plan</button>
+        </div>
+        @if (Block?.PricingPlans.Count == 0)
+        {
+            <p class="text-muted-foreground text-sm">Add at least one plan.</p>
+        }
+        @for (var index = 0; index < (Block?.PricingPlans.Count ?? 0); index++)
+        {
+            var plan = Block!.PricingPlans[index];
+            var currentIndex = index;
+            <div class="pe-property-panel" style="margin-bottom: 12px; padding: 12px; border: 1px solid var(--pe-border); border-radius: 8px;">
+                @TextField("Name", plan.Name, value => { plan.Name = value; NotifyChanged(); })
+                @TextField("Price", plan.Price, value => { plan.Price = value; NotifyChanged(); })
+                @TextField("Period", plan.Period, value => { plan.Period = value; NotifyChanged(); })
+                @TextField("Button Text", plan.CtaText, value => { plan.CtaText = value; NotifyChanged(); })
+                @TextField("Button URL", plan.CtaUrl, value => { plan.CtaUrl = value; NotifyChanged(); })
+                @BoolField("Highlighted", plan.IsPopular, value => { plan.IsPopular = value; NotifyChanged(); })
+                @TextAreaField("Features", string.Join(Environment.NewLine, plan.Features), value => SetPricingFeatures(plan, value), 5)
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => RemovePricingPlan(currentIndex)">Remove Plan</button>
+            </div>
+        }
+    </div>;
+
     private void InvokeAction(Action? action)
     {
         action?.Invoke();
@@ -191,7 +223,15 @@
         }
 
         setValue(value);
-        _ = OnChanged.InvokeAsync(Block);
+        NotifyChanged();
+    }
+
+    private void NotifyChanged()
+    {
+        if (Block is not null)
+        {
+            _ = OnChanged.InvokeAsync(Block);
+        }
     }
 
     private void UpdateColumnCount(int count)
@@ -213,6 +253,46 @@
         {
             Block.EditorColumns.RemoveAt(Block.EditorColumns.Count - 1);
         }
+
+        NotifyChanged();
+    }
+
+    private void AddPricingPlan()
+    {
+        if (Block is null)
+        {
+            return;
+        }
+
+        Block.PricingPlans.Add(new AeroPricingPlan
+        {
+            Name = "New Plan",
+            Price = "$0",
+            Period = "/month",
+            Features = ["Feature one", "Feature two"],
+            CtaText = "Get Started",
+            CtaUrl = "#"
+        });
+        NotifyChanged();
+    }
+
+    private void RemovePricingPlan(int index)
+    {
+        if (Block is null || index < 0 || index >= Block.PricingPlans.Count)
+        {
+            return;
+        }
+
+        Block.PricingPlans.RemoveAt(index);
+        NotifyChanged();
+    }
+
+    private void SetPricingFeatures(AeroPricingPlan plan, string value)
+    {
+        plan.Features = value
+            .Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        NotifyChanged();
     }
 
     private static string FirstNonEmpty(params string?[] values) =>

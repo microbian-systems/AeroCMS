@@ -6,13 +6,20 @@
 @using Aero.Cms.Abstractions.Blocks.Neo
 @using Aero.Cms.Shared.Blocks.Rendering
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Hero01
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions
 
-@switch (Block.Type)
+@if (TryGetRegisteredPreview(out var registeredPreviewType, out var registeredPreviewParameters))
 {
-    // ── Neo blocks ────────────────────────────────────────────
-    case "aero.hero.01":
-        <Hero01BlockEditorPreview Node="MapToNeoNode(Block)" />
-        break;
+    <DynamicComponent Type="@registeredPreviewType" Parameters="@registeredPreviewParameters" />
+}
+else
+{
+    @switch (Block.Type)
+    {
+        // ── Neo blocks ────────────────────────────────────────────
+        case "aero.hero.01":
+            <Hero01BlockEditorPreview Node="MapToNeoNode(Block)" />
+            break;
     case "aero.hero.basic":
         <BasicHeroBlockEditorPreview Node="MapToNeoNode(Block)" />
         break;
@@ -455,15 +462,34 @@
     case "dynamic_template":
         <div class="pe-block-placeholder">Scriban Template</div>
         break;
-    default:
-        <div class="pe-block-placeholder">@Block.Type</div>
-        break;
+        default:
+            <div class="pe-block-placeholder">@Block.Type</div>
+            break;
+    }
 }
 
 @code {
     [Parameter] public EditorBlock Block { get; set; } = default!;
     [Parameter] public bool IsSelected { get; set; }
     [CascadingParameter] public IBlockEditorCallbacks Editor { get; set; } = default!;
+
+    private bool TryGetRegisteredPreview(out Type previewType, out Dictionary<string, object?> parameters)
+    {
+        if (PageEditorBlockRegistry.TryGet(Block.Type, out var definition) &&
+            definition.PreviewComponentType is { } registeredPreviewType)
+        {
+            previewType = registeredPreviewType;
+            parameters = new Dictionary<string, object?>
+            {
+                ["Node"] = definition.ToNeoPageNode(Block)
+            };
+            return true;
+        }
+
+        previewType = default!;
+        parameters = [];
+        return false;
+    }
 
     private void Update<T>(Action<T> setValue, T value)
     {
@@ -598,8 +624,15 @@
     </div>;
 
     // ── Neo node mapping ────────────────────────────────────────────
-    private NeoPageNode MapToNeoNode(EditorBlock block) => block.Type switch
+    private NeoPageNode MapToNeoNode(EditorBlock block)
     {
+        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        {
+            return definition.ToNeoPageNode(block);
+        }
+
+        return block.Type switch
+        {
         "media.image" => new NeoPageNode
         {
             CatalogId = "media.image", Kind = NeoPageNodeKind.Block,
@@ -685,7 +718,8 @@
             CatalogId = block.Type, Kind = NeoPageNodeKind.Block,
             Properties = []
         }
-    };
+        };
+    }
 
     private static NeoPageNode MapLegacyImageToNeoNode(EditorBlock block) => new()
     {
@@ -750,8 +784,15 @@
     /// Converts an EditorBlock to its corresponding BlockBase for property editing.
     /// Uses MapToNeoNode + block-specific mapper for Neo blocks.
     /// </summary>
-    public BlockBase? GetBlockBase(EditorBlock block) => block.Type switch
+    public BlockBase? GetBlockBase(EditorBlock block)
     {
+        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        {
+            return definition.ToBlockBase(block);
+        }
+
+        return block.Type switch
+        {
         "aero.hero.01" => Hero01BlockMapper.FromNode(MapToNeoNode(block)),
         "aero.hero.basic" => BasicHeroBlockMapper.FromNode(MapToNeoNode(block)),
         "media.image" => ImageBlockMapper.FromNode(MapToNeoNode(block)),
@@ -762,6 +803,7 @@
         "ui.separator" => SeparatorBlockMapper.FromNode(MapToNeoNode(block)),
         "neo.layout.columns" => NeoColumnsBlockMapper.FromNode(MapToNeoNode(block)),
         _ => null
-    };
+        };
+    }
 
 }

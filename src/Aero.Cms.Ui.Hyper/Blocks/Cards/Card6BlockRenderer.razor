@@ -1,0 +1,53 @@
+@* Cards 6 — HyperUI marketing/cards/6 *@
+@* Source: hyperui/public/examples/marketing/cards/6.html *@
+@using Aero.Cms.Ui.Hyper.Blocks.Cards
+@if (Block is not null)
+{
+    <article class="rounded-xl border border-gray-700 bg-gray-800 p-4">
+        <div class="flex items-center gap-4">
+            <img
+                alt=""
+                src="@Block.AvatarUrl"
+                class="size-16 rounded-full object-cover"
+            />
+
+            <div>
+                <h3 class="text-lg font-medium text-white">@Block.Name</h3>
+
+                <div class="flow-root">
+                    <ul class="-m-1 flex flex-wrap">
+                        @foreach (var link in Block.SocialLinks)
+                        {
+                            <li class="p-1 leading-none">
+                                <a href="@link.Url" class="text-xs font-medium text-gray-300 hover:text-white"> @link.Name </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <ul class="mt-4 space-y-2">
+            @foreach (var project in Block.Projects)
+            {
+                <li>
+                    <a
+                        href="@project.Url"
+                        class="block h-full rounded-lg border border-gray-700 p-4 hover:border-pink-600"
+                    >
+                        <strong class="font-medium text-white">@project.Title</strong>
+
+                        <p class="mt-1 text-xs font-medium text-gray-300">
+                            @project.Description
+                        </p>
+                    </a>
+                </li>
+            }
+        </ul>
+    </article>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Card6Block? Block { get; set; }
+}

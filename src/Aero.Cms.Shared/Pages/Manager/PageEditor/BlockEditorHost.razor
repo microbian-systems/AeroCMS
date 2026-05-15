@@ -5,11 +5,18 @@
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Layout
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Media
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.UI
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions
 
 @if (Block != null)
 {
-    @switch (Block.BlockType)
+    @if (TryGetRegisteredEditor(out var registeredEditorType, out var registeredEditorParameters))
     {
+        <DynamicComponent Type="@registeredEditorType" Parameters="@registeredEditorParameters" />
+    }
+    else
+    {
+        @switch (Block.BlockType)
+        {
         case "aero.hero.01":
             <Hero01BlockEditor Block="As<Hero01Block>()" />
             break;
@@ -46,6 +53,7 @@
                 <p class="text-xs mt-1">@Block.BlockType</p>
             </div>
             break;
+        }
     }
 }
 else
@@ -59,4 +67,23 @@ else
     [Parameter] public BlockBase? Block { get; set; }
 
     private T As<T>() where T : BlockBase => (T)Block!;
+
+    private bool TryGetRegisteredEditor(out Type editorType, out Dictionary<string, object?> parameters)
+    {
+        if (Block is not null &&
+            PageEditorBlockRegistry.TryGet(Block.BlockType, out var definition) &&
+            definition.PropertyEditorComponentType is { } propertyEditorType)
+        {
+            editorType = propertyEditorType;
+            parameters = new Dictionary<string, object?>
+            {
+                ["Block"] = Block
+            };
+            return true;
+        }
+
+        editorType = default!;
+        parameters = [];
+        return false;
+    }
 }

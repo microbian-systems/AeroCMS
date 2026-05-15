@@ -1,5 +1,7 @@
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 using System.Text.Json;
 
 namespace Aero.Cms.Modules.Pages;
@@ -19,6 +21,11 @@ public static class EditorBlockMapper
     public static BlockBase? MapBlock(EditorBlock editorBlock)
     {
         ArgumentNullException.ThrowIfNull(editorBlock);
+
+        if (PageEditorBlockRegistry.TryGet(editorBlock.Type, out var definition))
+        {
+            return definition.ToBlockBase(editorBlock);
+        }
 
         return editorBlock.Type switch
         {

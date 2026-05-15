@@ -1,0 +1,23 @@
+@* Announcement 3 — HyperUI marketing/announcements/3 *@
+@* Source: hyperui/public/examples/marketing/announcements/3.html + 3-dark.html *@
+@using Aero.Cms.Ui.Hyper.Blocks.Announcements
+@if (Block is not null)
+{
+    <div class="fixed inset-x-0 bottom-0 z-auto border-t border-gray-200 bg-gray-100 px-4 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+        <p class="text-center font-medium">
+            @if (!string.IsNullOrEmpty(Block.MainText))
+            {
+                @Block.MainText
+            }
+            @if (!string.IsNullOrEmpty(Block.CtaText))
+            {
+                <a href="@Block.CtaUrl" class="inline-block underline"> @Block.CtaText </a>
+            }
+        </p>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Announcement3Block? Block { get; set; }
+}

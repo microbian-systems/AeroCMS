@@ -1,0 +1,13 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+@using Aero.Cms.Ui.Hyper.Blocks.Footers
+
+<div class="pe-neo-preview">
+    <Footer2BlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private Footer2Block PreviewBlock => Footer2BlockMapper.FromNode(Node);
+}

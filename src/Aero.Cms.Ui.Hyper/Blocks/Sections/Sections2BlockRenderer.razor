@@ -1,0 +1,36 @@
+@* Sections 2 — HyperUI marketing/sections/2 *@
+@* Source: hyperui/public/examples/marketing/sections/2.html (light-only, no dark variant) *@
+@using Aero.Cms.Ui.Hyper.Blocks.Sections
+@if (Block is not null)
+{
+    <section>
+        <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-4 md:items-center md:gap-8">
+                <div class="md:col-span-1">
+                    <div class="max-w-prose md:max-w-none">
+                        @if (!string.IsNullOrEmpty(Block.Title))
+                        {
+                            <h2 class="text-2xl font-semibold text-gray-900 sm:text-3xl">@Block.Title</h2>
+                        }
+                        @if (!string.IsNullOrEmpty(Block.Description))
+                        {
+                            <p class="mt-4 text-pretty text-gray-700">@Block.Description</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="md:col-span-3">
+                    @if (!string.IsNullOrEmpty(Block.ImageUrl))
+                    {
+                        <img src="@Block.ImageUrl" class="rounded" alt="" />
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Sections2Block? Block { get; set; }
+}

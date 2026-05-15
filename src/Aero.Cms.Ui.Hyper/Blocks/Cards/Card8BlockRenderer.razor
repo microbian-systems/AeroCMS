@@ -1,0 +1,70 @@
+@* Cards 8 — HyperUI marketing/cards/8 *@
+@* Source: hyperui/public/examples/marketing/cards/8.html *@
+@using Aero.Cms.Ui.Hyper.Blocks.Cards
+@if (Block is not null)
+{
+    <article class="rounded-xl bg-white p-4 ring-3 ring-indigo-50 sm:p-6 lg:p-8 dark:bg-gray-900 dark:ring-indigo-900/50">
+        <div class="flex items-start sm:gap-8">
+            <div
+                class="hidden sm:grid sm:size-20 sm:shrink-0 sm:place-content-center sm:rounded-full sm:border-2 sm:border-indigo-500"
+                aria-hidden="true"
+            >
+                <div class="flex items-center gap-1">
+                    <span class="h-8 w-0.5 rounded-full bg-indigo-500"></span>
+                    <span class="h-6 w-0.5 rounded-full bg-indigo-500"></span>
+                    <span class="h-4 w-0.5 rounded-full bg-indigo-500"></span>
+                    <span class="h-6 w-0.5 rounded-full bg-indigo-500"></span>
+                    <span class="h-8 w-0.5 rounded-full bg-indigo-500"></span>
+                </div>
+            </div>
+
+            <div>
+                <strong
+                    class="rounded-sm border border-indigo-500 bg-indigo-500 px-3 py-1.5 text-[10px] font-medium text-white"
+                >
+                    @Block.EpisodeBadge
+                </strong>
+
+                <h3 class="mt-4 text-lg font-medium sm:text-xl text-gray-900 dark:text-white">
+                    <a href="@Block.CtaUrl" class="hover:underline"> @Block.Title </a>
+                </h3>
+
+                <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">
+                    @Block.Description
+                </p>
+
+                <div class="mt-4 sm:flex sm:items-center sm:gap-2">
+                    <div class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                        <svg
+                            class="size-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            ></path>
+                        </svg>
+
+                        <p class="text-xs font-medium">@Block.Duration</p>
+                    </div>
+
+                    <span class="hidden sm:block text-gray-400" aria-hidden="true">&middot;</span>
+
+                    <p class="mt-2 text-xs font-medium text-gray-500 sm:mt-0 dark:text-gray-400">
+                        Featuring-@Block.Featuring
+                    </p>
+                </div>
+            </div>
+        </div>
+    </article>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Card8Block? Block { get; set; }
+}

@@ -1,0 +1,13 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+@using Aero.Cms.Ui.Hyper.Blocks.Faqs
+
+<div class="pe-neo-preview">
+    <Faq2BlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private Faq2Block PreviewBlock => Faq2BlockMapper.FromNode(Node);
+}

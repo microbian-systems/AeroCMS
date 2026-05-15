@@ -1,0 +1,56 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Title</label>
+        <input class="w-full rounded-xs shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.MainText"
+               @oninput="e => Block.MainText = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Description</label>
+        <textarea rows="3" class="w-full rounded-xs shadow-sm sm:text-sm"
+                  style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                  value="@Block.Description"
+                  @oninput="e => Block.Description = e.Value?.ToString() ?? string.Empty"></textarea>
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Image URL</label>
+        <input class="w-full rounded-xs shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.ImageUrl"
+               @oninput="e => Block.ImageUrl = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Year</label>
+        <input class="w-full rounded-xs shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.PublishedAt"
+               @oninput="e => Block.PublishedAt = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Date</label>
+        <input class="w-full rounded-xs shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.PublishedAtDay"
+               @oninput="e => Block.PublishedAtDay = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Button Text</label>
+        <input class="w-full rounded-xs shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.CtaText"
+               @oninput="e => Block.CtaText = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Link URL</label>
+        <input class="w-full rounded-xs shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.CtaUrl"
+               @oninput="e => Block.CtaUrl = e.Value?.ToString() ?? string.Empty" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public BlogCard6Block Block { get; set; } = default!;
+}

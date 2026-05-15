@@ -1,0 +1,30 @@
+@* Empty Content 3 — HyperUI marketing/empty-content/3 *@
+@* Source: hyperui/public/examples/marketing/empty-content/3.html + 3-dark.html *@
+@using Aero.Cms.Ui.Hyper.Blocks.EmptyContent
+@if (Block is not null)
+{
+    <div class="flex min-h-screen items-center justify-center p-6">
+        <div class="max-w-md text-center">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">@Block.Title</h2>
+
+            <p class="mt-4 text-pretty text-gray-700 dark:text-gray-200">@Block.Description</p>
+
+            <form class="mt-6 space-y-2">
+                <input type="email" placeholder="@Block.EmailPlaceholder"
+                       class="w-full rounded-lg border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-hidden dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
+
+                <button type="submit"
+                        class="block w-full rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700">
+                    @Block.SubmitText
+                </button>
+            </form>
+
+            <p class="mt-6 text-sm text-gray-700 dark:text-gray-200">@Block.Footnote</p>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public EmptyContent3Block? Block { get; set; }
+}

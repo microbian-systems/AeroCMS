@@ -719,3 +719,95 @@ This tells Marten to deserialize old `page-content-updated` stream entries as
 | Marten document store pattern | **Unchanged** |
 | `ISiteOwned`, `ISoftDeleted`, `IAuditableEntity` | **Unchanged** |
 | Marten stream versioning for `BlockBase` | **Unchanged — Marten owns it** |
+
+---
+
+## STEP BY STEP: Add a New Page Block in the Refactored Editor
+
+Use this checklist for every new PageEditor block. The goal is one vertical
+slice per UI library or block family: the package that owns the block should own
+the persisted model, public static SSR renderer, editor preview, modal editor,
+mapper, and runtime editor definition. Do not add a new block by sprinkling
+cases across every PageEditor switch unless the block is a legacy inline-edit
+exception.
+
+1. Create the persisted block model.
+   - Add a `BlockBase` subtype in the owning UI package, for example `src/Aero.Cms.Ui.Hyper/Blocks/Pricing/Pricing1Block.cs`.
+   - Add `[BlockMetadata("catalog.id", "Display Name", Category = "...", Icon = "...", SortOrder = ...)]`.
+   - Keep the `BlockType` value exactly equal to the catalog id.
+   - Example: `hyper.pricing.1`.
+
+2. Create or update the public renderer.
+   - Add a renderer component beside the block model in the owning package, for example `src/Aero.Cms.Ui.Hyper/Blocks/Pricing/Pricing1BlockRenderer.razor`.
+   - Public renderers must output static SSR-safe HTML. Do not require PageEditor-only services or interactive Blazor render modes for public CMS pages.
+   - Add a package-local renderer marker in a `.cs` file beside the block or in a package `RendererMarkers.cs`.
+   - Do not rely on Razor `@attribute [CmsBlockRenderer(...)]` for package discovery. The source generator runs against C# symbols and must see a normal `.cs` partial declaration.
+
+```csharp
+using Aero.Cms.Abstractions.Blocks.Rendering;
+
+namespace Aero.Cms.Ui.Hyper.Blocks.Pricing;
+
+[CmsBlockRenderer(typeof(Pricing1Block))]
+public partial class Pricing1BlockRenderer;
+```
+
+3. Add mapper logic only if the editor uses a node/DTO shape.
+   - For Neo/Hyper editor blocks, create a mapper beside the block such as `Pricing1BlockMapper`.
+   - Map `BlockBase -> NeoPageNode` for preview.
+   - Map `NeoPageNode -> BlockBase` when needed by editor previews.
+
+4. Add a PageEditor runtime definition in the owning package.
+   - Implement `IPageEditorBlockDefinition`.
+   - The definition owns:
+     - catalog metadata for the PageEditor palette,
+     - default `EditorBlock` creation,
+     - `EditorBlock -> NeoPageNode`,
+     - `EditorBlock -> BlockBase`,
+     - optional preview component type,
+     - optional modal editor component type.
+   - This replaces the old pattern of adding the same catalog id to many hardcoded switches.
+
+5. Add the editor preview component.
+   - Place it beside the block in the owning package.
+   - Prefer a lightweight preview that shows what the block will look like without turning the public page renderer into an interactive manager component.
+   - Registered preview components should accept a `NeoPageNode Node` parameter unless the definition intentionally uses a different parameter shape.
+
+6. Add modal/editor fields.
+   - For simple/new blocks, provide a block-specific editor component through `IPageEditorBlockDefinition.PropertyEditorComponentType`.
+   - The editor UX should be simple enough for non-technical authors: obvious labels, direct editing, minimal hidden configuration, and sensible defaults.
+
+7. Add a provider and service registration for the package.
+   - Implement `IPageEditorBlockProvider` in the owning package and return the package's definitions.
+   - Implement `ICmsBlockModelProvider` or reuse the same provider so Marten can map package-owned `BlockBase` subtypes.
+   - Add an extension such as `services.AddAeroCmsHyperUiBlocks()`.
+   - The extension registers the editor provider, block model provider, and the package's generated `ICmsBlockRenderRegistry`.
+   - The public/server web host references the package and calls the extension once so public `.cshtml` rendering can find the package renderer registry.
+   - The WebAssembly client also references the package and calls the extension once so PageEditor can find the package editor definitions, previews, and modal editors.
+
+8. Confirm the catalog appears in the PageEditor menu.
+   - The PageEditor palette combines source-generated catalog items with registered `IPageEditorBlockDefinition` metadata.
+   - Existing sections should not require new sidebar plumbing.
+   - A third-party UI package should not edit `Aero.Cms.Shared` per block.
+
+9. Verify save and public render.
+   - Add the block in PageEditor.
+   - Confirm editor preview renders.
+   - Save/publish.
+   - Confirm `EditorBlockMapper` uses `PageEditorBlockRegistry` and persists the correct `BlockBase`.
+   - Confirm the public `.cshtml` renderer path renders the block through generated renderer wiring.
+
+10. Build the affected projects.
+
+```powershell
+dotnet build src\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj /p:UseSharedCompilation=false --verbosity minimal
+dotnet build src\Aero.Cms.Ui.Hyper\Aero.Cms.Ui.Hyper.csproj /p:UseSharedCompilation=false --verbosity minimal
+dotnet build src\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj /p:UseSharedCompilation=false --verbosity minimal
+dotnet build src\Aero.Cms.Web\Aero.Cms.Web.csproj /p:UseSharedCompilation=false --verbosity minimal
+dotnet build src\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj /p:UseSharedCompilation=false --verbosity minimal
+```
+
+Important rule: `PageEditorState` remains a flat editor draft list. Highly
+composed layouts can still be represented inside a single `BlockBase` payload
+when needed, but V1 should keep the simplest authoring model: drag a section,
+edit the section, preview the section, publish the page.

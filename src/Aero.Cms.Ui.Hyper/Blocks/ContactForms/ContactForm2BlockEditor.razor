@@ -1,0 +1,21 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Button Text</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.CtaText"
+               @oninput="e => Block.CtaText = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Form Action URL</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.FormAction"
+               @oninput="e => Block.FormAction = e.Value?.ToString() ?? string.Empty" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ContactForm2Block Block { get; set; } = default!;
+}

@@ -8,6 +8,7 @@ using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Shared.Services;
+using Aero.Cms.Ui.Hyper;
 using Aero.Cms.Web.Client.Services;
 using NeoUI.Blazor.Extensions;
 using NeoUI.Blazor.Primitives.Extensions;
@@ -56,6 +57,7 @@ builder.Services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor
 builder.Services.AddScoped<Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor, CurrentSiteAccessor>();
 builder.Services.AddNeoUIPrimitives();
 builder.Services.AddNeoUIComponents();
+builder.Services.AddAeroCmsHyperUiBlocks();
 builder.Services.AddRadzenComponents();
 
 // Register cross-cutting services that run client-side

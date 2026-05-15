@@ -302,6 +302,7 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.WorkOS\Aero.Cms.Modules.WorkOS.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Services\Aero.Cms.Services.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Ui.Hyper\Aero.Cms.Ui.Hyper.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Blog.Importer\Aero.Cms.Modules.Blog.Importer.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
@@ -327,5 +328,15 @@
 	  <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
   </ItemGroup>
+
+  <Target Name="AeroCompileWebTypeScriptBeforeStaticWebAssets"
+          BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets"
+          Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
+    <PropertyGroup>
+      <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>
+      <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>
+    </PropertyGroup>
+    <Exec Command="&quot;$(AeroTscToolExe)&quot; &quot;$(TSJavaScriptFile)&quot; -p &quot;$(MSBuildProjectDirectory)\tsconfig.json&quot;" />
+  </Target>
 
 </Project>
