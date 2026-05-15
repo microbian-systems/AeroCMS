@@ -4,3 +4,6 @@
 [submodule "NeoUI"]
 	path = NeoUI
 	url = git@github.com:microbian-systems/NeoUI.git
+[submodule "hyperui"]
+	path = hyperui
+	url = git@github.com:markmead/hyperui.git

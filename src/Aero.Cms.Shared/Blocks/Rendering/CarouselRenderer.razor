@@ -139,7 +139,7 @@
             if (@(Block.AutoPlay ? "true" : "false")) {
                 setInterval(function(){
                     el.scrollBy({left: el.offsetWidth, behavior: 'smooth'});
-                }, @Block.Interval);
+                }, @(Block.Interval);
             }
         })();
     </script>
