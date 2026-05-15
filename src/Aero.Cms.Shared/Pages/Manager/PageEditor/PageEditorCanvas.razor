@@ -10,7 +10,7 @@
           OnItemsReordered="OnCanvasReordered"
           OnItemTransferredIn="OnCatalogItemTransferred"
           Class="@CanvasClass">
-    <SortableContent Class="pe-blocks-list">
+    <SortableContentPrimitive class="pe-blocks-list">
         @* Empty state *@
         @if (Blocks.Count == 0)
         {
@@ -33,7 +33,7 @@
             var index = i;
             var isSelected = SelectedBlockId == block.EditorId;
 
-            <SortableItem Value="@block.EditorId" Class="pe-block-wrapper">
+            <SortableItemPrimitive Value="@block.EditorId">
                 <EditorBlockFrame BlockEditorId="@block.EditorId"
                                   Index="@index"
                                   TotalCount="@Blocks.Count"
@@ -41,15 +41,16 @@
                                   Dragging="false"
                                   IsDragOver="false"
                                   OnSelect="() => OnSelectBlock.InvokeAsync(block.EditorId)"
+                                  OnOpenEditor="() => OnOpenBlockEditor.InvokeAsync(block.EditorId)"
                                   OnMoveUp="(i) => OnMoveBlockUp.InvokeAsync(i)"
                                   OnMoveDown="(i) => OnMoveBlockDown.InvokeAsync(i)"
                                   OnDuplicate="(i) => OnDuplicateBlock.InvokeAsync(i)"
                                   OnDelete="(i) => OnDeleteBlock.InvokeAsync(i)">
                     <BlockEditorPreviewHost Block="@block" IsSelected="@isSelected" />
                 </EditorBlockFrame>
-            </SortableItem>
+            </SortableItemPrimitive>
         }
-    </SortableContent>
+    </SortableContentPrimitive>
 </Sortable>
 
 @code {
@@ -59,6 +60,7 @@
 
     [Parameter] public EventCallback OnToggleSidebar { get; set; }
     [Parameter] public EventCallback<string> OnSelectBlock { get; set; }
+    [Parameter] public EventCallback<string> OnOpenBlockEditor { get; set; }
     [Parameter] public EventCallback<int> OnMoveBlockUp { get; set; }
     [Parameter] public EventCallback<int> OnMoveBlockDown { get; set; }
     [Parameter] public EventCallback<int> OnDuplicateBlock { get; set; }

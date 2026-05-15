@@ -12,6 +12,7 @@ public sealed partial class EditorBlockFrame : ComponentBase
     [Parameter] public bool IsDragOver { get; set; }
 
     [Parameter] public EventCallback OnSelect { get; set; }
+    [Parameter] public EventCallback OnOpenEditor { get; set; }
     [Parameter] public EventCallback<int> OnMoveUp { get; set; }
     [Parameter] public EventCallback<int> OnMoveDown { get; set; }
     [Parameter] public EventCallback<int> OnDuplicate { get; set; }

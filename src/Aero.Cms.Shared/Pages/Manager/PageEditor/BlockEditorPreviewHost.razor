@@ -1,6 +1,8 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor
 @using System.Text.Json
 @using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Blocks.Common
+@using Aero.Cms.Abstractions.Blocks.Layout
 @using Aero.Cms.Abstractions.Blocks.Neo
 @using Aero.Cms.Shared.Blocks.Rendering
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Hero01
@@ -38,6 +40,421 @@
     case "neo.template.scriban":
         <div class="pe-block-placeholder">Scriban Template</div>
         break;
+    case "boring_hero":
+        <div class="pe-hero-block-wrapper">
+            <BoringHeroRenderer Block="new BoringHeroBlock { FullWidth = false, Title = Block.MainText, Summary = Block.SubText, BackgroundImageUrl = Block.BackgroundImage }" />
+            @if (IsSelected && !Editor.PreviewMode)
+            {
+                <div class="pe-hero-bg-controls">
+                    <input class="pe-hero-title" type="text" placeholder="Page title"
+                           value="@Block.MainText"
+                           @oninput="e => Update(value => Block.MainText = value, e.Value?.ToString() ?? string.Empty)"
+                           @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
+                    <input class="pe-hero-subtitle" type="text" placeholder="Summary"
+                           value="@Block.SubText"
+                           @oninput="e => Update(value => Block.SubText = value, e.Value?.ToString() ?? string.Empty)"
+                           @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
+                    @if (string.IsNullOrEmpty(Block.BackgroundImage))
+                    {
+                        <button class="pe-btn pe-btn-secondary pe-btn-sm"
+                                @onclick:stopPropagation="true"
+                                @onclick='() => Editor.OpenMediaSelector(Block, false, "background")'>
+                            Add Background Image
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="pe-btn pe-btn-ghost pe-btn-sm"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => Update(value => Block.BackgroundImage = value, string.Empty)">
+                            Remove Background
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+        break;
+    case "hero":
+        var heroHeightStyle = Block.FullScreen ? "min-height: 100vh;" : $"min-height: {Math.Max(240, Block.Height)}px;";
+        <div class="pe-hero-block"
+             style="@($"{heroHeightStyle}{(string.IsNullOrEmpty(Block.BackgroundImage) ? "" : $"background-image:url({Block.BackgroundImage});background-size:cover;background-position:center;")}")">
+            @if (!string.IsNullOrEmpty(Block.BackgroundImage))
+            {
+                <div class="pe-hero-overlay"></div>
+            }
+            <div class="pe-hero-content">
+                @if (IsSelected && !Editor.PreviewMode)
+                {
+                    <input class="pe-hero-title" type="text" placeholder="Main Headline"
+                           value="@Block.MainText"
+                           @oninput="e => Update(value => Block.MainText = value, e.Value?.ToString() ?? string.Empty)"
+                           @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
+                    <input class="pe-hero-subtitle" type="text" placeholder="Sub headline or description"
+                           value="@Block.SubText"
+                           @oninput="e => Update(value => Block.SubText = value, e.Value?.ToString() ?? string.Empty)"
+                           @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
+                    <div class="pe-hero-cta-row">
+                        <input class="pe-hero-cta-text" type="text" placeholder="Button text"
+                               value="@Block.CtaText"
+                               @oninput="e => Update(value => Block.CtaText = value, e.Value?.ToString() ?? string.Empty)"
+                               @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
+                        <input class="pe-hero-cta-url" type="text" placeholder="Button URL"
+                               value="@Block.CtaUrl"
+                               @oninput="e => Update(value => Block.CtaUrl = value, e.Value?.ToString() ?? string.Empty)"
+                               @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
+                    </div>
+                    <div class="pe-hero-bg-controls">
+                        <label class="pe-field-label">
+                            <input type="checkbox"
+                                   checked="@Block.FullScreen"
+                                   @onchange="e => Update(value => Block.FullScreen = value, e.Value is true)" />
+                            Full screen
+                        </label>
+                        @if (!Block.FullScreen)
+                        {
+                            <input class="pe-hero-cta-url" type="number" min="240" max="1600" step="20"
+                                   value="@Block.Height"
+                                   @oninput="e => Update(value => Block.Height = value, int.TryParse(e.Value?.ToString(), out var height) ? height : 512)"
+                                   @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
+                        }
+                        @if (string.IsNullOrEmpty(Block.BackgroundImage))
+                        {
+                            <button class="pe-btn pe-btn-secondary pe-btn-sm"
+                                    @onclick:stopPropagation="true"
+                                    @onclick='() => Editor.OpenMediaSelector(Block, false, "background")'>
+                                Add Background Image
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => Update(value => Block.BackgroundImage = value, string.Empty)">
+                                Remove Background
+                            </button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <h2 class="pe-hero-title">@FirstNonEmpty(Block.MainText, "Main headline")</h2>
+                    <p class="pe-hero-subtitle">@FirstNonEmpty(Block.SubText, "Sub headline or description")</p>
+                    @if (!string.IsNullOrWhiteSpace(Block.CtaText))
+                    {
+                        <span class="pe-btn pe-btn-primary">@Block.CtaText</span>
+                    }
+                }
+            </div>
+        </div>
+        break;
+    case "aero_hero":
+        <AeroHeroRenderer Block="new AeroHeroBlock { Title = Block.MainText, Description = Block.SubText, BackgroundImage = Block.BackgroundImage, Buttons = [new AeroButton { Text = Block.CtaText, Url = Block.CtaUrl, Style = AeroButtonStyle.Primary }] }" />
+        break;
+    case "aero_features":
+        <AeroFeaturesRenderer Block="new AeroFeaturesBlock { Title = Block.MainText, SubTitle = Block.SubText, Items = Block.FeatureItems }" />
+        break;
+    case "aero_cta":
+        <AeroCtaRenderer Block="new AeroCtaBlock { Title = Block.MainText, Description = FirstNonEmpty(Block.SubText, Block.Description), CtaText = Block.CtaText, CtaUrl = Block.CtaUrl }" />
+        break;
+    case "aero_blog":
+        <AeroBlogRenderer Block="new AeroBlogBlock { Title = FirstNonEmpty(Block.MainText, Block.SectionTitle), Description = Block.Description, Posts = Block.BlogPosts }" />
+        break;
+    case "aero_pricing":
+        <AeroPricingRenderer Block="new AeroPricingBlock { Title = FirstNonEmpty(Block.MainText, Block.PageTitle), Description = FirstNonEmpty(Block.Description, Block.PageDescription), Plans = Block.PricingPlans }" />
+        break;
+    case "aero_teams":
+        <AeroTeamsRenderer Block="new AeroTeamsBlock { Title = FirstNonEmpty(Block.MainText, Block.SectionTitle), Description = Block.Description, Members = Block.TeamMembers }" />
+        break;
+    case "aero_testimonials":
+        <AeroTestimonialsRenderer Block="new AeroTestimonialsBlock { Title = FirstNonEmpty(Block.MainText, Block.SectionTitle), Description = Block.Description, Testimonials = Block.Testimonials }" />
+        break;
+    case "aero_faq":
+        <AeroFaqRenderer Block="new AeroFaqBlock { Title = FirstNonEmpty(Block.MainText, Block.Title), Description = Block.Description, Items = Block.FaqItems }" />
+        break;
+    case "aero_portfolio":
+        <AeroPortfolioRenderer Block="new AeroPortfolioBlock { Title = FirstNonEmpty(Block.MainText, Block.Title), Description = Block.Description, Items = Block.PortfolioItems }" />
+        break;
+    case "aero_contact":
+        <AeroContactRenderer Block="new AeroContactBlock { Title = FirstNonEmpty(Block.MainText, Block.Title), Description = Block.Description, Details = Block.ContactDetails }" />
+        break;
+    case "aero_table":
+        <AeroTableRenderer Block="new AeroTableBlock { Title = FirstNonEmpty(Block.MainText, Block.Title), Description = Block.Description, Headers = Block.TableHeaders, Rows = Block.TableRows }" />
+        break;
+    case "aero_auth":
+        <AeroAuthRenderer Block="new AeroAuthBlock { Title = FirstNonEmpty(Block.MainText, Block.Title), Description = Block.Description, SubmitButtonText = Block.CtaText, AlternativeLinkText = Block.AlternativeLinkText, AlternativeLinkUrl = Block.AlternativeLinkUrl, BackgroundImageUrl = Block.BackgroundImage }" />
+        break;
+    case "text":
+    case "content":
+        @if (IsSelected && !Editor.PreviewMode)
+        {
+            <textarea class="w-full rounded-md"
+                      style="min-height: 140px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
+                      value="@Block.Content"
+                      placeholder="Start writing..."
+                      @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
+        }
+        else
+        {
+            <RichTextBlockRenderer Block="new RichTextBlock { Content = Block.Content }" />
+        }
+        break;
+    case "markdown":
+        @if (IsSelected && !Editor.PreviewMode)
+        {
+            <textarea class="w-full rounded-md font-mono"
+                      style="min-height: 180px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
+                      value="@Block.Content"
+                      placeholder="# Heading"
+                      @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
+        }
+        else
+        {
+            <MarkdownBlockRenderer Block="new MarkdownBlock { Content = Block.Content }" />
+        }
+        break;
+    case "quote":
+        @if (IsSelected && !Editor.PreviewMode)
+        {
+            <div class="pe-property-panel">
+                <textarea class="w-full rounded-md"
+                          style="min-height: 120px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
+                          value="@Block.Content"
+                          placeholder="Quote..."
+                          @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
+                <input class="w-full rounded-md mt-2"
+                       style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 8px 12px;"
+                       value="@Block.Author"
+                       placeholder="Author"
+                       @oninput="e => Update(value => Block.Author = value, e.Value?.ToString() ?? string.Empty)" />
+            </div>
+        }
+        else
+        {
+            <QuoteBlockRenderer Block="new QuoteBlock { Content = Block.Content, Author = Block.Author }" />
+        }
+        break;
+    case "separator":
+        <SeparatorBlockEditorPreview Node="@(new NeoPageNode { CatalogId = "ui.separator", Kind = NeoPageNodeKind.Block })" />
+        break;
+    case "columns":
+        <div class="pe-columns-block-wrapper">
+            @if (IsSelected && !Editor.PreviewMode)
+            {
+                <div class="pe-columns-controls">
+                    <div class="pe-col-ctrl">
+                        <label>Columns: @Block.ColumnCount</label>
+                        <input type="range" min="1" max="12"
+                               value="@Block.ColumnCount"
+                               @oninput="e => UpdateColumnCount(int.TryParse(e.Value?.ToString(), out var count) ? count : 2)" />
+                    </div>
+                    <div class="pe-col-ctrl">
+                        <label>Gap: @(Block.Gap)px</label>
+                        <input type="range" min="0" max="64"
+                               value="@Block.Gap"
+                               @oninput="e => Update(value => Block.Gap = value, int.TryParse(e.Value?.ToString(), out var gap) ? gap : 16)" />
+                    </div>
+                </div>
+            }
+            <div class="pe-columns-block" style="gap:@(Block.Gap)px">
+                @for (var ci = 0; ci < Block.EditorColumns.Count; ci++)
+                {
+                    var col = Block.EditorColumns[ci];
+                    var colIndex = ci;
+                    <div class="pe-column"
+                         style="flex: 0 0 calc(@(100.0 / Math.Max(1, Block.ColumnCount))% - @(Block.Gap * (Math.Max(1, Block.ColumnCount) - 1.0) / Math.Max(1, Block.ColumnCount))px)">
+                        @if (IsSelected && !Editor.PreviewMode)
+                        {
+                            <div class="pe-column-header">
+                                <span class="pe-column-label">Col @(colIndex + 1)</span>
+                                <button class="pe-column-add-btn" title="Add text"
+                                        @onclick:stopPropagation="true"
+                                        @onclick='() => AddBlockToColumn(colIndex, "text")'>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        }
+                        <div class="pe-column-content">
+                            @for (var ni = 0; ni < col.Blocks.Count; ni++)
+                            {
+                                var nb = col.Blocks[ni];
+                                var nestedIndex = ni;
+                                <div class="pe-nested-block">
+                                    @RenderNestedBlock(nb, colIndex)
+                                    @if (IsSelected && !Editor.PreviewMode)
+                                    {
+                                        <button class="pe-remove-nested-btn"
+                                                @onclick:stopPropagation="true"
+                                                @onclick="() => RemoveNestedBlock(colIndex, nestedIndex)">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <line x1="18" y1="6" x2="6" y2="18" />
+                                                <line x1="6" y1="6" x2="18" y2="18" />
+                                            </svg>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                            @if (col.Blocks.Count == 0 && IsSelected && !Editor.PreviewMode)
+                            {
+                                <div class="pe-column-drop-hint">
+                                    <span>Drag blocks here or click + to add</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        break;
+    case "image":
+        <div class="pe-image-block">
+            @if (string.IsNullOrEmpty(Block.Src))
+            {
+                <button class="pe-add-media-btn"
+                        @onclick:stopPropagation="true"
+                        @onclick="() => Editor.OpenMediaSelector(Block)">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    <span>Add Image</span>
+                </button>
+            }
+            else
+            {
+                <div class="pe-image-wrapper">
+                    <img src="@Block.Src" alt="@Block.Alt" />
+                    @if (IsSelected && !Editor.PreviewMode)
+                    {
+                        <div class="pe-image-overlay">
+                            <button class="pe-overlay-btn"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => Editor.OpenMediaSelector(Block)">Change</button>
+                            <button class="pe-overlay-btn delete"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => Editor.RemoveImage(Block)">Remove</button>
+                        </div>
+                    }
+                </div>
+                @if (IsSelected && !Editor.PreviewMode)
+                {
+                    <input class="w-full rounded-md mt-2"
+                           style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 8px 12px;"
+                           value="@Block.Alt"
+                           placeholder="Alt text"
+                           @oninput="e => Update(value => Block.Alt = value, e.Value?.ToString() ?? string.Empty)" />
+                }
+            }
+        </div>
+        break;
+    case "video":
+        <div class="pe-video-block">
+            @if (string.IsNullOrEmpty(Block.Src))
+            {
+                <div class="pe-video-input">
+                    <input type="text" placeholder="Paste YouTube, Vimeo, or video URL"
+                           value="@Block.Url"
+                           @oninput="e => Update(value => Block.Url = value, e.Value?.ToString() ?? string.Empty)"
+                           @onkeydown="e => HandleVideoKeyDown(e)" />
+                    <button class="pe-btn pe-btn-secondary pe-btn-sm"
+                            @onclick:stopPropagation="true"
+                            @onclick='() => Editor.OpenMediaSelector(Block, false, "video")'>
+                        Select Video
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="pe-video-wrapper">
+                    <iframe src="@Block.Src" frameborder="0" allowfullscreen></iframe>
+                    @if (IsSelected && !Editor.PreviewMode)
+                    {
+                        <button class="pe-overlay-btn delete"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => Editor.RemoveVideo(Block)">Remove</button>
+                    }
+                </div>
+            }
+        </div>
+        break;
+    case "gallery":
+    case "carousel":
+        <div class="pe-gallery-block">
+            @if (Block.GalleryImages.Count > 0)
+            {
+                <div class="pe-gallery-grid">
+                    @for (var gi = 0; gi < Block.GalleryImages.Count; gi++)
+                    {
+                        var image = Block.GalleryImages[gi];
+                        var imageIndex = gi;
+                        <div class="pe-gallery-item">
+                            <img src="@image.Src" alt="@image.Alt" />
+                            @if (IsSelected && !Editor.PreviewMode)
+                            {
+                                <button class="pe-remove-item"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => RemoveGalleryImage(imageIndex)">
+                                    x
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+            @if (IsSelected && !Editor.PreviewMode)
+            {
+                <button class="pe-add-gallery-item"
+                        @onclick:stopPropagation="true"
+                        @onclick="() => Editor.OpenMediaSelector(Block, true)">
+                    Add images
+                </button>
+            }
+        </div>
+        break;
+    case "audio":
+        <div class="pe-audio-block">
+            @if (string.IsNullOrEmpty(Block.Src))
+            {
+                <button class="pe-btn pe-btn-secondary pe-btn-sm"
+                        @onclick:stopPropagation="true"
+                        @onclick="() => Editor.OpenAudioSelector(Block)">
+                    Add Audio
+                </button>
+            }
+            else
+            {
+                <audio controls src="@Block.Src"></audio>
+                @if (IsSelected && !Editor.PreviewMode)
+                {
+                    <button class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => Update(value => Block.Src = value, string.Empty)">
+                        Remove Audio
+                    </button>
+                }
+            }
+        </div>
+        break;
+    case "raw_html":
+        @if (IsSelected && !Editor.PreviewMode)
+        {
+            <textarea class="w-full rounded-md font-mono"
+                      style="min-height: 180px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
+                      value="@Block.Content"
+                      placeholder="<section>...</section>"
+                      @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
+        }
+        else
+        {
+            <NeoRawHtmlBlockEditorPreview Node="MapLegacyRawHtmlToNeoNode(Block)" />
+        }
+        break;
+    case "dynamic_template":
+        <div class="pe-block-placeholder">Scriban Template</div>
+        break;
     default:
         <div class="pe-block-placeholder">@Block.Type</div>
         break;
@@ -47,6 +464,138 @@
     [Parameter] public EditorBlock Block { get; set; } = default!;
     [Parameter] public bool IsSelected { get; set; }
     [CascadingParameter] public IBlockEditorCallbacks Editor { get; set; } = default!;
+
+    private void Update<T>(Action<T> setValue, T value)
+    {
+        setValue(value);
+        Editor.BlockChanged(Block);
+    }
+
+    private void UpdateColumnCount(int count)
+    {
+        var next = Math.Clamp(count, 1, 12);
+        Block.ColumnCount = next;
+
+        while (Block.EditorColumns.Count < next)
+        {
+            Block.EditorColumns.Add(new EditorColumn());
+        }
+
+        while (Block.EditorColumns.Count > next)
+        {
+            Block.EditorColumns.RemoveAt(Block.EditorColumns.Count - 1);
+        }
+
+        Editor.BlockChanged(Block);
+    }
+
+    private void AddBlockToColumn(int columnIndex, string type)
+    {
+        if (columnIndex < 0 || columnIndex >= Block.EditorColumns.Count)
+        {
+            return;
+        }
+
+        Block.EditorColumns[columnIndex].Blocks.Add(new NestedBlock { Type = type });
+        Editor.BlockChanged(Block);
+    }
+
+    private void RemoveNestedBlock(int columnIndex, int nestedIndex)
+    {
+        if (columnIndex < 0 || columnIndex >= Block.EditorColumns.Count)
+        {
+            return;
+        }
+
+        var blocks = Block.EditorColumns[columnIndex].Blocks;
+        if (nestedIndex < 0 || nestedIndex >= blocks.Count)
+        {
+            return;
+        }
+
+        blocks.RemoveAt(nestedIndex);
+        Editor.BlockChanged(Block);
+    }
+
+    private void HandleNestedVideoKeyDown(KeyboardEventArgs args, NestedBlock block)
+    {
+        if (args.Key != "Enter")
+        {
+            return;
+        }
+
+        Editor.LoadNestedVideo(block);
+        Editor.BlockChanged(Block);
+    }
+
+    private void HandleVideoKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key != "Enter")
+        {
+            return;
+        }
+
+        Editor.LoadVideo(Block);
+        Editor.BlockChanged(Block);
+    }
+
+    private void RemoveGalleryImage(int index)
+    {
+        if (index < 0 || index >= Block.GalleryImages.Count)
+        {
+            return;
+        }
+
+        Block.GalleryImages.RemoveAt(index);
+        Editor.BlockChanged(Block);
+    }
+
+    private RenderFragment RenderNestedBlock(NestedBlock nb, int colIndex) => @<div>
+        @switch (nb.Type)
+        {
+            case "image":
+                <div class="pe-nested-image">
+                    @if (string.IsNullOrEmpty(nb.Src))
+                    {
+                        <button class="pe-add-nested-btn"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => Editor.OpenMediaSelectorForNested(Block, colIndex, nb)">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                        </button>
+                    }
+                    else
+                    {
+                        <img src="@nb.Src" alt="@nb.Alt" />
+                    }
+                </div>
+                break;
+            case "video":
+                <div class="pe-nested-video">
+                    @if (string.IsNullOrEmpty(nb.Src))
+                    {
+                        <input type="text" placeholder="Video URL"
+                               value="@nb.Url"
+                               @oninput="e => { nb.Url = e.Value?.ToString() ?? string.Empty; Editor.BlockChanged(Block); }"
+                               @onkeydown="e => HandleNestedVideoKeyDown(e, nb)" />
+                    }
+                    else
+                    {
+                        <iframe src="@nb.Src" frameborder="0" allowfullscreen></iframe>
+                    }
+                </div>
+                break;
+            default:
+                <textarea value="@nb.Content"
+                          placeholder="Text..."
+                          rows="3"
+                          @oninput="e => { nb.Content = e.Value?.ToString() ?? string.Empty; Editor.BlockChanged(Block); }"></textarea>
+                break;
+        }
+    </div>;
 
     // ── Neo node mapping ────────────────────────────────────────────
     private NeoPageNode MapToNeoNode(EditorBlock block) => block.Type switch
@@ -108,15 +657,15 @@
             CatalogId = "aero.hero.01", Kind = NeoPageNodeKind.Block,
             Properties = new Dictionary<string, JsonElement>
             {
-                ["eyebrow"] = JsonSerializer.SerializeToElement("Introducing NeoUI v3"),
+                ["eyebrow"] = JsonSerializer.SerializeToElement(block.Eyebrow),
                 ["title"] = JsonSerializer.SerializeToElement(block.MainText),
-                ["highlight"] = JsonSerializer.SerializeToElement("faster than ever"),
+                ["highlight"] = JsonSerializer.SerializeToElement(block.Highlight),
                 ["description"] = JsonSerializer.SerializeToElement(block.SubText),
                 ["primaryText"] = JsonSerializer.SerializeToElement(block.CtaText),
                 ["primaryUrl"] = JsonSerializer.SerializeToElement(block.CtaUrl),
                 ["secondaryText"] = JsonSerializer.SerializeToElement(block.CtaText2),
                 ["secondaryUrl"] = JsonSerializer.SerializeToElement(block.CtaUrl2),
-                ["trustMarkers"] = JsonSerializer.SerializeToElement(new List<string>())
+                ["trustMarkers"] = JsonSerializer.SerializeToElement(block.TrustMarkers)
             }
         },
         "aero.hero.basic" => new NeoPageNode
@@ -137,6 +686,65 @@
             Properties = []
         }
     };
+
+    private static NeoPageNode MapLegacyImageToNeoNode(EditorBlock block) => new()
+    {
+        CatalogId = "media.image",
+        Kind = NeoPageNodeKind.Block,
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["src"] = JsonSerializer.SerializeToElement(block.Src),
+            ["alt"] = JsonSerializer.SerializeToElement(block.Alt),
+            ["caption"] = JsonSerializer.SerializeToElement(block.Caption ?? string.Empty)
+        }
+    };
+
+    private static NeoPageNode MapLegacyVideoToNeoNode(EditorBlock block) => new()
+    {
+        CatalogId = "media.video",
+        Kind = NeoPageNodeKind.Block,
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["src"] = JsonSerializer.SerializeToElement(FirstNonEmpty(block.Src, block.Url)),
+            ["autoplay"] = JsonSerializer.SerializeToElement(block.AutoPlay),
+            ["controls"] = JsonSerializer.SerializeToElement(true)
+        }
+    };
+
+    private static NeoPageNode MapLegacyAudioToNeoNode(EditorBlock block) => new()
+    {
+        CatalogId = "media.audio",
+        Kind = NeoPageNodeKind.Block,
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["src"] = JsonSerializer.SerializeToElement(block.Src),
+            ["controls"] = JsonSerializer.SerializeToElement(true)
+        }
+    };
+
+    private static NeoPageNode MapLegacyGalleryToNeoNode(EditorBlock block) => new()
+    {
+        CatalogId = "media.gallery",
+        Kind = NeoPageNodeKind.Block,
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["images"] = JsonSerializer.SerializeToElement(block.GalleryImages.Select(g => g.Src).ToList()),
+            ["columns"] = JsonSerializer.SerializeToElement(3)
+        }
+    };
+
+    private static NeoPageNode MapLegacyRawHtmlToNeoNode(EditorBlock block) => new()
+    {
+        CatalogId = "ui.raw-html",
+        Kind = NeoPageNodeKind.Block,
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["html"] = JsonSerializer.SerializeToElement(block.Content)
+        }
+    };
+
+    private static string FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
 
     /// <summary>
     /// Converts an EditorBlock to its corresponding BlockBase for property editing.

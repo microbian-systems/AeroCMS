@@ -26,6 +26,7 @@ using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
 using NeoUI.Blazor;
 using NeoUI.Blazor.Primitives;
+using PageEditorCatalog = Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -88,6 +89,10 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     // Sidebar category toggles
     protected bool CategoryAeroUi    { get; set; } = true;
+    protected bool CategoryLegacyUi  { get; set; } = true;
+    protected bool CategoryAeroUx    { get; set; } = true;
+    protected bool CategoryMedia     { get; set; } = true;
+    protected bool CategoryReferences { get; set; }
     protected bool CategorySettings   { get; set; } = true;
 
     // Page Settings
@@ -125,6 +130,14 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected bool         IsGalleryMode    { get; set; }
     protected string?      MediaContext     { get; set; }   // "background" | "nested"
     protected NestedBlock? NestedMediaTarget { get; set; }
+
+    // Block edit modal
+    protected bool BlockEditorModalOpen { get; set; }
+    protected string? EditingBlockId { get; set; }
+    protected EditorBlock? CurrentEditBlock =>
+        string.IsNullOrEmpty(EditingBlockId)
+            ? null
+            : Blocks.FirstOrDefault(block => block.EditorId == EditingBlockId);
 
     private Dictionary<string, List<ReferenceItem>> _referenceData = new();
     protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
@@ -323,9 +336,79 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         switch (category)
         {
             case "aeroui":    CategoryAeroUi    = !CategoryAeroUi;    break;
+            case "legacyui":  CategoryLegacyUi  = !CategoryLegacyUi;  break;
+            case "aeroux":    CategoryAeroUx    = !CategoryAeroUx;    break;
+            case "media":     CategoryMedia     = !CategoryMedia;     break;
+            case "references": CategoryReferences = !CategoryReferences; break;
             case "settings":   CategorySettings   = !CategorySettings;   break;
         }
     }
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoAeroCatalogItems =>
+        Catalog.GetCatalogItems()
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.AeroUi)
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> LegacyUiCatalogItems { get; } =
+    [
+        CatalogItem("boring_hero", "Boring Hero", 10),
+        CatalogItem("hero", "Hero", 20),
+        CatalogItem("text", "Text", 30),
+        CatalogItem("columns", "Columns", 40),
+        CatalogItem("content", "Rich Text", 50),
+        CatalogItem("markdown", "Markdown", 60),
+        CatalogItem("raw_html", "Raw HTML", 70),
+        CatalogItem("dynamic_template", "Scriban", 80),
+        CatalogItem("quote", "Quote", 90),
+        CatalogItem("separator", "Separator", 100)
+    ];
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> AeroUxCatalogItems { get; } =
+    [
+        CatalogItem("aero_hero", "Aero Hero", 10),
+        CatalogItem("aero_features", "Features", 20),
+        CatalogItem("aero_cta", "CTA", 30),
+        CatalogItem("aero_blog", "Blog", 40),
+        CatalogItem("aero_pricing", "Pricing", 50),
+        CatalogItem("aero_teams", "Teams", 60),
+        CatalogItem("aero_testimonials", "Testimonials", 70),
+        CatalogItem("aero_faq", "FAQ", 80),
+        CatalogItem("aero_portfolio", "Portfolio", 90),
+        CatalogItem("aero_contact", "Contact", 100),
+        CatalogItem("aero_table", "Table", 110),
+        CatalogItem("aero_auth", "Auth", 120)
+    ];
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> MediaCatalogItems { get; } =
+    [
+        CatalogItem("image", "Image", 10),
+        CatalogItem("video", "Video", 20),
+        CatalogItem("gallery", "Gallery", 30),
+        CatalogItem("carousel", "Carousel", 40),
+        CatalogItem("audio", "Audio", 50)
+    ];
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ReferenceCatalogItems { get; } =
+    [
+        CatalogItem("pages", "Pages", 10),
+        CatalogItem("posts", "Posts", 20),
+        CatalogItem("categories", "Categories", 30),
+        CatalogItem("tags", "Tags", 40),
+        CatalogItem("authors", "Authors", 50)
+    ];
+
+    private static PageEditorCatalog.NeoEditorCatalogItem CatalogItem(string id, string name, int sortOrder) =>
+        new()
+        {
+            CatalogId = id,
+            DisplayName = name,
+            Section = PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
+            Kind = PageEditorCatalog.NeoEditorCatalogKind.Block,
+            SortOrder = sortOrder,
+            IconName = "box",
+            PublicStaticSsrSafe = true
+        };
 
     // ──────────────────────────────────────────────────────────
     // Block management  (mirrors addBlock / deleteBlock / etc.)
@@ -341,6 +424,43 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         QueuePreviewRefresh();
     }
 
+    protected Task OnEditorBlockChanged(EditorBlock block)
+    {
+        MarkDirty();
+        QueuePreviewRefresh();
+        return Task.CompletedTask;
+    }
+
+    protected void OpenBlockEditor(string editorId)
+    {
+        SelectedBlockId = editorId;
+        EditingBlockId = editorId;
+        BlockEditorModalOpen = true;
+    }
+
+    private void OpenBlockEditor(EditorBlock block)
+    {
+        OpenBlockEditor(block.EditorId);
+    }
+
+    protected void CloseBlockEditor()
+    {
+        BlockEditorModalOpen = false;
+        EditingBlockId = null;
+    }
+
+    protected string GetBlockDisplayName(EditorBlock block)
+    {
+        var allItems = NeoAeroCatalogItems
+            .Concat(LegacyUiCatalogItems)
+            .Concat(AeroUxCatalogItems)
+            .Concat(MediaCatalogItems)
+            .Concat(ReferenceCatalogItems);
+
+        return allItems.FirstOrDefault(item => item.CatalogId == block.Type)?.DisplayName
+            ?? block.Type;
+    }
+
     private EditorBlock CreateBlock(string type)
     {
         var block = new EditorBlock { Type = type };
@@ -349,12 +469,21 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         {
             // Neo catalog blocks
             case "aero.hero.01":
+                block.Eyebrow         = "Introducing NeoUI v3";
                 block.MainText        = "Build beautiful Blazor apps";
+                block.Highlight       = "faster than ever";
                 block.SubText         = "100+ production-ready components for .NET Blazor. Accessible, customizable, and built for speed.";
                 block.CtaText         = "Get started for free";
                 block.CtaUrl          = "#";
                 block.CtaText2        = "View on GitHub";
                 block.CtaUrl2         = "#";
+                block.TrustMarkers    =
+                [
+                    "Free & open source",
+                    ".NET 8+ compatible",
+                    "Dark mode included",
+                    "100+ components"
+                ];
                 block.BackgroundImage = string.Empty;
                 break;
             case "aero.hero.basic":
@@ -364,6 +493,110 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
                 block.CtaUrl          = "";
                 block.BackgroundImage = string.Empty;
                 block.FullWidth       = true;
+                break;
+            case "boring_hero":
+                block.MainText = "Welcome";
+                block.SubText = "Your message goes here.";
+                block.FullWidth = true;
+                break;
+            case "hero":
+                block.MainText = "Main headline";
+                block.SubText = "Sub headline or description";
+                block.CtaText = "Learn more";
+                block.CtaUrl = "#";
+                block.Height = 512;
+                break;
+            case "text":
+                block.Content = "Enter your text here...";
+                break;
+            case "content":
+                block.Content = "<p>Start writing...</p>";
+                break;
+            case "markdown":
+                block.Content = "# Markdown content";
+                block.MarkdownView = "edit";
+                break;
+            case "raw_html":
+            case "ui.raw-html":
+                block.Content = "<p>Custom HTML</p>";
+                break;
+            case "dynamic_template":
+            case "neo.template.scriban":
+                block.ScribanTemplate = "{{ title }}";
+                block.ScribanDataJson = "{ \"title\": \"Hello\" }";
+                break;
+            case "quote":
+                block.Content = "Enter quote text...";
+                block.Author = "Author name";
+                break;
+            case "columns":
+            case "neo.layout.columns":
+                block.ColumnCount = 2;
+                block.Gap = 16;
+                block.EditorColumns =
+                [
+                    new EditorColumn(),
+                    new EditorColumn()
+                ];
+                break;
+            case "aero_hero":
+                block.MainText = "Aero Hero";
+                block.SubText = "Build a polished page section.";
+                block.CtaText = "Get started";
+                block.CtaUrl = "#";
+                break;
+            case "aero_features":
+                block.MainText = "Features";
+                block.SubText = "Everything you need.";
+                block.FeatureItems =
+                [
+                    new AeroFeatureItem { Title = "Fast", Description = "Ship quickly.", Icon = "zap" },
+                    new AeroFeatureItem { Title = "Flexible", Description = "Compose freely.", Icon = "layout" }
+                ];
+                break;
+            case "aero_cta":
+                block.MainText = "Ready to start?";
+                block.SubText = "Take the next step.";
+                block.CtaText = "Contact us";
+                block.CtaUrl = "#";
+                break;
+            case "aero_blog":
+                block.MainText = "Latest posts";
+                block.Description = "Recent articles and updates.";
+                break;
+            case "aero_pricing":
+                block.MainText = "Pricing";
+                block.Description = "Simple plans for every team.";
+                break;
+            case "aero_teams":
+                block.MainText = "Our team";
+                block.Description = "Meet the people behind the work.";
+                break;
+            case "aero_testimonials":
+                block.MainText = "Testimonials";
+                block.Description = "What customers are saying.";
+                break;
+            case "aero_faq":
+                block.MainText = "FAQ";
+                block.Description = "Common questions.";
+                block.FaqItems = [new AeroFaqItem { Question = "Question?", Answer = "Answer." }];
+                break;
+            case "aero_portfolio":
+                block.MainText = "Portfolio";
+                block.Description = "Selected work.";
+                break;
+            case "aero_contact":
+                block.MainText = "Contact";
+                block.Description = "Get in touch.";
+                break;
+            case "aero_table":
+                block.MainText = "Table";
+                block.Description = "Structured information.";
+                break;
+            case "aero_auth":
+                block.MainText = "Sign in";
+                block.Description = "Access your account.";
+                block.CtaText = "Continue";
                 break;
             default:
                 break;
@@ -402,15 +635,15 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             CatalogId = "aero.hero.01", Kind = NeoPageNodeKind.Block,
             Properties = new Dictionary<string, JsonElement>
             {
-                ["eyebrow"] = System.Text.Json.JsonSerializer.SerializeToElement("Introducing NeoUI v3"),
+                ["eyebrow"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Eyebrow),
                 ["title"] = System.Text.Json.JsonSerializer.SerializeToElement(block.MainText),
-                ["highlight"] = System.Text.Json.JsonSerializer.SerializeToElement("faster than ever"),
+                ["highlight"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Highlight),
                 ["description"] = System.Text.Json.JsonSerializer.SerializeToElement(block.SubText),
                 ["primaryText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText),
                 ["primaryUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl),
                 ["secondaryText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText2),
                 ["secondaryUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl2),
-                ["trustMarkers"] = System.Text.Json.JsonSerializer.SerializeToElement(new List<string>())
+                ["trustMarkers"] = System.Text.Json.JsonSerializer.SerializeToElement(block.TrustMarkers)
             }
         },
         "aero.hero.basic" => new NeoPageNode
@@ -647,6 +880,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         MediaContext      = context;
         NestedMediaTarget = null;
         MediaModalOpen    = true;
+        InvokeAsync(StateHasChanged);
     }
 
     protected void OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb)
@@ -656,6 +890,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         MediaContext      = "nested";
         NestedMediaTarget = nb;
         MediaModalOpen    = true;
+        InvokeAsync(StateHasChanged);
     }
 
     protected void OpenAudioSelector(EditorBlock block)
@@ -700,6 +935,8 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         }
 
         MediaModalOpen = false;
+        MarkDirty();
+        QueuePreviewRefresh();
         ShowToast("Media added", "success");
     }
 
@@ -708,6 +945,8 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         block.Src     = string.Empty;
         block.Alt     = string.Empty;
         block.Caption = string.Empty;
+        MarkDirty();
+        QueuePreviewRefresh();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -1231,6 +1470,14 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     Dictionary<string, string> IBlockEditorCallbacks.DynamicTemplatePreviewHtml => DynamicTemplatePreviewHtml;
 
     void IBlockEditorCallbacks.SelectBlock(string editorId) => SelectBlock(editorId);
+    void IBlockEditorCallbacks.BlockChanged(EditorBlock block)
+    {
+        MarkDirty();
+        QueuePreviewRefresh();
+    }
+
+    void IBlockEditorCallbacks.OpenBlockEditor(EditorBlock block) => OpenBlockEditor(block);
+
     void IBlockEditorCallbacks.OpenMediaSelector(EditorBlock block, bool multiSelect, string field)
         => OpenMediaSelector(block, multiSelect, field);
     void IBlockEditorCallbacks.OpenAudioSelector(EditorBlock block) => OpenAudioSelector(block);

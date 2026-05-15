@@ -2,7 +2,7 @@
 
 <div class="pe-block-wrapper @(IsSelected ? "selected" : "") @(Dragging ? "dragging" : "") @(IsDragOver ? "drag-over" : "")"
      @onclick="() => OnSelect.InvokeAsync()"
-     draggable="true"
+     @ondblclick="() => OnOpenEditor.InvokeAsync()"
     @ondragstart='() => OnDragStart.InvokeAsync(new DragStartEventArgs { EditorId = BlockEditorId, Index = Index })'
     @ondragover='() => OnDragOver.InvokeAsync(Index)'
     @ondragover:preventDefault

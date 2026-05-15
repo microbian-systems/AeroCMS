@@ -1,0 +1,220 @@
+@using Aero.Cms.Abstractions.Blocks
+
+<div class="pe-property-panel-shell">
+    @if (ShowHeader)
+    {
+        <div class="pe-property-panel-header">
+            <h3 class="pe-property-panel-title">Properties</h3>
+        </div>
+    }
+    <div class="pe-property-panel-content">
+        @if (Block is null)
+        {
+            <div class="pe-property-panel p-4 text-muted-foreground text-sm">
+                <p>Select a block to edit its properties.</p>
+            </div>
+        }
+        else
+        {
+            <div class="pe-property-panel">
+                @switch (Block.Type)
+                {
+                    case "aero.hero.01":
+                        @TextField("Eyebrow", Block.Eyebrow, value => Block.Eyebrow = value)
+                        @TextField("Title", Block.MainText, value => Block.MainText = value)
+                        @TextField("Highlight", Block.Highlight, value => Block.Highlight = value)
+                        @TextAreaField("Description", Block.SubText, value => Block.SubText = value)
+                        @TextField("Primary Button Text", Block.CtaText, value => Block.CtaText = value)
+                        @TextField("Primary Button URL", Block.CtaUrl, value => Block.CtaUrl = value)
+                        @TextField("Secondary Button Text", Block.CtaText2, value => Block.CtaText2 = value)
+                        @TextField("Secondary Button URL", Block.CtaUrl2, value => Block.CtaUrl2 = value)
+                        @TextAreaField("Trust Markers", string.Join(", ", Block.TrustMarkers), SetTrustMarkers)
+                        break;
+                    case "aero.hero.basic":
+                    case "boring_hero":
+                    case "hero":
+                        @TextField("Title", Block.MainText, value => Block.MainText = value)
+                        @TextAreaField("Summary", Block.SubText, value => Block.SubText = value)
+                        @TextField("Primary Button Text", Block.CtaText, value => Block.CtaText = value)
+                        @TextField("Primary Button URL", Block.CtaUrl, value => Block.CtaUrl = value)
+                        @TextField("Background Image URL", Block.BackgroundImage, value => Block.BackgroundImage = value)
+                        @MediaButtonField(
+                            string.IsNullOrWhiteSpace(Block.BackgroundImage) ? "Add Background Image" : "Change Background Image",
+                            () => Editor?.OpenMediaSelector(Block, false, "background"))
+                        @if (!string.IsNullOrWhiteSpace(Block.BackgroundImage))
+                        {
+                            @ActionButtonField("Remove Background", () => Update(value => Block.BackgroundImage = value, string.Empty))
+                        }
+                        @BoolField("Full Screen", Block.FullScreen, value => Block.FullScreen = value)
+                        @NumberField("Height", Block.Height, value => Block.Height = value, 240, 1600)
+                        break;
+                    case "media.image":
+                    case "image":
+                        @TextField("Image URL", Block.Src, value => Block.Src = value)
+                        @TextField("Alt Text", Block.Alt, value => Block.Alt = value)
+                        @TextField("Caption", Block.Caption, value => Block.Caption = value)
+                        break;
+                    case "media.video":
+                    case "video":
+                        @TextField("Video URL", FirstNonEmpty(Block.Src, Block.Url), value => { Block.Src = value; Block.Url = value; })
+                        @BoolField("Autoplay", Block.AutoPlay, value => Block.AutoPlay = value)
+                        break;
+                    case "media.audio":
+                    case "audio":
+                        @TextField("Audio URL", Block.Src, value => Block.Src = value)
+                        break;
+                    case "media.gallery":
+                    case "gallery":
+                    case "carousel":
+                        @BoolField("Autoscroll", Block.AutoPlay, value => Block.AutoPlay = value)
+                        @BoolField("Show Arrows", Block.ShowArrows, value => Block.ShowArrows = value)
+                        @NumberField("Interval", Block.CarouselInterval, value => Block.CarouselInterval = value, 1000, 30000)
+                        @TextField("Controls", Block.ControlLocation, value => Block.ControlLocation = value)
+                        break;
+                    case "ui.raw-html":
+                    case "raw_html":
+                        @TextAreaField("HTML", Block.Content, value => Block.Content = value, 8)
+                        break;
+                    case "neo.template.scriban":
+                    case "dynamic_template":
+                        @TextAreaField("Scriban Template", Block.ScribanTemplate, value => Block.ScribanTemplate = value, 8)
+                        @TextAreaField("Preview Data JSON", Block.ScribanDataJson, value => Block.ScribanDataJson = value, 5)
+                        break;
+                    case "neo.layout.columns":
+                    case "columns":
+                        @SliderField("Columns", Block.ColumnCount, value => UpdateColumnCount(value), 1, 12)
+                        @SliderField("Gap", Block.Gap, value => Block.Gap = Math.Clamp(value, 0, 64), 0, 64, "px")
+                        break;
+                    case "text":
+                    case "content":
+                    case "markdown":
+                        @TextAreaField("Content", Block.Content, value => Block.Content = value, 8)
+                        break;
+                    case "quote":
+                        @TextAreaField("Quote", Block.Content, value => Block.Content = value, 5)
+                        @TextField("Author", Block.Author, value => Block.Author = value)
+                        break;
+                    default:
+                        @TextField("Title", Block.MainText, value => Block.MainText = value)
+                        @TextAreaField("Description", FirstNonEmpty(Block.Description, Block.SubText), value => { Block.Description = value; Block.SubText = value; })
+                        @TextField("Button Text", Block.CtaText, value => Block.CtaText = value)
+                        @TextField("Button URL", Block.CtaUrl, value => Block.CtaUrl = value)
+                        break;
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EditorBlock? Block { get; set; }
+    [Parameter] public EventCallback<EditorBlock> OnChanged { get; set; }
+    [Parameter] public bool ShowHeader { get; set; } = true;
+    [CascadingParameter] public IBlockEditorCallbacks? Editor { get; set; }
+
+    private RenderFragment TextField(string label, string? value, Action<string> setValue) => @<div class="pe-property-group">
+        <label class="pe-property-label">@label</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@value"
+               @oninput="e => Update(setValue, e.Value?.ToString() ?? string.Empty)" />
+    </div>;
+
+    private RenderFragment TextAreaField(string label, string? value, Action<string> setValue, int rows = 3) => @<div class="pe-property-group">
+        <label class="pe-property-label">@label</label>
+        <textarea rows="@rows" class="w-full rounded-md shadow-sm sm:text-sm"
+                  style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                  value="@value"
+                  @oninput="e => Update(setValue, e.Value?.ToString() ?? string.Empty)"></textarea>
+    </div>;
+
+    private RenderFragment BoolField(string label, bool value, Action<bool> setValue) => @<div class="pe-property-group">
+        <label class="pe-field-label" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox"
+                   checked="@value"
+                   @onchange="e => Update(setValue, e.Value is true)" />
+            @label
+        </label>
+    </div>;
+
+    private RenderFragment NumberField(string label, int value, Action<int> setValue, int min, int max) => @<div class="pe-property-group">
+        <label class="pe-property-label">@label</label>
+        <input type="number" min="@min" max="@max" class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@value"
+               @oninput="e => Update(setValue, int.TryParse(e.Value?.ToString(), out var next) ? next : value)" />
+    </div>;
+
+    private RenderFragment SliderField(string label, int value, Action<int> setValue, int min, int max, string suffix = "") => @<div class="pe-property-group">
+        <label class="pe-property-label">@label: @value@suffix</label>
+        <input type="range" min="@min" max="@max" class="w-full"
+               value="@value"
+               @oninput="e => Update(setValue, int.TryParse(e.Value?.ToString(), out var next) ? next : value)" />
+    </div>;
+
+    private RenderFragment MediaButtonField(string label, Action? action) => @<div class="pe-property-group">
+        <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm"
+                @onclick="() => InvokeAction(action)">
+            @label
+        </button>
+    </div>;
+
+    private RenderFragment ActionButtonField(string label, Action action) => @<div class="pe-property-group">
+        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                @onclick="action">
+            @label
+        </button>
+    </div>;
+
+    private void InvokeAction(Action? action)
+    {
+        action?.Invoke();
+    }
+
+    private void SetTrustMarkers(string value)
+    {
+        if (Block is null)
+        {
+            return;
+        }
+
+        Block.TrustMarkers = value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+    }
+
+    private void Update<T>(Action<T> setValue, T value)
+    {
+        if (Block is null)
+        {
+            return;
+        }
+
+        setValue(value);
+        _ = OnChanged.InvokeAsync(Block);
+    }
+
+    private void UpdateColumnCount(int count)
+    {
+        if (Block is null)
+        {
+            return;
+        }
+
+        var next = Math.Clamp(count, 1, 12);
+        Block.ColumnCount = next;
+
+        while (Block.EditorColumns.Count < next)
+        {
+            Block.EditorColumns.Add(new EditorColumn());
+        }
+
+        while (Block.EditorColumns.Count > next)
+        {
+            Block.EditorColumns.RemoveAt(Block.EditorColumns.Count - 1);
+        }
+    }
+
+    private static string FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+}

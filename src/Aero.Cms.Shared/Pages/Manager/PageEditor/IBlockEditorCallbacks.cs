@@ -12,6 +12,8 @@ public interface IBlockEditorCallbacks
     bool PreviewMode { get; }
 
     void SelectBlock(string editorId);
+    void BlockChanged(EditorBlock block);
+    void OpenBlockEditor(EditorBlock block);
     void OpenMediaSelector(EditorBlock block, bool multiSelect = false, string field = "src");
     void OpenAudioSelector(EditorBlock block);
     void RemoveImage(EditorBlock block);

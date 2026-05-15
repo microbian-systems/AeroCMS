@@ -22,6 +22,9 @@ public class EditorBlock
     public string CtaUrl          { get; set; } = string.Empty;
     public string CtaText2        { get; set; } = string.Empty;
     public string CtaUrl2         { get; set; } = string.Empty;
+    public string Eyebrow         { get; set; } = string.Empty;
+    public string Highlight       { get; set; } = string.Empty;
+    public List<string> TrustMarkers { get; set; } = [];
     public string AlternativeLinkText { get; set; } = string.Empty;
     public string AlternativeLinkUrl  { get; set; } = string.Empty;
     public string BackgroundImage { get; set; } = string.Empty;
@@ -86,6 +89,7 @@ public class EditorBlock
         var copy = (EditorBlock)MemberwiseClone();
         copy.EditorId = Guid.NewGuid().ToString();
         copy.Title = Title;
+        copy.TrustMarkers = TrustMarkers.ToList();
         copy.AlternativeLinkText = AlternativeLinkText;
         copy.AlternativeLinkUrl = AlternativeLinkUrl;
         copy.EditorColumns = EditorColumns

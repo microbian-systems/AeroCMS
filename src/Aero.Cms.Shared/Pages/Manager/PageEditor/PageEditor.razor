@@ -55,6 +55,7 @@
                       PreviewMode="@PreviewMode"
                       OnToggleSidebar="ToggleSidebarPanels"
                       OnSelectBlock="SelectBlock"
+                      OnOpenBlockEditor="OpenBlockEditor"
                       OnMoveBlockUp="MoveBlockUp"
                       OnMoveBlockDown="MoveBlockDown"
                       OnDuplicateBlock="DuplicateBlock"
@@ -213,19 +214,107 @@ else if (ActiveTab == "metadata")
                 </button>
                 @if (CategoryAeroUi)
                 {
-                    <PageEditorPaletteSection Items="Catalog.GetCatalogItems().Where(i => i.Section == NeoEditorCatalogSection.AeroUi).OrderBy(i => i.SortOrder).ToList()"
+                    <PageEditorPaletteSection Items="NeoAeroCatalogItems.ToList()"
                                               IsCollapsed="RightSidebarCollapsed" />
                 }
             </div>
 
-            @* ── Properties panel ── *@
-            @if (!string.IsNullOrEmpty(SelectedBlockId) && !RightSidebarCollapsed)
-            {
-                <div style="border-top: 1px solid var(--pe-border); margin-top: 12px; padding: 12px 8px;">
-                    <div style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: var(--pe-text-secondary); margin-bottom: 8px; padding: 4px 8px;">Properties</div>
-                    <PageEditorPropertyPanel Block="@GetBlockBaseForEditor(Blocks.FirstOrDefault(b => b.EditorId == SelectedBlockId))" />
-                </div>
-            }
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("legacyui")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? "UI" : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M7 8h10M7 12h6M7 16h8"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @:UI
+                        <svg class="pe-chevron @(CategoryLegacyUi ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryLegacyUi)
+                {
+                    <PageEditorPaletteSection Items="LegacyUiCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
+                }
+            </div>
+
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("aeroux")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? "Aero UX" : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19V5"/>
+                        <path d="M4 5h16l-3 5 3 5H4"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @:Aero UX
+                        <svg class="pe-chevron @(CategoryAeroUx ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryAeroUx)
+                {
+                    <PageEditorPaletteSection Items="AeroUxCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
+                }
+            </div>
+
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("media")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? "Media" : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @:Media
+                        <svg class="pe-chevron @(CategoryMedia ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryMedia)
+                {
+                    <PageEditorPaletteSection Items="MediaCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
+                }
+            </div>
+
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("references")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? "References" : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 4.93"/>
+                        <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19.07"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @:References
+                        <svg class="pe-chevron @(CategoryReferences ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryReferences)
+                {
+                    <PageEditorPaletteSection Items="ReferenceCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
+                }
+            </div>
 
         </div>
     </AeroSidebar>
@@ -238,6 +327,34 @@ else if (ActiveTab == "metadata")
     MultiSelect="IsGalleryMode"
     OnClose="() => MediaModalOpen = false"
     OnConfirm="OnConfirmMediaSelection"/>
+
+@if (BlockEditorModalOpen && CurrentEditBlock is not null)
+{
+    <div class="pe-modal-overlay" @onclick="CloseBlockEditor">
+        <div class="pe-modal pe-block-edit-modal" @onclick:stopPropagation="true">
+            <div class="pe-modal-header">
+                <div>
+                    <div class="pe-modal-kicker">Edit block</div>
+                    <h3>@GetBlockDisplayName(CurrentEditBlock)</h3>
+                </div>
+                <button class="pe-toolbar-btn" title="Close" @onclick="CloseBlockEditor">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="pe-modal-body">
+                <EditorBlockPropertyPanel Block="CurrentEditBlock"
+                                          ShowHeader="false"
+                                          OnChanged="OnEditorBlockChanged" />
+            </div>
+            <div class="pe-modal-footer">
+                <button class="pe-btn pe-btn-primary pe-btn-sm" @onclick="CloseBlockEditor">Done</button>
+            </div>
+        </div>
+    </div>
+}
 
 @* ── Toast notifications ─────────────────────────────────── *@
 <div class="pe-toast-container">

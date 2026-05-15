@@ -22,6 +22,76 @@ public static class EditorBlockMapper
 
         return editorBlock.Type switch
         {
+            "aero.hero.01" => new Aero.Cms.Abstractions.Blocks.Neo.Hero01Block
+            {
+                Eyebrow = FirstNonEmpty(editorBlock.Eyebrow, "Introducing NeoUI v3"),
+                Title = editorBlock.MainText,
+                Highlight = FirstNonEmpty(editorBlock.Highlight, "faster than ever"),
+                Description = editorBlock.SubText,
+                PrimaryText = editorBlock.CtaText,
+                PrimaryUrl = editorBlock.CtaUrl,
+                SecondaryText = editorBlock.CtaText2,
+                SecondaryUrl = editorBlock.CtaUrl2,
+                TrustMarkers = editorBlock.TrustMarkers.Count > 0
+                    ? editorBlock.TrustMarkers
+                    : []
+            },
+            "aero.hero.basic" => new Aero.Cms.Abstractions.Blocks.Neo.BasicHeroBlock
+            {
+                Title = editorBlock.MainText,
+                Subtitle = editorBlock.SubText,
+                BackgroundImageUrl = editorBlock.BackgroundImage,
+                CtaText = editorBlock.CtaText,
+                CtaUrl = editorBlock.CtaUrl
+            },
+            "media.image" => new Aero.Cms.Abstractions.Blocks.Neo.ImageBlock
+            {
+                Src = editorBlock.Src,
+                Alt = editorBlock.Alt,
+                Caption = editorBlock.Caption
+            },
+            "media.video" => new Aero.Cms.Abstractions.Blocks.Neo.VideoBlock
+            {
+                Src = FirstNonEmpty(editorBlock.Src, editorBlock.Url),
+                Autoplay = editorBlock.AutoPlay,
+                Controls = true
+            },
+            "media.audio" => new Aero.Cms.Abstractions.Blocks.Neo.AudioBlock
+            {
+                Src = editorBlock.Src,
+                Controls = true
+            },
+            "media.gallery" => new Aero.Cms.Abstractions.Blocks.Neo.GalleryBlock
+            {
+                Images = editorBlock.GalleryImages.Select(g => g.Src).Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
+                Columns = 3
+            },
+            "ui.raw-html" => new Aero.Cms.Abstractions.Blocks.Neo.NeoRawHtmlBlock
+            {
+                Html = editorBlock.Content
+            },
+            "ui.separator" or "separator" => new Aero.Cms.Abstractions.Blocks.Neo.SeparatorBlock(),
+            "neo.layout.columns" => new Aero.Cms.Abstractions.Blocks.Neo.NeoColumnsBlock
+            {
+                Gap = editorBlock.Gap,
+                Items = editorBlock.EditorColumns.Count > 0
+                    ? editorBlock.EditorColumns.Select(column => new Aero.Cms.Abstractions.Blocks.Neo.ColumnItem
+                    {
+                        Span = editorBlock.ColumnCount > 0 ? Math.Max(1, 12 / editorBlock.ColumnCount) : 6,
+                        Content = string.Join(Environment.NewLine, column.Blocks.Select(b => FirstNonEmpty(b.Content, b.Text, b.Url, b.Src)))
+                    }).ToList()
+                    : Enumerable.Range(0, Math.Max(1, editorBlock.ColumnCount))
+                        .Select(_ => new Aero.Cms.Abstractions.Blocks.Neo.ColumnItem
+                        {
+                            Span = editorBlock.ColumnCount > 0 ? Math.Max(1, 12 / editorBlock.ColumnCount) : 6
+                        })
+                        .ToList()
+            },
+            "neo.template.scriban" => new Aero.Cms.Abstractions.Blocks.Neo.ScribanBlock
+            {
+                Template = editorBlock.ScribanTemplate,
+                Data = ParseJsonDocument(editorBlock.ScribanDataJson)
+            },
             "aero_hero" => new AeroHeroBlock
             {
                 Title = editorBlock.MainText,
@@ -217,19 +287,29 @@ public static class EditorBlockMapper
                 Content = editorBlock.Content,
                 Author = editorBlock.Author
             },
-            "image" => new ImageBlock
+            "image" => new Aero.Cms.Abstractions.Blocks.Neo.ImageBlock
             {
-                Url = editorBlock.Src,
-                AltText = editorBlock.Alt,
+                Src = editorBlock.Src,
+                Alt = editorBlock.Alt,
                 Caption = editorBlock.Caption
             },
-            "video" => new EmbedBlock
+            "video" => new Aero.Cms.Abstractions.Blocks.Neo.VideoBlock
             {
-                SourceUrl = FirstNonEmpty(editorBlock.Url, editorBlock.Src),
-                EmbedType = "video",
-                AutoPlay = editorBlock.AutoPlay
+                Src = FirstNonEmpty(editorBlock.Url, editorBlock.Src),
+                Autoplay = editorBlock.AutoPlay,
+                Controls = true
             },
-            "gallery" or "carousel" => new CarouselBlock
+            "audio" => new Aero.Cms.Abstractions.Blocks.Neo.AudioBlock
+            {
+                Src = editorBlock.Src,
+                Controls = true
+            },
+            "gallery" => new Aero.Cms.Abstractions.Blocks.Neo.GalleryBlock
+            {
+                Images = editorBlock.GalleryImages.Select(g => g.Src).Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
+                Columns = 3
+            },
+            "carousel" => new CarouselBlock
             {
                 Items = editorBlock.GalleryImages.Select(g => new CarouselItem
                 {
