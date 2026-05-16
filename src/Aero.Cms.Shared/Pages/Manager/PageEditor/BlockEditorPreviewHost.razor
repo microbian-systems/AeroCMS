@@ -17,10 +17,7 @@ else
     @switch (Block.Type)
     {
         // ── Neo blocks ────────────────────────────────────────────
-        case "aero.hero.01":
-            <Hero01BlockEditorPreview Node="MapToNeoNode(Block)" />
-            break;
-    case "aero.hero.basic":
+        case "aero.hero.basic":
         <BasicHeroBlockEditorPreview Node="MapToNeoNode(Block)" />
         break;
     case "media.image":
@@ -793,7 +790,6 @@ else
 
         return block.Type switch
         {
-        "aero.hero.01" => Hero01BlockMapper.FromNode(MapToNeoNode(block)),
         "aero.hero.basic" => BasicHeroBlockMapper.FromNode(MapToNeoNode(block)),
         "media.image" => ImageBlockMapper.FromNode(MapToNeoNode(block)),
         "media.video" => VideoBlockMapper.FromNode(MapToNeoNode(block)),

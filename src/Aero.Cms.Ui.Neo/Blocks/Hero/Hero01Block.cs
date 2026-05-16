@@ -1,17 +1,19 @@
+using Aero.Cms.Abstractions.Blocks;
 using Microsoft.AspNetCore.Html;
 
-namespace Aero.Cms.Abstractions.Blocks.Neo;
+namespace Aero.Cms.Ui.Neo.Blocks.Hero;
 
 [BlockMetadata(
     "aero.hero.01",
     "Hero 01",
-    Category = "Aero UI",
+    Category = "Neo",
     Icon = "sparkles",
     SortOrder = 10,
     SchemaVersion = 1)]
 public sealed class Hero01Block : BlockBase
 {
-    public override string BlockType => "aero.hero.01";
+    public const string BlockTypeId = "aero.hero.01";
+    public override string BlockType => BlockTypeId;
 
     public string Eyebrow { get; set; } = "Introducing NeoUI v3";
     public string Title { get; set; } = "Build beautiful Blazor apps";

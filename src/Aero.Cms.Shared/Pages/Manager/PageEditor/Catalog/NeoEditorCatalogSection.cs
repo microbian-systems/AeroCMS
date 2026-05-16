@@ -5,5 +5,6 @@ public enum NeoEditorCatalogSection
     AeroUi,
     Primitives,
     Components,
-    Hyper
+    Hyper,
+    Neo
 }

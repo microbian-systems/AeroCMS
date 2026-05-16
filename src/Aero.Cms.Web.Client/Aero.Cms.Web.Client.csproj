@@ -35,6 +35,7 @@
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
     <ProjectReference Include="..\Aero.Cms.Ui.Hyper\Aero.Cms.Ui.Hyper.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Ui.Neo\Aero.Cms.Ui.Neo.csproj" />
   </ItemGroup>
 
   <Target Name="AeroCompileClientTypeScriptBeforeStaticWebAssets"

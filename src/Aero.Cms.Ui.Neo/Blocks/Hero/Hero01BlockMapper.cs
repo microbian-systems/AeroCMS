@@ -1,8 +1,7 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Aero.Cms.Abstractions.Blocks.Neo;
 
-namespace Aero.Cms.Abstractions.Blocks.Neo;
+namespace Aero.Cms.Ui.Neo.Blocks.Hero;
 
 public static class Hero01BlockMapper
 {

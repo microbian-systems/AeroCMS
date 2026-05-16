@@ -29,20 +29,6 @@ public static class EditorBlockMapper
 
         return editorBlock.Type switch
         {
-            "aero.hero.01" => new Aero.Cms.Abstractions.Blocks.Neo.Hero01Block
-            {
-                Eyebrow = FirstNonEmpty(editorBlock.Eyebrow, "Introducing NeoUI v3"),
-                Title = editorBlock.MainText,
-                Highlight = FirstNonEmpty(editorBlock.Highlight, "faster than ever"),
-                Description = editorBlock.SubText,
-                PrimaryText = editorBlock.CtaText,
-                PrimaryUrl = editorBlock.CtaUrl,
-                SecondaryText = editorBlock.CtaText2,
-                SecondaryUrl = editorBlock.CtaUrl2,
-                TrustMarkers = editorBlock.TrustMarkers.Count > 0
-                    ? editorBlock.TrustMarkers
-                    : []
-            },
             "aero.hero.basic" => new Aero.Cms.Abstractions.Blocks.Neo.BasicHeroBlock
             {
                 Title = editorBlock.MainText,

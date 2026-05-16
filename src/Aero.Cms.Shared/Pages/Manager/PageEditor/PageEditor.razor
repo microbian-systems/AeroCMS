@@ -342,6 +342,32 @@ else if (ActiveTab == "metadata")
                 }
             </div>
 
+            @* ── Neo section ── *@
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("neo")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? "Neo" : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @:Neo
+                        <svg class="pe-chevron @(CategoryNeo ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryNeo)
+                {
+                    <PageEditorPaletteSection Items="NeoNeoCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
+                }
+            </div>
+
         </div>
     </AeroSidebar>
 </SectionContent>

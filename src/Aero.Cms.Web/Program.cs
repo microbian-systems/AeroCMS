@@ -11,6 +11,7 @@ using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Ui.Hyper;
+using Aero.Cms.Ui.Neo;
 using Aero.Cms.Web.Components;
 using Aero.Web.Exceptions;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -261,6 +262,7 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
     services.AddNeoUIPrimitives();
     services.AddNeoUIComponents();
     services.AddAeroCmsHyperUiBlocks();
+    services.AddAeroCmsNeoUiBlocks();
 
     services.AddRazorPages()
         .AddApplicationPart(typeof(SetupModule).Assembly)

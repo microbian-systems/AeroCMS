@@ -98,6 +98,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected bool CategoryReferences { get; set; }
     protected bool CategorySettings   { get; set; } = true;
     protected bool CategoryHyper      { get; set; } = true;
+    protected bool CategoryNeo        { get; set; } = true;
 
     // Page Settings
     protected string PageSlug { get; set; } = string.Empty;
@@ -348,6 +349,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             case "references": CategoryReferences = !CategoryReferences; break;
             case "settings":   CategorySettings   = !CategorySettings;   break;
             case "hyper":      CategoryHyper      = !CategoryHyper;      break;
+            case "neo":        CategoryNeo        = !CategoryNeo;        break;
         }
     }
 
@@ -415,6 +417,13 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             .OrderBy(i => i.SortOrder)
             .ToList();
 
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoNeoCatalogItems =>
+        PageEditorBlockRegistry.All
+            .Select(ToCatalogItem)
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Neo)
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
     private static PageEditorCatalog.NeoEditorCatalogItem ToCatalogItem(IPageEditorBlockDefinition definition) =>
         new()
         {
@@ -437,6 +446,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             "primitive" or "primitives" => PageEditorCatalog.NeoEditorCatalogSection.Primitives,
             "component" or "components" => PageEditorCatalog.NeoEditorCatalogSection.Components,
             "hyper" or "hyperui" or "hyper ui" => PageEditorCatalog.NeoEditorCatalogSection.Hyper,
+            "neo" or "neoui" or "neo ui" => PageEditorCatalog.NeoEditorCatalogSection.Neo,
             _ => PageEditorCatalog.NeoEditorCatalogSection.AeroUi
         };
 
@@ -676,7 +686,6 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         var node = MapEditorBlockToNeoNode(block);
         return block.Type switch
         {
-            "aero.hero.01" => Hero01BlockMapper.FromNode(node),
             "aero.hero.basic" => BasicHeroBlockMapper.FromNode(node),
             "media.image" => ImageBlockMapper.FromNode(node),
             "media.video" => VideoBlockMapper.FromNode(node),

@@ -74,12 +74,6 @@ public partial class CarouselRenderer;
 [CmsBlockRenderer(typeof(NeoCompositionBlock))]
 public partial class NeoCompositionBlockRenderer;
 
-[CmsBlockRenderer(typeof(Hero01Block))]
-public partial class Hero01BlockRenderer;
-
-[CmsBlockRenderer(typeof(BasicHeroBlock))]
-public partial class BasicHeroBlockRenderer;
-
 [CmsBlockRenderer(typeof(Aero.Cms.Abstractions.Blocks.Neo.ImageBlock))]
 public partial class ImageBlockRenderer;
 

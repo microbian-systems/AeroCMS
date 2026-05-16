@@ -13,6 +13,32 @@ This is **additive** — both libraries coexist in the page editor palette and p
 | **Location** | `src/Aero.Cms.Ui.Hyper/Blocks/` | `src/Aero.Cms.Ui.Neo/Blocks/` |
 | **Palette** | "Hyper" section | "Neo" section (flat list) |
 
+## Architectural Design — Deliberate Copy of `Aero.Cms.Ui.Hyper`
+
+The `Aero.Cms.Ui.Neo` project is a deliberate architectural copy of `Aero.Cms.Ui.Hyper`.
+Every pattern, convention, and infrastructure decision established in Hyper is replicated here:
+
+| Pattern | Hyper Implementation | Neo Implementation |
+|---|---|---|
+| **Project type** | Razor Class Library (RCL) | Same |
+| **Block directory** | `Blocks/{Slice}/` (e.g. `Blocks/Pricing/`) | Same |
+| **File convention** | 6 files: `Block.cs`, `Renderer.razor`, `Mapper.cs`, `EditorBlockDefinition.cs`, `EditorPreview.razor`, `Editor.razor` | Same |
+| **Block model** | Inherits `BlockBase`, has `BlockTypeId` constant, `[BlockMetadata]`, `Accept(IBlockVisitor)` | Same |
+| **BlockTypeId** | `"hyper.{slice}.{n}"` | `"neo.{category}.{name}"` |
+| **Renderers** | Static partial classes with `[CmsBlockRenderer]` markers in shared `RendererMarkers.cs` | Same |
+| **Editor definitions** | `IPageEditorBlockDefinition` per block, registered in `*PageEditorBlockProvider.cs` | Same |
+| **Provider** | `HyperPageEditorBlockProvider { Definitions + BlockModels }` | `NeoPageEditorBlockProvider { Definitions + BlockModels }` |
+| **Palette source** | `NeoHyperCatalogItems` = `ToCatalogItem()` from provider definitions | `NeoNeoCatalogItems` = `ToCatalogItem()` from provider definitions |
+| **Registry** | `PageEditorBlockRegistry` (shared static `Dictionary`) | Same registry (no new one needed) |
+| **Editor routing** | Registry-first via `PageEditorBlockRegistry.TryGet()`, switch-fallback | Same |
+| **_Imports** | Per-namespace `@using` directives | Same |
+| **Razor rendering** | Static SSR, code-behind `.razor.cs` preferred | Same code-behind pattern |
+
+**Differences:**
+- HyperUI blocks render raw HTML markup with Tailwind CDN classes — NeoUI blocks render actual NeoUI.Blazor components (`<Card>`, `<Button>`, `<DataTable>`, etc.)
+- NeoUI blocks require `InteractiveServer` render mode for public-facing pages (HyperUI blocks are static SSR safe)
+- NeoUI project references `NeoUI.Blazor` packages (HyperUI project needs only Tailwind CDN)
+
 ## Phase 0 — Foundation + Hero01 Extraction
 
 ### A. Create `Aero.Cms.Ui.Neo` RCL project

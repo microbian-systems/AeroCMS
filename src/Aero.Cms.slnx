@@ -48,6 +48,7 @@
     <Project Path="Aero.Cms.Modules.Crm/Aero.Cms.Modules.Crm.csproj" Id="f0a088cb-18fe-4ef2-9318-744abdbee4a9" />
     <Project Path="Aero.Cms.Modules.Docs/Aero.Cms.Modules.Docs.csproj" Id="7a333011-7319-49e2-8229-cbbd89599c77" />
     <Project Path="Aero.Cms.Modules.Export/Aero.Cms.Modules.Export.csproj" Id="beeaf44c-2bf2-4029-8c00-e2a91a6384f4" />
+    <Project Path="Aero.Cms.Modules.Footer/Aero.Cms.Modules.Footer.csproj" />
     <Project Path="Aero.Cms.Modules.Forum/Aero.Cms.Modules.Forum.csproj" Id="39ddd553-2b71-4b37-8290-22685fcbda29" />
     <Project Path="Aero.Cms.Modules.Grpc/Aero.Cms.Modules.Grpc.csproj" Id="cc3792d8-b3eb-40cf-82ff-26a2585f780f" />
     <Project Path="Aero.Cms.Modules.Headless/Aero.Cms.Modules.Headless.csproj" Id="71bd21df-4631-4ff8-9dd3-46070cc75e1e" />
@@ -68,7 +69,6 @@
     <Project Path="Aero.Cms.Modules.MiniProfiler/Aero.Cms.Modules.MiniProfiler.csproj" Id="00a7bc94-c5a1-4260-bc51-c11bd27660a2" />
     <Project Path="Aero.Cms.Modules.Modules/Aero.Cms.Modules.Modules.csproj" Id="36a8110a-a6c8-4af4-9ec1-450024f01fec" />
     <Project Path="Aero.Cms.Modules.Navigation/Aero.Cms.Modules.Navigation.csproj" />
-    <Project Path="Aero.Cms.Modules.Footer/Aero.Cms.Modules.Footer.csproj" />
     <Project Path="Aero.Cms.Modules.OneTimePasscode/Aero.Cms.Modules.OneTimePasscode.csproj" Id="42ea5adb-2cd5-4135-9fa8-d0df9e3f3ba9" />
     <Project Path="Aero.Cms.Modules.OpenTelemetry/Aero.Cms.Modules.OpenTelemetry.csproj" Id="1d88cccb-81c9-46d7-9cec-a1fd76de9f3e" />
     <Project Path="Aero.Cms.Modules.OutputCache/Aero.Cms.Modules.OutputCache.csproj" Id="f0fdb431-5819-4d64-8dec-8424eba6676f" />
@@ -95,9 +95,9 @@
   <Folder Name="/Tests/">
     <Project Path="../tests/Aero.Cms.Core.Tests/Aero.Cms.Core.Tests.csproj" />
   </Folder>
+  <Project Path="../tests/Aero.Cms.Modules.Footer.Tests/Aero.Cms.Modules.Footer.Tests.csproj" />
   <Project Path="Aero.AppServer/Aero.AppServer.csproj" Id="17744a70-a68e-4734-9c5b-6bb410054f6c" />
   <Project Path="Aero.Cms.Abstractions/Aero.Cms.Abstractions.csproj" Id="4164242f-b26c-4206-a16b-4cf5c0a54d6e" />
-  <Project Path="Aero.Cms.Ui.Hyper/Aero.Cms.Ui.Hyper.csproj" />
   <Project Path="Aero.Cms.AppHost/Aero.Cms.AppHost.csproj" />
   <Project Path="Aero.Cms.Contracts/Aero.Cms.Contracts.csproj" />
   <Project Path="Aero.Cms.Core.Entities/Aero.Cms.Core.Entities.csproj" Id="ea2d28ee-685e-4007-bda4-46bb230058cf" />
@@ -109,10 +109,11 @@
   <Project Path="Aero.Cms.Services/Aero.Cms.Services.csproj" />
   <Project Path="Aero.Cms.Shared/Aero.Cms.Shared.csproj" />
   <Project Path="Aero.Cms.SourceGenerators/Aero.Cms.SourceGenerators.csproj" />
+  <Project Path="Aero.Cms.Ui.Hyper/Aero.Cms.Ui.Hyper.csproj" />
+  <Project Path="Aero.Cms.Ui.Neo/Aero.Cms.Ui.Neo.csproj" />
   <Project Path="Aero.Cms.Web.Client/Aero.Cms.Web.Client.csproj" />
   <Project Path="Aero.Cms.Web.Core/Aero.Cms.Web.Core.csproj" />
   <Project Path="Aero.Cms.Web/Aero.Cms.Web.csproj" />
-  <Project Path="../tests/Aero.Cms.Modules.Footer.Tests/Aero.Cms.Modules.Footer.Tests.csproj" />
   <Project Path="Aero.Cms/Aero.Cms.csproj">
     <Deploy />
   </Project>
