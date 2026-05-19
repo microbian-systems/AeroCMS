@@ -1,5 +1,8 @@
 # NeoUI Blocks Implementation Plan
 
+> **Status: ON HOLD — Superseded by [`neo-blocks-transitory.md`](./neo-blocks-transitory.md) and [`neo-blocks-template.md`](./neo-blocks-template.md).**
+> This document proposed `InteractiveAuto` render mode, `WebAssemblyPrerendered` tag helper, `PrefersInteractive` property, and `@rendermode` on a `<div>` — all found to be incorrect during council review against Microsoft Learn docs. The corrected plan uses `ServerPrerendered` on the Component Tag Helper with `@rendermode InteractiveServer` at the component definition level. See `neo-blocks-transitory.md` for the active plan and `neo-blocks-template.md` for the 6-file + registration pattern to follow for each new block. This document is preserved for reference of the original phased block list only.
+
 ## Overview
 
 Add NeoUI Blazor components as page editor blocks alongside the existing HyperUI blocks.
