@@ -8,7 +8,7 @@ This is **additive** — both libraries coexist in the page editor palette and p
 | | HyperUI | NeoUI |
 |---|---|---|
 | **Rendering** | Raw HTML + Tailwind CSS | NeoUI Blazor components (`<Card>`, `<Button>`, `<DataTable>`, etc.) |
-| **SSR** | Static SSR safe | Requires `InteractiveServer` / `InteractiveWebAssembly` |
+| **SSR** | Static SSR safe | Requires `InteractiveAuto` for public-facing pages (first visit server-rendered, auto-upgrades to WebAssembly) |
 | **Dependencies** | CDN (Tailwind Play CDN) | NuGet (`NeoUI.Blazor`, `NeoUI.Blazor.Primitives`, `NeoUI.Icons.Lucide`) |
 | **Location** | `src/Aero.Cms.Ui.Hyper/Blocks/` | `src/Aero.Cms.Ui.Neo/Blocks/` |
 | **Palette** | "Hyper" section | "Neo" section (flat list) |
@@ -36,7 +36,8 @@ Every pattern, convention, and infrastructure decision established in Hyper is r
 
 **Differences:**
 - HyperUI blocks render raw HTML markup with Tailwind CDN classes — NeoUI blocks render actual NeoUI.Blazor components (`<Card>`, `<Button>`, `<DataTable>`, etc.)
-- NeoUI blocks require `InteractiveServer` render mode for public-facing pages (HyperUI blocks are static SSR safe)
+- **Hero01Block is an exception**: despite living in `Aero.Cms.Ui.Neo`, its renderer emits raw HTML + Tailwind (identical to HyperUI blocks) — NOT NeoUI Blazor components. The 33 new blocks from Phases 1-6 WILL use actual NeoUI.Blazor components.
+- NeoUI blocks set `PrefersInteractive = true` in their editor definitions, signaling the page renderer to use `InteractiveAuto` render mode (not required for Hero01)
 - NeoUI project references `NeoUI.Blazor` packages (HyperUI project needs only Tailwind CDN)
 
 ## Phase 0 — Foundation + Hero01 Extraction
@@ -81,7 +82,7 @@ Create 6th file: `Hero01EditorBlockDefinition.cs` implementing `IPageEditorBlock
 
 Block model updates:
 - Namespace: `Aero.Cms.Ui.Neo.Blocks.Hero`
-- `[BlockMetadata]` stays as `"aero.hero.01"`, `"Hero 01"`, `Category = "Neo"`, `SortOrder = 10`
+- `[BlockMetadata]` uses `"neo.hero.01"`, `"Hero 01"`, `Category = "Neo"`, `SortOrder = 10`
 
 Register in:
 - `NeoPageEditorBlockProvider.cs` — add definition instance + block model registration
@@ -251,9 +252,86 @@ Palette: flat list under "Neo" panel (no subcategories).
 
 ## Key Implementation Notes
 
-### Render Mode
+### Public Page Rendering
 
-NeoUI blocks use interactive Blazor components. Public-facing pages rendering NeoUI blocks must use `InteractiveServer` render mode for the block area or the entire page. This is unlike HyperUI blocks which work with Static SSR.
+CSHTML public pages use the [Component Tag Helper](https://learn.microsoft.com/aspnet/core/mvc/views/tag-helpers/built-in/component-tag-helper) to embed a `PageBlockRenderer` Blazor wrapper component. The wrapper owns a `DynamicComponent` loop — the same mechanism the page editor already uses for canvas previews. No new rendering infrastructure is needed.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ CSHTML Public Page (Component Tag Helper)                │
+│                                                         │
+│  bool needsInteractive = page.Blocks                    │
+│      .Any(b => b.Definition.PrefersInteractive);        │
+│                                                         │
+│  <component type="typeof(PageBlockRenderer)"            │
+│      render-mode="@(needsInteractive                    │
+│        ? "WebAssemblyPrerendered" : "Static")"          │
+│      param-Blocks="@page.Blocks" />                     │
+│                                                         │
+│  ─────────────── boots Blazor runtime ───────────────►  │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ PageBlockRenderer.razor                         │   │
+│  │                                                 │   │
+│  │  <div @rendermode="(needsInteractive             │   │
+│  │      ? RenderMode.InteractiveAuto : null)">      │   │
+│  │    @foreach (var block in Blocks)               │   │
+│  │    {                                             │   │
+│  │      <DynamicComponent Type="def.PreviewComp"    │   │
+│  │           Parameters="new { Block = block }" />  │   │
+│  │    }                                             │   │
+│  │  </div>                                          │   │
+│  └─────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+```
+
+| Scenario | Render Mode | Result |
+|---|---|---|
+| All Hyper blocks | Static SSR (null rendermode) | Zero overhead — static HTML |
+| Any Neo block present | InteractiveAuto | First visit: server-rendered (instant). WASM downloads in background. Subsequent visits: client-side (zero server cost) |
+| Mixed page | InteractiveAuto | Single render mode island wraps entire block list (not per-block islands) |
+
+**Key rule:** `@rendermode` goes on the container `<div>`, NOT on individual `DynamicComponent` instances. One island = one SignalR circuit (first visit only) → one WASM runtime. N islands would create N circuits.
+
+### CSHTML Public Page Integration
+
+CSHTML pages use the [Component Tag Helper](https://learn.microsoft.com/aspnet/core/mvc/views/tag-helpers/built-in/component-tag-helper?view=aspnetcore-10.0) (`<component>` tag) to embed a Blazor wrapper as a single interactive island. `@rendermode` and `DynamicComponent` are `.razor`-only — the wrapper bridges between CSHTML and the Blazor rendering world (see diagram above).
+
+**Component Tag Helper render-mode selection:**
+
+| Page has | Tag Helper `render-mode` | Internal `@rendermode` | Behavior |
+|---|---|---|---|
+| Hyper only | `Static` | `null` | Pure SSR — zero Blazor runtime overhead |
+| Any Neo block | `WebAssemblyPrerendered` | `InteractiveAuto` | Prerendered HTML visible instantly, WASM boots silently in background, subsequent visits render client-side |
+
+**Why `WebAssemblyPrerendered` on the tag helper but `InteractiveAuto` inside?**
+
+`InteractiveAuto` is not available as a value on the Component Tag Helper — only `Static`, `Server`, `ServerPrerendered`, `WebAssembly`, and `WebAssemblyPrerendered` are supported. Using `WebAssemblyPrerendered` on the tag helper bootstraps the WASM runtime. Once inside that runtime, the wrapper component's internal `@rendermode="InteractiveAuto"` works normally — giving first-visit server rendering with automatic WASM upgrade on subsequent visits, without ever needing a dedicated SignalR circuit at the CSHTML level.
+
+**Parameter passing:** Block data passed via the tag helper's `param-*` attributes must be JSON-serializable. Complex block model types must have public parameterless constructors and settable properties.
+
+### `PrefersInteractive` Property
+
+Added to `IPageEditorBlockDefinition`:
+
+```csharp
+public interface IPageEditorBlockDefinition
+{
+    // ... existing members ...
+    
+    /// <summary>
+    /// True if this block type requires interactive rendering.
+    /// The page renderer uses this to decide whether to wrap in InteractiveAuto.
+    /// </summary>
+    bool PrefersInteractive { get; }
+}
+```
+
+| Library | Value | Why |
+|---|---|---|
+| HyperUI | `false` | Raw HTML — static SSR safe |
+| NeoUI (new blocks) | `true` | Uses `<Card>`, `<Button>`, `<DataTable>`, etc. — needs SignalR circuit or WASM |
+| Hero01 | `false` | Renders raw HTML despite living in Neo RCL |
 
 ### Editor Properties
 
@@ -277,21 +355,28 @@ Neo blocks use the same `IPageEditorBlockDefinition` interface as HyperUI blocks
 ```csharp
 public sealed class CenteredHeroEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string BlockType => "neo.hero.centered";
+    public string CatalogId => "neo.hero.centered";
     public string DisplayName => "Centered Hero";
-    public Type BlockType => typeof(CenteredHeroBlock);
-    public Type EditorPreviewComponentType => typeof(CenteredHeroBlockEditorPreview);
-    public Type PropertyEditorComponentType => typeof(CenteredHeroBlockEditor);
-    public CenteredHeroBlock ToBlockBase(EditorBlock editor) => new() { ... };
-    public EditorBlock ToEditorBlock(BlockBase block) => ...;
+    public string? Description => "A NeoUI centered hero section.";
+    public string Category => "Neo";
+    public string Kind => "Block";
+    public string IconName => "sparkles";
+    public int SortOrder => 10;
+    public bool PublicStaticSsrSafe => false;
+    public bool PrefersInteractive => true;
+    public Type? PreviewComponentType => typeof(CenteredHeroBlockEditorPreview);
+    public Type? PropertyEditorComponentType => typeof(CenteredHeroBlockEditor);
+    public EditorBlock CreateDefaultEditorBlock() => new() { Type = CatalogId, /* ... */ };
+    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock) { /* ... */ }
+    public BlockBase? ToBlockBase(EditorBlock editorBlock) { /* ... */ }
 }
 ```
 
-### Neonaming Convention
+### Naming Convention
 
 | Prefix | Library | Example |
 |---|---|---|
-| `aero.hero.*` | Aero original (legacy) | `aero.hero.01` (Hero01Block — moves to Neo RCL) |
+| `neo.hero.01` | NeoUI block (Hero01 — renders raw HTML) | `neo.hero.01` (Hero01Block in Neo RCL) |
 | `aero.{type}` | Aero UX (Meraki-based) | `aero_features`, `aero_cta` |
-| `neo.{category}.{name}` | NeoUI blocks | `neo.hero.centered`, `neo.auth.signin` |
+| `neo.{category}.{name}` | NeoUI blocks (use Blazor components) | `neo.hero.centered`, `neo.auth.signin` |
 | `hyper.{category}.{n}` | HyperUI blocks | (existing, unchanged) |
