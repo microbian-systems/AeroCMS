@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="8.9.0" />
-    <PackageReference Include="TUnit" Version="1.39.0" />
+    <PackageReference Include="FluentAssertions" Version="8.10.0" />
+    <PackageReference Include="TUnit" Version="1.45.8" />
   </ItemGroup>
 
   <ItemGroup>
