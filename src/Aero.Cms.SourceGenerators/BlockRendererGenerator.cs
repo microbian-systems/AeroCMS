@@ -1083,6 +1083,7 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             "Primitives" => "Primitives",
             "Components" => "Components",
             "Hyper" => "Hyper",
+            "Neo" => "Neo",
             _ => "AeroUi"
         };
     }

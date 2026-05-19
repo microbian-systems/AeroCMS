@@ -1,0 +1,10 @@
+<div class="pe-neo-preview pe-neo-hero-preview">
+    <CenteredHeroBlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private CenteredHeroBlock PreviewBlock => CenteredHeroBlockMapper.FromNode(Node);
+}

@@ -1,0 +1,46 @@
+@* CenteredHeroBlockRenderer - Public page renderer *@
+
+@if (Block != null)
+{
+    <section class="container flex flex-col items-center justify-center min-h-80 w-full bg-background px-6 py-16 text-center">
+        <Badge Variant="BadgeVariant.Secondary" Class="mb-4 gap-1.5">
+            <LucideIcon Name="sparkles" Size="12" Class="text-primary" />
+            @Block.Eyebrow
+        </Badge>
+
+        <h1 class="text-4xl md:text-5xl font-bold tracking-tight text-foreground max-w-3xl leading-tight mb-4">
+            @Block.Title<br class="hidden md:block" />
+            <span class="text-primary">@Block.Highlight</span>
+        </h1>
+
+        <p class="text-lg text-muted-foreground max-w-xl leading-relaxed mb-8">
+            @Block.Description
+        </p>
+
+        <div class="flex flex-col md:flex-row items-center gap-3">
+            <Button Size="ButtonSize.Large" Class="gap-2 px-6">
+                @Block.PrimaryText
+                <LucideIcon Name="arrow-right" Size="16" />
+            </Button>
+            <Button Variant="ButtonVariant.Outline" Size="ButtonSize.Large" Class="gap-2 px-6">
+                <LucideIcon Name="github" Size="16" />
+                @Block.SecondaryText
+            </Button>
+        </div>
+
+        <div class="mt-12 flex items-center gap-6 text-sm text-muted-foreground flex-wrap justify-center">
+            @foreach (var marker in Block.TrustMarkers)
+            {
+                <div class="flex items-center gap-1.5">
+                    <LucideIcon Name="circle-check" Size="14" Class="text-primary" />
+                    @marker
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public CenteredHeroBlock? Block { get; set; }
+}
