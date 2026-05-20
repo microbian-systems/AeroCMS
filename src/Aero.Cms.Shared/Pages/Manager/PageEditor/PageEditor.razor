@@ -450,6 +450,7 @@ else if (ActiveTab == "metadata")
                 UrlBarText="@(!string.IsNullOrWhiteSpace(PreviewFrameUrl) ? PreviewFrameUrl : PreviewFragmentUrl)"
                 Error="@PreviewError"
                 IsLoading="@IsPreviewRendering"
+                SuppressBrowserLinkErrors="true"
                 Title="Page preview" />
 
 

@@ -3,6 +3,7 @@
 
 	<PropertyGroup>
 		<OutputType>exe</OutputType>
+		<InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.OpenApi.Generated</InterceptorsNamespaces>
 	</PropertyGroup>
 
   <ItemGroup>
@@ -276,7 +277,6 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Crm\Aero.Cms.Modules.Crm.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Export\Aero.Cms.Modules.Export.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Forum\Aero.Cms.Modules.Forum.csproj" />
-	  <ProjectReference Include="..\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.LettuceEncrypt\Aero.Cms.Modules.LettuceEncrypt.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Localization\Aero.Cms.Modules.Localization.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.MagicLink\Aero.Cms.Modules.MagicLink.csproj" />
@@ -329,6 +329,7 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Web.Bootstrap\Aero.Cms.Web.Bootstrap.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
   </ItemGroup>
 

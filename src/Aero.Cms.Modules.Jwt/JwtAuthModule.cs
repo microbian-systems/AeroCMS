@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Aero.Cms.Core;
+using Aero.Cms.Modules.Jwt.Areas.Api.v1;
 using Aero.Modular;
 
 namespace Aero.Cms.Modules.Jwt;
@@ -40,12 +41,11 @@ public class JwtAuthModule : AeroWebModule
                     IssuerSigningKey = new SymmetricSecurityKey(key)
                 };
             });
-
-        services.AddAuthorization();
     }
 
     public override void Run(IEndpointRouteBuilder endpoints)
     {
+        // Map the /auth/login placeholder (pre-existing)
         var group = endpoints.MapGroup("/auth");
 
         group.MapPost("/login", (LoginRequest req) =>
@@ -53,10 +53,18 @@ public class JwtAuthModule : AeroWebModule
             if (req.Email != "admin" || req.Password != "password")
                 return Results.Unauthorized();
 
-            // Note: JwtTokenGenerator is assumed to be defined elsewhere or handled in future tasks
-            // var token = JwtTokenGenerator.Generate(req.Email);
-            // return Results.Ok(new { token });
             return Results.Ok(new { token = "placeholder-token" });
         });
+
+        // Then chain to RunAsync for the official Headless Auth/Jwt APIs
+        base.Run(endpoints);
+    }
+
+    public override Task RunAsync(IEndpointRouteBuilder builder)
+    {
+        builder.MapJwtApi();
+        builder.MapAuthApi();
+
+        return Task.CompletedTask;
     }
 }

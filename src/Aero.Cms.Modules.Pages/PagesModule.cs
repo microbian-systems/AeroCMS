@@ -1,11 +1,13 @@
 using Aero.Cms.Abstractions.Blocks.Editing;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Modules.Pages.Areas.Api.v1;
 using Aero.Cms.Modules.Pages.Admin;
 using Aero.Cms.Modules.Pages.Validators;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using Aero.Cms.Abstractions.Actors;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
@@ -31,6 +33,10 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
     {
         services.AddScoped<IPageContentService, MartenPageContentService>();
         services.AddSingleton<BlockEditingService>();
+
+        // Grain-backed actor — direct injection for thin API controllers
+        services.AddSingleton<IAeroPageActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroPageActor>(0, "aero"));
 
         // Page hierarchy services
         services.AddScoped<IPageTreeService, PageTreeService>();
@@ -135,6 +141,9 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
 
     public override Task RunAsync(IEndpointRouteBuilder builder)
     {
+        using var scope = builder.ServiceProvider.CreateScope();
+        builder.MapPagesApi();
+        builder.MapPagesTreeApi();
         return Task.CompletedTask;
     }
 }

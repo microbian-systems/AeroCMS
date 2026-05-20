@@ -1,6 +1,6 @@
 ﻿using TUnit.Core;
+using Aero.Cms.Modules.Blog.Areas.Api.v1;
 using Aero.Cms.Modules.Blog.Models;
-using Aero.Cms.Modules.Headless.Areas.Api.v1;
 using Alba;
 using Marten;
 using Marten.Linq;
@@ -39,7 +39,7 @@ public class CategoriesApiTests
                 app.UseRouting();
                 app.UseEndpoints(endpoints =>
                 {
-                    endpoints.MapCategoriesApi();
+                    endpoints.MapCategoriesAdminApi();
                 });
             });
         });

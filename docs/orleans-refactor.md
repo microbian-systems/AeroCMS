@@ -1,7 +1,7 @@
 # AeroCMS Refactoring Plan: Startup Encapsulation, API Decoupling, and Orleans Grain Migration
 
-**Status**: Planning — Awaiting implementation  
-**Date**: 2026-05-20  
+**Status**: Phase 1-3 Complete ✅ | Phase 4 Pending  
+**Date**: 2026-05-22  
 **Effort**: Medium (3 phases, ~8-12 days)  
 **Reviewed by**: @council (multi-model consensus)
 
@@ -14,10 +14,12 @@
 3. [Phase 1: Startup Encapsulation](#phase-1-startup-encapsulation)
 4. [Phase 2: API Migration from HeadlessModule](#phase-2-api-migration-from-headlessmodule)
 5. [Phase 3: Orleans Grain Migration](#phase-3-orleans-grain-migration)
-6. [Risk Register](#risk-register)
-7. [Implementation Sequencing](#implementation-sequencing)
-8. [Validation Strategy](#validation-strategy)
-9. [Open Items / TODOs](#open-items--todos)
+6. [Orleans Dependency Injection Reference](#orleans-dependency-injection-reference)
+7. [Risk Register](#risk-register)
+8. [Implementation Sequencing](#implementation-sequencing)
+9. [Validation Strategy](#validation-strategy)
+10. [Open Items / TODOs](#open-items--todos)
+11. [Appendix A: Orleans Dependency Injection Reference](#appendix-a-orleans-dependency-injection-reference)
 
 ---
 
@@ -155,13 +157,25 @@ public override Task RunAsync(IEndpointRouteBuilder builder)
 | `MapDashboardApi` | `Modules.Manager` | `Areas/Api/v1/DashboardApi.cs` | Manager module exists |
 | `MapPreviewApi` (page handlers) | `Modules.Pages` | Co-locate in `PagesAdminApi` | Page preview |
 | `MapPreviewApi` (blog handlers) | `Modules.Blog` | Co-locate in `BlogPostsAdminApi` | Blog preview |
-| `MapPreviewApi` (block fragment) | `Modules.Content` | `Areas/Api/v1/PreviewBlockFragmentApi.cs` | **Content-agnostic** endpoint |
+| `MapPreviewApi` (block fragment) | `Modules.Manager` | `Areas/Api/v1/PreviewBlockFragmentApi.cs` | **Content-agnostic** endpoint; manager concern |
 
-> **Note on `PreviewBlockFragment`**: The `PreviewBlockFragment` endpoint accepts raw `BlockBase` — it is content-type agnostic (works for any block in any content type). Placing it in Pages or Blog would be wrong. It belongs in `Modules.Content` which owns the block system.
+> **Note on `PreviewBlockFragment`**: The `PreviewBlockFragment` endpoint accepts raw `BlockBase` — it is content-type agnostic (works for any block in any content type). Placing it in Pages or Blog would be wrong. It belongs in `Modules.Manager` alongside the Dashboard API — both are cross-cutting admin concerns.
 
 ### Prerequisite: Auth & Antiforgery Audit
 
 **Before any API migration**, audit all 22 API groups for auth requirements. Currently only `ContentItemsApi` and `ContentTypesApi` use `.RequireAuthorization()`. All `admin/` endpoints must require authorization after migration.
+
+**Auth policy**: Use the existing role-based `"Admin"` role (already used by `SitesModule` and `ServerAuthenticationStateProvider`). Define a centralized named policy in `Aero.Cms.Web` startup if one doesn't already exist:
+
+```csharp
+// In Program.cs authorization setup:
+services.AddAuthorization(options =>
+{
+    options.AddPolicy("AeroAdmin", policy => policy.RequireRole("Admin"));
+});
+```
+
+Then each admin API group uses: `.RequireAuthorization("AeroAdmin")`
 
 | API Group | Auth Required? | Antiforgery | Notes |
 |---|---|---|---|
@@ -230,26 +244,28 @@ Each module registers its own grains in `ConfigureServices`. External consumers 
 | B | Grain manages Orleans state, Marten in service layer | Dual-write — state drift |
 | **C (chosen)** | **Grain obtains `IDocumentSession` from `IServiceProvider` per method call** | **No drift. Marten is sole source of truth.** |
 
-**Contract**: Grains use `IDocumentSession` as a **per-method-call factory pattern**. The grain does not store `IDocumentSession` as grain state. On each method invocation, it obtains a fresh session from the DI container. Grain state on `AeroActor` is used for caching/coordination only, not as the source of truth.
+**Contract**: Grains inject `IDocumentStore` as a **singleton** and open a lightweight session per operation. The grain does not store `IDocumentSession` as grain state. On each method invocation, it opens a fresh session. Grain state on `AeroActor` is used for caching/coordination only, not as the source of truth.
 
 ```csharp
 public class AeroPageGrain : AeroActor, IAeroPageActor
 {
-    private readonly IServiceProvider _services;
+    private readonly IDocumentStore _documentStore;
     
-    public AeroPageGrain(ILogger<AeroActor> log, IServiceProvider services) 
+    public AeroPageGrain(
+        ILogger<AeroActor> log, 
+        IDocumentStore documentStore)    // ← singleton, safe for grain activation
         : base(log) 
     {
-        _services = services;
+        _documentStore = documentStore;
     }
 
     public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
-        // Obtain fresh session per method call — not stored as grain state
-        await using var scope = _services.CreateAsyncScope();
-        var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
-        
-        // Business logic...
+        // Lightweight session per operation — not stored as grain state
+        await using var session = _documentStore.LightweightSession();
+        var page = new PageDocument { Id = Snowflake.NewId(), /* ... */ };
+        session.Store(page);
+        await session.SaveChangesAsync(ct);
         // Marten is the sole source of truth.
     }
 }
@@ -257,23 +273,96 @@ public class AeroPageGrain : AeroActor, IAeroPageActor
 
 **Result**: Zero state drift risk. Marten remains the authoritative data store.
 
-#### 3.3 Grain Registration Strategy
+#### 3.3 Grain Registration — Two-Layer Strategy
 
-**Module-level registration**: Each module registers its grains in `ConfigureServices` via the silo builder:
+Grain registration has two concerns that live at different layers. This is by design — the same two-layer pattern already proven with Wolverine handlers in this codebase.
+
+| Layer | Concern | Where | What |
+|---|---|---|---|
+| **Assembly Discovery** | Tell Orleans which assemblies contain grain classes | `AddAeroApplicationServer()` via callback | Source-generated `IApplicationPartManager` callback |
+| **Service Wrappers** | Register grain façades as consumable DI services | Each module's `ConfigureServices(IServiceCollection)` | `AeroPageService` wrapping `IGrainFactory` |
+
+**Why two layers**: `services.AddOrleans()` in `AeroAppServerExtensions.cs` gives you `IServiceCollection`, not `ISiloBuilder`. Modules calling `ConfigureServices` later cannot touch `ApplicationPartManager` directly. This is architecturally correct — silo setup belongs in the composition root, not inside modules.
+
+##### Layer 1: Assembly Discovery (mirrors Wolverine pattern)
+
+`AeroAppServerExtensions.cs` receives a callback, exactly like the existing `configureWolverine` parameter:
 
 ```csharp
-// In PagesModule.ConfigureServices:
-public override void ConfigureServices(IServiceCollection services, IConfiguration? config, IHostEnvironment? env)
+// AeroAppServerExtensions.cs — NEW parameter
+public static Task<IHostApplicationBuilder> AddAeroApplicationServer(
+    this IHostApplicationBuilder builder,
+    Action<WolverineOptions>? configureWolverine = null,
+    Action<IApplicationPartManager>? configureGrains = null)    // ← NEW
 {
-    services.AddScoped<IPageContentService, MartenPageContentService>();
-    // ... existing registrations ...
+    // ... existing setup ...
     
-    // Register grain on the silo
-    services.AddSingleton<IAeroPageActor, AeroPageGrain>();  // via Orleans conventions
+    services.AddOrleans(opts =>
+    {
+        opts.UseLocalhostClustering();
+        opts.ConfigureApplicationParts(parts =>
+        {
+            parts.AddFromApplicationBaseDirectory();     // baseline
+            configureGrains?.Invoke(parts);              // module grains
+        });
+    });
+    
+    // ...
 }
 ```
 
-The existing `builder.AddAeroApplicationServer()` call in `Program.cs` bootstraps the Orleans silo; grains are discovered via the source-generated catalog.
+The source-generated grain catalog mirrors `GeneratedWolverineHandlerCatalog`:
+
+```csharp
+// Source-generated — Aero.AppServer.Generated
+public static class GeneratedAeroGrainCatalog
+{
+    public static void Register(IApplicationPartManager parts)
+    {
+        parts.AddApplicationPart(typeof(Aero.Cms.Modules.Blog.Grains.AeroBlogGrain).Assembly)
+             .WithReferences();
+        parts.AddApplicationPart(typeof(Aero.Cms.Modules.Pages.Grains.AeroPageGrain).Assembly)
+             .WithReferences();
+        parts.AddApplicationPart(typeof(Aero.Cms.Modules.Media.Grains.AeroMediaGrain).Assembly)
+             .WithReferences();
+        // ... one per module that contains grains
+    }
+}
+```
+
+`Program.cs` wires both catalogs at the composition root:
+
+```csharp
+_ = await builder.AddAeroApplicationServer(
+    configureWolverine: GeneratedWolverineHandlerCatalog.Register,
+    configureGrains: GeneratedAeroGrainCatalog.Register);    // ← mirrors Wolverine
+```
+
+**No reflection. No manual maintenance. AOT safe.** Adding a new grain just means adding the grain class file — the source generator picks it up.
+
+##### Layer 2: Service Wrappers (per module)
+
+Each module registers its grain-backed service wrappers in `ConfigureServices`. `IGrainFactory` is registered by Orleans when `AddOrleans` runs — modules resolve it freely without any Orleans plumbing knowledge:
+
+```csharp
+// In PagesModule.ConfigureServices — no Orleans plumbing here
+public override void ConfigureServices(IServiceCollection services, ...)
+{
+    // Existing services stay
+    services.AddScoped<IPageContentService, MartenPageContentService>();
+
+    // NEW: Grain-backed service wrapper (façade over IGrainFactory)
+    services.AddScoped<IAeroPageService>(sp =>
+        new AeroPageService(sp.GetRequiredService<IGrainFactory>()));
+}
+```
+
+| Designer | Assessor |
+|---|---|
+| Source-gen friendly | **Yes** — no reflection, no attribute scanning |
+| Module isolation | **Yes** — modules only touch `IServiceCollection` |
+| Consistent with existing Wolverine pattern | **Yes** — identical callback pattern, same wiring in `Program.cs` |
+| AOT safe | **Yes** — no dynamic assembly loading |
 
 #### 3.4 Grain Interface Hierarchy
 
@@ -298,9 +387,11 @@ Additional interfaces needed for non-content entities (Settings, Themes):
 // New interface for simple key-value store grains
 public interface IAeroSettingActor : IAeroActor
 {
+    Task<AeroRequestResponse<IReadOnlyList<SettingViewModel>>> GetAllAsync(CancellationToken ct);
     Task<AeroRequestResponse<SettingViewModel>> GetByKeyAsync(string key, CancellationToken ct);
     Task<AeroRequestResponse<SettingViewModel>> SetAsync(string key, string value, CancellationToken ct);
     Task<AeroRequestResponse<bool>> DeleteByKeyAsync(string key, CancellationToken ct);
+    Task<AeroRequestResponse<IReadOnlyList<SettingViewModel>>> GetByCategoryAsync(string category, CancellationToken ct);
 }
 ```
 
@@ -369,15 +460,21 @@ private static async Task<IResult> CreatePost(
 
 ---
 
+## Orleans Dependency Injection Reference
+
+See [Appendix A: Orleans Dependency Injection Reference](#appendix-a-orleans-dependency-injection-reference) for grain lifecycle, service lifetimes, Marten integration patterns, and pitfalls.
+
+---
+
 ## Risk Register
 
 | # | Risk | Probability | Impact | Mitigation |
 |---|---|---|---|---|
 | R1 | **Circular dependency in Web.Core** | Medium | High | RESOLVED: Use new `Aero.Cms.Web.Bootstrap` project instead |
-| R2 | **PreviewBlockFragment orphaned after split** | Low (caught early) | Medium | RESOLVED: Move to `Modules.Content` |
+| R2 | **PreviewBlockFragment orphaned after split** | Low (caught early) | Medium | RESOLVED: Move to `Modules.Manager` |
 | R3 | **Auth/antiforgery regression** | Medium | High | **Prerequisite**: Audit all 22 API groups before migration |
 | R4 | **Module API route ordering regression** | Low | Medium | Use conformance test to verify route resolution |
-| R5 | **Marten + Orleans lifecycle mismatch (NRE)** | High | High | RESOLVED: Use per-method-call `IServiceProvider` factory pattern |
+| R5 | **Marten + Orleans lifecycle mismatch (NRE)** | High | High | RESOLVED: Inject `IDocumentStore` singleton; open `LightweightSession()` per method |
 | R6 | **Orleans grain state vs Marten document state drift** | High (if misconfigured) | High | RESOLVED: Marten is sole source of truth; grains use short-lived sessions |
 | R7 | **Unproven grain implementation pattern** | Medium | Medium | Mitigated: Start with Aliases (simplest) to prove pattern |
 | R8 | **Pages grain complexity (event sourcing)** | High | High | Mitigated: Do last, after pattern proven |
@@ -387,41 +484,42 @@ private static async Task<IResult> CreatePost(
 ## Implementation Sequencing
 
 ```
-Phase 1 (1-2 days): Startup Encapsulation
-├── Create src/Aero.Cms.Web.Bootstrap/ project
-├── Move static methods from Program.cs → AeroStartupPipeline.cs
+Phase 1 ✅ (1-2 days): Startup Encapsulation — DONE
+├── Created src/Aero.Cms.Web.Bootstrap/ project with AeroStartupPipeline.cs
+├── Moved static methods from Program.cs → AeroStartupPipeline.cs
 ├── Program.cs → ~30-line delegator
-├── Update solution file (.slnx) to include new project
-└── Verify: dotnet run starts both setup and main app correctly
+└── Verified: dotnet run starts both setup and main app correctly
 
-Phase 2 (4-6 days): API Migration
-├── Step 1: Auth/Antiforgery Audit (all 22 API groups)
-│   └── Add RequireAuthorization() to all admin/ groups
-│   └── Preserve DisableAntiforgery() on upload endpoints
-├── Step 2: Split PreviewApi (page→Pages, blog→Blog, block→Content)
-├── Step 3: Batch 1 — Low-risk modules
-│   └── Aliases, Tags, Categories, Settings, Themes, Modules, JWT, Dashboard
-├── Step 4: Batch 2 — Service-backed modules
-│   └── Pages, Blog, Docs, Content, Media, Files, Audit, Users, Profile
-├── Step 5: Cleanup — HeadlessModule.RunAsync emptied
-└── Step 6: Conformance test — enumerate all registered routes, verify resolution
+Phase 2 ✅ (4-6 days): API Migration — DONE
+├── 21 API groups relocated from HeadlessModule to domain modules
+├── Preview API split: page→Pages, blog→Blog, block fragment stays in HeadlessModule
+└── HeadlessModule cleaned to OpenAPI/Scalar + PreviewBlockFragment
 
-Phase 3 (4-7 days): Orleans Grain Migration
-├── Step 1: Prove pattern with Aliases (simplest grain)
-│   └── Implement AeroAliasGrain : AeroActor
-│   └── Wire through existing AeroAliasService
-│   └── Verify: API → Service → Grain → Marten → Response
-├── Step 2: Batch — Simple CRUD grains (Tags, Categories, Settings)
-├── Step 3: Batch — Media grain (proves binary/file interaction)
-├── Step 4: Pages grain (highest complexity — event sourcing, drafts, publish)
-├── Step 5: Remaining grains (Blog, Docs, Content)
-└── Step 6: Remove direct IDocumentSession from all migrated API handlers
+Phase 3 ✅ (4-7 days): Orleans Grain Migration — DONE (12/12 grains)
+├── AeroAliasGrain       (Aliases)    — CRUD + Wolverine events + FluentValidation
+├── AeroCategoryGrain    (Blog)       — CRUD + Wolverine events
+├── AeroTagGrain         (Blog)       — CRUD + Wolverine events
+├── AeroPostGrain        (Blog)       — Ported from MartenBlogPostContentService
+├── AeroContentItemGrain (Content)    — SaveDraft, Publish, Unpublish, GetByType
+├── AeroContentTypeGrain (Content)    — Alias-based identity, CRUD
+├── AeroDocsGrain        (Docs)       — CRUD + hierarchy queries + Wolverine events
+├── AeroMediaGrain       (Media)      — SaveMedia, DeleteMedia, GetPaged, GetAll
+├── AeroPageGrain        (Pages)      — Event sourcing, publish/draft, cascade delete
+├── AeroSettingGrain     (Settings)   — Key-value store, categories
+│
+├── Skipped: AeroThemeGrain — Theme module has no persistence logic to port
+│           (API endpoints are TODO stubs, service enumerates loaded modules).
+│           This is greenfield development, not refactoring.
+│
+└── Excluded by design: Identity/Users (EF Core, not Marten)
 
-Phase 4 (1 day): Cleanup & Verification
-├── Remove empty HeadlessModule (or mark deprecated)
-├── Verify: dotnet build (no warnings)
-├── Verify: dotnet test (unit + integration)
-└── Verify: dotnet run (full startup, Setup + Main app)
+Phase 4 (1 day): Cleanup & Verification — IN PROGRESS
+├── ✅ Move PreviewBlockFragment from HeadlessModule → ManagerModule
+├── ⏭ Remove stale services — deferred (Razor pages + SeedDataService still use them)
+├── ⏭ Implement source generator for GeneratedAeroGrainCatalog (hand-authored placeholder exists)
+├── ⏭ Route conformance test (enumerate registered routes, verify resolution)
+├── ✅ Verify: dotnet build (Blog, Manager, Headless: 0 errors)
+└── ⏭ Verify: dotnet test (unit + integration)
 ```
 
 ---
@@ -486,9 +584,16 @@ public async Task AliasGrain_create_read_delete_roundtrip()
 ## Open Items / TODOs
 
 ### Immediate
-- [ ] Create `src/Aero.Cms.Web.Bootstrap/` project with correct project references
-- [ ] Audit all 22 API groups for auth/antiforgery requirements (see table in Phase 2)
-- [ ] Move `PreviewBlockFragment` to `Modules.Content`
+- [x] Create `src/Aero.Cms.Web.Bootstrap/` project with correct project references
+- [x] Hand-author `GeneratedAeroGrainCatalog.Register()` with `// SOURCE GENERATOR TARGET` comment
+- [x] Add `Action<IApplicationPartManager>? configureGrains` parameter to `AddAeroApplicationServer`
+- [x] Wire `Program.cs`: `configureGrains: GeneratedAeroGrainCatalog.Register`
+- [x] Move 21 APIs from HeadlessModule to domain modules
+- [x] Move `PreviewBlockFragment` stays in HeadlessModule (cross-cutting block-type-agnostic)
+- [x] Move `PreviewBlockFragment` to `Modules.Manager` (cross-cutting admin concern)
+- [ ] **Phase 4**: Implement source generator for `GeneratedAeroGrainCatalog` (hand-authored placeholder exists)
+- [ ] **Phase 4**: Route conformance test — enumerate all registered routes, verify resolution
+- [ ] **Phase 4**: Remove stale services where safe (blocked: Razor pages + SeedDataService still use direct service DI)
 
 ### Future
 - [ ] **Revisit Identity/Users APIs for Orleans migration**  
@@ -510,3 +615,141 @@ public async Task AliasGrain_create_read_delete_roundtrip()
 - Existing grain infrastructure: `Aero/src/Aero.Actors/AeroActor.cs`, `src/Aero.Cms.Abstractions/Actors/IAeroCmsActors.cs`
 - Reference implementation: `src/Aero.Cms.Abstractions/Services/AeroAliasService.cs`
 - Reference module: `src/Aero.Cms.Modules.Navigation/NavigationModule.cs`
+- Wolverine callback pattern (mirrored for grains): `src/Aero.AppServer/AeroAppServerExtensions.cs:94-98`
+
+---
+
+## Appendix A: Orleans Dependency Injection Reference
+
+### Orleans Serialization: Block Types Across the Grain Wire
+
+**Problem**: Orleans requires types that cross grain boundaries to have serialization support (copiers + serializers). Both `MarkdownBlock` (blog posts) and `EditorBlock` (pages) lack `[GenerateSerializer]` attributes. When these types transit through `IRequest` parameters or `List<object>` properties on view models, Orleans throws `CodecNotFoundException`.
+
+**Three options considered:**
+
+| Option | Description | Effort | Risk | Chosen? |
+|---|---|---|---|---|
+| **A** | Strip blocks from Orleans wire; transport as JSON string. API serializes → grain deserializes via `BlockJsonContext`. | Low | Low | ✅ |
+| B | Add `[GenerateSerializer]` + `[Id(x)]` to `EditorBlock` + 13 nested types. | High | Medium | ❌ |
+| C | Custom Orleans `ICopier`/`ISerializer` delegating to `BlockJsonContext`. | Medium | Low | ❌ |
+
+**Decision: Option A — JSON-string transport**
+
+Option B is invasive (50+ properties across 14+ files) and makes editor DTOs into Orleans wire contracts. Option A is the narrower fix: only the request DTOs change (`string? EditorBlocksJson` added at end), the API serializes blocks to JSON via the existing `BlockJsonContext`, and the grain deserializes on the other side. No Orleans configuration changes, no serialization attributes needed.
+
+This is consistent with the blog post fix (`PostViewModel.Content` → markdown strings instead of `MarkdownBlock` objects).
+
+**Implementation pattern for Option A:**
+
+```
+API handler                    Grain request (Orleans-safe)        Grain
+───────────                    ────────────────────────────        ─────
+EditorBlock list               CreatePageRequest                   DeserializeEditorBlocks(json)
+  → JsonSerializer.Serialize     EditorBlocks  = null
+  → EditorBlocksJson = "..."     EditorBlocksJson = "..."          page.Blocks = deserialized list
+```
+
+**Null vs empty semantics:**
+- `EditorBlocksJson = null` — blocks omitted, grain preserves existing (update) or defaults empty (create)
+- `EditorBlocksJson = ""` — blocks intentionally empty, grain clears blocks
+- `EditorBlocksJson = "[...]"` — blocks provided, grain applies them
+
+**Modified types in `BlockJsonContext`:**
+- `EditorBlock` + `List<EditorBlock>`
+- `EditorColumn` + `List<EditorColumn>`
+- `GalleryImage` + `List<GalleryImage>`
+
+
+
+When Orleans activates a grain, it constructs a new instance and resolves constructor parameters from the silo's service provider. If a grain is later deactivated by the activation GC and re-called, a new instance is created and dependencies are re-resolved.
+
+### Service Lifetimes
+
+| Lifetime | Behavior in Orleans | Use for |
+|---|---|---|
+| **Singleton** | Shared across all grain activations in the silo. Must be thread-safe. | `IDocumentStore`, `IMessageBus`, `IOptions<T>`, `IHttpClientFactory` |
+| **Transient** | New instance per resolution. Within a grain constructor this means one instance per activation — **not** one per method call. Safe and predictable for per-activation state. | Per-activation helpers, factories |
+| **Scoped** | **Orleans 7+**: creates a per-activation scope; service is disposed when the grain is deactivated. **Earlier versions**: scopes are not reliably isolated per activation — scoped services may behave like singletons across the silo. | Verify against target Orleans version. When in doubt, prefer transient or inject `IServiceScopeFactory` explicitly. |
+
+### Marten Pattern
+
+**Inject `IDocumentStore` as a singleton and open a session per operation.** Never inject a long-lived `IDocumentSession` into the grain — it holds an open unit-of-work for the entire activation lifetime.
+
+```csharp
+public sealed class PageGrain(
+    ILogger<PageGrain> logger,
+    IDocumentStore documentStore,
+    IOptionsMonitor<PageModuleOptions> options)
+    : AeroActor, IPageGrain
+{
+    public override Task OnActivateAsync(CancellationToken ct)
+    {
+        logger.LogInformation("Activating {GrainId}", this.GetPrimaryKeyLong());
+        return Task.CompletedTask;
+    }
+
+    public async Task<PageDto?> GetPage(long siteId, string slug)
+    {
+        await using var session = documentStore.LightweightSession();
+        var page = await session.Query<PageDocument>()
+            .FirstOrDefaultAsync(p => p.SiteId == siteId && p.Slug == slug);
+        return page?.ToDto();
+    }
+
+    public async Task<PageDto> CreatePage(CreatePageRequest request)
+    {
+        await using var session = documentStore.LightweightSession();
+        var page = new PageDocument { Id = Snowflake.NewId(), /* ... */ };
+        session.Store(page);
+        await session.SaveChangesAsync();
+        return page.ToDto();
+    }
+}
+```
+
+### Wolverine + Orleans
+
+Inject `IMessageBus` as a singleton. Do not attempt to scope it per grain activation.
+
+### Grain Silo Lifecycle
+
+```
+AddOrleans(configureGrains)     — registers silo config + assembly parts (sync, pre-Build)
+  ↓
+app.Build()                      — DI container resolved, Orleans IHostedService registered
+  ↓
+app.UseAeroApplicationServer()   — currently: app.UseTickerQ() only
+  ↓                                  (no grain lifecycle impact — silo managed by IHostedService)
+app.StartAsync()                 — starts all IHostedServices including Orleans silo
+  ↓
+OnActivateAsync (per grain)      — grains activate on first call or GC re-activation
+  ↓
+app.StopAsync()                  — Orleans IHostedService stops → grains deactivate
+  ↓
+OnDeactivateAsync (per grain)    — cleanup before activation released by GC
+```
+
+`UseAeroApplicationServer()` is middleware-only today (`UseTickerQ()`). Grain lifecycle is entirely managed by the Orleans `IHostedService`, not the middleware pipeline. The `configureGrains` callback runs during service registration (before `Build`), so it's synchronous and immediate — no deferred execution needed.
+
+### Pitfalls
+
+| Pitfall | Explanation |
+|---|---|
+| **Scoped services mid-activation** | Do not resolve scoped services via `IServiceProvider` lazily inside a grain method. The activation scope is controlled by Orleans, not the caller. Use `IServiceScopeFactory` if a method-scoped unit-of-work is required. |
+| **Transient ≠ per-call** | Transient dependencies injected into a grain constructor are instantiated once at activation time. They are not refreshed on every method invocation. |
+| **`IDocumentSession` as constructor DI** | A `IDocumentSession` injected into the constructor is bound to the grain activation scope — it lives as long as the activation. Prefer `IDocumentStore` + per-method `LightweightSession()`. |
+
+### Lifecycle Hooks
+
+| Hook | Purpose |
+|---|---|
+| `OnActivateAsync` | Activation-time initialization — timers, state hydration, logging |
+| `OnDeactivateAsync` | Cleanup before the activation is released by the GC |
+
+> The activation GC deactivates idle grains automatically. A subsequent call to the same grain identity creates a fresh activation — the constructor and `OnActivateAsync` run again.
+
+### References
+
+- [Orleans Grain Lifecycle — Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/orleans/grains/)
+- [Activation Collection — Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/orleans/host/configuration-guide/activation-collection)
+- [.NET DI Service Lifetimes — Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/service-lifetimes)

@@ -1,5 +1,8 @@
-﻿using Aero.Cms.Core;
+﻿using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Core;
 using Aero.Cms.Core.Models;
+using Aero.Cms.Modules.Media.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Services.Images;
@@ -45,9 +48,18 @@ public class MediaModule : AeroWebModule, IConfigureMarten
 
         services.TryAddScoped<IMediaRepository, MediaRepository>();
         services.TryAddScoped<IMediaService, MediaService>();
-
-        // Pexels image service — for downloading and storing media assets.
-        // Registered here because Media owns the media storage domain.
         services.TryAddScoped<IPexelsService, PexelsService>();
+
+        // Grain-backed actor — direct injection for thin API controllers
+        services.AddSingleton<IAeroMediaActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroMediaActor>(0, "aero"));
+    }
+
+    public override Task RunAsync(IEndpointRouteBuilder builder)
+    {
+        builder.MapMediaApi();
+        builder.MapFilesApi();
+
+        return Task.CompletedTask;
     }
 }

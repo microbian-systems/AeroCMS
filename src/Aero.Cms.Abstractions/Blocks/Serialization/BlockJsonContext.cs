@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Layout;
 
 namespace Aero.Cms.Abstractions.Blocks.Serialization;
 
@@ -13,6 +14,16 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
 /// </remarks>
 [JsonSerializable(typeof(BlockBase))]
 [JsonSerializable(typeof(List<BlockBase>))]
+
+// Editor DTOs — needed for Orleans-safe JSON-string block transport (Option A)
+[JsonSerializable(typeof(EditorBlock))]
+[JsonSerializable(typeof(List<EditorBlock>))]
+[JsonSerializable(typeof(EditorColumn))]
+[JsonSerializable(typeof(List<EditorColumn>))]
+[JsonSerializable(typeof(GalleryImage))]
+[JsonSerializable(typeof(List<GalleryImage>))]
+[JsonSerializable(typeof(LayoutRegion))]
+[JsonSerializable(typeof(List<LayoutRegion>))]
 
 // Supporting Models
 [JsonSerializable(typeof(ColumnItem))]

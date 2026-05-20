@@ -5,6 +5,7 @@ namespace Aero.Cms.Abstractions.Requests;
 public record CreateCategoryRequest(
     long siteId,
     string Name,
+    string? Slug = null,
     string? Description = null
 ) : IRequest;
 
@@ -13,6 +14,7 @@ public record CreateCategoryRequest(
 public record UpdateCategoryRequest(
     long Id,
     string Name,
+    string? Slug = null,
     string? Description = null
 ) : IRequest;
 

@@ -2,7 +2,7 @@ using System.Reflection;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Headless.Areas.Api.v1;
+using Aero.Cms.Modules.Pages.Areas.Api.v1;
 using TUnit.Core;
 
 namespace Aero.Cms.Core.Tests.Integration;
@@ -24,7 +24,7 @@ public sealed class PagesApiTests
             PublicationState = ContentPublicationState.Published
         };
 
-        var mapper = typeof(PagesApi).GetMethod("MapToDetail", BindingFlags.NonPublic | BindingFlags.Static);
+        var mapper = typeof(PagesAdminApi).GetMethod("MapToDetail", BindingFlags.NonPublic | BindingFlags.Static);
 
         await Assert.That(mapper).IsNotNull();
 

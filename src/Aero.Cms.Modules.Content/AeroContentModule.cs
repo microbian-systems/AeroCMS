@@ -1,3 +1,4 @@
+using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
@@ -6,8 +7,11 @@ using Aero.Cms.Core.Content.Jobs;
 using Aero.Cms.Core.Content.Rendering;
 using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Extensions;
+using Aero.Cms.Modules.Content.Areas.Api.v1;
+using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Marten;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -15,7 +19,7 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Content;
 
 [Module(nameof(AeroContentModule))]
-public sealed class AeroContentModule : AeroModuleBase, IContentDefinitionModule
+public sealed class AeroContentModule : AeroWebModule, IContentDefinitionModule
 {
     public override string Name => nameof(AeroContentModule);
 
@@ -38,6 +42,12 @@ public sealed class AeroContentModule : AeroModuleBase, IContentDefinitionModule
     {
         // Register the entire content type system via the extension method
         services.AddContentTypeSystem();
+
+        // Grain-backed actors — direct injection for thin API controllers
+        services.AddSingleton<IAeroContentItemActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroContentItemActor>(0, "aero"));
+        services.AddSingleton<IAeroContentTypeActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroContentTypeActor>(0, "aero"));
     }
 
     public override void Configure(IAeroModuleBuilder builder)
@@ -69,5 +79,14 @@ public sealed class AeroContentModule : AeroModuleBase, IContentDefinitionModule
         opts.Schema.For<ContentItemVersion>()
             .DocumentAlias("content_item_versions")
             .Index(x => x.ContentItemId);
+    }
+
+    public override Task RunAsync(IEndpointRouteBuilder builder)
+    {
+        builder.MapContentTypesApi();
+        builder.MapContentItemsApi();
+        builder.MapBlocksApi();
+
+        return Task.CompletedTask;
     }
 }

@@ -1,15 +1,15 @@
 using Aero.Core.Logging;
 using Aero.AppServer.Startup;
 using Aero.Secrets;
+using Aero.Marten.Extensions;
+using JasperFx.Events;
 using Marten;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using TickerQ.Dashboard.DependencyInjection;
 using TickerQ.DependencyInjection;
 using Wolverine;
-using Microsoft.AspNetCore.Builder;
-using TickerQ.Dashboard.DependencyInjection;
-using JasperFx.Events;
-using Aero.Marten.Extensions;
 
 
 namespace Aero.AppServer;
@@ -23,9 +23,8 @@ public static class AeroAppServerExtensions
 {
     /// <summary>
     /// Adds Aero application server services (Orleans, Marten, TickerQ, Wolverine).
-    /// Wolverine handler discovery is driven by the source-generated
-    /// <c>GeneratedWolverineHandlerCatalog.Register</c> callback.
-    /// No AppDomain assembly scanning is performed.
+    /// Wolverine handler and grain assembly discovery are driven by source-generated
+    /// catalogs passed as callbacks — no AppDomain assembly scanning is performed.
     /// </summary>
     /// <param name="builder">The host application builder.</param>
     /// <param name="configureWolverine">
@@ -35,9 +34,17 @@ public static class AeroAppServerExtensions
     /// handler types via explicit <c>IncludeType&lt;T&gt;()</c> calls.
     /// When null, conventional discovery is disabled and no handlers are registered.
     /// </param>
+    /// <param name="configureGrains">
+    /// Optional callback to configure the Orleans silo builder for grain assembly
+    /// registration. The host passes a callback that adds each module's grain
+    /// assembly via <c>ISiloBuilder.ConfigureApplicationParts()</c>.
+    /// Mirrors the Wolverine callback pattern. When null, only the application
+    /// base directory is scanned for grains.
+    /// </param>
     public static Task<IHostApplicationBuilder> AddAeroApplicationServer(
         this IHostApplicationBuilder builder,
-        Action<WolverineOptions>? configureWolverine = null)
+        Action<WolverineOptions>? configureWolverine = null,
+        Action<ISiloBuilder>? configureGrains = null)
     {
         var services = builder.Services;
         var config = builder.Configuration;
@@ -74,6 +81,7 @@ public static class AeroAppServerExtensions
         services.AddOrleans(opts =>
         {
             opts.UseLocalhostClustering();
+            configureGrains?.Invoke(opts);
         });
 
         services.AddTickerQ(opts =>

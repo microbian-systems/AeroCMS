@@ -1,3 +1,4 @@
+using Aero.Cms.Modules.Docs.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
@@ -7,11 +8,12 @@ using Aero.Cms.Core;
 using Marten;
 using Aero.Cms.Core.Entities;
 using Aero.Modular;
+using Aero.Cms.Abstractions.Actors;
 
 namespace Aero.Cms.Modules.Docs;
 
 [Module(nameof(DocsModule))]
-public sealed class DocsModule : AeroModuleBase
+public sealed class DocsModule : AeroWebModule
 {
     public override string Name => nameof(DocsModule);
     public override string Version =>AeroConstants.Version;
@@ -38,6 +40,15 @@ public sealed class DocsModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IDocsService, DocsService>();
+
+        // Grain-backed actor — direct injection for thin API controllers
+        services.AddSingleton<IAeroDocsActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroDocsActor>(0, "aero"));
     }
 
+    public override Task RunAsync(IEndpointRouteBuilder builder)
+    {
+        builder.MapDocsApi();
+        return Task.CompletedTask;
+    }
 }

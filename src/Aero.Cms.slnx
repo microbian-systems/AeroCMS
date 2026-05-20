@@ -51,7 +51,6 @@
     <Project Path="Aero.Cms.Modules.Footer/Aero.Cms.Modules.Footer.csproj" />
     <Project Path="Aero.Cms.Modules.Forum/Aero.Cms.Modules.Forum.csproj" Id="39ddd553-2b71-4b37-8290-22685fcbda29" />
     <Project Path="Aero.Cms.Modules.Grpc/Aero.Cms.Modules.Grpc.csproj" Id="cc3792d8-b3eb-40cf-82ff-26a2585f780f" />
-    <Project Path="Aero.Cms.Modules.Headless/Aero.Cms.Modules.Headless.csproj" Id="71bd21df-4631-4ff8-9dd3-46070cc75e1e" />
     <Project Path="Aero.Cms.Modules.Health/Aero.Cms.Modules.Health.csproj" Id="fe74e857-c118-4f75-8959-da9db76271c1" />
     <Project Path="Aero.Cms.Modules.Identity/Aero.Cms.Modules.Identity.csproj" Id="22b618b0-5bfc-4c71-97fb-e2107c1da0a4" />
     <Project Path="Aero.Cms.Modules.Jobs/Aero.Cms.Modules.Jobs.csproj" Id="4eedfa36-c44c-4681-a0d6-9830f47e1af4" />
@@ -111,6 +110,7 @@
   <Project Path="Aero.Cms.SourceGenerators/Aero.Cms.SourceGenerators.csproj" />
   <Project Path="Aero.Cms.Ui.Hyper/Aero.Cms.Ui.Hyper.csproj" />
   <Project Path="Aero.Cms.Ui.Neo/Aero.Cms.Ui.Neo.csproj" />
+  <Project Path="Aero.Cms.Web.Bootstrap/Aero.Cms.Web.Bootstrap.csproj" />
   <Project Path="Aero.Cms.Web.Client/Aero.Cms.Web.Client.csproj" />
   <Project Path="Aero.Cms.Web.Core/Aero.Cms.Web.Core.csproj" />
   <Project Path="Aero.Cms.Web/Aero.Cms.Web.csproj" />
