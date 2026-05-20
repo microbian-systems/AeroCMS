@@ -33,6 +33,8 @@ using Aero.Core.Http;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Hydro.Configuration;
+using Scalar.AspNetCore;
+using Aero.Cms.Core;
 
 
 // Implements a two-stage startup pattern:
@@ -372,17 +374,29 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
             typeof(Aero.Cms.Web.Client._Imports).Assembly,
             typeof(SetupModule).Assembly);
 
+    app.MapIdentityApi();
+    app.MapAeroCmsEndpoints();
+
+    // todo - put scalar behind a gated login (auth filter)
+    app.MapOpenApi();
+    app.MapScalarApiReference(opts =>
+    {
+        opts.WithTitle(AeroConstants.AppName)
+            .ForceDarkMode()
+            .HideSearch()
+            .ShowOperationId()
+            .ExpandAllTags()
+            .SortTagsAlphabetically()
+            .SortOperationsByMethod()
+            .PreserveSchemaPropertyOrder();
+    });
+
     // Hydro MUST be the LAST middleware because it internally calls
     // UseEndpoints(), which requires all endpoint mappings (MapRazorPages,
-    // MapRazorComponents) to already be registered. Hydro also replaces
-    // IWebHostEnvironment.WebRootFileProvider with a CompositeFileProvider
-    // that maps /hydro/* paths to embedded JS resources.
+    // MapRazorComponents, MapScalarApiReference) to already be registered.
     // Pipeline order matches working Hydro sample (hydrostack/hydro).
     // Source: https://usehydro.dev/introduction/getting-started.html
     app.UseHydro(builder.Environment);
-
-    app.MapIdentityApi();
-    app.MapAeroCmsEndpoints();
 
     try
     {

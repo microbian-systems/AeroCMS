@@ -53,6 +53,7 @@ public sealed class AeroContentModule : AeroModuleBase, IContentDefinitionModule
 
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
+        // todo - rename the document aliasses for content types
         // Marten document configuration for the content type system
         opts.Schema.For<ContentTypeDocument>()
             .Identity(x => x.Id)

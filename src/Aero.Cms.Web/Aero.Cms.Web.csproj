@@ -12,6 +12,8 @@
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" />
     <PackageReference Include="Microsoft.Orleans.Sdk" />
     <PackageReference Include="Microsoft.Orleans.Server" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore.Microsoft" />
     <PackageReference Include="WolverineFx.Marten" />
     <PackageReference Include="Boxed.AspNetCore" />
     <PackageReference Include="Htmx" />
@@ -330,9 +332,7 @@
 	  <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
   </ItemGroup>
 
-  <Target Name="AeroCompileWebTypeScriptBeforeStaticWebAssets"
-          BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets"
-          Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
+  <Target Name="AeroCompileWebTypeScriptBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
     <PropertyGroup>
       <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>
       <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>

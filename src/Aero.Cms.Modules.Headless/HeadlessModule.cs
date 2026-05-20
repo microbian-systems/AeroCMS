@@ -74,19 +74,7 @@ public sealed class HeadlessModule : AeroWebModule
         builder.MapAuthApi();
         builder.MapAliasesApi();
 
-        // todo - put scalar behind a gated login (auth filter)
-        builder.MapOpenApi();
-        builder.MapScalarApiReference(opts =>
-        {
-            opts.WithTitle(AeroConstants.AppName)
-                .ForceDarkMode()
-                .HideSearch()
-                .ShowOperationId()
-                .ExpandAllTags()
-                .SortTagsAlphabetically()
-                .SortOperationsByMethod()
-                .PreserveSchemaPropertyOrder();
-        });
+
 
         return Task.CompletedTask;
     }
