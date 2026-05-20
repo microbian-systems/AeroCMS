@@ -20,6 +20,45 @@
             <div class="pe-property-panel">
                 @switch (Block.Type)
                 {
+                    case "neo.hero.centered":
+                        @TextField("Eyebrow", Block.Eyebrow, value => Block.Eyebrow = value)
+                        @TextField("Title", Block.MainText, value => Block.MainText = value)
+                        @TextField("Highlight", Block.Highlight, value => Block.Highlight = value)
+                        @TextAreaField("Description", Block.SubText, value => Block.SubText = value)
+                        @TextField("Primary Button Text", Block.CtaText, value => Block.CtaText = value)
+                        @TextField("Primary Button URL", Block.CtaUrl, value => Block.CtaUrl = value)
+                        @TextField("Secondary Button Text", Block.CtaText2, value => Block.CtaText2 = value)
+                        @TextField("Secondary Button URL", Block.CtaUrl2, value => Block.CtaUrl2 = value)
+                        @TextAreaField("Trust Markers (comma separated)", string.Join(", ", Block.TrustMarkers), SetTrustMarkers)
+                        break;
+                    case "neo.hero.split":
+                        @TextField("Eyebrow", Block.Eyebrow, value => Block.Eyebrow = value)
+                        @TextField("Title", Block.MainText, value => Block.MainText = value)
+                        @TextAreaField("Description", Block.SubText, value => Block.SubText = value)
+                        @TextField("Primary Button Text", Block.CtaText, value => Block.CtaText = value)
+                        @TextField("Primary Button URL", Block.CtaUrl, value => Block.CtaUrl = value)
+                        @TextField("Secondary Button Text", Block.CtaText2, value => Block.CtaText2 = value)
+                        @TextField("Secondary Button URL", Block.CtaUrl2, value => Block.CtaUrl2 = value)
+                        @TextField("Footnote", Block.AlternativeLinkText, value => Block.AlternativeLinkText = value)
+                        break;
+                    case "neo.cta.banner":
+                        @TextField("Title", Block.MainText, value => Block.MainText = value)
+                        @TextAreaField("Description", Block.SubText, value => Block.SubText = value)
+                        @TextField("Primary Button Text", Block.CtaText, value => Block.CtaText = value)
+                        @TextField("Primary Button URL", Block.CtaUrl, value => Block.CtaUrl = value)
+                        @TextField("Secondary Button Text", Block.CtaText2, value => Block.CtaText2 = value)
+                        @TextField("Secondary Button URL", Block.CtaUrl2, value => Block.CtaUrl2 = value)
+                        break;
+                    case "neo.newsletter":
+                        @TextField("Title", Block.MainText, value => Block.MainText = value)
+                        @TextAreaField("Description", Block.SubText, value => Block.SubText = value)
+                        @TextField("Placeholder", Block.SectionTitle, value => Block.SectionTitle = value)
+                        @TextField("Button Text", Block.CtaText, value => Block.CtaText = value)
+                        @TextField("Privacy Text", Block.AlternativeLinkText, value => Block.AlternativeLinkText = value)
+                        break;
+                    case "neo.stats.row":
+                        @TextAreaField("Stats (value:label, comma separated)", string.Join(", ", Block.TrustMarkers), SetTrustMarkers)
+                        break;
                     case "aero.hero.01":
                         @TextField("Eyebrow", Block.Eyebrow, value => Block.Eyebrow = value)
                         @TextField("Title", Block.MainText, value => Block.MainText = value)

@@ -353,20 +353,16 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
 
         await next();
     });
+
+    app.UseStaticFiles();
+    app.MapStaticAssets();
+
     app.UseRouting();
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseCmsSetupGate();
     app.UseAeroCmsModulePipeline();
     app.UseAntiforgery();
-
-    // Hydro MUST come before MapStaticAssets because it replaces
-    // IWebHostEnvironment.WebRootFileProvider with a CompositeFileProvider
-    // that maps /hydro/* paths to embedded JS resources. MapStaticAssets
-    // snapshots the provider at config time; if placed before UseHydro,
-    // it never sees the Hydro scripts.
-    app.UseHydro(builder.Environment);
-    app.MapStaticAssets();
     app.MapRazorPages();
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode()
@@ -375,6 +371,15 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, IConfigu
             typeof(Aero.Cms.Shared._Imports).Assembly,
             typeof(Aero.Cms.Web.Client._Imports).Assembly,
             typeof(SetupModule).Assembly);
+
+    // Hydro MUST be the LAST middleware because it internally calls
+    // UseEndpoints(), which requires all endpoint mappings (MapRazorPages,
+    // MapRazorComponents) to already be registered. Hydro also replaces
+    // IWebHostEnvironment.WebRootFileProvider with a CompositeFileProvider
+    // that maps /hydro/* paths to embedded JS resources.
+    // Pipeline order matches working Hydro sample (hydrostack/hydro).
+    // Source: https://usehydro.dev/introduction/getting-started.html
+    app.UseHydro(builder.Environment);
 
     app.MapIdentityApi();
     app.MapAeroCmsEndpoints();
