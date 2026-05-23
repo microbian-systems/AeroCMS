@@ -1,14 +1,11 @@
 using System.Text.Encodings.Web;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Web.Core.Blocks.Rendering;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Html;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Manager.Areas.Api.v1;
 

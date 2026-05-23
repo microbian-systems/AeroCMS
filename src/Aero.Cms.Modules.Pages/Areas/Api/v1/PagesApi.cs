@@ -4,23 +4,16 @@ using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
-using Aero.Cms.Core.Entities;
-using Aero.Core;
 using Aero.Core.Http;
 using Aero.Cms.Web.Core.Blocks.Rendering;
-using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Html;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Logging;
-using Wolverine;
 using GrainCreateRequest = Aero.Cms.Abstractions.Requests.CreatePageRequest;
 using GrainUpdateRequest = Aero.Cms.Abstractions.Requests.UpdatePageRequest;
 
@@ -414,27 +407,41 @@ public static class PagesApi
 
     // ── Mapping helpers ────────────────────────────────────────────────
 
-    private static PageDetail MapToDetail(PageViewModel vm) => new(
-        vm.Id,
-        vm.Title ?? "",
-        vm.Slug ?? "",
-        vm.Summary,
-        vm.SeoTitle,
-        vm.SeoDescription,
-        vm.CreatedOn.DateTime,
-        (vm.ModifiedOn ?? vm.CreatedOn).DateTime,
-        vm.PublishedOn?.DateTime,
-        vm.IsPublished ? ContentPublicationState.Published : ContentPublicationState.Draft,
-        0, // BlockCount — surface from VM or leave as 0 for now
-        vm.ShowInNavMenu,
-        true, // ShowHeaderNavigation default
-        false, // HideFooter default
-        true, // ShowChatAgent default
-        [], // Blocks — not carried in VM
-        vm.ParentId,
-        vm.Path ?? "",
-        vm.Depth
-    );
+    private static PageDetail MapToDetail(PageViewModel vm)
+    {
+        var blocks = DeserializeEditorBlockList(vm.EditorBlocksJson);
+
+        return new PageDetail(
+            vm.Id,
+            vm.Title ?? "",
+            vm.Slug ?? "",
+            vm.Summary,
+            vm.SeoTitle,
+            vm.SeoDescription,
+            vm.CreatedOn.DateTime,
+            (vm.ModifiedOn ?? vm.CreatedOn).DateTime,
+            vm.PublishedOn?.DateTime,
+            vm.IsPublished ? ContentPublicationState.Published : ContentPublicationState.Draft,
+            blocks?.Count ?? 0,
+            vm.ShowInNavMenu,
+            vm.ShowHeaderNavigation,
+            vm.HideFooter,
+            vm.ShowChatAgent,
+            blocks,
+            vm.ParentId,
+            vm.Path ?? "",
+            vm.Depth
+        );
+    }
+
+    private static List<EditorBlock>? DeserializeEditorBlockList(string? json)
+    {
+        if (json is null)
+            return null;
+
+        return System.Text.Json.JsonSerializer.Deserialize<List<EditorBlock>>(
+            json, BlockJsonContext.Default.Options);
+    }
 
     // ── Preview handlers (moved from Headless PreviewApi) ──────────────
 

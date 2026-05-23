@@ -1,13 +1,10 @@
-﻿using TUnit.Core;
-using Aero.Cms.Modules.Posts.Areas.Api.v1;
-using Aero.Cms.Modules.Posts.Models;
+﻿using Aero.Cms.Modules.Posts.Models;
 using Alba;
 using Marten;
 using Marten.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using NSubstitute;
 
 namespace Aero.Cms.Core.Tests.Integration;

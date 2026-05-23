@@ -1,10 +1,4 @@
 using Aero.Cms.Abstractions.Blocks.Rendering;
-using Aero.Cms.Ui.Neo.Blocks.CenteredHero;
-using Aero.Cms.Ui.Neo.Blocks.CtaBanner;
-using Aero.Cms.Ui.Neo.Blocks.Hero;
-using Aero.Cms.Ui.Neo.Blocks.Newsletter;
-using Aero.Cms.Ui.Neo.Blocks.SplitHero;
-using Aero.Cms.Ui.Neo.Blocks.StatsRow;
 
 // Phase 1 — Hero & Marketing
 namespace Aero.Cms.Ui.Neo.Blocks.CenteredHero

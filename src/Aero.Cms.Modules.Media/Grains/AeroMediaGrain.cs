@@ -4,9 +4,6 @@ using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Models;
-using Aero.Core;
-using Marten;
-using Microsoft.Extensions.Logging;
 using Wolverine;
 using IRequest = Aero.Core.Commands.IRequest;
 

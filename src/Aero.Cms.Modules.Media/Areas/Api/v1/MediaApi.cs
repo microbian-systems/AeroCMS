@@ -1,13 +1,9 @@
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Models;
-using Aero.Core;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Media.Areas.Api.v1;
 

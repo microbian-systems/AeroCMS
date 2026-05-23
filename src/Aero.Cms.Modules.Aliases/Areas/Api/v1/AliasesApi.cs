@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
-using System.Linq;
 
 namespace Aero.Cms.Modules.Aliases.Areas.Api.v1;
 

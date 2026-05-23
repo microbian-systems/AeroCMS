@@ -1,10 +1,3 @@
-using Aero.Core.Http;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Logging;
-
 namespace Aero.Cms.Modules.Audit.Areas.Api.v1;
 
 /// <summary>

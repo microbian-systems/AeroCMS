@@ -1,6 +1,4 @@
 using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Posts.Models;
-using Aero.Cms.Modules.Docs;
 using Marten;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

@@ -1,6 +1,4 @@
-﻿using Aero.Cms.Core.Entities;
-
-namespace Aero.Cms.Modules.Posts.Validators;
+﻿namespace Aero.Cms.Modules.Posts.Validators;
 
 internal class PostValidator : AbstractValidator<PostDocument>
 {

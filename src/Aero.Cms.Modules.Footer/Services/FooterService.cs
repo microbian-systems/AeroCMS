@@ -1,6 +1,5 @@
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Http.Clients;
-using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Modules.Footer.Domain;
 using Aero.Cms.Modules.Footer.Events;
 using Wolverine;

@@ -1,7 +1,5 @@
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
-using Aero.Core;
-using Aero.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Data;

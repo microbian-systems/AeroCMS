@@ -1,5 +1,4 @@
 using Aero.Cms.Modules.Commerce.Catalog.Events;
-using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Cms.Modules.Commerce.Catalog.Services;
 using Aero.Cms.Modules.Commerce.Orders.Events;
 using Aero.Cms.Modules.Commerce.Orders.Services;

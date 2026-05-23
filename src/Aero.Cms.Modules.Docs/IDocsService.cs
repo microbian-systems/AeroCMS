@@ -1,5 +1,3 @@
-using Aero.Cms.Core.Entities;
-using Aero.Core;
 namespace Aero.Cms.Modules.Docs;
 
 public interface IDocsService

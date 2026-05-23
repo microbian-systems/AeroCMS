@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using Aero.Secrets;
 using Aero.Secrets.Models;
 using Microsoft.Extensions.Configuration;

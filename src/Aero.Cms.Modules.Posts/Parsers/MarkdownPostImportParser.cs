@@ -1,6 +1,4 @@
 using System.Text.RegularExpressions;
-using Aero.Cms.Modules.Posts.Models;
-using Aero.Core;
 
 namespace Aero.Cms.Modules.Posts.Parsers;
 

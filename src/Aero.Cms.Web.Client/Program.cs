@@ -1,9 +1,7 @@
 using Aero.Cms.Abstractions.Http;
-using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Security;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Aero.Cms.Core.Extensions;
 using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;

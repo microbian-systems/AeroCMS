@@ -2,8 +2,6 @@ using Aero.Core.Logging;
 using Aero.AppServer.Startup;
 using Aero.Secrets;
 using Aero.Marten.Extensions;
-using JasperFx.Events;
-using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

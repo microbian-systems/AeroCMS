@@ -1,4 +1,3 @@
-using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
@@ -7,7 +6,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using System.IO;
 using System.Text.Json;
 
 namespace Aero.Cms.Web.Bootstrap;

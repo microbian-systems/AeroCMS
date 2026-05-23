@@ -3,15 +3,11 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
-using Aero.Cms.Abstractions.Requests;
-using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Pages;
-using FlakeId;
-using Marten;
-using Microsoft.Extensions.Logging;
+using Aero.Core.Http;
+using Marten.Pagination;
+using Microsoft.Extensions.DependencyInjection;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 using IRequest = Aero.Core.Commands.IRequest;
@@ -22,27 +18,24 @@ namespace Aero.Cms.Modules.Posts.Grains;
 /// Orleans grain for blog post management — wraps Marten persistence behind
 /// the <see cref="IAeroPostActor"/> interface.
 ///
-/// Ported from <see cref="MartenBlogPostContentService"/>.
+/// Uses manual-construction delegation: opens sessions from <see cref="IDocumentStore"/>,
+/// builds <see cref="MartenBlogPostContentService"/> inline with a <see cref="FixedSiteContext"/>,
+/// and delegates each operation to the service.
 /// </summary>
 public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 {
-    private const string BlogCacheTag = "blog-index";
-
     private readonly IDocumentStore _store;
-    private readonly IMessageBus? _bus;
-    private readonly IFusionCache? _cache;
+    private readonly IServiceProvider _services;
     private PostViewModel _state = new();
 
     public AeroPostGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
-        IMessageBus? bus = null,
-        IFusionCache? cache = null)
+        IServiceProvider services)
         : base(log)
     {
         _store = store;
-        _bus = bus;
-        _cache = cache;
+        _services = services;
     }
 
     // ── IHaveState<PostViewModel> ────────────────────────────────────
@@ -56,150 +49,96 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         return Task.CompletedTask;
     }
 
-    // ── Blog-specific methods (ported from MartenBlogPostContentService) ──
+    // ── Helper: manual construction of MartenBlogPostContentService ──
+
+    private MartenBlogPostContentService CreatePostService(IDocumentSession session, long siteId)
+    {
+        var bus = _services.GetService<IMessageBus>();
+        var cache = _services.GetService<IFusionCache>();
+        return new MartenBlogPostContentService(session, new FixedSiteContext(siteId), bus, null, cache);
+    }
+
+    // ── Blog-specific methods (delegated to MartenBlogPostContentService) ────
 
     /// <summary>Get all posts with paging and optional search.</summary>
     public async Task<(List<PostViewModel> Items, long TotalCount)> GetAllPostsAsync(
         long siteId, int skip, int take, string? search, CancellationToken ct)
     {
         await using var session = _store.LightweightSession();
-
-        var cacheKey = BuildCacheKey(siteId, $"list:{skip}:{take}:{NormalizeCachePart(search)}");
-        var cached = await TryGetCacheAsync<BlogPostListCacheEntry>(cacheKey, ct);
-        if (cached is not null)
-            return (cached.Items.Select(MapToViewModel).ToList(), cached.TotalCount);
-
-        var query = session.Query<PostDocument>().Where(x => x.SiteId == siteId);
-
-        IQueryable<PostDocument> filteredQuery = query;
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var s = search.ToLower();
-            filteredQuery = query.Where(x => x.Title.ToLower().Contains(s) || x.Slug.ToLower().Contains(s));
-        }
-
-        var stats = new global::Marten.Linq.QueryStatistics();
-        var posts = await ((global::Marten.Linq.IMartenQueryable<PostDocument>)filteredQuery)
-            .OrderByDescending(x => x.CreatedOn)
-            .Stats(out stats)
-            .Skip(skip)
-            .Take(take)
-            .ToListAsync(token: ct);
-
-        await SetCacheAsync(cacheKey, new BlogPostListCacheEntry(posts.ToList(), stats.TotalResults), ct);
-        return (posts.Select(MapToViewModel).ToList(), stats.TotalResults);
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.GetAllPostsAsync(skip, take, search, ct);
+        if (result is Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>.Ok ok)
+            return (ok.Value.Items.Select(MapToViewModel).ToList(), ok.Value.TotalCount);
+        return ([], 0);
     }
 
-    /// <summary>Load a post by ID.</summary>
+    /// <summary>Load a post by ID within a site (returns null if not found or wrong site).</summary>
     public async Task<PostViewModel?> LoadAsync(long id, long siteId, CancellationToken ct)
     {
-        await using var session = _store.QuerySession();
-
-        var cacheKey = BuildCacheKey(siteId, $"id:{id}");
-        var cached = await TryGetCacheAsync<PostDocument>(cacheKey, ct);
-        if (cached is not null)
-            return MapToViewModel(cached);
-
-        var document = await session.LoadAsync<PostDocument>(id, ct);
-        if (document is null || document.SiteId != siteId)
-            return null;
-
-        await SetCacheAsync(cacheKey, document, ct);
-        return MapToViewModel(document);
+        await using var session = _store.LightweightSession();
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.LoadAsync(id, ct);
+        if (result is Result<PostDocument?, AeroError>.Ok { Value: not null } ok)
+            return MapToViewModel(ok.Value);
+        return null;
     }
 
-    /// <summary>Find a published post by slug.</summary>
+    /// <summary>Find a published post by slug within a site.</summary>
     public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, CancellationToken ct)
     {
-        await using var session = _store.QuerySession();
-
-        var cacheKey = BuildCacheKey(siteId, $"slug:{NormalizeCachePart(slug)}");
-        var cached = await TryGetCacheAsync<PostDocument>(cacheKey, ct);
-        if (cached is not null)
-            return MapToViewModel(cached);
-
-        var reservation = await session.Query<ContentSlugDocument>()
-            .FirstOrDefaultAsync(x =>
-                x.SiteId == siteId &&
-                string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: ct);
-
-        if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.BlogPost)
-            return null;
-
-        var document = await session.LoadAsync<PostDocument>(reservation.OwnerId, ct);
-        if (document is null)
-            return null;
-
-        if (document.PublicationState != ContentPublicationState.Published)
-            return null;
-
-        await SetCacheAsync(cacheKey, document, ct);
-        return MapToViewModel(document);
+        await using var session = _store.LightweightSession();
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.FindBySlugAsync(slug, ct);
+        if (result is Result<PostDocument?, AeroError>.Ok { Value: not null } ok)
+            return MapToViewModel(ok.Value);
+        return null;
     }
 
-    /// <summary>Save (create or update) a blog post.</summary>
+    /// <summary>Save (create or update) a blog post, handling slug reservation + cache eviction.</summary>
     public async Task<AeroRequestResponse<PostViewModel>> SavePostAsync(PostViewModel vm, long siteId, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
-
         var post = MapToDocument(vm);
         post.SiteId = siteId;
 
-        var existingPost = await session.LoadAsync<PostDocument>(post.Id, ct);
-
         // Preserve existing content when incoming Content is empty
         // (Content is stripped from PostViewModel to avoid Orleans BlockBase serialization errors)
-        if (existingPost is not null && post.Content.Count == 0)
-            post.Content = existingPost.Content;
+        if (post.Content.Count == 0)
+        {
+            await using var loadSession = _store.LightweightSession();
+            var loadService = CreatePostService(loadSession, siteId);
+            var loadResult = await loadService.LoadAsync(post.Id, ct);
+            if (loadResult is Result<PostDocument?, AeroError>.Ok { Value: not null } existing)
+                post.Content = existing.Value.Content;
+        }
 
-        await ContentSlugReservation.ReserveAsync(
-            session,
-            post.Id,
-            ContentSlugOwnerType.BlogPost,
-            post.Slug,
-            post.SiteId,
-            existingPost?.Slug,
-            ct);
-
-        var now = DateTimeOffset.UtcNow;
-        var existingCreatedAtUtc = existingPost?.CreatedOn;
-        post.CreatedOn = existingCreatedAtUtc is null || existingCreatedAtUtc == default ? now : existingCreatedAtUtc.Value;
-        post.ModifiedOn = now;
-        post.ModifiedBy = "system";
-        post.PublishedOn = post.PublicationState == ContentPublicationState.Published
-            ? existingPost?.PublishedOn ?? now
-            : null;
-
-        session.Store(post);
-        await session.SaveChangesAsync(ct);
-        await PublishContentUpdatedAsync(post, existingPost?.Slug, ct);
-
-        return Ok(MapToViewModel(post));
+        await using var session = _store.LightweightSession();
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.SaveAsync(post, ct);
+        if (result is Result<PostDocument, AeroError>.Ok ok)
+            return Ok(MapToViewModel(ok.Value));
+        if (result is Result<PostDocument, AeroError>.Failure fail)
+            return Fail(GetErrorMessage(fail.Error));
+        return Fail("Failed to save post");
     }
 
-    /// <summary>Delete a blog post by ID.</summary>
+    /// <summary>Delete a blog post by ID, handling slug cleanup + cache eviction.</summary>
     public async Task<AeroRequestResponse<PostViewModel>> DeletePostAsync(long id, long siteId, CancellationToken ct)
     {
         await using var session = _store.LightweightSession();
-
-        var post = await session.LoadAsync<PostDocument>(id, ct);
-        if (post is null || post.SiteId != siteId)
+        var postService = CreatePostService(session, siteId);
+        var loadResult = await postService.LoadAsync(id, ct);
+        if (loadResult is not Result<PostDocument?, AeroError>.Ok { Value: not null } found)
             return Fail($"Blog post with id '{id}' not found or access denied");
 
-        var reservation = await session.Query<ContentSlugDocument>()
-            .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.BlogPost && x.SiteId == siteId, token: ct);
-
-        if (reservation is not null)
-            session.Delete(reservation);
-
-        session.Delete<PostDocument>(id);
-        await session.SaveChangesAsync(ct);
-        await PublishContentUpdatedAsync(post, post.Slug, ct);
-
-        return Ok(MapToViewModel(post));
+        var deleteResult = await postService.DeleteAsync(id, ct);
+        if (deleteResult is Result<bool, AeroError>.Ok)
+            return Ok(MapToViewModel(found.Value));
+        if (deleteResult is Result<bool, AeroError>.Failure fail)
+            return Fail(GetErrorMessage(fail.Error));
+        return Fail("Failed to delete post");
     }
 
-    /// <summary>Publish a blog post.</summary>
+    /// <summary>Publish a blog post by ID.</summary>
     public async Task<AeroRequestResponse<PostViewModel>> PublishPostAsync(long id, long siteId, CancellationToken ct)
     {
         var vm = await LoadAsync(id, siteId, ct);
@@ -212,7 +151,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         return await SavePostAsync(vm, siteId, ct);
     }
 
-    /// <summary>Unpublish a blog post (set to Draft).</summary>
+    /// <summary>Unpublish a blog post by ID (set to Draft).</summary>
     public async Task<AeroRequestResponse<PostViewModel>> UnpublishPostAsync(long id, long siteId, CancellationToken ct)
     {
         var vm = await LoadAsync(id, siteId, ct);
@@ -225,13 +164,12 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         return await SavePostAsync(vm, siteId, ct);
     }
 
-    // ── ICruddable<PostViewModel, long> ──────────────────────────────
+    // ── ICruddable<PostViewModel, long> (direct IDocumentStore access) ──────
 
     public async Task<AeroRequestResponse<PostViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = _store.QuerySession();
         var doc = await session.LoadAsync<PostDocument>(id, ct);
-
         return doc is not null
             ? Ok(MapToViewModel(doc))
             : NotFound($"Post {id} not found");
@@ -239,11 +177,10 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     public async Task<AeroRequestResponse<PostViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = _store.QuerySession();
         var docs = await session.Query<PostDocument>()
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(ct);
-
         var primary = docs.Count > 0 ? MapToViewModel(docs[0]) : new PostViewModel();
         return Ok(primary);
     }
@@ -278,9 +215,8 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         if (request is not UpdatePostRequest update)
             return Fail("Expected UpdatePostRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = _store.QuerySession();
         var existing = await session.LoadAsync<PostDocument>(update.Id, ct);
-
         if (existing is null)
             return NotFound($"Post {update.Id} not found");
 
@@ -300,7 +236,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         if (request is not DeletePostRequest delete)
             return Fail("Expected DeletePostRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = _store.QuerySession();
         var existing = await session.LoadAsync<PostDocument>(delete.Id, ct);
         if (existing is null)
             return NotFound($"Post {delete.Id} not found");
@@ -330,6 +266,65 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         if (long.TryParse(siteId, out var id))
             return GetBySlugAsync(id, slug, ct);
         return Task.FromResult(Fail($"Invalid site ID: {siteId}"));
+    }
+
+    // ── Additional blog query methods ────────────────────────────────
+
+    /// <summary>Get latest N published posts for a site.</summary>
+    public async Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, CancellationToken ct)
+    {
+        await using var session = _store.LightweightSession();
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.GetLatestPostsAsync(count, ct);
+        if (result is Result<IReadOnlyList<PostDocument>, AeroError>.Ok ok)
+        {
+            var items = ok.Value.Select(MapToViewModel).ToList();
+            return (items, items.Count);
+        }
+        return ([], 0);
+    }
+
+    /// <summary>Get paged published posts, skipping the first N latest posts.</summary>
+    public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bool HasNext, bool HasPrev)> GetPagedPostsAsync(
+        long siteId, int page, int pageSize, int skipFromLatest, CancellationToken ct)
+    {
+        await using var session = _store.LightweightSession();
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.GetPagedPostsAsync(page, pageSize, skipFromLatest, ct);
+        if (result is Result<IPagedList<PostDocument>, AeroError>.Ok ok)
+        {
+            var pagedList = ok.Value;
+            return (
+                pagedList.Select(MapToViewModel).ToList(),
+                (int)pagedList.TotalItemCount,
+                (int)pagedList.PageCount,
+                pagedList.HasNextPage,
+                pagedList.HasPreviousPage
+            );
+        }
+        return ([], 0, 0, false, false);
+    }
+
+    /// <summary>Get all tag IDs mapped to their display names for a site.</summary>
+    public async Task<Dictionary<long, string>> GetTagNameMapAsync(long siteId, CancellationToken ct)
+    {
+        await using var session = _store.LightweightSession();
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.GetAllTagsAsync(ct);
+        if (result is Result<IReadOnlyList<Tag>, AeroError>.Ok ok)
+            return ok.Value.ToDictionary(t => t.Id, t => t.Name);
+        return [];
+    }
+
+    /// <summary>Get a summary of a post author for a site.</summary>
+    public async Task<(string? Name, string? Bio, string? AvatarUrl)?> GetPostAuthorSummaryAsync(long siteId, long authorId, CancellationToken ct)
+    {
+        await using var session = _store.LightweightSession();
+        var postService = CreatePostService(session, siteId);
+        var result = await postService.GetAuthorAsync(authorId, ct);
+        if (result is Result<PostAuthor?, AeroError>.Ok { Value: not null } ok)
+            return (ok.Value.Name, ok.Value.Bio, ok.Value.AvatarUrl);
+        return null;
     }
 
     // ── Helpers ──────────────────────────────────────────────────────
@@ -420,33 +415,6 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         return doc;
     }
 
-    // ── Cache helpers (ported from MartenBlogPostContentService) ─────
-
-    private string BuildCacheKey(long siteId, string suffix)
-        => $"cms:blog:{siteId}:{suffix}";
-
-    private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken ct) where T : class
-    {
-        if (_cache is null) return null;
-        var cached = await _cache.TryGetAsync<T>(key, token: ct);
-        return cached.HasValue ? cached.Value : null;
-    }
-
-    private Task SetCacheAsync<T>(string key, T value, CancellationToken ct) where T : class
-        => _cache is null
-            ? Task.CompletedTask
-            : _cache.SetAsync(key, value, tags: [BlogCacheTag], token: ct).AsTask();
-
-    private Task PublishContentUpdatedAsync(PostDocument post, string? oldSlug, CancellationToken ct)
-        => _bus is null
-            ? Task.CompletedTask
-            : _bus.PublishAsync(new BlogPostContentUpdatedEvent(post.Id, post.SiteId, post.Slug, oldSlug)).AsTask();
-
-    private static string NormalizeCachePart(string? value)
-        => string.IsNullOrWhiteSpace(value) ? "_" : value.Trim().Trim('/').ToLowerInvariant();
-
-    private sealed record BlogPostListCacheEntry(List<PostDocument> Items, long TotalCount);
-
     // ── AeroRequestResponse helpers ────────────────────────────────────
 
     private static AeroRequestResponse<PostViewModel> Ok(PostViewModel vm)
@@ -457,4 +425,34 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     private static AeroRequestResponse<PostViewModel> Fail(string msg)
         => new(new PostViewModel(), new PostErrorViewModel { Message = msg });
+
+    /// <summary>Extract a human-readable message from any <see cref="AeroError"/> subtype.</summary>
+    private static string GetErrorMessage(AeroError error) => error switch
+    {
+        AeroError.Error e => e.msg,
+        AeroError.NotFound e => e.msg,
+        AeroError.Conflict e => e.msg,
+        AeroError.Database e => e.msg,
+        AeroError.Unauthorized e => e.msg,
+        AeroError.Forbidden e => e.msg,
+        AeroError.Timeout e => e.msg,
+        AeroError.InvalidRequest e => e.msg,
+        AeroError.BadRequest e => e.msg,
+        AeroError.Exists e => e.msg,
+        AeroError.NullReferro e => e.msg,
+        AeroError.Cancelled e => e.msg,
+        AeroError.NotAllowed e => e.msg,
+        AeroError.Configuration e => e.msg,
+        AeroError.Validation e => string.Join("; ", e.Errors),
+        AeroError.HttpRequest e => e.msg ?? "HTTP request error",
+        _ => error.ToString()
+    };
+
+    // ── FixedSiteContext ─────────────────────────────────────────────
+
+    private sealed class FixedSiteContext(long siteId) : ISiteContext
+    {
+        public long SiteId { get; } = siteId;
+        public long TenantId { get; } = siteId;
+    }
 }

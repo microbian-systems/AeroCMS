@@ -1,7 +1,6 @@
-using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Posts.Models;
-using Aero.Core;
-using Aero.Core.Railway;
+using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Models;
+using Aero.Core.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
@@ -10,7 +9,9 @@ namespace Aero.Cms.Modules.Posts.Areas.Blog.Pages;
 
 [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
 [OutputCache(PolicyName = "BlogPolicy")]
-public class PostsDetailPageModel(IPostContentService blogService) : PageModel
+public class PostsDetailPageModel(
+    IAeroPostActor postActor,
+    ISiteContext siteContext) : PageModel
 {
     [BindProperty(SupportsGet = true)]
     public string Slug { get; set; } = string.Empty;
@@ -18,12 +19,13 @@ public class PostsDetailPageModel(IPostContentService blogService) : PageModel
     [BindProperty(SupportsGet = true)]
     public long? DraftId { get; set; }
 
-    public PostDocument? Post { get; private set; }
+    public PostViewModel? Post { get; private set; }
     public Dictionary<long, string> TagNames { get; private set; } = [];
+    public (string? Name, string? Bio, string? AvatarUrl)? PostAuthor { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
-        Result<PostDocument?, AeroError>? result;
+        PostViewModel? post;
 
         if (DraftId is { } draftId)
         {
@@ -32,7 +34,7 @@ public class PostsDetailPageModel(IPostContentService blogService) : PageModel
                 return Unauthorized();
             }
 
-            result = await blogService.LoadAsync(draftId, cancellationToken);
+            post = await postActor.LoadAsync(draftId, siteContext.SiteId, cancellationToken);
         }
         else if (string.IsNullOrWhiteSpace(Slug))
         {
@@ -40,27 +42,20 @@ public class PostsDetailPageModel(IPostContentService blogService) : PageModel
         }
         else
         {
-            // Slugs are stored without a prefix — the route /blog/{slug}
-            // provides the plain slug directly from the URL.
-            result = await blogService.FindBySlugAsync(Slug, cancellationToken);
+            post = await postActor.FindBySlugAsync(Slug, siteContext.SiteId, cancellationToken);
         }
-
-        var post = result switch
-        {
-            Result<PostDocument?, AeroError>.Ok(var foundPost) => foundPost,
-            _ => (PostDocument?)null
-        };
 
         if (post is null)
         {
             return NotFound();
         }
 
-        TagNames = (await blogService.GetAllTagsAsync(cancellationToken)) switch
+        TagNames = await postActor.GetTagNameMapAsync(siteContext.SiteId, cancellationToken);
+
+        if (post.AuthorId is { } authorId)
         {
-            Result<IReadOnlyList<Tag>, AeroError>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
-            _ => []
-        };
+            PostAuthor = await postActor.GetPostAuthorSummaryAsync(siteContext.SiteId, authorId, cancellationToken);
+        }
 
         Post = post;
         ApplyResponseCacheHeaders();

@@ -1,5 +1,3 @@
-using Aero.Core.Entities;
-
 namespace Aero.Cms.Abstractions.Models;
 
 [Alias("SiteViewModel")]

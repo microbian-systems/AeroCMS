@@ -7,17 +7,16 @@
            src="/_content/Aero.Cms.Modules.Pages/css/aero-pages.css"></style>
 }
 @{
-    var pageDoc = Model.PageDocument;
-    ViewBag.Title = pageDoc?.SeoTitle ?? pageDoc?.Title ?? "Page";
-    ViewBag.ShowHeaderNavigation = pageDoc?.ShowHeaderNavigation ?? true;
-    ViewBag.HideFooter = pageDoc?.HideFooter ?? false;
-    ViewBag.ShowChatAgent = pageDoc?.ShowChatAgent ?? true;
+    ViewBag.Title = Model.SeoTitle ?? Model.Title ?? "Page";
+    ViewBag.ShowHeaderNavigation = Model.ShowHeaderNavigation;
+    ViewBag.HideFooter = Model.HideFooter;
+    ViewBag.ShowChatAgent = Model.ShowChatAgent;
 }
 
 @* <h1>Hydro Component Should show Below</h1>
 <page-counter /> *@
 
-@if (pageDoc is null)
+@if (Model.Title is null)
 {
     <div class="min-h-screen flex items-center justify-center bg-gray-50">
         <div class="text-center">
@@ -31,9 +30,9 @@ else
     <article class="min-h-screen bg-white">
         @* Layout Regions *@
         <div class="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-            @if (pageDoc.LayoutRegions.Count > 0)
+            @if ((Model.LayoutRegions?.Count ?? 0) > 0)
             {
-                foreach (var region in pageDoc.LayoutRegions.OrderBy(r => r.Order))
+                foreach (var region in Model.LayoutRegions.OrderBy(r => r.Order))
                 {
                     <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.LayoutRegionRenderer)" render-mode="Static" param-Region="@region" />
                 }

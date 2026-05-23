@@ -1,18 +1,16 @@
+using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Pages;
+using Aero.Core.Http;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
-using Aero.Core;
-using Aero.Core.Railway;
 using FluentAssertions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using NSubstitute;
-using TUnit.Core;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -46,15 +44,29 @@ public class DynamicPageModelStatusCodeTests
 
     private static DynamicPageModel CreateModel(PageDocument page)
     {
-        var pageService = Substitute.For<IPageContentService>();
-        pageService
-            .FindBySlugAsync(page.Slug, Arg.Any<CancellationToken>())
-            .Returns(new Result<PageDocument?, AeroError>.Ok(page));
+        var vm = new PageViewModel
+        {
+            Id = page.Id,
+            SiteId = page.SiteId,
+            Title = page.Title,
+            Slug = page.Slug,
+            ShowHeaderNavigation = true,
+        };
+
+        var response = new AeroRequestResponse<PageViewModel>(vm, null!);
+
+        var pageActor = Substitute.For<IAeroPageActor>();
+        pageActor
+            .GetBySlugAsync(Arg.Any<long>(), page.Slug, Arg.Any<CancellationToken>())
+            .Returns(response);
+
+        var siteContext = Substitute.For<ISiteContext>();
+        siteContext.SiteId.Returns(1L);
 
         var blockService = Substitute.For<IBlockService>();
         var blockCache = new BlockRenderCache();
 
-        return new DynamicPageModel(pageService, blockService, blockCache)
+        return new DynamicPageModel(pageActor, blockService, blockCache, siteContext)
         {
             PageContext = new PageContext
             {

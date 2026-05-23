@@ -47,6 +47,16 @@ public record PageViewModel : AeroEntityViewModel
     public string? SeoTitle { get; init; }
     [Id(19)]
     public string? SeoDescription { get; init; }
+    [Id(20)]
+    public bool ShowHeaderNavigation { get; init; } = true;
+    [Id(21)]
+    public bool HideFooter { get; init; }
+    [Id(22)]
+    public bool ShowChatAgent { get; init; } = true;
+    [Id(23)]
+    public string? LayoutRegionsJson { get; init; }
+    [Id(24)]
+    public string? EditorBlocksJson { get; init; }
 }
 
 [GenerateSerializer]

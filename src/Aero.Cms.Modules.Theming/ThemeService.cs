@@ -1,5 +1,4 @@
 ﻿using Aero.Cms.Core.Extensions;
-using Aero.Cms.Web.Core.Modules;
 
 namespace Aero.Cms.Modules.Theming;
 

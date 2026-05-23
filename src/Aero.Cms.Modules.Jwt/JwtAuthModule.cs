@@ -1,7 +1,5 @@
 using Aero.Cms.Web.Core.Modules;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;

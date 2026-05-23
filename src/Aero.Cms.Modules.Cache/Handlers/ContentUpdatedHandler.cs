@@ -1,5 +1,4 @@
 using Aero.Cms.Abstractions.Events;
-using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Modules.Cache.Services;
 using Wolverine.Attributes;
 

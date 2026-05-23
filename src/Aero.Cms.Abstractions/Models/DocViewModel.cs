@@ -1,10 +1,4 @@
 ﻿using Aero.Cms.Abstractions.Enums;
-using Aero.Core.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Aero.Cms.Abstractions.Models;
 

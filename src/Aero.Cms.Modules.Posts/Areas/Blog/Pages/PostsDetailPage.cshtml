@@ -15,15 +15,12 @@
         .prose pre { padding: 1rem; }
     </style>
 }
-@using Aero.Cms.Abstractions.Blocks.Common
 @using Aero.Cms.Modules.Posts.Models
 @using Aero.Core
-@using Aero.Core.Railway
 @using Aero.Services.Images
 @using Markdig
 
-@inject Aero.Cms.Modules.Posts.IPostContentService BlogService
-@inject IStaticPhotosClient StaticPhotos
+@inject Aero.Services.Images.IStaticPhotosClient StaticPhotos
 
 @model Aero.Cms.Modules.Posts.Areas.Blog.Pages.PostsDetailPageModel
 
@@ -70,33 +67,31 @@
                 </div>
             }
             
-            @if (post.AuthorId.HasValue)
+            @if (Model.PostAuthor is { } author)
             {
-                var authorResult = await BlogService.GetAuthorAsync(post.AuthorId.Value);
-                if (authorResult is Result<PostAuthor?, AeroError>.Ok { Value: not null } okResult)
-                {
-                    var author = okResult.Value;
-                    <div class="flex items-center gap-3">
-                        <span class="text-gray-400">|</span>
-                        @if (!string.IsNullOrEmpty(author.AvatarUrl))
-                        {
-                            <img src="@author.AvatarUrl" alt="@author.Name" class="w-8 h-8 rounded-full object-cover"/>
-                        }
-                        else
-                        {
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-medium">
-                                @(author.Name.FirstOrDefault())
-                            </div>
-                        }
-                        <div class="flex flex-col">
-                            <span class="font-medium text-gray-900">@author.Name</span>
-                            @if (!string.IsNullOrEmpty(author.Bio))
-                            {
-                                <span class="text-xs text-gray-500 hidden sm:inline">@author.Bio</span>
-                            }
+                var avatarUrl = author.AvatarUrl;
+                var name = author.Name;
+                var bio = author.Bio;
+                <div class="flex items-center gap-3">
+                    <span class="text-gray-400">|</span>
+                    @if (!string.IsNullOrEmpty(avatarUrl))
+                    {
+                        <img src="@avatarUrl" alt="@name" class="w-8 h-8 rounded-full object-cover"/>
+                    }
+                    else
+                    {
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-medium">
+                            @(name?.FirstOrDefault())
                         </div>
+                    }
+                    <div class="flex flex-col">
+                        <span class="font-medium text-gray-900">@name</span>
+                        @if (!string.IsNullOrEmpty(bio))
+                        {
+                            <span class="text-xs text-gray-500 hidden sm:inline">@bio</span>
+                        }
                     </div>
-                }
+                </div>
             }
         </div>
     </header>
@@ -105,8 +100,8 @@
     <div class="prose prose-lg">
         @{
             var markdownContent = string.Join("\n\n", post.Content
-                .OfType<MarkdownBlock>()
-                .Select(b => b.Content));
+                .OfType<string>()
+                .Select(s => s));
         }
         @if (!string.IsNullOrWhiteSpace(markdownContent))
         {

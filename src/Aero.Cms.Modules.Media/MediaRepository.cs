@@ -1,7 +1,5 @@
-﻿using Marten;
-using Aero.Marten;
+﻿using Aero.Marten;
 using Aero.Cms.Core.Models;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Media;
 

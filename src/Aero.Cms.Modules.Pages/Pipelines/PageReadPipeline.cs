@@ -1,5 +1,4 @@
 using Aero.Cms.Web.Core.Pipelines;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Pages.Pipelines;
 

@@ -16,14 +16,19 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
 [JsonSerializable(typeof(List<BlockBase>))]
 
 // Editor DTOs — needed for Orleans-safe JSON-string block transport (Option A)
+// IReadOnlyList variants required because PagesApi.SerializeEditorBlocks/SerializeLayoutRegions
+// pass IReadOnlyList<T> as the compile-time type, and the source generator doesn't follow
+// interface assignments — it generates metadata per exact declared type.
 [JsonSerializable(typeof(EditorBlock))]
 [JsonSerializable(typeof(List<EditorBlock>))]
+[JsonSerializable(typeof(IReadOnlyList<EditorBlock>))]
 [JsonSerializable(typeof(EditorColumn))]
 [JsonSerializable(typeof(List<EditorColumn>))]
 [JsonSerializable(typeof(GalleryImage))]
 [JsonSerializable(typeof(List<GalleryImage>))]
 [JsonSerializable(typeof(LayoutRegion))]
 [JsonSerializable(typeof(List<LayoutRegion>))]
+[JsonSerializable(typeof(IReadOnlyList<LayoutRegion>))]
 
 // Supporting Models
 [JsonSerializable(typeof(ColumnItem))]

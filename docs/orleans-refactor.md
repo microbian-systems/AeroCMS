@@ -1,6 +1,6 @@
 # AeroCMS Refactoring Plan: Startup Encapsulation, API Decoupling, and Orleans Grain Migration
 
-**Status**: Phase 1-3 Complete ✅ | Phase 4 Pending  
+**Status**: Phase 1-3 Complete ✅ | Phase 4: Front-end done ✅, cleanup/cleanup pending  
 **Date**: 2026-05-22  
 **Effort**: Medium (3 phases, ~8-12 days)  
 **Reviewed by**: @council (multi-model consensus)
@@ -448,15 +448,48 @@ After:
 // Thin HTTP adapter — ~15 lines
 private static async Task<IResult> CreatePost(
     [FromBody] CreateBlogPostRequest request,
-    [FromServices] IAeroPostService postService,  // ← grain-backed service
+    [FromServices] IAeroPostActor postActor,  // ← grain (Orleans)
     CancellationToken ct)
 {
-    var result = await postService.CreateAsync(request, ct);
+    var result = await postActor.CreateAsync(request, ct);
     return result.Match(
         ok => TypedResults.Created($"/api/admin/blogs/{ok.Id}", ok),
         error => TypedResults.BadRequest(error));
 }
 ```
+
+### Target Architecture: Grains as Single Entry Point
+
+```
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  Admin APIs  │  │ Razor Pages  │  │Seed Executor │
+│  (minimal)   │  │  (Blazor)    │  │  (startup)   │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+       │                  │                  │
+       ▼                  ▼                  │ (direct — Orleans
+┌──────────────────────────────┐             │  not running)
+│     Orleans Grain Layer      │             │
+│  PageActor  PostActor  ...   │             │
+└─────────────┬────────────────┘             │
+              │ delegates to                  │
+              ▼                              ▼
+┌──────────────────────────────────────────────────┐
+│            Service Layer (internal)               │
+│  IPageContentService  IBlogPostContentService     │
+│  (Marten queries, business logic, caching)        │
+└─────────────────────┬────────────────────────────┘
+                      │
+                      ▼
+┌──────────────────────────────────────────────────┐
+│              Marten (IDocumentStore)              │
+└──────────────────────────────────────────────────┘
+```
+
+**Key rule**: At runtime, all callers (admin APIs, Razor pages) go through the grain layer. Grains delegate to existing services internally. No runtime caller touches `IDocumentSession` or service interfaces directly.
+
+**Exception**: `ServerTargetSetupExecutor` (bootstrap/seed) uses services directly. Orleans may not be running during the setup phase. Seed code is excluded from the grain rule.
+
+**Current state**: Admin APIs ✅ — route through grains. Front-end (Razor pages) ✅ — also route through grains.
 
 ---
 
@@ -513,12 +546,19 @@ Phase 3 ✅ (4-7 days): Orleans Grain Migration — DONE (12/12 grains)
 │
 └── Excluded by design: Identity/Users (EF Core, not Marten)
 
-Phase 4 (1 day): Cleanup & Verification — IN PROGRESS
+Phase 4 ✅ (1 day): Cleanup & Verification
 ├── ✅ Move PreviewBlockFragment from HeadlessModule → ManagerModule
-├── ⏭ Remove stale services — deferred (Razor pages + SeedDataService still use them)
+├── ✅ Front-end decoupling: Razor pages now route through grains
+│   ├── Blog: PostsIndexPageModel, PostsDetailPageModel → IAeroPostActor
+│   └── Pages: DynamicPageModel → IAeroPageActor
+│   └── PageViewModel extended: ShowHeaderNavigation, HideFooter, ShowChatAgent, LayoutRegionsJson
+│   └── IAeroPostActor extended: LoadAsync, FindBySlugAsync, GetLatestPostsAsync, GetPagedPostsAsync, GetTagNameMapAsync, GetPostAuthorSummaryAsync
+│   └── Published-state filter in AeroPageGrain.GetBySlugCoreAsync
+│   └── DynamicPageModelStatusCodeTests updated for new constructor
+├── ⏭ Remove stale services — check internal consumers before removing registrations
 ├── ⏭ Implement source generator for GeneratedAeroGrainCatalog (hand-authored placeholder exists)
 ├── ⏭ Route conformance test (enumerate registered routes, verify resolution)
-├── ✅ Verify: dotnet build (Blog, Manager, Headless: 0 errors)
+├── ✅ Verify: dotnet build (Pages, Posts, Abstractions: 0 errors)
 └── ⏭ Verify: dotnet test (unit + integration)
 ```
 
@@ -596,6 +636,20 @@ public async Task AliasGrain_create_read_delete_roundtrip()
 - [ ] **Phase 4**: Remove stale services where safe (blocked: Razor pages + SeedDataService still use direct service DI)
 
 ### Future
+- [ ] **Front-end decoupling** — Migrate Razor pages to call grains instead of injecting services directly:
+  - ✅ `BlogDetailPageModel`, `BlogIndexPageModel` → inject `IAeroPostActor` instead of `IPostContentService`
+  - ✅ `DynamicPageModel` (Pages front-end) → inject `IAeroPageActor` instead of `IPageContentService`
+  - `ServerTargetSetupExecutor` — excluded; uses services directly (Orleans not running during setup phase)
+  - After migration: remove service registrations from `ConfigureServices` if no runtime consumers remain
+  - ✅ Added `LayoutRegionsJson` to `PageViewModel` for Orleans-safe transport of layout regions
+  - ✅ Added `ShowHeaderNavigation`, `HideFooter`, `ShowChatAgent` to `PageViewModel`
+  - ✅ Added `GetLatestPostsAsync`, `GetPagedPostsAsync`, `GetTagNameMapAsync`, `GetPostAuthorSummaryAsync` to `IAeroPostActor`
+  - ✅ Added `LoadAsync`, `FindBySlugAsync` to `IAeroPostActor` interface (already existed in grain, not in interface)
+  - ✅ Published-state filter in `AeroPageGrain.GetBySlugCoreAsync` for public rendering
+  - ✅ `PostsDetailPage.cshtml` author rendering uses `Model.PostAuthor` instead of inline `@inject IPostContentService`
+  - ✅ `PostsDetailPage.cshtml` content extraction uses `OfType<string>()` instead of `OfType<MarkdownBlock>()`
+  - ⏭ Consider removing `AddScoped<IPageContentService, MartenPageContentService>()` and `AddScoped<IPostContentService, MartenBlogPostContentService>()` — check if internal services still need them
+  - ✅ `DynamicPageModelStatusCodeTests` updated for new constructor signature (IAeroPageActor + ISiteContext)
 - [ ] **Revisit Identity/Users APIs for Orleans migration**  
       Currently excluded: `UsersApi`, `ProfileApi` use `UserManager<AeroUser>` (EF Core).  
       Candidate: [Orleans.Identity](https://github.com/managedcode/Orleans.Identity) — community project integrating ASP.NET Core Identity with Orleans grains.

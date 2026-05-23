@@ -1,7 +1,6 @@
 using Aero.Cms.Modules.Footer.Domain;
 using Aero.Cms.Modules.Footer.Events;
 using JasperFx.Events;
-using Marten.Events;
 using Marten.Events.Projections;
 
 namespace Aero.Cms.Modules.Footer.Projections;

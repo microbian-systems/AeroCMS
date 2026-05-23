@@ -1,5 +1,4 @@
 ﻿using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Media.Areas.Api.v1;
@@ -11,7 +10,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Marten;
 
 namespace Aero.Cms.Modules.Media;
 

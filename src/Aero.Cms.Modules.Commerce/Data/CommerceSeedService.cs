@@ -1,5 +1,3 @@
-using Aero.Cms.Core;
-using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Services.Images;

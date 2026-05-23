@@ -4,7 +4,6 @@ using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Jobs;
 using Aero.Cms.Core.Content.Rendering;
 using Aero.Cms.Core.Content.Services;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Core.Extensions;
 

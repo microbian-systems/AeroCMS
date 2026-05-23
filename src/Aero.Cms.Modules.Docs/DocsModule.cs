@@ -5,8 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Aero.Cms.Core;
-using Marten;
-using Aero.Cms.Core.Entities;
 using Aero.Modular;
 using Aero.Cms.Abstractions.Actors;
 

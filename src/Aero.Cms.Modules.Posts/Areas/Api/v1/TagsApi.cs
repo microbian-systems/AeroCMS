@@ -1,10 +1,7 @@
 using Aero.Cms.Abstractions.Actors;
-using FluentValidation;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 

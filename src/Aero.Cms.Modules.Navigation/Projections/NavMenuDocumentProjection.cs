@@ -1,7 +1,6 @@
 using Aero.Cms.Modules.Navigation.Domain;
 using Aero.Cms.Modules.Navigation.Events;
 using JasperFx.Events;
-using Marten.Events;
 using Marten.Events.Projections;
 
 namespace Aero.Cms.Modules.Navigation.Projections;

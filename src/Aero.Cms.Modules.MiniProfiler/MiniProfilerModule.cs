@@ -1,17 +1,12 @@
 ﻿using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
-using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using StackExchange.Profiling.Storage;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Aero.Cms.Modules.MiniProfiler;
 

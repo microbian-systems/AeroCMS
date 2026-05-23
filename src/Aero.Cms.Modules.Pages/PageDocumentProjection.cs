@@ -1,7 +1,5 @@
 using Aero.Cms.Abstractions.Events;
-using Aero.Cms.Core.Entities;
 using JasperFx.Events;
-using Marten.Events;
 using Marten.Events.Projections;
 
 namespace Aero.Cms.Modules.Pages;

@@ -1,7 +1,9 @@
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Blocks;
-using Aero.Cms.Core.Entities;
-using Aero.Core;
+using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Core.Http;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -11,9 +13,10 @@ namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 
 [OutputCache(PolicyName = "PagesPolicy")]
 public class DynamicPageModel(
-    IPageContentService pageService,
+    IAeroPageActor pageActor,
     IBlockService blockService,
-    BlockRenderCache blockCache) : PageModel
+    BlockRenderCache blockCache,
+    ISiteContext siteContext) : PageModel
 {
     [BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
@@ -21,94 +24,76 @@ public class DynamicPageModel(
     [BindProperty(SupportsGet = true)]
     public long? DraftId { get; set; }
 
-    public PageDocument? PageDocument { get; private set; }
+    public string? SeoTitle { get; private set; }
+    public string? Title { get; private set; }
+    public bool ShowHeaderNavigation { get; private set; } = true;
+    public bool HideFooter { get; private set; }
+    public bool ShowChatAgent { get; private set; } = true;
+    public List<LayoutRegion>? LayoutRegions { get; private set; }
+    public long? PageId { get; private set; }
+    public string? PageSlug { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
-        Result<PageDocument?, AeroError> result;
+        AeroRequestResponse<Aero.Cms.Abstractions.Models.PageViewModel> result;
 
         if (DraftId is { } draftId)
         {
-            // TODO: Restore auth guard with preview API key. The draft preview
-            // iframe loads cross-domain (sub-site hostname), so the auth cookie
-            // from the manager domain (localhost) is not sent by the browser.
-            // Future options:
-            //   (B) Signed token in preview URL — append ?token={signed} validated
-            //       server-side via IDataProtector.
-            //   (C) Cross-domain SSO on site switch — hidden request to new
-            //       domain with login token to set auth cookie there.
-            //   (D) Seeded preview API key — validate ?key={apiKey} query param
-            //       against a PreviewApiKey document in Marten.
-            // For now: no auth on draft preview since IDs are Snowflakes
-            // (unguessable) and access requires knowing the exact page ID.
-
-            result = await pageService.LoadAsync(draftId, cancellationToken);
+            result = await pageActor.GetByIdAsync(draftId, cancellationToken);
         }
-        // If no slug provided, load the homepage
         else if (string.IsNullOrWhiteSpace(Slug))
         {
-            result = await pageService.LoadHomepageAsync(cancellationToken);
+            result = await pageActor.GetBySlugAsync(siteContext.SiteId, "/", cancellationToken);
         }
         else
         {
-            // Normalize slug - remove leading slash if present for consistency
             var normalizedSlug = Slug.TrimStart('/');
-            result = await pageService.FindBySlugAsync(normalizedSlug, cancellationToken);
+            result = await pageActor.GetBySlugAsync(siteContext.SiteId, normalizedSlug, cancellationToken);
         }
 
-        var page = result switch
-        {
-            Result<PageDocument?, AeroError>.Ok(var foundPage) => foundPage,
-            Result<PageDocument?, AeroError>.Failure => (PageDocument?)null,
-            _ => (PageDocument?)null
-        };
-
-        if (page is null)
+        if (!string.IsNullOrWhiteSpace(result.error?.Message))
         {
             return NotFound();
         }
 
-        PageDocument = page;
+        var vm = result.data;
+        if (vm is null)
+        {
+            return NotFound();
+        }
 
-        // Store page ID + slug in HttpContext.Items so CmsOutputCachePolicy
-        // can read them during ServeResponseAsync and tag the cached response
-        // with fine-grained per-page identifiers (page-id-{id}, page-slug-{slug}).
-        // This enables single-page OutputCache eviction without invalidating
-        // the entire pages-list tag.
-        HttpContext.Items["AeroCms.PageId"] = page.Id;
-        HttpContext.Items["AeroCms.PageSlug"] = page.Slug;
+        SeoTitle = vm.SeoTitle ?? vm.Title;
+        Title = vm.Title;
+        ShowHeaderNavigation = vm.ShowHeaderNavigation;
+        HideFooter = vm.HideFooter;
+        ShowChatAgent = vm.ShowChatAgent;
+        PageId = vm.Id;
+        PageSlug = vm.Slug;
 
-        // Preload all block IDs from the page's layout regions into BlockRenderCache.
-        // This eliminates N+1 database round-trips during page rendering: instead of
-        // each BlockPlacementRenderer calling IBlockService.GetByIdAsync individually
-        // (one Marten LoadAsync per block), we batch-load all blocks in a single
-        // WHERE Id = ANY(@ids) query. The cached result is then served to each
-        // BlockPlacementRenderer via O(1) dictionary lookup in GetBlock().
-        await PreloadBlockCacheAsync(page, cancellationToken);
+        // Deserialize layout regions for block preloading and rendering
+        LayoutRegions = vm.LayoutRegionsJson is not null
+            ? System.Text.Json.JsonSerializer.Deserialize<List<LayoutRegion>>(
+                vm.LayoutRegionsJson, Aero.Cms.Abstractions.Blocks.Serialization.BlockJsonContext.Default.Options)
+            : [];
+
+        // Store page ID + slug for output cache tagging
+        HttpContext.Items["AeroCms.PageId"] = vm.Id;
+        HttpContext.Items["AeroCms.PageSlug"] = vm.Slug;
+
+        // Preload block cache (N+1 fix)
+        await PreloadBlockCacheAsync(LayoutRegions, cancellationToken);
 
         PreserveReExecutedStatusCode();
         ApplyResponseCacheHeaders();
         return Page();
     }
 
-    /// <summary>
-    /// Collects all distinct block IDs from every LayoutRegion/Column/Placement
-    /// on the page and bulk-loads them into the request-scoped BlockRenderCache.
-    /// 
-    /// N+1 REMEDY: Without this preload, the <c>&lt;component type="LayoutRegionRenderer"&gt;</c>
-    /// components in Page.cshtml would each independently call IBlockService.GetByIdAsync
-    /// for every block placement. A page with N blocks makes N database round-trips.
-    /// With this preload, all N blocks are resolved in a single batch query, then
-    /// served from an in-memory dictionary during rendering.
-    /// </summary>
-    private async Task PreloadBlockCacheAsync(PageDocument page, CancellationToken ct)
+    private async Task PreloadBlockCacheAsync(List<LayoutRegion> layoutRegions, CancellationToken ct)
     {
-        // Collect all distinct BlockIds from the published layout manifest.
-        // LayoutRegions → LayoutColumns → Blocks (List<BlockPlacement>) → BlockId
-        var blockIds = page.LayoutRegions
+        var blockIds = layoutRegions
             .SelectMany(r => r.Columns)
             .SelectMany(c => c.Blocks)
-            .Where(p => p.BlockId > 0)       // skip unset / sentinel values
+            .Where(p => p.BlockId > 0)
             .Select(p => p.BlockId)
             .Distinct()
             .ToList();
@@ -116,13 +101,6 @@ public class DynamicPageModel(
         if (blockIds.Count == 0)
             return;
 
-        // Fire-and-forget? No — we must await the preload so the cache is
-        // fully populated BEFORE the Blazor component tree renders (which
-        // happens synchronously after OnGetAsync returns).
-        // BlockRenderCache is registered as AddScoped → same instance shared
-        // between DynamicPageModel and all <component> tag helpers in this request.
-        // We don't store the IBlockService reference in the cache; instead we
-        // pass it as a parameter so the cache stays a pure data holder.
         await blockCache.PreloadAsync(blockIds, blockService, ct);
     }
 

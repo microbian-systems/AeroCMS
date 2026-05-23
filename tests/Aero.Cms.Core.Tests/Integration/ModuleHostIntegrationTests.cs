@@ -1,6 +1,4 @@
-﻿using TUnit.Core;
-using Aero.Cms.Core.Tests.TestModules;
-using Aero.Cms.Web.Core.Modules;
+﻿using Aero.Cms.Core.Tests.TestModules;
 using Aero.Modular;
 using Aero.Cms.Modules.Modules.Services;
 using FluentAssertions;

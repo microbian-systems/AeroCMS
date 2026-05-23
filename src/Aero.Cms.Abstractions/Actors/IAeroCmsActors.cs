@@ -80,6 +80,24 @@ public interface IAeroPostActor : IAeroCmsContentActor<PostViewModel>
     /// Unpublish a blog post by ID (set to Draft).
     /// </summary>
     Task<AeroRequestResponse<PostViewModel>> UnpublishPostAsync(long id, long siteId, CancellationToken ct);
+
+    /// <summary>Load a post by ID within a site (returns null if not found or wrong site).</summary>
+    Task<PostViewModel?> LoadAsync(long id, long siteId, CancellationToken ct);
+
+    /// <summary>Find a published post by slug within a site.</summary>
+    Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, CancellationToken ct);
+
+    /// <summary>Get latest N published posts.</summary>
+    Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, CancellationToken ct);
+
+    /// <summary>Get paged published posts, skipping the first N latest posts.</summary>
+    Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bool HasNext, bool HasPrev)> GetPagedPostsAsync(long siteId, int page, int pageSize, int skipFromLatest, CancellationToken ct);
+
+    /// <summary>Get all tag IDs mapped to their display names.</summary>
+    Task<Dictionary<long, string>> GetTagNameMapAsync(long siteId, CancellationToken ct);
+
+    /// <summary>Get a summary of a post author.</summary>
+    Task<(string? Name, string? Bio, string? AvatarUrl)?> GetPostAuthorSummaryAsync(long siteId, long authorId, CancellationToken ct);
 }
 public interface IAeroSiteActor : IAeroCmsContentActor<SiteViewModel>;
 public interface IAeroTagActor : IAeroCmsContentActor<TagViewModel>

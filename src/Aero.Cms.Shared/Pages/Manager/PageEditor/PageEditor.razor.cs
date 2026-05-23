@@ -1,9 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
-using System.Linq;
-using System.Threading.Tasks;
-using System;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Common;
@@ -13,7 +10,6 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using Aero.Core;
-using Aero.Cms.Core;
 using Aero.Core.Security;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Http.Clients;
@@ -26,7 +22,6 @@ using Aero.Cms.Shared.Services;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
-using NeoUI.Blazor;
 using NeoUI.Blazor.Primitives;
 using PageEditorCatalog = Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 

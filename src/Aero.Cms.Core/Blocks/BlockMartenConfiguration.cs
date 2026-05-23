@@ -1,6 +1,5 @@
 using Aero.Cms.Abstractions.Blocks;
 using Marten;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Core.Blocks;
 

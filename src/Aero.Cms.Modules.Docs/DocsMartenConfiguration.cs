@@ -1,6 +1,3 @@
-using Aero.Cms.Core.Entities;
-using Marten;
-
 namespace Aero.Cms.Modules.Docs;
 
 public sealed class DocsMartenConfiguration : IConfigureMarten

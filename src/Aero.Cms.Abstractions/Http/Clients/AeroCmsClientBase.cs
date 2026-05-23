@@ -1,11 +1,7 @@
 namespace Aero.Cms.Abstractions.Http.Clients;
 
-using Aero.Core;
 using Aero.Core.Http;
-using Aero.Core.Railway;
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Aero.Cms.Abstractions.Http.Clients;
 
 /// <summary>
 /// Base class for Aero CMS administration HTTP clients.

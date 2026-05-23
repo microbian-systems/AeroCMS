@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Modules.Footer.Rendering;
 using Aero.Cms.Modules.Footer.Services;
 using Microsoft.AspNetCore.Mvc;

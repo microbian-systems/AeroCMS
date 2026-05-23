@@ -2,7 +2,6 @@
 using Aero.Cms.Modules.Manager.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

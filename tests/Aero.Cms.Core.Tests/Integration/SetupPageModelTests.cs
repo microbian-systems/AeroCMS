@@ -1,5 +1,4 @@
-﻿using TUnit.Core;
-using Aero.Cms.Modules.Setup.Areas.Setup.Pages;
+﻿using Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 using FluentAssertions;
 
 namespace Aero.Cms.Core.Tests.Integration;

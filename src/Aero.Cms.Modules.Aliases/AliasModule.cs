@@ -11,7 +11,6 @@ using Aero.Cms.Web.Core.Pipelines;
 using Aero.Modular;
 using FluentValidation;
 using Marten;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;

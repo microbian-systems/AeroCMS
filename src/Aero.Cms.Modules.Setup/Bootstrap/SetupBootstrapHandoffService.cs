@@ -1,8 +1,6 @@
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Aero.Cms.Modules.Setup.Configuration;
-using System.IO;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 

@@ -1,5 +1,4 @@
 ﻿using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Core.Entities;
 using FluentValidation;
 
 namespace Aero.Cms.Modules.Pages.Validators;

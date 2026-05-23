@@ -1,7 +1,5 @@
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Cms.Modules.Commerce.Catalog.Services;
-using Aero.Cms.Modules.Commerce.Catalog.Validation;
-using Aero.Core.Railway;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;

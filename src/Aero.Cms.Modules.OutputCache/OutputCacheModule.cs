@@ -3,7 +3,6 @@ using Aero.Cms.Modules.OutputCache.Caching;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
