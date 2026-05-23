@@ -15,7 +15,7 @@ namespace Aero.Cms.Modules.OutputCache;
 /// for each content module (Pages, Blog, Docs).
 ///
 /// Each policy is selected by placing [OutputCache(PolicyName = "...")] on the module's
-/// Razor Page models — see Page.cshtml.cs, BlogIndexPage.cshtml.cs, BlogDetailPage.cshtml.cs,
+/// Razor Page models — see Page.cshtml.cs, PostsIndexPage.cshtml.cs, PostsDetailPage.cshtml.cs,
 /// DocsIndex.cshtml.cs, and Doc.cshtml.cs.
 /// </summary>
 [Module(nameof(OutputCacheModule))]
@@ -58,9 +58,9 @@ public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
                 excludeDefaultPolicy: true);
 
             // ── Blog module ───────────────────────────────────────────────
-            // Used by: BlogIndexPageModel, BlogDetailPageModel
+            // Used by: PostsIndexPageModel, PostsDetailPageModel
             // Routes: /blog, /blog/{slug}, /admin/blog/* (excluded by auth)
-            // Tags match BlogCacheTags constants in Aero.Cms.Modules.Blog.Caching.
+            // Tags match BlogCacheTags constants in Aero.Cms.Modules.Posts.Caching.
             options.AddPolicy("BlogPolicy", builder =>
                 builder.AddPolicy<CmsOutputCachePolicy>()
                        .Expire(TimeSpan.FromMinutes(5))
@@ -68,7 +68,7 @@ public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
                        .SetVaryByQuery("p", "slug"),
                 excludeDefaultPolicy: true);
 
-            // Used by: BlogIndexPageModel.OnGetPostsPageAsync (HTMX partial)
+            // Used by: PostsIndexPageModel.OnGetPostsPageAsync (HTMX partial)
             // Varies only by pagination param, not slug.
             options.AddPolicy("BlogPartialPolicy", builder =>
                 builder.AddPolicy<CmsOutputCachePolicy>()

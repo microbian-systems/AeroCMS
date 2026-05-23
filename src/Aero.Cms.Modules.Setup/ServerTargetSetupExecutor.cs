@@ -1,5 +1,5 @@
 using Aero.Cms.Abstractions.Services;
-using Aero.Cms.Modules.Blog;
+using Aero.Cms.Modules.Posts;
 using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Pages;

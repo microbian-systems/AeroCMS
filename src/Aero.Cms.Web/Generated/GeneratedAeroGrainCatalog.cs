@@ -25,7 +25,7 @@ public static class GeneratedAeroGrainCatalog
     {
         // Assemblies containing grains (12 grains across 8 modules):
         //   Aero.Cms.Modules.Aliases     — AeroAliasGrain
-        //   Aero.Cms.Modules.Blog        — AeroCategoryGrain, AeroTagGrain, AeroPostGrain
+        //   Aero.Cms.Modules.Posts        — AeroCategoryGrain, AeroTagGrain, AeroPostGrain
         //   Aero.Cms.Modules.Content     — AeroContentItemGrain, AeroContentTypeGrain
         //   Aero.Cms.Modules.Docs        — AeroDocsGrain
         //   Aero.Cms.Modules.Media       — AeroMediaGrain

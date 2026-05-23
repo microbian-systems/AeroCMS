@@ -36,7 +36,7 @@ public static class DashboardApi
         try
         {
             var totalPages = await session.Query<PageDocument>().CountAsync(cancellationToken);
-            var totalBlogs = await session.Query<BlogPostDocument>().CountAsync(cancellationToken);
+            var totalBlogs = await session.Query<PostDocument>().CountAsync(cancellationToken);
             // var totalMedia = await session.Query<MediaDocument>().CountAsync(cancellationToken);
             // var totalUsers = await session.Query<UserDocument>().CountAsync(cancellationToken);
 

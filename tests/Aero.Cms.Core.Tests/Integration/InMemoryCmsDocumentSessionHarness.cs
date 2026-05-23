@@ -9,7 +9,7 @@ namespace Aero.Cms.Core.Tests.Integration;
 internal sealed class InMemoryCmsDocumentSessionHarness
 {
     private readonly Dictionary<string, PageDocument> _pageDocuments = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, BlogPostDocument> _blogPostDocuments = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PostDocument> _blogPostDocuments = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ContentSlugDocument> _slugDocuments = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SetupStateDocument> _setupStateDocuments = new(StringComparer.Ordinal);
 
@@ -24,7 +24,7 @@ internal sealed class InMemoryCmsDocumentSessionHarness
                 return page is null ? null : Clone(page);
             });
 
-        Session.LoadAsync<BlogPostDocument>(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        Session.LoadAsync<PostDocument>(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
                 _blogPostDocuments.TryGetValue(callInfo.ArgAt<string>(0), out var post);
@@ -55,10 +55,10 @@ internal sealed class InMemoryCmsDocumentSessionHarness
                 }
             });
 
-        Session.When(call => call.Store(Arg.Any<BlogPostDocument[]>()))
+        Session.When(call => call.Store(Arg.Any<PostDocument[]>()))
             .Do(callInfo =>
             {
-                foreach (var post in callInfo.Arg<BlogPostDocument[]>())
+                foreach (var post in callInfo.Arg<PostDocument[]>())
                 {
                     OnStore?.Invoke(post);
                     _blogPostDocuments[post.Id.ToString()] = Clone(post);
@@ -98,7 +98,7 @@ internal sealed class InMemoryCmsDocumentSessionHarness
     public IDocumentSession Session { get; }
     public Action<object>? OnStore { get; set; }
     public IReadOnlyDictionary<string, PageDocument> Pages => _pageDocuments;
-    public IReadOnlyDictionary<string, BlogPostDocument> BlogPosts => _blogPostDocuments;
+    public IReadOnlyDictionary<string, PostDocument> BlogPosts => _blogPostDocuments;
     public IReadOnlyDictionary<string, SetupStateDocument> SetupStates => _setupStateDocuments;
 
     private static PageDocument Clone(PageDocument page)
@@ -118,7 +118,7 @@ internal sealed class InMemoryCmsDocumentSessionHarness
             PublishedOn = page.PublishedOn
         };
 
-    private static BlogPostDocument Clone(BlogPostDocument post)
+    private static PostDocument Clone(PostDocument post)
         => new()
         {
             Id = post.Id,

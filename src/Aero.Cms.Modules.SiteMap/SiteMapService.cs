@@ -135,7 +135,7 @@ public sealed class SiteMapService : ISiteMapService
         try
         {
             var siteId = _siteContext.SiteId;
-            var posts = await _session.Query<BlogPostDocument>()
+            var posts = await _session.Query<PostDocument>()
                 .Where(p => p.PublicationState == ContentPublicationState.Published
                          && p.SiteId == siteId)
                 .ToListAsync(ct);

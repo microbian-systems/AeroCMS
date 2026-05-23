@@ -30,7 +30,6 @@
     <Project Path="../Aero/src/Aero.Web/Aero.Web.csproj" />
   </Folder>
   <Folder Name="/Modules/">
-    <File Path="Aero.Cms.Modules.Content/Aero.Cms.Modules.Content.csproj" />
     <Project Path="Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj" Id="bf6093a6-2be7-443e-bda2-9c8fc57de702" />
     <Project Path="Aero.Cms.Modules.Ai/Aero.Cms.Modules.Ai.csproj" Id="4635f02b-ab13-4e7e-9a2b-b6dc992c9631" />
     <Project Path="Aero.Cms.Modules.AiAssistant/Aero.Cms.Modules.AiAssistant.csproj" Id="f7200dd4-a7b1-4059-b84e-ead4793161fc" />
@@ -39,7 +38,6 @@
     <Project Path="Aero.Cms.Modules.Audit/Aero.Cms.Modules.Audit.csproj" Id="96ff8314-4c6e-49f0-8143-55e79a750594" />
     <Project Path="Aero.Cms.Modules.Banner/Aero.Cms.Modules.Banner.csproj" Id="8834deda-d732-4a76-8c0d-07bf534b2f8a" />
     <Project Path="Aero.Cms.Modules.Blog.Importer/Aero.Cms.Modules.Blog.Importer.csproj" Id="e7e2e70d-cb9a-42a0-86d0-c7787cd64f48" />
-    <Project Path="Aero.Cms.Modules.Blog/Aero.Cms.Modules.Blog.csproj" Id="84f7df72-76e2-4520-91b0-d4f25d1508dc" />
     <Project Path="Aero.Cms.Modules.Cache/Aero.Cms.Modules.Cache.csproj" />
     <Project Path="Aero.Cms.Modules.Chat/Aero.Cms.Modules.Chat.csproj" Id="393b3f9b-6b43-4860-ac07-56012e5d2398" />
     <Project Path="Aero.Cms.Modules.Commerce.Client/Aero.Cms.Modules.Commerce.Client.csproj" />
@@ -72,6 +70,7 @@
     <Project Path="Aero.Cms.Modules.OpenTelemetry/Aero.Cms.Modules.OpenTelemetry.csproj" Id="1d88cccb-81c9-46d7-9cec-a1fd76de9f3e" />
     <Project Path="Aero.Cms.Modules.OutputCache/Aero.Cms.Modules.OutputCache.csproj" Id="f0fdb431-5819-4d64-8dec-8424eba6676f" />
     <Project Path="Aero.Cms.Modules.Pages/Aero.Cms.Modules.Pages.csproj" Id="964d0ec1-10bb-4ffe-9763-4e748145260c" />
+    <Project Path="Aero.Cms.Modules.Posts/Aero.Cms.Modules.Posts.csproj" Id="84f7df72-76e2-4520-91b0-d4f25d1508dc" />
     <Project Path="Aero.Cms.Modules.RateLimiting/Aero.Cms.Modules.RateLimiting.csproj" />
     <Project Path="Aero.Cms.Modules.RequestLog/Aero.Cms.Modules.RequestLog.csproj" Id="d5384b04-0bab-4a96-bb5b-538053e2a60b" />
     <Project Path="Aero.Cms.Modules.Scalar/Aero.Cms.Modules.Scalar.csproj" Id="d32f313d-75ea-4b95-a910-becb114d5e89" />

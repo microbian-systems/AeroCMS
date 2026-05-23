@@ -1,0 +1,82 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
+using Aero.Cms.Core.Entities;
+using Aero.Cms.Modules.Posts.Models;
+using Aero.Core;
+using Aero.Core.Railway;
+
+namespace Aero.Cms.Modules.Posts.Areas.Blog.Pages;
+
+[ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, VaryByQueryKeys = ["p"])]
+[OutputCache(PolicyName = "BlogPolicy")]
+public class PostsIndexPageModel(IPostContentService blogService) : PageModel
+{
+    public int PageNumber { get; private set; } = 1;
+    public int PageSize { get; private set; } = 10;
+    public int TotalCount { get; private set; }
+    public int TotalPages { get; private set; }
+    public bool HasNextPage { get; private set; }
+    public bool HasPreviousPage { get; private set; }
+
+    public IReadOnlyList<PostDocument> FeaturedPosts { get; private set; } = [];
+    public IReadOnlyList<PostDocument> OtherPosts { get; private set; } = [];
+    public Dictionary<long, string> TagNames { get; private set; } = [];
+
+    public async Task OnGetAsync(int? p, CancellationToken cancellationToken = default)
+    {
+        PageNumber = p ?? 1;
+
+        // Fetch featured posts (only if we're on page 1 or you want them always)
+        // User says "keep them @ top" and "htmx refresh should not affect them"
+        // This implies they are rendered once.
+        var latestResult = await blogService.GetLatestPostsAsync(3, cancellationToken);
+        FeaturedPosts = latestResult switch
+        {
+            Result<IReadOnlyList<PostDocument>, AeroError>.Ok(var list) => list,
+            _ => []
+        };
+
+        // Fetch first page of archive
+        await LoadOtherPostsAsync(PageNumber, cancellationToken);
+
+        var tagsResult = await blogService.GetAllTagsAsync(cancellationToken);
+        TagNames = tagsResult switch
+        {
+            Result<IReadOnlyList<Tag>, AeroError>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
+            _ => []
+        };
+    }
+
+    public async Task<IActionResult> OnGetPostsPageAsync(int p, CancellationToken cancellationToken = default)
+    {
+        PageNumber = p;
+        await LoadOtherPostsAsync(PageNumber, cancellationToken);
+
+        var tagsResult = await blogService.GetAllTagsAsync(cancellationToken);
+        TagNames = tagsResult switch
+        {
+            Result<IReadOnlyList<Tag>, AeroError>.Ok(var tags) => tags.ToDictionary(t => t.Id, t => t.Name),
+            _ => []
+        };
+
+        return Partial("_PostsList", this);
+    }
+
+    private async Task LoadOtherPostsAsync(int pageNumber, CancellationToken cancellationToken)
+    {
+        // Fetch archive posts skipping the 3 featured ones
+        var result = await blogService.GetPagedPostsAsync(pageNumber, PageSize, skip: 3, cancellationToken);
+        
+        if (result is Result<global::Marten.Pagination.IPagedList<PostDocument>, AeroError>.Ok(var pagedList))
+        {
+            OtherPosts = pagedList.ToList();
+            TotalCount = (int)pagedList.TotalItemCount; // Note: Marten total count for .Skip(3) might reflect the filtered set or original.
+            // Marten's IPagedList.TotalItemCount usually reflects the count of the query *before* paging, but after filtering. 
+            // In our case, the skip(3) is part of the query.
+            TotalPages = (int)pagedList.PageCount;
+            HasNextPage = pagedList.HasNextPage;
+            HasPreviousPage = pagedList.HasPreviousPage;
+        }
+    }
+}

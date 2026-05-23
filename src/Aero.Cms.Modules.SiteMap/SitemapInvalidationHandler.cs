@@ -1,5 +1,5 @@
 using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Modules.Posts.Models;
 using Aero.Cms.Modules.Docs;
 using Marten;
 using Microsoft.Extensions.Hosting;
@@ -43,9 +43,9 @@ public sealed class SitemapCacheListener : DocumentSessionListenerBase
             changes.UpdatesFor<PageDocument>().Any() ||
             changes.DeletionsFor<PageDocument>().Any() ||
 
-            changes.InsertsFor<BlogPostDocument>().Any() ||
-            changes.UpdatesFor<BlogPostDocument>().Any() ||
-            changes.DeletionsFor<BlogPostDocument>().Any() ||
+            changes.InsertsFor<PostDocument>().Any() ||
+            changes.UpdatesFor<PostDocument>().Any() ||
+            changes.DeletionsFor<PostDocument>().Any() ||
 
             changes.InsertsFor<DocsPage>().Any() ||
             changes.UpdatesFor<DocsPage>().Any() ||

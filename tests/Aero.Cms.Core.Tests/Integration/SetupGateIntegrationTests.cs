@@ -1,6 +1,6 @@
 ﻿using TUnit.Core;
 using Aero.Cms.Modules.Setup;
-using Aero.Cms.Modules.Blog;
+using Aero.Cms.Modules.Posts;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.ServiceDefaults;
 using FluentAssertions;
@@ -192,7 +192,7 @@ public class SetupGateIntegrationTests
         module.ConfigureServices(builder.Services, new ConfigurationBuilder().Build(), builder.Environment);
         var pagesModule = new PagesModule();
         pagesModule.ConfigureServices(builder.Services, new ConfigurationBuilder().Build(), builder.Environment);
-        var blogModule = new BlogModule();
+        var blogModule = new PostsModule();
         blogModule.ConfigureServices(builder.Services, new ConfigurationBuilder().Build(), builder.Environment);
         builder.Services.RemoveAll<ISetupIdentityBootstrapper>();
         builder.Services.AddSingleton(bootstrapper);

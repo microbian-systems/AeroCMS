@@ -37,7 +37,7 @@
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Identity\Aero.Cms.Modules.Identity.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
-    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
+    <ProjectReference Include="..\..\src\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Cache\Aero.Cms.Modules.Cache.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />

@@ -17,7 +17,7 @@ public class SiteMapModule : AeroWebModule
     public override string Version => AeroConstants.Version;
     public override string Author => AeroConstants.Author;
     public override IReadOnlyList<string> Dependencies => [
-        nameof(Aero.Cms.Modules.Blog.BlogModule),
+        nameof(Aero.Cms.Modules.Posts.PostsModule),
         nameof(Aero.Cms.Modules.Pages.PagesModule),
         nameof(Aero.Cms.Modules.Docs.DocsModule),
         nameof(Aero.Cms.Modules.Cache.CacheModule)];

@@ -3,8 +3,8 @@ using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Services;
-using Aero.Cms.Modules.Blog;
-using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Modules.Posts;
+using Aero.Cms.Modules.Posts.Models;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
@@ -81,7 +81,7 @@ public sealed class SeedDatabaseService(
     IWebHostEnvironment env,
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
-    IBlogPostContentService blogPostContentService,
+    IPostContentService blogPostContentService,
     IMediaService mediaService,
     ICommerceSeedService commerceSeedService,
     IModuleInitializationService moduleInitializationService,
@@ -995,7 +995,7 @@ public sealed class SeedDatabaseService(
         );
     }
 
-    private static (IReadOnlyList<BlogPostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request)
+    private static (IReadOnlyList<PostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request)
     {
         var random = new Random();
         var tags = CreateTags();
@@ -1011,7 +1011,7 @@ public sealed class SeedDatabaseService(
             $"{H}pexels-36009140.jpg", $"{H}pexels-36578877.jpg"
         };
 
-        var posts = new List<BlogPostDocument>
+        var posts = new List<PostDocument>
         {
             BuildPost(Snowflake.NewId(), "welcome-to-our-new-platform", "Welcome to Our New Platform",
                 "Launching a better way to share updates and connect with our community.",
@@ -1100,8 +1100,8 @@ public sealed class SeedDatabaseService(
         new MarkdownBlock { Id = Snowflake.NewId(), Content = markdown, Order = 0 }
     ];
 
-    private static BlogPostDocument BuildPost(long id, string slug, string title, string excerpt, string markdown, List<long>? tagIds = null, string? imageUrl = null, int likes = 0) =>
-        new BlogPostDocument
+    private static PostDocument BuildPost(long id, string slug, string title, string excerpt, string markdown, List<long>? tagIds = null, string? imageUrl = null, int likes = 0) =>
+        new PostDocument
         {
             Id = id,
             Slug = slug,

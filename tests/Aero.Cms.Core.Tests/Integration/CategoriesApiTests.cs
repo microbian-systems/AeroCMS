@@ -1,6 +1,6 @@
 ﻿using TUnit.Core;
-using Aero.Cms.Modules.Blog.Areas.Api.v1;
-using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Modules.Posts.Areas.Api.v1;
+using Aero.Cms.Modules.Posts.Models;
 using Alba;
 using Marten;
 using Marten.Linq;
