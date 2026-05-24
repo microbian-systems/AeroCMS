@@ -93,6 +93,7 @@ public static class PagesApi
     private static async Task<IResult> ListPages(
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] ISiteContext siteContext,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 20,
         [FromQuery] string? search = null,
@@ -101,7 +102,7 @@ public static class PagesApi
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var (items, totalCount) = await pagesActor.GetAllPagesAsync(skip, take, search, ct);
+            var (items, totalCount) = await pagesActor.GetAllPagesAsync(siteContext.SiteId, skip, take, search, ct);
             var summary = items.Select(p => new PageSummary(
                 p.Id, p.Title, p.Slug,
                 p.CreatedOn.DateTime,

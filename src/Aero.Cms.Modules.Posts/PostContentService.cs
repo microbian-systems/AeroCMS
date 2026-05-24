@@ -24,7 +24,7 @@ public interface IPostContentService
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenBlogPostContentService(
+public sealed class PostContentService(
     IDocumentSession session,
     ISiteContext siteContext,
     IMessageBus? bus = null,

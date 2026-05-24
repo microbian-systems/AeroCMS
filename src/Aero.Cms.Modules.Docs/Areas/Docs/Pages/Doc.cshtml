@@ -1,62 +1,112 @@
 @page "/docs/{*slug}"
 @using Markdig
-@section cssPartial {
-    <style type="text/tailwindcss" 
-           src="/_content/Aero.Cms.Modules.Docs/css/docs.css"></style>
-}
+@using Markdig.Extensions.AutoIdentifiers
+@using Aero.Cms.Modules.Docs.Areas.Docs.Models
 @model Aero.Cms.Modules.Docs.Areas.Docs.Pages.DocModel
 @{
     var pageDoc = Model.MarkdownPage;
     ViewBag.Title = pageDoc?.SeoTitle ?? pageDoc?.Title ?? "Docs";
     ViewBag.ShowHeaderNavigation = pageDoc?.ShowHeaderNavigation ?? true;
+    ViewBag.ActiveDocId = pageDoc?.Id ?? 0;
+
+    // Build Markdig pipeline with auto-identifiers for heading anchors
+    var pipeline = new MarkdownPipelineBuilder()
+        .UseAutoIdentifiers()
+        .Build();
 }
 
+@* ── Left Sidebar ──────────────────────────────────────────────────────── *@
+@section sidebarPartial {
+    @await Html.PartialAsync("_DocsSidebar", Model.SidebarTree)
+}
+
+@* ── Right Panel "On This Page" ─────────────────────────────────────────── *@
+@if (Model.OnThisPage.Count > 0)
+{
+    @section rightPanelPartial {
+        @await Html.PartialAsync("_OnThisPage", Model.OnThisPage)
+    }
+}
+
+@* ── Page Content ───────────────────────────────────────────────────────── *@
 @if (pageDoc is null)
 {
-    <div class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="min-h-screen flex items-center justify-center bg-slate-50">
         <div class="text-center">
-            <h1 class="text-4xl font-bold text-gray-900 mb-4">Documentation Not Found</h1>
-            <p class="text-gray-600">The requested documentation page could not be found.</p>
+            <h1 class="text-4xl font-bold text-slate-900 mb-4">Documentation Not Found</h1>
+            <p class="text-slate-600">The requested documentation page could not be found.</p>
+            <a href="/docs" class="mt-6 inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium">
+                <i class="ph ph-arrow-left"></i> Back to Docs
+            </a>
         </div>
     </div>
 }
 else
 {
-    <article class="min-h-screen bg-white">
-        @* Page Header / Hero Section *@
-        @{
-            var hasHeaderImage = !string.IsNullOrEmpty(pageDoc.HeaderImageUrl);
-            var headerStyle = hasHeaderImage 
-                ? $"background-image: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), url('{pageDoc.HeaderImageUrl}'); background-size: cover; background-position: center;"
-                : "background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);";
-            var headerTextClass = hasHeaderImage ? "text-white" : "text-slate-900";
-            var subTextClass = hasHeaderImage ? "text-slate-200" : "text-slate-600";
-        }
-        
-        <header class="relative border-b border-slate-200 overflow-hidden" style="@headerStyle">
-            <div class="max-w-7xl mx-auto px-4 py-20 sm:py-32 sm:px-6 lg:px-8 relative z-10 transition-all duration-700">
-                <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-none @headerTextClass">
-                    @pageDoc.Title
-                </h1>
-                
-                @if (!string.IsNullOrEmpty(pageDoc.Summary))
+    <div class="page-fade">
+        @* ── Breadcrumb ────────────────────────────────────────────────────── *@
+        @if (Model.Breadcrumbs.Count > 0)
+        {
+            <p class="text-xs font-medium text-indigo-600 uppercase tracking-wider mb-2 px-6 md:px-12 lg:px-16 pt-8">
+                <a href="/docs" class="hover:underline">Docs</a>
+                @for (var i = 0; i < Model.Breadcrumbs.Count; i++)
                 {
-                    <p class="mt-6 text-lg sm:text-xl @subTextClass leading-relaxed max-w-2xl font-medium">
-                        @pageDoc.Summary
-                    </p>
+                    var crumb = Model.Breadcrumbs[i];
+                    var isCurrent = i == Model.Breadcrumbs.Count - 1;
+                    <span class="text-slate-400 mx-1">/</span>
+                    if (isCurrent)
+                    {
+                        <span>@crumb.Title</span>
+                    }
+                    else
+                    {
+                        <a href="/@crumb.Slug" class="hover:underline">@crumb.Title</a>
+                    }
+                }
+            </p>
+        }
+
+        @* ── Title + Summary ───────────────────────────────────────────────── *@
+        <div class="max-w-[900px] mx-auto px-6 md:px-12 lg:px-16 pt-2 pb-6">
+            <h1 class="text-3xl md:text-[32px] font-semibold text-slate-900 mb-2 leading-tight">
+                @pageDoc.Title
+            </h1>
+            @if (!string.IsNullOrEmpty(pageDoc.Summary))
+            {
+                <p class="text-base text-slate-600 leading-relaxed">@pageDoc.Summary</p>
+            }
+        </div>
+
+        @* ── Feature Cards (space overview mode — page has children) ────────── *@
+        @if (Model.ChildPages.Count > 0)
+        {
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-[900px] mx-auto px-6 md:px-12 lg:px-16 pb-8">
+                @foreach (var child in Model.ChildPages)
+                {
+                    <a href="/@child.Slug" class="card-hover group block border border-slate-200 rounded-lg overflow-hidden bg-white transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-indigo-300">
+                        <div class="h-32 bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center">
+                            <i class="ph ph-file-text text-3xl text-indigo-400 group-hover:text-indigo-600 transition-colors"></i>
+                        </div>
+                        <div class="px-5 py-5">
+                            <h3 class="text-base font-semibold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors">@child.Title</h3>
+                            @if (!string.IsNullOrEmpty(child.Summary))
+                            {
+                                <p class="text-sm text-slate-500 leading-relaxed line-clamp-2">@child.Summary</p>
+                            }
+                        </div>
+                    </a>
                 }
             </div>
-            @if (!hasHeaderImage)
-            {
-                <div class="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,transparent,black)] pointer-events-none"></div>
-            }
-        </header>
+        }
 
-        @* Markdown Content *@
-        <div class="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-            <div class="prose prose-slate max-w-none prose-headings:font-display prose-headings:font-bold prose-a:text-indigo-600 prose-img:rounded-[2rem] prose-img:shadow-xl prose-pre:bg-slate-900 prose-pre:rounded-2xl">
-                @Html.Raw(Markdown.ToHtml(pageDoc.MarkdownContent ?? ""))
+        @* ── Markdown Content ──────────────────────────────────────────────── *@
+        @if (!string.IsNullOrEmpty(pageDoc.MarkdownContent))
+        {
+            <div class="max-w-[900px] mx-auto px-6 md:px-12 lg:px-16 pb-16">
+                <div class="prose prose-slate max-w-none prose-headings:scroll-mt-20 prose-headings:font-semibold prose-a:text-indigo-600 prose-img:rounded-lg prose-pre:bg-slate-900 prose-pre:rounded-lg">
+                    @Html.Raw(Markdown.ToHtml(pageDoc.MarkdownContent, pipeline))
+                </div>
             </div>
-        </div>
-    </article>
+        }
+    </div>
 }

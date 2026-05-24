@@ -27,7 +27,7 @@ public sealed class PostsModule : AeroWebModule, IUiModule
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
-        services.AddScoped<IPostContentService, MartenBlogPostContentService>();
+        services.AddScoped<IPostContentService, PostContentService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddHttpClient<IStaticPhotosClient, StaticPhotosClient>(client =>
         {

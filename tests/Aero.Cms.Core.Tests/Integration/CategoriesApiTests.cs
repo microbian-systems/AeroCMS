@@ -1,4 +1,5 @@
-﻿using Aero.Cms.Modules.Posts.Models;
+﻿using Aero.Cms.Modules.Posts.Areas.Api.v1;
+using Aero.Cms.Modules.Posts.Models;
 using Alba;
 using Marten;
 using Marten.Linq;
@@ -36,7 +37,7 @@ public class CategoriesApiTests
                 app.UseRouting();
                 app.UseEndpoints(endpoints =>
                 {
-                    endpoints.MapCategoriesAdminApi();
+                    endpoints.MapCategoriesApi();
                 });
             });
         });

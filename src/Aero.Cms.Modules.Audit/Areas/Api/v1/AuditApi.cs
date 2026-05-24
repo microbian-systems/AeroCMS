@@ -1,3 +1,5 @@
+using Aero.Cms.Abstractions.Http.Clients;
+
 namespace Aero.Cms.Modules.Audit.Areas.Api.v1;
 
 /// <summary>

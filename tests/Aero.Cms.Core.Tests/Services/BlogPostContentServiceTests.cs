@@ -12,7 +12,7 @@ public sealed class BlogPostContentServiceTests
 {
     private IDocumentSession _session = null!;
     private ISiteContext _siteContext = null!;
-    private MartenBlogPostContentService _service = null!;
+    private PostContentService _service = null!;
 
     [Before(Test)]
     public async Task Setup()
@@ -25,7 +25,7 @@ public sealed class BlogPostContentServiceTests
         // Configure SaveChangesAsync to succeed (it's called at the end of SaveAsync / DeleteAsync)
         _session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        _service = new MartenBlogPostContentService(
+        _service = new PostContentService(
             _session,
             _siteContext
         );
@@ -48,7 +48,7 @@ public sealed class BlogPostContentServiceTests
             .Returns((PostDocument?)null);
 
         var post = new PostDocument { Id = Snowflake.NewId(), Title = "Test Blog Post", Slug = "test-blog-post" };
-        var service = new MartenBlogPostContentService(session, CreateSiteContext(42));
+        var service = new PostContentService(session, CreateSiteContext(42));
 
         var result = await service.SaveAsync(post, CancellationToken.None);
 

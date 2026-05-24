@@ -610,8 +610,19 @@ public sealed class SeedDatabaseService(
         };
         session.Store(alias500);
 
+        // Create alias /setup → /
+        var aliasSetup = new AliasDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = siteId,
+            OldPath = "/setup",
+            NewPath = "/",
+            Notes = "Auto-seeded setup redirect"
+        };
+        session.Store(aliasSetup);
+
         await session.SaveChangesAsync(ct);
-        Log.Information("Seeded /oops error page with /404 → /oops and /500 → /oops aliases");
+        Log.Information("Seeded /oops error page with /404 → /oops, /500 → /oops, /setup → / aliases");
     }
 
     private async Task SeedStarterMediaAsync(CancellationToken ct)

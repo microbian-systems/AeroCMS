@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
@@ -257,6 +259,15 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         Depth = Depth,
         Order = Order,
         IsHidden = IsHidden,
-        ShowInNavMenu = ShowInNavMenu
+        ShowInNavMenu = ShowInNavMenu,
+        ShowHeaderNavigation = ShowHeaderNavigation,
+        HideFooter = HideFooter,
+        ShowChatAgent = ShowChatAgent,
+        LayoutRegionsJson = LayoutRegions is { Count: > 0 }
+            ? JsonSerializer.Serialize(LayoutRegions, BlockJsonContext.Default.Options)
+            : null,
+        EditorBlocksJson = Blocks is { Count: > 0 }
+            ? JsonSerializer.Serialize(Blocks, BlockJsonContext.Default.Options)
+            : null
     };
 }

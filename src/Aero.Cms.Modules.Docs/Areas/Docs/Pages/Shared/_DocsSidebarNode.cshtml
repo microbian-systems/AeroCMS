@@ -1,0 +1,30 @@
+@* _DocsSidebarNode.cshtml — Recursive sidebar tree node with Alpine.js expand/collapse *@
+@model Aero.Cms.Modules.Docs.Areas.Docs.Models.DocsSidebarNode
+
+@if (Model.Children.Count > 0)
+{
+    <div class="mb-1" x-data="{ expanded: @(Model.IsExpanded ? "true" : "false") }">
+        <button x-on:click="expanded = !expanded"
+                class="w-full flex items-center justify-between px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded transition-colors">
+            <span>@Model.Title</span>
+            <i class="ph ph-caret-right text-xs text-slate-400 transition-transform duration-200"
+               :class="expanded ? 'rotate-90' : ''"></i>
+        </button>
+        <div x-show="expanded" x-transition class="pl-4 mt-1 space-y-0.5">
+            @foreach (var child in Model.Children)
+            {
+                @await Html.PartialAsync("_DocsSidebarNode", child)
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="mb-1">
+        <a href="/@Model.Slug"
+           class="block px-3 py-1.5 text-sm rounded transition-colors @(Model.IsActive ? "text-indigo-600 border-l-2 border-indigo-600 bg-indigo-50" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")"
+           style="padding-left: @(12 + Model.Depth * 16)px">
+            @Model.Title
+        </a>
+    </div>
+}

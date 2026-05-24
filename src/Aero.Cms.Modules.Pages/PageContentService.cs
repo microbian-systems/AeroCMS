@@ -35,7 +35,7 @@ public sealed class MartenPageContentService(
     IMessageBus bus,
     ISiteContext siteContext,
     ILogger<MartenPageContentService> logger,
-    IHttpContextAccessor? httpContextAccessor = null,
+    string? actor = null,
     IFusionCache? cache = null,
     IPageTreeService? pageTreeService = null) : IPageContentService
 {
@@ -591,7 +591,7 @@ public sealed class MartenPageContentService(
             var existingCreatedOn = existingPage?.CreatedOn;
             targetPage.CreatedOn = existingCreatedOn is null || existingCreatedOn == default ? now : existingCreatedOn.Value;
             targetPage.ModifiedOn = now;
-            targetPage.ModifiedBy = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
+            targetPage.ModifiedBy = actor ?? "system";
             targetPage.PublishedOn = targetPage.PublicationState == ContentPublicationState.Published
                 ? existingPage?.PublishedOn ?? now
                 : null;

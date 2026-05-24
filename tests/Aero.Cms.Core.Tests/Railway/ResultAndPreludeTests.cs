@@ -120,11 +120,19 @@ public class ResultAndPreludeTests
     [Test]
     public void Implicit_conversion_from_value_to_ResultT_TError_should_create_Ok()
     {
-        // Implicit conversion chain: T -> Result<T, AeroError>.Ok -> Result<T, AeroError>
-        // Direct conversion to Result<T> requires explicit construction (Prelude.Ok or new)
         Result<string, AeroError> result = "implicit ok";
 
         result.Should().BeOfType<Result<string, AeroError>.Ok>();
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Test]
+    public void Implicit_conversion_from_value_to_ResultT_should_create_Ok()
+    {
+        Result<string> result = "implicit ok";
+
+        result.Should().BeOfType<Result<string>.Ok>();
+        result.As<Result<string>.Ok>().Value.Should().Be("implicit ok");
         result.IsSuccess.Should().BeTrue();
     }
 
@@ -138,14 +146,37 @@ public class ResultAndPreludeTests
     }
 
     [Test]
-    public void Implicit_conversion_from_AeroError_to_ResultT_works_via_Prelude()
+    public void Implicit_conversion_from_AeroError_to_ResultT_should_create_Failure()
     {
-        // For the Result<T> shorthand, use Prelude.Fail or explicit construction
         var error = new AeroError.NotFound("not found");
-        Result<string> result = Prelude.Fail<string>(error);
+        Result<string> result = error;
 
         result.Should().BeOfType<Result<string>.Failure>();
+        result.As<Result<string>.Failure>().Error.Should().Be(error);
         result.IsFailure.Should().BeTrue();
+    }
+
+    [Test]
+    public void ToDefaultResult_should_convert_existing_ResultT_AeroError_Ok_to_ResultT()
+    {
+        Result<string, AeroError> legacy = Prelude.Ok<string, AeroError>("legacy ok");
+
+        Result<string> result = legacy.ToDefaultResult();
+
+        result.Should().BeOfType<Result<string>.Ok>();
+        result.As<Result<string>.Ok>().Value.Should().Be("legacy ok");
+    }
+
+    [Test]
+    public void ToDefaultResult_should_convert_existing_ResultT_AeroError_Failure_to_ResultT()
+    {
+        var error = new AeroError.Conflict("legacy fail");
+        Result<string, AeroError> legacy = Prelude.Fail<string, AeroError>(error);
+
+        Result<string> result = legacy.ToDefaultResult();
+
+        result.Should().BeOfType<Result<string>.Failure>();
+        result.As<Result<string>.Failure>().Error.Should().Be(error);
     }
 
     // ── ToString ──────────────────────────────────────────────────────────

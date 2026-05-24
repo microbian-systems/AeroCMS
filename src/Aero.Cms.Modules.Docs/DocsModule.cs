@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Routing;
 using Aero.Cms.Core;
 using Aero.Modular;
 using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Core.Http;
+using Wolverine;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.Docs;
 
@@ -26,6 +30,7 @@ public sealed class DocsModule : AeroWebModule
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         opts.Schema.For<DocsPage>().DocumentAlias("docs");
+        opts.Schema.For<DocsPage>().UseOptimisticConcurrency(true);
         opts.Schema.For<DocsPage>().Index(x => x.SiteId);
         opts.Schema.For<DocsPage>().UniqueIndex(x => x.SiteId, x => x.Slug);
         opts.Schema.For<DocsPage>().Index(x => x.ParentId);
@@ -33,11 +38,34 @@ public sealed class DocsModule : AeroWebModule
         opts.Schema.For<DocsPage>().Index(x => x.PublishedOn);
         opts.Schema.For<DocsPage>().Index(x => x.CreatedOn);
         opts.Schema.For<DocsPage>().Index(x => x.ModifiedOn);
+
+        // Full-text search (Phase 1)
+        opts.Schema.For<DocsPage>().NgramIndex(x => x.Title);
+        opts.Schema.For<DocsPage>().NgramIndex(x => x.MarkdownContent);
+
+        // Editor state (Phase 1)
+        opts.Schema.For<DocsEditorState>().Identity(x => x.Id);
+        opts.Schema.For<DocsEditorState>().Index(x => x.SiteId);
     }
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
-        services.AddScoped<IDocsService, DocsService>();
+        // Content service — factory resolves ISiteContext + IHttpContextAccessor
+        // at the boundary and converts them to explicit primitives so the service
+        // never touches HTTP transport concerns.
+        services.AddScoped<IDocsService>(sp =>
+        {
+            var session = sp.GetRequiredService<IDocumentSession>();
+            var blockService = sp.GetRequiredService<IBlockService>();
+            var bus = sp.GetRequiredService<IMessageBus>();
+            var siteContext = sp.GetRequiredService<ISiteContext>();
+            var logger = sp.GetRequiredService<ILogger<DocsContentService>>();
+            var httpContextAccessor = sp.GetService<IHttpContextAccessor>();
+            var cache = sp.GetService<IFusionCache>();
+            var actor = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
+            return new DocsContentService(session, blockService, bus, siteContext, logger, actor, cache);
+        });
+        services.AddScoped<IDocsTreeService, DocsTreeService>();
 
         // Grain-backed actor — direct injection for thin API controllers
         services.AddSingleton<IAeroDocsActor>(sp =>

@@ -48,6 +48,18 @@ public sealed record DocViewModel : AeroEntityViewModel
     /// </summary>
     [Id(11)]
     public int Order { get; set; }
+
+    /// <summary>
+    /// Gets or sets the last published layout/content version.
+    /// </summary>
+    [Id(12)]
+    public long PublishedVersion { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current block schema version for docs content.
+    /// </summary>
+    [Id(13)]
+    public int BlockSchemaVersion { get; set; }
 }
 
 [GenerateSerializer]

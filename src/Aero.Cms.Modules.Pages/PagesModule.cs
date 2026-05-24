@@ -7,6 +7,10 @@ using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Core.Http;
+using Wolverine;
+using ZiggyCreatures.Caching.Fusion;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
@@ -30,7 +34,22 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
-        services.AddScoped<IPageContentService, MartenPageContentService>();
+        // Content service — factory resolves ISiteContext + IHttpContextAccessor
+        // at the boundary and converts them to explicit primitives so the service
+        // never touches HTTP transport concerns.
+        services.AddScoped<IPageContentService>(sp =>
+        {
+            var session = sp.GetRequiredService<IDocumentSession>();
+            var blockService = sp.GetRequiredService<IBlockService>();
+            var bus = sp.GetRequiredService<IMessageBus>();
+            var siteContext = sp.GetRequiredService<ISiteContext>();
+            var logger = sp.GetRequiredService<ILogger<MartenPageContentService>>();
+            var httpContextAccessor = sp.GetService<IHttpContextAccessor>();
+            var cache = sp.GetService<IFusionCache>();
+            var pageTreeService = sp.GetService<IPageTreeService>();
+            var actor = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
+            return new MartenPageContentService(session, blockService, bus, siteContext, logger, actor, cache, pageTreeService);
+        });
         services.AddSingleton<BlockEditingService>();
 
         // Grain-backed actor — direct injection for thin API controllers

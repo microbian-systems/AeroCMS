@@ -86,7 +86,7 @@ public sealed class ServerTargetSetupExecutor(
         var noopSiteContext = new NoopSiteContext();
         var pageContentService = new MartenPageContentService(session, blockService, bus, noopSiteContext,
             rootServiceProvider.GetRequiredService<ILogger<MartenPageContentService>>());
-        var blogPostContentService = new MartenBlogPostContentService(session, noopSiteContext);
+        var blogPostContentService = new PostContentService(session, noopSiteContext);
         var userStore = CreateUserStore(session, rootServiceProvider);
         var userManager = CreateUserManager(userStore, rootServiceProvider);
         var identityBootstrapper = new SetupIdentityBootstrapper(userManager);

@@ -19,7 +19,7 @@ namespace Aero.Cms.Modules.Posts.Grains;
 /// the <see cref="IAeroPostActor"/> interface.
 ///
 /// Uses manual-construction delegation: opens sessions from <see cref="IDocumentStore"/>,
-/// builds <see cref="MartenBlogPostContentService"/> inline with a <see cref="FixedSiteContext"/>,
+/// builds <see cref="PostContentService"/> inline with a <see cref="FixedSiteContext"/>,
 /// and delegates each operation to the service.
 /// </summary>
 public sealed class AeroPostGrain : AeroActor, IAeroPostActor
@@ -51,11 +51,11 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     // ── Helper: manual construction of MartenBlogPostContentService ──
 
-    private MartenBlogPostContentService CreatePostService(IDocumentSession session, long siteId)
+    private PostContentService CreatePostService(IDocumentSession session, long siteId)
     {
         var bus = _services.GetService<IMessageBus>();
         var cache = _services.GetService<IFusionCache>();
-        return new MartenBlogPostContentService(session, new FixedSiteContext(siteId), bus, null, cache);
+        return new PostContentService(session, new FixedSiteContext(siteId), bus, null, cache);
     }
 
     // ── Blog-specific methods (delegated to MartenBlogPostContentService) ────

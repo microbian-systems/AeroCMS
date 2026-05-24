@@ -32,6 +32,16 @@ public interface IAeroDocsActor : IAeroCmsContentActor<DocViewModel>
     Task<List<DocViewModel>> GetTopLevelCategoriesAsync(long siteId, CancellationToken ct = default);
     /// <summary>Save a doc (create or update).</summary>
     Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, CancellationToken ct = default);
+    /// <summary>Publish a doc.</summary>
+    Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, CancellationToken ct = default);
+    /// <summary>Unpublish a doc.</summary>
+    Task<AeroRequestResponse<DocViewModel>> UnpublishAsync(long id, CancellationToken ct = default);
+    /// <summary>Create a child section inside a docs space.</summary>
+    Task<AeroRequestResponse<DocViewModel>> CreateChildSectionAsync(long siteId, long spaceId, long parentId, string title, string? summary, CancellationToken ct = default);
+    /// <summary>Move a section inside a docs space.</summary>
+    Task<AeroRequestResponse<DocViewModel>> MoveSectionAsync(long siteId, long spaceId, long sectionId, long newParentId, int? order, bool rewriteSlug, CancellationToken ct = default);
+    /// <summary>Reorder sibling sections inside a docs space.</summary>
+    Task<AeroRequestResponse<DocViewModel>> ReorderSectionsAsync(long siteId, long spaceId, long parentId, IReadOnlyList<long> orderedIds, CancellationToken ct = default);
 }
 public interface IAeroMediaActor : IAeroCmsContentActor<MediaViewModel>
 {
@@ -42,8 +52,8 @@ public interface IAeroMediaActor : IAeroCmsContentActor<MediaViewModel>
 }
 public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
 {
-    /// <summary>Get all pages (paged + optional search).</summary>
-    Task<(List<PageViewModel> Items, long TotalCount)> GetAllPagesAsync(int skip, int take, string? search, CancellationToken ct);
+    /// <summary>Get all pages (paged + optional search) for a site.</summary>
+    Task<(List<PageViewModel> Items, long TotalCount)> GetAllPagesAsync(long siteId, int skip, int take, string? search, CancellationToken ct);
     /// <summary>Publish a page (event sourcing).</summary>
     Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, CancellationToken ct);
     /// <summary>Unpublish a page (event sourcing).</summary>
