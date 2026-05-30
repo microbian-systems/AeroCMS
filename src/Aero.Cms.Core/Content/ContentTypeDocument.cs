@@ -12,6 +12,7 @@ public sealed class ContentTypeDocument : Entity
     public string? Category { get; set; }
     public string? Icon { get; set; }
     public bool AllowPublicUrl { get; set; }
+    public bool HideFromSearch { get; set; }
     public List<ContentFieldDefinition> Fields { get; set; } = [];
     public string? ScribanTemplate { get; set; }
     public ContentTypeRenderMode RenderMode { get; set; }

@@ -12,10 +12,10 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Content;
 
-[Module(nameof(AeroContentModule))]
-public sealed class AeroContentModule : AeroWebModule, IContentDefinitionModule
+[Module(nameof(ContentModule))]
+public sealed class ContentModule : AeroWebModule, IContentDefinitionModule
 {
-    public override string Name => nameof(AeroContentModule);
+    public override string Name => nameof(ContentModule);
 
     public override string Version => AeroConstants.Version;
 
@@ -57,22 +57,21 @@ public sealed class AeroContentModule : AeroWebModule, IContentDefinitionModule
 
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
-        // todo - rename the document aliasses for content types
         // Marten document configuration for the content type system
         opts.Schema.For<ContentTypeDocument>()
             .Identity(x => x.Id)
-            .DocumentAlias("content_type_definitions")
+            .DocumentAlias(Schemas.Tables.ContentTypes)
             .Index(x => x.SiteId)
             .UniqueIndex(x => x.SiteId, x => x.Alias);
 
         opts.Schema.For<ContentItem>()
-            .DocumentAlias("content_items")
+            .DocumentAlias(Schemas.Tables.ContentItems)
             .Index(x => x.SiteId)
             .Index(x => x.Slug)
             .Index(x => x.ContentTypeAlias);
 
         opts.Schema.For<ContentItemVersion>()
-            .DocumentAlias("content_item_versions")
+            .DocumentAlias(Schemas.Tables.ContentItemVersions)
             .Index(x => x.ContentItemId);
     }
 

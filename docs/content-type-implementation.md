@@ -145,6 +145,11 @@ public sealed class ContentTypeDefinition : Entity
     public bool AllowPublicUrl { get; set; }
 
     /// <summary>
+    /// When true, entries of this type are not contributed to the site-wide search index.
+    /// </summary>
+    public bool HideFromSearch { get; set; }
+
+    /// <summary>
     /// The fields that this content type defines.
     /// Used for admin UI rendering, validation, indexing, and Scriban template generation.
     /// </summary>
@@ -2297,6 +2302,7 @@ public sealed class ContentSearchDocument
     public string ContentTypeAlias { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
+    public bool HideFromSearch { get; set; }
 
     /// <summary>Concatenated tokens from all indexed fields.</summary>
     public string FullText { get; set; } = string.Empty;
@@ -2323,8 +2329,6 @@ public sealed class ContentIndexService(
             return new ContentSearchDocument { Id = $"content:{item.SiteId}:{item.Id}" };
 
         var type = ((Result<ContentTypeDefinition, AeroError>.Ok)typeResult).Value;
-        var lookup = indexers.ToDictionary(x => x.FieldType, StringComparer.OrdinalIgnoreCase);
-
         var doc = new ContentSearchDocument
         {
             Id = $"content:{item.SiteId}:{item.Id}",
@@ -2332,8 +2336,14 @@ public sealed class ContentIndexService(
             ContentItemId = item.Id,
             ContentTypeAlias = item.ContentTypeAlias,
             Slug = item.Slug,
-            Title = item.Title ?? ""
+            Title = item.Title ?? "",
+            HideFromSearch = type.HideFromSearch
         };
+
+        if (type.HideFromSearch)
+            return doc;
+
+        var lookup = indexers.ToDictionary(x => x.FieldType, StringComparer.OrdinalIgnoreCase);
 
         foreach (var field in type.Fields)
         {

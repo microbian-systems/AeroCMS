@@ -29,7 +29,7 @@ public sealed class DocsModule : AeroWebModule
 
     public override void Configure(IServiceProvider services, StoreOptions opts)
     {
-        opts.Schema.For<DocsPage>().DocumentAlias("docs");
+        opts.Schema.For<DocsPage>().DocumentAlias(Schemas.Tables.Docs);
         opts.Schema.For<DocsPage>().UseOptimisticConcurrency(true);
         opts.Schema.For<DocsPage>().Index(x => x.SiteId);
         opts.Schema.For<DocsPage>().UniqueIndex(x => x.SiteId, x => x.Slug);

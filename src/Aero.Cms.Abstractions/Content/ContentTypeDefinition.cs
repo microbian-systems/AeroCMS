@@ -18,6 +18,11 @@ public sealed class ContentTypeDefinition : Entity
     public bool AllowPublicUrl { get; set; }
 
     /// <summary>
+    /// When true, entries of this type are not contributed to the site-wide search index.
+    /// </summary>
+    public bool HideFromSearch { get; set; }
+
+    /// <summary>
     /// The fields that this content type defines.
     /// </summary>
     public List<ContentFieldDefinition> Fields { get; set; } = [];

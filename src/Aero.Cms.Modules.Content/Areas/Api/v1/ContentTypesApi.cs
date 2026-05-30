@@ -47,7 +47,7 @@ public static class ContentTypesApi
 
                 return new ContentTypeSummary(
                     t.Alias, t.Name, t.Description, t.Category,
-                    t.AllowPublicUrl, fields.Count, t.RenderMode.ToString(),
+                    t.AllowPublicUrl, t.HideFromSearch, fields.Count, t.RenderMode.ToString(),
                     !string.IsNullOrWhiteSpace(t.ScribanTemplate), 0L);
             }).ToList();
 
@@ -109,6 +109,7 @@ public static class ContentTypesApi
                 Category = request.Category,
                 Icon = request.Icon,
                 AllowPublicUrl = request.AllowPublicUrl,
+                HideFromSearch = request.HideFromSearch,
                 FieldsJson = JsonSerializer.Serialize(request.Fields.ToList()),
                 ScribanTemplate = request.ScribanTemplate,
                 RenderMode = Enum.Parse<ContentTypeRenderMode>(request.RenderMode)
@@ -152,6 +153,7 @@ public static class ContentTypesApi
             existing.Category = request.Category;
             existing.Icon = request.Icon;
             existing.AllowPublicUrl = request.AllowPublicUrl;
+            existing.HideFromSearch = request.HideFromSearch;
             existing.FieldsJson = JsonSerializer.Serialize(request.Fields.ToList());
             existing.ScribanTemplate = request.ScribanTemplate;
             existing.RenderMode = Enum.Parse<ContentTypeRenderMode>(request.RenderMode);
@@ -200,7 +202,7 @@ public static class ContentTypesApi
 
         return new ContentTypeDetail(
             vm.Alias, vm.Name, vm.Description, vm.Category,
-            vm.Icon, vm.AllowPublicUrl, fields, vm.ScribanTemplate,
+            vm.Icon, vm.AllowPublicUrl, vm.HideFromSearch, fields, vm.ScribanTemplate,
             vm.RenderMode.ToString(), null);
     }
 

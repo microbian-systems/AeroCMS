@@ -48,6 +48,7 @@ public partial class ContentTypeEditor
     private string? Description { get; set; }
     private string? Category { get; set; }
     private bool AllowPublicUrl { get; set; }
+    private bool HideFromSearch { get; set; }
     private string RenderMode { get; set; } = "DynamicBlock";
     private string? ScribanTemplate { get; set; }
     private List<ContentFieldDefinition> Fields { get; set; } = [];
@@ -76,6 +77,7 @@ public partial class ContentTypeEditor
             Description = detail.Description;
             Category = detail.Category;
             AllowPublicUrl = detail.AllowPublicUrl;
+            HideFromSearch = detail.HideFromSearch;
             RenderMode = detail.RenderMode;
             ScribanTemplate = detail.ScribanTemplate;
             _useCustomTemplate = !string.IsNullOrWhiteSpace(detail.ScribanTemplate);
@@ -255,6 +257,7 @@ public partial class ContentTypeEditor
                 Category,
                 null,
                 AllowPublicUrl,
+                HideFromSearch,
                 Fields,
                 _useCustomTemplate ? ScribanTemplate : null,
                 RenderMode,

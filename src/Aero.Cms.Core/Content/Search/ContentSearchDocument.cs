@@ -24,6 +24,9 @@ public sealed class ContentSearchDocument
     /// <summary>The item title.</summary>
     public string Title { get; set; } = string.Empty;
 
+    /// <summary>Whether this document should be excluded from site-wide search results.</summary>
+    public bool HideFromSearch { get; set; }
+
     /// <summary>Concatenated tokens from all indexed fields, for full-text search.</summary>
     public string FullText { get; set; } = string.Empty;
 

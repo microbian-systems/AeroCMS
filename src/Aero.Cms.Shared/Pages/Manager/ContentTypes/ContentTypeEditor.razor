@@ -132,6 +132,19 @@
                 </div>
             </div>
 
+            <div class="ct-panel" style="background: var(--pe-bg-primary);">
+                <div class="flex items-start justify-between gap-6">
+                    <div>
+                        <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Site search</h2>
+                        <p class="ct-help mt-1">Leave this searchable for content visitors should be able to find. Hide private, helper, or reused-only content from site-wide search results.</p>
+                    </div>
+                    <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                        <RadzenCheckBox TValue="bool" @bind-Value="HideFromSearch" />
+                        Hide entries from site search
+                    </label>
+                </div>
+            </div>
+
             <RadzenFieldset Text="Advanced" AllowCollapse="true" Collapsed="true">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <label class="pe-property-group">

@@ -108,6 +108,7 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         Category = def.Category,
         Icon = def.Icon,
         AllowPublicUrl = def.AllowPublicUrl,
+        HideFromSearch = def.HideFromSearch,
         FieldsJson = JsonSerializer.Serialize(def.Fields),
         ScribanTemplate = def.ScribanTemplate,
         RenderMode = def.RenderMode
@@ -129,6 +130,7 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
             Category = vm.Category,
             Icon = vm.Icon,
             AllowPublicUrl = vm.AllowPublicUrl,
+            HideFromSearch = vm.HideFromSearch,
             Fields = fields,
             ScribanTemplate = vm.ScribanTemplate,
             RenderMode = vm.RenderMode

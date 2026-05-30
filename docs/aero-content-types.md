@@ -157,6 +157,7 @@ public sealed class ContentTypeDefinition : Entity
     public string? Category { get; set; }
     public string? Icon { get; set; }
     public bool AllowPublicUrl { get; set; }
+    public bool HideFromSearch { get; set; }
     public List<ContentFieldDefinition> Fields { get; set; } = [];
     public string? ScribanTemplate { get; set; }
     public ContentTypeRenderMode RenderMode { get; set; } = ContentTypeRenderMode.DynamicBlock;
@@ -165,6 +166,8 @@ public sealed class ContentTypeDefinition : Entity
 ```
 
 `AllowPublicUrl` defaults to false because content types are embedded-first.
+`HideFromSearch` defaults to false so entries are searchable unless an editor
+explicitly hides private, helper, or reused-only content from site search.
 
 ### `ContentFieldDefinition`
 

@@ -44,6 +44,7 @@ public sealed class MartenContentTypeService(IDocumentSession session) : IConten
             Category = definition.Category,
             Icon = definition.Icon,
             AllowPublicUrl = definition.AllowPublicUrl,
+            HideFromSearch = definition.HideFromSearch,
             Fields = definition.Fields,
             ScribanTemplate = definition.ScribanTemplate,
             RenderMode = definition.RenderMode
@@ -57,7 +58,7 @@ public sealed class MartenContentTypeService(IDocumentSession session) : IConten
     private static ContentTypeDefinition Map(ContentTypeDocument doc) => new()
     {
         Id = doc.Id, SiteId = doc.SiteId, Alias = doc.Alias, Name = doc.Name, Description = doc.Description,
-        Category = doc.Category, Icon = doc.Icon, AllowPublicUrl = doc.AllowPublicUrl, Fields = doc.Fields,
+        Category = doc.Category, Icon = doc.Icon, AllowPublicUrl = doc.AllowPublicUrl, HideFromSearch = doc.HideFromSearch, Fields = doc.Fields,
         ScribanTemplate = doc.ScribanTemplate, RenderMode = doc.RenderMode
     };
 }

@@ -27,6 +27,8 @@ public sealed record ContentTypeViewModel : AeroEntityViewModel
     public ContentTypeRenderMode RenderMode { get; set; }
     [Id(8)]
     public bool AllowPublicUrl { get; set; }
+    [Id(9)]
+    public bool HideFromSearch { get; set; }
 }
 
 [GenerateSerializer]

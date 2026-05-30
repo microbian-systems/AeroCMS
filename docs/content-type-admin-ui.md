@@ -78,6 +78,7 @@ The grid shows:
 | Fields | `FieldCount` | Badge |
 | Entries | `ItemCount` | Currently API-backed as `0`; count aggregation is a future refinement |
 | URL | `AllowPublicUrl` | "Public pages" or "Embedded" badge |
+| Search | `HideFromSearch` | "Searchable" or "Hidden" badge |
 | Display | `HasCustomTemplate` | "Custom template" or "Auto display" |
 | Category | `Category` | Optional grouping |
 | Actions | Edit/Delete | Stops propagation so row click still works |
@@ -114,6 +115,8 @@ Important UX details:
 - The alias/internal handle is auto-generated from the display name.
 - The public URL decision is phrased as an editor-friendly toggle:
   "Give each entry its own page".
+- Site search is phrased as an editor-friendly opt-out:
+  "Hide entries from site search".
 - Field types are presented as a field library with familiar names and icons.
 - Field cards support select, duplicate, move up/down, and delete.
 - Required status, help text, default value, and type-specific validation live
@@ -206,6 +209,13 @@ Public URL behavior:
   entry and does not ask non-technical users to manage a slug.
 - If `AllowPublicUrl` is true, the editor shows a slug field and auto-generates
   it from the title until the user edits it.
+
+Search behavior:
+
+- If `HideFromSearch` is false, published entries can contribute field values to
+  site search.
+- If `HideFromSearch` is true, entries of that type are skipped by the content
+  search indexer.
 
 ---
 

@@ -67,6 +67,18 @@
                     }
                 </Template>
             </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="HideFromSearch" Title="Search" Width="150px">
+                <Template Context="type">
+                    @if (type.HideFromSearch)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Hidden" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Searchable" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="ContentTypeSummary" Property="HasCustomTemplate" Title="Display" Width="150px">
                 <Template Context="type">
                     <span style="color: var(--pe-text-secondary);">@(type.HasCustomTemplate ? "Custom template" : "Auto display")</span>
