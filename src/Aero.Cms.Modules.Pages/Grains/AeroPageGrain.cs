@@ -104,6 +104,8 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         if (request is not CreatePageRequest create)
             return Fail("Expected CreatePageRequest");
 
+        create = RehydrateTransportPayload(create);
+
         await using var session = _store.LightweightSession();
         var pageService = CreatePageService(session, create.SiteId);
         var result = await pageService.CreateAsync(create, ct);
@@ -119,6 +121,8 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     {
         if (request is not UpdatePageRequest update)
             return Fail("Expected UpdatePageRequest");
+
+        update = RehydrateTransportPayload(update);
 
         // Load page from store to obtain its SiteId (not present on UpdatePageRequest)
         await using var loadSession = _store.QuerySession();
@@ -313,6 +317,39 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
     private static AeroRequestResponse<PageViewModel> Fail(string msg)
         => new(new PageViewModel(), new PageErrorViewModel { Message = msg });
+
+    private static CreatePageRequest RehydrateTransportPayload(CreatePageRequest request)
+    {
+        var editorBlocks = request.EditorBlocks
+            ?? DeserializeList<EditorBlock>(request.EditorBlocksJson);
+        var layoutRegions = request.LayoutRegions
+            ?? DeserializeList<LayoutRegion>(request.LayoutRegionsJson);
+
+        return request with
+        {
+            EditorBlocks = editorBlocks,
+            LayoutRegions = layoutRegions
+        };
+    }
+
+    private static UpdatePageRequest RehydrateTransportPayload(UpdatePageRequest request)
+    {
+        var editorBlocks = request.EditorBlocks
+            ?? DeserializeList<EditorBlock>(request.EditorBlocksJson);
+        var layoutRegions = request.LayoutRegions
+            ?? DeserializeList<LayoutRegion>(request.LayoutRegionsJson);
+
+        return request with
+        {
+            EditorBlocks = editorBlocks,
+            LayoutRegions = layoutRegions
+        };
+    }
+
+    private static List<T>? DeserializeList<T>(string? json)
+        => json is null
+            ? null
+            : JsonSerializer.Deserialize<List<T>>(json, BlockJsonContext.Default.Options);
 
     // ── FixedSiteContext ─────────────────────────────────────────────
 

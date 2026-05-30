@@ -191,7 +191,7 @@ public sealed class MartenPageContentService(
                 ShowChatAgent = request.ShowChatAgent
             };
 
-            if (request.EditorBlocks is { Count: > 0 })
+            if (request.EditorBlocks is not null)
             {
                 page.Blocks = request.EditorBlocks.ToList();
                 (page.LayoutRegions, page.BlockIdMap) = await ProcessEditorBlocks(request.EditorBlocks, [], cancellationToken);
@@ -303,7 +303,7 @@ public sealed class MartenPageContentService(
             ApplyUpdateRequest(page, request);
 
             // Process editor blocks — map to layout regions and persist BlockBase entities
-            if (request.EditorBlocks is { Count: > 0 })
+            if (request.EditorBlocks is not null)
             {
                 page.Blocks = request.EditorBlocks.ToList();
                 (page.LayoutRegions, page.BlockIdMap) = await ProcessEditorBlocks(

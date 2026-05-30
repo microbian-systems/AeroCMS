@@ -701,7 +701,7 @@ public sealed class SeedDatabaseService(
             Id = Snowflake.NewId(),
             Title = Normalize(request.HomepageTitle),
             Summary = homepageSummary,
-            BackgroundImageUrl = "/assets/hero-01.svg",
+            BackgroundImageUrl = "/media/data-center.png",
             FullWidth = true,
             Order = 0
         };
@@ -753,7 +753,7 @@ public sealed class SeedDatabaseService(
                                 <img src='/img/typescript.C9-blvjE_1dalL.svg' alt='TypeScript' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/preact-logo.svg' alt='Preact' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/lavinmq.png' alt='LavinMQ' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/aspire.png' alt='Aspire' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/wolverine-logo.png' alt='Wolverine' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/maui-icon.oIIgefok_ZfsSNl.webp' alt='MAUI' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/hydro_logo_s3.svg' alt='S3' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                             </div>
