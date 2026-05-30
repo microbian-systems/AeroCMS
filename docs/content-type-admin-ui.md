@@ -1,320 +1,245 @@
-# Content Type Admin UI — Design Spec
+# Content Type Admin UI
 
-## Guiding Principles
+## Status
 
-1. **Purely additive** — zero changes to existing pages, layouts, or styles
-2. **Follow existing patterns** — match `Pages.razor`, `Posts.razor`, `PageEditor.razor` conventions exactly
-3. **Nav additions are minimal** — one new section in the sidebar, no top-bar changes
-4. **Dynamic forms driven by schema** — content item editors render fields from `ContentFieldDefinition` at runtime
+Implemented as a Blazor/Radzen manager experience in
+`src/Aero.Cms.Shared/Pages/Manager/ContentTypes/`.
+
+This document is the current UX contract for the content type manager UI. Older
+notes that described content entries as routable by default are superseded by
+the embedded-first decision below.
 
 ---
 
-## Route Map
+## UX Decision: Embedded First, Public URLs Optional
+
+Content items are structured entries first. They are meant to be embedded in
+pages, blocks, listings, and other module experiences unless the editor
+explicitly enables standalone pages for that content type.
+
+The content type editor exposes this as:
+
+```text
+Public pages
+[ ] Give each entry its own page
+```
+
+Default: off.
+
+When disabled:
+
+- Entries are still draftable, publishable, searchable, and reusable.
+- The item editor hides the public slug workflow and shows the entry as
+  "Embedded entry".
+- Lists label the type or item as "Embedded" / "Embedded only".
+
+When enabled:
+
+- Entries collect a public URL slug in the item editor.
+- The type list labels the type as "Public pages".
+- A future routing slice must connect published entries to the public route and
+  slug registry. The UI/model toggle exists now; the public request pipeline is
+  intentionally separate.
+
+This matches the non-technical UX goal: users can create reusable structured
+content without accidentally publishing duplicate public pages.
+
+---
+
+## Routes
 
 | Route | Page Component | Purpose |
-|-------|---------------|---------|
+|-------|----------------|---------|
 | `/manager/content-types` | `ContentTypeList.razor` | List all content type schemas |
-| `/manager/content-type/editor/{alias?}` | `ContentTypeEditor.razor` | Define fields, validation, Scriban template |
-| `/manager/content/{alias}` | `ContentItemsList.razor` | Browse content items of a given type |
-| `/manager/content/{alias}/editor/{id?}` | `ContentItemEditor.razor` | Edit a content item via dynamic field form |
+| `/manager/content-type/editor/{alias?}` | `ContentTypeEditor.razor` | Create/edit content type schema |
+| `/manager/content/{alias}` | `ContentItemsList.razor` | Browse entries for one content type |
+| `/manager/content/{alias}/editor/{id?}` | `ContentItemEditor.razor` | Create/edit one content item |
 
-All pages live in `Aero.Cms.Shared/Pages/Manager/ContentTypes/` (WASM-compatible), share `@layout ManagerShellLayout` via the parent `_Imports.razor`, and use `[Authorize]`.
-
----
-
-## Content Item Model: Slug is Optional, Embedding is Primary
-
-Content items are **embedded data**, not standalone pages. The `ContentItem.Slug` field is **optional** — it only matters if you need a standalone public URL for that item (e.g. `/team/alice`). The default and primary pattern is embedding inside `PageDocument` blocks:
-
-```
-PageDocument "About Us"
-└── LayoutRegions
-    ├── TextBlock
-    ├── TeamListingBlock ──→ fetches ALL ContentItems of type "team-member"
-    │                       └── renders each via Scriban inline
-    └── ContentEmbedBlock ──→ renders single ContentItem by ID
-```
-
-Content items are **not pages** — they don't have layouts, navigation, regions, or SEO metadata. They are structured field bags that get rendered wherever a block references them.
-
-When used in a public Razor Page (`.cshtml` in `Aero.Cms.Modules.Content`), the route is **type-indexed**, not slug-indexed:
-
-| Route | Purpose | How |
-|-------|---------|-----|
-| `/products` | List all product items | Query `IContentQueryService.GetByTypeAsync("product")` |
-| `/team` | List all team member items | Query `"team-member"` type |
-| `/{slug}` | *Optional* catch-all for detail pages | Only if `ContentItem.Slug` is set |
-
-The slug field on a `ContentItem` is purely for the **exceptional** case where structured content needs its own URL. In normal use, content items exist only within the context of the pages that embed them.
+All pages live in `Aero.Cms.Shared/Pages/Manager/ContentTypes/` and use
+code-behind files for behavior.
 
 ---
 
-## Page 1: ContentTypeList — `/manager/content-types`
+## Page 1: ContentTypeList
 
-## Page 1: ContentTypeList — `/manager/content-types`
+Component:
 
-**Pattern:** Identical to existing `Pages.razor`.
+- `ContentTypeList.razor`
+- `ContentTypeList.razor.cs`
 
-**Header:**
-- Title: "Content Types"
-- Subtitle: "Manage structured content schemas for your site."
-- Search bar (`RadzenTextBox`)
-- "New Content Type" button → `/manager/content-type/editor`
+Pattern: match the list editors for pages, docs, and posts by using
+`RadzenDataGrid`.
 
-**Grid:** `RadzenDataGrid<ContentTypeSummary>` with server-side pagination via `LoadData`:
+The grid shows:
 
-| Column | Source | Render |
-|--------|--------|--------|
-| Name | `def.Name` | Bold text |
-| Alias | `def.Alias` | `<span class="text-xs font-mono bg-gray-100 px-2 py-1 rounded">` |
-| Fields | `def.Fields.Count` | Badge: `"{n} fields"` |
-| Category | `def.Category` | Badge if set |
-| Items | API count | Number of content items of this type |
-| Status | ScribanTemplate presence | "Custom template" / "Auto-generated" badge |
+| Column | Source | Notes |
+|--------|--------|-------|
+| Type | `ContentTypeSummary.Name`, `Description`, `Alias` | Primary identifying column |
+| Fields | `FieldCount` | Badge |
+| Entries | `ItemCount` | Currently API-backed as `0`; count aggregation is a future refinement |
+| URL | `AllowPublicUrl` | "Public pages" or "Embedded" badge |
+| Display | `HasCustomTemplate` | "Custom template" or "Auto display" |
+| Category | `Category` | Optional grouping |
+| Actions | Edit/Delete | Stops propagation so row click still works |
 
-**Actions:**
-- Row click → navigate to `/manager/content-type/editor/{alias}`
-- Delete → `RadzenConfirmDialog` → `DELETE /api/manager/content-types/{alias}`
-- "New Content Type" → `/manager/content-type/editor`
+Interactions:
 
-**Route registration in `AeroContentModule.ConfigureServices()`:**
-```csharp
-services.Configure<RazorPagesOptions>(options =>
-{
-    options.Conventions.AddAreaPageRoute("Content", "/ContentTypeList", "/manager/content-types");
-});
-```
+- Row click opens `/manager/content-type/editor/{alias}`.
+- Search filters the loaded list client-side.
+- Delete uses `DialogService.Confirm`.
+- Create opens `/manager/content-type/editor`.
 
 ---
 
-## Page 2: ContentTypeEditor — `/manager/content-type/editor/{alias?}`
+## Page 2: ContentTypeEditor
 
-**Pattern:** Tabbed editor similar to `PageEditor.razor` but with two tabs: "Definition" and "Template".
+Component:
 
-### Tab 1: Definition
+- `ContentTypeEditor.razor`
+- `ContentTypeEditor.razor.cs`
 
-**Meta section:**
+Goal: make schema creation understandable for non-technical users while still
+leaving advanced handles/templates available for developers.
 
-| Field | Component | Rules |
-|-------|-----------|-------|
-| Name | `<RadzenTextBox>` | Required, max 256 |
-| Alias | `<RadzenTextBox>` | Auto-gen from Name, editable. Pattern: `^[a-z][a-z0-9_-]*$`, max 128 |
-| Description | `<RadzenTextArea>` | Optional, max 512 |
-| Category | `<RadzenDropDown>` | Free-text or select existing |
-| Render Mode | `<RadzenDropDown>` | `DynamicBlock` (default), `BlockLayout` |
+Tabs:
 
-**Fields section — the core UI:**
+| Tab | Purpose |
+|-----|---------|
+| Basics | Name, category, description, public URL toggle, advanced handle/render mode |
+| Fields | Field cards, field palette, selected-field settings |
+| Display | Automatic display vs optional custom Scriban template |
 
-A dynamic sortable list of field definitions:
+Important UX details:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Fields                                                         │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ ⠿ Name: [Title    ]  Type: [text     ▼]  Req: [x]  [🗑]   ││
-│  │ ⠿ Name: [Excerpt  ]  Type: [richtext ▼]  Req: [ ]  [🗑]   ││
-│  │ ⠿ Name: [HeroImage]  Type: [image    ▼]  Req: [ ]  [🗑]   ││
-│  └─────────────────────────────────────────────────────────────┘│
-│  [+ Add Field]                                                  │
-│                                                                │
-│  → Field Settings (when a row is selected):                    │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ Label: [Hero Title]                                         ││
-│  │ Default: [Welcome]                                          ││
-│  │ Placeholder: [Enter title...]                               ││
-│  │ ── Validation ──                                            ││
-│  │ Max Length: [80]   Min Length: [2]                          ││
-│  │ Regex: [^[a-zA-Z].*]                                        ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-```
+- The alias/internal handle is auto-generated from the display name.
+- The public URL decision is phrased as an editor-friendly toggle:
+  "Give each entry its own page".
+- Field types are presented as a field library with familiar names and icons.
+- Field cards support select, duplicate, move up/down, and delete.
+- Required status, help text, default value, and type-specific validation live
+  in the selected-field settings panel.
+- Custom Scriban is hidden behind the Display tab and off by default.
 
-**FieldType dropdown** populated dynamically from all `IContentFieldEditor` DI registrations (reading their `FieldType` property): text, richtext, image, number, boolean, url, date, reference.
+Supported field types in the current UI:
 
-**Selected-row Settings panel** shows field-type-specific options from `ContentFieldDefinition.Settings`.
-
-### Tab 2: Template
-
-- `ScribanTemplate` textarea with monospace font
-- "Auto-generate from fields" button (populates from `ContentTypeTemplateGenerator`)
-- Preivew section showing rendered Scriban output (future)
-
-### Actions
-- Save → `POST /api/manager/content-types` (create) or `PUT /api/manager/content-types/{alias}` (update)
-- Cancel → back to `/manager/content-types`
+| Field type | Editor intent |
+|------------|---------------|
+| `text` | Short text |
+| `richtext` | Longer formatted copy |
+| `image` | Media URL with media selector support in the item editor |
+| `number` | Numeric value |
+| `boolean` | Yes/no |
+| `url` | Link |
+| `date` | Date |
+| `reference` | Reference to another entry |
 
 ---
 
-## Page 3: ContentItemsList — `/manager/content/{alias}`
+## Page 3: ContentItemsList
 
-**Pattern:** Follows `Posts.razor` pattern.
+Component:
 
-**Header (dynamic):**
-- Title: `"{ContentType.Name}"`
-- Subtitle: `"Managing {n} {name} items."`
-- Search bar
-- "New {ContentType.Name}" button → `/manager/content/{alias}/editor`
+- `ContentItemsList.razor`
+- `ContentItemsList.razor.cs`
 
-**Grid:** `RadzenDataGrid<ContentItemSummary>`:
+Pattern: `RadzenDataGrid<ContentItemSummary>` matching the other manager list
+experiences.
 
-| Column | Source | Render |
-|--------|--------|--------|
-| Title | `ContentItem.Title` | Bold |
-| Slug | `ContentItem.Slug` | mono badge |
-| First Field | `Fields[type.Fields[0].Name]` | First 50 chars (text), thumbnail (image) |
-| Status | `PublicationState` | Green "Published" / Yellow "Draft" badge |
-| Published | `PublishedOn` | `MMM dd, yyyy` |
+The grid shows:
 
-**Actions:**
-- Row click → `/manager/content/{alias}/editor/{id}`
-- Delete → confirmation → `DELETE /api/manager/content-types/{alias}/items/{id}`
+| Column | Source | Notes |
+|--------|--------|-------|
+| Entry | `Title`, `FirstFieldValue` | Main scanning column |
+| URL | `Slug`, gated by `AllowPublicUrl` | Shows "Embedded only" when public URLs are off |
+| Status | `PublicationState` | Draft/Published badge |
+| Published | `PublishedOn` | Date or dash |
+| Version | `VersionNumber` | Numeric badge |
+| Actions | Edit/Delete | Stops row-click propagation |
 
----
+Interactions:
 
-## Page 4: ContentItemEditor — `/manager/content/{alias}/editor/{id?}`
-
-**Pattern:** Tabbed editor with "Content" and "Metadata" tabs.
-
-### Tab: Content (dynamic form)
-
-Reads `ContentTypeDefinition.Fields` and renders each field:
-
-| FieldType | Rendered As | Component Alias |
-|-----------|-------------|-----------------|
-| `text` | `<RadzenTextBox>` | `aero-textbox` |
-| `richtext` | `<RadzenRichTextEditor>` | `aero-richtext-editor` |
-| `image` | Media picker + preview thumbnail | `aero-media-picker` |
-| `number` | `<RadzenNumeric>` | `aero-numberbox` |
-| `boolean` | `<RadzenCheckBox>` with label | `aero-checkbox` |
-| `url` | `<RadzenTextBox>` with URL validation | `aero-urlbox` |
-| `date` | `<RadzenDatePicker>` | `aero-datepicker` |
-| `reference` | Content type picker with search | `aero-reference-picker` |
-
-Each field renders:
-- Label (from `ContentFieldDefinition.Label` or `Name`)
-- Required indicator (red asterisk if `Required && mode == Publish`)
-- Help text from `Placeholder`
-- Validation messages from `IContentFieldValidator`
-
-### Tab: Metadata
-
-| Field | Component | Notes |
-|-------|-----------|-------|
-| Title | `<RadzenTextBox>` | Display title for lists |
-| Slug | `<RadzenTextBox>` | Auto-gen from title, editable |
-| Publication State | Badge | Current: Published / Draft |
-| Schedule Publish | `<RadzenDatePicker>` w/ time | Only if `ScheduleConfig.AllowScheduledPublish` |
-| Schedule Unpublish | `<RadzenDatePicker>` w/ time | Only if `ScheduleConfig.AllowScheduledUnpublish` |
-
-### Tab: Version History
-
-- Collapsible panel showing past versions
-- Each entry: version number, timestamp
-- Click to view version fields (read-only)
-
-### Actions
-
-| Button | Validation Mode | API Call |
-|--------|----------------|----------|
-| Save Draft | `Draft` | `POST /api/manager/content-types/{alias}/items` |
-| Publish | `Publish` | `POST /api/manager/content-types/{alias}/items/{id}/publish` |
-| Unpublish | — | `POST /api/manager/content-types/{alias}/items/{id}/unpublish` |
-| Delete | — | `DELETE /api/manager/content-types/{alias}/items/{id}` |
-
-Save on create, Save Draft + Publish on edit.
+- Row click opens `/manager/content/{alias}/editor/{id}`.
+- Search calls the content items API with a `search` query.
+- Delete uses confirmation.
+- Create opens `/manager/content/{alias}/editor`.
 
 ---
 
-## Nav Menu — Additive Change
+## Page 4: ContentItemEditor
 
-### Sidebar (`NavMenu.razor`)
+Component:
 
-Insert one new `NavMenuSection` after "Pages" (position 4), before "Docs" (position 5):
+- `ContentItemEditor.razor`
+- `ContentItemEditor.razor.cs`
 
-```razor
-@* 4. Content Types *@
-<NavMenuSection Href="/manager/content-types" Label="Content" 
-    Icon="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
-    IsCollapsed="IsCollapsed">
-    <NavMenuItem Href="/manager/content-types" Label="Types" IsCollapsed="IsCollapsed"/>
-</NavMenuSection>
-```
+Goal: let editors fill structured content as a familiar form, not as a schema or
+JSON editor.
 
-The icon SVG represents a document with text lines (structured data metaphor). Only one sub-item ("Types") — the content type items are accessed from the type's detail page, not from the nav.
+Layout:
 
-No changes to the top bar needed — the existing sidebar is the primary navigation.
+- Main field form on the left.
+- Metadata/publish panel on the right.
 
----
+Dynamic controls:
 
-## API Endpoints (to be implemented in Headless module)
+| Field type | Current Radzen control |
+|------------|------------------------|
+| `text` | `RadzenTextBox` |
+| `richtext` | `RadzenTextArea` |
+| `image` | Preview + URL textbox + `MediaSelectorModal` |
+| `number` | `RadzenNumeric<decimal?>` |
+| `boolean` | `RadzenCheckBox` |
+| `url` | `RadzenTextBox` |
+| `date` | `RadzenDatePicker<DateTime?>` |
+| `reference` | Textbox for referenced entry ID |
 
-| Method | Route | Service Method |
-|--------|-------|---------------|
-| `GET` | `/api/manager/content-types` | `IContentTypeService.GetAllAsync(siteId)` |
-| `GET` | `/api/manager/content-types/{alias}` | `IContentTypeService.GetByAliasAsync(siteId, alias)` |
-| `POST` | `/api/manager/content-types` | `IContentTypeService.SaveAsync(definition)` |
-| `PUT` | `/api/manager/content-types/{alias}` | `IContentTypeService.SaveAsync(definition)` |
-| `DELETE` | `/api/manager/content-types/{alias}` | (new) delete type if no items |
-| `GET` | `/api/manager/content-types/{alias}/items` | `IContentQueryService.GetByTypeAsync(...)` |
-| `GET` | `/api/manager/content-types/{alias}/items/{id}` | `IContentService.LoadAsync(id)` |
-| `POST` | `/api/manager/content-types/{alias}/items` | `ContentCommandService.SaveDraftAsync(item)` |
-| `PUT` | `/api/manager/content-types/{alias}/items/{id}` | `ContentCommandService.SaveDraftAsync(item)` |
-| `DELETE` | `/api/manager/content-types/{alias}/items/{id}` | `ContentCommandService.DeleteAsync(id)` |
-| `POST` | `/api/manager/content-types/{alias}/items/{id}/publish` | `ContentCommandService.PublishAsync(item)` |
-| `POST` | `/api/manager/content-types/{alias}/items/{id}/unpublish` | Set Draft + save |
-| `GET` | `/api/manager/content-types/{alias}/items/{id}/versions` | Query `ContentItemVersion` by `ContentItemId` |
+Publishing behavior:
 
----
+- Save Draft allows incomplete entries.
+- Publish validates required fields first.
+- Publish saves the latest draft before calling the publish endpoint.
+- Unpublish is available for published entries.
 
-## File Manifest
+Public URL behavior:
 
-### New files — Content module (`Aero.Cms.Modules.Content`)
-
-```
-Areas/Content/Pages/
-├── _Imports.razor                      # @layout ManagerShellLayout, @using, [Authorize]
-├── ContentTypeList.razor               # List all schemas
-├── ContentTypeList.razor.cs
-├── ContentTypeEditor.razor             # Create/edit schema
-├── ContentTypeEditor.razor.cs
-├── ContentItemsList.razor              # Browse items of a type
-├── ContentItemsList.razor.cs
-├── ContentItemEditor.razor             # Dynamic form editor
-└── ContentItemEditor.razor.cs
-```
-
-### New files — Headless module (`Aero.Cms.Modules.Headless`)
-
-```
-Areas/Api/v1/
-├── ContentTypesApi.cs                  # CRUD for content type definitions
-└── ContentItemsApi.cs                  # CRUD + publish/unpublish for content items
-```
-
-### Modified files (additive, 6 lines)
-
-```
-Aero.Cms.Shared/Layout/NavMenu.razor    # +1 NavMenuSection (6 lines, no existing lines changed)
-Aero.Cms.Modules.Content/AeroContentModule.cs  # +AddRazorPages() + route conventions
-```
-
-### Untouched (zero changes)
-
-- `Pages.razor`, `Posts.razor`, `Docs.razor` — separate features
-- `PageEditor.razor`, `PostEditor.razor` — different editor paradigms
-- `ManagerShellLayout.razor` — shared layout, unchanged
-- `BlockBase` hierarchy — `ContentEmbedBlock` already exists
-- `IPageContentService` — content types are not pages
-- All existing services — content type system is independent
+- If `AllowPublicUrl` is false, the editor displays the item as an embedded
+  entry and does not ask non-technical users to manage a slug.
+- If `AllowPublicUrl` is true, the editor shows a slug field and auto-generates
+  it from the title until the user edits it.
 
 ---
 
-## Implementation Order
+## API Endpoints
 
-1. **NavMenu.razor** — add the Content section (5 mins, static HTML)
-2. **API layer** — `ContentTypesApi.cs` + `ContentItemsApi.cs` (wraps existing services)
-3. **ContentTypeList.razor** — list page (copy `Pages.razor` pattern)
-4. **ContentTypeEditor.razor** — field definition UI (the most complex page)
-5. **ContentItemsList.razor** — items list (copy `Posts.razor` pattern)
-6. **ContentItemEditor.razor** — dynamic form (reads type schema at runtime)
-7. **Module registration** — `AddRazorPages()`, `AddAreaPageRoute()` in `AeroContentModule`
+The implemented admin endpoints are under `/api/v1/admin`.
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| `GET` | `/api/v1/admin/content-types` | List content types |
+| `GET` | `/api/v1/admin/content-types/{alias}` | Get one content type |
+| `POST` | `/api/v1/admin/content-types` | Create content type |
+| `PUT` | `/api/v1/admin/content-types/{alias}` | Update content type |
+| `DELETE` | `/api/v1/admin/content-types/{alias}` | Delete content type |
+| `GET` | `/api/v1/admin/content-items?contentType={alias}&skip={n}&take={n}&search={q}` | List/search entries |
+| `GET` | `/api/v1/admin/content-items/{alias}/{id}` | Get one entry |
+| `POST` | `/api/v1/admin/content-items/{alias}` | Create entry |
+| `PUT` | `/api/v1/admin/content-items/{alias}/{id}` | Update entry |
+| `DELETE` | `/api/v1/admin/content-items/{alias}/{id}` | Delete entry |
+| `POST` | `/api/v1/admin/content-items/{alias}/{id}/publish` | Publish entry |
+| `POST` | `/api/v1/admin/content-items/{alias}/{id}/unpublish` | Unpublish entry |
+
+Typed clients live in
+`src/Aero.Cms.Abstractions/Http/Clients/ContentTypesClient.cs`.
+
+---
+
+## Implementation Notes
+
+- Lists must use Radzen grids for consistency with pages, docs, and posts.
+- Keep non-technical labels in the primary flow; keep internal handles and
+  templates in advanced/secondary areas.
+- Continue using code-behind for page behavior.
+- Prefer reusable Page Editor property-panel classes where they fit the manager
+  experience.
+- Public entry routing should be implemented as a separate architecture slice
+  that updates the route registry/slug registry deliberately.

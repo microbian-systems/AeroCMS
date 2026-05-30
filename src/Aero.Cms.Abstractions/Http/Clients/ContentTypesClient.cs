@@ -90,10 +90,10 @@ public class ContentItemsHttpClient(HttpClient httpClient, ILogger<ContentItemsH
         => MapBoolResult(base.DeleteAsync($"{Uri.EscapeDataString(alias)}/{id}", ct));
 
     public Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default)
-        => PutAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/publish", new object(), ct);
+        => PostAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/publish", new object(), ct);
 
     public Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default)
-        => PutAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/unpublish", new object(), ct);
+        => PostAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/unpublish", new object(), ct);
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
     {
@@ -118,6 +118,7 @@ public record ContentTypeSummary(
     string Name,
     string? Description,
     string? Category,
+    bool AllowPublicUrl,
     int FieldCount,
     string RenderMode,
     bool HasCustomTemplate,
@@ -130,6 +131,7 @@ public record ContentTypeDetail(
     string? Description,
     string? Category,
     string? Icon,
+    bool AllowPublicUrl,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
     string RenderMode,
@@ -142,6 +144,7 @@ public record CreateContentTypeRequest(
     string? Description,
     string? Category,
     string? Icon,
+    bool AllowPublicUrl,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
     string RenderMode,

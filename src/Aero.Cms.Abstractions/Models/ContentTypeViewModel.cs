@@ -25,6 +25,8 @@ public sealed record ContentTypeViewModel : AeroEntityViewModel
     public string? ScribanTemplate { get; set; }
     [Id(7)]
     public ContentTypeRenderMode RenderMode { get; set; }
+    [Id(8)]
+    public bool AllowPublicUrl { get; set; }
 }
 
 [GenerateSerializer]

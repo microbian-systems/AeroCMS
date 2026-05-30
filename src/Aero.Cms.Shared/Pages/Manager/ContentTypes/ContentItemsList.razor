@@ -1,103 +1,105 @@
 @page "/manager/content/{alias}"
 @attribute [Authorize]
 @using Aero.Cms.Abstractions.Http.Clients
-@using Aero.Core
-@inject NavigationManager Navigation
-@inject IContentTypesHttpClient ContentTypesApi
-@inject IContentItemsHttpClient ContentItemsApi
-@inject DialogService DialogService
-@inject NotificationService NotificationService
 
-<style>
-    .rz-datatable-row:hover { cursor: pointer !important; background-color: rgba(0, 0, 0, 0.02) !important; }
-</style>
+<PageTitle>@_typeName</PageTitle>
 
 <div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">@typeName</h1>
-            <p class="mt-1 text-sm pe-description">@($"Managing {count} {typeName?.ToLower()} items.")</p>
+            <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--pe-text-muted);">Content entries</p>
+            <h1 class="text-2xl font-bold pe-heading">@_typeName</h1>
+            <p class="mt-1 text-sm pe-description">@HeaderDescription</p>
         </div>
-        <div class="flex gap-4">
-            <RadzenTextBox Placeholder="Search..." Value="@searchTerm" ValueChanged="@(v => searchTerm = v)" Change="@OnSearch" class="w-64" />
-            <RadzenButton Icon="add" Text="@($"New {typeName}")" ButtonStyle="ButtonStyle.Primary" Click='() => Navigation.NavigateTo($"/manager/content/{Alias}/editor")' />
+        <div class="flex gap-3">
+            <RadzenTextBox Placeholder="@($"Search {_typeName.ToLowerInvariant()}...")"
+                           Value="@_searchText"
+                           ValueChanged="@OnSearchChanged"
+                           class="w-64" />
+            <RadzenButton Icon="add"
+                          Text="@($"New {_typeName}")"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Click="@CreateItem" />
         </div>
     </div>
 
-    <RadzenDataGrid @ref="grid" Data="@items" TItem="ContentItemSummary" LoadData="@LoadData" Count="@count"
-                    IsLoading="@isLoading" AllowPaging="true" PageSize="10"
-                    AllowSorting="true" EmptyText="No items yet. Create one to get started!"
-                    RowClick="@OnRowClick">
+    <RadzenDataGrid @ref="_grid"
+                    Data="@_items"
+                    TItem="ContentItemSummary"
+                    Count="@_count"
+                    LoadData="@LoadData"
+                    IsLoading="@_isLoading"
+                    AllowPaging="true"
+                    AllowSorting="true"
+                    PageSize="10"
+                    PageSizeOptions="@(new List<int> { 10, 20, 50 })"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    ShowPagingSummary="true"
+                    RowClick="@OnRowClick"
+                    class="aero-grid cursor-pointer"
+                    EmptyText="No entries found. Create the first one when you're ready.">
         <Columns>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Property="Title" Title="Title" />
-            <RadzenDataGridColumn TItem="ContentItemSummary" Property="Slug" Title="Slug">
-                <Template Context="i"><span class="text-xs font-mono" style="background: var(--pe-bg-tertiary); color: var(--pe-text-secondary); padding: 2px 8px; border-radius: var(--pe-radius-sm);">@i.Slug</span></Template>
-            </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Title="Status">
-                <Template Context="i">
-                    @if (i.PublicationState == "Published")
-                    { <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Published</span> }
-                    else
-                    { <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Draft</span> }
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="Title" Title="Entry" MinWidth="260px">
+                <Template Context="item">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-medium" style="color: var(--pe-text-primary);">@item.Title</span>
+                        @if (!string.IsNullOrWhiteSpace(item.FirstFieldValue))
+                        {
+                            <span class="text-sm" style="color: var(--pe-text-secondary);">@FormatFirstField(item.FirstFieldValue)</span>
+                        }
+                    </div>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Title="Published">
-                <Template Context="i">@(i.PublishedOn?.ToString("MMM dd, yyyy") ?? "-")</Template>
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="Slug" Title="URL" Width="220px">
+                <Template Context="item">
+                    @if (_allowPublicUrl)
+                    {
+                        <code class="text-xs" style="color: var(--pe-text-muted);">/content/@Alias/@item.Slug</code>
+                    }
+                    else
+                    {
+                        <span style="color: var(--pe-text-muted);">Embedded only</span>
+                    }
+                </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Title="Version">
-                <Template Context="i"><span class="text-xs font-mono" style="background: var(--pe-bg-tertiary); color: var(--pe-text-secondary); padding: 2px 8px; border-radius: var(--pe-radius-sm);">v@(i.VersionNumber)</span></Template>
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="PublicationState" Title="Status" Width="130px">
+                <Template Context="item">
+                    @if (item.PublicationState == "Published")
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Published" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Draft" />
+                    }
+                </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Title="Actions">
-                <Template Context="i">
-                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click='(args) => OnDeleteItem(i.Id, args)' />
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="PublishedOn" Title="Published" Width="150px">
+                <Template Context="item">
+                    <span style="color: var(--pe-text-secondary);">@FormatDate(item.PublishedOn)</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="VersionNumber" Title="Version" Width="110px" TextAlign="TextAlign.Center">
+                <Template Context="item">
+                    <code class="text-xs" style="color: var(--pe-text-muted);">v@(item.VersionNumber)</code>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="ContentItemSummary" Title="Actions" Width="170px" Sortable="false" TextAlign="TextAlign.Right">
+                <Template Context="item">
+                    <div class="flex items-center justify-end gap-2" @onclick:stopPropagation="true">
+                        <RadzenButton Icon="edit"
+                                      Text="Edit"
+                                      ButtonStyle="ButtonStyle.Secondary"
+                                      Size="ButtonSize.Small"
+                                      Click="@(() => EditItem(item.Id))" />
+                        <RadzenButton Icon="delete"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      Variant="Variant.Outlined"
+                                      Size="ButtonSize.Small"
+                                      Click="@(() => DeleteItemAsync(item.Id))" />
+                    </div>
                 </Template>
             </RadzenDataGridColumn>
         </Columns>
     </RadzenDataGrid>
 </div>
-
-@code {
-    [Parameter] public string Alias { get; set; } = string.Empty;
-
-    RadzenDataGrid<ContentItemSummary>? grid;
-    IEnumerable<ContentItemSummary>? items;
-    int count;
-    bool isLoading = true;
-    string? searchTerm;
-    string typeName = "Items";
-
-    protected override async Task OnInitializedAsync()
-    {
-        var result = await ContentTypesApi.GetByAliasAsync(Alias);
-        if (result is Result<ContentTypeDetail, AeroError>.Ok ok) typeName = ok.Value.Name;
-        else typeName = Alias;
-    }
-
-    async Task LoadData(LoadDataArgs args)
-    {
-        isLoading = true;
-        var result = await ContentItemsApi.GetAllAsync(Alias, args.Skip ?? 0, args.Top ?? 10, searchTerm);
-        if (result is Result<PagedResult<ContentItemSummary>, AeroError>.Ok ok) { items = ok.Value.Items; count = (int)ok.Value.TotalCount; }
-        else { items = Enumerable.Empty<ContentItemSummary>(); count = 0; }
-        isLoading = false;
-    }
-
-    async Task OnSearch(string value) { searchTerm = value; if (grid != null) await grid.FirstPage(); }
-
-    void OnRowClick(DataGridRowMouseEventArgs<ContentItemSummary> args)
-    {
-        if (args.Data == null) return;
-        Navigation.NavigateTo($"/manager/content/{Alias}/editor/{args.Data.Id}");
-    }
-
-    async Task OnDeleteItem(long id, EventArgs args)
-    {
-        var confirmed = await DialogService.Confirm("Delete this item? This cannot be undone.", "Delete Item", new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
-        if (confirmed == true)
-        {
-            var result = await ContentItemsApi.DeleteAsync(Alias, id);
-            if (result is Result<bool, AeroError>.Failure fail) NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Delete Failed", Detail = fail.Error.ToString(), Duration = 4000 });
-            if (grid != null) await grid.Reload();
-        }
-    }
-}

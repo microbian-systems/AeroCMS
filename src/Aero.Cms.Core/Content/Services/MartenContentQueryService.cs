@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -21,6 +22,19 @@ public sealed class MartenContentQueryService(IDocumentSession session) : IConte
     {
         var query = session.Query<ContentItem>().Where(x => x.SiteId == siteId && x.ContentTypeAlias == alias);
         var items = await query.OrderByDescending(x => x.PublishedOn ?? DateTimeOffset.MinValue).ToListAsync(ct);
+        if (filters.TryGetValue("__search", out var search) && !string.IsNullOrWhiteSpace(search))
+        {
+            items = items
+                .Where(x =>
+                    Contains(x.Title, search) ||
+                    Contains(x.Slug, search) ||
+                    x.Fields.Values.Any(v => Contains(v.ValueKind == JsonValueKind.String ? v.GetString() : v.GetRawText(), search)))
+                .ToList();
+        }
+
         return Prelude.Ok<IReadOnlyList<ContentItem>, AeroError>((IReadOnlyList<ContentItem>)items);
     }
+
+    private static bool Contains(string? value, string search)
+        => value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
 }

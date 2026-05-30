@@ -1,7 +1,11 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Blocks.Serialization;
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Core.Content.Services;
+using Aero.Core;
+using Aero.Core.Http;
 
 namespace Aero.Cms.Modules.Content.Areas.Api.v1;
 
@@ -29,33 +33,38 @@ public static class ContentItemsApi
     private static async Task<IResult> ListContentItems(
         [FromQuery] string contentType,
         [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] IContentQueryService queryService,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 20,
+        [FromQuery] string? search = null,
         CancellationToken ct = default)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentItemsApi));
         try
         {
-            const long siteId = 1L;
-            var (items, totalCount) = await contentActor.GetByTypeAsync(siteId, contentType, skip, take, ct);
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
 
-            var summaries = items.Select(item =>
+            if (!string.IsNullOrWhiteSpace(search))
             {
-                string? firstFieldValue = null;
-                if (!string.IsNullOrEmpty(item.FieldsJson) && item.FieldsJson != "{}")
-                {
-                    var fields = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(item.FieldsJson);
-                    var firstField = fields?.Values.FirstOrDefault();
-                    if (firstField?.ValueKind != JsonValueKind.Undefined)
-                        firstFieldValue = firstField?.GetRawText();
-                }
+                var searchResult = await queryService.SearchAsync(
+                    siteId,
+                    contentType,
+                    new Dictionary<string, string> { ["__search"] = search },
+                    ct);
 
-                return new ContentItemSummary(
-                    item.Id, item.Title ?? string.Empty, item.Slug,
-                    item.ContentTypeAlias, firstFieldValue,
-                    item.PublicationState.ToString(), item.PublishedOn, item.VersionNumber);
-            }).ToList();
+                if (searchResult is Result<IReadOnlyList<ContentItem>, AeroError>.Ok ok)
+                {
+                    var page = ok.Value.Skip(skip).Take(take).Select(MapToSummary).ToList();
+                    return TypedResults.Ok(new PagedResult<ContentItemSummary>(page, ok.Value.Count, skip, take));
+                }
+            }
+
+            var (items, totalCount) = await contentActor.GetByTypeAsync(siteId, contentType, skip, take, ct);
+            var summaries = items.Select(MapToSummary).ToList();
 
             return TypedResults.Ok(new PagedResult<ContentItemSummary>(summaries, totalCount, skip, take));
         }
@@ -69,25 +78,34 @@ public static class ContentItemsApi
     private static async Task<IResult> GetContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
+        var siteId = siteContext.SiteId;
+        if (siteId <= 0)
+            return MissingSite();
+
         var result = await contentActor.GetByIdAsync(id, ct);
-        return !string.IsNullOrWhiteSpace(result.error.Message)
-            ? TypedResults.NotFound()
-            : TypedResults.Ok(MapToDetail(result.data));
+        if (!IsCurrentSiteItem(result, siteId, alias))
+            return TypedResults.NotFound();
+
+        return TypedResults.Ok(MapToDetail(result.data));
     }
 
     private static async Task<IResult> CreateContentItem(
         string alias,
         [FromBody] CreateContentItemRequest request,
         [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentItemsApi));
         try
         {
-            const long siteId = 1L;
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
 
             var fields = new Dictionary<string, JsonElement>();
             foreach (var (key, value) in request.Fields)
@@ -120,15 +138,20 @@ public static class ContentItemsApi
         string alias, long id,
         [FromBody] CreateContentItemRequest request,
         [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentItemsApi));
         try
         {
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
+
             // Load existing to preserve fields not in request
             var existing = await contentActor.GetByIdAsync(id, ct);
-            if (!string.IsNullOrWhiteSpace(existing.error.Message))
+            if (!IsCurrentSiteItem(existing, siteId, alias))
                 return TypedResults.NotFound();
 
             var existingVm = existing.data;
@@ -158,12 +181,21 @@ public static class ContentItemsApi
     private static async Task<IResult> DeleteContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentItemsApi));
         try
         {
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
+
+            var existing = await contentActor.GetByIdAsync(id, ct);
+            if (!IsCurrentSiteItem(existing, siteId, alias))
+                return TypedResults.NotFound();
+
             var result = await contentActor.DeleteAsync(id, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.BadRequest(new ProblemDetails { Title = "Failed to delete content item", Detail = result.error.Message, Status = StatusCodes.Status400BadRequest })
@@ -179,12 +211,21 @@ public static class ContentItemsApi
     private static async Task<IResult> PublishContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentItemsApi));
         try
         {
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
+
+            var existing = await contentActor.GetByIdAsync(id, ct);
+            if (!IsCurrentSiteItem(existing, siteId, alias))
+                return TypedResults.NotFound();
+
             var result = await contentActor.PublishAsync(id, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.NotFound(result.error)
@@ -200,12 +241,21 @@ public static class ContentItemsApi
     private static async Task<IResult> UnpublishContentItem(
         string alias, long id,
         [FromServices] IAeroContentItemActor contentActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentItemsApi));
         try
         {
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
+
+            var existing = await contentActor.GetByIdAsync(id, ct);
+            if (!IsCurrentSiteItem(existing, siteId, alias))
+                return TypedResults.NotFound();
+
             var result = await contentActor.UnpublishAsync(id, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
                 ? TypedResults.NotFound(result.error)
@@ -229,4 +279,50 @@ public static class ContentItemsApi
             fields, vm.PublicationState.ToString(), vm.PublishedOn,
             vm.VersionNumber, vm.SchedulePublishUtc, vm.ScheduleUnpublishUtc);
     }
+
+    private static ContentItemSummary MapToSummary(ContentItemViewModel item)
+    {
+        string? firstFieldValue = null;
+        if (!string.IsNullOrEmpty(item.FieldsJson) && item.FieldsJson != "{}")
+        {
+            var fields = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(item.FieldsJson);
+            var firstField = fields?.Values.FirstOrDefault();
+            if (firstField?.ValueKind != JsonValueKind.Undefined)
+                firstFieldValue = firstField?.GetRawText();
+        }
+
+        return new ContentItemSummary(
+            item.Id, item.Title ?? string.Empty, item.Slug,
+            item.ContentTypeAlias, firstFieldValue,
+            item.PublicationState.ToString(), item.PublishedOn, item.VersionNumber);
+    }
+
+    private static ContentItemSummary MapToSummary(ContentItem item)
+    {
+        var firstField = item.Fields.Values.FirstOrDefault();
+        var firstFieldValue = firstField.ValueKind == JsonValueKind.Undefined
+            ? null
+            : firstField.GetRawText();
+
+        return new ContentItemSummary(
+            item.Id, item.Title ?? string.Empty, item.Slug,
+            item.ContentTypeAlias, firstFieldValue,
+            item.PublicationState.ToString(), item.PublishedOn, item.VersionNumber);
+    }
+
+    private static bool IsCurrentSiteItem(
+        AeroRequestResponse<ContentItemViewModel> result,
+        long siteId,
+        string alias)
+        => string.IsNullOrWhiteSpace(result.error.Message) &&
+           result.data.SiteId == siteId &&
+           string.Equals(result.data.ContentTypeAlias, alias, StringComparison.OrdinalIgnoreCase);
+
+    private static IResult MissingSite()
+        => TypedResults.BadRequest(new ProblemDetails
+        {
+            Title = "No current site selected",
+            Detail = "Select a site in the manager before managing content entries.",
+            Status = StatusCodes.Status400BadRequest
+        });
 }

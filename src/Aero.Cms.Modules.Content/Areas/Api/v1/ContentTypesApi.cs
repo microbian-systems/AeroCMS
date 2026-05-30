@@ -2,6 +2,7 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Models;
+using Aero.Core.Http;
 
 namespace Aero.Cms.Modules.Content.Areas.Api.v1;
 
@@ -26,13 +27,17 @@ public static class ContentTypesApi
 
     private static async Task<IResult> ListContentTypes(
         [FromServices] IAeroContentTypeActor contentTypeActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentTypesApi));
         try
         {
-            const long siteId = 1L;
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
+
             var types = await contentTypeActor.GetAllAsync(siteId, ct);
             var summaries = types.Select(t =>
             {
@@ -42,7 +47,7 @@ public static class ContentTypesApi
 
                 return new ContentTypeSummary(
                     t.Alias, t.Name, t.Description, t.Category,
-                    fields.Count, t.RenderMode.ToString(),
+                    t.AllowPublicUrl, fields.Count, t.RenderMode.ToString(),
                     !string.IsNullOrWhiteSpace(t.ScribanTemplate), 0L);
             }).ToList();
 
@@ -58,13 +63,17 @@ public static class ContentTypesApi
     private static async Task<IResult> GetContentTypeByAlias(
         string alias,
         [FromServices] IAeroContentTypeActor contentTypeActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentTypesApi));
         try
         {
-            const long siteId = 1L;
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
+
             var type = await contentTypeActor.GetByAliasAsync(siteId, alias, ct);
             return type is not null
                 ? TypedResults.Ok(MapToDetail(type))
@@ -80,19 +89,26 @@ public static class ContentTypesApi
     private static async Task<IResult> CreateContentType(
         [FromBody] CreateContentTypeRequest request,
         [FromServices] IAeroContentTypeActor contentTypeActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentTypesApi));
         try
         {
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
+
             var vm = new ContentTypeViewModel
             {
+                SiteId = siteId,
                 Alias = request.Alias,
                 Name = request.Name,
                 Description = request.Description,
                 Category = request.Category,
                 Icon = request.Icon,
+                AllowPublicUrl = request.AllowPublicUrl,
                 FieldsJson = JsonSerializer.Serialize(request.Fields.ToList()),
                 ScribanTemplate = request.ScribanTemplate,
                 RenderMode = Enum.Parse<ContentTypeRenderMode>(request.RenderMode)
@@ -114,22 +130,28 @@ public static class ContentTypesApi
         string alias,
         [FromBody] CreateContentTypeRequest request,
         [FromServices] IAeroContentTypeActor contentTypeActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentTypesApi));
         try
         {
-            const long siteId = 1L;
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
+
             var existing = await contentTypeActor.GetByAliasAsync(siteId, alias, ct);
             if (existing is null)
                 return TypedResults.NotFound();
 
+            existing.SiteId = siteId;
             existing.Alias = request.Alias;
             existing.Name = request.Name;
             existing.Description = request.Description;
             existing.Category = request.Category;
             existing.Icon = request.Icon;
+            existing.AllowPublicUrl = request.AllowPublicUrl;
             existing.FieldsJson = JsonSerializer.Serialize(request.Fields.ToList());
             existing.ScribanTemplate = request.ScribanTemplate;
             existing.RenderMode = Enum.Parse<ContentTypeRenderMode>(request.RenderMode);
@@ -149,13 +171,17 @@ public static class ContentTypesApi
     private static async Task<IResult> DeleteContentType(
         string alias,
         [FromServices] IAeroContentTypeActor contentTypeActor,
+        [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(ContentTypesApi));
         try
         {
-            const long siteId = 1L;
+            var siteId = siteContext.SiteId;
+            if (siteId <= 0)
+                return MissingSite();
+
             var deleted = await contentTypeActor.DeleteAsync(siteId, alias, ct);
             return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
         }
@@ -174,7 +200,15 @@ public static class ContentTypesApi
 
         return new ContentTypeDetail(
             vm.Alias, vm.Name, vm.Description, vm.Category,
-            vm.Icon, fields, vm.ScribanTemplate,
+            vm.Icon, vm.AllowPublicUrl, fields, vm.ScribanTemplate,
             vm.RenderMode.ToString(), null);
     }
+
+    private static IResult MissingSite()
+        => TypedResults.BadRequest(new ProblemDetails
+        {
+            Title = "No current site selected",
+            Detail = "Select a site in the manager before managing content types.",
+            Status = StatusCodes.Status400BadRequest
+        });
 }

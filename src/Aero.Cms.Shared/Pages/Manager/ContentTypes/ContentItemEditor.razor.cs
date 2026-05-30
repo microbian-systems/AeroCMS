@@ -1,0 +1,413 @@
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Core;
+using Aero.Core.Railway;
+using Microsoft.AspNetCore.Components;
+using Radzen;
+
+namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
+
+public partial class ContentItemEditor
+{
+    [Parameter] public string Alias { get; set; } = string.Empty;
+    [Parameter] public long? Id { get; set; }
+
+    [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
+    [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
+    [Inject] private DialogService DialogService { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private ContentTypeDetail? _typeDefinition;
+    private readonly Dictionary<string, string> _fieldValues = [];
+    private readonly Dictionary<string, decimal?> _numberValues = [];
+    private readonly Dictionary<string, bool> _boolValues = [];
+    private readonly Dictionary<string, DateTime?> _dateValues = [];
+    private readonly Dictionary<string, string> _fieldErrors = [];
+
+    private bool _isSaving;
+    private bool _slugLocked;
+    private bool _allowPublicUrl;
+    private bool _showMediaSelector;
+    private string? _activeMediaField;
+    private string _typeName = "Content";
+    private string _title = string.Empty;
+    private string _slug = string.Empty;
+    private string _publicationState = "Draft";
+    private DateTimeOffset? _publishedOn;
+    private int _versionNumber;
+
+    private BadgeStyle StatusBadgeStyle => _publicationState == "Published"
+        ? BadgeStyle.Success
+        : BadgeStyle.Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var typeResult = await ContentTypesApi.GetByAliasAsync(Alias);
+        if (typeResult is not Result<ContentTypeDetail, AeroError>.Ok typeOk)
+        {
+            Notify(NotificationSeverity.Error, "Missing content type", "The selected content type could not be loaded.");
+            Navigation.NavigateTo("/manager/content-types");
+            return;
+        }
+
+        _typeDefinition = typeOk.Value;
+        _typeName = _typeDefinition.Name;
+        _allowPublicUrl = _typeDefinition.AllowPublicUrl;
+        InitializeFieldDictionaries();
+
+        if (Id.HasValue)
+        {
+            var itemResult = await ContentItemsApi.GetByIdAsync(Alias, Id.Value);
+            if (itemResult is Result<ContentItemDetail, AeroError>.Ok itemOk)
+            {
+                LoadItem(itemOk.Value);
+            }
+            else if (itemResult is Result<ContentItemDetail, AeroError>.Failure failure)
+            {
+                Notify(NotificationSeverity.Error, "Load failed", failure.Error.ToString());
+            }
+        }
+    }
+
+    private void InitializeFieldDictionaries()
+    {
+        if (_typeDefinition is null) return;
+
+        foreach (var field in _typeDefinition.Fields)
+        {
+            switch (field.FieldType)
+            {
+                case "number":
+                    _numberValues.TryAdd(field.Name, TryParseDecimal(field.DefaultValue));
+                    break;
+                case "boolean":
+                    _boolValues.TryAdd(field.Name, bool.TryParse(field.DefaultValue, out var value) && value);
+                    break;
+                case "date":
+                    _dateValues.TryAdd(field.Name, DateTime.TryParse(field.DefaultValue, out var date) ? date : null);
+                    break;
+                default:
+                    _fieldValues.TryAdd(field.Name, field.DefaultValue ?? string.Empty);
+                    break;
+            }
+        }
+    }
+
+    private void LoadItem(ContentItemDetail detail)
+    {
+        _title = detail.Title;
+        _slug = detail.Slug;
+        _slugLocked = true;
+        _publicationState = detail.PublicationState;
+        _publishedOn = detail.PublishedOn;
+        _versionNumber = detail.VersionNumber;
+        PopulateFieldValues(detail.Fields);
+    }
+
+    private void PopulateFieldValues(IReadOnlyDictionary<string, JsonElement> source)
+    {
+        if (_typeDefinition is null) return;
+
+        foreach (var field in _typeDefinition.Fields)
+        {
+            if (!source.TryGetValue(field.Name, out var element)) continue;
+
+            switch (field.FieldType)
+            {
+                case "number":
+                    _numberValues[field.Name] = element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined ? null : element.GetDecimal();
+                    break;
+                case "boolean":
+                    _boolValues[field.Name] = element.ValueKind == JsonValueKind.True;
+                    break;
+                case "date":
+                    _dateValues[field.Name] = element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined ? null : element.GetDateTime();
+                    break;
+                default:
+                    _fieldValues[field.Name] = element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined ? string.Empty : element.GetString() ?? string.Empty;
+                    break;
+            }
+        }
+    }
+
+    private void OnTitleChanged(string value)
+    {
+        _title = value;
+        if (!_slugLocked)
+        {
+            _slug = GenerateSlug(value);
+        }
+    }
+
+    private void OnSlugChanged(string value)
+    {
+        _slug = GenerateSlug(value);
+        _slugLocked = true;
+    }
+
+    private void SetDateValue(string fieldName, object? value)
+    {
+        _dateValues[fieldName] = value switch
+        {
+            DateTime dt => dt,
+            DateTimeOffset dto => dto.DateTime,
+            _ => null
+        };
+    }
+
+    private async Task SaveDraftAsync()
+    {
+        await SaveAsync(navigateAfterSave: true);
+    }
+
+    private async Task<ContentItemDetail?> SaveAsync(bool navigateAfterSave)
+    {
+        if (!ValidateForSave()) return null;
+
+        _isSaving = true;
+        try
+        {
+            var request = new CreateContentItemRequest(
+                _title.Trim(),
+                _allowPublicUrl ? _slug : GenerateSlug(_title),
+                BuildFieldsDictionary(),
+                null,
+                null);
+
+            var result = Id.HasValue
+                ? await ContentItemsApi.UpdateAsync(Alias, Id.Value, request)
+                : await ContentItemsApi.CreateAsync(Alias, request);
+
+            if (result is Result<ContentItemDetail, AeroError>.Ok ok)
+            {
+                Id = ok.Value.Id;
+                LoadItem(ok.Value);
+                Notify(NotificationSeverity.Success, "Saved", "Draft saved.");
+                if (navigateAfterSave)
+                {
+                    Navigation.NavigateTo($"/manager/content/{Alias}");
+                }
+
+                return ok.Value;
+            }
+
+            if (result is Result<ContentItemDetail, AeroError>.Failure failure)
+            {
+                Notify(NotificationSeverity.Error, "Save failed", failure.Error.ToString());
+            }
+
+            return null;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task PublishAsync()
+    {
+        if (!ValidateForPublish()) return;
+
+        var saved = await SaveAsync(navigateAfterSave: false);
+        if (saved is null || !Id.HasValue) return;
+
+        _isSaving = true;
+        try
+        {
+            var result = await ContentItemsApi.PublishAsync(Alias, Id.Value);
+            if (result is Result<ContentItemDetail, AeroError>.Ok ok)
+            {
+                LoadItem(ok.Value);
+                Notify(NotificationSeverity.Success, "Published", "Entry published.");
+                Navigation.NavigateTo($"/manager/content/{Alias}");
+                return;
+            }
+
+            if (result is Result<ContentItemDetail, AeroError>.Failure failure)
+            {
+                Notify(NotificationSeverity.Error, "Publish failed", failure.Error.ToString());
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task UnpublishAsync()
+    {
+        if (!Id.HasValue) return;
+
+        _isSaving = true;
+        try
+        {
+            var result = await ContentItemsApi.UnpublishAsync(Alias, Id.Value);
+            if (result is Result<ContentItemDetail, AeroError>.Ok ok)
+            {
+                LoadItem(ok.Value);
+                Notify(NotificationSeverity.Success, "Unpublished", "Entry moved back to draft.");
+                return;
+            }
+
+            if (result is Result<ContentItemDetail, AeroError>.Failure failure)
+            {
+                Notify(NotificationSeverity.Error, "Unpublish failed", failure.Error.ToString());
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (!Id.HasValue) return;
+
+        var confirmed = await DialogService.Confirm(
+            "Delete this entry? This cannot be undone.",
+            "Delete Entry",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirmed != true) return;
+
+        _isSaving = true;
+        try
+        {
+            var result = await ContentItemsApi.DeleteAsync(Alias, Id.Value);
+            if (result is Result<bool, AeroError>.Failure failure)
+            {
+                Notify(NotificationSeverity.Error, "Delete failed", failure.Error.ToString());
+                return;
+            }
+
+            Notify(NotificationSeverity.Success, "Deleted", "Entry removed.");
+            Navigation.NavigateTo($"/manager/content/{Alias}");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private bool ValidateForSave()
+    {
+        _fieldErrors.Clear();
+        if (string.IsNullOrWhiteSpace(_title))
+        {
+            Notify(NotificationSeverity.Warning, "Missing title", "Give this entry a title.");
+            return false;
+        }
+
+        if (_allowPublicUrl && string.IsNullOrWhiteSpace(_slug))
+        {
+            _slug = GenerateSlug(_title);
+        }
+
+        return true;
+    }
+
+    private bool ValidateForPublish()
+    {
+        if (!ValidateForSave()) return false;
+        if (_typeDefinition is null) return false;
+
+        foreach (var field in _typeDefinition.Fields.Where(field => field.Required))
+        {
+            if (IsFieldEmpty(field))
+            {
+                _fieldErrors[field.Name] = $"{FieldLabel(field)} is required before publishing.";
+            }
+        }
+
+        if (_fieldErrors.Count == 0) return true;
+
+        Notify(NotificationSeverity.Warning, "Required fields missing", "Complete the highlighted fields before publishing.");
+        return false;
+    }
+
+    private bool IsFieldEmpty(ContentFieldDefinition field)
+        => field.FieldType switch
+        {
+            "number" => !_numberValues.TryGetValue(field.Name, out var value) || value is null,
+            "boolean" => false,
+            "date" => !_dateValues.TryGetValue(field.Name, out var value) || value is null,
+            _ => !_fieldValues.TryGetValue(field.Name, out var value) || string.IsNullOrWhiteSpace(value)
+        };
+
+    private Dictionary<string, object?> BuildFieldsDictionary()
+    {
+        var dict = new Dictionary<string, object?>();
+        if (_typeDefinition is null) return dict;
+
+        foreach (var field in _typeDefinition.Fields)
+        {
+            dict[field.Name] = field.FieldType switch
+            {
+                "number" => _numberValues.GetValueOrDefault(field.Name),
+                "boolean" => _boolValues.GetValueOrDefault(field.Name),
+                "date" => _dateValues.GetValueOrDefault(field.Name),
+                _ => _fieldValues.GetValueOrDefault(field.Name, string.Empty)
+            };
+        }
+
+        return dict;
+    }
+
+    private void OpenMediaSelector(string fieldName)
+    {
+        _activeMediaField = fieldName;
+        _showMediaSelector = true;
+    }
+
+    private Task CloseMediaSelector()
+    {
+        _showMediaSelector = false;
+        _activeMediaField = null;
+        return Task.CompletedTask;
+    }
+
+    private Task ConfirmMediaSelection(List<MediaItem> selected)
+    {
+        if (_activeMediaField is not null && selected.FirstOrDefault() is { } media)
+        {
+            _fieldValues[_activeMediaField] = media.Src;
+        }
+
+        _showMediaSelector = false;
+        _activeMediaField = null;
+        return Task.CompletedTask;
+    }
+
+    private void Cancel()
+        => Navigation.NavigateTo($"/manager/content/{Alias}");
+
+    private static string FieldLabel(ContentFieldDefinition field)
+        => string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label!;
+
+    private static string FormatDate(DateTimeOffset? value)
+        => value?.ToLocalTime().ToString("MMM d, yyyy") ?? "-";
+
+    private static decimal? TryParseDecimal(string? value)
+        => decimal.TryParse(value, out var parsed) ? parsed : null;
+
+    private static string GenerateSlug(string value)
+    {
+        var slug = Regex.Replace(value.Trim().ToLowerInvariant(), @"[^a-z0-9\s_-]", "");
+        slug = Regex.Replace(slug, @"[\s_]+", "-");
+        slug = Regex.Replace(slug, "-{2,}", "-").Trim('-');
+        return slug;
+    }
+
+    private void Notify(NotificationSeverity severity, string summary, string detail)
+        => NotificationService.Notify(new NotificationMessage
+        {
+            Severity = severity,
+            Summary = summary,
+            Detail = detail,
+            Duration = 4000
+        });
+}

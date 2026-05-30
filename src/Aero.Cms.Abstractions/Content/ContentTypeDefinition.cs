@@ -4,11 +4,18 @@ namespace Aero.Cms.Abstractions.Content;
 
 public sealed class ContentTypeDefinition : Entity
 {
+    public long SiteId { get; set; }
     public string Alias { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? Category { get; set; }
     public string? Icon { get; set; }
+
+    /// <summary>
+    /// When true, entries of this type can be addressed by their own public URL.
+    /// Content types are embedded-first by default to avoid accidental public pages.
+    /// </summary>
+    public bool AllowPublicUrl { get; set; }
 
     /// <summary>
     /// The fields that this content type defines.

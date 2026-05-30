@@ -1,188 +1,213 @@
 @page "/manager/content/{alias}/editor/{id:long?}"
-@using Aero.Cms.Abstractions.Http.Clients
-@using Aero.Core
-@inject NavigationManager Navigation
-@inject IContentTypesHttpClient ContentTypesApi
-@inject IContentItemsHttpClient ContentItemsApi
-@inject DialogService DialogService
-@inject NotificationService NotificationService
+@using Aero.Cms.Shared.Layout
+
+<PageTitle>@(Id.HasValue ? $"Edit {_typeName}" : $"New {_typeName}")</PageTitle>
+
+<style>
+    .ci-editor-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .ci-panel {
+        background: var(--pe-bg-secondary);
+        border: 1px solid var(--pe-border);
+        border-radius: var(--pe-radius-md);
+        padding: 1rem;
+    }
+
+    .ci-field {
+        border-bottom: 1px solid var(--pe-border);
+        padding-bottom: 1rem;
+    }
+
+    .ci-field:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .ci-help {
+        color: var(--pe-text-secondary);
+        font-size: .875rem;
+    }
+
+    .ci-muted {
+        color: var(--pe-text-muted);
+    }
+
+    .ci-image-preview {
+        width: 100%;
+        max-width: 320px;
+        aspect-ratio: 16 / 9;
+        border: 1px solid var(--pe-border);
+        border-radius: var(--pe-radius-md);
+        object-fit: cover;
+        background: var(--pe-bg-primary);
+    }
+
+    @@media (max-width: 1024px) {
+        .ci-editor-shell {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
 
 <div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">@(Id.HasValue ? "Edit" : "New") @typeName</h1>
-            <p class="mt-1 text-sm pe-description">Content type: @typeName</p>
+            <p class="text-xs font-semibold uppercase tracking-wide ci-muted">Content entry</p>
+            <h1 class="text-2xl font-bold pe-heading">@(Id.HasValue ? $"Edit {_typeName}" : $"New {_typeName}")</h1>
+            <p class="mt-1 text-sm pe-description">@(_allowPublicUrl ? "This entry can have its own public page." : "This entry is designed to be embedded in pages and blocks.")</p>
         </div>
-        <div class="flex gap-4">
-            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => Navigation.NavigateTo($"/manager/content/{Alias}"))" />
-            @if (Id.HasValue) { <RadzenButton Text="Delete" Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="@DeleteAsync" /> }
-            <RadzenButton Text="Save Draft" ButtonStyle="ButtonStyle.Primary" Click="@SaveAsync" Disabled="@isSaving" />
-            <RadzenButton Text="Publish" Icon="publish" ButtonStyle="ButtonStyle.Success" Click="@PublishAsync" Disabled="@(isSaving || !Id.HasValue)" />
+        <div class="flex gap-3">
+            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@Cancel" />
+            @if (Id.HasValue)
+            {
+                <RadzenButton Icon="delete" Text="Delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Click="@DeleteAsync" Disabled="@_isSaving" />
+            }
+            <RadzenButton Icon="save" Text="Save Draft" ButtonStyle="ButtonStyle.Primary" Click="@SaveDraftAsync" Disabled="@_isSaving" />
+            @if (Id.HasValue && _publicationState == "Published")
+            {
+                <RadzenButton Icon="unpublished" Text="Unpublish" ButtonStyle="ButtonStyle.Warning" Click="@UnpublishAsync" Disabled="@_isSaving" />
+            }
+            else
+            {
+                <RadzenButton Icon="publish" Text="Publish" ButtonStyle="ButtonStyle.Success" Click="@PublishAsync" Disabled="@_isSaving" />
+            }
         </div>
     </div>
 
-    @if (typeDefinition == null)
+    @if (_typeDefinition is null)
     {
-        <div class="flex items-center justify-center py-16"><span style="color: var(--pe-text-muted);" class="text-sm">Loading content type definition...</span></div>
-        return;
+        <div class="ci-panel text-sm ci-muted">Loading entry form...</div>
     }
-
-    <RadzenPanel HeaderText="Metadata" ExpandText="Expand" CollapseText="Collapse" IsExpanded="true">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-            <div>
-                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Title <span class="text-red-500">*</span></label>
-                <RadzenTextBox Value="@title" ValueChanged="@(v => title = v)" Placeholder="Enter title..." />
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Slug</label>
-                <RadzenTextBox Value="@slug" ValueChanged="@(v => slug = v)" Placeholder="url-friendly-slug" />
-            </div>
-        </div>
-    </RadzenPanel>
-
-    <RadzenPanel HeaderText="Content Fields" ExpandText="Expand" CollapseText="Collapse" IsExpanded="true">
-        <div class="space-y-6 p-4">
-            @for (int i = 0; i < typeDefinition.Fields.Count; i++)
-            {
-                var f = typeDefinition.Fields[i];
-                <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">
-                        @(f.Label ?? f.Name) @if (f.Required) { <span class="text-red-500">*</span> }
-                    </label>
-                    @switch (f.FieldType)
+    else
+    {
+        <div class="ci-editor-shell">
+            <section class="ci-panel space-y-6" aria-label="Entry fields">
+                @if (_typeDefinition.Fields.Count == 0)
+                {
+                    <div class="text-center py-10">
+                        <p class="font-medium" style="color: var(--pe-text-primary);">This content type has no fields yet.</p>
+                        <p class="text-sm mt-1 ci-muted">Add fields to the content type before creating entries.</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var field in _typeDefinition.Fields)
                     {
-                        case "text": case "image": case "url":
-                            <RadzenTextBox Value="@fieldValues[f.Name]" ValueChanged="@(v => fieldValues[f.Name] = v)" Placeholder="@(f.Placeholder ?? "")" />
-                            break;
-                        case "richtext":
-                            <RadzenTextArea Value="@fieldValues[f.Name]" ValueChanged="@(v => fieldValues[f.Name] = v)" Placeholder="@(f.Placeholder ?? "")" Rows="5" Style="width: 100%;" />
-                            break;
-                        case "number":
-                            <RadzenNumeric TValue="decimal?" Value="@numberValues[f.Name]" ValueChanged="@(v => numberValues[f.Name] = v)" />
-                            break;
-                        case "boolean":
-                            <RadzenCheckBox TValue="bool" CheckboxValue="@boolValues[f.Name]" CheckboxValueChanged="@((bool v) => boolValues[f.Name] = v)" />
-                            break;
-                        case "date":
-                            <RadzenDatePicker TValue="DateTime?" Value="@dateValues[f.Name]" Change="@(args => { if (args is DateTime dt) dateValues[f.Name] = dt; })" />
-                            break;
-                        default:
-                            <RadzenTextBox Value="@fieldValues[f.Name]" ValueChanged="@(v => fieldValues[f.Name] = v)" Placeholder="@(f.Placeholder ?? "")" />
-                            break;
+                        <div class="ci-field space-y-2">
+                            <div>
+                                <label class="pe-property-label">
+                                    @FieldLabel(field)
+                                    @if (field.Required)
+                                    {
+                                        <span style="color: var(--rz-danger);">*</span>
+                                    }
+                                </label>
+                                @if (!string.IsNullOrWhiteSpace(field.Placeholder))
+                                {
+                                    <p class="ci-help mt-1">@field.Placeholder</p>
+                                }
+                                @if (_fieldErrors.TryGetValue(field.Name, out var error))
+                                {
+                                    <p class="text-sm mt-1" style="color: var(--rz-danger);">@error</p>
+                                }
+                            </div>
+
+                            @switch (field.FieldType)
+                            {
+                                case "richtext":
+                                    <RadzenTextArea Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Rows="10" Class="w-full" />
+                                    break;
+                                case "image":
+                                    <div class="space-y-3">
+                                        @if (!string.IsNullOrWhiteSpace(_fieldValues[field.Name]))
+                                        {
+                                            <img src="@_fieldValues[field.Name]" alt="" class="ci-image-preview" />
+                                        }
+                                        <div class="flex gap-2">
+                                            <RadzenButton Icon="image" Text="Choose image" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => OpenMediaSelector(field.Name))" />
+                                            <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="Image URL" Class="w-full" />
+                                        </div>
+                                    </div>
+                                    break;
+                                case "number":
+                                    <RadzenNumeric TValue="decimal?" Value="@_numberValues[field.Name]" ValueChanged="@(v => _numberValues[field.Name] = v)" Class="w-full" />
+                                    break;
+                                case "boolean":
+                                    <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
+                                        <RadzenCheckBox TValue="bool" @bind-Value="_boolValues[field.Name]" />
+                                        Yes
+                                    </label>
+                                    break;
+                                case "date":
+                                    <RadzenDatePicker TValue="DateTime?" Value="@_dateValues[field.Name]" Change="@(args => SetDateValue(field.Name, args))" Class="w-full" />
+                                    break;
+                                case "reference":
+                                    <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="Referenced entry ID" Class="w-full" />
+                                    break;
+                                default:
+                                    <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@field.Placeholder" Class="w-full" />
+                                    break;
+                            }
+                        </div>
                     }
-                </div>
-            }
+                }
+            </section>
+
+            <aside class="space-y-4">
+                <section class="ci-panel space-y-4" aria-label="Entry metadata">
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Details</h2>
+                        <RadzenBadge BadgeStyle="@StatusBadgeStyle" Text="@_publicationState" />
+                    </div>
+                    <label class="pe-property-group">
+                        <span class="pe-property-label">Title</span>
+                        <RadzenTextBox Value="@_title" ValueChanged="@OnTitleChanged" Placeholder="@($"Untitled {_typeName}")" Class="w-full" />
+                    </label>
+                    @if (_allowPublicUrl)
+                    {
+                        <label class="pe-property-group">
+                            <span class="pe-property-label">Public URL slug</span>
+                            <RadzenTextBox Value="@_slug" ValueChanged="@OnSlugChanged" Placeholder="entry-url" Class="w-full" />
+                            <span class="text-xs ci-muted">/content/@Alias/@_slug</span>
+                        </label>
+                    }
+                    else
+                    {
+                        <div class="ci-panel" style="background: var(--pe-bg-primary);">
+                            <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">Embedded entry</h3>
+                            <p class="ci-help mt-1">This entry will be selected from blocks or listings instead of having a standalone page.</p>
+                        </div>
+                    }
+                    @if (Id.HasValue)
+                    {
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="ci-muted">Version</span>
+                                <p style="color: var(--pe-text-primary);">v@_versionNumber</p>
+                            </div>
+                            <div>
+                                <span class="ci-muted">Published</span>
+                                <p style="color: var(--pe-text-primary);">@FormatDate(_publishedOn)</p>
+                            </div>
+                        </div>
+                    }
+                </section>
+
+                <section class="ci-panel space-y-3" aria-label="Publishing note">
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Publishing</h2>
+                    <p class="ci-help">Drafts can be incomplete. Publishing checks required fields and then makes the latest version available to pages, blocks, and public URLs when enabled.</p>
+                </section>
+            </aside>
         </div>
-    </RadzenPanel>
+    }
 </div>
 
-@code {
-    [Parameter] public string Alias { get; set; } = string.Empty;
-    [Parameter] public long? Id { get; set; }
-
-    string typeName = "Content";
-    ContentTypeDetail? typeDefinition;
-    bool isSaving;
-    string title = string.Empty;
-    string slug = string.Empty;
-    Dictionary<string, string> fieldValues = [];
-    Dictionary<string, decimal?> numberValues = [];
-    Dictionary<string, bool> boolValues = [];
-    Dictionary<string, DateTime?> dateValues = [];
-
-    protected override async Task OnInitializedAsync()
-    {
-        var typeResult = await ContentTypesApi.GetByAliasAsync(Alias);
-        if (typeResult is Result<ContentTypeDetail, AeroError>.Ok typeOk) { typeDefinition = typeOk.Value; typeName = typeDefinition.Name; }
-        else { Navigation.NavigateTo("/manager/content-types"); return; }
-        InitializeFieldDictionaries();
-        if (Id.HasValue)
-        {
-            var itemResult = await ContentItemsApi.GetByIdAsync(Alias, Id.Value);
-            if (itemResult is Result<ContentItemDetail, AeroError>.Ok itemOk) { title = itemOk.Value.Title; slug = itemOk.Value.Slug; PopulateFieldValues(itemOk.Value.Fields); }
-        }
-    }
-
-    void InitializeFieldDictionaries()
-    {
-        if (typeDefinition == null) return;
-        foreach (var field in typeDefinition.Fields)
-        {
-            switch (field.FieldType)
-            {
-                case "number": numberValues.TryAdd(field.Name, null); break;
-                case "boolean": boolValues.TryAdd(field.Name, false); break;
-                case "date": dateValues.TryAdd(field.Name, null); break;
-                default: fieldValues.TryAdd(field.Name, string.Empty); break;
-            }
-        }
-    }
-
-    void PopulateFieldValues(IReadOnlyDictionary<string, System.Text.Json.JsonElement> source)
-    {
-        if (typeDefinition == null) return;
-        foreach (var field in typeDefinition.Fields)
-        {
-            if (!source.TryGetValue(field.Name, out var element)) continue;
-            switch (field.FieldType)
-            {
-                case "number": numberValues[field.Name] = element.ValueKind is System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined ? null : element.GetDecimal(); break;
-                case "boolean": boolValues[field.Name] = element.ValueKind == System.Text.Json.JsonValueKind.True; break;
-                case "date": dateValues[field.Name] = element.ValueKind is System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined ? null : element.GetDateTime(); break;
-                default: fieldValues[field.Name] = element.ValueKind is System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined ? string.Empty : element.GetString() ?? string.Empty; break;
-            }
-        }
-    }
-
-    Dictionary<string, object?> BuildFieldsDictionary()
-    {
-        var dict = new Dictionary<string, object?>();
-        if (typeDefinition == null) return dict;
-        foreach (var field in typeDefinition.Fields)
-            dict[field.Name] = field.FieldType switch
-            {
-                "number" => numberValues.GetValueOrDefault(field.Name),
-                "boolean" => boolValues.GetValueOrDefault(field.Name),
-                "date" => dateValues.GetValueOrDefault(field.Name),
-                _ => fieldValues.GetValueOrDefault(field.Name, string.Empty),
-            };
-        return dict;
-    }
-
-    async Task SaveAsync()
-    {
-        if (string.IsNullOrWhiteSpace(title)) { NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Warning, Summary = "Validation", Detail = "Title is required.", Duration = 4000 }); return; }
-        if (string.IsNullOrWhiteSpace(slug)) slug = title.ToLowerInvariant().Replace(' ', '-');
-        isSaving = true;
-        var request = new CreateContentItemRequest(title, slug, BuildFieldsDictionary(), null, null);
-        var result = Id.HasValue ? await ContentItemsApi.UpdateAsync(Alias, Id.Value, request) : await ContentItemsApi.CreateAsync(Alias, request);
-        isSaving = false;
-        if (result is Result<ContentItemDetail, AeroError>.Failure fail) { NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Save Failed", Detail = fail.Error.ToString(), Duration = 4000 }); return; }
-        NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Saved", Detail = "Content item has been saved.", Duration = 2000 });
-        Navigation.NavigateTo($"/manager/content/{Alias}");
-    }
-
-    async Task PublishAsync()
-    {
-        if (!Id.HasValue) { await SaveAsync(); return; }
-        isSaving = true;
-        var result = await ContentItemsApi.PublishAsync(Alias, Id.Value);
-        isSaving = false;
-        if (result is Result<ContentItemDetail, AeroError>.Failure fail) { NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Publish Failed", Detail = fail.Error.ToString(), Duration = 4000 }); return; }
-        NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Published", Detail = "Content item has been published.", Duration = 2000 });
-        Navigation.NavigateTo($"/manager/content/{Alias}");
-    }
-
-    async Task DeleteAsync()
-    {
-        if (!Id.HasValue) return;
-        var confirmed = await DialogService.Confirm("Delete this content item? This cannot be undone.", "Delete Item", new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
-        if (confirmed != true) return;
-        isSaving = true;
-        var result = await ContentItemsApi.DeleteAsync(Alias, Id.Value);
-        isSaving = false;
-        if (result is Result<bool, AeroError>.Failure fail) { NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Error, Summary = "Delete Failed", Detail = fail.Error.ToString(), Duration = 4000 }); return; }
-        NotificationService.Notify(new NotificationMessage { Severity = NotificationSeverity.Success, Summary = "Deleted", Detail = "Content item has been deleted.", Duration = 2000 });
-        Navigation.NavigateTo($"/manager/content/{Alias}");
-    }
-}
+<MediaSelectorModal Show="@_showMediaSelector"
+                    MultiSelect="false"
+                    OnClose="@CloseMediaSelector"
+                    OnConfirm="@ConfirmMediaSelection" />

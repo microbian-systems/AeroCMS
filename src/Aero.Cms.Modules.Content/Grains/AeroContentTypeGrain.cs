@@ -101,11 +101,13 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
     private static ContentTypeViewModel MapToViewModel(ContentTypeDefinition def) => new()
     {
         Id = def.Id,
+        SiteId = def.SiteId,
         Alias = def.Alias,
         Name = def.Name,
         Description = def.Description,
         Category = def.Category,
         Icon = def.Icon,
+        AllowPublicUrl = def.AllowPublicUrl,
         FieldsJson = JsonSerializer.Serialize(def.Fields),
         ScribanTemplate = def.ScribanTemplate,
         RenderMode = def.RenderMode
@@ -120,11 +122,13 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         return new ContentTypeDefinition
         {
             Id = isNew ? Snowflake.NewId() : vm.Id,
+            SiteId = vm.SiteId,
             Alias = vm.Alias,
             Name = vm.Name,
             Description = vm.Description,
             Category = vm.Category,
             Icon = vm.Icon,
+            AllowPublicUrl = vm.AllowPublicUrl,
             Fields = fields,
             ScribanTemplate = vm.ScribanTemplate,
             RenderMode = vm.RenderMode

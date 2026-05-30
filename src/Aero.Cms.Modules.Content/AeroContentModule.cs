@@ -62,7 +62,8 @@ public sealed class AeroContentModule : AeroWebModule, IContentDefinitionModule
         opts.Schema.For<ContentTypeDocument>()
             .Identity(x => x.Id)
             .DocumentAlias("content_type_definitions")
-            .Index(x => x.SiteId);
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => x.SiteId, x => x.Alias);
 
         opts.Schema.For<ContentItem>()
             .DocumentAlias("content_items")
