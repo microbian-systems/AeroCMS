@@ -21,6 +21,24 @@ public sealed class NavMenuDocumentTests
     }
 
     [Test]
+    public void Create_StampsCultureAndTranslationSet()
+    {
+        var created = new NavMenuCreated(
+            SiteId: 10,
+            Name: "Header",
+            Key: "header",
+            UserId: null,
+            CreatedOn: DateTimeOffset.UtcNow,
+            Culture: "es-MX",
+            TranslationSetId: 42);
+
+        var menu = NavMenuDocument.Create(100, created);
+
+        menu.Culture.Should().Be("es-MX");
+        menu.TranslationSetId.Should().Be(42);
+    }
+
+    [Test]
     public void SaveDraftAfterPublish_MarksStateAsPublishedWithDraft()
     {
         var created = new NavMenuCreated(10, "Header", "header", null, DateTimeOffset.UtcNow);

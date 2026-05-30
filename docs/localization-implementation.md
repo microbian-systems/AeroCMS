@@ -124,9 +124,14 @@ For AeroCMS's Marten document model and event sourcing, the correct approach is 
     PageDocument           PageDocument      PageDocument
     Culture: "en-US"       Culture: "es-MX"  Culture: "ar-SA"
     Slug: "/about"         Slug: "/acerca-de" Slug: "/حول"
-    Blocks: [Hero-en,      Blocks: [Hero-es,  Blocks: [Hero-ar,
-             CTA-en]               CTA-es]           CTA-ar]
+    Blocks: [Hero content, Blocks: [Hero content, Blocks: [Hero content,
+             CTA content]          CTA content]          CTA content]
 ```
+
+The block examples above are culture-specific block **instances/data**, not
+separate per-language block types. Aero should keep one shared block
+implementation (`Hero`, `CTA`, etc.) and create or clone localized block data
+only when a translated page variant is created.
 
 ### Entity translation strategy by type
 

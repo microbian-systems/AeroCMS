@@ -22,6 +22,10 @@ public static class SitemapApi
             .WithName("GetSitemap")
             .WithTags("SEO");
 
+        app.MapGet("/sitemap-{culture}.xml", GetCultureSitemap)
+            .WithName("GetCultureSitemap")
+            .WithTags("SEO");
+
         app.MapGet("/robots.txt", GetRobotsTxt)
             .WithName("GetRobotsTxt")
             .WithTags("SEO");
@@ -36,7 +40,28 @@ public static class SitemapApi
         IHostEnvironment environment,
         CancellationToken ct)
     {
-        var result = await sitemapService.BuildSitemapAsync(ct);
+        var result = await sitemapService.BuildSitemapIndexAsync(ct);
+        if (result is Result<string, AeroError>.Ok ok)
+        {
+            if (environment.IsProduction())
+            {
+                httpContext.Response.Headers.CacheControl = "public,max-age=300";
+            }
+
+            return Results.Content(ok.Value, "application/xml", Encoding.UTF8);
+        }
+
+        return Results.Problem("Failed to generate sitemap");
+    }
+
+    private static async Task<IResult> GetCultureSitemap(
+        string culture,
+        HttpContext httpContext,
+        ISiteMapService sitemapService,
+        IHostEnvironment environment,
+        CancellationToken ct)
+    {
+        var result = await sitemapService.BuildSitemapAsync(culture, ct);
         if (result is Result<string, AeroError>.Ok ok)
         {
             if (environment.IsProduction())

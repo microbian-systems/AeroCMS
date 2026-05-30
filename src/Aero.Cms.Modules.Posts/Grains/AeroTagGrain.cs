@@ -3,6 +3,8 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Core.Entities;
+using System.Globalization;
 using Wolverine;
 using IRequest = Aero.Core.Commands.IRequest;
 
@@ -45,9 +47,12 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
     {
         await using var session = _store.LightweightSession();
         var tag = await session.LoadAsync<Models.Tag>(id, ct);
+        var translations = tag is null
+            ? new Dictionary<long, TagTranslation>()
+            : await LoadTranslationsAsync(session, [tag.Id], GetCurrentCulture(), ct);
 
         return tag is not null
-            ? Ok(MapToViewModel(tag))
+            ? Ok(PostTaxonomyTranslationMapper.MapTag(tag, translations.GetValueOrDefault(tag.Id)))
             : NotFound($"Tag {id} not found");
     }
 
@@ -58,7 +63,8 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(ct);
 
-        var results = tags.Select(MapToViewModel).ToList();
+        var translations = await LoadTranslationsAsync(session, tags.Select(x => x.Id), GetCurrentCulture(), ct);
+        var results = tags.Select(tag => PostTaxonomyTranslationMapper.MapTag(tag, translations.GetValueOrDefault(tag.Id))).ToList();
         return Ok(results);
     }
 
@@ -80,9 +86,9 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         session.Store(tag);
         await session.SaveChangesAsync(ct);
 
-        await _bus.PublishAsync(new TagViewModelCreated(MapToViewModel(tag)));
+        await _bus.PublishAsync(new TagViewModelCreated(PostTaxonomyTranslationMapper.MapTag(tag)));
 
-        return Ok(MapToViewModel(tag));
+        return Ok(PostTaxonomyTranslationMapper.MapTag(tag));
     }
 
     public async Task<AeroRequestResponse<TagViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
@@ -103,9 +109,9 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         session.Store(tag);
         await session.SaveChangesAsync(ct);
 
-        await _bus.PublishAsync(new TagViewModelUpdated(MapToViewModel(tag)));
+        await _bus.PublishAsync(new TagViewModelUpdated(PostTaxonomyTranslationMapper.MapTag(tag)));
 
-        return Ok(MapToViewModel(tag));
+        return Ok(PostTaxonomyTranslationMapper.MapTag(tag));
     }
 
     public async Task<AeroRequestResponse<TagViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
@@ -122,9 +128,9 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         session.Delete(tag);
         await session.SaveChangesAsync(ct);
 
-        await _bus.PublishAsync(new TagViewModelDeleted(MapToViewModel(tag)));
+        await _bus.PublishAsync(new TagViewModelDeleted(PostTaxonomyTranslationMapper.MapTag(tag)));
 
-        return Ok(MapToViewModel(tag));
+        return Ok(PostTaxonomyTranslationMapper.MapTag(tag));
     }
 
     // ── ICanFindBySite<TagViewModel, long> ────────────────────────────
@@ -143,7 +149,8 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
             .Take(rows)
             .ToListAsync(ct);
 
-        var results = tags.Select(MapToViewModel).ToList();
+        var translations = await LoadTranslationsAsync(session, tags.Select(x => x.Id), GetCurrentCulture(), ct);
+        var results = tags.Select(tag => PostTaxonomyTranslationMapper.MapTag(tag, translations.GetValueOrDefault(tag.Id))).ToList();
         return Ok(results);
     }
 
@@ -166,7 +173,8 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
             .Where(x => x.SiteId == siteId && x.Slug == slug)
             .ToListAsync(ct);
 
-        var results = tags.Select(MapToViewModel).ToList();
+        var translations = await LoadTranslationsAsync(session, tags.Select(x => x.Id), GetCurrentCulture(), ct);
+        var results = tags.Select(tag => PostTaxonomyTranslationMapper.MapTag(tag, translations.GetValueOrDefault(tag.Id))).ToList();
         return Ok(results);
     }
 
@@ -179,7 +187,8 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
             .OrderBy(x => x.Name)
             .ToListAsync(ct);
 
-        return tags.Select(MapToViewModel).ToList();
+        var translations = await LoadTranslationsAsync(session, tags.Select(x => x.Id), GetCurrentCulture(), ct);
+        return tags.Select(tag => PostTaxonomyTranslationMapper.MapTag(tag, translations.GetValueOrDefault(tag.Id))).ToList();
     }
 
     // ── Helpers ────────────────────────────────────────────────────────
@@ -202,15 +211,35 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
     private static AeroRequestResponse<TagViewModel> Fail(string msg)
         => new(new TagViewModel(), new TagErrorViewModel { Message = msg });
 
-    private static TagViewModel MapToViewModel(Models.Tag tag) => new()
+    private static async Task<IReadOnlyDictionary<long, TagTranslation>> LoadTranslationsAsync(
+        IDocumentSession session,
+        IEnumerable<long> tagIds,
+        string culture,
+        CancellationToken ct)
     {
-        Id = tag.Id,
-        SiteId = tag.SiteId,
-        Name = tag.Name,
-        Slug = tag.Slug,
-        CreatedOn = tag.CreatedOn,
-        ModifiedOn = tag.ModifiedOn,
-        CreatedBy = tag.CreatedBy,
-        ModifiedBy = tag.ModifiedBy
-    };
+        var ids = tagIds.Distinct().ToArray();
+        if (ids.Length == 0 || string.Equals(culture, SitesModel.DefaultCultureName, StringComparison.OrdinalIgnoreCase))
+            return new Dictionary<long, TagTranslation>();
+
+        var translations = await session.Query<TagTranslation>()
+            .Where(x => x.Culture == culture && ids.Contains(x.TagId))
+            .ToListAsync(ct);
+
+        return translations
+            .GroupBy(x => x.TagId)
+            .ToDictionary(x => x.Key, x => x.First());
+    }
+
+    private static string GetCurrentCulture()
+    {
+        try
+        {
+            return CultureInfo.GetCultureInfo(CultureInfo.CurrentUICulture.Name).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return SitesModel.DefaultCultureName;
+        }
+    }
+
 }

@@ -138,6 +138,94 @@ else if (ActiveTab == "metadata")
             </div>
         </div>
 
+        @if (Id.HasValue)
+        {
+            <div class="mt-8 pt-6 border-t space-y-4" style="border-top-color: var(--pe-border);">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                        <h3 class="text-lg font-medium" style="color: var(--pe-text-primary);">Translations</h3>
+                        <p class="text-sm mt-1" style="color: var(--pe-text-muted);">
+                            Current variant: @FormatCulture(LoadedPage?.Culture)
+                        </p>
+                    </div>
+                    @if (LoadedPage?.TranslationSetId is { } translationSetId)
+                    {
+                        <span class="text-xs font-mono px-2 py-1 rounded"
+                              style="background: var(--pe-bg-primary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
+                            Set @translationSetId
+                        </span>
+                    }
+                </div>
+
+                <div class="rounded-md border p-4 space-y-3"
+                     style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    @if (IsLoadingTranslations)
+                    {
+                        <p class="text-sm" style="color: var(--pe-text-muted);">Loading translations...</p>
+                    }
+                    else if (PageCultureVariants.Count == 0)
+                    {
+                        <p class="text-sm" style="color: var(--pe-text-muted);">No translation variants found.</p>
+                    }
+                    else
+                    {
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var variant in PageCultureVariants)
+                            {
+                                var isCurrent = LoadedPage?.Id == variant.Id;
+                                <button type="button"
+                                        class="pe-btn @(isCurrent ? "pe-btn-primary" : "pe-btn-ghost") pe-btn-sm"
+                                        disabled="@isCurrent"
+                                        @onclick="() => OpenTranslation(variant.Id)">
+                                    @FormatCulture(variant.Culture)
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (AvailableTranslationCultures.Any())
+                {
+                    <div class="grid grid-cols-1 md:grid-cols-[220px_1fr_auto] gap-3 items-end">
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Target Culture</label>
+                            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                    @bind="SelectedTranslationCulture">
+                                @foreach (var culture in AvailableTranslationCultures)
+                                {
+                                    <option value="@culture">@FormatCulture(culture)</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Translated Slug</label>
+                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
+                                   style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
+                                   @bind="TranslationSlug" @bind:event="oninput" placeholder="@PageSlug" />
+                        </div>
+                        <button type="button"
+                                class="pe-btn pe-btn-primary pe-btn-sm"
+                                disabled="@IsCreatingTranslation"
+                                @onclick="CreateTranslationAsync">
+                            @(IsCreatingTranslation ? "Creating..." : "Create Translation")
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-sm" style="color: var(--pe-text-muted);">All supported site cultures already have a page variant.</p>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="mt-8 pt-6 border-t" style="border-top-color: var(--pe-border);">
+                <h3 class="text-lg font-medium mb-2" style="color: var(--pe-text-primary);">Translations</h3>
+                <p class="text-sm" style="color: var(--pe-text-muted);">Save the page before creating translation variants.</p>
+            </div>
+        }
+
         <div class="mt-8 pt-6 border-t" style="border-top-color: var(--pe-border);">
             <h3 class="text-lg font-medium mb-4" style="color: var(--pe-text-primary);">Publishing &amp; History</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-md border" 

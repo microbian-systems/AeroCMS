@@ -21,6 +21,25 @@ public sealed class FooterDocumentTests
     }
 
     [Test]
+    public void Create_StampsCultureAndTranslationSet()
+    {
+        var created = new FooterCreated(
+            SiteId: 10,
+            Name: "Footer",
+            Key: "footer",
+            Description: null,
+            UserId: null,
+            CreatedOn: DateTimeOffset.UtcNow,
+            Culture: "es-MX",
+            TranslationSetId: 42);
+
+        var footer = FooterDocument.Create(100, created);
+
+        footer.Culture.Should().Be("es-MX");
+        footer.TranslationSetId.Should().Be(42);
+    }
+
+    [Test]
     public void SaveDraftAfterPublish_MarksStateAsPublishedWithDraft()
     {
         var created = new FooterCreated(10, "Footer", "footer", null, null, DateTimeOffset.UtcNow);

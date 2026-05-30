@@ -51,7 +51,9 @@ public sealed class SiteResolutionMiddleware(RequestDelegate next)
         context.Features.Set<IAeroSiteSlice>(new AeroSiteSlice
         {
             SiteId = site.Id,
-            TenantId = site.TenantId
+            TenantId = site.TenantId,
+            DefaultCulture = site.DefaultCulture,
+            SupportedCultures = site.SupportedCultures
         });
 
         await next(context);

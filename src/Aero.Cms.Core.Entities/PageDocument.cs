@@ -15,6 +15,8 @@ namespace Aero.Cms.Core.Entities;
 public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableEntity
 {
     public long SiteId { get; set; }
+    public long? TranslationSetId { get; set; }
+    public string Culture { get; set; } = SitesModel.DefaultCultureName;
     public PageKind Kind { get; set; } = PageKind.Standard;
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
@@ -142,6 +144,8 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
     public static PageDocument Create(PageCreated e) => new()
     {
         SiteId = e.SiteId,
+        TranslationSetId = e.TranslationSetId,
+        Culture = e.Culture,
         Title = e.Title,
         Slug = e.Slug,
         ParentId = e.ParentId,
@@ -214,7 +218,13 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
     {
         PublicationState = e.NewState;
         if (e.NewState == ContentPublicationState.Published)
+        {
             PublishedOn = DateTimeOffset.UtcNow;
+        }
+        else if (e.NewState == ContentPublicationState.Draft)
+        {
+            PublishedOn = null;
+        }
     }
 
     public void Apply(PageDeleted _) =>
@@ -253,7 +263,10 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         SeoDescription = SeoDescription,
         PublishedOn = PublishedOn,
         IsPublished = PublicationState == ContentPublicationState.Published,
+        PublicationState = PublicationState,
         SiteId = SiteId,
+        Culture = Culture,
+        TranslationSetId = TranslationSetId,
         ParentId = ParentId,
         Path = Path,
         Depth = Depth,

@@ -1,0 +1,44 @@
+@if (Show && !string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase))
+{
+    <section class="border-b border-amber-200 bg-amber-50 text-amber-950"
+             data-aero-fallback-banner="@DismissCookieName"
+             role="status"
+             aria-live="polite">
+        <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 text-sm sm:px-6 lg:px-8">
+            <p class="leading-6">
+                This page isn't available in @RequestedCultureDisplayName. Showing @RenderedCultureDisplayName version.
+            </p>
+            <button type="button"
+                    class="shrink-0 rounded-md border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-950 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-amber-50"
+                    data-aero-fallback-dismiss>
+                Dismiss
+            </button>
+        </div>
+    </section>
+    <script>
+        (() => {
+            const banners = document.querySelectorAll("[data-aero-fallback-banner]");
+            for (const banner of banners) {
+                const cookieName = banner.getAttribute("data-aero-fallback-banner");
+                if (!cookieName) continue;
+
+                const encodedName = encodeURIComponent(cookieName);
+                const isDismissed = document.cookie
+                    .split(";")
+                    .map(value => value.trim())
+                    .some(value => value.startsWith(encodedName + "="));
+
+                if (isDismissed) {
+                    banner.hidden = true;
+                    continue;
+                }
+
+                const button = banner.querySelector("[data-aero-fallback-dismiss]");
+                button?.addEventListener("click", () => {
+                    document.cookie = `${encodedName}=1; path=/; SameSite=Lax`;
+                    banner.hidden = true;
+                }, { once: true });
+            }
+        })();
+    </script>
+}

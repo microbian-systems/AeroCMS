@@ -17,7 +17,9 @@ public sealed record PageCreated(
     string Path = "",
     int Depth = 0,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
-    PageKind Kind = PageKind.Standard);
+    PageKind Kind = PageKind.Standard,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
 
 /// <summary>
 /// Appended when content fields change: Title, Slug, LayoutRegions,

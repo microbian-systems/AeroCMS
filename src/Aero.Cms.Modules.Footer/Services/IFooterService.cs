@@ -13,6 +13,12 @@ public interface IFooterService
 
     Task<Result<FooterDocument, AeroError>> GetAsync(long id, CancellationToken cancellationToken = default);
     Task<Result<FooterDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken cancellationToken = default);
+    Task<Result<FooterDocument, AeroError>> ForkToCultureAsync(
+        long id,
+        string targetCulture,
+        long? userId = null,
+        CancellationToken cancellationToken = default);
     Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default);
     Task<Result<FooterSnapshot?, AeroError>> GetPublishedSnapshotAsync(long id, CancellationToken cancellationToken = default);
     Task<Result<FooterSnapshot?, AeroError>> ResolveSnapshotAsync(long siteId, CancellationToken cancellationToken = default);

@@ -44,7 +44,9 @@ public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureMarten
         opts.Schema.For<FooterDocument>().Identity(x => x.Id);
         opts.Schema.For<FooterDocument>().UseOptimisticConcurrency(true);
         opts.Schema.For<FooterDocument>().Index(x => x.SiteId);
-        opts.Schema.For<FooterDocument>().UniqueIndex(x => x.SiteId, x => x.Key);
+        opts.Schema.For<FooterDocument>().Index(x => x.Culture);
+        opts.Schema.For<FooterDocument>().Index(x => x.TranslationSetId);
+        opts.Schema.For<FooterDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Key);
         opts.Schema.For<FooterDocument>().Index(x => x.State);
         Configure<FooterDocument>(services, opts);
 

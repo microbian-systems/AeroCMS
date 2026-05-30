@@ -7,7 +7,9 @@ public record CreateSiteRequest(
     string? PrimaryHost,
     List<string>? Hosts = null,
     string? Description = null,
-    bool IsDefault = false
+    bool IsDefault = false,
+    string? DefaultCulture = null,
+    List<string>? SupportedCultures = null
 ) : IRequest;
 
 [GenerateSerializer]
@@ -18,7 +20,9 @@ public record UpdateSiteRequest(
     string? PrimaryHost,
     List<string>? Hosts = null,
     string? Description = null,
-    bool IsDefault = false
+    bool IsDefault = false,
+    string? DefaultCulture = null,
+    List<string>? SupportedCultures = null
 ): IRequest;
 
 [GenerateSerializer]

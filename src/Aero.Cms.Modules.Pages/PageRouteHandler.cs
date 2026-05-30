@@ -1,6 +1,7 @@
 namespace Aero.Cms.Modules.Pages;
 
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Shared.Localization;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
@@ -52,7 +53,7 @@ public static class PageRouteHandler
         CancellationToken cancellationToken)
     {
         // Normalize slug - remove leading slash if present for consistency
-        var normalizedSlug = slug.TrimStart('/');
+        var normalizedSlug = AeroCultureRoute.StripLeadingCulture(slug);
 
         var result = await pageService.FindBySlugAsync(normalizedSlug, cancellationToken);
 

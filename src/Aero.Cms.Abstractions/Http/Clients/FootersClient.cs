@@ -7,6 +7,8 @@ public interface IFootersHttpClient
 {
     Task<Result<IReadOnlyList<FooterSummary>, AeroError>> GetAllAsync(CancellationToken ct = default);
     Task<Result<FooterDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+    Task<Result<FooterDetail, AeroError>> ForkToCultureAsync(long id, ForkFooterCultureRequest request, CancellationToken ct = default);
     Task<Result<FooterDetail, AeroError>> CreateAsync(CreateFooterRequest request, CancellationToken ct = default);
     Task<Result<FooterDetail, AeroError>> UpdateAsync(long id, UpdateFooterRequest request, CancellationToken ct = default);
     Task<Result<FooterDetail, AeroError>> SaveDraftAsync(long id, UpdateFooterRequest request, long expectedVersion, CancellationToken ct = default);
@@ -25,6 +27,12 @@ public sealed class FootersHttpClient(HttpClient httpClient, ILogger<FootersHttp
 
     public Task<Result<FooterDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
         => GetAsync<FooterDetail>($"details/{id}", ct);
+
+    public Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<FooterDetail>>($"{id}/translations", ct);
+
+    public Task<Result<FooterDetail, AeroError>> ForkToCultureAsync(long id, ForkFooterCultureRequest request, CancellationToken ct = default)
+        => PostAsync<ForkFooterCultureRequest, FooterDetail>($"{id}/translations", request, ct);
 
     public Task<Result<FooterDetail, AeroError>> CreateAsync(CreateFooterRequest request, CancellationToken ct = default)
         => PostAsync<CreateFooterRequest, FooterDetail>(string.Empty, request, ct);
@@ -70,7 +78,9 @@ public record FooterSummary(
     int LinkGroupCount,
     DateTime CreatedAt,
     long Version = 0,
-    string? State = null);
+    string? State = null,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
 
 public record FooterDetail(
     long Id,
@@ -86,7 +96,11 @@ public record FooterDetail(
     string? LogoUrl = null,
     string? BackgroundImageUrl = null,
     decimal OverlayOpacity = 0.35m,
-    string? CopyrightText = null);
+    string? CopyrightText = null,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
+
+public sealed record ForkFooterCultureRequest(string Culture);
 
 public record CreateFooterRequest(
     string Name,

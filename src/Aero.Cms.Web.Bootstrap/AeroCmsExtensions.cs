@@ -13,6 +13,7 @@ using Aero.Cms.Shared.Services;
 using Aero.Cms.Ui.Hyper;
 using Aero.Cms.Ui.Neo;
 using Aero.Cms.Web.Bootstrap.Infrastructure;
+using Aero.Cms.Web.Bootstrap.Localization;
 using Aero.Cms.Web.Bootstrap.Services;
 using Aero.Cms.Web.Core.Eextensions;
 using Aero.Core.Http;
@@ -23,6 +24,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -32,6 +34,7 @@ using Radzen;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
+using System.Globalization;
 
 namespace Aero.Cms.Web.Bootstrap;
 
@@ -103,6 +106,7 @@ public static class AeroCmsExtensions
         });
 
         services.AddHttpContextAccessor();
+        services.AddLocalization();
         services.AddRadzenComponents();
         services.AddNeoUIPrimitives();
         services.AddNeoUIComponents();
@@ -208,6 +212,16 @@ public static class AeroCmsExtensions
         app.MapStaticAssets();
 
         app.UseRouting();
+        app.UseRequestLocalization(options =>
+        {
+            var supportedCultures = CultureInfo.GetCultures(CultureTypes.SpecificCultures);
+
+            options.DefaultRequestCulture = new RequestCulture("en-US");
+            options.SupportedCultures = supportedCultures;
+            options.SupportedUICultures = supportedCultures;
+            options.ApplyCurrentCultureToResponseHeaders = true;
+            options.AddInitialRequestCultureProvider(new AeroRequestCultureProvider());
+        });
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseCmsSetupGate();

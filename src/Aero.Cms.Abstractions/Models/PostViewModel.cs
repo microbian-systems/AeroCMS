@@ -56,6 +56,10 @@ public sealed record PostViewModel : AeroEntityViewModel
     /// </summary>
     [Id(12)]
     public int Likes { get; set; }
+    [Id(13)]
+    public string Culture { get; set; } = "en-US";
+    [Id(14)]
+    public long? TranslationSetId { get; set; }
 
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 }

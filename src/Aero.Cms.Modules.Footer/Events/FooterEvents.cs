@@ -8,7 +8,9 @@ public sealed record FooterCreated(
     string Key,
     string? Description,
     long? UserId,
-    DateTimeOffset CreatedOn);
+    DateTimeOffset CreatedOn,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
 
 public sealed record FooterDraftSaved(
     long SiteId,

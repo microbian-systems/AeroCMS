@@ -58,7 +58,7 @@ public sealed class SlugRegistryTests
 
         // Assert — the stored ContentSlugDocument should have SiteId == 42
         _session.Received(1).Store(
-            Arg.Is<ContentSlugDocument>(d => d.SiteId == 42)
+            Arg.Is<ContentSlugDocument>(d => d.SiteId == 42 && d.Culture == "en-US")
         );
     }
 
@@ -90,6 +90,40 @@ public sealed class SlugRegistryTests
         _session.Received(1).Store(
             Arg.Is<ContentSlugDocument>(d =>
                 d.SiteId == 2 &&
+                d.OwnerId == 200 &&
+                d.NormalizedSlug == ContentSlugDocument.Normalize("/")));
+    }
+
+    [Test]
+    public async Task ReserveAsync_AllowsSameSlugAcrossDifferentCultures()
+    {
+        var docs = new List<ContentSlugDocument>
+        {
+            ContentSlugDocument.Create("/", 100, ContentSlugOwnerType.Page, siteId: 1, culture: "en-US")
+        }.AsQueryable();
+
+        var queryable = Substitute.For<IQueryable<ContentSlugDocument>>();
+        queryable.Provider.Returns(docs.Provider);
+        queryable.Expression.Returns(docs.Expression);
+        queryable.ElementType.Returns(docs.ElementType);
+        queryable.GetEnumerator().Returns(docs.GetEnumerator());
+
+        _session.Query<ContentSlugDocument>().Returns(queryable);
+
+        await ContentSlugReservation.ReserveAsync(
+            _session,
+            ownerId: 200,
+            ContentSlugOwnerType.Page,
+            slug: "/",
+            siteId: 1,
+            culture: "es-MX",
+            previousSlug: null,
+            CancellationToken.None);
+
+        _session.Received(1).Store(
+            Arg.Is<ContentSlugDocument>(d =>
+                d.SiteId == 1 &&
+                d.Culture == "es-MX" &&
                 d.OwnerId == 200 &&
                 d.NormalizedSlug == ContentSlugDocument.Normalize("/")));
     }

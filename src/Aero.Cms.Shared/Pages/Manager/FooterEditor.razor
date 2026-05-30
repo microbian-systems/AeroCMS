@@ -111,6 +111,77 @@
                 </div>
             </div>
 
+            <div class="rounded space-y-4"
+                 style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary); padding: 16px;">
+                <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Translations</h2>
+                        <p class="mt-1 text-sm pe-description">Current variant: @FormatCulture(_selected.Culture)</p>
+                    </div>
+                    @if (_selected.TranslationSetId is { } translationSetId)
+                    {
+                        <span class="text-xs font-mono px-2 py-1 rounded"
+                              style="background: var(--pe-bg-primary); color: var(--pe-text-secondary); border: 1px solid var(--pe-border);">
+                            Set @translationSetId
+                        </span>
+                    }
+                </div>
+
+                <div class="rounded p-4 space-y-3"
+                     style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary);">
+                    @if (_isLoadingTranslations)
+                    {
+                        <p class="text-sm pe-description">Loading translations...</p>
+                    }
+                    else if (_cultureVariants.Count == 0)
+                    {
+                        <p class="text-sm pe-description">No translation variants found.</p>
+                    }
+                    else
+                    {
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var variant in _cultureVariants)
+                            {
+                                var isCurrent = _selected.Id == variant.Id;
+                                <button type="button"
+                                        class="pe-btn @(isCurrent ? "pe-btn-primary" : "pe-btn-ghost") pe-btn-sm"
+                                        disabled="@isCurrent"
+                                        @onclick="() => OpenTranslation(variant.Id)">
+                                    @FormatCulture(variant.Culture)
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (AvailableTranslationCultures.Any())
+                {
+                    <div class="grid grid-cols-1 gap-3 items-end md:grid-cols-[minmax(0,1fr)_auto]">
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Target Culture</label>
+                            <select class="w-full rounded px-3 py-2"
+                                    style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);"
+                                    @bind="_selectedTranslationCulture">
+                                @foreach (var culture in AvailableTranslationCultures)
+                                {
+                                    <option value="@culture">@FormatCulture(culture)</option>
+                                }
+                            </select>
+                        </div>
+                        <RadzenButton Icon="translate"
+                                      Text="@(_isCreatingTranslation ? "Creating..." : "Create Translation")"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      Size="ButtonSize.Small"
+                                      Click="@CreateTranslationAsync"
+                                      Disabled="@_isCreatingTranslation" />
+                    </div>
+                }
+                else
+                {
+                    <p class="text-sm pe-description">All supported site cultures already have a footer variant.</p>
+                }
+            </div>
+
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Link Groups</h2>

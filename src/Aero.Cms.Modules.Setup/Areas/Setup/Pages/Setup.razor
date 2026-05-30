@@ -126,30 +126,37 @@
                                     </div>
                                     <div class="space-y-2">
                                         <label class="text-xs font-bold text-slate-700">Default Culture</label>
-                                        <InputSelect @bind-Value="Input.DefaultCulture" class="@GetFieldClass("Input.DefaultCulture")">
-                                            <option value="en-US">🇺🇸 English (United States)</option>
-                                            <option value="en-GB">🇬🇧 English (United Kingdom)</option>
-                                            <option value="fr-FR">🇫🇷 Français</option>
-                                            <option value="de-DE">🇩🇪 Deutsch</option>
-                                            <option value="es-ES">🇪🇸 Español</option>
-                                            <option value="it-IT">🇮🇹 Italiano</option>
-                                            <option value="pt-BR">🇧🇷 Português (Brasil)</option>
-                                            <option value="nl-NL">🇳🇱 Nederlands</option>
-                                            <option value="pl-PL">🇵🇱 Polski</option>
-                                            <option value="ru-RU">🇷🇺 Русский</option>
-                                            <option value="zh-CN">🇨🇳 中文 (简体)</option>
-                                            <option value="ja-JP">🇯🇵 日本語</option>
-                                            <option value="ko-KR">🇰🇷 한국어</option>
-                                            <option value="ar-SA">🇸🇦 العربية</option>
-                                            <option value="hi-IN">🇮🇳 हिन्दी</option>
-                                            <option value="tr-TR">🇹🇷 Türkçe</option>
-                                            <option value="sv-SE">🇸🇪 Svenska</option>
-                                            <option value="cs-CZ">🇨🇿 Čeština</option>
-                                            <option value="el-GR">🇬🇷 Ελληνικά</option>
-                                            <option value="he-IL">🇮🇱 עברית</option>
-                                            <option value="th-TH">🇹🇭 ไทย</option>
-                                        </InputSelect>
+                                        <select value="@Input.DefaultCulture" @onchange="OnDefaultCultureChanged" class="@GetFieldClass("Input.DefaultCulture")">
+                                            @foreach (var culture in Input.SupportedCultures)
+                                            {
+                                                var option = CommonCultureOptions.FirstOrDefault(item => string.Equals(item.Name, culture, StringComparison.OrdinalIgnoreCase));
+                                                <option value="@culture">@(option?.DisplayName ?? culture) (@culture)</option>
+                                            }
+                                        </select>
                                     </div>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between gap-4">
+                                        <label class="text-xs font-bold text-slate-700">Supported Cultures</label>
+                                        <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">@Input.SupportedCultures.Count selected</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        @foreach (var culture in CommonCultureOptions)
+                                        {
+                                            <label class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50/50">
+                                                <input type="checkbox"
+                                                       checked="@IsCultureSelected(culture.Name)"
+                                                       @onchange="args => ToggleCulture(culture.Name, args)"
+                                                       class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                                <span>@culture.DisplayName</span>
+                                                <span class="ml-auto text-xs font-bold text-slate-400">@culture.Name</span>
+                                            </label>
+                                        }
+                                    </div>
+                                    <p class="text-[11px] font-medium text-slate-500">
+                                        The default culture is always included. Additional cultures can be used for page translations, navigation, footer variants, SEO, and sitemaps.
+                                    </p>
                                 </div>
                             </div>
                         }
@@ -343,7 +350,8 @@
                                             <p><span class="font-semibold text-slate-900">Homepage:</span> @Input.HomepageTitle</p>
                                             <p><span class="font-semibold text-slate-900">Blog:</span> @Input.BlogName</p>
                                             <p><span class="font-semibold text-slate-900">Hostname:</span> @Input.Hostname</p>
-                                            <p><span class="font-semibold text-slate-900">Culture:</span> @Input.DefaultCulture</p>
+                                            <p><span class="font-semibold text-slate-900">Default Culture:</span> @Input.DefaultCulture</p>
+                                            <p><span class="font-semibold text-slate-900">Supported Cultures:</span> @string.Join(", ", Input.SupportedCultures)</p>
                                         </div>
                                     </div>
 

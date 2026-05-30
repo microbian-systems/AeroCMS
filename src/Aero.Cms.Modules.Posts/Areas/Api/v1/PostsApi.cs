@@ -5,6 +5,7 @@ using Aero.Cms.Abstractions.Audit;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Http;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Web.Core.Blocks.Rendering;
 using Aero.Core.Http;
@@ -33,11 +34,17 @@ public static class PostsApi
         group.MapGet("/{id:long}", GetPostById)
             .WithName("GetPostById");
 
+        group.MapGet("/{id:long}/translations", ListPostTranslations)
+            .WithName("ListPostTranslations");
+
         group.MapGet("/slug/{slug}", GetPostBySlug)
             .WithName("GetPostBySlug");
 
         group.MapPost("/", CreatePost)
             .WithName("CreatePost");
+
+        group.MapPost("/{id:long}/translations", ForkPostToCulture)
+            .WithName("ForkPostToCulture");
 
         group.MapPut("/{id:long}", UpdatePost)
             .WithName("UpdatePost");
@@ -109,6 +116,27 @@ public static class PostsApi
             : TypedResults.Ok(MapToBlogDetail(result.data));
     }
 
+    private static async Task<IResult> ListPostTranslations(
+        long id,
+        [FromServices] IAeroPostActor postsActor,
+        CancellationToken cancellationToken = default)
+    {
+        var variants = await postsActor.ListCultureVariantsAsync(id, cancellationToken);
+        return TypedResults.Ok(variants.Select(MapToBlogDetail).ToList());
+    }
+
+    private static async Task<IResult> ForkPostToCulture(
+        long id,
+        [FromBody] ForkBlogCultureRequest request,
+        [FromServices] IAeroPostActor postsActor,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await postsActor.ForkPostForCultureAsync(id, request.Culture, request.Slug, cancellationToken);
+        return !string.IsNullOrWhiteSpace(result.error.Message)
+            ? TypedResults.BadRequest(new { error = result.error })
+            : TypedResults.Ok(MapToBlogDetail(result.data));
+    }
+
     private static async Task<IResult> GetPostBySlug(
         string slug,
         [FromServices] IAeroPostActor postsActor,
@@ -174,7 +202,7 @@ public static class PostsApi
             var userId = GetUserId(httpContextAccessor);
             var auditEvent = BlogPostCreatedEvent.Create(userId, vm.Id, vm.Title ?? string.Empty, vm.Slug ?? string.Empty, null);
             await auditService.LogAsync(auditEvent, cancellationToken);
-            return TypedResults.Ok(result.data);
+            return TypedResults.Ok(MapToBlogDetail(result.data));
         }
         catch (Exception ex)
         {
@@ -240,7 +268,7 @@ public static class PostsApi
             var userId = GetUserId(httpContextAccessor);
             var auditEvent = BlogPostUpdatedEvent.Create(userId, existing.Id, existing.Title, existing.Slug);
             await auditService.LogAsync(auditEvent, cancellationToken);
-            return TypedResults.Ok(result.data);
+            return TypedResults.Ok(MapToBlogDetail(result.data));
         }
         catch (Exception ex)
         {
@@ -306,7 +334,7 @@ public static class PostsApi
             var userId = GetUserId(httpContextAccessor);
             var auditEvent = BlogPostUpdatedEvent.Create(userId, result.data.Id, result.data.Title, result.data.Slug);
             await auditService.LogAsync(auditEvent, cancellationToken);
-            return TypedResults.Ok(result.data);
+            return TypedResults.Ok(MapToBlogDetail(result.data));
         }
         catch (Exception ex)
         {
@@ -333,7 +361,7 @@ public static class PostsApi
             var userId = GetUserId(httpContextAccessor);
             var auditEvent = BlogPostUpdatedEvent.Create(userId, result.data.Id, result.data.Title, result.data.Slug);
             await auditService.LogAsync(auditEvent, cancellationToken);
-            return TypedResults.Ok(result.data);
+            return TypedResults.Ok(MapToBlogDetail(result.data));
         }
         catch (Exception ex)
         {
@@ -477,7 +505,9 @@ public static class PostsApi
             vm.ImageUrl,
             vm.Likes,
             vm.CreatedOn,
-            vm.ModifiedOn
+            vm.ModifiedOn,
+            vm.Culture,
+            vm.TranslationSetId
         );
     }
 }

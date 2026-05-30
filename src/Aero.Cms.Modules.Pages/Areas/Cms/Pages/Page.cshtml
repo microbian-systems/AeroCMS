@@ -6,6 +6,12 @@
     <style type="text/css" 
            src="/_content/Aero.Cms.Modules.Pages/css/aero-pages.css"></style>
 }
+@section headPartial {
+    @foreach (var link in Model.AlternateLinks)
+    {
+        <link rel="alternate" hreflang="@link.Hreflang" href="@link.Href" />
+    }
+}
 @{
     ViewBag.Title = Model.SeoTitle ?? Model.Title ?? "Page";
     ViewBag.ShowHeaderNavigation = Model.ShowHeaderNavigation;
@@ -30,7 +36,7 @@ else
     <article class="min-h-screen bg-white">
         @* Layout Regions *@
         <div class="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-            @if ((Model.LayoutRegions?.Count ?? 0) > 0)
+            @if (Model.LayoutRegions.Count > 0)
             {
                 foreach (var region in Model.LayoutRegions.OrderBy(r => r.Order))
                 {

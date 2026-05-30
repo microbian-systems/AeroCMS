@@ -16,6 +16,8 @@ public record SiteViewModel : AeroEntityViewModel
     public string? DefaultCulture { get; set; }
     [Id(6)]
     public long TenantId { get; set; }
+    [Id(7)]
+    public List<string> SupportedCultures { get; set; } = ["en-US"];
 }
 
 [GenerateSerializer]

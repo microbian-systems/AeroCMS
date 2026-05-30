@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Globalization;
 using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
@@ -68,6 +69,24 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     // Loaded post data
     protected BlogDetail? LoadedPost { get; set; }
+    protected SiteViewModel? CurrentSite { get; set; }
+    protected IReadOnlyList<BlogDetail> PostCultureVariants { get; set; } = [];
+    protected string SelectedTranslationCulture { get; set; } = string.Empty;
+    protected string TranslationSlug { get; set; } = string.Empty;
+    protected bool IsLoadingTranslations { get; set; }
+    protected bool IsCreatingTranslation { get; set; }
+    protected IReadOnlyList<string> SupportedCultures =>
+        CurrentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [LoadedPost?.Culture ?? CurrentSite?.DefaultCulture ?? "en-US"];
+
+    protected IEnumerable<string> AvailableTranslationCultures =>
+        SupportedCultures
+            .Select(NormalizeCultureName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(culture => !PostCultureVariants.Any(variant =>
+                string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
     // Reference data
     protected List<CategorySummary> Categories { get; set; } = [];
@@ -126,6 +145,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected override async Task OnInitializedAsync()
     {
         await ResolvePreviewBaseUriAsync();
+        CurrentSite = await ResolveCurrentSiteAsync();
         await LoadReferenceDataAsync();
 
         if (Id.HasValue)
@@ -204,6 +224,7 @@ public partial class PostEditor : ComponentBase, IDisposable
             PublishedAt = post.PublishedOn?.DateTime;
             _postState = PostState.Clean;
             UpdateLastSaved();
+            await LoadPostTranslationsAsync();
             await InvokeAsync(StateHasChanged);
         }
         else
@@ -490,6 +511,19 @@ public partial class PostEditor : ComponentBase, IDisposable
         return result is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
     }
 
+    private async Task<SiteViewModel?> ResolveCurrentSiteAsync()
+    {
+        if (AdminState.CurrentSiteId is { } selectedSiteId)
+            return await LoadSiteByIdAsync(selectedSiteId);
+
+        var selectedSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        if (selectedSite is not null)
+            return selectedSite;
+
+        var defaultResult = await SitesClient.GetDefaultAsync();
+        return defaultResult is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
+    }
+
     private static string? BuildSiteBaseUri(SiteViewModel? site)
     {
         var host = site?.PrimaryHost;
@@ -523,6 +557,131 @@ public partial class PostEditor : ComponentBase, IDisposable
     private static string EnsureTrailingSlash(string uri)
     {
         return uri.EndsWith("/", StringComparison.Ordinal) ? uri : $"{uri}/";
+    }
+
+    private async Task LoadPostTranslationsAsync()
+    {
+        if (Id is null)
+        {
+            PostCultureVariants = [];
+            ResetTranslationDraft();
+            return;
+        }
+
+        IsLoadingTranslations = true;
+
+        try
+        {
+            var result = await BlogApi.ListCultureVariantsAsync(Id.Value);
+            PostCultureVariants = result is Result<IReadOnlyList<BlogDetail>, AeroError>.Ok ok
+                ? ok.Value.OrderBy(post => post.Culture, StringComparer.OrdinalIgnoreCase).ToList()
+                : [];
+
+            ResetTranslationDraft();
+        }
+        catch
+        {
+            PostCultureVariants = [];
+        }
+        finally
+        {
+            IsLoadingTranslations = false;
+        }
+    }
+
+    protected async Task CreateTranslationAsync()
+    {
+        if (Id is null || IsCreatingTranslation)
+            return;
+
+        if (string.IsNullOrWhiteSpace(SelectedTranslationCulture))
+        {
+            ShowToast("Choose a target culture", "error");
+            return;
+        }
+
+        var slug = string.IsNullOrWhiteSpace(TranslationSlug)
+            ? PostSlug.Trim()
+            : TranslationSlug.Trim();
+
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            ShowToast("Enter a translated slug", "error");
+            return;
+        }
+
+        if (_postState == PostState.Dirty)
+        {
+            await SavePost();
+
+            if (_postState != PostState.Clean)
+                return;
+        }
+
+        IsCreatingTranslation = true;
+
+        try
+        {
+            var request = new ForkBlogCultureRequest(SelectedTranslationCulture, slug);
+            var result = await BlogApi.ForkToCultureAsync(Id.Value, request);
+
+            if (result is Result<BlogDetail, AeroError>.Ok ok)
+            {
+                ShowToast($"Created {FormatCulture(ok.Value.Culture)} translation", "success");
+                NavManager.NavigateTo($"/manager/post/editor/{ok.Value.Id}");
+                return;
+            }
+
+            if (result is Result<BlogDetail, AeroError>.Failure failure)
+                ShowToast($"Translation failed: {failure.Error}", "error");
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Translation failed: {ex.Message}", "error");
+        }
+        finally
+        {
+            IsCreatingTranslation = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected void OpenTranslation(long postId)
+        => NavManager.NavigateTo($"/manager/post/editor/{postId}");
+
+    private void ResetTranslationDraft()
+    {
+        SelectedTranslationCulture = AvailableTranslationCultures.FirstOrDefault() ?? string.Empty;
+        TranslationSlug = string.Empty;
+    }
+
+    protected string FormatCulture(string? culture)
+    {
+        var normalized = NormalizeCultureName(culture);
+        try
+        {
+            var info = CultureInfo.GetCultureInfo(normalized);
+            return $"{info.DisplayName} ({info.Name})";
+        }
+        catch (CultureNotFoundException)
+        {
+            return normalized;
+        }
+    }
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return "en-US";
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return culture.Trim();
+        }
     }
 
     // ──────────────────────────────────────────────────────────
@@ -638,6 +797,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                     LoadedPost = ok.Value;
                     _postState = PostState.Clean;
                     UpdateLastSaved();
+                    await LoadPostTranslationsAsync();
                     ShowToast("Post saved successfully", "success");
                 }
                 else if (result is Result<BlogDetail, AeroError>.Failure err)
@@ -667,6 +827,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                     PublishedAt = ok.Value.PublishedOn?.DateTime;
                     _postState = PostState.Clean;
                     UpdateLastSaved();
+                    await LoadPostTranslationsAsync();
                     ShowToast("Post created successfully", "success");
 
                     NavManager.NavigateTo($"/manager/post/editor/{Id}", false);

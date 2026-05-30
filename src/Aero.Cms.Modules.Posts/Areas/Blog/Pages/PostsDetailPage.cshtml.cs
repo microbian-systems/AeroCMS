@@ -1,9 +1,11 @@
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.Posts.Areas.Blog.Pages;
 
@@ -42,7 +44,11 @@ public class PostsDetailPageModel(
         }
         else
         {
-            post = await postActor.FindBySlugAsync(Slug, siteContext.SiteId, cancellationToken);
+            post = await postActor.FindBySlugAsync(
+                AeroCultureRoute.StripLeadingCulture(Slug),
+                siteContext.SiteId,
+                CultureInfo.CurrentUICulture.Name,
+                cancellationToken);
         }
 
         if (post is null)

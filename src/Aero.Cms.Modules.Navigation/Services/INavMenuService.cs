@@ -15,6 +15,14 @@ public interface INavMenuService
 
     Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default);
 
+    Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken cancellationToken = default);
+
+    Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
+        long id,
+        string targetCulture,
+        long? userId = null,
+        CancellationToken cancellationToken = default);
+
     Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default);
 
     Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(

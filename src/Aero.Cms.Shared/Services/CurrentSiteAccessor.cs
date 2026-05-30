@@ -83,5 +83,5 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor,
     }
 
     private static SiteInfo MapToSiteInfo(SiteViewModel vm) => new(
-        vm.Id, vm.Name, vm.PrimaryHost, vm.IsEnabled, vm.DefaultCulture, vm.TenantId);
+        vm.Id, vm.Name, vm.PrimaryHost, vm.IsEnabled, vm.DefaultCulture, vm.TenantId, vm.SupportedCultures);
 }

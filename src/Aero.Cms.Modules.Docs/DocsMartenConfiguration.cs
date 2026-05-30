@@ -6,5 +6,7 @@ public sealed class DocsMartenConfiguration : IConfigureMarten
     {
         // Marten will manage MarkdownPage in its own table.
         options.Schema.For<DocsPage>().Index(x => x.Slug);
+        options.Schema.For<DocsPage>().Index(x => x.Culture);
+        options.Schema.For<DocsPage>().Index(x => x.TranslationSetId);
     }
 }

@@ -59,8 +59,8 @@ public static class DefaultAiProviderProfiles
     }
 
     public static string GetDefaultProviderId(IConfiguration? configuration = null)
-        => Get(configuration ?? new ConfigurationBuilder().Build(), "Ai:DefaultProviderId", OpenAiProviderId)
-            ?? OpenAiProviderId;
+        => Get(configuration ?? new ConfigurationBuilder().Build(), "Ai:DefaultProviderId", OpenCodeProviderId)
+            ?? OpenCodeProviderId;
 
     private static AiProviderProfile CreateProfile(
         IConfiguration configuration,

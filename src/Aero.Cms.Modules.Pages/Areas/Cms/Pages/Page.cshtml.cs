@@ -1,13 +1,18 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Shared.Localization;
+using Aero.Cms.Shared.Components;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 
@@ -29,13 +34,19 @@ public class DynamicPageModel(
     public bool ShowHeaderNavigation { get; private set; } = true;
     public bool HideFooter { get; private set; }
     public bool ShowChatAgent { get; private set; } = true;
-    public List<LayoutRegion>? LayoutRegions { get; private set; }
+    public List<LayoutRegion> LayoutRegions { get; private set; } = [];
     public long? PageId { get; private set; }
     public string? PageSlug { get; private set; }
+    public string RequestedCulture { get; private set; } = SitesModel.DefaultCultureName;
+    public string RenderedCulture { get; private set; } = SitesModel.DefaultCultureName;
+    public bool IsCultureFallback { get; private set; }
+    public IReadOnlyList<AlternatePageLink> AlternateLinks { get; private set; } = [];
+    public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         AeroRequestResponse<Aero.Cms.Abstractions.Models.PageViewModel> result;
+        RequestedCulture = CultureInfo.CurrentUICulture.Name;
 
         if (DraftId is { } draftId)
         {
@@ -43,12 +54,12 @@ public class DynamicPageModel(
         }
         else if (string.IsNullOrWhiteSpace(Slug))
         {
-            result = await pageActor.GetBySlugAsync(siteContext.SiteId, "/", cancellationToken);
+            result = await pageActor.GetBySlugAsync(siteContext.SiteId, "/", CultureInfo.CurrentUICulture.Name, cancellationToken);
         }
         else
         {
-            var normalizedSlug = Slug.TrimStart('/');
-            result = await pageActor.GetBySlugAsync(siteContext.SiteId, normalizedSlug, cancellationToken);
+            var normalizedSlug = AeroCultureRoute.StripLeadingCulture(Slug);
+            result = await pageActor.GetBySlugAsync(siteContext.SiteId, normalizedSlug, CultureInfo.CurrentUICulture.Name, cancellationToken);
         }
 
         if (!string.IsNullOrWhiteSpace(result.error?.Message))
@@ -69,16 +80,24 @@ public class DynamicPageModel(
         ShowChatAgent = vm.ShowChatAgent;
         PageId = vm.Id;
         PageSlug = vm.Slug;
+        RenderedCulture = vm.Culture;
+        IsCultureFallback = !string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase);
 
         // Deserialize layout regions for block preloading and rendering
         LayoutRegions = vm.LayoutRegionsJson is not null
             ? System.Text.Json.JsonSerializer.Deserialize<List<LayoutRegion>>(
-                vm.LayoutRegionsJson, Aero.Cms.Abstractions.Blocks.Serialization.BlockJsonContext.Default.Options)
+                vm.LayoutRegionsJson, Aero.Cms.Abstractions.Blocks.Serialization.BlockJsonContext.Default.Options) ?? []
             : [];
 
         // Store page ID + slug for output cache tagging
         HttpContext.Items["AeroCms.PageId"] = vm.Id;
         HttpContext.Items["AeroCms.PageSlug"] = vm.Slug;
+        ViewData["RequestedCulture"] = RequestedCulture;
+        ViewData["RenderedCulture"] = RenderedCulture;
+        ViewData["IsCultureFallback"] = IsCultureFallback;
+        AlternateLinks = await BuildAlternateLinksAsync(vm, cancellationToken);
+        CultureSwitcherLinks = BuildCultureSwitcherLinks(AlternateLinks);
+        ViewData["CultureSwitcherLinks"] = CultureSwitcherLinks;
 
         // Preload block cache (N+1 fix)
         await PreloadBlockCacheAsync(LayoutRegions, cancellationToken);
@@ -86,6 +105,66 @@ public class DynamicPageModel(
         PreserveReExecutedStatusCode();
         ApplyResponseCacheHeaders();
         return Page();
+    }
+
+    private async Task<IReadOnlyList<AlternatePageLink>> BuildAlternateLinksAsync(
+        PageViewModel page,
+        CancellationToken cancellationToken)
+    {
+        var variants = await pageActor.ListCultureVariantsAsync(page.Id, cancellationToken);
+        if (variants.Count == 0)
+            variants = [page];
+
+        var publishedVariants = variants
+            .Where(variant => variant.IsPublished)
+            .Where(variant => !string.IsNullOrWhiteSpace(variant.Culture))
+            .GroupBy(variant => variant.Culture, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        if (publishedVariants.Count == 0 && page.IsPublished)
+            publishedVariants.Add(page);
+
+        var links = publishedVariants
+            .Select(variant => new AlternatePageLink(
+                variant.Culture.ToLowerInvariant(),
+                BuildCultureUrl(variant.Culture, variant.Slug)))
+            .ToList();
+
+        var siteDefaultCulture = HttpContext.Features.Get<IAeroSiteSlice>()?.DefaultCulture
+            ?? page.Culture
+            ?? SitesModel.DefaultCultureName;
+        var defaultVariant = publishedVariants.FirstOrDefault(variant =>
+            string.Equals(variant.Culture, siteDefaultCulture, StringComparison.OrdinalIgnoreCase));
+
+        if (defaultVariant is not null)
+        {
+            links.Add(new AlternatePageLink("x-default", BuildCultureUrl(defaultVariant.Culture, defaultVariant.Slug)));
+        }
+
+        return links;
+    }
+
+    private IReadOnlyList<CultureSwitcherLink> BuildCultureSwitcherLinks(IReadOnlyList<AlternatePageLink> alternateLinks)
+        => alternateLinks
+            .Where(link => !string.Equals(link.Hreflang, "x-default", StringComparison.OrdinalIgnoreCase))
+            .Select(link => CultureSwitcher.CreateLink(
+                link.Hreflang,
+                link.Href,
+                string.Equals(link.Hreflang, RequestedCulture, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(link.Hreflang, RenderedCulture, StringComparison.OrdinalIgnoreCase)))
+            .GroupBy(link => link.Hreflang, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+    private string BuildCultureUrl(string culture, string? slug)
+    {
+        var normalizedSlug = (slug ?? string.Empty).Trim().Trim('/');
+        var path = string.IsNullOrWhiteSpace(normalizedSlug)
+            ? $"/{culture.ToLowerInvariant()}"
+            : $"/{culture.ToLowerInvariant()}/{normalizedSlug}";
+
+        return UriHelper.BuildAbsolute(Request.Scheme, Request.Host, Request.PathBase, path);
     }
 
     private async Task PreloadBlockCacheAsync(List<LayoutRegion> layoutRegions, CancellationToken ct)
@@ -130,4 +209,6 @@ public class DynamicPageModel(
 
         Response.Headers.CacheControl = "public,max-age=300";
     }
+
+    public sealed record AlternatePageLink(string Hreflang, string Href);
 }

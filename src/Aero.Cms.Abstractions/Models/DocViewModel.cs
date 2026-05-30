@@ -60,6 +60,12 @@ public sealed record DocViewModel : AeroEntityViewModel
     /// </summary>
     [Id(13)]
     public int BlockSchemaVersion { get; set; }
+
+    [Id(14)]
+    public string Culture { get; set; } = "en-US";
+
+    [Id(15)]
+    public long? TranslationSetId { get; set; }
 }
 
 [GenerateSerializer]

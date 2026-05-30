@@ -123,15 +123,17 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         opts.Schema.For<PageDocument>().Index(x => x.PublicationState);
         opts.Schema.For<PageDocument>().Index(x => x.IsHidden);
         opts.Schema.For<PageDocument>().Index(x => x.ShowInNavMenu);
+        opts.Schema.For<PageDocument>().Index(x => x.Culture);
+        opts.Schema.For<PageDocument>().Index(x => x.TranslationSetId);
 
         // Compound indexes for common query patterns
         opts.Schema.For<PageDocument>().Index(x => new { x.SiteId, x.Path });
         opts.Schema.For<PageDocument>().Index(x => new { x.SiteId, x.PublicationState });
         opts.Schema.For<PageDocument>().Index(x => new { x.ParentId, x.PublicationState });
 
-        // Unique index: no two pages share (SiteId, ParentId, Slug)
+        // Unique index: no two pages share (SiteId, Culture, ParentId, Slug)
         opts.Schema.For<PageDocument>()
-            .UniqueIndex(x => x.SiteId, x => x.ParentId, x => x.Slug);
+            .UniqueIndex(x => x.SiteId, x => x.Culture, x => x.ParentId, x => x.Slug);
 
         // Ngram index for efficient Path prefix matching (StartsWith queries)
         opts.Schema.For<PageDocument>().NgramIndex(x => x.Path);
@@ -147,7 +149,8 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         // ── ContentSlugDocument ───────────────────────────────────────────
         opts.Schema.For<ContentSlugDocument>().DocumentAlias(Schemas.Tables.SlugRegistry);
         opts.Schema.For<ContentSlugDocument>().Index(x => x.SiteId);
-        opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => x.SiteId, x => x.NormalizedSlug);
+        opts.Schema.For<ContentSlugDocument>().Index(x => x.Culture);
+        opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.NormalizedSlug);
         Configure<ContentSlugDocument>(services, opts);
 
         // ── PageDraft ─────────────────────────────────────────────────────

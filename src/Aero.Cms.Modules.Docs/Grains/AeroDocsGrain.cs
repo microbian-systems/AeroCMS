@@ -269,6 +269,38 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Fail("Unexpected result");
     }
 
+    public async Task<List<DocViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+    {
+        var siteIdResult = await ResolveSiteIdAsync(id, ct);
+        if (siteIdResult is null)
+            return [];
+
+        await using var session = _store.LightweightSession();
+        var docsService = CreateDocsService(session, siteIdResult.Value);
+        var result = await docsService.ListCultureVariantsAsync(id, ct);
+
+        if (result is Result<IReadOnlyList<DocsPage>, AeroError>.Ok ok)
+            return ok.Value.Select(d => d.ToViewModel()).ToList();
+        return [];
+    }
+
+    public async Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long id, string culture, string slug, CancellationToken ct = default)
+    {
+        var siteIdResult = await ResolveSiteIdAsync(id, ct);
+        if (siteIdResult is null)
+            return NotFound($"Doc {id} not found");
+
+        await using var session = _store.LightweightSession();
+        var docsService = CreateDocsService(session, siteIdResult.Value);
+        var result = await docsService.ForkToCultureAsync(id, culture, slug, ct);
+
+        if (result is Result<DocsPage, AeroError>.Ok ok)
+            return Ok(ok.Value.ToViewModel());
+        if (result is Result<DocsPage, AeroError>.Failure fail)
+            return Fail(fail.Error.ToString() ?? "Fork doc translation failed");
+        return Fail("Unexpected result");
+    }
+
     public async Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, CancellationToken ct = default)
     {
         var siteIdResult = await ResolveSiteIdAsync(id, ct);

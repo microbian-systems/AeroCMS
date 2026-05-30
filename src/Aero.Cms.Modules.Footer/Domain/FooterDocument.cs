@@ -7,6 +7,8 @@ namespace Aero.Cms.Modules.Footer.Domain;
 public sealed class FooterDocument : Entity, ISiteOwned
 {
     public long SiteId { get; set; }
+    public long? TranslationSetId { get; set; }
+    public string Culture { get; set; } = Aero.Cms.Core.Entities.SitesModel.DefaultCultureName;
     public string Name { get; set; } = string.Empty;
     public string Key { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -20,6 +22,8 @@ public sealed class FooterDocument : Entity, ISiteOwned
     {
         Id = id,
         SiteId = @event.SiteId,
+        TranslationSetId = @event.TranslationSetId,
+        Culture = @event.Culture,
         Name = @event.Name.Trim(),
         Key = NormalizeKey(@event.Key),
         Description = Clean(@event.Description),

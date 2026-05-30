@@ -4,6 +4,7 @@ using Aero.Core.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.Posts.Areas.Blog.Pages;
 
@@ -28,7 +29,7 @@ public class PostsIndexPageModel(
     {
         PageNumber = p ?? 1;
 
-        var (featured, _) = await postActor.GetLatestPostsAsync(siteContext.SiteId, 3, cancellationToken);
+        var (featured, _) = await postActor.GetLatestPostsAsync(siteContext.SiteId, 3, CultureInfo.CurrentUICulture.Name, cancellationToken);
         FeaturedPosts = featured;
 
         await LoadOtherPostsAsync(PageNumber, cancellationToken);
@@ -49,7 +50,12 @@ public class PostsIndexPageModel(
     private async Task LoadOtherPostsAsync(int pageNumber, CancellationToken cancellationToken)
     {
         var (items, totalCount, totalPages, hasNext, hasPrev) = await postActor.GetPagedPostsAsync(
-            siteContext.SiteId, pageNumber, PageSize, skipFromLatest: 3, cancellationToken);
+            siteContext.SiteId,
+            pageNumber,
+            PageSize,
+            skipFromLatest: 3,
+            culture: CultureInfo.CurrentUICulture.Name,
+            ct: cancellationToken);
 
         OtherPosts = items;
         TotalCount = totalCount;

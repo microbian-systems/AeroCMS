@@ -68,6 +68,7 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
             Hosts = hosts.Select(h => h.Host).ToList(),
             IsEnabled = model.IsEnabled,
             DefaultCulture = model.DefaultCulture,
+            SupportedCultures = model.SupportedCultures,
             CreatedOn = model.CreatedOn,
             ModifiedOn = model.ModifiedOn,
             CreatedBy = model.CreatedBy,

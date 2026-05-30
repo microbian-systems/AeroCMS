@@ -14,7 +14,7 @@ public partial class AiSettings
     protected bool IsLoading { get; set; } = true;
     protected bool IsSaving { get; set; }
     protected bool Enabled { get; set; }
-    protected string DefaultProviderId { get; set; } = "tornado";
+    protected string DefaultProviderId { get; set; } = "opencode";
     protected List<ProviderFormModel> Providers { get; set; } = [];
 
     protected override async Task OnInitializedAsync()

@@ -1,7 +1,9 @@
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Footer.Domain;
 using Aero.Cms.Modules.Footer.Events;
+using System.Globalization;
 using Wolverine;
 using static Aero.Core.Railway.Prelude;
 
@@ -80,6 +82,44 @@ public sealed class FooterService(
         return Ok<FooterDetail, AeroError>(MapDetail(footer, snapshot, version));
     }
 
+    public async Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVariantsAsync(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var footerResult = await GetAsync(id, cancellationToken);
+            if (footerResult is Result<FooterDocument, AeroError>.Failure failure)
+            {
+                return Fail<IReadOnlyList<FooterDetail>, AeroError>(failure.Error);
+            }
+
+            var footer = ((Result<FooterDocument, AeroError>.Ok)footerResult).Value;
+            var translationSetId = footer.TranslationSetId ?? footer.Id;
+            var variants = await session.Query<FooterDocument>()
+                .Where(x => x.SiteId == footer.SiteId &&
+                            x.TranslationSetId == translationSetId &&
+                            x.State != FooterLifecycleState.Archived)
+                .OrderBy(x => x.Culture)
+                .ToListAsync(token: cancellationToken);
+
+            var details = new List<FooterDetail>(variants.Count);
+            foreach (var variant in variants)
+            {
+                var snapshot = await LoadEditorSnapshotAsync(variant, cancellationToken);
+                var version = await GetStreamVersionAsync(variant.Id, cancellationToken);
+                details.Add(MapDetail(variant, snapshot, version));
+            }
+
+            return Ok<IReadOnlyList<FooterDetail>, AeroError>(details);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list footer culture variants for {FooterId}", id);
+            return Fail<IReadOnlyList<FooterDetail>, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
     public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default)
     {
         try
@@ -137,6 +177,7 @@ public sealed class FooterService(
         var footerId = ((Result<long?, AeroError>.Ok)defaultResult).Value;
         if (footerId is not null)
         {
+            footerId = await ResolveCultureVariantIdAsync(siteId, footerId.Value, GetCurrentCulture(), cancellationToken);
             return await GetPublishedSnapshotAsync(footerId.Value, cancellationToken);
         }
 
@@ -171,9 +212,10 @@ public sealed class FooterService(
                 return Fail<FooterDocument, AeroError>(AeroError.InvalidRequestError("A current manager site is required."));
             }
 
+            var culture = await GetSiteDefaultCultureAsync(cancellationToken);
             var key = FooterDocument.NormalizeKey(string.IsNullOrWhiteSpace(request.Name) ? "footer" : request.Name);
             var duplicate = await session.Query<FooterDocument>()
-                .AnyAsync(x => x.SiteId == siteId && x.Key == key, cancellationToken);
+                .AnyAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == key, cancellationToken);
             if (duplicate)
             {
                 return Fail<FooterDocument, AeroError>(AeroError.ConflictError($"Footer key '{key}' already exists for this site."));
@@ -184,7 +226,7 @@ public sealed class FooterService(
             var snapshot = MapSnapshot(request);
             snapshot.Validate();
 
-            var created = new FooterCreated(siteId, request.Name, key, request.Description, userId, now);
+            var created = new FooterCreated(siteId, request.Name, key, request.Description, userId, now, Culture: culture, TranslationSetId: id);
             var draftSaved = new FooterDraftSaved(siteId, request.Name, key, request.Description, snapshot, userId, now, "Initial draft");
 
             session.Events.StartStream(FooterStreams.Footer(id), created, draftSaved);
@@ -412,6 +454,12 @@ public sealed class FooterService(
         return state?.Version ?? 0;
     }
 
+    private async Task<string> GetSiteDefaultCultureAsync(CancellationToken cancellationToken)
+    {
+        var site = await session.LoadAsync<SitesModel>(siteContext.SiteId, cancellationToken);
+        return NormalizeCulture(site?.DefaultCulture);
+    }
+
     private async Task EnsureExpectedVersionAsync(long id, long expectedVersion, CancellationToken cancellationToken)
     {
         if (expectedVersion <= 0)
@@ -426,6 +474,79 @@ public sealed class FooterService(
         }
     }
 
+    public async Task<Result<FooterDocument, AeroError>> ForkToCultureAsync(
+        long id,
+        string targetCulture,
+        long? userId = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var footerResult = await GetAsync(id, cancellationToken);
+            if (footerResult is Result<FooterDocument, AeroError>.Failure failure)
+            {
+                return Fail<FooterDocument, AeroError>(failure.Error);
+            }
+
+            var source = ((Result<FooterDocument, AeroError>.Ok)footerResult).Value;
+            var culture = NormalizeCulture(targetCulture);
+            var translationSetId = source.TranslationSetId ?? source.Id;
+
+            var duplicate = await session.Query<FooterDocument>()
+                .AnyAsync(x =>
+                    x.SiteId == source.SiteId &&
+                    x.TranslationSetId == translationSetId &&
+                    x.Culture == culture &&
+                    x.State != FooterLifecycleState.Archived,
+                    cancellationToken);
+            if (duplicate)
+            {
+                return Fail<FooterDocument, AeroError>(AeroError.ConflictError($"A {culture} footer translation already exists."));
+            }
+
+            var sourceSnapshot = await LoadEditorSnapshotAsync(source, cancellationToken);
+            var targetId = Snowflake.NewId();
+            var fork = FooterCultureForker.Fork(source, sourceSnapshot, targetId, culture, userId);
+
+            session.Events.StartStream(FooterStreams.Footer(targetId), fork.Created, fork.DraftSaved);
+            await session.SaveChangesAsync(cancellationToken);
+
+            var footer = FooterDocument.Create(targetId, fork.Created);
+            footer.Apply(fork.DraftSaved);
+            return Ok<FooterDocument, AeroError>(footer);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to fork footer {FooterId} to {Culture}", id, targetCulture);
+            return Fail<FooterDocument, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    private async Task<long> ResolveCultureVariantIdAsync(
+        long siteId,
+        long defaultFooterId,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        var defaultFooter = await session.LoadAsync<FooterDocument>(defaultFooterId, cancellationToken);
+        if (defaultFooter is null ||
+            string.Equals(defaultFooter.Culture, culture, StringComparison.OrdinalIgnoreCase) ||
+            defaultFooter.TranslationSetId is null)
+        {
+            return defaultFooterId;
+        }
+
+        var cultureVariant = await session.Query<FooterDocument>()
+            .Where(x => x.SiteId == siteId &&
+                        x.TranslationSetId == defaultFooter.TranslationSetId &&
+                        x.Culture == culture &&
+                        x.State != FooterLifecycleState.Archived &&
+                        x.HasPublishedSnapshot)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return cultureVariant?.Id ?? defaultFooterId;
+    }
+
     private Task PublishFooterChangedAsync(
         long footerId,
         long siteId,
@@ -435,6 +556,24 @@ public sealed class FooterService(
         => bus is null
             ? Task.CompletedTask
             : bus.PublishAsync(new FooterChangedEvent(footerId, siteId, changeKind, changedOn)).AsTask();
+
+    private static string GetCurrentCulture()
+        => NormalizeCulture(CultureInfo.CurrentUICulture.Name);
+
+    private static string NormalizeCulture(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return SitesModel.DefaultCultureName;
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return SitesModel.DefaultCultureName;
+        }
+    }
 
     private static FooterSnapshot MapSnapshot(CreateFooterRequest request)
         => new()
@@ -521,7 +660,9 @@ public sealed class FooterService(
             snapshot.Brand.LogoUrl,
             snapshot.Style.BackgroundImageUrl,
             snapshot.Style.OverlayOpacity,
-            snapshot.Legal.CopyrightText);
+            snapshot.Legal.CopyrightText,
+            footer.Culture,
+            footer.TranslationSetId);
 
     private static long ParseKey(string key)
         => long.TryParse(key, out var id) ? id : 0;

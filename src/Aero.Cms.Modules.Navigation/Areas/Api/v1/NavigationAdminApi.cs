@@ -25,8 +25,14 @@ public static class NavigationAdminApi
         group.MapGet("/details/{id:long}", GetNavigationById)
             .WithName("GetNavigationMenuDetailsById");
 
+        group.MapGet("/{id:long}/translations", ListNavigationTranslations)
+            .WithName("ListNavigationMenuTranslations");
+
         group.MapPost("/", CreateNavigation)
             .WithName("CreateNavigationMenu");
+
+        group.MapPost("/{id:long}/translations", ForkNavigationToCulture)
+            .WithName("ForkNavigationMenuToCulture");
 
         group.MapPut("/{id:long}", SaveDraftCompatibility)
             .WithName("UpdateNavigationMenu");
@@ -75,7 +81,9 @@ public static class NavigationAdminApi
                     itemCount,
                     menu.CreatedOn.DateTime,
                     version,
-                    menu.State.ToString()));
+                    menu.State.ToString(),
+                    menu.Culture,
+                    menu.TranslationSetId));
             }
 
             return TypedResults.Ok(summaries);
@@ -91,6 +99,17 @@ public static class NavigationAdminApi
     {
         var result = await service.GetDetailAsync(id, cancellationToken);
         return result is Result<NavigationDetail, AeroError>.Ok ok
+            ? TypedResults.Ok(ok.Value)
+            : ToProblem(result);
+    }
+
+    private static async Task<IResult> ListNavigationTranslations(
+        long id,
+        [FromServices] INavMenuService service,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await service.ListCultureVariantsAsync(id, cancellationToken);
+        return result is Result<IReadOnlyList<NavigationDetail>, AeroError>.Ok ok
             ? TypedResults.Ok(ok.Value)
             : ToProblem(result);
     }
@@ -122,6 +141,18 @@ public static class NavigationAdminApi
         }
 
         return ToProblem(result);
+    }
+
+    private static async Task<IResult> ForkNavigationToCulture(
+        long id,
+        [FromBody] ForkNavigationCultureRequest request,
+        [FromServices] INavMenuService service,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await service.ForkToCultureAsync(id, request.Culture, userId: null, cancellationToken);
+        return result is Result<NavMenuDocument, AeroError>.Ok ok
+            ? await ToNavigationDetailResult(ok.Value.Id, service, cancellationToken)
+            : ToProblem(result);
     }
 
     private static async Task<IResult> SaveDraftCompatibility(

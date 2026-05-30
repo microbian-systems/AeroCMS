@@ -1,8 +1,11 @@
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Core.Entities;
+using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
 using FlakeId;
 using Marten.Pagination;
+using System.Globalization;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -14,6 +17,8 @@ public interface IPostContentService
     Task<Result<PostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
     Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(long translationSetId, CancellationToken cancellationToken = default);
+    Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(long sourcePostId, string targetCulture, string targetSlug, CancellationToken cancellationToken = default);
     Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default);
     Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default);
     Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default);
@@ -34,18 +39,23 @@ public sealed class PostContentService(
     private const string BlogCacheTag = "blog-index";
     private readonly ISiteContext _siteContext = siteContext;
 
-    public async Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
+    public Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
+        => GetAllPostsAsync(skip, take, search, culture: null, cancellationToken);
+
+    public async Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip, int take, string? search, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
-            var cacheKey = BuildCacheKey($"list:{skip}:{take}:{NormalizeCachePart(search)}");
+            var currentCulture = GetCurrentCulture(culture);
+            var cacheKey = BuildCacheKey($"list:{currentCulture}:{skip}:{take}:{NormalizeCachePart(search)}");
             var cached = await TryGetCacheAsync<BlogPostListCacheEntry>(cacheKey, cancellationToken);
             if (cached is not null)
             {
                 return Prelude.Ok<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>((cached.Items, cached.TotalCount));
             }
 
-            var query = session.Query<PostDocument>().Where(x => x.SiteId == _siteContext.SiteId);
+            var query = session.Query<PostDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId && x.Culture == currentCulture);
 
             IQueryable<PostDocument> filteredQuery = query;
             if (!string.IsNullOrWhiteSpace(search))
@@ -126,25 +136,29 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
+        => FindBySlugAsync(slug, culture: null, cancellationToken);
+
+    public async Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
-            var cacheKey = BuildCacheKey($"slug:{NormalizeCachePart(slug)}");
+            var currentCulture = GetCurrentCulture(culture);
+            var routeSlug = AeroCultureRoute.StripLeadingCulture(slug);
+            var cacheKey = BuildCacheKey($"slug:{currentCulture}:{NormalizeCachePart(routeSlug)}");
             var cached = await TryGetCacheAsync<PostDocument>(cacheKey, cancellationToken);
             if (cached is not null)
             {
                 return Prelude.Ok<PostDocument?, AeroError>(cached);
             }
 
-            var reservation = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(x =>
-                    x.SiteId == _siteContext.SiteId &&
-                    string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
+            var normalizedSlug = ContentSlugDocument.Normalize(routeSlug);
+            var reservation = await FindSlugReservationAsync(normalizedSlug, currentCulture, cancellationToken)
+                ?? await FindDefaultCultureSlugReservationAsync(normalizedSlug, currentCulture, cancellationToken);
 
             if (reservation is null || reservation.OwnerType != ContentSlugOwnerType.BlogPost)
             {
-                return Prelude.Fail<PostDocument?, AeroError>(AeroError.NotFoundError($"Blog post with slug '{slug}' not found"));
+                return Prelude.Fail<PostDocument?, AeroError>(AeroError.NotFoundError($"Blog post with slug '{routeSlug}' not found"));
             }
 
             var document = await session.LoadAsync<PostDocument>(reservation.OwnerId, cancellationToken);
@@ -164,11 +178,15 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default)
+    public Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default)
+        => GetLatestPostsAsync(count, culture: null, cancellationToken);
+
+    public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
-            var cacheKey = BuildCacheKey($"latest:{count}");
+            var currentCulture = GetCurrentCulture(culture);
+            var cacheKey = BuildCacheKey($"latest:{currentCulture}:{count}");
             var cached = await TryGetCacheAsync<BlogPostCollectionCacheEntry>(cacheKey, cancellationToken);
             if (cached is not null)
             {
@@ -176,7 +194,7 @@ public sealed class PostContentService(
             }
 
             var latest = await session.Query<PostDocument>()
-                .Where(x => x.SiteId == _siteContext.SiteId)
+                .Where(x => x.SiteId == _siteContext.SiteId && x.Culture == currentCulture)
                 .Where(x => x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
                 .Take(count)
@@ -202,12 +220,15 @@ public sealed class PostContentService(
             // Only stamp SiteId from context when not already set by the caller (e.g. seed).
             if (existingPost is null && post.SiteId == 0)
                 post.SiteId = _siteContext.SiteId;
+            post.Culture = ContentSlugDocument.NormalizeCulture(post.Culture);
+            post.TranslationSetId ??= post.Id;
             await ContentSlugReservation.ReserveAsync(
                 session,
                 post.Id,
                 ContentSlugOwnerType.BlogPost,
                 post.Slug,
                 post.SiteId,
+                post.Culture,
                 existingPost?.Slug,
                 cancellationToken);
 
@@ -241,7 +262,7 @@ public sealed class PostContentService(
         try
         {
             var posts = await session.Query<PostDocument>()
-                .Where(x => x.SiteId == _siteContext.SiteId)
+                .Where(x => x.SiteId == _siteContext.SiteId && x.Culture == GetCurrentCulture())
                 .Where(x => x.TagIds.Contains(tagId) && x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
                 .ToListAsync(token: cancellationToken);
@@ -259,7 +280,7 @@ public sealed class PostContentService(
         try
         {
             var posts = await session.Query<PostDocument>()
-                .Where(x => x.SiteId == _siteContext.SiteId)
+                .Where(x => x.SiteId == _siteContext.SiteId && x.Culture == GetCurrentCulture())
                 .Where(x => x.CategoryIds.Contains(categoryId) && x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
                 .ToListAsync(token: cancellationToken);
@@ -272,12 +293,16 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default)
+    public Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default)
+        => GetPagedPostsAsync(pageNumber, pageSize, skip, culture: null, cancellationToken);
+
+    public async Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
+            var currentCulture = GetCurrentCulture(culture);
             var pagedList = await session.Query<PostDocument>()
-                .Where(x => x.SiteId == _siteContext.SiteId)
+                .Where(x => x.SiteId == _siteContext.SiteId && x.Culture == currentCulture)
                 .Where(x => x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
                 .Skip(skip)
@@ -348,6 +373,113 @@ public sealed class PostContentService(
 
     private string BuildCacheKey(string suffix)
         => $"cms:posts:{_siteContext.SiteId}:{suffix}";
+
+    private async Task<ContentSlugDocument?> FindSlugReservationAsync(
+        string normalizedSlug,
+        string culture,
+        CancellationToken cancellationToken)
+        => await session.Query<ContentSlugDocument>()
+            .FirstOrDefaultAsync(x =>
+                x.SiteId == _siteContext.SiteId &&
+                x.Culture == culture &&
+                string.Equals(normalizedSlug, x.NormalizedSlug, StringComparison.OrdinalIgnoreCase),
+                token: cancellationToken);
+
+    private async Task<ContentSlugDocument?> FindDefaultCultureSlugReservationAsync(
+        string normalizedSlug,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        var defaultCulture = await GetSiteDefaultCultureAsync(cancellationToken);
+        if (string.Equals(culture, defaultCulture, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return await FindSlugReservationAsync(normalizedSlug, defaultCulture, cancellationToken);
+    }
+
+    public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(
+        long translationSetId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var variants = await session.Query<PostDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId && x.TranslationSetId == translationSetId)
+                .OrderBy(x => x.Culture)
+                .ToListAsync(token: cancellationToken);
+
+            return Prelude.Ok<IReadOnlyList<PostDocument>, AeroError>(variants);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<IReadOnlyList<PostDocument>, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    public async Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(
+        long sourcePostId,
+        string targetCulture,
+        string targetSlug,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var source = await session.LoadAsync<PostDocument>(sourcePostId, cancellationToken);
+            if (source is null || source.SiteId != _siteContext.SiteId)
+                return Prelude.Fail<PostDocument, AeroError>(AeroError.NotFoundError($"Blog post with id '{sourcePostId}' not found or access denied"));
+
+            var normalizedCulture = ContentSlugDocument.NormalizeCulture(targetCulture);
+            var supported = await IsSupportedCultureAsync(source.SiteId, normalizedCulture, cancellationToken);
+            if (!supported)
+                return Prelude.Fail<PostDocument, AeroError>(AeroError.ValidationError([$"Culture '{normalizedCulture}' is not supported by the current site."]));
+
+            var translationSetId = source.TranslationSetId ?? source.Id;
+            var existingVariant = await session.Query<PostDocument>()
+                .FirstOrDefaultAsync(x =>
+                    x.SiteId == source.SiteId &&
+                    x.TranslationSetId == translationSetId &&
+                    x.Culture == normalizedCulture,
+                    token: cancellationToken);
+
+            if (existingVariant is not null)
+                return Prelude.Fail<PostDocument, AeroError>(AeroError.ConflictError($"Blog post already has a '{normalizedCulture}' variant."));
+
+            var fork = PostCultureForker.Fork(source, Snowflake.NewId(), normalizedCulture, targetSlug);
+
+            return await SaveAsync(fork, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<PostDocument, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    private async Task<string> GetSiteDefaultCultureAsync(CancellationToken cancellationToken)
+    {
+        var site = await session.LoadAsync<SitesModel>(_siteContext.SiteId, cancellationToken);
+        var defaultCulture = site?.DefaultCulture ?? SitesModel.DefaultCultureName;
+
+        return ContentSlugDocument.NormalizeCulture(defaultCulture);
+    }
+
+    private async Task<bool> IsSupportedCultureAsync(long siteId, string culture, CancellationToken cancellationToken)
+    {
+        var site = await session.LoadAsync<SitesModel>(siteId, cancellationToken);
+
+        if (site is null)
+            return false;
+
+        var supportedCultures = site.SupportedCultures.Count > 0
+            ? site.SupportedCultures
+            : [site.DefaultCulture ?? SitesModel.DefaultCultureName];
+
+        return supportedCultures
+            .Select(ContentSlugDocument.NormalizeCulture)
+            .Contains(culture, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string GetCurrentCulture(string? culture = null)
+        => ContentSlugDocument.NormalizeCulture(culture ?? CultureInfo.CurrentUICulture.Name);
 
     private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken cancellationToken) where T : class
     {

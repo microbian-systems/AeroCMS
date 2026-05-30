@@ -1,4 +1,7 @@
+using System.Globalization;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Models;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
@@ -13,15 +16,22 @@ public partial class FooterEditor
     [Parameter] public long Id { get; set; }
 
     [Inject] private IFootersHttpClient FootersClient { get; set; } = default!;
+    [Inject] private ISitesHttpClient SitesClient { get; set; } = default!;
+    [Inject] private ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILogger<FooterEditor> Logger { get; set; } = default!;
 
     private FooterDetail? _selected;
+    private SiteViewModel? _currentSite;
+    private IReadOnlyList<FooterDetail> _cultureVariants = [];
     private RadzenDataGrid<FooterGroupEditorModel>? _groupsGrid;
     private List<FooterGroupEditorModel> _groups = [];
     private bool _isLoading;
     private bool _isSaving;
+    private bool _isLoadingTranslations;
+    private bool _isCreatingTranslation;
+    private string _selectedTranslationCulture = string.Empty;
     private string _editName = string.Empty;
     private string? _editDescription;
     private string _companyName = "Aero CMS";
@@ -30,6 +40,18 @@ public partial class FooterEditor
     private string? _backgroundImageUrl;
     private decimal _overlayOpacity = 0.35m;
     private string? _copyrightText;
+    private IReadOnlyList<string> SupportedCultures =>
+        _currentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [_selected?.Culture ?? _currentSite?.DefaultCulture ?? "en-US"];
+
+    private IEnumerable<string> AvailableTranslationCultures =>
+        SupportedCultures
+            .Select(NormalizeCultureName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(culture => !_cultureVariants.Any(variant =>
+                string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
     protected override async Task OnParametersSetAsync()
     {
@@ -41,10 +63,12 @@ public partial class FooterEditor
         _isLoading = true;
         try
         {
+            _currentSite ??= await ResolveCurrentSiteAsync();
             var result = await FootersClient.GetByIdAsync(Id);
             if (result is Result<FooterDetail, AeroError>.Ok ok)
             {
                 SetSelected(ok.Value);
+                await LoadTranslationsAsync();
             }
             else if (result is Result<FooterDetail, AeroError>.Failure fail)
             {
@@ -63,6 +87,79 @@ public partial class FooterEditor
             _isLoading = false;
         }
     }
+
+    private async Task LoadTranslationsAsync()
+    {
+        if (_selected is null)
+        {
+            _cultureVariants = [];
+            ResetTranslationDraft();
+            return;
+        }
+
+        _isLoadingTranslations = true;
+        try
+        {
+            var result = await FootersClient.ListCultureVariantsAsync(_selected.Id);
+            _cultureVariants = result is Result<IReadOnlyList<FooterDetail>, AeroError>.Ok ok
+                ? ok.Value.OrderBy(footer => footer.Culture, StringComparer.OrdinalIgnoreCase).ToList()
+                : [];
+
+            ResetTranslationDraft();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load footer translations for {FooterId}", _selected.Id);
+            _cultureVariants = [];
+            ResetTranslationDraft();
+        }
+        finally
+        {
+            _isLoadingTranslations = false;
+        }
+    }
+
+    private async Task CreateTranslationAsync()
+    {
+        if (_selected is null || _isCreatingTranslation)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_selectedTranslationCulture))
+        {
+            Notify(NotificationSeverity.Warning, "Choose a target culture");
+            return;
+        }
+
+        _isCreatingTranslation = true;
+        try
+        {
+            var request = new ForkFooterCultureRequest(_selectedTranslationCulture);
+            var result = await FootersClient.ForkToCultureAsync(_selected.Id, request);
+            if (result is Result<FooterDetail, AeroError>.Ok ok)
+            {
+                Notify(NotificationSeverity.Success, $"Created {FormatCulture(ok.Value.Culture)} translation");
+                Navigation.NavigateTo($"/manager/footers/editor/{ok.Value.Id}");
+            }
+            else if (result is Result<FooterDetail, AeroError>.Failure fail)
+            {
+                Notify(NotificationSeverity.Error, "Translation was not created", fail.Error.ToString());
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create footer translation {FooterId}", _selected.Id);
+            Notify(NotificationSeverity.Error, "Translation was not created", ex.Message);
+        }
+        finally
+        {
+            _isCreatingTranslation = false;
+        }
+    }
+
+    private void OpenTranslation(long footerId)
+        => Navigation.NavigateTo($"/manager/footers/editor/{footerId}");
 
     private async Task AddGroupAsync()
     {
@@ -316,6 +413,7 @@ public partial class FooterEditor
     private void ClearSelection()
     {
         _selected = null;
+        _cultureVariants = [];
         _editName = string.Empty;
         _editDescription = null;
         _companyName = "Aero CMS";
@@ -325,6 +423,7 @@ public partial class FooterEditor
         _overlayOpacity = 0.35m;
         _copyrightText = null;
         _groups = [];
+        ResetTranslationDraft();
     }
 
     private string? ValidateEditor()
@@ -357,6 +456,52 @@ public partial class FooterEditor
 
         var invalidLink = _groups.SelectMany(x => x.Links).FirstOrDefault(x => string.IsNullOrWhiteSpace(x.Label) || string.IsNullOrWhiteSpace(x.Href));
         return invalidLink is null ? null : "Every link needs a label and URL.";
+    }
+
+    private async Task<SiteViewModel?> ResolveCurrentSiteAsync()
+    {
+        var selectedSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        if (selectedSite is not null)
+        {
+            return selectedSite;
+        }
+
+        var defaultResult = await SitesClient.GetDefaultAsync();
+        return defaultResult is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
+    }
+
+    private void ResetTranslationDraft()
+        => _selectedTranslationCulture = AvailableTranslationCultures.FirstOrDefault() ?? string.Empty;
+
+    private static string FormatCulture(string? culture)
+    {
+        var normalized = NormalizeCultureName(culture);
+        try
+        {
+            var info = CultureInfo.GetCultureInfo(normalized);
+            return $"{info.DisplayName} ({info.Name})";
+        }
+        catch (CultureNotFoundException)
+        {
+            return normalized;
+        }
+    }
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+        {
+            return "en-US";
+        }
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return culture.Trim();
+        }
     }
 
     private void NormalizeOrders()

@@ -57,6 +57,12 @@ public record PageViewModel : AeroEntityViewModel
     public string? LayoutRegionsJson { get; init; }
     [Id(24)]
     public string? EditorBlocksJson { get; init; }
+    [Id(25)]
+    public string Culture { get; init; } = "en-US";
+    [Id(26)]
+    public long? TranslationSetId { get; init; }
+    [Id(27)]
+    public ContentPublicationState PublicationState { get; init; } = ContentPublicationState.Draft;
 }
 
 [GenerateSerializer]

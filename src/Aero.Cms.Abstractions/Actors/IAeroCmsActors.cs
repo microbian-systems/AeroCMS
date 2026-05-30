@@ -32,6 +32,10 @@ public interface IAeroDocsActor : IAeroCmsContentActor<DocViewModel>
     Task<List<DocViewModel>> GetTopLevelCategoriesAsync(long siteId, CancellationToken ct = default);
     /// <summary>Save a doc (create or update).</summary>
     Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, CancellationToken ct = default);
+    /// <summary>Get all culture variants for a doc.</summary>
+    Task<List<DocViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+    /// <summary>Create a culture-specific copy of a doc.</summary>
+    Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long id, string culture, string slug, CancellationToken ct = default);
     /// <summary>Publish a doc.</summary>
     Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, CancellationToken ct = default);
     /// <summary>Unpublish a doc.</summary>
@@ -52,12 +56,18 @@ public interface IAeroMediaActor : IAeroCmsContentActor<MediaViewModel>
 }
 public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
 {
+    /// <summary>Find a published page by slug for a specific site and culture.</summary>
+    Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, string? culture, CancellationToken ct);
     /// <summary>Get all pages (paged + optional search) for a site.</summary>
     Task<(List<PageViewModel> Items, long TotalCount)> GetAllPagesAsync(long siteId, int skip, int take, string? search, CancellationToken ct);
     /// <summary>Publish a page (event sourcing).</summary>
     Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, CancellationToken ct);
     /// <summary>Unpublish a page (event sourcing).</summary>
     Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(long id, CancellationToken ct);
+    /// <summary>List all culture variants for a page.</summary>
+    Task<List<PageViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct);
+    /// <summary>Create a draft culture variant for a page.</summary>
+    Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(long id, string culture, string slug, CancellationToken ct);
     /// <summary>Delete multiple pages.</summary>
     Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, CancellationToken ct);
     /// <summary>Get event stream history for a page.</summary>
@@ -97,11 +107,26 @@ public interface IAeroPostActor : IAeroCmsContentActor<PostViewModel>
     /// <summary>Find a published post by slug within a site.</summary>
     Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, CancellationToken ct);
 
+    /// <summary>Find a published post by slug within a site and culture.</summary>
+    Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, string? culture, CancellationToken ct);
+
+    /// <summary>List all culture variants for a post.</summary>
+    Task<List<PostViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct);
+
+    /// <summary>Create a draft culture variant for a post.</summary>
+    Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(long id, string culture, string slug, CancellationToken ct);
+
     /// <summary>Get latest N published posts.</summary>
     Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, CancellationToken ct);
 
+    /// <summary>Get latest N published posts for a culture.</summary>
+    Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, string? culture, CancellationToken ct);
+
     /// <summary>Get paged published posts, skipping the first N latest posts.</summary>
     Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bool HasNext, bool HasPrev)> GetPagedPostsAsync(long siteId, int page, int pageSize, int skipFromLatest, CancellationToken ct);
+
+    /// <summary>Get paged published posts for a culture, skipping the first N latest posts.</summary>
+    Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bool HasNext, bool HasPrev)> GetPagedPostsAsync(long siteId, int page, int pageSize, int skipFromLatest, string? culture, CancellationToken ct);
 
     /// <summary>Get all tag IDs mapped to their display names.</summary>
     Task<Dictionary<long, string>> GetTagNameMapAsync(long siteId, CancellationToken ct);

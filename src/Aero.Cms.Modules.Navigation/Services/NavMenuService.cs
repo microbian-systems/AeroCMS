@@ -1,7 +1,9 @@
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Navigation.Domain;
 using Aero.Cms.Modules.Navigation.Events;
+using System.Globalization;
 using Wolverine;
 using static Aero.Core.Railway.Prelude;
 
@@ -80,6 +82,44 @@ public sealed class NavMenuService(
         return Ok<NavigationDetail, AeroError>(MapDetail(menu, snapshot, version));
     }
 
+    public async Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var menuResult = await GetAsync(id, cancellationToken);
+            if (menuResult is Result<NavMenuDocument, AeroError>.Failure failure)
+            {
+                return Fail<IReadOnlyList<NavigationDetail>, AeroError>(failure.Error);
+            }
+
+            var menu = ((Result<NavMenuDocument, AeroError>.Ok)menuResult).Value;
+            var translationSetId = menu.TranslationSetId ?? menu.Id;
+            var variants = await session.Query<NavMenuDocument>()
+                .Where(x => x.SiteId == menu.SiteId &&
+                            x.TranslationSetId == translationSetId &&
+                            x.State != NavMenuLifecycleState.Archived)
+                .OrderBy(x => x.Culture)
+                .ToListAsync(token: cancellationToken);
+
+            var details = new List<NavigationDetail>(variants.Count);
+            foreach (var variant in variants)
+            {
+                var snapshot = await LoadEditorSnapshotAsync(variant, cancellationToken);
+                var version = await GetStreamVersionAsync(variant.Id, cancellationToken);
+                details.Add(MapDetail(variant, snapshot, version));
+            }
+
+            return Ok<IReadOnlyList<NavigationDetail>, AeroError>(details);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list navigation culture variants for {NavMenuId}", id);
+            return Fail<IReadOnlyList<NavigationDetail>, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
     public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default)
     {
         try
@@ -146,6 +186,7 @@ public sealed class NavMenuService(
             return Ok<NavMenuSnapshot?, AeroError>(null);
         }
 
+        navMenuId = await ResolveCultureVariantIdAsync(siteId, navMenuId.Value, GetCurrentCulture(), cancellationToken);
         return await GetPublishedSnapshotAsync(navMenuId.Value, cancellationToken);
     }
 
@@ -162,9 +203,10 @@ public sealed class NavMenuService(
                 return Fail<NavMenuDocument, AeroError>(AeroError.InvalidRequestError("A current manager site is required."));
             }
 
+            var culture = await GetSiteDefaultCultureAsync(cancellationToken);
             var key = NavMenuDocument.NormalizeKey(string.IsNullOrWhiteSpace(request.Name) ? "header" : request.Name);
             var duplicate = await session.Query<NavMenuDocument>()
-                .AnyAsync(x => x.SiteId == siteId && x.Key == key, cancellationToken);
+                .AnyAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == key, cancellationToken);
             if (duplicate)
             {
                 return Fail<NavMenuDocument, AeroError>(AeroError.ConflictError($"Navigation key '{key}' already exists for this site."));
@@ -175,7 +217,7 @@ public sealed class NavMenuService(
             var snapshot = MapSnapshot(request.Items, request.SiteLogoUrl);
             snapshot.Validate();
 
-            var created = new NavMenuCreated(siteId, request.Name, key, userId, now);
+            var created = new NavMenuCreated(siteId, request.Name, key, userId, now, Culture: culture, TranslationSetId: id);
             var draftSaved = new NavMenuDraftSaved(siteId, request.Name, key, snapshot, userId, now, "Initial draft");
 
             session.Events.StartStream(NavMenuStreams.Menu(id), created, draftSaved);
@@ -427,6 +469,12 @@ public sealed class NavMenuService(
         return state?.Version ?? 0;
     }
 
+    private async Task<string> GetSiteDefaultCultureAsync(CancellationToken cancellationToken)
+    {
+        var site = await session.LoadAsync<SitesModel>(siteContext.SiteId, cancellationToken);
+        return NormalizeCulture(site?.DefaultCulture);
+    }
+
     private async Task EnsureExpectedVersionAsync(long id, long expectedVersion, CancellationToken cancellationToken)
     {
         if (expectedVersion <= 0)
@@ -441,6 +489,79 @@ public sealed class NavMenuService(
         }
     }
 
+    public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
+        long id,
+        string targetCulture,
+        long? userId = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var menuResult = await GetAsync(id, cancellationToken);
+            if (menuResult is Result<NavMenuDocument, AeroError>.Failure failure)
+            {
+                return Fail<NavMenuDocument, AeroError>(failure.Error);
+            }
+
+            var source = ((Result<NavMenuDocument, AeroError>.Ok)menuResult).Value;
+            var culture = NormalizeCulture(targetCulture);
+            var translationSetId = source.TranslationSetId ?? source.Id;
+
+            var duplicate = await session.Query<NavMenuDocument>()
+                .AnyAsync(x =>
+                    x.SiteId == source.SiteId &&
+                    x.TranslationSetId == translationSetId &&
+                    x.Culture == culture &&
+                    x.State != NavMenuLifecycleState.Archived,
+                    cancellationToken);
+            if (duplicate)
+            {
+                return Fail<NavMenuDocument, AeroError>(AeroError.ConflictError($"A {culture} navigation translation already exists."));
+            }
+
+            var sourceSnapshot = await LoadEditorSnapshotAsync(source, cancellationToken);
+            var targetId = Snowflake.NewId();
+            var fork = NavMenuCultureForker.Fork(source, sourceSnapshot, targetId, culture, userId);
+
+            session.Events.StartStream(NavMenuStreams.Menu(targetId), fork.Created, fork.DraftSaved);
+            await session.SaveChangesAsync(cancellationToken);
+
+            var menu = NavMenuDocument.Create(targetId, fork.Created);
+            menu.Apply(fork.DraftSaved);
+            return Ok<NavMenuDocument, AeroError>(menu);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to fork navigation menu {NavMenuId} to {Culture}", id, targetCulture);
+            return Fail<NavMenuDocument, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    private async Task<long> ResolveCultureVariantIdAsync(
+        long siteId,
+        long defaultMenuId,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        var defaultMenu = await session.LoadAsync<NavMenuDocument>(defaultMenuId, cancellationToken);
+        if (defaultMenu is null ||
+            string.Equals(defaultMenu.Culture, culture, StringComparison.OrdinalIgnoreCase) ||
+            defaultMenu.TranslationSetId is null)
+        {
+            return defaultMenuId;
+        }
+
+        var cultureVariant = await session.Query<NavMenuDocument>()
+            .Where(x => x.SiteId == siteId &&
+                        x.TranslationSetId == defaultMenu.TranslationSetId &&
+                        x.Culture == culture &&
+                        x.State != NavMenuLifecycleState.Archived &&
+                        x.HasPublishedSnapshot)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return cultureVariant?.Id ?? defaultMenuId;
+    }
+
     private Task PublishNavigationChangedAsync(
         long navMenuId,
         long siteId,
@@ -450,6 +571,24 @@ public sealed class NavMenuService(
         => bus is null
             ? Task.CompletedTask
             : bus.PublishAsync(new NavigationMenuChangedEvent(navMenuId, siteId, changeKind, changedOn)).AsTask();
+
+    private static string GetCurrentCulture()
+        => NormalizeCulture(CultureInfo.CurrentUICulture.Name);
+
+    private static string NormalizeCulture(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return SitesModel.DefaultCultureName;
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return SitesModel.DefaultCultureName;
+        }
+    }
 
     private static NavMenuSnapshot MapSnapshot(IReadOnlyList<CreateNavigationItemRequest> items, string? siteLogoUrl)
         => new(
@@ -517,7 +656,9 @@ public sealed class NavMenuService(
             (menu.ModifiedOn ?? menu.CreatedOn).DateTime,
             version,
             menu.State.ToString(),
-            snapshot.SiteLogoUrl);
+            snapshot.SiteLogoUrl,
+            menu.Culture,
+            menu.TranslationSetId);
 
     private static long ParseKey(string key)
         => long.TryParse(key, out var id) ? id : 0;

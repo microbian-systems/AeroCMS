@@ -42,116 +42,138 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
-            @foreach (var provider in Providers)
-            {
-                <div class="rounded-lg border p-5 space-y-5" style="background: var(--pe-bg-secondary); border-color: var(--pe-border); color: var(--pe-text-primary);">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h2 class="text-lg font-semibold">@provider.DisplayName</h2>
-                                @if (DefaultProviderId == provider.Id)
-                                {
-                                    <span class="text-xs px-2 py-1 rounded" style="background: rgba(59, 130, 246, 0.12); color: #2563eb;">Default</span>
-                                }
-                            </div>
-                            <p class="text-sm" style="color: var(--pe-text-muted);">@provider.Provider</p>
+        @if (Providers.FirstOrDefault(p => p.Id == DefaultProviderId) is { } defaultProvider)
+        {
+            <div class="rounded-lg border p-5 space-y-5" style="background: var(--pe-bg-secondary); border-color: var(--pe-border); color: var(--pe-text-primary);">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-lg font-semibold">@defaultProvider.DisplayName</h2>
+                            <span class="text-xs px-2 py-1 rounded" style="background: rgba(59, 130, 246, 0.12); color: #2563eb;">Default</span>
                         </div>
+                        <p class="text-sm" style="color: var(--pe-text-muted);">@defaultProvider.Provider</p>
+                    </div>
 
+                    <label class="inline-flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked="@defaultProvider.Enabled" @onchange="e => defaultProvider.Enabled = e.Value is true" />
+                        Enabled
+                    </label>
+                </div>
+
+                @if (!defaultProvider.SupportsContentEnhancement)
+                {
+                    <div class="rounded-md border p-3 text-sm" style="border-color: #f59e0b; color: #92400e; background: rgba(245, 158, 11, 0.08);">
+                        This provider can be configured now, but content enhancement support is not wired yet.
+                    </div>
+                }
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Display name</label>
+                        <input class="w-full rounded-md shadow-sm sm:text-sm"
+                               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                               value="@defaultProvider.DisplayName" @oninput="e => defaultProvider.DisplayName = e.Value?.ToString() ?? string.Empty" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Model</label>
+                        <input class="w-full rounded-md shadow-sm sm:text-sm"
+                               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                               value="@defaultProvider.Model" @oninput="e => defaultProvider.Model = e.Value?.ToString() ?? string.Empty" placeholder="gpt-4o-mini or local model name" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Endpoint / base URL</label>
+                        <input class="w-full rounded-md shadow-sm sm:text-sm"
+                               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                               value="@defaultProvider.Endpoint" @oninput="e => defaultProvider.Endpoint = e.Value?.ToString() ?? string.Empty" placeholder="http://localhost:1234/v1" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">API key</label>
+                        <input type="password" autocomplete="new-password" class="w-full rounded-md shadow-sm sm:text-sm"
+                               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                               value="@defaultProvider.ApiKey" @oninput="e => defaultProvider.ApiKey = e.Value?.ToString() ?? string.Empty"
+                               placeholder="@(defaultProvider.HasApiKey ? "Stored key exists" : "Optional for local endpoints")" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium" style="color: var(--pe-text-secondary);">Key status</label>
+                        <div class="text-sm" style="color: var(--pe-text-muted);">@(defaultProvider.HasApiKey ? "Stored encrypted key" : "No stored key")</div>
+                        @if (defaultProvider.HasApiKey)
+                        {
+                            <label class="inline-flex items-center gap-2 text-sm">
+                                <input type="checkbox" checked="@defaultProvider.ClearApiKey" @onchange="e => defaultProvider.ClearApiKey = e.Value is true" />
+                                Clear stored key
+                            </label>
+                        }
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Temperature</label>
+                        <input type="number" step="0.1" min="0" max="2" class="w-full rounded-md shadow-sm sm:text-sm"
+                               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                               value="@defaultProvider.Temperature" @oninput='e => defaultProvider.Temperature = e.Value?.ToString() ?? "0.3"' />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Max output tokens</label>
+                        <input type="number" min="128" max="32000" class="w-full rounded-md shadow-sm sm:text-sm"
+                               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                               value="@defaultProvider.MaxOutputTokens" @oninput='e => defaultProvider.MaxOutputTokens = e.Value?.ToString() ?? "1200"' />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Timeout seconds</label>
+                        <input type="number" min="1" max="300" class="w-full rounded-md shadow-sm sm:text-sm"
+                               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                               value="@defaultProvider.TimeoutSeconds" @oninput='e => defaultProvider.TimeoutSeconds = e.Value?.ToString() ?? "60"' />
+                    </div>
+
+                    <div class="flex flex-col gap-2 justify-end">
                         <label class="inline-flex items-center gap-2 text-sm">
-                            <input type="checkbox" checked="@provider.Enabled" @onchange="e => provider.Enabled = e.Value is true" />
-                            Enabled
+                            <input type="checkbox" checked="@defaultProvider.StreamResponses" @onchange="e => defaultProvider.StreamResponses = e.Value is true" />
+                            Stream responses
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-sm">
+                            <input type="checkbox" checked="@defaultProvider.SaveUsageTelemetry" @onchange="e => defaultProvider.SaveUsageTelemetry = e.Value is true" />
+                            Save usage telemetry
                         </label>
                     </div>
+                </div>
 
-                    @if (!provider.SupportsContentEnhancement)
+                <div class="flex justify-end">
+                    <button class="pe-btn pe-btn-primary pe-btn-sm" @onclick="SaveAsync" disabled="@IsSaving">@(IsSaving ? "Saving..." : "Save AI settings")</button>
+                </div>
+            </div>
+        }
+
+        @if (Providers.Where(p => p.Id != DefaultProviderId).ToList() is { Count: > 0 } otherProviders)
+        {
+            <div class="rounded-lg border" style="background: var(--pe-bg-secondary); border-color: var(--pe-border);">
+                <div class="px-5 py-3 border-b" style="border-color: var(--pe-border);">
+                    <h3 class="text-base font-semibold" style="color: var(--pe-text-secondary);">Other providers</h3>
+                </div>
+                <div class="divide-y" style="border-color: var(--pe-border);">
+                    @foreach (var provider in otherProviders)
                     {
-                        <div class="rounded-md border p-3 text-sm" style="border-color: #f59e0b; color: #92400e; background: rgba(245, 158, 11, 0.08);">
-                            This provider can be configured now, but content enhancement support is not wired yet.
+                        <div class="px-5 py-3 flex items-center justify-between gap-4">
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium" style="color: var(--pe-text-primary);">@provider.DisplayName</div>
+                                <div class="text-xs" style="color: var(--pe-text-muted);">@provider.Provider</div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <label class="inline-flex items-center gap-2 text-sm">
+                                    <input type="checkbox" checked="@provider.Enabled" @onchange="e => provider.Enabled = e.Value is true" />
+                                    Enabled
+                                </label>
+                                <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => SelectDefaultProvider(provider.Id)">Make default</button>
+                            </div>
                         </div>
                     }
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Display name</label>
-                            <input class="w-full rounded-md shadow-sm sm:text-sm"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   value="@provider.DisplayName" @oninput="e => provider.DisplayName = e.Value?.ToString() ?? string.Empty" />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Model</label>
-                            <input class="w-full rounded-md shadow-sm sm:text-sm"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   value="@provider.Model" @oninput="e => provider.Model = e.Value?.ToString() ?? string.Empty" placeholder="gpt-4o-mini or local model name" />
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Endpoint / base URL</label>
-                            <input class="w-full rounded-md shadow-sm sm:text-sm"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   value="@provider.Endpoint" @oninput="e => provider.Endpoint = e.Value?.ToString() ?? string.Empty" placeholder="http://localhost:1234/v1" />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">API key</label>
-                            <input type="password" autocomplete="new-password" class="w-full rounded-md shadow-sm sm:text-sm"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   value="@provider.ApiKey" @oninput="e => provider.ApiKey = e.Value?.ToString() ?? string.Empty"
-                                   placeholder="@(provider.HasApiKey ? "Stored key exists" : "Optional for local endpoints")" />
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="block text-sm font-medium" style="color: var(--pe-text-secondary);">Key status</label>
-                            <div class="text-sm" style="color: var(--pe-text-muted);">@(provider.HasApiKey ? "Stored encrypted key" : "No stored key")</div>
-                            @if (provider.HasApiKey)
-                            {
-                                <label class="inline-flex items-center gap-2 text-sm">
-                                    <input type="checkbox" checked="@provider.ClearApiKey" @onchange="e => provider.ClearApiKey = e.Value is true" />
-                                    Clear stored key
-                                </label>
-                            }
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Temperature</label>
-                            <input type="number" step="0.1" min="0" max="2" class="w-full rounded-md shadow-sm sm:text-sm"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   value="@provider.Temperature" @oninput='e => provider.Temperature = e.Value?.ToString() ?? "0.3"' />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Max output tokens</label>
-                            <input type="number" min="128" max="32000" class="w-full rounded-md shadow-sm sm:text-sm"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   value="@provider.MaxOutputTokens" @oninput='e => provider.MaxOutputTokens = e.Value?.ToString() ?? "1200"' />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Timeout seconds</label>
-                            <input type="number" min="1" max="300" class="w-full rounded-md shadow-sm sm:text-sm"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                   value="@provider.TimeoutSeconds" @oninput='e => provider.TimeoutSeconds = e.Value?.ToString() ?? "60"' />
-                        </div>
-
-                        <div class="flex flex-col gap-2 justify-end">
-                            <label class="inline-flex items-center gap-2 text-sm">
-                                <input type="checkbox" checked="@provider.StreamResponses" @onchange="e => provider.StreamResponses = e.Value is true" />
-                                Stream responses
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm">
-                                <input type="checkbox" checked="@provider.SaveUsageTelemetry" @onchange="e => provider.SaveUsageTelemetry = e.Value is true" />
-                                Save usage telemetry
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => SelectDefaultProvider(provider.Id)">Make default</button>
-                    </div>
                 </div>
-            }
-        </div>
+            </div>
+        }
 
         <div class="flex items-center justify-end gap-2">
             <button class="pe-btn pe-btn-ghost" @onclick="LoadAsync" disabled="@IsSaving">Reset</button>

@@ -2,10 +2,18 @@
     var showHeaderNavigation = ViewBag.ShowHeaderNavigation as bool? ?? true;
     var navMenuOverrideId = ViewBag.NavMenuOverrideId as long?;
     var hideFooter = ViewBag.HideFooter as bool? ?? false;
+    var currentCulture = System.Globalization.CultureInfo.CurrentUICulture;
+    var documentLanguage = currentCulture.Name;
+    var documentDirection = currentCulture.TextInfo.IsRightToLeft ? "rtl" : "ltr";
+    var isCultureFallback = ViewBag.IsCultureFallback as bool? ?? false;
+    var requestedCultureName = ViewBag.RequestedCulture as string;
+    var renderedCultureName = ViewBag.RenderedCulture as string;
+    var cultureSwitcherLinks = ViewBag.CultureSwitcherLinks as IReadOnlyList<Aero.Cms.Shared.Components.CultureSwitcherLink>
+        ?? Array.Empty<Aero.Cms.Shared.Components.CultureSwitcherLink>();
 }
 <!DOCTYPE html>
 
-<html lang="en">
+<html lang="@documentLanguage" dir="@documentDirection">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -42,6 +50,22 @@
     }
 
     <main class="flex-grow">
+        <component type="typeof(Aero.Cms.Shared.Components.FallbackBanner)"
+                   render-mode="Static"
+                   param-Show="@isCultureFallback"
+                   param-RequestedCulture="@(requestedCultureName ?? documentLanguage)"
+                   param-RenderedCulture="@(renderedCultureName ?? documentLanguage)" />
+
+        @if (cultureSwitcherLinks.Count > 1)
+        {
+            <div class="border-b border-slate-200 bg-slate-50">
+                <div class="mx-auto flex max-w-7xl justify-end px-4 py-3 sm:px-6 lg:px-8">
+                    <component type="typeof(Aero.Cms.Shared.Components.CultureSwitcher)"
+                               render-mode="Static"
+                               param-Links="@cultureSwitcherLinks" />
+                </div>
+            </div>
+        }
         @RenderBody()
     </main>
 

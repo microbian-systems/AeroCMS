@@ -23,6 +23,10 @@ public interface INavigationsHttpClient
     /// <returns>The navigation detail or an error.</returns>
     Task<Result<NavigationDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
 
+    Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+
+    Task<Result<NavigationDetail, AeroError>> ForkToCultureAsync(long id, ForkNavigationCultureRequest request, CancellationToken ct = default);
+
     /// <summary>
     /// Creates a new navigation menu.
     /// </summary>
@@ -102,6 +106,18 @@ public class NavigationsHttpClient(HttpClient httpClient, ILogger<NavigationsHtt
     }
 
     /// <inheritdoc />
+    public Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+    {
+        return GetAsync<IReadOnlyList<NavigationDetail>>($"{id}/translations", ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<NavigationDetail, AeroError>> ForkToCultureAsync(long id, ForkNavigationCultureRequest request, CancellationToken ct = default)
+    {
+        return PostAsync<ForkNavigationCultureRequest, NavigationDetail>($"{id}/translations", request, ct);
+    }
+
+    /// <inheritdoc />
     public Task<Result<NavigationDetail, AeroError>> CreateAsync(CreateNavigationRequest request, CancellationToken ct = default)
     {
         return PostAsync<CreateNavigationRequest, NavigationDetail>(string.Empty, request, ct);
@@ -166,7 +182,9 @@ public record NavigationSummary(
     int ItemCount,
     DateTime CreatedAt,
     long Version = 0,
-    string? State = null);
+    string? State = null,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
 
 /// <summary>
 /// Detailed navigation menu information.
@@ -180,7 +198,11 @@ public record NavigationDetail(
     DateTime UpdatedAt,
     long Version = 0,
     string? State = null,
-    string? SiteLogoUrl = null);
+    string? SiteLogoUrl = null,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
+
+public sealed record ForkNavigationCultureRequest(string Culture);
 
 /// <summary>
 /// Detailed navigation item information.

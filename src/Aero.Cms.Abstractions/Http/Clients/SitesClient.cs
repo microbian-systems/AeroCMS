@@ -74,7 +74,7 @@ public class SitesHttpClient(HttpClient httpClient, ILogger<SitesHttpClient> log
     }
 
     private static SiteInfo MapToSiteInfo(SiteViewModel vm) => new(
-        vm.Id, vm.Name, vm.PrimaryHost, vm.IsEnabled, vm.DefaultCulture, vm.TenantId);
+        vm.Id, vm.Name, vm.PrimaryHost, vm.IsEnabled, vm.DefaultCulture, vm.TenantId, vm.SupportedCultures);
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
     {

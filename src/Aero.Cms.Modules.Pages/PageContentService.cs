@@ -7,7 +7,10 @@ using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Core.Entities;
+using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
+using System.Globalization;
 using ZiggyCreatures.Caching.Fusion;
 using static Aero.Core.Railway.Prelude;
 
@@ -18,9 +21,12 @@ public interface IPageContentService
 {
     Task<Result<PageDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
     Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
+    Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default);
     Task<Result<PageDocument?, AeroError>> LoadHomepageAsync(CancellationToken cancellationToken = default);
     Task<Result<PageDocument?, AeroError>> LoadBlogListingAsync(CancellationToken cancellationToken = default);
     Task<Result<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>> GetAllPagesAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVariantsAsync(long translationSetId, CancellationToken cancellationToken = default);
+    Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(long sourcePageId, string targetCulture, string targetSlug, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default);
@@ -112,23 +118,27 @@ public sealed class MartenPageContentService(
         }
     }
 
-    public async Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
+        => FindBySlugAsync(slug, culture: null, cancellationToken);
+
+    public async Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
-            var cacheKey = BuildCacheKey($"slug:{NormalizeCachePart(slug)}");
+            var currentCulture = GetCurrentCulture(culture);
+            var routeSlug = AeroCultureRoute.StripLeadingCulture(slug);
+            var cacheKey = BuildCacheKey($"slug:{currentCulture}:{NormalizeCachePart(routeSlug)}");
             var cached = await TryGetCacheAsync<PageDocument>(cacheKey, cancellationToken);
             if (cached is not null)
             {
                 return Prelude.Ok<PageDocument?, AeroError>(cached);
             }
 
-            var normalized = ContentSlugDocument.Normalize(slug);
+            var normalized = ContentSlugDocument.Normalize(routeSlug);
 
-            var reservation = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(x =>
-                    x.SiteId == _siteContext.SiteId &&
-                    string.Equals(normalized, x.NormalizedSlug, StringComparison.OrdinalIgnoreCase), token: cancellationToken);
+            var reservation = await FindSlugReservationAsync(normalized, currentCulture, cancellationToken)
+                ?? await FindDefaultCultureSlugReservationAsync(normalized, currentCulture, cancellationToken);
+
             if (reservation is not null && reservation.OwnerType == ContentSlugOwnerType.Page)
             {
                 var document = await session.LoadAsync<PageDocument>(reservation.OwnerId, cancellationToken);
@@ -146,23 +156,123 @@ public sealed class MartenPageContentService(
             // Fallback: direct Path lookup (handles pages created without slug reservation)
             // PageDocument.Path stores the leading "/" (e.g., "/main-page/child-page")
             var pathToMatch = "/" + normalized;
-            var directPage = await session.Query<PageDocument>()
-                .FirstOrDefaultAsync(x =>
-                    x.SiteId == _siteContext.SiteId &&
-                    string.Equals(pathToMatch, x.Path, StringComparison.OrdinalIgnoreCase) &&
-                    x.PublicationState == ContentPublicationState.Published, token: cancellationToken);
+            var directPage = await FindDirectPageAsync(pathToMatch, currentCulture, cancellationToken)
+                ?? await FindDefaultCultureDirectPageAsync(pathToMatch, currentCulture, cancellationToken);
             if (directPage is not null)
             {
                 await SetCacheAsync(cacheKey, directPage, cancellationToken);
                 return Prelude.Ok<PageDocument?, AeroError>(directPage);
             }
 
-            return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
+            return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{routeSlug}' not found"));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to find page by slug {Slug}", slug);
             return Prelude.Fail<PageDocument?, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVariantsAsync(
+        long translationSetId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var variants = await session.Query<PageDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId
+                    && x.TranslationSetId == translationSetId
+                    && x.Deleted == false)
+                .OrderBy(x => x.Culture)
+                .ToListAsync(cancellationToken);
+
+            return Prelude.Ok<IReadOnlyList<PageDocument>, AeroError>(variants);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list page culture variants for translation set {TranslationSetId}", translationSetId);
+            return Prelude.Fail<IReadOnlyList<PageDocument>, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(
+        long sourcePageId,
+        string targetCulture,
+        string targetSlug,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var source = await session.LoadAsync<PageDocument>(sourcePageId, cancellationToken);
+            if (source is null || source.SiteId != _siteContext.SiteId)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.NotFoundError($"Page with id '{sourcePageId}' not found or access denied"));
+            }
+
+            var normalizedCulture = ContentSlugDocument.NormalizeCulture(targetCulture);
+            var supported = await IsSupportedCultureAsync(source.SiteId, normalizedCulture, cancellationToken);
+            if (!supported)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.ValidationError([$"Culture '{normalizedCulture}' is not supported by the current site."]));
+            }
+
+            var translationSetId = source.TranslationSetId ?? source.Id;
+            var existingVariant = await session.Query<PageDocument>()
+                .FirstOrDefaultAsync(x =>
+                    x.SiteId == source.SiteId &&
+                    x.TranslationSetId == translationSetId &&
+                    x.Culture == normalizedCulture &&
+                    x.Deleted == false,
+                    token: cancellationToken);
+
+            if (existingVariant is not null)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.ConflictError($"Page already has a '{normalizedCulture}' variant."));
+            }
+
+            var fork = PageCultureForker.Fork(source, Snowflake.NewId(), normalizedCulture, targetSlug);
+            if (source.ParentId is long sourceParentId)
+            {
+                var parentVariant = await FindParentCultureVariantAsync(sourceParentId, normalizedCulture, cancellationToken);
+                if (parentVariant is not null)
+                {
+                    fork.ParentId = parentVariant.Id;
+                    if (pageTreeService is not null)
+                    {
+                        var pathResult = await pageTreeService.ComputePathAsync(
+                            source.SiteId,
+                            parentVariant.Id,
+                            fork.Slug,
+                            ct: cancellationToken);
+
+                        if (pathResult is Result<(string Path, int Depth), AeroError>.Ok pathOk)
+                        {
+                            fork.Path = pathOk.Value.Path;
+                            fork.Depth = pathOk.Value.Depth;
+                        }
+
+                        var orderResult = await pageTreeService.GetNextSiblingOrderAsync(
+                            source.SiteId,
+                            parentVariant.Id,
+                            cancellationToken);
+
+                        if (orderResult is Result<int, AeroError>.Ok orderOk)
+                        {
+                            fork.Order = orderOk.Value;
+                        }
+                    }
+                }
+            }
+
+            return await SaveAsync(fork, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to fork page {PageId} to culture {Culture}", sourcePageId, targetCulture);
+            return Prelude.Fail<PageDocument, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -179,6 +289,7 @@ public sealed class MartenPageContentService(
             {
                 Id = Snowflake.NewId(),
                 SiteId = siteId,
+                Culture = SitesModel.DefaultCultureName,
                 Title = request.Title,
                 Slug = slug,
                 Summary = request.Summary,
@@ -190,6 +301,7 @@ public sealed class MartenPageContentService(
                 HideFooter = request.HideFooter,
                 ShowChatAgent = request.ShowChatAgent
             };
+            page.TranslationSetId = page.Id;
 
             if (request.EditorBlocks is not null)
             {
@@ -246,13 +358,14 @@ public sealed class MartenPageContentService(
                 ContentSlugOwnerType.Page,
                 publicSlug,
                 siteId,
+                page.Culture,
                 previousSlug: null,
                 cancellationToken: cancellationToken);
 
             // Start an event stream for versioning (projection handles document persistence).
             // PageCreated establishes the page; PageContentUpdated carries blocks + layout.
             session.Events.StartStream($"page-{page.Id}",
-                new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind));
+                new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind, page.Culture, page.TranslationSetId));
             session.Events.Append($"page-{page.Id}", new PageContentUpdated(
                 page.Title,
                 page.Slug,
@@ -340,6 +453,7 @@ public sealed class MartenPageContentService(
                     ContentSlugOwnerType.Page,
                     newPublicSlug,
                     _siteContext.SiteId,
+                    page.Culture,
                     oldPublicSlug,
                     cancellationToken);
             }
@@ -567,6 +681,9 @@ public sealed class MartenPageContentService(
                 ApplyPersistedValues(page, existingPage);
             }
 
+            targetPage.Culture = ContentSlugDocument.NormalizeCulture(targetPage.Culture);
+            targetPage.TranslationSetId ??= targetPage.Id;
+
             // If the caller provided editor blocks but no layout regions, map them now.
             // This handles both new pages (no existing) and updates where blocks were
             // added but not yet persisted as BlockBase entities.
@@ -584,6 +701,7 @@ public sealed class MartenPageContentService(
                 ContentSlugOwnerType.Page,
                 targetPublicSlug,
                 targetPage.SiteId,
+                targetPage.Culture,
                 oldSlug,  // oldSlug is the leaf; reservation handles full-path matching
                 cancellationToken);
 
@@ -603,7 +721,7 @@ public sealed class MartenPageContentService(
                 session.Events.StartStream($"page-{targetPage.Id}",
                     new PageCreated(targetPage.SiteId, targetPage.Title, targetPage.Slug,
                                     targetPage.ParentId, targetPage.Order, targetPage.Path, targetPage.Depth,
-                                    targetPage.PublicationState, targetPage.Kind));
+                                    targetPage.PublicationState, targetPage.Kind, targetPage.Culture, targetPage.TranslationSetId));
             }
             session.Events.Append($"page-{targetPage.Id}", new PageContentUpdated(
                 targetPage.Title,
@@ -772,6 +890,111 @@ public sealed class MartenPageContentService(
 
     private string BuildCacheKey(string suffix)
         => $"cms:page:{_siteContext.SiteId}:{suffix}";
+
+    private async Task<ContentSlugDocument?> FindSlugReservationAsync(
+        string normalizedSlug,
+        string culture,
+        CancellationToken cancellationToken)
+        => await session.Query<ContentSlugDocument>()
+            .FirstOrDefaultAsync(x =>
+                x.SiteId == _siteContext.SiteId &&
+                x.Culture == culture &&
+                string.Equals(normalizedSlug, x.NormalizedSlug, StringComparison.OrdinalIgnoreCase),
+                token: cancellationToken);
+
+    private async Task<ContentSlugDocument?> FindDefaultCultureSlugReservationAsync(
+        string normalizedSlug,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        var defaultCulture = await GetSiteDefaultCultureAsync(cancellationToken);
+        if (string.Equals(culture, defaultCulture, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return await FindSlugReservationAsync(normalizedSlug, defaultCulture, cancellationToken);
+    }
+
+    private async Task<PageDocument?> FindDirectPageAsync(
+        string pathToMatch,
+        string culture,
+        CancellationToken cancellationToken)
+        => await session.Query<PageDocument>()
+            .FirstOrDefaultAsync(x =>
+                x.SiteId == _siteContext.SiteId &&
+                x.Culture == culture &&
+                string.Equals(pathToMatch, x.Path, StringComparison.OrdinalIgnoreCase) &&
+                x.PublicationState == ContentPublicationState.Published,
+                token: cancellationToken);
+
+    private async Task<PageDocument?> FindDefaultCultureDirectPageAsync(
+        string pathToMatch,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        var defaultCulture = await GetSiteDefaultCultureAsync(cancellationToken);
+        if (string.Equals(culture, defaultCulture, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return await FindDirectPageAsync(pathToMatch, defaultCulture, cancellationToken);
+    }
+
+    private async Task<string> GetSiteDefaultCultureAsync(CancellationToken cancellationToken)
+    {
+        var site = await session.LoadAsync<SitesModel>(_siteContext.SiteId, cancellationToken);
+        var defaultCulture = site?.DefaultCulture ?? SitesModel.DefaultCultureName;
+
+        return ContentSlugDocument.NormalizeCulture(defaultCulture);
+    }
+
+    private async Task<bool> IsSupportedCultureAsync(long siteId, string culture, CancellationToken cancellationToken)
+    {
+        var site = await session.LoadAsync<SitesModel>(siteId, cancellationToken);
+        if (site is null)
+        {
+            return string.Equals(culture, SitesModel.DefaultCultureName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        IReadOnlyList<string> supported = site.SupportedCultures is { Count: > 0 }
+            ? site.SupportedCultures
+            : [site.DefaultCulture ?? SitesModel.DefaultCultureName];
+
+        return supported
+            .Select(ContentSlugDocument.NormalizeCulture)
+            .Any(x => string.Equals(x, culture, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<PageDocument?> FindParentCultureVariantAsync(
+        long sourceParentId,
+        string targetCulture,
+        CancellationToken cancellationToken)
+    {
+        var sourceParent = await session.LoadAsync<PageDocument>(sourceParentId, cancellationToken);
+        if (sourceParent is null)
+        {
+            return null;
+        }
+
+        if (string.Equals(sourceParent.Culture, targetCulture, StringComparison.OrdinalIgnoreCase))
+        {
+            return sourceParent;
+        }
+
+        if (sourceParent.TranslationSetId is null)
+        {
+            return null;
+        }
+
+        return await session.Query<PageDocument>()
+            .FirstOrDefaultAsync(x =>
+                x.SiteId == sourceParent.SiteId &&
+                x.TranslationSetId == sourceParent.TranslationSetId &&
+                x.Culture == targetCulture &&
+                x.Deleted == false,
+                token: cancellationToken);
+    }
+
+    private static string GetCurrentCulture(string? culture = null)
+        => ContentSlugDocument.NormalizeCulture(culture ?? CultureInfo.CurrentUICulture.Name);
 
     private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken cancellationToken) where T : class
     {

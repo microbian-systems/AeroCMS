@@ -7,7 +7,9 @@ public sealed record NavMenuCreated(
     string Name,
     string Key,
     long? UserId,
-    DateTimeOffset CreatedOn);
+    DateTimeOffset CreatedOn,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
 
 public sealed record NavMenuDraftSaved(
     long SiteId,

@@ -85,13 +85,50 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     /// <summary>Find a published post by slug within a site.</summary>
     public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, CancellationToken ct)
+        => await FindBySlugAsync(slug, siteId, culture: null, ct);
+
+    public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, string? culture, CancellationToken ct)
     {
         await using var session = _store.LightweightSession();
         var postService = CreatePostService(session, siteId);
-        var result = await postService.FindBySlugAsync(slug, ct);
+        var result = await postService.FindBySlugAsync(slug, culture, ct);
         if (result is Result<PostDocument?, AeroError>.Ok { Value: not null } ok)
             return MapToViewModel(ok.Value);
         return null;
+    }
+
+    public async Task<List<PostViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
+    {
+        await using var loadSession = _store.QuerySession();
+        var source = await loadSession.LoadAsync<PostDocument>(id, ct);
+        if (source is null)
+            return [];
+
+        var translationSetId = source.TranslationSetId ?? source.Id;
+
+        await using var session = _store.LightweightSession();
+        var postService = CreatePostService(session, source.SiteId);
+        var result = await postService.ListCultureVariantsAsync(translationSetId, ct);
+        return result is Result<IReadOnlyList<PostDocument>, AeroError>.Ok ok
+            ? ok.Value.Select(MapToViewModel).ToList()
+            : [];
+    }
+
+    public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(long id, string culture, string slug, CancellationToken ct)
+    {
+        await using var loadSession = _store.QuerySession();
+        var source = await loadSession.LoadAsync<PostDocument>(id, ct);
+        if (source is null)
+            return NotFound($"Post {id} not found");
+
+        await using var session = _store.LightweightSession();
+        var postService = CreatePostService(session, source.SiteId);
+        var result = await postService.ForkPostForCultureAsync(id, culture, slug, ct);
+        if (result is Result<PostDocument, AeroError>.Ok ok)
+            return Ok(MapToViewModel(ok.Value));
+        if (result is Result<PostDocument, AeroError>.Failure fail)
+            return Fail(GetErrorMessage(fail.Error));
+        return Fail("Failed to create post translation");
     }
 
     /// <summary>Save (create or update) a blog post, handling slug reservation + cache eviction.</summary>
@@ -272,10 +309,13 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     /// <summary>Get latest N published posts for a site.</summary>
     public async Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, CancellationToken ct)
+        => await GetLatestPostsAsync(siteId, count, culture: null, ct);
+
+    public async Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, string? culture, CancellationToken ct)
     {
         await using var session = _store.LightweightSession();
         var postService = CreatePostService(session, siteId);
-        var result = await postService.GetLatestPostsAsync(count, ct);
+        var result = await postService.GetLatestPostsAsync(count, culture, ct);
         if (result is Result<IReadOnlyList<PostDocument>, AeroError>.Ok ok)
         {
             var items = ok.Value.Select(MapToViewModel).ToList();
@@ -287,10 +327,14 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
     /// <summary>Get paged published posts, skipping the first N latest posts.</summary>
     public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bool HasNext, bool HasPrev)> GetPagedPostsAsync(
         long siteId, int page, int pageSize, int skipFromLatest, CancellationToken ct)
+        => await GetPagedPostsAsync(siteId, page, pageSize, skipFromLatest, culture: null, ct);
+
+    public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bool HasNext, bool HasPrev)> GetPagedPostsAsync(
+        long siteId, int page, int pageSize, int skipFromLatest, string? culture, CancellationToken ct)
     {
         await using var session = _store.LightweightSession();
         var postService = CreatePostService(session, siteId);
-        var result = await postService.GetPagedPostsAsync(page, pageSize, skipFromLatest, ct);
+        var result = await postService.GetPagedPostsAsync(page, pageSize, skipFromLatest, culture, ct);
         if (result is Result<IPagedList<PostDocument>, AeroError>.Ok ok)
         {
             var pagedList = ok.Value;
@@ -357,6 +401,8 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
             AuthorId = d.AuthorId,
             ImageUrl = d.ImageUrl,
             Likes = d.Likes,
+            Culture = d.Culture,
+            TranslationSetId = d.TranslationSetId,
             CreatedOn = d.CreatedOn,
             ModifiedOn = d.ModifiedOn,
             CreatedBy = d.CreatedBy ?? "system",
@@ -382,6 +428,8 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
             AuthorId = vm.AuthorId,
             ImageUrl = vm.ImageUrl,
             Likes = vm.Likes,
+            Culture = vm.Culture,
+            TranslationSetId = vm.TranslationSetId,
             CreatedOn = vm.CreatedOn,
             ModifiedOn = vm.ModifiedOn,
             CreatedBy = vm.CreatedBy ?? "system",

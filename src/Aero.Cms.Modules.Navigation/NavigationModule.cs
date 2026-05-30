@@ -44,7 +44,9 @@ public sealed class NavigationModule : AeroWebModule, IUiModule, IConfigureMarte
         opts.Schema.For<NavMenuDocument>().Identity(x => x.Id);
         opts.Schema.For<NavMenuDocument>().UseOptimisticConcurrency(true);
         opts.Schema.For<NavMenuDocument>().Index(x => x.SiteId);
-        opts.Schema.For<NavMenuDocument>().UniqueIndex(x => x.SiteId, x => x.Key);
+        opts.Schema.For<NavMenuDocument>().Index(x => x.Culture);
+        opts.Schema.For<NavMenuDocument>().Index(x => x.TranslationSetId);
+        opts.Schema.For<NavMenuDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Key);
         opts.Schema.For<NavMenuDocument>().Index(x => x.State);
         Configure<NavMenuDocument>(services, opts);
 

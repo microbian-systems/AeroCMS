@@ -5,6 +5,7 @@ using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
@@ -191,22 +192,25 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     // ── ICanFindBySlug ──────────────────────────────────────────────
 
     public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
-        => GetBySlugCoreAsync(siteId, slug, ct);
+        => GetBySlugCoreAsync(siteId, slug, culture: null, ct);
+
+    public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, string? culture, CancellationToken ct)
+        => GetBySlugCoreAsync(siteId, slug, culture, ct);
 
     Task<AeroRequestResponse<PageViewModel>> ICanFindBySlug<PageViewModel, string>.GetBySlugAsync(
         string siteId, string slug, CancellationToken ct)
     {
         if (long.TryParse(siteId, out var id))
-            return GetBySlugCoreAsync(id, slug, ct);
+            return GetBySlugCoreAsync(id, slug, culture: null, ct);
         return Task.FromResult(Fail($"Invalid site ID: {siteId}"));
     }
 
     private async Task<AeroRequestResponse<PageViewModel>> GetBySlugCoreAsync(
-        long siteId, string slug, CancellationToken ct)
+        long siteId, string slug, string? culture, CancellationToken ct)
     {
         await using var session = _store.LightweightSession();
         var pageService = CreatePageService(session, siteId);
-        var result = await pageService.FindBySlugAsync(slug, ct);
+        var result = await pageService.FindBySlugAsync(slug, culture, ct);
 
         if (result is Result<PageDocument?, AeroError>.Ok { Value: not null } ok)
             return Ok(ok.Value.ToViewModel());
@@ -235,10 +239,66 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     }
 
     public async Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, CancellationToken ct)
-        => await TogglePublishStateAsync(id, ContentPublicationState.Published, ct);
+    {
+        using var scope = _services.CreateScope();
+        var workflow = scope.ServiceProvider.GetRequiredService<IPagePublishingWorkflowService>();
+        var result = await workflow.PublishNowAsync(id, ct);
+
+        if (result is Result<bool, AeroError>.Failure fail)
+            return Fail(fail.Error.ToString() ?? "Publish failed");
+
+        await using var session = _store.QuerySession();
+        var page = await session.LoadAsync<PageDocument>(id, ct);
+
+        return page is not null
+            ? Ok(page.ToViewModel())
+            : NotFound($"Page {id} not found");
+    }
 
     public async Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(long id, CancellationToken ct)
         => await TogglePublishStateAsync(id, ContentPublicationState.Draft, ct);
+
+    public async Task<List<PageViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
+    {
+        await using var loadSession = _store.QuerySession();
+        var page = await loadSession.LoadAsync<PageDocument>(id, ct);
+
+        if (page is null)
+            return [];
+
+        var translationSetId = page.TranslationSetId ?? page.Id;
+
+        await using var session = _store.LightweightSession();
+        var pageService = CreatePageService(session, page.SiteId);
+        var result = await pageService.ListCultureVariantsAsync(translationSetId, ct);
+
+        return result is Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok
+            ? ok.Value.Select(p => p.ToViewModel()).ToList()
+            : [];
+    }
+
+    public async Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(
+        long id,
+        string culture,
+        string slug,
+        CancellationToken ct)
+    {
+        await using var loadSession = _store.QuerySession();
+        var page = await loadSession.LoadAsync<PageDocument>(id, ct);
+
+        if (page is null)
+            return NotFound($"Page {id} not found");
+
+        await using var session = _store.LightweightSession();
+        var pageService = CreatePageService(session, page.SiteId);
+        var result = await pageService.ForkPageForCultureAsync(id, culture, slug, ct);
+
+        if (result is Result<PageDocument, AeroError>.Ok ok)
+            return Ok(ok.Value.ToViewModel());
+        if (result is Result<PageDocument, AeroError>.Failure fail)
+            return Fail(fail.Error.ToString() ?? "Culture fork failed");
+        return Fail("Unexpected result");
+    }
 
     private async Task<AeroRequestResponse<PageViewModel>> TogglePublishStateAsync(
         long id, ContentPublicationState state, CancellationToken ct)
@@ -249,16 +309,12 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         if (page is null)
             return NotFound($"Page {id} not found");
 
-        page.PublicationState = state;
+        var stateChanged = new PageStateChanged(state);
+        session.Events.Append($"page-{id}", stateChanged);
+        await session.SaveChangesAsync(ct);
 
-        var pageService = CreatePageService(session, page.SiteId);
-        var result = await pageService.SaveAsync(page, ct);
-
-        if (result is Result<PageDocument, AeroError>.Ok ok)
-            return Ok(ok.Value.ToViewModel());
-        if (result is Result<PageDocument, AeroError>.Failure fail)
-            return Fail(fail.Error.ToString() ?? $"{state} failed");
-        return Fail("Unexpected result");
+        page.Apply(stateChanged);
+        return Ok(page.ToViewModel());
     }
 
     public async Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, CancellationToken ct)

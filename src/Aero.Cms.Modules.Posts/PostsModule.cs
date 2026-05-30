@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Validators;
 using Aero.Cms.Core;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Abstractions.Audit;
 using Aero.Cms.Modules.Posts.Areas.Api.v1;
 using Aero.Cms.Modules.Posts.Parsers;
@@ -68,7 +69,9 @@ public sealed class PostsModule : AeroWebModule, IUiModule
         services.Configure<RazorPagesOptions>(options =>
         {
             options.Conventions.AddAreaPageRoute("Blog", "/PostsIndexPage", "/blog");
+            options.Conventions.AddAreaPageRoute("Blog", "/PostsIndexPage", "/{culture}/blog");
             options.Conventions.AddAreaPageRoute("Blog", "/PostsDetailPage", "/blog/{slug}");
+            options.Conventions.AddAreaPageRoute("Blog", "/PostsDetailPage", "/{culture}/blog/{slug}");
             options.Conventions.AddAreaPageRoute("Blog", "/PostsDetailPage", "/_cms/preview/blog/drafts/{draftId:long}");
         });
     }
@@ -78,7 +81,9 @@ public sealed class PostsModule : AeroWebModule, IUiModule
         opts.Schema.For<PostDocument>().DocumentAlias(Schemas.Tables.Posts);
         opts.Schema.For<PostDocument>().Identity(x => x.Id);
         opts.Schema.For<PostDocument>().Index(x => x.SiteId);
-        opts.Schema.For<PostDocument>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        opts.Schema.For<PostDocument>().Index(x => x.Culture);
+        opts.Schema.For<PostDocument>().Index(x => x.TranslationSetId);
+        opts.Schema.For<PostDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Slug);
         opts.Schema.For<PostDocument>().Index(x => x.PublishedOn);
         opts.Schema.For<PostDocument>().Index(x => x.CreatedOn);
         opts.Schema.For<PostDocument>().Index(x => x.ModifiedOn);
@@ -88,6 +93,12 @@ public sealed class PostsModule : AeroWebModule, IUiModule
         opts.Schema.For<Tag>().UniqueIndex(x => x.SiteId, x => x.Slug);
         opts.Schema.For<Category>().Index(x => x.SiteId);
         opts.Schema.For<Category>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        opts.Schema.For<TagTranslation>().Index(x => x.TagId);
+        opts.Schema.For<TagTranslation>().Index(x => x.Culture);
+        opts.Schema.For<TagTranslation>().UniqueIndex(x => x.TagId, x => x.Culture);
+        opts.Schema.For<CategoryTranslation>().Index(x => x.CategoryId);
+        opts.Schema.For<CategoryTranslation>().Index(x => x.Culture);
+        opts.Schema.For<CategoryTranslation>().UniqueIndex(x => x.CategoryId, x => x.Culture);
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)

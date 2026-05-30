@@ -45,6 +45,12 @@ public static class PagesApi
         
         group.MapPost("/", CreatePage)
             .WithName("CreatePage");
+
+        group.MapGet("/{id:long}/translations", ListPageTranslations)
+            .WithName("ListPageTranslations");
+
+        group.MapPost("/{id:long}/translations", ForkPageToCulture)
+            .WithName("ForkPageToCulture");
         
         group.MapPut("/{id:long}", UpdatePage)
             .WithName("UpdatePage");
@@ -243,6 +249,52 @@ public static class PagesApi
         }
     }
 
+    private static async Task<IResult> ListPageTranslations(
+        long id,
+        [FromServices] IAeroPageActor pagesActor,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken ct)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PagesApi));
+        try
+        {
+            var variants = await pagesActor.ListCultureVariantsAsync(id, ct);
+            return TypedResults.Ok(variants.Select(MapToDetail).ToList());
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error listing page translations for page {Id}", id);
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> ForkPageToCulture(
+        long id,
+        [FromBody] ForkPageCultureRequest request,
+        [FromServices] IAeroPageActor pagesActor,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken ct)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(PagesApi));
+        try
+        {
+            var result = await pagesActor.ForkPageForCultureAsync(id, request.Culture, request.Slug, ct);
+            return !string.IsNullOrWhiteSpace(result.error.Message)
+                ? TypedResults.BadRequest(new ProblemDetails
+                {
+                    Title = "Failed to create page translation",
+                    Detail = result.error.Message,
+                    Status = StatusCodes.Status400BadRequest
+                })
+                : TypedResults.Created($"/{HttpConstants.ApiPrefix}admin/pages/{result.data.Id}", MapToDetail(result.data));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating page translation for page {Id}", id);
+            return TypedResults.Problem(ex.Message);
+        }
+    }
+
     private static async Task<IResult> DeletePage(
         long id,
         [FromServices] IAeroPageActor pagesActor,
@@ -422,7 +474,7 @@ public static class PagesApi
             vm.CreatedOn.DateTime,
             (vm.ModifiedOn ?? vm.CreatedOn).DateTime,
             vm.PublishedOn?.DateTime,
-            vm.IsPublished ? ContentPublicationState.Published : ContentPublicationState.Draft,
+            vm.PublicationState,
             blocks?.Count ?? 0,
             vm.ShowInNavMenu,
             vm.ShowHeaderNavigation,
@@ -431,7 +483,9 @@ public static class PagesApi
             blocks,
             vm.ParentId,
             vm.Path ?? "",
-            vm.Depth
+            vm.Depth,
+            vm.Culture,
+            vm.TranslationSetId
         );
     }
 

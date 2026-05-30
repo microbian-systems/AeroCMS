@@ -4,6 +4,7 @@ using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Core.Http;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
@@ -207,6 +208,8 @@ public sealed class DocsContentService : IDocsService
             var existing = await _session.LoadAsync<DocsPage>(page.Id, ct);
             var oldSlug = existing?.Slug;
             page.SiteId = _siteContext.SiteId;
+            page.Culture = NormalizeCulture(page.Culture);
+            page.TranslationSetId ??= page.Id == 0 ? null : page.Id;
 
             var now = DateTimeOffset.UtcNow;
             page.ModifiedOn = now;
@@ -273,6 +276,90 @@ public sealed class DocsContentService : IDocsService
         {
             _logger.LogError(ex, "Failed to load docs by ids");
             return Fail<IReadOnlyList<DocsPage>, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+    {
+        try
+        {
+            var source = await _session.LoadAsync<DocsPage>(id, ct);
+            if (source is null || source.SiteId != _siteContext.SiteId)
+                return Fail<IReadOnlyList<DocsPage>, AeroError>(AeroError.NotFoundError($"Doc with id '{id}' not found or access denied"));
+
+            var translationSetId = source.TranslationSetId ?? source.Id;
+            var docs = await _session.Query<DocsPage>()
+                .Where(doc => doc.SiteId == _siteContext.SiteId && doc.TranslationSetId == translationSetId)
+                .OrderBy(doc => doc.Culture)
+                .ToListAsync(ct);
+
+            return Ok<IReadOnlyList<DocsPage>, AeroError>(docs);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to list doc translations for {DocId}", id);
+            return Fail<IReadOnlyList<DocsPage>, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<DocsPage, AeroError>> ForkToCultureAsync(long id, string targetCulture, string slug, CancellationToken ct = default)
+    {
+        try
+        {
+            var source = await _session.LoadAsync<DocsPage>(id, ct);
+            if (source is null || source.SiteId != _siteContext.SiteId)
+                return Fail<DocsPage, AeroError>(AeroError.NotFoundError($"Doc with id '{id}' not found or access denied"));
+
+            var culture = NormalizeCulture(targetCulture);
+            var translationSetId = source.TranslationSetId ?? source.Id;
+            var existing = await _session.Query<DocsPage>()
+                .FirstOrDefaultAsync(doc =>
+                    doc.SiteId == _siteContext.SiteId
+                    && doc.TranslationSetId == translationSetId
+                    && doc.Culture == culture,
+                    ct);
+
+            if (existing is not null)
+                return Fail<DocsPage, AeroError>(AeroError.ValidationError([$"A {culture} translation already exists."]));
+
+            var parentId = await ResolveTranslatedParentIdAsync(source.ParentId, culture, ct);
+            var now = DateTimeOffset.UtcNow;
+            var fork = new DocsPage
+            {
+                Id = Snowflake.NewId(),
+                SiteId = source.SiteId,
+                TranslationSetId = translationSetId,
+                Culture = culture,
+                Slug = slug.Trim().Trim('/'),
+                Title = source.Title,
+                Summary = source.Summary,
+                MarkdownContent = source.MarkdownContent,
+                SeoTitle = source.SeoTitle,
+                SeoDescription = source.SeoDescription,
+                PublicationState = ContentPublicationState.Draft,
+                PublishedOn = null,
+                PublishedVersion = 0,
+                ShowHeaderNavigation = source.ShowHeaderNavigation,
+                HeaderImageUrl = source.HeaderImageUrl,
+                ParentId = parentId,
+                Order = source.Order,
+                LayoutRegions = source.LayoutRegions,
+                BlockSchemaVersion = source.BlockSchemaVersion,
+                CreatedOn = now,
+                ModifiedOn = now,
+                ModifiedBy = _actor ?? "system"
+            };
+
+            return await SaveAsync(fork, ct);
+        }
+        catch (CultureNotFoundException)
+        {
+            return Fail<DocsPage, AeroError>(AeroError.ValidationError(["Culture must be a valid .NET culture name."]));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fork doc {DocId} to culture {Culture}", id, targetCulture);
+            return Fail<DocsPage, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -445,6 +532,8 @@ public sealed class DocsContentService : IDocsService
                 : existing!;
 
             doc.SiteId = vm.SiteId;
+            doc.TranslationSetId = vm.TranslationSetId ?? (isNew ? null : doc.TranslationSetId);
+            doc.Culture = NormalizeCulture(vm.Culture);
             doc.Title = vm.Title ?? string.Empty;
             doc.Slug = vm.Slug ?? string.Empty;
             doc.Summary = vm.Summary;
@@ -489,6 +578,8 @@ public sealed class DocsContentService : IDocsService
     {
         Id = page.Id,
         SiteId = page.SiteId,
+        TranslationSetId = page.TranslationSetId,
+        Culture = page.Culture,
         Slug = page.Slug,
         Title = page.Title,
         Summary = page.Summary,
@@ -513,6 +604,34 @@ public sealed class DocsContentService : IDocsService
 
     private string BuildCacheKey(string suffix)
         => $"cms:docs:{_siteContext.SiteId}:{suffix}";
+
+    private async Task<long?> ResolveTranslatedParentIdAsync(long? sourceParentId, string culture, CancellationToken ct)
+    {
+        if (sourceParentId is not { } parentId)
+            return null;
+
+        var parent = await _session.LoadAsync<DocsPage>(parentId, ct);
+        if (parent is null)
+            return sourceParentId;
+
+        var parentSetId = parent.TranslationSetId ?? parent.Id;
+        var translatedParent = await _session.Query<DocsPage>()
+            .FirstOrDefaultAsync(doc =>
+                doc.SiteId == _siteContext.SiteId
+                && doc.TranslationSetId == parentSetId
+                && doc.Culture == culture,
+                ct);
+
+        return translatedParent?.Id ?? sourceParentId;
+    }
+
+    private static string NormalizeCulture(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return "en-US";
+
+        return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+    }
 
     private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken ct) where T : class
     {

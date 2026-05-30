@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Primitives;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.OutputCache.Caching;
 
@@ -44,6 +45,8 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
 
         // Vary by all query parameters by default
         context.CacheVaryByRules.QueryKeys = "*";
+        context.CacheVaryByRules.VaryByValues["culture"] = CultureInfo.CurrentUICulture.Name;
+
         if (!attemptOutputCaching)
         {
             SetDiagnosticHeader(context, "BYPASS");
@@ -116,7 +119,9 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
 
         if (items["AeroCms.PageSlug"] is string slug and { Length: > 0 })
         {
-            context.Tags.Add($"page-slug-{slug.ToLowerInvariant()}");
+            var normalizedSlug = slug.ToLowerInvariant();
+            context.Tags.Add($"page-slug-{normalizedSlug}");
+            context.Tags.Add($"page-slug-{CultureInfo.CurrentUICulture.Name.ToLowerInvariant()}-{normalizedSlug}");
         }
     }
 

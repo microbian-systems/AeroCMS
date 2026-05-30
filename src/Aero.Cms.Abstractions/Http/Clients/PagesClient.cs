@@ -96,6 +96,16 @@ public interface IPagesHttpClient
     Task<Result<PageDetail, AeroError>> UnpublishAsync(long id, CancellationToken ct = default);
 
     /// <summary>
+    /// Lists culture variants for a page.
+    /// </summary>
+    Task<Result<IReadOnlyList<PageDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates a draft culture variant for a page.
+    /// </summary>
+    Task<Result<PageDetail, AeroError>> ForkToCultureAsync(long id, ForkPageCultureRequest request, CancellationToken ct = default);
+
+    /// <summary>
     /// Gets the latest draft for a page, if one exists.
     /// </summary>
     Task<Result<PageDraftSummary?, AeroError>> GetDraftAsync(long id, CancellationToken ct = default);
@@ -237,6 +247,18 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     }
 
     /// <inheritdoc />
+    public Task<Result<IReadOnlyList<PageDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+    {
+        return GetAsync<IReadOnlyList<PageDetail>>($"{id}/translations", ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<PageDetail, AeroError>> ForkToCultureAsync(long id, ForkPageCultureRequest request, CancellationToken ct = default)
+    {
+        return PostAsync<ForkPageCultureRequest, PageDetail>($"{id}/translations", request, ct);
+    }
+
+    /// <inheritdoc />
     public Task<Result<PageDraftSummary?, AeroError>> GetDraftAsync(long id, CancellationToken ct = default)
     {
         return GetAsync<PageDraftSummary?>($"{id}/draft", ct);
@@ -319,7 +341,9 @@ public record PageDetail(
     IReadOnlyList<EditorBlock>? Blocks = null,
     long? ParentId = null,
     string Path = "",
-    int Depth = 0);
+    int Depth = 0,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
 
 /// <summary>
 /// Request to create a new page.
@@ -356,6 +380,13 @@ public record UpdatePageRequest(
     bool HideFooter = false,
     bool ShowChatAgent = true,
     IReadOnlyList<EditorBlock>? EditorBlocks = null);
+
+/// <summary>
+/// Request to create a draft culture variant for a page.
+/// </summary>
+public record ForkPageCultureRequest(
+    string Culture,
+    string Slug);
 
 /// <summary>
 /// Summary of a page draft returned by the draft API.

@@ -24,6 +24,8 @@ public static class DocsApi
         group.MapGet("/by-slug/{*slug}", GetDocBySlug);
         group.MapGet("/categories", GetCategories);
         group.MapGet("/{parentId:long}/children", GetChildren);
+        group.MapGet("/{id:long}/translations", ListTranslations);
+        group.MapPost("/{id:long}/translations", ForkToCulture);
         group.MapPost("/", SaveDoc);
         group.MapPost("/{spaceId:long}/sections/{parentId:long}/children", CreateChildSection);
         group.MapPost("/{spaceId:long}/sections/{id:long}/move", MoveSection);
@@ -82,6 +84,27 @@ public static class DocsApi
     {
         var docs = await docsActor.GetChildrenAsync(parentId, siteContext.SiteId, ct);
         return TypedResults.Ok(docs);
+    }
+
+    private static async Task<IResult> ListTranslations(
+        long id,
+        [FromServices] IAeroDocsActor docsActor,
+        CancellationToken ct)
+    {
+        var docs = await docsActor.ListCultureVariantsAsync(id, ct);
+        return TypedResults.Ok(docs);
+    }
+
+    private static async Task<IResult> ForkToCulture(
+        long id,
+        [FromBody] ForkDocsCultureRequest request,
+        [FromServices] IAeroDocsActor docsActor,
+        CancellationToken ct)
+    {
+        var result = await docsActor.ForkDocForCultureAsync(id, request.Culture, request.Slug, ct);
+        return !string.IsNullOrWhiteSpace(result.error.Message)
+            ? TypedResults.BadRequest(result.error)
+            : TypedResults.Ok(result.data);
     }
 
     private static async Task<IResult> SaveDoc(

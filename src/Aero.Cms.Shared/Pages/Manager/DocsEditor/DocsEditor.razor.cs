@@ -1,5 +1,8 @@
+using System.Globalization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Models;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
@@ -13,6 +16,8 @@ public partial class DocsEditor
     [Parameter] public long? SectionId { get; set; }
 
     [Inject] private IDocsHttpClient DocsClient { get; set; } = default!;
+    [Inject] private ISitesHttpClient SitesClient { get; set; } = default!;
+    [Inject] private ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
 
@@ -27,6 +32,24 @@ public partial class DocsEditor
     protected bool HasUnpublishedChanges { get; private set; }
     protected bool IsEditingSpaceRoot => Current?.Id == Space?.Id;
     protected string ParentSelectValue => Current?.ParentId?.ToString() ?? string.Empty;
+    protected SiteViewModel? CurrentSite { get; private set; }
+    protected IReadOnlyList<DocsDetail> DocCultureVariants { get; private set; } = [];
+    protected string SelectedTranslationCulture { get; set; } = string.Empty;
+    protected string TranslationSlug { get; set; } = string.Empty;
+    protected bool IsLoadingTranslations { get; private set; }
+    protected bool IsCreatingTranslation { get; private set; }
+    protected IReadOnlyList<string> SupportedCultures =>
+        CurrentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [Current?.Culture ?? Space?.Culture ?? CurrentSite?.DefaultCulture ?? "en-US"];
+
+    protected IEnumerable<string> AvailableTranslationCultures =>
+        SupportedCultures
+            .Select(NormalizeCultureName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(culture => !DocCultureVariants.Any(variant =>
+                string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
     private IReadOnlyList<DocsSummary> _allDocs = [];
     private bool _isLoading = true;
@@ -47,6 +70,7 @@ public partial class DocsEditor
         _isLoading = true;
         try
         {
+            CurrentSite ??= await ResolveCurrentSiteAsync();
             var allResult = await DocsClient.GetAllAsync();
             if (allResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok allOk)
             {
@@ -64,6 +88,10 @@ public partial class DocsEditor
                 return;
             }
 
+            _allDocs = _allDocs
+                .Where(doc => string.Equals(doc.Culture, Space.Culture, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
             var selectedId = SectionId ?? SpaceId;
             Current = await LoadDetailAsync(selectedId);
             Current ??= Space;
@@ -74,6 +102,7 @@ public partial class DocsEditor
             HasUnpublishedChanges = Current.DraftVersion > Current.PublishedVersion;
             _loadedParentId = Current.ParentId;
             _dirty = false;
+            await LoadDocTranslationsAsync();
         }
         finally
         {
@@ -308,6 +337,86 @@ public partial class DocsEditor
         }
     }
 
+    private async Task LoadDocTranslationsAsync()
+    {
+        if (Current is null)
+        {
+            DocCultureVariants = [];
+            ResetTranslationDraft();
+            return;
+        }
+
+        IsLoadingTranslations = true;
+        try
+        {
+            var result = await DocsClient.ListCultureVariantsAsync(Current.Id);
+            DocCultureVariants = result is Result<IReadOnlyList<DocsDetail>, AeroError>.Ok ok
+                ? ok.Value.OrderBy(doc => doc.Culture, StringComparer.OrdinalIgnoreCase).ToList()
+                : [];
+
+            ResetTranslationDraft();
+        }
+        finally
+        {
+            IsLoadingTranslations = false;
+        }
+    }
+
+    protected async Task CreateTranslationAsync()
+    {
+        if (Current is null || IsCreatingTranslation)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SelectedTranslationCulture))
+        {
+            NotifyError("Choose a target culture", "Select a supported site culture before creating a translation.");
+            return;
+        }
+
+        var slug = string.IsNullOrWhiteSpace(TranslationSlug)
+            ? Current.Slug
+            : TranslationSlug.Trim();
+
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            NotifyError("Enter a translated slug", "Docs translations need a culture-specific slug.");
+            return;
+        }
+
+        IsCreatingTranslation = true;
+        try
+        {
+            var result = await DocsClient.ForkToCultureAsync(Current.Id, new ForkDocsCultureRequest(SelectedTranslationCulture, NormalizeSlug(slug)));
+            if (result is Result<DocsDetail, AeroError>.Ok ok)
+            {
+                NotificationService.Notify(NotificationSeverity.Success, $"Created {FormatCulture(ok.Value.Culture)} translation", ok.Value.Title);
+                if (Current?.Id == Space?.Id)
+                {
+                    Navigation.NavigateTo($"/manager/docs/{ok.Value.Id}");
+                }
+                else
+                {
+                    Navigation.NavigateTo($"/manager/docs/{SpaceId}/sections/{ok.Value.Id}");
+                }
+                return;
+            }
+
+            if (result is Result<DocsDetail, AeroError>.Failure failure)
+            {
+                NotifyError("Translation failed", failure.Error.ToString());
+            }
+        }
+        finally
+        {
+            IsCreatingTranslation = false;
+        }
+    }
+
+    protected void OpenTranslation(long docId)
+        => Navigation.NavigateTo($"/manager/docs/{SpaceId}/sections/{docId}");
+
     private async Task PublishCurrentAsync()
     {
         if (Current is null)
@@ -381,7 +490,8 @@ public partial class DocsEditor
                 SeoDescription = source.SeoDescription,
                 ShowHeaderNavigation = source.ShowHeaderNavigation,
                 HeaderImageUrl = source.HeaderImageUrl,
-                Order = source.Order + 1
+                Order = source.Order + 1,
+                Culture = source.Culture
             };
 
         var result = await DocsClient.SaveAsync(copy);
@@ -828,6 +938,55 @@ public partial class DocsEditor
     protected string PublicUrl(DocsDetail doc)
         => $"/docs/{doc.Slug}";
 
+    private async Task<SiteViewModel?> ResolveCurrentSiteAsync()
+    {
+        var selectedSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        if (selectedSite is not null)
+        {
+            return selectedSite;
+        }
+
+        var defaultResult = await SitesClient.GetDefaultAsync();
+        return defaultResult is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
+    }
+
+    private void ResetTranslationDraft()
+    {
+        SelectedTranslationCulture = AvailableTranslationCultures.FirstOrDefault() ?? string.Empty;
+        TranslationSlug = string.Empty;
+    }
+
+    protected static string FormatCulture(string? culture)
+    {
+        var normalized = NormalizeCultureName(culture);
+        try
+        {
+            var info = CultureInfo.GetCultureInfo(normalized);
+            return $"{info.DisplayName} ({info.Name})";
+        }
+        catch (CultureNotFoundException)
+        {
+            return normalized;
+        }
+    }
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+        {
+            return "en-US";
+        }
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return culture.Trim();
+        }
+    }
+
     private string GetParentSlug(DocsDetail doc)
         => GetParentSlug(doc.ParentId);
 
@@ -871,7 +1030,9 @@ public partial class DocsEditor
             detail.ShowHeaderNavigation,
             detail.HeaderImageUrl,
             detail.PublishedVersion,
-            detail.DraftVersion);
+            detail.DraftVersion,
+            detail.Culture,
+            detail.TranslationSetId);
 
     private static string NormalizeSlug(string value)
         => string.Join('/', value.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -933,6 +1094,8 @@ public partial class DocsEditor
         public DateTimeOffset? ModifiedOn { get; set; }
         public long PublishedVersion { get; set; }
         public long DraftVersion { get; set; }
+        public string Culture { get; set; } = "en-US";
+        public long? TranslationSetId { get; set; }
 
         public static MutableDoc From(DocsDetail detail)
             => new()
@@ -953,7 +1116,9 @@ public partial class DocsEditor
                 CreatedOn = detail.CreatedOn,
                 ModifiedOn = detail.ModifiedOn,
                 PublishedVersion = detail.PublishedVersion,
-                DraftVersion = detail.DraftVersion
+                DraftVersion = detail.DraftVersion,
+                Culture = detail.Culture,
+                TranslationSetId = detail.TranslationSetId
             };
 
         public DocsDetail ToDetail()
@@ -974,6 +1139,8 @@ public partial class DocsEditor
                 CreatedOn,
                 ModifiedOn,
                 PublishedVersion,
-                DraftVersion);
+                DraftVersion,
+                Culture,
+                TranslationSetId);
     }
 }

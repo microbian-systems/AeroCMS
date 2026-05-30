@@ -19,7 +19,9 @@ public static class FooterAdminApi
         group.MapGet("/", ListFooters).WithName("ListFooters");
         group.MapGet("/{id:long}", GetFooterById).WithName("GetFooterById");
         group.MapGet("/details/{id:long}", GetFooterById).WithName("GetFooterDetailsById");
+        group.MapGet("/{id:long}/translations", ListFooterTranslations).WithName("ListFooterTranslations");
         group.MapPost("/", CreateFooter).WithName("CreateFooter");
+        group.MapPost("/{id:long}/translations", ForkFooterToCulture).WithName("ForkFooterToCulture");
         group.MapPut("/{id:long}", SaveDraftCompatibility).WithName("UpdateFooter");
         group.MapPut("/{id:long}/draft", SaveDraft).WithName("SaveFooterDraft");
         group.MapPut("/{id:long}/publish", Publish).WithName("PublishFooter");
@@ -52,7 +54,9 @@ public static class FooterAdminApi
                     itemCount,
                     footer.CreatedOn.DateTime,
                     version,
-                    footer.State.ToString()));
+                    footer.State.ToString(),
+                    footer.Culture,
+                    footer.TranslationSetId));
             }
 
             return TypedResults.Ok(summaries);
@@ -68,6 +72,17 @@ public static class FooterAdminApi
     {
         var result = await service.GetDetailAsync(id, cancellationToken);
         return result is Result<FooterDetail, AeroError>.Ok ok
+            ? TypedResults.Ok(ok.Value)
+            : ToProblem(result);
+    }
+
+    private static async Task<IResult> ListFooterTranslations(
+        long id,
+        [FromServices] IFooterService service,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await service.ListCultureVariantsAsync(id, cancellationToken);
+        return result is Result<IReadOnlyList<FooterDetail>, AeroError>.Ok ok
             ? TypedResults.Ok(ok.Value)
             : ToProblem(result);
     }
@@ -94,6 +109,18 @@ public static class FooterAdminApi
         }
 
         return ToProblem(result);
+    }
+
+    private static async Task<IResult> ForkFooterToCulture(
+        long id,
+        [FromBody] ForkFooterCultureRequest request,
+        [FromServices] IFooterService service,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await service.ForkToCultureAsync(id, request.Culture, userId: null, cancellationToken);
+        return result is Result<FooterDocument, AeroError>.Ok ok
+            ? await ToFooterDetailResult(ok.Value.Id, service, cancellationToken)
+            : ToProblem(result);
     }
 
     private static async Task<IResult> SaveDraftCompatibility(

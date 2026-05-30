@@ -2,6 +2,7 @@ using Aero.Caching.Extensions;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Setup.Configuration;
 using Aero.Cms.Modules.Setup.Endpoints;
+using Aero.Cms.Modules.Setup.Services;
 using Aero.Cms.Core;
 using Aero.AppServer;
 using Aero.AppServer.Startup;
@@ -10,6 +11,7 @@ using Aero.Secrets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -75,7 +77,9 @@ public sealed class SetupModule : AeroModuleBase
             services.TryAddScoped<ISetupStateStore, MartenSetupStateStore>();
             services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
             services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
+            services.TryAddScoped<ITranslationImportService, TranslationImportService>();
             services.TryAddTransient<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();
+            services.AddTransient<IStartupFilter, TranslationImportStartupFilter>();
             services.AddAeroCaching(false);
         }
     }
@@ -103,4 +107,15 @@ public sealed class SetupModule : AeroModuleBase
         await Task.CompletedTask;
     }
 
+}
+
+public sealed class TranslationImportStartupFilter : IStartupFilter
+{
+    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+        => app =>
+        {
+            app.UseRouting();
+            app.UseEndpoints(endpoints => endpoints.MapTranslationImportEndpoint());
+            next(app);
+        };
 }

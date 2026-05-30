@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Globalization;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Common;
@@ -121,6 +122,24 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected string ParentSlugPrefix { get; set; } = "";
 
     protected CmsPageDetail? LoadedPage { get; set; }
+    protected SiteViewModel? CurrentSite { get; set; }
+    protected IReadOnlyList<CmsPageDetail> PageCultureVariants { get; set; } = [];
+    protected string SelectedTranslationCulture { get; set; } = string.Empty;
+    protected string TranslationSlug { get; set; } = string.Empty;
+    protected bool IsLoadingTranslations { get; set; }
+    protected bool IsCreatingTranslation { get; set; }
+    protected IReadOnlyList<string> SupportedCultures =>
+        CurrentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [LoadedPage?.Culture ?? CurrentSite?.DefaultCulture ?? "en-US"];
+
+    protected IEnumerable<string> AvailableTranslationCultures =>
+        SupportedCultures
+            .Select(NormalizeCultureName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(culture => !PageCultureVariants.Any(variant =>
+                string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
     protected IReadOnlyList<DocsSummary>? DocsCategories { get; set; }
 
@@ -176,6 +195,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         PageEditorBlockRegistry.RegisterProviders(PageEditorBlockProviders);
 
         await ResolvePreviewBaseUriAsync();
+        CurrentSite = await ResolveCurrentSiteAsync();
 
         if (Id.HasValue)
         {
@@ -243,6 +263,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
             UpdateLastSaved();
             _pageState = PageState.Clean;
+            await LoadPageTranslationsAsync();
             await InvokeAsync(StateHasChanged);
         }
         else
@@ -1195,6 +1216,19 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         _previewBaseUri = ResolvePreviewBaseUri(selectedSite) ?? NavManager.BaseUri;
     }
 
+    private async Task<SiteViewModel?> ResolveCurrentSiteAsync()
+    {
+        if (AdminState.CurrentSiteId is { } selectedSiteId)
+            return await LoadSiteByIdAsync(selectedSiteId);
+
+        var selectedSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        if (selectedSite is not null)
+            return selectedSite;
+
+        var defaultResult = await SitesClient.GetDefaultAsync();
+        return defaultResult is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
+    }
+
     private string? ResolvePreviewBaseUri(SiteViewModel? site)
     {
         var baseUri = BuildSiteBaseUri(site);
@@ -1257,6 +1291,131 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     private static string EnsureTrailingSlash(string uri)
     {
         return uri.EndsWith("/", StringComparison.Ordinal) ? uri : $"{uri}/";
+    }
+
+    private async Task LoadPageTranslationsAsync()
+    {
+        if (Id is null)
+        {
+            PageCultureVariants = [];
+            ResetTranslationDraft();
+            return;
+        }
+
+        IsLoadingTranslations = true;
+
+        try
+        {
+            var result = await PagesClient.ListCultureVariantsAsync(Id.Value);
+            PageCultureVariants = result is Result<IReadOnlyList<CmsPageDetail>, AeroError>.Ok ok
+                ? ok.Value.OrderBy(page => page.Culture, StringComparer.OrdinalIgnoreCase).ToList()
+                : [];
+
+            ResetTranslationDraft();
+        }
+        catch
+        {
+            PageCultureVariants = [];
+        }
+        finally
+        {
+            IsLoadingTranslations = false;
+        }
+    }
+
+    protected async Task CreateTranslationAsync()
+    {
+        if (Id is null || IsCreatingTranslation)
+            return;
+
+        if (string.IsNullOrWhiteSpace(SelectedTranslationCulture))
+        {
+            ShowToast("Choose a target culture", "error");
+            return;
+        }
+
+        var slug = string.IsNullOrWhiteSpace(TranslationSlug)
+            ? PageSlug.Trim()
+            : TranslationSlug.Trim();
+
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            ShowToast("Enter a translated slug", "error");
+            return;
+        }
+
+        if (_pageState == PageState.Dirty)
+        {
+            await SavePage();
+
+            if (_pageState != PageState.Clean)
+                return;
+        }
+
+        IsCreatingTranslation = true;
+
+        try
+        {
+            var request = new ForkPageCultureRequest(SelectedTranslationCulture, slug);
+            var result = await PagesClient.ForkToCultureAsync(Id.Value, request);
+
+            if (result is Result<CmsPageDetail, AeroError>.Ok ok)
+            {
+                ShowToast($"Created {FormatCulture(ok.Value.Culture)} translation", "success");
+                NavManager.NavigateTo($"/manager/page/editor/{ok.Value.Id}");
+                return;
+            }
+
+            if (result is Result<CmsPageDetail, AeroError>.Failure failure)
+                ShowToast($"Translation failed: {failure.Error}", "error");
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Translation failed: {ex.Message}", "error");
+        }
+        finally
+        {
+            IsCreatingTranslation = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected void OpenTranslation(long pageId)
+        => NavManager.NavigateTo($"/manager/page/editor/{pageId}");
+
+    private void ResetTranslationDraft()
+    {
+        SelectedTranslationCulture = AvailableTranslationCultures.FirstOrDefault() ?? string.Empty;
+        TranslationSlug = string.Empty;
+    }
+
+    protected string FormatCulture(string? culture)
+    {
+        var normalized = NormalizeCultureName(culture);
+        try
+        {
+            var info = CultureInfo.GetCultureInfo(normalized);
+            return $"{info.DisplayName} ({info.Name})";
+        }
+        catch (CultureNotFoundException)
+        {
+            return normalized;
+        }
+    }
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return "en-US";
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return culture.Trim();
+        }
     }
 
     private static string BuildPreviewFrameDocument(string? html, string baseUri)
@@ -1366,11 +1525,13 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
-                if (result is Result<CmsPageDetail, AeroError>.Ok)
+                if (result is Result<CmsPageDetail, AeroError>.Ok ok)
                 {
+                    LoadedPage = ok.Value;
                     UpdateLastSaved();
                     _pageState = PageState.Clean;
                     await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
+                    await LoadPageTranslationsAsync();
                     ShowToast("Page saved successfully", "success");
                 }
                 else if (result is Result<CmsPageDetail, AeroError>.Failure err)
@@ -1400,9 +1561,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
                 if (result is Result<CmsPageDetail, AeroError>.Ok createOk)
                 {
                     Id = createOk.Value.Id;
+                    LoadedPage = createOk.Value;
                     _slugState = SlugState.Locked;  // preserve generated slug going forward
                     _pageState = PageState.Clean;
                     UpdateLastSaved();
+                    await LoadPageTranslationsAsync();
                     ShowToast("Page created successfully", "success");
                     // Update URL without refreshing
                     // NavManager.NavigateTo($"/manager/page/editor/{Id}", false); 

@@ -6,6 +6,7 @@
 @using Aero.Cms.Abstractions.Requests
 @using Aero.Core
 @using Aero.Cms.Shared.Services
+@using System.Globalization
 @inject ISitesHttpClient SitesClient
 @inject ICurrentSiteAccessor CurrentSiteAccessor
 @inject AdminStateContainer AdminState
@@ -46,6 +47,14 @@
                     <label class="block text-sm font-medium mb-1">Description</label>
                     <textarea @bind="@_createDescription" class="w-full border rounded px-3 py-2" rows="2" placeholder="Optional"></textarea>
                 </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Default Culture</label>
+                    <input @bind="@_createDefaultCulture" class="w-full border rounded px-3 py-2" placeholder="en-US" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Supported Cultures</label>
+                    <input @bind="@_createSupportedCulturesText" class="w-full border rounded px-3 py-2" placeholder="en-US, es-MX, ar-SA" />
+                </div>
             </div>
             <div class="flex gap-3 mt-4">
                 <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Create" Click="@HandleCreate" />
@@ -74,6 +83,14 @@
                 <div>
                     <label class="block text-sm font-medium mb-1">Description</label>
                     <textarea @bind="@_editDescription" class="w-full border rounded px-3 py-2" rows="2"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Default Culture</label>
+                    <input @bind="@_editDefaultCulture" class="w-full border rounded px-3 py-2" placeholder="en-US" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Supported Cultures</label>
+                    <input @bind="@_editSupportedCulturesText" class="w-full border rounded px-3 py-2" placeholder="en-US, es-MX, ar-SA" />
                 </div>
             </div>
             <div class="flex gap-3 mt-4">
@@ -109,7 +126,12 @@
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="SiteViewModel" Property="DefaultCulture" Title="Culture" Width="100px" />
+            <RadzenDataGridColumn TItem="SiteViewModel" Property="DefaultCulture" Title="Default Culture" Width="130px" />
+            <RadzenDataGridColumn TItem="SiteViewModel" Title="Supported Cultures" Width="220px">
+                <Template Context="s">
+                    @string.Join(", ", s.SupportedCultures)
+                </Template>
+            </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SiteViewModel" Title="Actions" Width="280px">
                 <Template Context="site">
                     <div class="flex gap-2">
@@ -136,6 +158,8 @@
     private string _createHost = "";
     private string _createHostsText = "";
     private string _createDescription = "";
+    private string _createDefaultCulture = "en-US";
+    private string _createSupportedCulturesText = "en-US";
 
     // Edit form fields
     private SiteViewModel? _editSite;
@@ -143,6 +167,8 @@
     private string _editHost = "";
     private string _editHostsText = "";
     private string _editDescription = "";
+    private string _editDefaultCulture = "en-US";
+    private string _editSupportedCulturesText = "en-US";
 
     private async Task LoadData(LoadDataArgs args)
     {
@@ -169,8 +195,15 @@
     private async Task HandleCreate()
     {
         var hosts = ParseHosts(_createHostsText);
+        var supportedCultures = ParseCultures(_createSupportedCulturesText, _createDefaultCulture);
         var request = new CreateSiteRequest(
-            _createName, _createHost, hosts.Any() ? hosts : null, _createDescription, false);
+            _createName,
+            _createHost,
+            hosts.Any() ? hosts : null,
+            _createDescription,
+            false,
+            NormalizeCultureOrNull(_createDefaultCulture),
+            supportedCultures);
 
         var result = await SitesClient.CreateAsync(request);
         if (result is Result<SiteViewModel, AeroError>.Ok ok)
@@ -178,6 +211,7 @@
             NotificationService.Notify(NotificationSeverity.Success, $"Site '{ok.Value.Name}' created");
             _showCreateForm = false;
             _createName = _createHost = _createHostsText = _createDescription = "";
+            _createDefaultCulture = _createSupportedCulturesText = "en-US";
             await _grid?.Reload();
         }
         else if (result is Result<SiteViewModel, AeroError>.Failure fail)
@@ -193,6 +227,8 @@
         _editHost = site.PrimaryHost ?? "";
         _editHostsText = string.Join(", ", site.Hosts);
         _editDescription = "";
+        _editDefaultCulture = site.DefaultCulture ?? "en-US";
+        _editSupportedCulturesText = string.Join(", ", site.SupportedCultures.Count > 0 ? site.SupportedCultures : ["en-US"]);
         _showEditForm = true;
     }
 
@@ -200,8 +236,16 @@
     {
         if (_editSite is null) return;
         var hosts = ParseHosts(_editHostsText);
+        var supportedCultures = ParseCultures(_editSupportedCulturesText, _editDefaultCulture);
         var request = new UpdateSiteRequest(
-            _editSite.Id, _editName, _editHost, hosts.Any() ? hosts : null, _editDescription, false);
+            _editSite.Id,
+            _editName,
+            _editHost,
+            hosts.Any() ? hosts : null,
+            _editDescription,
+            false,
+            NormalizeCultureOrNull(_editDefaultCulture),
+            supportedCultures);
 
         var result = await SitesClient.UpdateAsync(_editSite.Id, request);
         if (result is Result<SiteViewModel, AeroError>.Ok ok)
@@ -252,5 +296,36 @@
             .Where(h => !string.IsNullOrWhiteSpace(h))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static List<string> ParseCultures(string text, string defaultCulture)
+    {
+        var cultures = text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(NormalizeCultureOrNull)
+            .Where(c => c is not null)
+            .Select(c => c!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var normalizedDefault = NormalizeCultureOrNull(defaultCulture) ?? "en-US";
+        if (!cultures.Contains(normalizedDefault, StringComparer.OrdinalIgnoreCase))
+            cultures.Insert(0, normalizedDefault);
+
+        return cultures.Count > 0 ? cultures : ["en-US"];
+    }
+
+    private static string? NormalizeCultureOrNull(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return null;
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return null;
+        }
     }
 }

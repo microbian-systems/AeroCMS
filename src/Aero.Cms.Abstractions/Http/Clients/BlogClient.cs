@@ -27,6 +27,10 @@ public interface IBlogHttpClient
     /// <returns>The blog post detail or an error.</returns>
     Task<Result<BlogDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
 
+    Task<Result<IReadOnlyList<BlogDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+
+    Task<Result<BlogDetail, AeroError>> ForkToCultureAsync(long id, ForkBlogCultureRequest request, CancellationToken ct = default);
+
     /// <summary>
     /// Creates a new blog post.
     /// </summary>
@@ -97,6 +101,18 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
     public Task<Result<BlogDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
     {
         return GetAsync<BlogDetail>($"{id}", ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<IReadOnlyList<BlogDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+    {
+        return GetAsync<IReadOnlyList<BlogDetail>>($"{id}/translations", ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<BlogDetail, AeroError>> ForkToCultureAsync(long id, ForkBlogCultureRequest request, CancellationToken ct = default)
+    {
+        return PostAsync<ForkBlogCultureRequest, BlogDetail>($"{id}/translations", request, ct);
     }
 
     /// <inheritdoc />
@@ -176,7 +192,11 @@ public record BlogDetail(
     string? ImageUrl,
     int Likes,
     DateTimeOffset CreatedOn,
-    DateTimeOffset? ModifiedOn);
+    DateTimeOffset? ModifiedOn,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
+
+public sealed record ForkBlogCultureRequest(string Culture, string Slug);
 
 /// <summary>
 /// Request to create a new blog post.

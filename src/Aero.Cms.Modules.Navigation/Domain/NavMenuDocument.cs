@@ -7,6 +7,8 @@ namespace Aero.Cms.Modules.Navigation.Domain;
 public sealed class NavMenuDocument : Entity, ISiteOwned
 {
     public long SiteId { get; set; }
+    public long? TranslationSetId { get; set; }
+    public string Culture { get; set; } = Aero.Cms.Core.Entities.SitesModel.DefaultCultureName;
     public string Name { get; set; } = string.Empty;
     public string Key { get; set; } = string.Empty;
     public NavMenuLifecycleState State { get; set; } = NavMenuLifecycleState.Draft;
@@ -19,6 +21,8 @@ public sealed class NavMenuDocument : Entity, ISiteOwned
     {
         Id = id,
         SiteId = @event.SiteId,
+        TranslationSetId = @event.TranslationSetId,
+        Culture = @event.Culture,
         Name = @event.Name.Trim(),
         Key = NormalizeKey(@event.Key),
         State = NavMenuLifecycleState.Draft,

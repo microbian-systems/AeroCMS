@@ -3,6 +3,8 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Core.Entities;
+using System.Globalization;
 using Wolverine;
 using IRequest = Aero.Core.Commands.IRequest;
 
@@ -45,9 +47,12 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
     {
         await using var session = _store.LightweightSession();
         var category = await session.LoadAsync<Models.Category>(id, ct);
+        var translations = category is null
+            ? new Dictionary<long, CategoryTranslation>()
+            : await LoadTranslationsAsync(session, [category.Id], GetCurrentCulture(), ct);
 
         return category is not null
-            ? Ok(MapToViewModel(category))
+            ? Ok(PostTaxonomyTranslationMapper.MapCategory(category, translations.GetValueOrDefault(category.Id)))
             : NotFound($"Category {id} not found");
     }
 
@@ -58,7 +63,8 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(ct);
 
-        var results = categories.Select(MapToViewModel).ToList();
+        var translations = await LoadTranslationsAsync(session, categories.Select(x => x.Id), GetCurrentCulture(), ct);
+        var results = categories.Select(category => PostTaxonomyTranslationMapper.MapCategory(category, translations.GetValueOrDefault(category.Id))).ToList();
         return Ok(results);
     }
 
@@ -81,9 +87,9 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         session.Store(category);
         await session.SaveChangesAsync(ct);
 
-        await _bus.PublishAsync(new CategoryViewModelCreated(MapToViewModel(category)));
+        await _bus.PublishAsync(new CategoryViewModelCreated(PostTaxonomyTranslationMapper.MapCategory(category)));
 
-        return Ok(MapToViewModel(category));
+        return Ok(PostTaxonomyTranslationMapper.MapCategory(category));
     }
 
     public async Task<AeroRequestResponse<CategoryViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
@@ -105,9 +111,9 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         session.Store(category);
         await session.SaveChangesAsync(ct);
 
-        await _bus.PublishAsync(new CategoryViewModelUpdated(MapToViewModel(category)));
+        await _bus.PublishAsync(new CategoryViewModelUpdated(PostTaxonomyTranslationMapper.MapCategory(category)));
 
-        return Ok(MapToViewModel(category));
+        return Ok(PostTaxonomyTranslationMapper.MapCategory(category));
     }
 
     public async Task<AeroRequestResponse<CategoryViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
@@ -124,9 +130,9 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         session.Delete(category);
         await session.SaveChangesAsync(ct);
 
-        await _bus.PublishAsync(new CategoryViewModelDeleted(MapToViewModel(category)));
+        await _bus.PublishAsync(new CategoryViewModelDeleted(PostTaxonomyTranslationMapper.MapCategory(category)));
 
-        return Ok(MapToViewModel(category));
+        return Ok(PostTaxonomyTranslationMapper.MapCategory(category));
     }
 
     // ── ICanFindBySite<CategoryViewModel, long> ────────────────────────
@@ -145,7 +151,8 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
             .Take(rows)
             .ToListAsync(ct);
 
-        var results = categories.Select(MapToViewModel).ToList();
+        var translations = await LoadTranslationsAsync(session, categories.Select(x => x.Id), GetCurrentCulture(), ct);
+        var results = categories.Select(category => PostTaxonomyTranslationMapper.MapCategory(category, translations.GetValueOrDefault(category.Id))).ToList();
         return Ok(results);
     }
 
@@ -164,11 +171,18 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
     private async Task<AeroRequestResponse<CategoryViewModel>> GetBySlugCoreAsync(long siteId, string slug, CancellationToken ct)
     {
         await using var session = _store.LightweightSession();
-        var categories = await session.Query<Models.Category>()
-            .Where(x => x.SiteId == siteId && x.Slug == slug)
+        var culture = GetCurrentCulture();
+        var translatedCategoryIds = await session.Query<CategoryTranslation>()
+            .Where(x => x.Culture == culture && x.Slug == slug)
+            .Select(x => x.CategoryId)
             .ToListAsync(ct);
 
-        var results = categories.Select(MapToViewModel).ToList();
+        var categories = await session.Query<Models.Category>()
+            .Where(x => x.SiteId == siteId && (x.Slug == slug || translatedCategoryIds.Contains(x.Id)))
+            .ToListAsync(ct);
+
+        var translations = await LoadTranslationsAsync(session, categories.Select(x => x.Id), culture, ct);
+        var results = categories.Select(category => PostTaxonomyTranslationMapper.MapCategory(category, translations.GetValueOrDefault(category.Id))).ToList();
         return Ok(results);
     }
 
@@ -181,7 +195,8 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
             .OrderBy(x => x.Name)
             .ToListAsync(ct);
 
-        return categories.Select(MapToViewModel).ToList();
+        var translations = await LoadTranslationsAsync(session, categories.Select(x => x.Id), GetCurrentCulture(), ct);
+        return categories.Select(category => PostTaxonomyTranslationMapper.MapCategory(category, translations.GetValueOrDefault(category.Id))).ToList();
     }
 
     // ── Helpers ────────────────────────────────────────────────────────
@@ -204,17 +219,35 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
     private static AeroRequestResponse<CategoryViewModel> Fail(string msg)
         => new(new CategoryViewModel(), new CategoryErrorViewModel { Message = msg });
 
-    private static CategoryViewModel MapToViewModel(Models.Category cat) => new()
+    private static async Task<IReadOnlyDictionary<long, CategoryTranslation>> LoadTranslationsAsync(
+        IDocumentSession session,
+        IEnumerable<long> categoryIds,
+        string culture,
+        CancellationToken ct)
     {
-        Id = cat.Id,
-        SiteId = cat.SiteId,
-        Name = cat.Name,
-        Slug = cat.Slug,
-        Description = cat.Description,
-        ParentCategoryId = cat.ParentCategoryId,
-        CreatedOn = cat.CreatedOn,
-        ModifiedOn = cat.ModifiedOn,
-        CreatedBy = cat.CreatedBy,
-        ModifiedBy = cat.ModifiedBy
-    };
+        var ids = categoryIds.Distinct().ToArray();
+        if (ids.Length == 0 || string.Equals(culture, SitesModel.DefaultCultureName, StringComparison.OrdinalIgnoreCase))
+            return new Dictionary<long, CategoryTranslation>();
+
+        var translations = await session.Query<CategoryTranslation>()
+            .Where(x => x.Culture == culture && ids.Contains(x.CategoryId))
+            .ToListAsync(ct);
+
+        return translations
+            .GroupBy(x => x.CategoryId)
+            .ToDictionary(x => x.Key, x => x.First());
+    }
+
+    private static string GetCurrentCulture()
+    {
+        try
+        {
+            return CultureInfo.GetCultureInfo(CultureInfo.CurrentUICulture.Name).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return SitesModel.DefaultCultureName;
+        }
+    }
+
 }

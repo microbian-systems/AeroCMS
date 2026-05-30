@@ -48,6 +48,16 @@ public interface IDocsHttpClient
     Task<Result<IReadOnlyList<DocsSummary>, AeroError>> GetChildrenAsync(long parentId, CancellationToken ct = default);
 
     /// <summary>
+    /// Gets all culture variants for a documentation page.
+    /// </summary>
+    Task<Result<IReadOnlyList<DocsDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Creates a culture-specific documentation page from an existing page.
+    /// </summary>
+    Task<Result<DocsDetail, AeroError>> ForkToCultureAsync(long id, ForkDocsCultureRequest request, CancellationToken ct = default);
+
+    /// <summary>
     /// Saves a documentation article.
     /// </summary>
     /// <param name="page">The documentation detail to save.</param>
@@ -125,6 +135,14 @@ public sealed class DocsHttpClient(HttpClient httpClient, ILogger<DocsHttpClient
         => GetAsync<IReadOnlyList<DocsSummary>>($"{parentId}/children", ct);
 
     /// <inheritdoc />
+    public Task<Result<IReadOnlyList<DocsDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<DocsDetail>>($"{id}/translations", ct);
+
+    /// <inheritdoc />
+    public Task<Result<DocsDetail, AeroError>> ForkToCultureAsync(long id, ForkDocsCultureRequest request, CancellationToken ct = default)
+        => PostAsync<ForkDocsCultureRequest, DocsDetail>($"{id}/translations", request, ct);
+
+    /// <inheritdoc />
     public Task<Result<DocsDetail, AeroError>> SaveAsync(DocsDetail page, CancellationToken ct = default)
         => PostAsync<DocsDetail, DocsDetail>("", page, ct);
 
@@ -185,7 +203,9 @@ public record DocsSummary(
     bool ShowHeaderNavigation = true,
     string? HeaderImageUrl = null,
     long PublishedVersion = 0,
-    long DraftVersion = 0);
+    long DraftVersion = 0,
+    string Culture = "en-US",
+    long? TranslationSetId = null);
 
 /// <summary>
 /// Request to create a child docs section under a parent in a space.
@@ -201,6 +221,11 @@ public sealed record DocsMoveRequest(long NewParentId, int? Order = null, bool R
 /// Request to save sibling order under a parent.
 /// </summary>
 public sealed record DocsReorderRequest(long ParentId, IReadOnlyList<long> OrderedIds);
+
+/// <summary>
+/// Request to create a docs translation from an existing docs page.
+/// </summary>
+public sealed record ForkDocsCultureRequest(string Culture, string Slug);
 
 /// <summary>
 /// Detailed information for documentation articles.
@@ -222,7 +247,9 @@ public record DocsDetail(
     DateTimeOffset CreatedOn = default,
     DateTimeOffset? ModifiedOn = null,
     long PublishedVersion = 0,
-    long DraftVersion = 0)
+    long DraftVersion = 0,
+    string Culture = "en-US",
+    long? TranslationSetId = null)
 {
     public static DocsDetail Create(
         string title,

@@ -20,4 +20,7 @@ public sealed record BlockRenderContext(
     string? HtmxTarget = null,
     CultureInfo? Culture = null,
     int NestingDepth = 0,
-    int MaxNestingDepth = 5);
+    int MaxNestingDepth = 5)
+{
+    public CultureInfo Culture { get; init; } = Culture ?? CultureInfo.CurrentCulture;
+}

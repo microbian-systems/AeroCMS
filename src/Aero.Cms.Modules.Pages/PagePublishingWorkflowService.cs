@@ -145,11 +145,17 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
 
             // ── Emit publish events ──────────────────────────────────
             var version = page.PublishedVersion + 1;
+            var published = new PagePublished(PageId: pageId, Version: version, LayoutRegions: layoutRegions);
+            var stateChanged = new PageStateChanged(ContentPublicationState.Published);
+
             _session.Events.Append($"page-{pageId}",
-                new PagePublished(PageId: pageId, Version: version, LayoutRegions: layoutRegions));
+                published);
             _session.Events.Append($"page-{pageId}",
-                new PageStateChanged(ContentPublicationState.Published));
+                stateChanged);
             await _session.SaveChangesAsync(ct);
+
+            page.Apply(published);
+            page.Apply(stateChanged);
 
             // Broadcast for cache eviction
             await _bus.PublishAsync(new PageViewModelUpdated(
@@ -176,8 +182,11 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page is null)
                 return AeroError.NotFoundError($"Page {pageId} not found.");
 
-            _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.Archived));
+            var stateChanged = new PageStateChanged(ContentPublicationState.Archived);
+            _session.Events.Append($"page-{pageId}", stateChanged);
             await _session.SaveChangesAsync(ct);
+
+            page.Apply(stateChanged);
 
             // Broadcast for cache eviction
             await _bus.PublishAsync(new PageViewModelUpdated(

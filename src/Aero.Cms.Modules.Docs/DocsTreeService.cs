@@ -105,6 +105,8 @@ public sealed class DocsTreeService(
             {
                 Id = Snowflake.NewId(),
                 SiteId = siteId,
+                TranslationSetId = null,
+                Culture = parent.Culture,
                 Title = title.Trim(),
                 Summary = summary,
                 Slug = GenerateUniqueChildSlug(parent.Slug, title, docs),
@@ -114,6 +116,8 @@ public sealed class DocsTreeService(
                 ModifiedOn = DateTimeOffset.UtcNow,
                 ModifiedBy = "system"
             };
+
+            page.TranslationSetId = page.Id;
 
             session.Store(page);
             await session.SaveChangesAsync(ct);
