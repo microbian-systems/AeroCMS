@@ -16,6 +16,7 @@
     </style>
 }
 @using Aero.Cms.Modules.Posts.Models
+@using Aero.Cms.Shared.Localization
 @using Aero.Core
 @using Aero.Services.Images
 @using Markdig
@@ -27,6 +28,14 @@
 @{
     ViewBag.Title = (Model.Post?.SeoTitle ?? Model.Post?.Title ?? "Blog Post") + " | Aero CMS";
     var post = Model.Post!;
+}
+
+@section headPartial {
+    <link rel="canonical" href="@Model.CanonicalUrl" />
+    @foreach (var link in Model.AlternateLinks)
+    {
+        <link rel="alternate" hreflang="@link.Hreflang" href="@link.Href" />
+    }
 }
 
 @{

@@ -7,6 +7,7 @@
            src="/_content/Aero.Cms.Modules.Pages/css/aero-pages.css"></style>
 }
 @section headPartial {
+    <link rel="canonical" href="@Model.CanonicalUrl" />
     @foreach (var link in Model.AlternateLinks)
     {
         <link rel="alternate" hreflang="@link.Hreflang" href="@link.Href" />

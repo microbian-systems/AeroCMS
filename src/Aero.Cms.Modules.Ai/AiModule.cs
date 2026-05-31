@@ -1,4 +1,5 @@
 using Aero.Cms.Core;
+using Aero.Core.Ai;
 using Aero.Cms.Modules.Ai.Api;
 using Aero.Cms.Modules.Ai.Configuration;
 using Aero.Cms.Modules.Ai.Services;

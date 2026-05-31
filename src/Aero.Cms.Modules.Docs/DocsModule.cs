@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Aero.Cms.Core;
 using Aero.Modular;
 using Aero.Cms.Abstractions.Actors;
@@ -32,7 +33,9 @@ public sealed class DocsModule : AeroWebModule
         opts.Schema.For<DocsPage>().DocumentAlias(Schemas.Tables.Docs);
         opts.Schema.For<DocsPage>().UseOptimisticConcurrency(true);
         opts.Schema.For<DocsPage>().Index(x => x.SiteId);
-        opts.Schema.For<DocsPage>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        opts.Schema.For<DocsPage>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Slug);
+        opts.Schema.For<DocsPage>().Index(x => x.Culture);
+        opts.Schema.For<DocsPage>().Index(x => x.TranslationSetId);
         opts.Schema.For<DocsPage>().Index(x => x.ParentId);
         opts.Schema.For<DocsPage>().Index(x => x.Order);
         opts.Schema.For<DocsPage>().Index(x => x.PublishedOn);
@@ -50,6 +53,12 @@ public sealed class DocsModule : AeroWebModule
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        services.Configure<RazorPagesOptions>(options =>
+        {
+            options.Conventions.AddAreaPageRoute("Docs", "/DocsIndex", "/{culture}/docs");
+            options.Conventions.AddAreaPageRoute("Docs", "/Doc", "/{culture}/docs/{*slug}");
+        });
+
         // Content service — factory resolves ISiteContext + IHttpContextAccessor
         // at the boundary and converts them to explicit primitives so the service
         // never touches HTTP transport concerns.

@@ -40,6 +40,7 @@ public class DynamicPageModel(
     public string RequestedCulture { get; private set; } = SitesModel.DefaultCultureName;
     public string RenderedCulture { get; private set; } = SitesModel.DefaultCultureName;
     public bool IsCultureFallback { get; private set; }
+    public string CanonicalUrl { get; private set; } = string.Empty;
     public IReadOnlyList<AlternatePageLink> AlternateLinks { get; private set; } = [];
     public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
@@ -82,6 +83,7 @@ public class DynamicPageModel(
         PageSlug = vm.Slug;
         RenderedCulture = vm.Culture;
         IsCultureFallback = !string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase);
+        CanonicalUrl = BuildCultureUrl(RenderedCulture, vm.Slug);
 
         // Deserialize layout regions for block preloading and rendering
         LayoutRegions = vm.LayoutRegionsJson is not null

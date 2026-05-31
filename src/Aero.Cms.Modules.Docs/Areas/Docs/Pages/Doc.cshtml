@@ -2,6 +2,7 @@
 @using Markdig
 @using Markdig.Extensions.AutoIdentifiers
 @using Aero.Cms.Modules.Docs.Areas.Docs.Models
+@using Aero.Cms.Shared.Localization
 @model Aero.Cms.Modules.Docs.Areas.Docs.Pages.DocModel
 @{
     var pageDoc = Model.MarkdownPage;
@@ -13,6 +14,14 @@
     var pipeline = new MarkdownPipelineBuilder()
         .UseAutoIdentifiers()
         .Build();
+}
+
+@section headPartial {
+    <link rel="canonical" href="@Model.CanonicalUrl" />
+    @foreach (var link in Model.AlternateLinks)
+    {
+        <link rel="alternate" hreflang="@link.Hreflang" href="@link.Href" />
+    }
 }
 
 @* ── Left Sidebar ──────────────────────────────────────────────────────── *@
@@ -35,7 +44,7 @@
         <div class="text-center">
             <h1 class="text-4xl font-bold text-slate-900 mb-4">Documentation Not Found</h1>
             <p class="text-slate-600">The requested documentation page could not be found.</p>
-            <a href="/docs" class="mt-6 inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium">
+            <a href="@AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, Model.RenderedCulture, "docs")" class="mt-6 inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium">
                 <i class="ph ph-arrow-left"></i> Back to Docs
             </a>
         </div>
@@ -48,7 +57,7 @@ else
         @if (Model.Breadcrumbs.Count > 0)
         {
             <p class="text-xs font-medium text-indigo-600 uppercase tracking-wider mb-2 px-6 md:px-12 lg:px-16 pt-8">
-                <a href="/docs" class="hover:underline">Docs</a>
+                <a href="@AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, Model.RenderedCulture, "docs")" class="hover:underline">Docs</a>
                 @for (var i = 0; i < Model.Breadcrumbs.Count; i++)
                 {
                     var crumb = Model.Breadcrumbs[i];
@@ -60,7 +69,7 @@ else
                     }
                     else
                     {
-                        <a href="/@crumb.Slug" class="hover:underline">@crumb.Title</a>
+                        <a href="@AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, Model.RenderedCulture, crumb.Slug)" class="hover:underline">@crumb.Title</a>
                     }
                 }
             </p>
@@ -83,7 +92,7 @@ else
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-[900px] mx-auto px-6 md:px-12 lg:px-16 pb-8">
                 @foreach (var child in Model.ChildPages)
                 {
-                    <a href="/@child.Slug" class="card-hover group block border border-slate-200 rounded-lg overflow-hidden bg-white transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-indigo-300">
+                    <a href="@AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, Model.RenderedCulture, child.Slug)" class="card-hover group block border border-slate-200 rounded-lg overflow-hidden bg-white transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-indigo-300">
                         <div class="h-32 bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center">
                             <i class="ph ph-file-text text-3xl text-indigo-400 group-hover:text-indigo-600 transition-colors"></i>
                         </div>

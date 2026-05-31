@@ -147,6 +147,9 @@ else if (ActiveTab == "metadata")
                         <p class="text-sm mt-1" style="color: var(--pe-text-muted);">
                             Current variant: @FormatCulture(LoadedPage?.Culture)
                         </p>
+                        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">
+                            @PageCultureVariants.Count of @SupportedCultures.Count site cultures created.
+                        </p>
                     </div>
                     @if (LoadedPage?.TranslationSetId is { } translationSetId)
                     {
@@ -159,6 +162,13 @@ else if (ActiveTab == "metadata")
 
                 <div class="rounded-md border p-4 space-y-3"
                      style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    <div class="flex flex-wrap items-center gap-2 text-xs" style="color: var(--pe-text-muted);">
+                        <span class="font-semibold uppercase tracking-wider">Available variants</span>
+                        @if (!AvailableTranslationCultures.Any())
+                        {
+                            <span class="rounded px-2 py-0.5" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">Complete</span>
+                        }
+                    </div>
                     @if (IsLoadingTranslations)
                     {
                         <p class="text-sm" style="color: var(--pe-text-muted);">Loading translations...</p>
@@ -173,11 +183,12 @@ else if (ActiveTab == "metadata")
                             @foreach (var variant in PageCultureVariants)
                             {
                                 var isCurrent = LoadedPage?.Id == variant.Id;
+                                var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
                                 <button type="button"
                                         class="pe-btn @(isCurrent ? "pe-btn-primary" : "pe-btn-ghost") pe-btn-sm"
                                         disabled="@isCurrent"
                                         @onclick="() => OpenTranslation(variant.Id)">
-                                    @FormatCulture(variant.Culture)
+                                    @FormatCulture(variant.Culture)@(isDefault ? " · Default" : "")
                                 </button>
                             }
                         </div>
@@ -203,6 +214,7 @@ else if (ActiveTab == "metadata")
                             <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
                                    style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
                                    @bind="TranslationSlug" @bind:event="oninput" placeholder="@PageSlug" />
+                            <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">Leave blank to copy the current slug, or enter the translated URL segment.</p>
                         </div>
                         <button type="button"
                                 class="pe-btn pe-btn-primary pe-btn-sm"

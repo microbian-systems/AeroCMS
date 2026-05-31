@@ -10,10 +10,24 @@ public interface IDocsTreeService
         bool publishedOnly = true,
         CancellationToken ct = default);
 
+    Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
+        long siteId,
+        long activeId,
+        bool publishedOnly,
+        string? culture,
+        CancellationToken ct = default);
+
     Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
         long siteId,
         long docId,
         bool publishedOnly = true,
+        CancellationToken ct = default);
+
+    Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
+        long siteId,
+        long docId,
+        bool publishedOnly,
+        string? culture,
         CancellationToken ct = default);
 
     IReadOnlyList<HeadingItem> ExtractHeadings(string? markdown);

@@ -86,6 +86,22 @@ public static class AeroCultureRoute
         return slashIndex < 0 ? string.Empty : trimmed[(slashIndex + 1)..];
     }
 
+    public static string BuildCulturePath(string culture, string? slug)
+    {
+        var normalizedCulture = NormalizeCultureOrDefault(culture).ToLowerInvariant();
+        var normalizedSlug = (slug ?? string.Empty).Trim().Trim('/');
+
+        return string.IsNullOrWhiteSpace(normalizedSlug)
+            ? $"/{normalizedCulture}"
+            : $"/{normalizedCulture}/{normalizedSlug}";
+    }
+
+    public static string BuildCulturePathForCurrentRequest(HttpContext httpContext, string culture, string? slug)
+    {
+        var pathBase = httpContext.Request.PathBase.Value?.TrimEnd('/') ?? string.Empty;
+        return pathBase + BuildCulturePath(culture, slug);
+    }
+
     private static string? GetLeadingSegment(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Core.Models;
 using Aero.Core;
+using Aero.Core.Ai;
 using Aero.Core.Railway;
 using Marten;
 using Microsoft.Extensions.Configuration;
@@ -83,8 +84,7 @@ public sealed class AiSettingsStore(
                     protectedApiKey = secretProtector.Protect(update.ApiKey);
                 }
 
-                var supportsContentEnhancement = existingProfile?.SupportsContentEnhancement
-                    ?? SupportsContentEnhancement(update.Provider);
+                var supportsContentEnhancement = SupportsContentEnhancement(update.Provider);
 
                 var profile = new AiProviderProfile(
                     update.Id.Trim(),
@@ -151,7 +151,7 @@ public sealed class AiSettingsStore(
         return options;
     }
 
-    public async Task<Result<AiRuntimeSettings, AeroError>> GetRuntimeSettingsAsync(
+    public async Task<Result<AiRuntimeSettings>> GetRuntimeSettingsAsync(
         string? providerId = null,
         CancellationToken cancellationToken = default)
     {
@@ -294,7 +294,8 @@ public sealed class AiSettingsStore(
             var profile = JsonSerializer.Deserialize<AiProviderProfile>(setting.Value, JsonOptions);
             if (profile is not null)
             {
-                profiles.Add(profile);
+                // Recompute derived property — stored value may be stale after provider support changes.
+                profiles.Add(profile with { SupportsContentEnhancement = SupportsContentEnhancement(profile.Provider) });
             }
         }
 
@@ -326,7 +327,7 @@ public sealed class AiSettingsStore(
             && (!string.IsNullOrWhiteSpace(provider.Endpoint) || provider.HasApiKey);
 
     private static bool SupportsContentEnhancement(AiProviderKind provider)
-        => provider is not AiProviderKind.OpenCode and not AiProviderKind.Future;
+        => provider is not AiProviderKind.Future;
 
     private void StoreProfile(AiProviderProfile profile)
     {

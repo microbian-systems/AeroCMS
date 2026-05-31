@@ -6,7 +6,7 @@ namespace Aero.Cms.Modules.Ai.Services;
 
 public interface IAiContentEnhancementService
 {
-    Task<Result<EnhanceContentResponse, AeroError>> EnhanceAsync(
+    Task<Result<EnhanceContentResponse>> EnhanceAsync(
         EnhanceContentRequest request,
         CancellationToken cancellationToken = default);
 }

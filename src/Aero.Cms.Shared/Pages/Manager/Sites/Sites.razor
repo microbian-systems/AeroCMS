@@ -1,0 +1,107 @@
+@page "/manager/sites"
+@attribute [Authorize]
+@using Aero.Cms.Abstractions.Models
+
+<div class="pe-page-content space-y-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold pe-heading">Sites</h1>
+            <p class="mt-1 text-sm pe-description">Manage site records, hosts, and locale availability.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <RadzenButton Icon="public"
+                          Text="Select Site"
+                          ButtonStyle="ButtonStyle.Secondary"
+                          Click="@(() => Navigation.NavigateTo("/manager/select-site"))" />
+            <RadzenButton Icon="add"
+                          Text="New Site"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Click="@(() => Navigation.NavigateTo("/manager/sites/new"))" />
+        </div>
+    </div>
+
+    <RadzenDataGrid @ref="@Grid"
+                    Data="@SiteRows"
+                    TItem="SiteViewModel"
+                    Count="@Count"
+                    LoadData="@LoadData"
+                    IsLoading="@IsLoading"
+                    AllowPaging="true"
+                    PageSize="10"
+                    PagerHorizontalAlign="HorizontalAlign.Center"
+                    ShowPagingSummary="true"
+                    EmptyText="No sites found. Create your first site to begin.">
+        <Columns>
+            <RadzenDataGridColumn TItem="SiteViewModel" Property="Name" Title="Site" Width="300px" Sortable="true">
+                <Template Context="site">
+                    <div class="min-w-0">
+                        <div class="font-semibold truncate" style="color: var(--pe-text-primary);">@site.Name</div>
+                        <div class="mt-1 text-xs truncate" style="color: var(--pe-text-muted);">@site.PrimaryHost</div>
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="SiteViewModel" Property="IsEnabled" Title="Status" Width="120px">
+                <Template Context="site">
+                    @if (site.IsEnabled)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Active" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="Disabled" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="SiteViewModel" Title="Locales">
+                <Template Context="site">
+                    <div class="flex flex-wrap gap-2">
+                        <span class="rounded px-2 py-1 text-xs font-semibold"
+                              style="background: color-mix(in srgb, var(--pe-primary) 12%, transparent); color: var(--pe-primary);">
+                            @FormatCulture(site.DefaultCulture) default
+                        </span>
+                        @foreach (var culture in site.SupportedCultures.Where(culture => !string.Equals(culture, site.DefaultCulture, StringComparison.OrdinalIgnoreCase)).Take(4))
+                        {
+                            <span class="rounded px-2 py-1 text-xs"
+                                  style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary); border: 1px solid var(--pe-border);">
+                                @FormatCulture(culture)
+                            </span>
+                        }
+                        @if (site.SupportedCultures.Count > 5)
+                        {
+                            <span class="rounded px-2 py-1 text-xs"
+                                  style="background: var(--pe-bg-secondary); color: var(--pe-text-muted);">
+                                +@(site.SupportedCultures.Count - 5)
+                            </span>
+                        }
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="SiteViewModel" Title="Hosts" Width="180px">
+                <Template Context="site">
+                    <span class="text-sm" style="color: var(--pe-text-secondary);">@site.Hosts.Count configured</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="SiteViewModel" Title="Actions" Width="260px">
+                <Template Context="site">
+                    <div class="flex flex-wrap gap-2">
+                        <RadzenButton Size="ButtonSize.Small"
+                                      Icon="check_circle"
+                                      ButtonStyle="ButtonStyle.Success"
+                                      Text="Set"
+                                      Click="@(() => SelectSiteAsync(site.Id, site.Name))" />
+                        <RadzenButton Size="ButtonSize.Small"
+                                      Icon="edit"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      Text="Edit"
+                                      Click="@(() => Navigation.NavigateTo($"/manager/sites/{site.Id}"))" />
+                        <RadzenButton Size="ButtonSize.Small"
+                                      Icon="delete"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      Text="Delete"
+                                      Click="@(() => DeleteSiteAsync(site))" />
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</div>

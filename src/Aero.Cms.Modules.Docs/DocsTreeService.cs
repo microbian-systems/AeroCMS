@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Modules.Docs.Areas.Docs.Models;
 using Aero.Core;
+using System.Globalization;
 using Wolverine;
 using static Aero.Core.Railway.Prelude;
 
@@ -17,10 +18,18 @@ public sealed class DocsTreeService(
         long activeId = 0,
         bool publishedOnly = true,
         CancellationToken ct = default)
+        => await GetSidebarTreeAsync(siteId, activeId, publishedOnly, null, ct);
+
+    public async Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
+        long siteId,
+        long activeId,
+        bool publishedOnly,
+        string? culture,
+        CancellationToken ct = default)
     {
         try
         {
-            var docs = await LoadSiteDocsAsync(siteId, publishedOnly, ct);
+            var docs = await LoadSiteDocsAsync(siteId, publishedOnly, culture, ct);
             var root = docs.FirstOrDefault(doc => string.Equals(doc.Slug, "docs", StringComparison.OrdinalIgnoreCase));
             if (root is null)
                 return Ok<IReadOnlyList<DocsSidebarNode>, AeroError>([]);
@@ -43,10 +52,18 @@ public sealed class DocsTreeService(
         long docId,
         bool publishedOnly = true,
         CancellationToken ct = default)
+        => await GetBreadcrumbsAsync(siteId, docId, publishedOnly, null, ct);
+
+    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
+        long siteId,
+        long docId,
+        bool publishedOnly,
+        string? culture,
+        CancellationToken ct = default)
     {
         try
         {
-            var docs = await LoadSiteDocsAsync(siteId, publishedOnly, ct);
+            var docs = await LoadSiteDocsAsync(siteId, publishedOnly, culture, ct);
             var current = docs.FirstOrDefault(doc => doc.Id == docId);
             if (current is null)
                 return Ok<IReadOnlyList<DocsPage>, AeroError>([]);
@@ -90,7 +107,7 @@ public sealed class DocsTreeService(
             if (string.IsNullOrWhiteSpace(title))
                 return Fail<DocsPage, AeroError>(AeroError.ValidationError(["Title is required"]));
 
-            var docs = await LoadSiteDocsAsync(siteId, publishedOnly: false, ct);
+            var docs = await LoadSiteDocsAsync(siteId, publishedOnly: false, null, ct);
             var parent = docs.FirstOrDefault(doc => doc.Id == parentId);
             if (parent is null || !IsWithinSpace(parent, spaceId, docs))
                 return Fail<DocsPage, AeroError>(AeroError.NotFoundError("Parent section not found in this docs space"));
@@ -149,7 +166,7 @@ public sealed class DocsTreeService(
             if (sectionId == spaceId)
                 return Fail<DocsPage, AeroError>(AeroError.ValidationError(["A space root cannot be moved from inside the space editor"]));
 
-            var docs = await LoadSiteDocsAsync(siteId, publishedOnly: false, ct);
+            var docs = await LoadSiteDocsAsync(siteId, publishedOnly: false, null, ct);
             var section = docs.FirstOrDefault(doc => doc.Id == sectionId);
             var newParent = docs.FirstOrDefault(doc => doc.Id == newParentId);
 
@@ -210,7 +227,7 @@ public sealed class DocsTreeService(
             if (orderedIds.Count == 0)
                 return Ok<bool, AeroError>(true);
 
-            var docs = await LoadSiteDocsAsync(siteId, publishedOnly: false, ct);
+            var docs = await LoadSiteDocsAsync(siteId, publishedOnly: false, null, ct);
             var parent = docs.FirstOrDefault(doc => doc.Id == parentId);
             if (parent is null || !IsWithinSpace(parent, spaceId, docs))
                 return Fail<bool, AeroError>(AeroError.NotFoundError("Parent section not found in this docs space"));
@@ -250,10 +267,16 @@ public sealed class DocsTreeService(
         }
     }
 
-    private Task<IReadOnlyList<DocsPage>> LoadSiteDocsAsync(long siteId, bool publishedOnly, CancellationToken ct)
+    private Task<IReadOnlyList<DocsPage>> LoadSiteDocsAsync(long siteId, bool publishedOnly, string? culture, CancellationToken ct)
     {
         var query = session.Query<DocsPage>()
             .Where(doc => doc.SiteId == siteId);
+
+        if (!string.IsNullOrWhiteSpace(culture))
+        {
+            var currentCulture = NormalizeCulture(culture);
+            query = query.Where(doc => doc.Culture == currentCulture);
+        }
 
         if (publishedOnly)
             query = query.Where(doc => doc.PublicationState == ContentPublicationState.Published);
@@ -262,6 +285,18 @@ public sealed class DocsTreeService(
             .OrderBy(doc => doc.Order)
             .ThenBy(doc => doc.Title)
             .ToListAsync(ct);
+    }
+
+    private static string NormalizeCulture(string? culture)
+    {
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture!.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return "en-US";
+        }
     }
 
     private static List<DocsSidebarNode> BuildNodes(

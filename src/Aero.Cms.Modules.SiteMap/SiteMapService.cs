@@ -220,24 +220,28 @@ public sealed class SiteMapService : ISiteMapService
 
     private async Task<Result<List<SitemapEntry>, AeroError>> GetDocEntriesAsync(string baseUrl, string culture, CancellationToken ct)
     {
-        if (!string.Equals(culture, GetDefaultCulture(), StringComparison.OrdinalIgnoreCase))
-            return Ok<List<SitemapEntry>, AeroError>([]);
-
-        var result = await _docsService.GetAllAsync(ct);
+        var result = await _docsService.GetPublishedAsync(culture, ct);
         if (result is Result<IReadOnlyList<DocsPage>, AeroError>.Ok ok)
         {
             var docs = ok.Value;
+            var translationSetIds = docs
+                .Select(doc => doc.TranslationSetId ?? doc.Id)
+                .Distinct()
+                .ToList();
+            var variantLookup = await BuildDocVariantLookupAsync(baseUrl, translationSetIds, ct);
             var entries = new List<SitemapEntry>(docs.Count);
 
             foreach (var doc in docs)
             {
                 if (!doc.IsPubliclyVisible) continue;
+                var translationSetId = doc.TranslationSetId ?? doc.Id;
                 entries.Add(new SitemapEntry
                 {
-                    Loc = BuildLoc(baseUrl, doc.Slug, false),
+                    Loc = BuildCultureLoc(baseUrl, doc.Culture, doc.Slug, false),
                     LastMod = doc.ModifiedOn ?? doc.PublishedOn ?? doc.CreatedOn,
                     ChangeFreq = ChangeFrequency.Monthly,
-                    Priority = 0.5
+                    Priority = 0.5,
+                    Alternates = variantLookup.GetValueOrDefault(translationSetId, [])
                 });
             }
 
@@ -245,6 +249,32 @@ public sealed class SiteMapService : ISiteMapService
         }
 
         return Fail<List<SitemapEntry>, AeroError>(((Result<IReadOnlyList<DocsPage>, AeroError>.Failure)result).Error);
+    }
+
+    private async Task<Dictionary<long, IReadOnlyList<SitemapAlternateLink>>> BuildDocVariantLookupAsync(
+        string baseUrl,
+        IReadOnlyList<long> translationSetIds,
+        CancellationToken ct)
+    {
+        if (translationSetIds.Count == 0)
+            return [];
+
+        var translationSetIdValues = translationSetIds
+            .Select(id => (long?)id)
+            .ToArray();
+
+        var variants = await _session.Query<DocsPage>()
+            .Where(doc => doc.SiteId == _siteContext.SiteId
+                       && doc.PublicationState == ContentPublicationState.Published
+                       && doc.TranslationSetId != null
+                       && doc.TranslationSetId.IsOneOf(translationSetIdValues))
+            .ToListAsync(ct);
+
+        return variants
+            .GroupBy(doc => doc.TranslationSetId ?? doc.Id)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<SitemapAlternateLink>)BuildDocAlternates(baseUrl, group));
     }
 
     private async Task<Dictionary<long, IReadOnlyList<SitemapAlternateLink>>> BuildPageVariantLookupAsync(
@@ -316,6 +346,15 @@ public sealed class SiteMapService : ISiteMapService
             .Select(p => new SitemapAlternateLink(
                 p.Culture.ToLowerInvariant(),
                 BuildBlogPostLoc(baseUrl, p.Culture, p.Slug)))
+            .ToList();
+
+    private static List<SitemapAlternateLink> BuildDocAlternates(string baseUrl, IEnumerable<DocsPage> variants)
+        => variants
+            .GroupBy(doc => doc.Culture, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .Select(doc => new SitemapAlternateLink(
+                doc.Culture.ToLowerInvariant(),
+                BuildCultureLoc(baseUrl, doc.Culture, doc.Slug, false)))
             .ToList();
 
     private string? GetBaseUrl()

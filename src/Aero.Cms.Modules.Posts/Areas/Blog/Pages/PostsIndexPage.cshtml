@@ -6,6 +6,14 @@
     ViewBag.Title = "Blog | Aero CMS";
 }
 
+@section headPartial {
+    <link rel="canonical" href="@Model.CanonicalUrl" />
+    @foreach (var link in Model.AlternateLinks)
+    {
+        <link rel="alternate" hreflang="@link.Hreflang" href="@link.Href" />
+    }
+}
+
 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
     <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <!-- Header -->
@@ -43,7 +51,7 @@
 
                                 <div class="relative z-10 flex flex-1 flex-col p-8 pt-32">
                                     <h3 class="mb-4 text-2xl font-extrabold leading-tight text-slate-900 group-hover:text-indigo-600 transition-colors">
-                                        <a href="/blog/@post.Slug" class="focus:outline-none">
+                                        <a href="@Model.BuildPostUrl(post)" class="focus:outline-none">
                                             <span class="absolute inset-0" aria-hidden="true"></span>
                                             @post.Title
                                         </a>

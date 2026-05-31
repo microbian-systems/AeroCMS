@@ -1,6 +1,8 @@
 using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Modules.Ai.Configuration;
 using Aero.Core;
+using Aero.Core.Ai;
+using Aero.Core.Extensions;
 using Aero.Core.Railway;
 using FluentValidation;
 using Microsoft.Extensions.AI;
@@ -14,7 +16,7 @@ public sealed class AiContentEnhancementService(
     IAiChatClientFactory chatClientFactory,
     IEnhanceContentPromptBuilder promptBuilder,
     IValidator<EnhanceContentRequest> validator,
-    ILogger<AiContentEnhancementService> logger) : IAiContentEnhancementService
+    ILogger<AiContentEnhancementService> log) : IAiContentEnhancementService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -32,7 +34,7 @@ public sealed class AiContentEnhancementService(
         keep the text conservative. No cussing. No questionable material responses.
         """;
 
-    public async Task<Result<EnhanceContentResponse, AeroError>> EnhanceAsync(
+    public async Task<Result<EnhanceContentResponse>> EnhanceAsync(
         EnhanceContentRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -43,24 +45,28 @@ public sealed class AiContentEnhancementService(
         }
 
         var settingsResult = await settingsProvider.GetAsync(request.ProviderId, cancellationToken);
-        if (settingsResult is Result<AiRuntimeSettings, AeroError>.Failure settingsFailure)
+        if (settingsResult is Result<AiRuntimeSettings>.Failure settingsFailure)
         {
+            var json = request.ToJson();
+            log.LogError($"ai settings error: {settingsFailure.Error}");
+            log.LogDebug($"request: {json}");
+
             return settingsFailure.Error;
         }
 
-        var settings = ((Result<AiRuntimeSettings, AeroError>.Ok)settingsResult).Value;
+        var settings = ((Result<AiRuntimeSettings>.Ok)settingsResult).Value;
         if (!settings.Enabled)
         {
             return AeroError.ConfigurationError("AI is disabled.");
         }
 
         var clientResult = await chatClientFactory.CreateAsync(settings, cancellationToken);
-        if (clientResult is Result<IChatClient, AeroError>.Failure clientFailure)
+        if (clientResult is Result<IChatClient>.Failure clientFailure)
         {
             return clientFailure.Error;
         }
 
-        var client = ((Result<IChatClient, AeroError>.Ok)clientResult).Value;
+        var client = ((Result<IChatClient>.Ok)clientResult).Value;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(settings.TimeoutSeconds, 1, 300)));
 
@@ -86,7 +92,7 @@ public sealed class AiContentEnhancementService(
             if (chatResponse.FinishReason == ChatFinishReason.Length)
             {
                 var outputTokens = chatResponse.Usage?.OutputTokenCount;
-                logger.LogWarning(
+                log.LogWarning(
                     "AI response truncated: FinishReason=Length, MaxOutputTokens={MaxTokens}, OutputTokens={OutputTokens}",
                     settings.MaxOutputTokens, outputTokens);
                 return AeroError.CreateError(
@@ -106,13 +112,13 @@ public sealed class AiContentEnhancementService(
             }
             catch (JsonException ex) when (ex.Message.Contains("end of data", StringComparison.OrdinalIgnoreCase))
             {
-                logger.LogError(ex, "AI provider response was truncated — likely MaxOutputTokens too low.");
+                log.LogError(ex, "AI provider response was truncated — likely MaxOutputTokens too low.");
                 return AeroError.CreateError(
                     $"AI response was truncated. Try increasing the Max Output Tokens setting for this provider (current: {settings.MaxOutputTokens}) and try again.");
             }
             catch (JsonException ex)
             {
-                logger.LogError(ex, "Error deserializing AI provider response.");
+                log.LogError(ex, "Error deserializing AI provider response.");
                 return AeroError.CreateError("AI provider returned an unparseable response. Try increasing MaxOutputTokens if the content is large.");
             }
 
@@ -141,14 +147,14 @@ public sealed class AiContentEnhancementService(
         }
         catch (Exception ex)
         {
-            logger.LogError(
+            log.LogError(
                 ex,
                 "AI content enhancement failed for provider {Provider}, model {Model}, target {TargetField}.",
                 settings.Provider,
                 settings.Model,
                 request.TargetField);
 
-            return AeroError.CreateError("AI enhancement failed. Check provider configuration and try again.");
+            return AeroError.CreateError("AI enhancement failed: " + ex.Message);
         }
     }
 }

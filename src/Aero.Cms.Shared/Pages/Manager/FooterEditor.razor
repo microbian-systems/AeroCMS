@@ -117,6 +117,7 @@
                     <div>
                         <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Translations</h2>
                         <p class="mt-1 text-sm pe-description">Current variant: @FormatCulture(_selected.Culture)</p>
+                        <p class="mt-1 text-xs pe-description">@_cultureVariants.Count of @SupportedCultures.Count site cultures created.</p>
                     </div>
                     @if (_selected.TranslationSetId is { } translationSetId)
                     {
@@ -129,6 +130,13 @@
 
                 <div class="rounded p-4 space-y-3"
                      style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary);">
+                    <div class="flex flex-wrap items-center gap-2 text-xs pe-description">
+                        <span class="font-semibold uppercase tracking-wider">Available variants</span>
+                        @if (!AvailableTranslationCultures.Any())
+                        {
+                            <span class="rounded px-2 py-0.5" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">Complete</span>
+                        }
+                    </div>
                     @if (_isLoadingTranslations)
                     {
                         <p class="text-sm pe-description">Loading translations...</p>
@@ -143,11 +151,12 @@
                             @foreach (var variant in _cultureVariants)
                             {
                                 var isCurrent = _selected.Id == variant.Id;
+                                var isDefault = string.Equals(_currentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
                                 <button type="button"
                                         class="pe-btn @(isCurrent ? "pe-btn-primary" : "pe-btn-ghost") pe-btn-sm"
                                         disabled="@isCurrent"
                                         @onclick="() => OpenTranslation(variant.Id)">
-                                    @FormatCulture(variant.Culture)
+                                    @FormatCulture(variant.Culture)@(isDefault ? " · Default" : "")
                                 </button>
                             }
                         </div>

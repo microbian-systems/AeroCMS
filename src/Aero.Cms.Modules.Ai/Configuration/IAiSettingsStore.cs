@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Ai;
 using Aero.Core;
+using Aero.Core.Ai;
 using Aero.Core.Railway;
 
 namespace Aero.Cms.Modules.Ai.Configuration;
@@ -14,7 +15,7 @@ public interface IAiSettingsStore
 
     Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProviderOptionsAsync(CancellationToken cancellationToken = default);
 
-    Task<Result<AiRuntimeSettings, AeroError>> GetRuntimeSettingsAsync(
+    Task<Result<AiRuntimeSettings>> GetRuntimeSettingsAsync(
         string? providerId = null,
         CancellationToken cancellationToken = default);
 

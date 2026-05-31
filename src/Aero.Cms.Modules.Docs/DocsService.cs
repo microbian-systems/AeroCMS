@@ -3,6 +3,7 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Core.Entities;
 using Aero.Core.Http;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
@@ -75,17 +76,25 @@ public sealed class DocsContentService : IDocsService
 
     // ─────────── Published (compiled queries) ───────────────────────────
 
-    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(CancellationToken ct = default)
+    public Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(CancellationToken ct = default)
+        => GetPublishedAsync(null, ct);
+
+    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(string? culture, CancellationToken ct = default)
     {
         try
         {
-            var cacheKey = BuildCacheKey("published");
+            var currentCulture = GetCurrentCulture(culture);
+            var cacheKey = BuildCacheKey($"published:{currentCulture}");
             var cached = await TryGetCacheAsync<DocsPageCollectionCacheEntry>(cacheKey, ct);
             if (cached is not null)
                 return Ok<IReadOnlyList<DocsPage>, AeroError>(cached.Items);
 
-            var docs = await _session.QueryAsync(
-                new Queries.DocsPublishedBySiteIdQuery { SiteId = _siteContext.SiteId }, ct);
+            var docs = await _session.Query<DocsPage>()
+                .Where(x => x.SiteId == _siteContext.SiteId
+                         && x.Culture == currentCulture
+                         && x.PublicationState == ContentPublicationState.Published)
+                .OrderBy(x => x.Order)
+                .ToListAsync(ct);
             var list = docs.ToList();
 
             await SetCacheAsync(cacheKey, new DocsPageCollectionCacheEntry(list), ct);
@@ -150,17 +159,26 @@ public sealed class DocsContentService : IDocsService
         }
     }
 
-    public async Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string slug, CancellationToken ct = default)
+    public Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string slug, CancellationToken ct = default)
+        => GetPublishedBySlugAsync(slug, null, ct);
+
+    public async Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string slug, string? culture, CancellationToken ct = default)
     {
         try
         {
-            var cacheKey = BuildCacheKey($"slug-pub:{NormalizeCachePart(slug)}");
+            var currentCulture = GetCurrentCulture(culture);
+            var cacheKey = BuildCacheKey($"slug-pub:{currentCulture}:{NormalizeCachePart(slug)}");
             var cached = await TryGetCacheAsync<DocsPage>(cacheKey, ct);
             if (cached is not null)
                 return Ok<DocsPage?, AeroError>(cached);
 
-            var doc = await _session.QueryAsync(
-                new Queries.DocsPublishedBySlugQuery { SiteId = _siteContext.SiteId, Slug = slug }, ct);
+            var doc = await FindPublishedBySlugAndCultureAsync(slug, currentCulture, ct);
+            if (doc is null)
+            {
+                var defaultCulture = await GetSiteDefaultCultureAsync(ct);
+                if (!string.Equals(currentCulture, defaultCulture, StringComparison.OrdinalIgnoreCase))
+                    doc = await FindPublishedBySlugAndCultureAsync(slug, defaultCulture, ct);
+            }
 
             if (doc is not null)
                 await SetCacheAsync(cacheKey, doc, ct);
@@ -422,17 +440,23 @@ public sealed class DocsContentService : IDocsService
 
     // ── Tree ──────────────────────────────────────────────────────────────
 
-    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, CancellationToken ct = default)
+    public Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, CancellationToken ct = default)
+        => GetChildrenAsync(parentId, null, ct);
+
+    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, string? culture, CancellationToken ct = default)
     {
         try
         {
-            var cacheKey = BuildCacheKey($"children:{parentId}");
+            var currentCulture = GetCurrentCulture(culture);
+            var cacheKey = BuildCacheKey($"children:{currentCulture}:{parentId}");
             var cached = await TryGetCacheAsync<DocsPageCollectionCacheEntry>(cacheKey, ct);
             if (cached is not null)
                 return Ok<IReadOnlyList<DocsPage>, AeroError>(cached.Items);
 
             var children = await _session.Query<DocsPage>()
-                .Where(x => x.SiteId == _siteContext.SiteId && x.ParentId == parentId)
+                .Where(x => x.SiteId == _siteContext.SiteId
+                         && x.Culture == currentCulture
+                         && x.ParentId == parentId)
                 .OrderBy(x => x.Order)
                 .ToListAsync(ct);
 
@@ -605,6 +629,21 @@ public sealed class DocsContentService : IDocsService
     private string BuildCacheKey(string suffix)
         => $"cms:docs:{_siteContext.SiteId}:{suffix}";
 
+    private async Task<DocsPage?> FindPublishedBySlugAndCultureAsync(string slug, string culture, CancellationToken ct)
+        => await _session.Query<DocsPage>()
+            .FirstOrDefaultAsync(x =>
+                x.SiteId == _siteContext.SiteId
+                && x.Slug == slug
+                && x.Culture == culture
+                && x.PublicationState == ContentPublicationState.Published,
+                ct);
+
+    private async Task<string> GetSiteDefaultCultureAsync(CancellationToken ct)
+    {
+        var site = await _session.LoadAsync<SitesModel>(_siteContext.SiteId, ct);
+        return NormalizeCulture(site?.DefaultCulture);
+    }
+
     private async Task<long?> ResolveTranslatedParentIdAsync(long? sourceParentId, string culture, CancellationToken ct)
     {
         if (sourceParentId is not { } parentId)
@@ -632,6 +671,9 @@ public sealed class DocsContentService : IDocsService
 
         return CultureInfo.GetCultureInfo(culture.Trim()).Name;
     }
+
+    private static string GetCurrentCulture(string? culture = null)
+        => NormalizeCulture(culture ?? CultureInfo.CurrentUICulture.Name);
 
     private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken ct) where T : class
     {

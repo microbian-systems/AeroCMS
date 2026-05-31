@@ -149,6 +149,7 @@
                                 <div>
                                     <h3 class="text-base font-semibold" style="color: var(--pe-text-primary);">Translations</h3>
                                     <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Current variant: @FormatCulture(Current.Culture)</p>
+                                    <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">@DocCultureVariants.Count of @SupportedCultures.Count site cultures created.</p>
                                 </div>
                                 @if (Current.TranslationSetId is { } translationSetId)
                                 {
@@ -161,6 +162,13 @@
 
                             <div class="rounded-md border p-3"
                                  style="border-color: var(--pe-border); background: var(--pe-bg-primary);">
+                                <div class="mb-3 flex flex-wrap items-center gap-2 text-xs" style="color: var(--pe-text-muted);">
+                                    <span class="font-semibold uppercase tracking-wider">Available variants</span>
+                                    @if (!AvailableTranslationCultures.Any())
+                                    {
+                                        <span class="rounded px-2 py-0.5" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">Complete</span>
+                                    }
+                                </div>
                                 @if (IsLoadingTranslations)
                                 {
                                     <p class="text-sm" style="color: var(--pe-text-muted);">Loading translations...</p>
@@ -175,11 +183,12 @@
                                         @foreach (var variant in DocCultureVariants)
                                         {
                                             var isCurrent = Current.Id == variant.Id;
+                                            var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
                                             <button type="button"
                                                     class="pe-btn @(isCurrent ? "pe-btn-primary" : "pe-btn-ghost") pe-btn-sm"
                                                     disabled="@isCurrent"
                                                     @onclick="() => OpenTranslation(variant.Id)">
-                                                @FormatCulture(variant.Culture)
+                                                @FormatCulture(variant.Culture)@(isDefault ? " · Default" : "")
                                             </button>
                                         }
                                     </div>
@@ -201,6 +210,7 @@
                                     <label class="pe-field">
                                         <span>Translated slug</span>
                                         <input @bind="TranslationSlug" @bind:event="oninput" placeholder="@Current.Slug" />
+                                        <small>Leave blank to copy the current slug, or enter the translated URL path.</small>
                                     </label>
                                     <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="CreateTranslationAsync" disabled="@IsCreatingTranslation">
                                         @(IsCreatingTranslation ? "Creating..." : "Create Translation")

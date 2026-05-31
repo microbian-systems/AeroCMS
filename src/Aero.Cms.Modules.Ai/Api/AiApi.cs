@@ -94,8 +94,8 @@ public static class AiApi
 
         return result switch
         {
-            Result<EnhanceContentResponse, AeroError>.Ok ok => LogSuccessAndReturn(logger, ok.Value, elapsed),
-            Result<EnhanceContentResponse, AeroError>.Failure failure => LogFailureAndReturn(logger, failure.Error, elapsed),
+            Result<EnhanceContentResponse>.Ok ok => LogSuccessAndReturn(logger, ok.Value, elapsed),
+            Result<EnhanceContentResponse>.Failure failure => LogFailureAndReturn(logger, failure.Error, elapsed),
             _ => Results.Problem("Unexpected AI enhancement result.")
         };
     }

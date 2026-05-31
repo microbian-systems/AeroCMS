@@ -3,7 +3,7 @@
 
 @functions {
     private string PostsPageUrl(int pageNumber)
-        => Url.Page(null, "PostsPage", new { p = pageNumber }) ?? $"?handler=PostsPage&p={pageNumber}";
+        => Model.BuildPostsPageUrl(pageNumber);
 }
 
 @if (Model.TotalPages > 1)

@@ -1,5 +1,9 @@
 @* _DocsSidebarNode.cshtml — Recursive sidebar tree node with Alpine.js expand/collapse *@
+@using Aero.Cms.Shared.Localization
 @model Aero.Cms.Modules.Docs.Areas.Docs.Models.DocsSidebarNode
+@{
+    var renderedCulture = ViewBag.RenderedCulture as string ?? System.Globalization.CultureInfo.CurrentUICulture.Name;
+}
 
 @if (Model.Children.Count > 0)
 {
@@ -21,7 +25,7 @@
 else
 {
     <div class="mb-1">
-        <a href="/@Model.Slug"
+        <a href="@AeroCultureRoute.BuildCulturePathForCurrentRequest(ViewContext.HttpContext, renderedCulture, Model.Slug)"
            class="block px-3 py-1.5 text-sm rounded transition-colors @(Model.IsActive ? "text-indigo-600 border-l-2 border-indigo-600 bg-indigo-50" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")"
            style="padding-left: @(12 + Model.Depth * 16)px">
             @Model.Title
