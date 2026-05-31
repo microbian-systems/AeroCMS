@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Pages\Manager\Users\" />
     <Folder Include="ts\" />
     <Folder Include="Security\" />
   </ItemGroup>
