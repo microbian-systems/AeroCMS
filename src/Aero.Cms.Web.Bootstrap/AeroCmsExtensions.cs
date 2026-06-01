@@ -26,6 +26,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -121,6 +122,7 @@ public static class AeroCmsExtensions
             .AddApplicationPart(typeof(SetupModule).Assembly)
             .AddApplicationPart(typeof(Aero.Cms.Modules.Docs.DocsModule).Assembly)
             .AddApplicationPart(typeof(BlockBase).Assembly)
+            .AddViewLocalization(LanguageViewLocationExpanderFormat.Suffix)
             .AddDataAnnotationsLocalization();
 
         services.AddRazorComponents()
@@ -219,10 +221,10 @@ public static class AeroCmsExtensions
         app.UseRouting();
         app.UseRequestLocalization(options =>
         {
-            // Scope to cultures that sites actually use, with a reasonable default.
-            // Site-aware scoping further restricts this at the AeroRequestCultureProvider level.
-            var supportedCultures = new[] { "en-US", "es-MX" }
-                .Select(c => new CultureInfo(c))
+            // Keep middleware culture support broad until active site cultures can be aggregated at startup.
+            // AeroRequestCultureProvider still restricts public content requests to the resolved site's cultures.
+            var supportedCultures = CultureInfo.GetCultures(CultureTypes.SpecificCultures | CultureTypes.NeutralCultures)
+                .Where(culture => !string.IsNullOrWhiteSpace(culture.Name))
                 .ToArray();
 
             options.DefaultRequestCulture = new RequestCulture("en-US");
