@@ -4,6 +4,7 @@ using Aero.Core;
 using Aero.Core.Ai;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager;
@@ -11,6 +12,7 @@ namespace Aero.Cms.Shared.Pages.Manager;
 public partial class AiSettings
 {
     [Inject] protected IAiHttpClient AiClient { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     protected bool IsLoading { get; set; } = true;
     protected bool IsSaving { get; set; }
@@ -35,7 +37,7 @@ public partial class AiSettings
         }
         else if (result is Result<AiSettingsConfiguration, AeroError>.Failure failure)
         {
-            Notify(NotificationSeverity.Error, "AI settings failed", failure.Error.ToString());
+            Notify(NotificationSeverity.Error, L["AI settings failed"], failure.Error.ToString());
         }
 
         IsLoading = false;
@@ -56,11 +58,11 @@ public partial class AiSettings
             Enabled = ok.Value.Enabled;
             DefaultProviderId = ok.Value.DefaultProviderId;
             Providers = ok.Value.Providers.Select(ProviderFormModel.FromSettings).ToList();
-            Notify(NotificationSeverity.Success, "AI settings saved", "Provider settings were updated.");
+            Notify(NotificationSeverity.Success, L["AI settings saved"], L["Provider settings were updated."]);
         }
         else if (result is Result<AiSettingsConfiguration, AeroError>.Failure failure)
         {
-            Notify(NotificationSeverity.Error, "AI settings failed", failure.Error.ToString());
+            Notify(NotificationSeverity.Error, L["AI settings failed"], failure.Error.ToString());
         }
 
         IsSaving = false;

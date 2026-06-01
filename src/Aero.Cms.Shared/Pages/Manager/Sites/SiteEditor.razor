@@ -8,10 +8,10 @@
             <button type="button"
                     class="pe-btn pe-btn-ghost pe-btn-sm mb-3"
                     @onclick="@(() => Navigation.NavigateTo("/manager/sites"))">
-                Back to sites
+                @L["Back to sites"]
             </button>
             <h1 class="text-2xl font-bold pe-heading">@PageTitle</h1>
-            <p class="mt-1 text-sm pe-description">Configure site identity, hostnames, and supported locales.</p>
+            <p class="mt-1 text-sm pe-description">@L["Configure site identity, hostnames, and supported locales."]</p>
         </div>
         <div class="flex flex-wrap gap-3">
             <RadzenButton Icon="save"
@@ -20,7 +20,7 @@
                           Click="@SaveAsync"
                           Disabled="@IsSaving" />
             <RadzenButton Icon="close"
-                          Text="Cancel"
+                          Text="@L["Cancel"]"
                           ButtonStyle="ButtonStyle.Secondary"
                           Click="@(() => Navigation.NavigateTo("/manager/sites"))"
                           Disabled="@IsSaving" />
@@ -31,7 +31,7 @@
     {
         <div class="rounded-lg border p-6"
              style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
-            <p class="text-sm pe-description">Loading site...</p>
+            <p class="text-sm pe-description">@L["Loading site..."]</p>
         </div>
     }
     else
@@ -41,21 +41,21 @@
                 <div class="rounded-lg border p-5"
                      style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
                     <div class="mb-5">
-                        <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">Site Details</h2>
-                        <p class="mt-1 text-sm pe-description">Name and host settings used by public site resolution.</p>
+                        <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Site Details"]</h2>
+                        <p class="mt-1 text-sm pe-description">@L["Name and host settings used by public site resolution."]</p>
                     </div>
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <label class="pe-field">
-                            <span>Name *</span>
-                            <input @bind="Name" placeholder="Marketing site" />
+                            <span>@L["Name *"]</span>
+                            <input @bind="Name" placeholder="@L["Marketing site"]" />
                         </label>
                         <label class="pe-field">
-                            <span>Primary host *</span>
-                            <input @bind="PrimaryHost" placeholder="example.com" />
+                            <span>@L["Primary host *"]</span>
+                            <input @bind="PrimaryHost" placeholder="@L["example.com"]" />
                         </label>
                         <label class="pe-field md:col-span-2">
-                            <span>Description</span>
-                            <textarea @bind="Description" rows="3" placeholder="Optional internal note"></textarea>
+                            <span>@L["Description"]</span>
+                            <textarea @bind="Description" rows="3" placeholder="@L["Optional internal note"]"></textarea>
                         </label>
                     </div>
                 </div>
@@ -64,20 +64,20 @@
                      style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
                     <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>
-                            <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">Hosts</h2>
-                            <p class="mt-1 text-sm pe-description">Add any alternate domains that should resolve to this site.</p>
+                            <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Hosts"]</h2>
+                            <p class="mt-1 text-sm pe-description">@L["Add any alternate domains that should resolve to this site."]</p>
                         </div>
                         <span class="rounded px-2 py-1 text-xs"
                               style="background: var(--pe-bg-primary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
-                            @Hosts.Count additional
+                            @Hosts.Count @L["additional"]
                         </span>
                     </div>
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
                         <label class="pe-field">
-                            <span>Additional host</span>
-                            <input @bind="HostDraft" @bind:event="oninput" placeholder="www.example.com" />
+                            <span>@L["Additional host"]</span>
+                            <input @bind="HostDraft" @bind:event="oninput" placeholder="@L["www.example.com"]" />
                         </label>
-                        <button type="button" class="pe-btn pe-btn-secondary self-end" @onclick="AddHost">Add Host</button>
+                        <button type="button" class="pe-btn pe-btn-secondary self-end" @onclick="AddHost">@L["Add Host"]</button>
                     </div>
                     @if (Hosts.Count > 0)
                     {
@@ -87,7 +87,7 @@
                                 <button type="button"
                                         class="rounded px-3 py-1 text-sm"
                                         style="background: var(--pe-bg-primary); color: var(--pe-text-secondary); border: 1px solid var(--pe-border);"
-                                        title="Remove host"
+                                        title="@L["Remove host"]"
                                         @onclick="() => RemoveHost(host)">
                                     @host ×
                                 </button>
@@ -99,17 +99,17 @@
                 <div class="rounded-lg border p-5"
                      style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
                     <div class="mb-5">
-                        <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">Locales & Languages</h2>
-                        <p class="mt-1 text-sm pe-description">Choose supported cultures from .NET globalization data. These values are stored on the site.</p>
+                        <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Locales & Languages"]</h2>
+                        <p class="mt-1 text-sm pe-description">@L["Choose supported cultures from .NET globalization data. These values are stored on the site."]</p>
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
                         <label class="pe-field">
-                            <span>Add locale</span>
-                            <input @bind="LocaleSearch" @bind:event="oninput" placeholder="Search by country, language, or code" />
+                            <span>@L["Add locale"]</span>
+                            <input @bind="LocaleSearch" @bind:event="oninput" placeholder="@L["Search by country, language, or code"]" />
                         </label>
                         <label class="pe-field">
-                            <span>Default locale</span>
+                            <span>@L["Default locale"]</span>
                             <select @bind="DefaultCulture">
                                 @foreach (var culture in SupportedCultures)
                                 {
@@ -132,7 +132,7 @@
                                     <span class="block text-sm font-semibold">@locale.EnglishName</span>
                                     <span class="block text-xs" style="color: var(--pe-text-muted);">@locale.RegionName · @locale.CultureName@(locale.IsRightToLeft ? " · RTL" : "")</span>
                                 </span>
-                                <span class="text-xs font-semibold">@(selected ? "Added" : "Add")</span>
+                                <span class="text-xs font-semibold">@(selected ? L["Added"] : L["Add"])</span>
                             </button>
                         }
                     </div>
@@ -142,8 +142,8 @@
             <aside class="space-y-4">
                 <div class="rounded-lg border p-5"
                      style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
-                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Selected Locales</h2>
-                    <p class="mt-1 text-sm pe-description">@SupportedCultures.Count supported culture@(SupportedCultures.Count == 1 ? "" : "s").</p>
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Selected Locales"]</h2>
+                    <p class="mt-1 text-sm pe-description">@SupportedCultures.Count @L["supported"] @L["culture"]@(SupportedCultures.Count == 1 ? "" : "s").</p>
                     <div class="mt-4 space-y-2">
                         @foreach (var culture in SupportedCultures)
                         {
@@ -152,11 +152,11 @@
                                  style="background: var(--pe-bg-primary); border: 1px solid var(--pe-border);">
                                 <div class="min-w-0">
                                     <div class="truncate text-sm font-semibold" style="color: var(--pe-text-primary);">@FormatCulture(culture)</div>
-                                    <div class="text-xs" style="color: var(--pe-text-muted);">@culture@(isDefault ? " · default" : "")</div>
+                                    <div class="text-xs" style="color: var(--pe-text-muted);">@culture@(isDefault ? $" · {L["default"]}" : "")</div>
                                 </div>
                                 @if (!isDefault)
                                 {
-                                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => RemoveLocale(culture)">Remove</button>
+                                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => RemoveLocale(culture)">@L["Remove"]</button>
                                 }
                             </div>
                         }
@@ -165,8 +165,8 @@
 
                 <div class="rounded-lg border p-5"
                      style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
-                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Save Behavior</h2>
-                    <p class="mt-1 text-sm pe-description">Locales only define what the site supports. Editors still create Page, Post, Doc, Header, and Footer translations manually.</p>
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Save Behavior"]</h2>
+                    <p class="mt-1 text-sm pe-description">@L["Locales only define what the site supports. Editors still create Page, Post, Doc, Header, and Footer translations manually."]</p>
                 </div>
             </aside>
         </div>

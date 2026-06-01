@@ -7,18 +7,18 @@
 <div class="pe-page-content space-y-6">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Footer</h1>
-            <p class="mt-1 text-sm pe-description">Manage the footer that appears beneath public site pages.</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Footer"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Manage the footer that appears beneath public site pages."]</p>
         </div>
         <div class="flex items-center gap-2">
             <RadzenButton Icon="refresh"
-                          Text="Refresh"
+                          Text="@L["Refresh"]"
                           ButtonStyle="ButtonStyle.Light"
                           Size="ButtonSize.Small"
                           Click="@LoadFootersAsync"
                           Disabled="@_isLoading" />
             <RadzenButton Icon="add"
-                          Text="New Footer"
+                          Text="@L["New Footer"]"
                           ButtonStyle="ButtonStyle.Primary"
                           Size="ButtonSize.Small"
                           Click="@CreateFooterAsync"
@@ -34,9 +34,9 @@
                     PageSize="10"
                     class="aero-grid cursor-pointer"
                     RowClick="@(args => OpenEditor(args.Data))"
-                    EmptyText="No footers yet. Create one to begin.">
+                    EmptyText="@L["No footers yet. Create one to begin."]">
         <Columns>
-            <RadzenDataGridColumn TItem="FooterSummary" Property="Name" Title="Footer">
+            <RadzenDataGridColumn TItem="FooterSummary" Property="Name" Title="@L["Footer"]">
                 <Template Context="footer">
                     <div class="flex flex-col gap-1">
                         <span class="font-medium" style="color: var(--pe-text-primary);">@footer.Name</span>
@@ -44,17 +44,17 @@
                     </div>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="FooterSummary" Property="State" Title="Status" Width="170px">
+            <RadzenDataGridColumn TItem="FooterSummary" Property="State" Title="@L["Status"]" Width="170px">
                 <Template Context="footer">
                     <RadzenBadge BadgeStyle="@BadgeStyleFor(footer.State)" Text="@DisplayState(footer.State)" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="FooterSummary" Property="CreatedAt" Title="Created" Width="180px">
+            <RadzenDataGridColumn TItem="FooterSummary" Property="CreatedAt" Title="@L["Created"]" Width="180px">
                 <Template Context="footer">
                     <span style="color: var(--pe-text-secondary);">@footer.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</span>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="FooterSummary" Title="Groups" Width="100px">
+            <RadzenDataGridColumn TItem="FooterSummary" Title="@L["Groups"]" Width="100px">
                 <Template Context="footer">
                     <span style="color: var(--pe-text-secondary);">@footer.LinkGroupCount</span>
                 </Template>

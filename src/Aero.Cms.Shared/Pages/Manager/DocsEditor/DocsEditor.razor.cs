@@ -6,6 +6,7 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.DocsEditor;
@@ -20,6 +21,7 @@ public partial class DocsEditor
     [Inject] private ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     protected DocsDetail? Space { get; private set; }
     protected DocsDetail? Current { get; private set; }

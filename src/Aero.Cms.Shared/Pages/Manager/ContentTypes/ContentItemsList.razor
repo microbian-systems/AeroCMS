@@ -1,23 +1,24 @@
 @page "/manager/content/{alias}"
 @attribute [Authorize]
 @using Aero.Cms.Abstractions.Http.Clients
+@using Microsoft.Extensions.Localization
 
 <PageTitle>@_typeName</PageTitle>
 
 <div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between gap-4">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--pe-text-muted);">Content entries</p>
+            <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--pe-text-muted);">@L["Content entries"]</p>
             <h1 class="text-2xl font-bold pe-heading">@_typeName</h1>
             <p class="mt-1 text-sm pe-description">@HeaderDescription</p>
         </div>
         <div class="flex gap-3">
-            <RadzenTextBox Placeholder="@($"Search {_typeName.ToLowerInvariant()}...")"
+            <RadzenTextBox Placeholder="@L["Search {0}...", _typeName.ToLowerInvariant()]"
                            Value="@_searchText"
                            ValueChanged="@OnSearchChanged"
                            class="w-64" />
             <RadzenButton Icon="add"
-                          Text="@($"New {_typeName}")"
+                          Text="@L["New {0}", _typeName]"
                           ButtonStyle="ButtonStyle.Primary"
                           Click="@CreateItem" />
         </div>
@@ -37,9 +38,9 @@
                     ShowPagingSummary="true"
                     RowClick="@OnRowClick"
                     class="aero-grid cursor-pointer"
-                    EmptyText="No entries found. Create the first one when you're ready.">
+                    EmptyText="@L["No entries found. Create the first one when you're ready."]">
         <Columns>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Property="Title" Title="Entry" MinWidth="260px">
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="Title" Title="@L["Entry"]" MinWidth="260px">
                 <Template Context="item">
                     <div class="flex flex-col gap-1">
                         <span class="font-medium" style="color: var(--pe-text-primary);">@item.Title</span>
@@ -50,7 +51,7 @@
                     </div>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Property="Slug" Title="URL" Width="220px">
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="Slug" Title="@L["URL"]" Width="220px">
                 <Template Context="item">
                     @if (_allowPublicUrl)
                     {
@@ -58,37 +59,37 @@
                     }
                     else
                     {
-                        <span style="color: var(--pe-text-muted);">Embedded only</span>
+                        <span style="color: var(--pe-text-muted);">@L["Embedded only"]</span>
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Property="PublicationState" Title="Status" Width="130px">
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="PublicationState" Title="@L["Status"]" Width="130px">
                 <Template Context="item">
                     @if (item.PublicationState == "Published")
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Published" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Published"]" />
                     }
                     else
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Draft" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@L["Draft"]" />
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Property="PublishedOn" Title="Published" Width="150px">
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="PublishedOn" Title="@L["Published"]" Width="150px">
                 <Template Context="item">
                     <span style="color: var(--pe-text-secondary);">@FormatDate(item.PublishedOn)</span>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Property="VersionNumber" Title="Version" Width="110px" TextAlign="TextAlign.Center">
+            <RadzenDataGridColumn TItem="ContentItemSummary" Property="VersionNumber" Title="@L["Version"]" Width="110px" TextAlign="TextAlign.Center">
                 <Template Context="item">
                     <code class="text-xs" style="color: var(--pe-text-muted);">v@(item.VersionNumber)</code>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentItemSummary" Title="Actions" Width="170px" Sortable="false" TextAlign="TextAlign.Right">
+            <RadzenDataGridColumn TItem="ContentItemSummary" Title="@L["Actions"]" Width="170px" Sortable="false" TextAlign="TextAlign.Right">
                 <Template Context="item">
                     <div class="flex items-center justify-end gap-2" @onclick:stopPropagation="true">
                         <RadzenButton Icon="edit"
-                                      Text="Edit"
+                                      Text="@L["Edit"]"
                                       ButtonStyle="ButtonStyle.Secondary"
                                       Size="ButtonSize.Small"
                                       Click="@(() => EditItem(item.Id))" />

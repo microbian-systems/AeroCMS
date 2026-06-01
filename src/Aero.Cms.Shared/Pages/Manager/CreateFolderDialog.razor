@@ -3,23 +3,24 @@
 @inject IMediaHttpClient MediaClient
 @inject NotificationService NotificationService
 @inject DialogService DialogService
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="p-6 rounded-2xl" style="background: var(--pe-bg-secondary);">
     <div class="mb-6">
-        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">Create New Folder</h3>
-        <p class="text-xs text-gray-500 mt-1">Folders help you organize your media library assets.</p>
+        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">@L["Create New Folder"]</h3>
+        <p class="text-xs text-gray-500 mt-1">@L["Folders help you organize your media library assets."]</p>
     </div>
 
     <div class="space-y-4">
         <div class="flex flex-col gap-1.5">
-            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Folder Name</label>
-            <RadzenTextBox @bind-Value="@folderName" Placeholder="@("Enter folder name...")" class="w-full border-none rounded-xl text-sm px-4 py-2" style="background: var(--pe-bg-tertiary);" />
+            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">@L["Folder Name"]</label>
+            <RadzenTextBox @bind-Value="@folderName" Placeholder="@L["Enter folder name..."]" class="w-full border-none rounded-xl text-sm px-4 py-2" style="background: var(--pe-bg-tertiary);" />
         </div>
     </div>
 
     <div class="mt-8 pt-6 border-t flex justify-end gap-3" style="border-color: var(--pe-border);">
-        <RadzenButton Text="@("Cancel")" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@(() => DialogService.Close(false))" />
-        <RadzenButton Text="@("Create Folder")" Icon="@("create_new_folder")" ButtonStyle="ButtonStyle.Primary" Variant="Variant.Filled" 
+        <RadzenButton Text="@L["Cancel"]" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@(() => DialogService.Close(false))" />
+        <RadzenButton Text="@L["Create Folder"]" Icon="@("create_new_folder")" ButtonStyle="ButtonStyle.Primary" Variant="Variant.Filled" 
                      Click="@OnCreate" Disabled="@(string.IsNullOrWhiteSpace(folderName) || isSaving)" class="rounded-xl px-6 shadow-lg shadow-indigo-500/20" />
     </div>
 </div>
@@ -44,12 +45,12 @@
         isSaving = false;
         if (result is Result<MediaDetail, AeroError>.Ok)
         {
-            NotificationService.Notify(NotificationSeverity.Success, "Folder Created", $"Folder '{folderName}' created successfully.");
+            NotificationService.Notify(NotificationSeverity.Success, L["Folder Created"], string.Format(L["Folder '{0}' created successfully."], folderName));
             DialogService.Close(true);
         }
         else
         {
-            NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to create folder.");
+            NotificationService.Notify(NotificationSeverity.Error, L["Error"], L["Failed to create folder."]);
         }
     }
 }

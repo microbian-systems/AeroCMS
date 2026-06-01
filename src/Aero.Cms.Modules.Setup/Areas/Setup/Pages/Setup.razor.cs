@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 
@@ -22,6 +23,9 @@ public partial class Setup : ComponentBase
 
     [Inject]
     private NavigationManager NavigationManager { get; set; } = default!;
+
+    [Inject]
+    private IStringLocalizer<SetupResource> L { get; set; } = default!;
 
     [Parameter]
     public string? ReturnUrl { get; set; }
@@ -76,7 +80,9 @@ public partial class Setup : ComponentBase
         new("ja-JP", "Japanese (Japan)"),
         new("ko-KR", "Korean (Korea)"),
         new("ar-SA", "Arabic (Saudi Arabia)"),
-        new("he-IL", "Hebrew (Israel)")
+        new("he-IL", "Hebrew (Israel)"),
+        new("hi-IN", "Hindi (India)"),
+        new("uk-UA", "Ukrainian (Ukraine)")
     ];
 
     public bool HasValidationErrors { get; set; }
@@ -320,29 +326,29 @@ public partial class Setup : ComponentBase
 
     public string GetStepName(int step) => step switch
     {
-        1 => "CMS Info",
-        2 => "Database",
-        3 => "Cache",
-        4 => "Secrets",
-        5 => "Authentication",
-        6 => "Review",
-        _ => "Setup"
+        1 => L["CMS Info"],
+        2 => L["Database"],
+        3 => L["Cache"],
+        4 => L["Secrets"],
+        5 => L["Authentication"],
+        6 => L["Review"],
+        _ => L["Setup"]
     };
 
     public string GetStepSummary(int step) => step switch
     {
-        1 => "Site name, culture, homepage, and blog metadata.",
-        2 => "Embedded or server database connectivity.",
-        3 => "Memory, embedded, or server cache configuration.",
-        4 => "Local Certificate or Infisical secret handling.",
-        5 => "Choose the auth mode and create the initial CMS administrator account.",
-        6 => "Review your selections before initialization.",
+        1 => L["Site name, culture, homepage, and blog metadata."],
+        2 => L["Embedded or server database connectivity."],
+        3 => L["Memory, embedded, or server cache configuration."],
+        4 => L["Local Certificate or Infisical secret handling."],
+        5 => L["Choose the auth mode and create the initial CMS administrator account."],
+        6 => L["Review your selections before initialization."],
         _ => string.Empty
     };
 
     private string BuildReadinessMessage()
     {
-        return "Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app.";
+        return L["Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app."];
     }
 
     private void EnsureSupportedCulturesContainDefault()

@@ -7,18 +7,18 @@
 <div class="pe-page-content space-y-6">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Header Menu</h1>
-            <p class="mt-1 text-sm pe-description">Manage the menu that appears in the public site header.</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Header Menu"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Manage the menu that appears in the public site header."]</p>
         </div>
         <div class="flex items-center gap-2">
             <RadzenButton Icon="refresh"
-                          Text="Refresh"
+                          Text="@L["Refresh"]"
                           ButtonStyle="ButtonStyle.Light"
                           Size="ButtonSize.Small"
                           Click="@LoadMenusAsync"
                           Disabled="@_isLoading" />
             <RadzenButton Icon="add"
-                          Text="New Menu"
+                          Text="@L["New Menu"]"
                           ButtonStyle="ButtonStyle.Primary"
                           Size="ButtonSize.Small"
                           Click="@CreateMenuAsync"
@@ -34,9 +34,9 @@
                     PageSize="10"
                     class="aero-grid cursor-pointer"
                     RowClick="@(args => OpenEditor(args.Data))"
-                    EmptyText="No header menus yet. Create one to begin.">
+                    EmptyText="@L["No header menus yet. Create one to begin."]">
         <Columns>
-            <RadzenDataGridColumn TItem="NavigationSummary" Property="Name" Title="Menu">
+            <RadzenDataGridColumn TItem="NavigationSummary" Property="Name" Title="@L["Menu"]">
                 <Template Context="menu">
                     <div class="flex flex-col gap-1">
                         <span class="font-medium" style="color: var(--pe-text-primary);">@menu.Name</span>
@@ -44,17 +44,17 @@
                     </div>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="NavigationSummary" Property="State" Title="Status" Width="170px">
+            <RadzenDataGridColumn TItem="NavigationSummary" Property="State" Title="@L["Status"]" Width="170px">
                 <Template Context="menu">
                     <RadzenBadge BadgeStyle="@BadgeStyleFor(menu.State)" Text="@DisplayState(menu.State)" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="NavigationSummary" Property="CreatedAt" Title="Created" Width="180px">
+            <RadzenDataGridColumn TItem="NavigationSummary" Property="CreatedAt" Title="@L["Created"]" Width="180px">
                 <Template Context="menu">
                     <span style="color: var(--pe-text-secondary);">@menu.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</span>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="NavigationSummary" Title="Links" Width="100px">
+            <RadzenDataGridColumn TItem="NavigationSummary" Title="@L["Links"]" Width="100px">
                 <Template Context="menu">
                     <span style="color: var(--pe-text-secondary);">@menu.ItemCount</span>
                 </Template>

@@ -1,6 +1,7 @@
 @page "/manager"
 @page "/manager/general"
 @attribute [Authorize]
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="space-y-6">
 
@@ -10,8 +11,8 @@
         @* ════ Card 1: Stat Metrics Row ════════════════ *@
         <div class="pe-dashboard-card">
             <div class="pe-dash-card-header">
-                <h2>Overview</h2>
-                <a href="#">View full report &rarr;</a>
+                <h2>@L["Overview"]</h2>
+                <a href="#">@L["View full report"] &rarr;</a>
             </div>
             <div class="pe-dash-card-body">
                 <div class="pe-dash-metrics">
@@ -39,15 +40,15 @@
         @* ════ Card 2: Recent Activity + Top Pages ═════ *@
         <div class="pe-dashboard-card">
             <div class="pe-dash-card-header">
-                <h2>Recent Activity</h2>
-                <a href="#">View all &rarr;</a>
+                <h2>@L["Recent Activity"]</h2>
+                <a href="#">@L["View all"] &rarr;</a>
             </div>
             <div class="pe-dash-card-body">
                 <div class="pe-dash-split cols-2">
 
                     @* Left: Activity Feed *@
                     <div class="pe-dash-split-left">
-                        <div class="pe-dash-section-label">Live Feed</div>
+                        <div class="pe-dash-section-label">@L["Live Feed"]</div>
                         <div class="pe-dash-activity-feed">
                             @foreach (var a in activities)
                             {
@@ -66,12 +67,12 @@
 
                     @* Right: Top Pages *@
                     <div class="pe-dash-split-right">
-                        <div class="pe-dash-section-label">Top Pages</div>
+                        <div class="pe-dash-section-label">@L["Top Pages"]</div>
                         <table class="pe-dash-pages-table">
                             <thead>
                                 <tr>
-                                    <th>Page</th>
-                                    <th>Active Users</th>
+                                    <th>@L["Page"]</th>
+                                    <th>@L["Active Users"]</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -96,7 +97,7 @@
             @* ════ Card 3: Content by Category (Radzen BarChart) ═══ *@
             <div class="pe-dashboard-card">
                 <div class="pe-dash-card-header">
-                    <h2>Content by Category</h2>
+                    <h2>@L["Content by Category"]</h2>
                 </div>
                 <div class="pe-dash-card-body">
                     <div class="pe-dash-chart-wrap">
@@ -118,7 +119,7 @@
             @* ════ Card 4: Top Content ═══════════════════ *@
             <div class="pe-dashboard-card">
                 <div class="pe-dash-card-header">
-                    <h2>Top Content</h2>
+                    <h2>@L["Top Content"]</h2>
                 </div>
                 <div class="pe-dash-card-body">
                     <div class="pe-dash-report">
@@ -142,7 +143,7 @@
             @* ════ Card 5: Top Regions ═══════════════════ *@
             <div class="pe-dashboard-card">
                 <div class="pe-dash-card-header">
-                    <h2>Top Regions</h2>
+                    <h2>@L["Top Regions"]</h2>
                 </div>
                 <div class="pe-dash-card-body">
                     <div class="pe-dash-report">
@@ -168,19 +169,19 @@
         @* ════ Card 6: Top Content Table ═══════════════ *@
         <div class="pe-dashboard-card">
             <div class="pe-dash-card-header">
-                <h2>Top Content</h2>
-                <a href="#">View all &rarr;</a>
+                <h2>@L["Top Content"]</h2>
+                <a href="#">@L["View all"] &rarr;</a>
             </div>
             <div class="pe-dash-card-body pe-dash-table-wrap">
                 <table class="pe-dash-table">
                     <thead>
                         <tr>
-                            <th>Content</th>
-                            <th>Author</th>
-                            <th>Category</th>
-                            <th>Views</th>
-                            <th>CTR</th>
-                            <th>Value</th>
+                            <th>@L["Content"]</th>
+                            <th>@L["Author"]</th>
+                            <th>@L["Category"]</th>
+                            <th>@L["Views"]</th>
+                            <th>@L["CTR"]</th>
+                            <th>@L["Value"]</th>
                         </tr>
                     </thead>
                     <tbody>

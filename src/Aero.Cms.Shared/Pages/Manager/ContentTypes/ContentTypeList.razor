@@ -1,23 +1,24 @@
 @page "/manager/content-types"
 @attribute [Authorize]
 @using Aero.Cms.Abstractions.Http.Clients
+@using Microsoft.Extensions.Localization
 
-<PageTitle>Content Types</PageTitle>
+<PageTitle>@L["Content Types"]</PageTitle>
 
 <div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between gap-4">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--pe-text-muted);">Structured content</p>
-            <h1 class="text-2xl font-bold pe-heading">Content Types</h1>
-            <p class="mt-1 text-sm pe-description">Create reusable entry forms for testimonials, FAQs, team members, and other structured content.</p>
+            <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--pe-text-muted);">@L["Structured content"]</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Content Types"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Create reusable entry forms for testimonials, FAQs, team members, and other structured content."]</p>
         </div>
         <div class="flex gap-3">
-            <RadzenTextBox Placeholder="Search types..."
+            <RadzenTextBox Placeholder="@L["Search types..."]"
                            Value="@_searchText"
                            ValueChanged="@OnSearchChanged"
                            class="w-64" />
             <RadzenButton Icon="add"
-                          Text="New Content Type"
+                          Text="@L["New Content Type"]"
                           ButtonStyle="ButtonStyle.Primary"
                           Click="@CreateType" />
         </div>
@@ -35,9 +36,9 @@
                     ShowPagingSummary="true"
                     RowClick="@OnRowClick"
                     class="aero-grid cursor-pointer"
-                    EmptyText="No content types found. Create one to start building reusable content.">
+                    EmptyText="@L["No content types found. Create one to start building reusable content."]">
         <Columns>
-            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="Name" Title="Type" MinWidth="280px">
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="Name" Title="@L["Type"]" MinWidth="280px">
                 <Template Context="type">
                     <div class="flex flex-col gap-1">
                         <span class="font-medium" style="color: var(--pe-text-primary);">@type.Name</span>
@@ -49,42 +50,42 @@
                     </div>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="FieldCount" Title="Fields" Width="120px" TextAlign="TextAlign.Center">
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="FieldCount" Title="@L["Fields"]" Width="120px" TextAlign="TextAlign.Center">
                 <Template Context="type">
-                    <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@($"{type.FieldCount} fields")" />
+                    <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@($"{type.FieldCount} {L["fields"]}")" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="ItemCount" Title="Entries" Width="120px" TextAlign="TextAlign.Center" />
-            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="AllowPublicUrl" Title="URL" Width="150px">
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="ItemCount" Title="@L["Entries"]" Width="120px" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="AllowPublicUrl" Title="@L["URL"]" Width="150px">
                 <Template Context="type">
                     @if (type.AllowPublicUrl)
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Public pages" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Public pages"]" />
                     }
                     else
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Embedded" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@L["Embedded"]" />
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="HideFromSearch" Title="Search" Width="150px">
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="HideFromSearch" Title="@L["Search"]" Width="150px">
                 <Template Context="type">
                     @if (type.HideFromSearch)
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Hidden" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@L["Hidden"]" />
                     }
                     else
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Searchable" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Searchable"]" />
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="HasCustomTemplate" Title="Display" Width="150px">
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="HasCustomTemplate" Title="@L["Display"]" Width="150px">
                 <Template Context="type">
-                    <span style="color: var(--pe-text-secondary);">@(type.HasCustomTemplate ? "Custom template" : "Auto display")</span>
+                    <span style="color: var(--pe-text-secondary);">@(type.HasCustomTemplate ? L["Custom template"] : L["Auto display"])</span>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="Category" Title="Category" Width="150px">
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Property="Category" Title="@L["Category"]" Width="150px">
                 <Template Context="type">
                     @if (!string.IsNullOrWhiteSpace(type.Category))
                     {
@@ -96,11 +97,11 @@
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="ContentTypeSummary" Title="Actions" Width="180px" Sortable="false" TextAlign="TextAlign.Right">
+            <RadzenDataGridColumn TItem="ContentTypeSummary" Title="@L["Actions"]" Width="180px" Sortable="false" TextAlign="TextAlign.Right">
                 <Template Context="type">
                     <div class="flex items-center justify-end gap-2" @onclick:stopPropagation="true">
                         <RadzenButton Icon="edit"
-                                      Text="Edit"
+                                      Text="@L["Edit"]"
                                       ButtonStyle="ButtonStyle.Secondary"
                                       Size="ButtonSize.Small"
                                       Click="@(() => EditType(type.Alias))" />

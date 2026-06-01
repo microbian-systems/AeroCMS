@@ -2,6 +2,7 @@
 @using Aero.Cms.Abstractions.Blocks
 @using NeoUI.Blazor
 @using NeoUI.Blazor.Primitives
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <Sortable TItem="EditorBlock"
           Items="Blocks"
@@ -21,8 +22,8 @@
                     <line x1="12" y1="8" x2="12" y2="16"/>
                     <line x1="8" y1="12" x2="16" y2="12"/>
                 </svg>
-                <h3>Start building your page</h3>
-                <p>Drag blocks from the sidebar or click to add them here</p>
+                <h3>@L["Start building your page"]</h3>
+                <p>@L["Drag blocks from the sidebar or click to add them here"]</p>
             </div>
         }
 

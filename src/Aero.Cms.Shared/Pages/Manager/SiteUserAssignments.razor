@@ -10,50 +10,51 @@
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
 @inject DialogService DialogService
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-page-content space-y-6">
     <div>
-        <h1 class="text-2xl font-bold mb-2 pe-heading">User Site Assignments</h1>
-        <p class="pe-description">Manage which sites this user can access and their permissions.</p>
+        <h1 class="text-2xl font-bold mb-2 pe-heading">@L["User Site Assignments"]</h1>
+        <p class="pe-description">@L["Manage which sites this user can access and their permissions."]</p>
     </div>
 
     @if (_isLoading)
     {
         <div class="flex justify-center py-12">
-            <span style="color: var(--pe-text-muted);">Loading...</span>
+            <span style="color: var(--pe-text-muted);">@L["Loading..."]</span>
         </div>
     }
     else if (_sites.Count == 0)
     {
         <div style="background: color-mix(in srgb, var(--pe-warning) 12%, transparent); border: 1px solid color-mix(in srgb, var(--pe-warning) 30%, transparent); border-radius: var(--pe-radius-lg); padding: 16px;">
-            No sites found. Create a site first.
+            @L["No sites found. Create a site first."]
         </div>
     }
     else
     {
         <RadzenDataGrid Data="@_siteModels" TItem="SiteViewModel" AllowPaging="false" AllowFiltering="false">
             <Columns>
-                <RadzenDataGridColumn TItem="SiteViewModel" Property="Name" Title="Site" Width="200px" />
-                <RadzenDataGridColumn TItem="SiteViewModel" Property="PrimaryHost" Title="Host" />
-                <RadzenDataGridColumn TItem="SiteViewModel" Title="Read">
+                <RadzenDataGridColumn TItem="SiteViewModel" Property="Name" Title="@L["Site"]" Width="200px" />
+                <RadzenDataGridColumn TItem="SiteViewModel" Property="PrimaryHost" Title="@L["Host"]" />
+                <RadzenDataGridColumn TItem="SiteViewModel" Title="@L["Read"]">
                     <Template Context="site">
                         <input type="checkbox" checked="@HasPermission(site.Id, PermissionRead)"
                                @onchange="e => TogglePermission(site.Id, PermissionRead)" />
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="SiteViewModel" Title="Create">
+                <RadzenDataGridColumn TItem="SiteViewModel" Title="@L["Create"]">
                     <Template Context="site">
                         <input type="checkbox" checked="@HasPermission(site.Id, PermissionCreate)"
                                @onchange="e => TogglePermission(site.Id, PermissionCreate)" />
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="SiteViewModel" Title="Update">
+                <RadzenDataGridColumn TItem="SiteViewModel" Title="@L["Update"]">
                     <Template Context="site">
                         <input type="checkbox" checked="@HasPermission(site.Id, PermissionUpdate)"
                                @onchange="e => TogglePermission(site.Id, PermissionUpdate)" />
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="SiteViewModel" Title="Delete">
+                <RadzenDataGridColumn TItem="SiteViewModel" Title="@L["Delete"]">
                     <Template Context="site">
                         <input type="checkbox" checked="@HasPermission(site.Id, PermissionDelete)"
                                @onchange="e => TogglePermission(site.Id, PermissionDelete)" />
@@ -63,10 +64,10 @@
         </RadzenDataGrid>
 
         <div class="flex gap-3 mt-6">
-            <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Save Assignments" Click="@SaveAssignmentsAsync" />
-            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="Select All" Click="@SelectAll" />
-            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="Clear All" Click="@ClearAll" />
-            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="Back to Users" Click="@(() => Navigation.NavigateTo("/manager/users"))" />
+            <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="@L["Save Assignments"]" Click="@SaveAssignmentsAsync" />
+            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="@L["Select All"]" Click="@SelectAll" />
+            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="@L["Clear All"]" Click="@ClearAll" />
+            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="@L["Back to Users"]" Click="@(() => Navigation.NavigateTo("/manager/users"))" />
         </div>
     }
 </div>

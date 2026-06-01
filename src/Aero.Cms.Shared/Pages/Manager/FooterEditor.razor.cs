@@ -5,6 +5,7 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Radzen;
 using Radzen.Blazor;
@@ -21,6 +22,7 @@ public partial class FooterEditor
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILogger<FooterEditor> Logger { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private FooterDetail? _selected;
     private SiteViewModel? _currentSite;

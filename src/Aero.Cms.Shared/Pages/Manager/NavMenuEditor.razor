@@ -2,42 +2,43 @@
 @page "/manager/navigations/editor/{Id:long}"
 @attribute [Authorize]
 
+
 <div class="pe-page-content space-y-6">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
             <div class="mb-3">
                 <RadzenButton Icon="arrow_back"
-                              Text="Back to Header Menus"
+                               Text="@L["Back to Header Menus"]"
                               ButtonStyle="ButtonStyle.Light"
                               Size="ButtonSize.Small"
                               Click="@BackToList" />
             </div>
-            <h1 class="text-2xl font-bold pe-heading">@(_selected?.Name ?? "Header Menu")</h1>
-            <p class="mt-1 text-sm pe-description">Draft changes stay private until the menu is published.</p>
+            <h1 class="text-2xl font-bold pe-heading">@(_selected?.Name ?? L["Header Menu"])</h1>
+            <p class="mt-1 text-sm pe-description">@L["Draft changes stay private until the menu is published."]</p>
         </div>
         @if (_selected is not null)
         {
             <div class="flex flex-wrap gap-2">
                 <RadzenButton Icon="save"
-                              Text="Save Draft"
+                               Text="@L["Save Draft"]"
                               ButtonStyle="ButtonStyle.Primary"
                               Size="ButtonSize.Small"
                               Click="@SaveDraftAsync"
                               Disabled="@_isSaving" />
                 <RadzenButton Icon="publish"
-                              Text="Publish"
+                               Text="@L["Publish"]"
                               ButtonStyle="ButtonStyle.Success"
                               Size="ButtonSize.Small"
                               Click="@PublishAsync"
                               Disabled="@_isSaving" />
                 <RadzenButton Icon="home"
-                              Text="Set Default"
+                               Text="@L["Set Default"]"
                               ButtonStyle="ButtonStyle.Light"
                               Size="ButtonSize.Small"
                               Click="@SetDefaultAsync"
                               Disabled="@_isSaving" />
                 <RadzenButton Icon="delete"
-                              Text="Archive"
+                               Text="@L["Archive"]"
                               ButtonStyle="ButtonStyle.Danger"
                               Size="ButtonSize.Small"
                               Click="@ArchiveAsync"
@@ -61,8 +62,8 @@
         <div class="flex min-h-64 items-center justify-center rounded"
              style="border: 1px dashed var(--pe-border); background: var(--pe-bg-secondary);">
             <div class="max-w-md text-center">
-                <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Header menu not found</h2>
-                <p class="mt-2 text-sm pe-description">Return to the list and choose another menu.</p>
+                <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Header menu not found"]</h2>
+                <p class="mt-2 text-sm pe-description">@L["Return to the list and choose another menu."]</p>
             </div>
         </div>
     }
@@ -72,27 +73,27 @@
             <div class="grid grid-cols-1 gap-4 rounded md:grid-cols-2"
                   style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary); padding: 16px;">
                 <div>
-                    <label for="editMenuName" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Name</label>
+                    <label for="editMenuName" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Name"]</label>
                     <input id="editMenuName"
                            @bind="_editName"
                            class="w-full rounded px-3 py-2"
                            style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
                 </div>
                 <div>
-                    <label for="editMenuDescription" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Description</label>
+                    <label for="editMenuDescription" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Description"]</label>
                     <input id="editMenuDescription"
                            @bind="_editDescription"
                            class="w-full rounded px-3 py-2"
                            style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
                 </div>
                 <div class="md:col-span-2">
-                    <label for="editSiteLogoUrl" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Site Logo URL</label>
+                    <label for="editSiteLogoUrl" class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Site Logo URL"]</label>
                     <input id="editSiteLogoUrl"
                            @bind="_editSiteLogoUrl"
                            class="w-full rounded px-3 py-2"
                            style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);"
                            placeholder="/img/logo.svg" />
-                    <p class="mt-1 text-xs pe-description">Leave blank to use the built-in placeholder mark.</p>
+                    <p class="mt-1 text-xs pe-description">@L["Leave blank to use the built-in placeholder mark."]</p>
                 </div>
             </div>
 
@@ -100,9 +101,9 @@
                  style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary); padding: 16px;">
                 <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                        <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Translations</h2>
-                        <p class="mt-1 text-sm pe-description">Current variant: @FormatCulture(_selected.Culture)</p>
-                        <p class="mt-1 text-xs pe-description">@_cultureVariants.Count of @SupportedCultures.Count site cultures created.</p>
+                        <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Translations"]</h2>
+                        <p class="mt-1 text-sm pe-description">@L["Current variant:"] @FormatCulture(_selected.Culture)</p>
+                        <p class="mt-1 text-xs pe-description">@string.Format(L["{0} of {1} site cultures created."], _cultureVariants.Count, SupportedCultures.Count)</p>
                     </div>
                     @if (_selected.TranslationSetId is { } translationSetId)
                     {
@@ -116,19 +117,19 @@
                 <div class="rounded p-4 space-y-3"
                      style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary);">
                     <div class="flex flex-wrap items-center gap-2 text-xs pe-description">
-                        <span class="font-semibold uppercase tracking-wider">Available variants</span>
+                    <span class="font-semibold uppercase tracking-wider">@L["Available variants"]</span>
                         @if (!AvailableTranslationCultures.Any())
                         {
-                            <span class="rounded px-2 py-0.5" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">Complete</span>
+                            <span class="rounded px-2 py-0.5" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">@L["Complete"]</span>
                         }
                     </div>
                     @if (_isLoadingTranslations)
                     {
-                        <p class="text-sm pe-description">Loading translations...</p>
+                        <p class="text-sm pe-description">@L["Loading translations..."]</p>
                     }
                     else if (_cultureVariants.Count == 0)
                     {
-                        <p class="text-sm pe-description">No translation variants found.</p>
+                        <p class="text-sm pe-description">@L["No translation variants found."]</p>
                     }
                     else
                     {
@@ -141,7 +142,7 @@
                                         class="pe-btn @(isCurrent ? "pe-btn-primary" : "pe-btn-ghost") pe-btn-sm"
                                         disabled="@isCurrent"
                                         @onclick="() => OpenTranslation(variant.Id)">
-                                    @FormatCulture(variant.Culture)@(isDefault ? " · Default" : "")
+                                    @FormatCulture(variant.Culture)@(isDefault ? " · " + L["Default"] : "")
                                 </button>
                             }
                         </div>
@@ -152,7 +153,7 @@
                 {
                     <div class="grid grid-cols-1 gap-3 items-end md:grid-cols-[minmax(0,1fr)_auto]">
                         <div>
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Target Culture</label>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Target Culture"]</label>
                             <select class="w-full rounded px-3 py-2"
                                     style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);"
                                     @bind="_selectedTranslationCulture">
@@ -163,7 +164,7 @@
                             </select>
                         </div>
                         <RadzenButton Icon="translate"
-                                      Text="@(_isCreatingTranslation ? "Creating..." : "Create Translation")"
+                                       Text="@(_isCreatingTranslation ? L["Creating..."] : L["Create Translation"])"
                                       ButtonStyle="ButtonStyle.Primary"
                                       Size="ButtonSize.Small"
                                       Click="@CreateTranslationAsync"
@@ -172,24 +173,24 @@
                 }
                 else
                 {
-                    <p class="text-sm pe-description">All supported site cultures already have a header menu variant.</p>
+                    <p class="text-sm pe-description">@L["All supported site cultures already have a header menu variant."]</p>
                 }
             </div>
 
             <div class="flex items-center justify-between">
                 <div>
-                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Links</h2>
-                    <p class="mt-1 text-sm pe-description">Arrange the links shown in the public site header.</p>
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Links"]</h2>
+                    <p class="mt-1 text-sm pe-description">@L["Arrange the links shown in the public site header."]</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <RadzenButton Icon="refresh"
-                                  Text="Refresh"
+                                   Text="@L["Refresh"]"
                                   ButtonStyle="ButtonStyle.Light"
                                   Size="ButtonSize.Small"
                                   Click="@RefreshLinksAsync"
                                   Disabled="@(_isLoading || _isSaving)" />
                     <RadzenButton Icon="add"
-                                  Text="Add Link"
+                                  Text="@L["Add Link"]"
                                   ButtonStyle="ButtonStyle.Light"
                                   Size="ButtonSize.Small"
                                   Click="@AddItem"
@@ -201,9 +202,9 @@
                             Data="@_items"
                             TItem="NavItemEditorModel"
                             AllowPaging="false"
-                            EmptyText="This menu has no links yet. Add a link to start building it.">
+                            EmptyText="@L["This menu has no links yet. Add a link to start building it."]">
                 <Columns>
-                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Label">
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="@L["Label"]">
                         <Template Context="item">
                             <input @bind="item.Label"
                                    aria-label="Link label"
@@ -211,7 +212,7 @@
                                    style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
                         </Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="URL">
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="@L["URL"]">
                         <Template Context="item">
                             <input @bind="item.Url"
                                    aria-label="Link URL"
@@ -220,7 +221,7 @@
                                    placeholder="/about" />
                         </Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="External" Width="110px">
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="@L["External"]" Width="110px">
                         <Template Context="item">
                             <label class="inline-flex items-center justify-center gap-2 rounded px-2 py-2"
                                    style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);">
@@ -231,7 +232,7 @@
                             </label>
                         </Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Target" Width="170px">
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="@L["Target"]" Width="170px">
                         <Template Context="item">
                             <select @bind="item.Target"
                                     aria-label="Link target"
@@ -244,7 +245,7 @@
                             </select>
                         </Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Alt Text">
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="@L["Alt Text"]">
                         <Template Context="item">
                             <input @bind="item.AltText"
                                    aria-label="Link alternative text"
@@ -252,7 +253,7 @@
                                    style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
                         </Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Order" Width="150px">
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="@L["Order"]" Width="150px">
                         <Template Context="item">
                             <div class="flex items-center gap-1">
                                 <RadzenButton Icon="keyboard_arrow_up" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light" Click="@(() => MoveItemAsync(item, -1))" />
@@ -261,10 +262,10 @@
                             </div>
                         </Template>
                     </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="Actions" Width="110px">
+                    <RadzenDataGridColumn TItem="NavItemEditorModel" Title="@L["Actions"]" Width="110px">
                         <Template Context="item">
                             <RadzenButton Icon="delete"
-                                          Text="Remove"
+                                          Text="@L["Remove"]"
                                           Size="ButtonSize.ExtraSmall"
                                           ButtonStyle="ButtonStyle.Danger"
                                           Click="@(() => RemoveItemAsync(item))" />

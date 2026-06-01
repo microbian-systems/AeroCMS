@@ -5,54 +5,54 @@
 @using Aero.Cms.Abstractions.Enums
 @using Aero.Cms.Abstractions.Http.Clients
 
-<PageTitle>Docs</PageTitle>
+<PageTitle>@L["Docs"]</PageTitle>
 
 <div class="pe-page-content pe-docs-list-page space-y-6">
     <div class="pe-docs-list-header">
         <div>
-            <p class="pe-docs-kicker">Knowledge base</p>
-            <h1 class="pe-heading">Docs Spaces</h1>
-            <p class="pe-description">Spaces are the top-level children under the virtual docs root.</p>
+            <p class="pe-docs-kicker">@L["Knowledge base"]</p>
+            <h1 class="pe-heading">@L["Docs Spaces"]</h1>
+            <p class="pe-description">@L["Spaces are the top-level children under the virtual docs root."]</p>
         </div>
         <div class="pe-docs-list-actions">
-            <RadzenTextBox Placeholder="Search spaces..."
+            <RadzenTextBox Placeholder="@L["Search spaces..."]"
                            Value="@_searchText"
                            ValueChanged="@OnSearchChanged"
                            class="pe-docs-search" />
             <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="LoadAsync">
-                Refresh
+                @L["Refresh"]
             </button>
             <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="ShowCreateSpace">
-                New Space
+                @L["New Space"]
             </button>
         </div>
     </div>
 
     @if (_showCreateForm)
     {
-        <section class="pe-docs-create-panel" aria-label="Create docs space">
+        <section class="pe-docs-create-panel" aria-label="@L["Create docs space"]">
             <div>
-                <p class="pe-docs-kicker">New space</p>
-                <h2>Create a docs container</h2>
+                <p class="pe-docs-kicker">@L["New space"]</p>
+                <h2>@L["Create a docs container"]</h2>
             </div>
             <div class="pe-docs-create-grid">
                 <label class="pe-field">
-                    <span>Title</span>
+                    <span>@L["Title"]</span>
                     <input value="@_newSpace.Title" @oninput="OnNewSpaceTitleChanged" />
                 </label>
                 <label class="pe-field">
-                    <span>Slug</span>
+                    <span>@L["Slug"]</span>
                     <input value="@_newSpace.Slug" @oninput="e => _newSpace.Slug = e.Value?.ToString() ?? string.Empty" />
                 </label>
                 <label class="pe-field pe-docs-create-summary">
-                    <span>Summary</span>
+                    <span>@L["Summary"]</span>
                     <textarea rows="2" value="@_newSpace.Summary" @oninput="e => _newSpace.Summary = e.Value?.ToString()"></textarea>
                 </label>
             </div>
             <div class="pe-docs-create-actions">
-                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CancelCreateSpace">Cancel</button>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CancelCreateSpace">@L["Cancel"]</button>
                 <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="CreateSpaceAsync" disabled="@_isSaving">
-                    @(_isSaving ? "Creating..." : "Create Space")
+                    @(_isSaving ? L["Creating..."] : L["Create Space"])
                 </button>
             </div>
         </section>
@@ -66,9 +66,9 @@
                     PageSize="12"
                     RowClick="@OnSpaceRowClick"
                     class="aero-grid pe-docs-spaces-grid"
-                    EmptyText="No docs spaces found.">
+                    EmptyText="@L["No docs spaces found."]">
         <Columns>
-            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="Title" Title="Space" MinWidth="260px">
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="Title" Title="@L["Space"]" MinWidth="260px">
                 <Template Context="space">
                     <div class="pe-docs-space-title">
                         <strong>@space.Title</strong>
@@ -79,41 +79,41 @@
                     </div>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="Slug" Title="Slug" MinWidth="220px">
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="Slug" Title="@L["Slug"]" MinWidth="220px">
                 <Template Context="space">
                     <code class="pe-docs-code">/docs/@space.Slug</code>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="SectionCount" Title="Sections" Width="120px" TextAlign="TextAlign.Center" />
-            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="PublicationState" Title="Status" Width="130px">
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="SectionCount" Title="@L["Sections"]" Width="120px" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="PublicationState" Title="@L["Status"]" Width="130px">
                 <Template Context="space">
                     @if (space.PublicationState == ContentPublicationState.Published)
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Published" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Published"]" />
                     }
                     else
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Draft" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@L["Draft"]" />
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="PublishedOn" Title="Published" Width="150px">
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="PublishedOn" Title="@L["Published"]" Width="150px">
                 <Template Context="space">
                     <span class="pe-docs-muted">@FormatDate(space.PublishedOn)</span>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="ModifiedOn" Title="Modified" Width="150px">
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="ModifiedOn" Title="@L["Modified"]" Width="150px">
                 <Template Context="space">
                     <span class="pe-docs-muted">@FormatDate(space.ModifiedOn)</span>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="DocsSpaceRow" Title="Actions" Width="210px" Sortable="false" TextAlign="TextAlign.Right">
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Title="@L["Actions"]" Width="210px" Sortable="false" TextAlign="TextAlign.Right">
                 <Template Context="space">
                     <div class="pe-docs-row-actions" @onclick:stopPropagation="true">
                         <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => TogglePublicationAsync(space)">
-                            @(space.PublicationState == ContentPublicationState.Published ? "Unpublish" : "Publish")
+                            @(space.PublicationState == ContentPublicationState.Published ? L["Unpublish"] : L["Publish"])
                         </button>
-                        <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="() => OpenSpace(space.Id)">Edit</button>
+                        <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="() => OpenSpace(space.Id)">@L["Edit"]</button>
                     </div>
                 </Template>
             </RadzenDataGridColumn>

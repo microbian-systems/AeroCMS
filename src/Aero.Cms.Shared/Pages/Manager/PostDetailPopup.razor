@@ -5,6 +5,7 @@
 @inject IBlogHttpClient BlogApi
 @inject DialogService DialogService
 @inject NavigationManager Navigation
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="p-6 space-y-4" style="background: var(--pe-bg-secondary); color: var(--pe-text-primary);">
     @if (post == null)
@@ -18,17 +19,17 @@
         <div class="grid grid-cols-2 gap-6">
             <div class="space-y-4 col-span-2 sm:col-span-1">
                 <div>
-                    <label class="block text-xs font-semibold uppercase" style="color: var(--pe-text-muted); margin-bottom: 4px;">Title</label>
+                    <label class="block text-xs font-semibold uppercase" style="color: var(--pe-text-muted); margin-bottom: 4px;">@L["Title"]</label>
                     <div class="text-lg font-bold" style="color: var(--pe-text-primary); line-height: 1.25;">@post.Title</div>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase" style="color: var(--pe-text-muted); margin-bottom: 4px;">Slug</label>
+                    <label class="block text-xs font-semibold uppercase" style="color: var(--pe-text-muted); margin-bottom: 4px;">@L["Slug"]</label>
                     <div class="text-sm font-mono" style="background: color-mix(in srgb, var(--pe-info) 10%, transparent); color: var(--pe-info); padding: 4px 8px; border-radius: var(--pe-radius-md); display: inline-block;">/@post.Slug</div>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase" style="color: var(--pe-text-muted); margin-bottom: 4px;">Summary / Excerpt</label>
+                    <label class="block text-xs font-semibold uppercase" style="color: var(--pe-text-muted); margin-bottom: 4px;">@L["Summary / Excerpt"]</label>
                     <div class="text-sm" style="color: var(--pe-text-secondary); background: var(--pe-bg-tertiary); padding: 12px; border-radius: var(--pe-radius-lg); border-left: 4px solid var(--pe-border);">
-                        @(string.IsNullOrEmpty(post.Excerpt) ? "No excerpt provided." : post.Excerpt)
+                        @(string.IsNullOrEmpty(post.Excerpt) ? L["No excerpt provided."] : post.Excerpt)
                     </div>
                 </div>
             </div>
@@ -36,28 +37,28 @@
                  @if (!string.IsNullOrEmpty(post.ImageUrl))
                  {
                     <div class="rounded-xl overflow-hidden shadow-sm" style="border: 1px solid var(--pe-border);">
-                        <img src="@post.ImageUrl" class="w-full h-40 object-cover" alt="Featured Image" />
+                        <img src="@post.ImageUrl" class="w-full h-40 object-cover" alt="@L["Featured Image"]" />
                     </div>
                  }
                 <div class="pt-2">
-                    <label class="block text-xs font-semibold uppercase" style="color: var(--pe-text-muted); margin-bottom: 4px;">Status</label>
+                    <label class="block text-xs font-semibold uppercase" style="color: var(--pe-text-muted); margin-bottom: 4px;">@L["Status"]</label>
                     @if (post.PublishedOn.HasValue)
                     {
                         <div class="flex items-center gap-2" style="color: var(--pe-success);">
                             <RadzenIcon Icon="check_circle" class="w-4 h-4" />
-                            <span class="text-sm font-medium">Published on @post.PublishedOn?.DateTime.ToString("MMMM dd, yyyy")</span>
+                            <span class="text-sm font-medium">@L["Published on {0}", post.PublishedOn?.DateTime.ToString("MMMM dd, yyyy")]</span>
                         </div>
                     }
                     else
                     {
                         <div class="flex items-center gap-2" style="color: var(--pe-warning);">
                              <RadzenIcon Icon="edit" class="w-4 h-4" />
-                             <span class="text-sm font-medium">Draft - Visibility: Private</span>
+                             <span class="text-sm font-medium">@L["Draft - Visibility: Private"]</span>
                         </div>
                     }
                 </div>
                 <div class="pt-4 flex gap-3">
-                     <RadzenButton Icon="edit" Text="Open in Editor" ButtonStyle="ButtonStyle.Primary" Click="OnEdit" class="w-full shadow-md" />
+                     <RadzenButton Icon="edit" Text="@L["Open in Editor"]" ButtonStyle="ButtonStyle.Primary" Click="OnEdit" class="w-full shadow-md" />
                 </div>
             </div>
         </div>
@@ -65,23 +66,23 @@
         <div class="mt-8 pt-6" style="border-top: 1px solid var(--pe-border);">
              <h3 class="text-sm font-semibold mb-4 flex items-center gap-2" style="color: var(--pe-text-primary);">
                  <RadzenIcon Icon="info" class="w-4 h-4" style="color: var(--pe-info);" />
-                 Metadata & Categorization
+                 @L["Metadata & Categorization"]
              </h3>
              <div class="grid grid-cols-2 gap-x-12 gap-y-4 text-xs" style="color: var(--pe-text-secondary);">
                   <div class="flex justify-between" style="border-bottom: 1px solid var(--pe-border); padding-bottom: 8px;">
-                       <span>Author ID</span>
+                        <span>@L["Author ID"]</span>
                        <span class="font-medium" style="color: var(--pe-text-primary);">@post.AuthorId</span>
                   </div>
                   <div class="flex justify-between" style="border-bottom: 1px solid var(--pe-border); padding-bottom: 8px;">
-                       <span>Category ID</span>
+                        <span>@L["Category ID"]</span>
                         <span class="font-medium" style="color: var(--pe-text-primary);">@(post.CategoryIds?.FirstOrDefault() ?? 0)</span>
                   </div>
                     <div class="flex justify-between" style="border-bottom: 1px solid var(--pe-border); padding-bottom: 8px;">
-                       <span>Created</span>
-                        <span class="font-medium" style="color: var(--pe-text-primary);">@post.CreatedOn.DateTime.ToShortDateString()</span>
-                  </div>
-                  <div class="flex justify-between" style="border-bottom: 1px solid var(--pe-border); padding-bottom: 8px;">
-                       <span>Last Modified</span>
+                        <span>@L["Created"]</span>
+                         <span class="font-medium" style="color: var(--pe-text-primary);">@post.CreatedOn.DateTime.ToShortDateString()</span>
+                   </div>
+                   <div class="flex justify-between" style="border-bottom: 1px solid var(--pe-border); padding-bottom: 8px;">
+                        <span>@L["Last Modified"]</span>
                         <span class="font-medium" style="color: var(--pe-text-primary);">@(post.ModifiedOn?.DateTime.ToShortDateString() ?? "-")</span>
                   </div>
              </div>

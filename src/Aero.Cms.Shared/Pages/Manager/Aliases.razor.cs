@@ -4,6 +4,7 @@ using Aero.Cms.Abstractions.Validators;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Radzen;
 using Radzen.Blazor;
@@ -13,6 +14,7 @@ namespace Aero.Cms.Shared.Pages.Manager;
 public partial class Aliases
 {
     [Inject] public ILogger<Aliases> log { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private RadzenDataGrid<AliasViewModel>? _grid;
     private IReadOnlyList<AliasViewModel>? _aliases;
@@ -91,7 +93,7 @@ public partial class Aliases
 
         if (string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath))
         {
-            NotificationService.Notify(NotificationSeverity.Warning, "Both Old URL and New URL are required.");
+            NotificationService.Notify(NotificationSeverity.Warning, L["Both Old URL and New URL are required."]);
             return;
         }
 
@@ -111,7 +113,7 @@ public partial class Aliases
         var result = await AliasClient.CreateAsync(request);
         if (result is Result<AliasViewModel, AeroError>.Ok ok)
         {
-            NotificationService.Notify(NotificationSeverity.Success, "Alias created");
+            NotificationService.Notify(NotificationSeverity.Success, L["Alias created"]);
             _showCreateForm = false;
             _createOldPath = _createNewPath = "";
             await _grid?.Reload();
@@ -125,15 +127,15 @@ public partial class Aliases
     private async Task DeleteAliasAsync(AliasViewModel alias)
     {
         var confirmed = await DialogService.Confirm(
-            $"Delete alias '{alias.OldPath}' \u2192 '{alias.NewPath}'?",
-            "Delete Alias",
-            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+            string.Format(L["Delete alias '{0}' \u2192 '{1}'?"], alias.OldPath, alias.NewPath),
+            L["Delete Alias"],
+            new ConfirmOptions { OkButtonText = L["Delete"], CancelButtonText = L["Cancel"] });
         if (confirmed != true) return;
 
         var result = await AliasClient.DeleteAsync(alias.Id);
         if (result is Result<bool, AeroError>.Ok)
         {
-            NotificationService.Notify(NotificationSeverity.Success, "Alias deleted");
+            NotificationService.Notify(NotificationSeverity.Success, L["Alias deleted"]);
             await _grid?.Reload();
         }
         else if (result is Result<bool, AeroError>.Failure fail)

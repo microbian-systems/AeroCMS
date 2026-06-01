@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Localization;
 using System.Text.Json;
 using System.Globalization;
 using Aero.Cms.Abstractions.Blocks;
@@ -53,6 +54,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
     [Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
     [Inject] protected IEnumerable<IPageEditorBlockProvider> PageEditorBlockProviders { get; set; } = [];
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
@@ -81,7 +83,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected string? PreviewFrameUrl => Id is { } id
         ? BuildAbsoluteUrl($"_cms/preview/pages/drafts/{id}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
-    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
+    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri, L);
     protected bool   RightSidebarCollapsed { get; set; } = true;
     protected bool   IsSaving              { get; set; }
     protected string ActiveTab             { get; set; } = "editor";
@@ -268,7 +270,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         }
         else
         {
-            ShowToast("Error loading page", "error");
+            ShowToast(L["Error loading page"], "error");
         }
     }
 
@@ -496,7 +498,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         Blocks.Add(block);
         SelectBlock(block.EditorId);
         MarkDirty();
-        ShowToast("Block added", "success");
+        ShowToast(L["Block added"], "success");
         QueuePreviewRefresh();
     }
 
@@ -813,7 +815,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         Blocks.RemoveAt(index);
         SelectedBlockId = null;
         MarkDirty();
-        ShowToast("Block deleted");
+        ShowToast(L["Block deleted"]);
         QueuePreviewRefresh();
     }
 
@@ -829,7 +831,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
         Blocks.Insert(index + 1, copy);
         MarkDirty();
-        ShowToast("Block duplicated", "success");
+        ShowToast(L["Block duplicated"], "success");
         QueuePreviewRefresh();
     }
 
@@ -922,7 +924,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     {
         if (string.IsNullOrWhiteSpace(block.ScribanTemplate))
         {
-            DynamicTemplatePreviewHtml[block.EditorId] = "<div class=\"text-sm text-red-600\">Template is required.</div>";
+            DynamicTemplatePreviewHtml[block.EditorId] = $"<div class=\"text-sm text-red-600\">{L["Template is required."]}</div>";
             return;
         }
 
@@ -945,12 +947,12 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             {
                 Result<string, AeroError>.Ok ok => ok.Value,
                 Result<string, AeroError>.Failure failure => BuildPreviewError(failure.Error.ToString()),
-                _ => BuildPreviewError("Preview failed.")
+                _ => BuildPreviewError(L["Preview failed."])
             };
         }
         catch (JsonException ex)
         {
-            DynamicTemplatePreviewHtml[block.EditorId] = BuildPreviewError($"Invalid JSON data: {ex.Message}");
+            DynamicTemplatePreviewHtml[block.EditorId] = BuildPreviewError(L["Invalid JSON data: {0}", ex.Message]);
         }
         finally
         {
@@ -991,7 +993,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     {
         // Simulate audio selection with a placeholder URL
         block.Src = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-        ShowToast("Audio added", "success");
+        ShowToast(L["Audio added"], "success");
     }
 
     private async Task OnConfirmMediaSelection(List<MediaItem> items)
@@ -1031,7 +1033,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         MediaModalOpen = false;
         MarkDirty();
         QueuePreviewRefresh();
-        ShowToast("Media added", "success");
+        ShowToast(L["Media added"], "success");
     }
 
     protected void RemoveImage(EditorBlock block)
@@ -1055,11 +1057,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         if (!string.IsNullOrEmpty(embedUrl))
         {
             block.Src = embedUrl;
-            ShowToast("Video added", "success");
+            ShowToast(L["Video added"], "success");
         }
         else
         {
-            ShowToast("Invalid video URL", "error");
+            ShowToast(L["Invalid video URL"], "error");
         }
     }
 
@@ -1184,7 +1186,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         catch (Exception ex)
         {
             PreviewHtml = null;
-            PreviewError = $"Preview render failed: {ex.Message}";
+            PreviewError = L["Preview render failed: {0}", ex.Message];
         }
         finally
         {
@@ -1330,7 +1332,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
         if (string.IsNullOrWhiteSpace(SelectedTranslationCulture))
         {
-            ShowToast("Choose a target culture", "error");
+            ShowToast(L["Choose a target culture"], "error");
             return;
         }
 
@@ -1340,7 +1342,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
         if (string.IsNullOrWhiteSpace(slug))
         {
-            ShowToast("Enter a translated slug", "error");
+            ShowToast(L["Enter a translated slug"], "error");
             return;
         }
 
@@ -1361,17 +1363,17 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
             if (result is Result<CmsPageDetail, AeroError>.Ok ok)
             {
-                ShowToast($"Created {FormatCulture(ok.Value.Culture)} translation", "success");
+                ShowToast(L["Created {0} translation", FormatCulture(ok.Value.Culture)], "success");
                 NavManager.NavigateTo($"/manager/page/editor/{ok.Value.Id}");
                 return;
             }
 
             if (result is Result<CmsPageDetail, AeroError>.Failure failure)
-                ShowToast($"Translation failed: {failure.Error}", "error");
+                ShowToast(L["Translation failed: {0}", failure.Error], "error");
         }
         catch (Exception ex)
         {
-            ShowToast($"Translation failed: {ex.Message}", "error");
+            ShowToast(L["Translation failed: {0}", ex.Message], "error");
         }
         finally
         {
@@ -1418,10 +1420,10 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         }
     }
 
-    private static string BuildPreviewFrameDocument(string? html, string baseUri)
+    private static string BuildPreviewFrameDocument(string? html, string baseUri, IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L)
     {
         var content = string.IsNullOrWhiteSpace(html)
-            ? "<main class=\"pe-empty-state\"><h3>No preview content</h3></main>"
+            ? $"<main class=\"pe-empty-state\"><h3>{L["No preview content"]}</h3></main>"
             : html;
         var appCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/app.css");
         var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");
@@ -1532,11 +1534,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
                     _pageState = PageState.Clean;
                     await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
                     await LoadPageTranslationsAsync();
-                    ShowToast("Page saved successfully", "success");
+                    ShowToast(L["Page saved successfully"], "success");
                 }
                 else if (result is Result<CmsPageDetail, AeroError>.Failure err)
                 {
-                    ShowToast($"Error saving: {err.Error}", "error");
+                    ShowToast(L["Error saving: {0}", err.Error], "error");
                 }
             }
             else
@@ -1566,19 +1568,19 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
                     _pageState = PageState.Clean;
                     UpdateLastSaved();
                     await LoadPageTranslationsAsync();
-                    ShowToast("Page created successfully", "success");
+                    ShowToast(L["Page created successfully"], "success");
                     // Update URL without refreshing
                     // NavManager.NavigateTo($"/manager/page/editor/{Id}", false); 
                 }
                 else if (result is Result<CmsPageDetail, AeroError>.Failure err)
                 {
-                    ShowToast($"Error creating: {err.Error}", "error");
+                    ShowToast(L["Error creating: {0}", err.Error], "error");
                 }
             }
         }
         catch (Exception ex)
         {
-            ShowToast($"Save failed: {ex.Message}", "error");
+            ShowToast(L["Save failed: {0}", ex.Message], "error");
         }
         finally
         {
@@ -1602,11 +1604,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
                 PublicationState = ok.Value.PublicationState;
                 _pageState = PageState.Clean;
                 await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
-                ShowToast("Page published!", "success");
+                ShowToast(L["Page published!"], "success");
             }
             else
             {
-                ShowToast("Failed to publish", "error");
+                ShowToast(L["Failed to publish"], "error");
             }
         }
     }
@@ -1620,11 +1622,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             {
                 PublicationState = ok.Value.PublicationState;
                 _pageState = PageState.Clean;
-                ShowToast("Page unpublished", "success");
+                ShowToast(L["Page unpublished"], "success");
             }
             else
             {
-                ShowToast("Failed to unpublish", "error");
+                ShowToast(L["Failed to unpublish"], "error");
             }
         }
     }

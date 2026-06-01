@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup;
@@ -48,6 +49,8 @@ public sealed class SetupModule : AeroModuleBase
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        services.AddLocalization();
+
         var bootstrapState = new AppSettingsBootstrapStateProvider(config ?? new ConfigurationBuilder().Build()).GetState();
         var runtimeMode = bootstrapState.IsConfiguredMode || bootstrapState.IsRunningMode;
 

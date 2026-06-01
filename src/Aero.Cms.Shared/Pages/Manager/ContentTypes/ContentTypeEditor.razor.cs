@@ -6,6 +6,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
@@ -16,23 +17,24 @@ public partial class ContentTypeEditor
 
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
-    private readonly List<DropDownItem> RenderModes =
+    private List<DropDownItem> RenderModes =>
     [
-        new("Standard field display", "DynamicBlock"),
-        new("Block layout", "BlockLayout")
+        new(L["Standard field display"], "DynamicBlock"),
+        new(L["Block layout"], "BlockLayout")
     ];
 
-    private readonly List<FieldTypeOption> FieldOptions =
+    private List<FieldTypeOption> FieldOptions =>
     [
-        new("text", "Short text", "title", "Single line names, headlines, and labels."),
-        new("richtext", "Rich text", "notes", "Longer formatted copy."),
-        new("image", "Image", "image", "Photo or graphic URL."),
-        new("number", "Number", "pin", "Prices, counts, rankings, or measurements."),
-        new("boolean", "Yes/No", "toggle_on", "A simple on/off choice."),
-        new("url", "Link", "link", "Website or call-to-action URL."),
-        new("date", "Date", "event", "Dates and milestones."),
-        new("reference", "Reference", "account_tree", "Link to another content entry.")
+        new("text", L["Short text"], "title", L["Single line names, headlines, and labels."]),
+        new("richtext", L["Rich text"], "notes", L["Longer formatted copy."]),
+        new("image", L["Image"], "image", L["Photo or graphic URL."]),
+        new("number", L["Number"], "pin", L["Prices, counts, rankings, or measurements."]),
+        new("boolean", L["Yes/No"], "toggle_on", L["A simple on/off choice."]),
+        new("url", L["Link"], "link", L["Website or call-to-action URL."]),
+        new("date", L["Date"], "event", L["Dates and milestones."]),
+        new("reference", L["Reference"], "account_tree", L["Link to another content entry."])
     ];
 
     private bool IsNew => string.IsNullOrWhiteSpace(Alias);

@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 using Radzen.Blazor;
 
@@ -15,6 +16,7 @@ public partial class ContentItemsList
     [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private RadzenDataGrid<ContentItemSummary>? _grid;
     private IEnumerable<ContentItemSummary> _items = [];
@@ -25,8 +27,8 @@ public partial class ContentItemsList
     private bool _allowPublicUrl;
 
     private string HeaderDescription => _allowPublicUrl
-        ? $"Managing {_count} {_typeName.ToLowerInvariant()} entries with optional public pages."
-        : $"Managing {_count} {_typeName.ToLowerInvariant()} entries for embedding in pages and blocks.";
+        ? L["Managing {0} {1} entries with optional public pages.", _count, _typeName.ToLowerInvariant()]
+        : L["Managing {0} {1} entries for embedding in pages and blocks.", _count, _typeName.ToLowerInvariant()];
 
     protected override async Task OnInitializedAsync()
     {

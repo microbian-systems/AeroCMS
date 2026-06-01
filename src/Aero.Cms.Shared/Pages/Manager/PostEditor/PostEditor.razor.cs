@@ -14,6 +14,7 @@ using Aero.Core;
 using Aero.Core.Railway;
 using BlazorMonaco.Editor;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 
 namespace Aero.Cms.Shared.Pages.Manager.PostEditor;
 
@@ -28,6 +29,7 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     [Inject] protected IBlogHttpClient BlogApi { get; set; } = default!;
     [Inject] protected IAiHttpClient AiClient { get; set; } = default!;
+    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
     [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
@@ -62,7 +64,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected string? PreviewHtml { get; set; }
     protected string? PreviewError { get; set; }
     protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/blog-posts/render-fragment");
-    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
+    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri, L);
     protected string? PreviewFrameUrl => Id.HasValue
         ? BuildAbsoluteUrl($"_cms/preview/blog/drafts/{Id.Value}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
@@ -118,13 +120,13 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected IReadOnlyList<string> EnhanceWarnings { get; set; } = [];
     protected IReadOnlyList<AiProviderOption> AiProviderOptions { get; set; } = [];
 
-    protected IReadOnlyList<EnhanceTargetOption> EnhanceTargetOptions { get; } =
+    protected IReadOnlyList<EnhanceTargetOption> EnhanceTargetOptions =>
     [
-        new("body", "Body"),
-        new("title", "Title"),
-        new("summary", "Summary"),
-        new("seoTitle", "SEO Title"),
-        new("seoDescription", "SEO Description")
+        new("body", L["Body"]),
+        new("title", L["Title"]),
+        new("summary", L["Summary"]),
+        new("seoTitle", L["SEO Title"]),
+        new("seoDescription", L["SEO Description"])
     ];
 
     // Auto-save timer & dirty tracking
@@ -420,10 +422,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         return [new MarkdownBlock { Content = currentContent }];
     }
 
-    private static string BuildPreviewFrameDocument(string? html, string baseUri)
+    private static string BuildPreviewFrameDocument(string? html, string baseUri, IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L)
     {
         var content = string.IsNullOrWhiteSpace(html)
-            ? "<main class=\"pe-empty-state\"><h3>No preview content</h3></main>"
+            ? $"<main class=\"pe-empty-state\"><h3>{L["No preview content"]}</h3></main>"
             : html;
         var appCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/app.css");
         var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");

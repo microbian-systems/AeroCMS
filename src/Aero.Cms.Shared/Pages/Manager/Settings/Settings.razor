@@ -2,13 +2,15 @@
 @attribute [Authorize]
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Core
+@using Microsoft.Extensions.Localization
 @inject ISettingsHttpClient SettingsClient
 @inject NotificationService NotificationService
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-page-content" style="max-width: 900px; margin: 0 auto;">
     <div class="mb-8">
-        <h1 class="text-3xl font-bold pe-heading">Global Settings</h1>
-        <p class="mt-2 text-sm pe-description">Configure instance-level settings for the CMS platform. These settings apply globally across all sites.</p>
+        <h1 class="text-3xl font-bold pe-heading">@L["Global Settings"]</h1>
+        <p class="mt-2 text-sm pe-description">@L["Configure instance-level settings for the CMS platform. These settings apply globally across all sites."]</p>
     </div>
 
     <div class="space-y-8">
@@ -16,8 +18,8 @@
         @* ── Security Section ──────────────────────────────── *@
         <div style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg);">
             <div class="px-4 py-5 sm:px-6 border-b" style="border-bottom-color: var(--pe-border);">
-                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">Security</h2>
-                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Access control and security hardening options.</p>
+                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Security"]</h2>
+                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">@L["Access control and security hardening options."]</p>
             </div>
             <div class="px-4 py-5 sm:p-6 space-y-5">
                 @if (securityLoading)
@@ -26,29 +28,29 @@
                 }
                 else
                 {
-                    <CheckboxSetting Id="disable-public-access" Label="Disable Public Access"
-                        Description="When enabled, the manager interface will only be accessible from authorized IP addresses or internal networks."
+                    <CheckboxSetting Id="disable-public-access" Label="@L["Disable Public Access"]"
+                        Description="@L["When enabled, the manager interface will only be accessible from authorized IP addresses or internal networks."]"
                         @bind-Value="disablePublicAccess" />
 
-                    <CheckboxSetting Id="require-wasm-install" Label="Require WASM Install"
-                        Description="Force users to install the manager as a WebAssembly PWA for offline access and improved performance."
+                    <CheckboxSetting Id="require-wasm-install" Label="@L["Require WASM Install"]"
+                        Description="@L["Force users to install the manager as a WebAssembly PWA for offline access and improved performance."]"
                         @bind-Value="requireWasmInstall" />
 
-                    <CheckboxSetting Id="maintenance-mode" Label="Maintenance Mode"
-                        Description="When enabled, the public site will display a maintenance page to visitors."
+                    <CheckboxSetting Id="maintenance-mode" Label="@L["Maintenance Mode"]"
+                        Description="@L["When enabled, the public site will display a maintenance page to visitors."]"
                         @bind-Value="maintenanceMode" />
 
                     @if (maintenanceMode)
                     {
-                        <TextareaSetting Id="maintenance-message" Label="Maintenance Message"
-                            Description="Message shown to visitors during maintenance. Supports basic HTML."
+                        <TextareaSetting Id="maintenance-message" Label="@L["Maintenance Message"]"
+                            Description="@L["Message shown to visitors during maintenance. Supports basic HTML."]"
                             @bind-Value="maintenanceMessage" Rows="3" />
                     }
 
                     <div class="pt-3 flex justify-end border-t" style="border-top-color: var(--pe-border);">
                         <button type="button" @onclick="SaveSecurity" disabled="@securitySaving"
                             class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                            @SpinnerSvg() Save Security
+                            @SpinnerSvg() @L["Save Security"]
                         </button>
                     </div>
                 }
@@ -58,8 +60,8 @@
         @* ── General Section ───────────────────────────────── *@
         <div style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg);">
             <div class="px-4 py-5 sm:px-6 border-b" style="border-bottom-color: var(--pe-border);">
-                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">General</h2>
-                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Default locale, timezone, and admin experience settings.</p>
+                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["General"]</h2>
+                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">@L["Default locale, timezone, and admin experience settings."]</p>
             </div>
             <div class="px-4 py-5 sm:p-6 space-y-5">
                 @if (generalLoading)
@@ -68,26 +70,26 @@
                 }
                 else
                 {
-                    <TextInputSetting Id="default-locale" Label="Default Locale"
-                        Description="Default culture code (e.g., en-US, es-ES, fr-FR)."
+                    <TextInputSetting Id="default-locale" Label="@L["Default Locale"]"
+                        Description="@L["Default culture code (e.g., en-US, es-ES, fr-FR)."]"
                         @bind-Value="defaultLocale" />
 
-                    <TextInputSetting Id="default-timezone" Label="Default Timezone"
-                        Description="Default timezone for date/time display (e.g., UTC, America/New_York)."
+                    <TextInputSetting Id="default-timezone" Label="@L["Default Timezone"]"
+                        Description="@L["Default timezone for date/time display (e.g., UTC, America/New_York)."]"
                         @bind-Value="defaultTimezone" />
 
-                    <NumberInputSetting Id="admin-pagination" Label="Admin Pagination"
-                        Description="Number of items per page in admin list views."
+                    <NumberInputSetting Id="admin-pagination" Label="@L["Admin Pagination"]"
+                        Description="@L["Number of items per page in admin list views."]"
                         @bind-Value="adminPagination" Min="5" Max="100" />
 
-                    <NumberInputSetting Id="max-upload-size" Label="Max Upload Size (MB)"
-                        Description="Maximum file size allowed for media uploads."
+                    <NumberInputSetting Id="max-upload-size" Label="@L["Max Upload Size (MB)"]"
+                        Description="@L["Maximum file size allowed for media uploads."]"
                         @bind-Value="maxUploadSizeMB" Min="1" Max="500" />
 
                     <div class="pt-3 flex justify-end border-t" style="border-top-color: var(--pe-border);">
                         <button type="button" @onclick="SaveGeneral" disabled="@generalSaving"
                             class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                            @SpinnerSvg() Save General
+                            @SpinnerSvg() @L["Save General"]
                         </button>
                     </div>
                 }
@@ -97,8 +99,8 @@
         @* ── SEO Section ───────────────────────────────────── *@
         <div style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg);">
             <div class="px-4 py-5 sm:px-6 border-b" style="border-bottom-color: var(--pe-border);">
-                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">SEO</h2>
-                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Search engine optimization and crawling settings.</p>
+                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["SEO"]</h2>
+                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">@L["Search engine optimization and crawling settings."]</p>
             </div>
             <div class="px-4 py-5 sm:p-6 space-y-5">
                 @if (seoLoading)
@@ -107,22 +109,22 @@
                 }
                 else
                 {
-                    <TextareaSetting Id="robots-txt" Label="robots.txt"
-                        Description="Custom robots.txt content served at /robots.txt. Leave empty for default (allow all, sitemap auto-included)."
+                    <TextareaSetting Id="robots-txt" Label="@L["robots.txt"]"
+                        Description="@L["Custom robots.txt content served at /robots.txt. Leave empty for default (allow all, sitemap auto-included)."]"
                         @bind-Value="robotsTxt" Rows="8" Monospace="true" />
 
-                    <TextInputSetting Id="default-meta-description" Label="Default Meta Description"
-                        Description="Fallback meta description used when a page or post doesn't define its own."
+                    <TextInputSetting Id="default-meta-description" Label="@L["Default Meta Description"]"
+                        Description="@L["Fallback meta description used when a page or post doesn't define its own."]"
                         @bind-Value="defaultMetaDescription" />
 
-                    <TextInputSetting Id="default-og-image" Label="Default OG Image URL"
-                        Description="Fallback Open Graph image URL used when content doesn't specify its own."
+                    <TextInputSetting Id="default-og-image" Label="@L["Default OG Image URL"]"
+                        Description="@L["Fallback Open Graph image URL used when content doesn't specify its own."]"
                         @bind-Value="defaultOgImage" />
 
                     <div class="pt-3 flex justify-end border-t" style="border-top-color: var(--pe-border);">
                         <button type="button" @onclick="SaveSeo" disabled="@seoSaving"
                             class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                            @SpinnerSvg() Save SEO
+                            @SpinnerSvg() @L["Save SEO"]
                         </button>
                     </div>
                 }
@@ -132,8 +134,8 @@
         @* ── API Section ───────────────────────────────────── *@
         <div style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg);">
             <div class="px-4 py-5 sm:px-6 border-b" style="border-bottom-color: var(--pe-border);">
-                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">API</h2>
-                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Headless API and integration settings.</p>
+                <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["API"]</h2>
+                <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">@L["Headless API and integration settings."]</p>
             </div>
             <div class="px-4 py-5 sm:p-6 space-y-5">
                 @if (apiLoading)
@@ -142,22 +144,22 @@
                 }
                 else
                 {
-                    <TextInputSetting Id="cors-origins" Label="Allowed CORS Origins"
-                        Description="Comma-separated list of allowed origins for API access (e.g., https://example.com,https://admin.example.com)."
+                    <TextInputSetting Id="cors-origins" Label="@L["Allowed CORS Origins"]"
+                        Description="@L["Comma-separated list of allowed origins for API access (e.g., https://example.com,https://admin.example.com)."]"
                         @bind-Value="corsOrigins" />
 
-                    <NumberInputSetting Id="rate-limit" Label="Rate Limit (requests/min)"
-                        Description="Maximum number of API requests per minute from a single IP."
+                    <NumberInputSetting Id="rate-limit" Label="@L["Rate Limit (requests/min)"]"
+                        Description="@L["Maximum number of API requests per minute from a single IP."]"
                         @bind-Value="rateLimitPerMinute" Min="0" Max="10000" />
 
-                    <CheckboxSetting Id="enable-public-api" Label="Enable Public API"
-                        Description="Allow unauthenticated access to public API endpoints."
+                    <CheckboxSetting Id="enable-public-api" Label="@L["Enable Public API"]"
+                        Description="@L["Allow unauthenticated access to public API endpoints."]"
                         @bind-Value="enablePublicApi" />
 
                     <div class="pt-3 flex justify-end border-t" style="border-top-color: var(--pe-border);">
                         <button type="button" @onclick="SaveApi" disabled="@apiSaving"
                             class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                            @SpinnerSvg() Save API
+                            @SpinnerSvg() @L["Save API"]
                         </button>
                     </div>
                 }

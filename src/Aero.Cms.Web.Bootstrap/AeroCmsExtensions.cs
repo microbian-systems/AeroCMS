@@ -9,6 +9,7 @@ using Aero.Cms.Modules.Identity;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.ServiceDefaults;
+using Aero.Cms.Shared.Localization;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Ui.Hyper;
 using Aero.Cms.Ui.Neo;
@@ -28,6 +29,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using NeoUI.Blazor;
 using NeoUI.Blazor.Extensions;
 using NeoUI.Blazor.Primitives.Extensions;
 using Radzen;
@@ -106,17 +108,20 @@ public static class AeroCmsExtensions
         });
 
         services.AddHttpContextAccessor();
-        services.AddLocalization();
+        services.AddLocalization(options => options.ResourcesPath = "Resources");
         services.AddRadzenComponents();
         services.AddNeoUIPrimitives();
         services.AddNeoUIComponents();
+        // Replace DefaultLocalizer with ASP.NET Core IStringLocalizer-backed bridge
+        services.Replace(ServiceDescriptor.Scoped<ILocalizer, NeoUiBridgeLocalizer>());
         services.AddAeroCmsHyperUiBlocks();
         services.AddAeroCmsNeoUiBlocks();
 
         services.AddRazorPages()
             .AddApplicationPart(typeof(SetupModule).Assembly)
             .AddApplicationPart(typeof(Aero.Cms.Modules.Docs.DocsModule).Assembly)
-            .AddApplicationPart(typeof(BlockBase).Assembly);
+            .AddApplicationPart(typeof(BlockBase).Assembly)
+            .AddDataAnnotationsLocalization();
 
         services.AddRazorComponents()
             .AddInteractiveServerComponents()
@@ -214,19 +219,45 @@ public static class AeroCmsExtensions
         app.UseRouting();
         app.UseRequestLocalization(options =>
         {
-            var supportedCultures = CultureInfo.GetCultures(CultureTypes.SpecificCultures);
+            // Scope to cultures that sites actually use, with a reasonable default.
+            // Site-aware scoping further restricts this at the AeroRequestCultureProvider level.
+            var supportedCultures = new[] { "en-US", "es-MX" }
+                .Select(c => new CultureInfo(c))
+                .ToArray();
 
             options.DefaultRequestCulture = new RequestCulture("en-US");
             options.SupportedCultures = supportedCultures;
             options.SupportedUICultures = supportedCultures;
             options.ApplyCurrentCultureToResponseHeaders = true;
-            options.AddInitialRequestCultureProvider(new AeroRequestCultureProvider());
+
+            // Provider chain (highest to lowest priority):
+            // 1. URL prefix (custom, site-aware)
+            // 2. Cookie (user persistence)
+            // 3. Query string (debug/testing override)
+            // 4. Accept-Language header (browser preference)
+            options.RequestCultureProviders.Clear();
+            options.RequestCultureProviders.Add(new AeroRequestCultureProvider());
+            options.RequestCultureProviders.Add(new CookieRequestCultureProvider());
+            options.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
+            options.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
         });
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseCmsSetupGate();
         app.UseAeroCmsModulePipeline();
         app.UseAntiforgery();
+
+        // Culture cookie setter — allows the Manager UI to persist user language preference.
+        app.MapGet("/culture/set", (string culture, string returnUrl, HttpContext context) =>
+        {
+            context.Response.Cookies.Append(
+                CookieRequestCultureProvider.DefaultCookieName,
+                CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
+                new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax });
+
+            return Results.Redirect(returnUrl);
+        });
+
         app.MapRazorPages();
 
         var componentBuilder = app.MapRazorComponents<TRootComponent>()

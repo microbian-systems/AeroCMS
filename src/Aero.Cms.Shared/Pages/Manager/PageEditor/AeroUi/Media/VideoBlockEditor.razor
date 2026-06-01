@@ -1,31 +1,32 @@
 @using Aero.Cms.Abstractions.Blocks.Neo
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-property-panel">
     <div class="pe-property-group">
-        <label class="pe-property-label">Video URL</label>
+        <label class="pe-property-label">@L["Video URL"]</label>
         <RadzenTextBox @bind-Value="Block.Src" Class="w-full" />
     </div>
     <div class="pe-property-group">
-        <label class="pe-property-label">Poster Image URL</label>
+        <label class="pe-property-label">@L["Poster Image URL"]</label>
         <RadzenTextBox @bind-Value="Block.Poster" Class="w-full" />
     </div>
     <div class="pe-property-group">
-        <label class="pe-property-label">Caption</label>
+        <label class="pe-property-label">@L["Caption"]</label>
         <RadzenTextBox @bind-Value="Block.Caption" Class="w-full" />
     </div>
     <div class="pe-property-group">
         <RadzenCheckBox @bind-Value="Block.Autoplay">
-            Autoplay
+            @L["Autoplay"]
         </RadzenCheckBox>
     </div>
     <div class="pe-property-group">
         <RadzenCheckBox @bind-Value="Block.Loop">
-            Loop
+            @L["Loop"]
         </RadzenCheckBox>
     </div>
     <div class="pe-property-group">
         <RadzenCheckBox @bind-Value="Block.Controls">
-            Show Controls
+            @L["Show Controls"]
         </RadzenCheckBox>
     </div>
 </div>

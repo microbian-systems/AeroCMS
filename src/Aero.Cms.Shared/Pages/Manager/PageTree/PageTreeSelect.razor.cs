@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageTree;
 
@@ -12,6 +13,7 @@ namespace Aero.Cms.Shared.Pages.Manager.PageTree;
 public partial class PageTreeSelect
 {
     [Inject] private IPagesHttpClient PagesClient { get; set; } = null!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     /// <summary>
     /// The currently selected parent page ID. <c>null</c> means root level.
@@ -29,7 +31,7 @@ public partial class PageTreeSelect
     public long? ExcludePageId { get; set; }
 
     [Parameter]
-    public string Placeholder { get; set; } = "(root — no parent)";
+    public string Placeholder { get; set; } = default!;
 
     private List<TreeOption> _options = [];
     private TreeOption? _selectedOption;
@@ -46,7 +48,7 @@ public partial class PageTreeSelect
             var result = await PagesClient.GetTreeAsync();
             if (result is Result<IReadOnlyList<PageTreeItem>, AeroError>.Ok ok)
             {
-                _options = BuildOptions(ok.Value, ExcludePageId);
+                _options = BuildOptions(ok.Value, ExcludePageId, L);
 
                 if (SelectedParentId.HasValue)
                 {
@@ -56,12 +58,12 @@ public partial class PageTreeSelect
         }
         catch
         {
-            _options = [new() { Id = 0, Label = "(root — no parent)", Depth = 0 }];
+            _options = [new() { Id = 0, Label = L["(root — no parent)"], Depth = 0 }];
         }
     }
 
     private static List<TreeOption> BuildOptions(
-        IReadOnlyList<PageTreeItem> pages, long? excludeId)
+        IReadOnlyList<PageTreeItem> pages, long? excludeId, IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L)
     {
         // Compute IDs to exclude
         var excludeIds = new HashSet<long>();
@@ -78,7 +80,7 @@ public partial class PageTreeSelect
 
         var list = new List<TreeOption>
         {
-            new() { Id = 0, Label = "(root — no parent)", Depth = 0 }
+            new() { Id = 0, Label = L["(root — no parent)"], Depth = 0 }
         };
 
         foreach (var page in pages.Where(p => !excludeIds.Contains(p.Id)).OrderBy(p => p.Path))

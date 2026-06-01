@@ -1,16 +1,17 @@
 @page "/manager/taxonomy"
 @page "/manager/taxonomy/general"
 @attribute [Authorize]
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Taxonomy</h1>
-            <p class="mt-1 text-sm pe-description">Manage categories, tags, and classification systems.</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Taxonomy"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Manage categories, tags, and classification systems."]</p>
         </div>
         <div class="flex space-x-3">
-             <RadzenButton Icon="category" Text="Categories" Href="/manager/taxonomy/categories" ButtonStyle="ButtonStyle.Light" />
-             <RadzenButton Icon="label" Text="Tags" Href="/manager/taxonomy/tags" ButtonStyle="ButtonStyle.Light" />
+             <RadzenButton Icon="category" Text="@L["Categories"]" Href="/manager/taxonomy/categories" ButtonStyle="ButtonStyle.Light" />
+             <RadzenButton Icon="label" Text="@L["Tags"]" Href="/manager/taxonomy/tags" ButtonStyle="ButtonStyle.Light" />
         </div>
     </div>
 
@@ -20,8 +21,8 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
             </div>
             <div>
-                <RadzenText TextStyle="TextStyle.H6" class="font-bold underline">Categories</RadzenText>
-                <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500">Manage content containers and hierarchies.</RadzenText>
+                <RadzenText TextStyle="TextStyle.H6" class="font-bold underline">@L["Categories"]</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500">@L["Manage content containers and hierarchies."]</RadzenText>
             </div>
         </RadzenCard>
         
@@ -30,8 +31,8 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
             </div>
             <div>
-                <RadzenText TextStyle="TextStyle.H6" class="font-bold underline">Tags</RadzenText>
-                <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500">Manage flexible content taxonomies and labels.</RadzenText>
+                <RadzenText TextStyle="TextStyle.H6" class="font-bold underline">@L["Tags"]</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" class="text-gray-500">@L["Manage flexible content taxonomies and labels."]</RadzenText>
             </div>
         </RadzenCard>
     </div>

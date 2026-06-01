@@ -1,22 +1,24 @@
 @page "/manager/taxonomy/categories"
 @attribute [Authorize]
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Categories</h1>
-            <p class="mt-1 text-sm pe-description">Organize your content into logical groupings.</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Categories"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Organize your content into logical groupings."]</p>
         </div>
-        <RadzenButton Icon="add" Text="Create Category" ButtonStyle="ButtonStyle.Primary" />
+        <RadzenButton Icon="add" Text="@L["Create Category"]" ButtonStyle="ButtonStyle.Primary" />
     </div>
 
     <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
-                    EmptyText="No categories found. Let's organize things!">
+                    EmptyText="@L["No categories found. Let's organize things!"]">
         <Columns>
-            <RadzenDataGridColumn TItem="object" Property="Name" Title="Name" />
-            <RadzenDataGridColumn TItem="object" Property="Slug" Title="Slug" />
-            <RadzenDataGridColumn TItem="object" Property="Count" Title="Items" Width="100px" />
-            <RadzenDataGridColumn TItem="object" Property="Status" Title="Status" />
+            <RadzenDataGridColumn TItem="object" Property="Name" Title="@L["Name"]" />
+            <RadzenDataGridColumn TItem="object" Property="Slug" Title="@L["Slug"]" />
+            <RadzenDataGridColumn TItem="object" Property="Count" Title="@L["Items"]" Width="100px" />
+            <RadzenDataGridColumn TItem="object" Property="Status" Title="@L["Status"]" />
         </Columns>
     </RadzenDataGrid>
 </div>

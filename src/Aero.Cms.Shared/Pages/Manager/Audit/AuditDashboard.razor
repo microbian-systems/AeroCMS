@@ -1,26 +1,27 @@
 @attribute [Authorize]
+@using Microsoft.Extensions.Localization
 
-<PageTitle>Audit Log</PageTitle>
+<PageTitle>@L["Audit Log"]</PageTitle>
 
 <div class="p-6">
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-semibold">Activity Feed</h2>
-        <RadzenButton Text="Refresh" Icon="refresh" ButtonStyle="ButtonStyle.Light" Click="@LoadFeedAsync" />
+        <h2 class="text-xl font-semibold">@L["Activity Feed"]</h2>
+        <RadzenButton Text="@L["Refresh"]" Icon="refresh" ButtonStyle="ButtonStyle.Light" Click="@LoadFeedAsync" />
     </div>
 
     @* ── Filters ── *@
     <div class="flex flex-wrap gap-3 mb-6 p-4 bg-gray-50 rounded-lg border">
         <div class="flex flex-col gap-1">
-            <label class="text-xs font-medium text-gray-500">Entity Type</label>
+            <label class="text-xs font-medium text-gray-500">@L["Entity Type"]</label>
             <RadzenDropDown TValue="string" Data="@_typeOptions" @bind-Value="_selectedType"
-                            Change="@(_ => LoadFeedAsync())" Placeholder="All types" style="min-width: 140px;" />
+                            Change="@(_ => LoadFeedAsync())" Placeholder="@L["All types"]" style="min-width: 140px;" />
         </div>
         <div class="flex flex-col gap-1">
-            <label class="text-xs font-medium text-gray-500">From</label>
+            <label class="text-xs font-medium text-gray-500">@L["From"]</label>
             <RadzenDatePicker @bind-Value="_fromDate" Change="@(_ => LoadFeedAsync())" style="min-width: 160px;" />
         </div>
         <div class="flex flex-col gap-1">
-            <label class="text-xs font-medium text-gray-500">To</label>
+            <label class="text-xs font-medium text-gray-500">@L["To"]</label>
             <RadzenDatePicker @bind-Value="_toDate" Change="@(_ => LoadFeedAsync())" style="min-width: 160px;" />
         </div>
     </div>
@@ -42,24 +43,24 @@
     {
         <div class="text-center py-12 text-gray-400">
             <RadzenIcon Icon="history" class="text-4xl mb-2" />
-            <p>No activity recorded yet.</p>
-            <p class="text-xs mt-1">Events appear here when pages or blog posts are created, updated, or published.</p>
+            <p>@L["No activity recorded yet."]</p>
+            <p class="text-xs mt-1">@L["Events appear here when pages or blog posts are created, updated, or published."]</p>
         </div>
     }
     else
     {
         <div class="text-sm text-gray-500 mb-3">
-            Showing @_items.Count event@(_items.Count == 1 ? "" : "s")
+            @L["Showing"] @_items.Count @(_items.Count == 1 ? L["event"] : L["events"])
         </div>
 
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 border-b">
                     <tr>
-                        <th class="text-left px-4 py-3 font-medium text-gray-500">Entity</th>
-                        <th class="text-left px-4 py-3 font-medium text-gray-500">Event</th>
-                        <th class="text-left px-4 py-3 font-medium text-gray-500">Version</th>
-                        <th class="text-right px-4 py-3 font-medium text-gray-500">Timestamp</th>
+                        <th class="text-left px-4 py-3 font-medium text-gray-500">@L["Entity"]</th>
+                        <th class="text-left px-4 py-3 font-medium text-gray-500">@L["Event"]</th>
+                        <th class="text-left px-4 py-3 font-medium text-gray-500">@L["Version"]</th>
+                        <th class="text-right px-4 py-3 font-medium text-gray-500">@L["Timestamp"]</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y">

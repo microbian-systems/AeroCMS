@@ -3,6 +3,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 using Radzen.Blazor;
 
@@ -12,6 +13,7 @@ public partial class Docs
 {
     [Inject] private IDocsHttpClient DocsClient { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private RadzenDataGrid<DocsSpaceRow>? _grid;
     private IReadOnlyList<DocsSummary> _allDocs = [];
@@ -48,7 +50,7 @@ public partial class Docs
             }
             else if (allResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Failure allFailure)
             {
-                NotifyError("Failed to load docs", allFailure.Error.ToString());
+                NotifyError(L["Failed to load docs"], allFailure.Error.ToString());
                 _allDocs = [];
             }
 
@@ -69,7 +71,7 @@ public partial class Docs
             }
             else if (spacesResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Failure spacesFailure)
             {
-                NotifyError("Failed to load spaces", spacesFailure.Error.ToString());
+                NotifyError(L["Failed to load spaces"], spacesFailure.Error.ToString());
                 _spaces = [];
             }
         }
@@ -110,14 +112,14 @@ public partial class Docs
     {
         if (string.IsNullOrWhiteSpace(_newSpace.Title) || string.IsNullOrWhiteSpace(_newSpace.Slug))
         {
-            NotifyError("Missing fields", "Title and slug are required.");
+            NotifyError(L["Missing fields"], L["Title and slug are required."]);
             return;
         }
 
         var root = _allDocs.FirstOrDefault(doc => string.Equals(doc.Slug, "docs", StringComparison.OrdinalIgnoreCase));
         if (root is null)
         {
-            NotifyError("Missing docs root", "Create the virtual docs root before adding a space.");
+            NotifyError(L["Missing docs root"], L["Create the virtual docs root before adding a space."]);
             return;
         }
 
@@ -134,7 +136,7 @@ public partial class Docs
             var result = await DocsClient.SaveAsync(detail);
             if (result is Result<DocsDetail, AeroError>.Ok ok)
             {
-                NotificationService.Notify(NotificationSeverity.Success, "Space created", ok.Value.Title);
+                NotificationService.Notify(NotificationSeverity.Success, L["Space created"], ok.Value.Title);
                 _showCreateForm = false;
                 await LoadAsync();
                 Navigation.NavigateTo($"/manager/docs/{ok.Value.Id}");
@@ -143,7 +145,7 @@ public partial class Docs
 
             if (result is Result<DocsDetail, AeroError>.Failure failure)
             {
-                NotifyError("Create failed", failure.Error.ToString());
+                NotifyError(L["Create failed"], failure.Error.ToString());
             }
         }
         finally
@@ -174,14 +176,14 @@ public partial class Docs
 
         if (saveResult is Result<DocsDetail, AeroError>.Ok)
         {
-            NotificationService.Notify(NotificationSeverity.Success, "Updated", $"{row.Title} is now {nextState}.");
+            NotificationService.Notify(NotificationSeverity.Success, L["Updated"], string.Format(L["{0} is now {1}."], row.Title, nextState));
             await LoadAsync();
             return;
         }
 
         if (saveResult is Result<DocsDetail, AeroError>.Failure saveFailure)
         {
-            NotifyError("Update failed", saveFailure.Error.ToString());
+            NotifyError(L["Update failed"], saveFailure.Error.ToString());
         }
     }
 

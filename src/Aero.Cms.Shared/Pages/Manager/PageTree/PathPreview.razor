@@ -1,3 +1,6 @@
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+
 @if (_result is not null)
 {
     <div class="path-preview mt-1 flex items-center gap-2">
@@ -7,11 +10,11 @@
         </span>
         @if (_result.IsValid)
         {
-            <RadzenBadge Text="valid" BadgeStyle="BadgeStyle.Success" />
+            <RadzenBadge Text="@L["valid"]" BadgeStyle="BadgeStyle.Success" />
         }
         else
         {
-            <RadzenBadge Text="@(_result.ErrorMessage ?? "invalid")" BadgeStyle="BadgeStyle.Danger" />
+            <RadzenBadge Text="@(_result.ErrorMessage ?? L["invalid"])" BadgeStyle="BadgeStyle.Danger" />
         }
     </div>
 }

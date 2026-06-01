@@ -2,31 +2,31 @@
 
 <div class="p-6 rounded-2xl" style="background: var(--pe-bg-secondary);">
     <div class="mb-6">
-        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">Add Header Link</h3>
-        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">Enter a URL manually or choose an existing page.</p>
+        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">@L["Add Header Link"]</h3>
+        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">@L["Enter a URL manually or choose an existing page."]</p>
     </div>
 
     <div class="space-y-4">
         <div class="flex flex-col gap-1.5">
-            <label for="addNavLinkLabel" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Label</label>
+            <label for="addNavLinkLabel" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">@L["Label"]</label>
             <RadzenTextBox id="addNavLinkLabel"
                            @bind-Value="_label"
-                           Placeholder="About"
+                           Placeholder="@L["About"]"
                            class="w-full border-none rounded-xl text-sm px-4 py-2"
                            style="background: var(--pe-bg-tertiary);" />
         </div>
 
         <div class="flex flex-col gap-1.5">
-            <label for="addNavLinkUrl" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">URL</label>
+            <label for="addNavLinkUrl" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">@L["URL"]</label>
             <div class="flex gap-2">
                 <RadzenTextBox id="addNavLinkUrl"
                                Value="@_url"
                                ValueChanged="@OnUrlChanged"
-                               Placeholder="/about"
+                               Placeholder="@L["/about"]"
                                class="flex-1 border-none rounded-xl text-sm px-4 py-2"
                                style="background: var(--pe-bg-tertiary);" />
                 <RadzenButton Icon="search"
-                              Text="Pages"
+                              Text="@L["Pages"]"
                               ButtonStyle="ButtonStyle.Light"
                               Variant="Variant.Filled"
                               Click="@TogglePageSearch" />
@@ -39,11 +39,11 @@
                 <input type="checkbox"
                        checked="@_isExternal"
                        @onchange="OnExternalChanged" />
-                <span>External link</span>
+                <span>@L["External link"]</span>
             </label>
 
             <div class="flex flex-col gap-1.5">
-                <label for="addNavLinkTarget" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Target</label>
+                <label for="addNavLinkTarget" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">@L["Target"]</label>
                 <select id="addNavLinkTarget"
                         @bind="_target"
                         class="w-full rounded-xl px-3 py-2 text-sm"
@@ -57,10 +57,10 @@
         </div>
 
         <div class="flex flex-col gap-1.5">
-            <label for="addNavLinkAltText" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Alt Text</label>
+            <label for="addNavLinkAltText" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">@L["Alt Text"]</label>
             <RadzenTextBox id="addNavLinkAltText"
                            @bind-Value="_altText"
-                           Placeholder="Optional link description"
+                           Placeholder="@L["Optional link description"]"
                            class="w-full border-none rounded-xl text-sm px-4 py-2"
                            style="background: var(--pe-bg-tertiary);" />
         </div>
@@ -71,11 +71,11 @@
                 <div class="flex gap-2">
                     <RadzenTextBox Value="@_pageSearch"
                                    ValueChanged="@OnPageSearchChanged"
-                                   Placeholder="Search pages..."
+                                   Placeholder="@L["Search pages..."]"
                                    class="flex-1 border-none rounded-xl text-sm px-4 py-2"
                                    style="background: var(--pe-bg-secondary);" />
                     <RadzenButton Icon="search"
-                                  Text="Search"
+                                  Text="@L["Search"]"
                                   ButtonStyle="ButtonStyle.Primary"
                                   Variant="Variant.Filled"
                                   Click="@SearchPagesAsync"
@@ -89,9 +89,9 @@
                                 PageSize="5"
                                 class="aero-grid cursor-pointer"
                                 RowClick="@(args => SelectPageAsync(args.Data))"
-                                EmptyText="No matching pages found.">
+                                EmptyText="@L["No matching pages found."]">
                     <Columns>
-                        <RadzenDataGridColumn TItem="PageSummary" Property="Title" Title="Page">
+                        <RadzenDataGridColumn TItem="PageSummary" Property="Title" Title="@L["Page"]">
                             <Template Context="pageItem">
                                 <div class="flex flex-col gap-1">
                                     <span class="font-medium" style="color: var(--pe-text-primary);">@pageItem.Title</span>
@@ -99,10 +99,10 @@
                                 </div>
                             </Template>
                         </RadzenDataGridColumn>
-                        <RadzenDataGridColumn TItem="PageSummary" Title="Status" Width="120px">
+                        <RadzenDataGridColumn TItem="PageSummary" Title="@L["Status"]" Width="120px">
                             <Template Context="pageItem">
                                 <RadzenBadge BadgeStyle="@(pageItem.PublishedAt.HasValue ? BadgeStyle.Success : BadgeStyle.Info)"
-                                             Text="@(pageItem.PublishedAt.HasValue ? "Published" : "Draft")" />
+                                             Text="@(pageItem.PublishedAt.HasValue ? L["Published"] : L["Draft"])" />
                             </Template>
                         </RadzenDataGridColumn>
                     </Columns>
@@ -112,11 +112,11 @@
     </div>
 
     <div class="mt-8 pt-6 border-t flex justify-end gap-3" style="border-color: var(--pe-border);">
-        <RadzenButton Text="Cancel"
+        <RadzenButton Text="@L["Cancel"]"
                       ButtonStyle="ButtonStyle.Light"
                       Variant="Variant.Text"
                       Click="@Cancel" />
-        <RadzenButton Text="Add Link"
+        <RadzenButton Text="@L["Add Link"]"
                       Icon="add"
                       ButtonStyle="ButtonStyle.Primary"
                       Variant="Variant.Filled"

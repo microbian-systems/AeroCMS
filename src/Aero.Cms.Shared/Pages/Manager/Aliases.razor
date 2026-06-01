@@ -19,34 +19,34 @@
 <div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Aliases</h1>
-            <p class="mt-1 text-sm pe-description">Manage URL redirects for the current site.</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Aliases"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Manage URL redirects for the current site."]</p>
         </div>
         <div class="flex items-center gap-2">
             <RadzenButton Icon="refresh" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
                           Click="@(async () => { if (_grid is not null) await _grid.Reload(); })"
-                          Title="Refresh list" />
-            <RadzenButton Text="Add Alias" ButtonStyle="ButtonStyle.Primary" Click="@(() => _showCreateForm = true)" />
+                          Title="@L["Refresh list"]" />
+            <RadzenButton Text="@L["Add Alias"]" ButtonStyle="ButtonStyle.Primary" Click="@(() => _showCreateForm = true)" />
         </div>
     </div>
 
     @if (_showCreateForm)
     {
         <div style="border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg); padding: 16px; background: var(--pe-bg-secondary); margin-bottom: 16px;">
-            <h3 class="font-semibold mb-3" style="color: var(--pe-text-primary);">Create New Alias</h3>
+            <h3 class="font-semibold mb-3" style="color: var(--pe-text-primary);">@L["Create New Alias"]</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Old URL *</label>
-                    <input @bind="@_createOldPath" class="w-full rounded px-3 py-2" style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" placeholder="e.g. old-page (no leading / needed)" />
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Old URL *"]</label>
+                    <input @bind="@_createOldPath" class="w-full rounded px-3 py-2" style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" placeholder="@L["e.g. old-page (no leading / needed)"]" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">New URL *</label>
-                    <input @bind="@_createNewPath" class="w-full border rounded px-3 py-2" placeholder="e.g. new-page (no leading / needed)" />
+                    <label class="block text-sm font-medium mb-1">@L["New URL *"]</label>
+                    <input @bind="@_createNewPath" class="w-full border rounded px-3 py-2" placeholder="@L["e.g. new-page (no leading / needed)"]" />
                 </div>
             </div>
             <div class="flex gap-3 mt-4">
-                <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="Create" Click="@HandleCreate" />
-                <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="Cancel" Click="@(() => _showCreateForm = false)" />
+                <RadzenButton ButtonStyle="ButtonStyle.Primary" Text="@L["Create"]" Click="@HandleCreate" />
+                <RadzenButton ButtonStyle="ButtonStyle.Secondary" Text="@L["Cancel"]" Click="@(() => _showCreateForm = false)" />
             </div>
         </div>
     }
@@ -61,13 +61,13 @@
                     PageSize="10"
                     PagerHorizontalAlign="HorizontalAlign.Center"
                     ShowPagingSummary="true"
-                    EmptyText="No aliases found. Create your first redirect!">
+                    EmptyText="@L["No aliases found. Create your first redirect!"]">
         <Columns>
-            <RadzenDataGridColumn TItem="AliasViewModel" Property="OldPath" Title="Old URL" />
-            <RadzenDataGridColumn TItem="AliasViewModel" Property="NewPath" Title="Redirects To" />
-            <RadzenDataGridColumn TItem="AliasViewModel" Title="Actions" Width="150px">
+            <RadzenDataGridColumn TItem="AliasViewModel" Property="OldPath" Title="@L["Old URL"]" />
+            <RadzenDataGridColumn TItem="AliasViewModel" Property="NewPath" Title="@L["Redirects To"]" />
+            <RadzenDataGridColumn TItem="AliasViewModel" Title="@L["Actions"]" Width="150px">
                 <Template Context="alias">
-                    <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger" Text="Delete" Click="@(() => DeleteAliasAsync(alias))" />
+                    <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger" Text="@L["Delete"]" Click="@(() => DeleteAliasAsync(alias))" />
                 </Template>
             </RadzenDataGridColumn>
         </Columns>

@@ -3,6 +3,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageTree;
 
@@ -14,6 +15,7 @@ namespace Aero.Cms.Shared.Pages.Manager.PageTree;
 public partial class PageVersionHistory
 {
     [Inject] private IPagesHttpClient PagesClient { get; set; } = null!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     /// <summary>
     /// The page whose version history to display.
@@ -91,17 +93,17 @@ public partial class PageVersionHistory
         _ => "timeline"
     };
 
-    private static string FormatEventType(string eventType) => eventType switch
+    private string FormatEventType(string eventType) => eventType switch
     {
-        "PageCreated" => "Page Created",
-        "PageContentUpdated" => "Content Updated",
-        "PagePublished" => "Published",
-        "PageArchived" => "Archived",
-        "PageDeleted" => "Deleted",
-        "PageRestored" => "Restored",
-        "PageMoved" => "Moved",
-        "PageVisibilityChanged" => "Visibility Changed",
-        "PageStateChanged" => "State Changed",
+        "PageCreated" => L["Page Created"],
+        "PageContentUpdated" => L["Content Updated"],
+        "PagePublished" => L["Published"],
+        "PageArchived" => L["Archived"],
+        "PageDeleted" => L["Deleted"],
+        "PageRestored" => L["Restored"],
+        "PageMoved" => L["Moved"],
+        "PageVisibilityChanged" => L["Visibility Changed"],
+        "PageStateChanged" => L["State Changed"],
         _ => eventType
     };
 

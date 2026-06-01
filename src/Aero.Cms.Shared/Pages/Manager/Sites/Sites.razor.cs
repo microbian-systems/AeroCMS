@@ -6,6 +6,7 @@ using Aero.Cms.Shared.Services;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 using Radzen.Blazor;
 
@@ -18,6 +19,7 @@ public partial class Sites : ComponentBase
     [Inject] protected AdminStateContainer AdminState { get; set; } = null!;
     [Inject] protected DialogService DialogService { get; set; } = null!;
     [Inject] protected NavigationManager Navigation { get; set; } = null!;
+    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     protected RadzenDataGrid<SiteViewModel>? Grid;
     protected IReadOnlyList<SiteViewModel>? SiteRows;

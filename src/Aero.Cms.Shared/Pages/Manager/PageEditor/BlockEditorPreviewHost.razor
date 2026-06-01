@@ -1,6 +1,7 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor
 @using System.Text.Json
 @using Aero.Cms.Abstractions.Blocks
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 @using Aero.Cms.Abstractions.Blocks.Common
 @using Aero.Cms.Abstractions.Blocks.Neo
 @using Aero.Cms.Shared.Blocks.Rendering
@@ -38,10 +39,10 @@ else
         <SeparatorBlockEditorPreview Node="MapToNeoNode(Block)" />
         break;
     case "neo.layout.columns":
-        <div class="pe-block-placeholder">Columns Layout</div>
+        <div class="pe-block-placeholder">@L["Columns Layout"]</div>
         break;
     case "neo.template.scriban":
-        <div class="pe-block-placeholder">Scriban Template</div>
+        <div class="pe-block-placeholder">@L["Scriban Template"]</div>
         break;
     case "boring_hero":
         <div class="pe-hero-block-wrapper">
@@ -49,11 +50,11 @@ else
             @if (IsSelected && !Editor.PreviewMode)
             {
                 <div class="pe-hero-bg-controls">
-                    <input class="pe-hero-title" type="text" placeholder="Page title"
+                    <input class="pe-hero-title" type="text" placeholder="@L["Page title"]"
                            value="@Block.MainText"
                            @oninput="e => Update(value => Block.MainText = value, e.Value?.ToString() ?? string.Empty)"
                            @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
-                    <input class="pe-hero-subtitle" type="text" placeholder="Summary"
+                    <input class="pe-hero-subtitle" type="text" placeholder="@L["Summary"]"
                            value="@Block.SubText"
                            @oninput="e => Update(value => Block.SubText = value, e.Value?.ToString() ?? string.Empty)"
                            @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
@@ -62,7 +63,7 @@ else
                         <button class="pe-btn pe-btn-secondary pe-btn-sm"
                                 @onclick:stopPropagation="true"
                                 @onclick='() => Editor.OpenMediaSelector(Block, false, "background")'>
-                            Add Background Image
+                            @L["Add Background Image"]
                         </button>
                     }
                     else
@@ -70,7 +71,7 @@ else
                         <button class="pe-btn pe-btn-ghost pe-btn-sm"
                                 @onclick:stopPropagation="true"
                                 @onclick="() => Update(value => Block.BackgroundImage = value, string.Empty)">
-                            Remove Background
+                            @L["Remove Background"]
                         </button>
                     }
                 </div>
@@ -88,20 +89,20 @@ else
             <div class="pe-hero-content">
                 @if (IsSelected && !Editor.PreviewMode)
                 {
-                    <input class="pe-hero-title" type="text" placeholder="Main Headline"
+                    <input class="pe-hero-title" type="text" placeholder="@L["Main Headline"]"
                            value="@Block.MainText"
                            @oninput="e => Update(value => Block.MainText = value, e.Value?.ToString() ?? string.Empty)"
                            @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
-                    <input class="pe-hero-subtitle" type="text" placeholder="Sub headline or description"
+                    <input class="pe-hero-subtitle" type="text" placeholder="@L["Sub headline or description"]"
                            value="@Block.SubText"
                            @oninput="e => Update(value => Block.SubText = value, e.Value?.ToString() ?? string.Empty)"
                            @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
                     <div class="pe-hero-cta-row">
-                        <input class="pe-hero-cta-text" type="text" placeholder="Button text"
+                        <input class="pe-hero-cta-text" type="text" placeholder="@L["Button text"]"
                                value="@Block.CtaText"
                                @oninput="e => Update(value => Block.CtaText = value, e.Value?.ToString() ?? string.Empty)"
                                @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
-                        <input class="pe-hero-cta-url" type="text" placeholder="Button URL"
+                        <input class="pe-hero-cta-url" type="text" placeholder="@L["Button URL"]"
                                value="@Block.CtaUrl"
                                @oninput="e => Update(value => Block.CtaUrl = value, e.Value?.ToString() ?? string.Empty)"
                                @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
@@ -111,7 +112,7 @@ else
                             <input type="checkbox"
                                    checked="@Block.FullScreen"
                                    @onchange="e => Update(value => Block.FullScreen = value, e.Value is true)" />
-                            Full screen
+                            @L["Full screen"]
                         </label>
                         @if (!Block.FullScreen)
                         {
@@ -125,7 +126,7 @@ else
                             <button class="pe-btn pe-btn-secondary pe-btn-sm"
                                     @onclick:stopPropagation="true"
                                     @onclick='() => Editor.OpenMediaSelector(Block, false, "background")'>
-                                Add Background Image
+                                @L["Add Background Image"]
                             </button>
                         }
                         else
@@ -133,7 +134,7 @@ else
                             <button class="pe-btn pe-btn-ghost pe-btn-sm"
                                     @onclick:stopPropagation="true"
                                     @onclick="() => Update(value => Block.BackgroundImage = value, string.Empty)">
-                                Remove Background
+                                @L["Remove Background"]
                             </button>
                         }
                     </div>
@@ -193,7 +194,7 @@ else
             <textarea class="w-full rounded-md"
                       style="min-height: 140px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
                       value="@Block.Content"
-                      placeholder="Start writing..."
+                       placeholder="@L["Start writing..."]"
                       @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
         }
         else
@@ -207,7 +208,7 @@ else
             <textarea class="w-full rounded-md font-mono"
                       style="min-height: 180px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
                       value="@Block.Content"
-                      placeholder="# Heading"
+                       placeholder="@L["# Heading"]"
                       @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
         }
         else
@@ -222,12 +223,12 @@ else
                 <textarea class="w-full rounded-md"
                           style="min-height: 120px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
                           value="@Block.Content"
-                          placeholder="Quote..."
-                          @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
+                           placeholder="@L["Quote..."]"
+                           @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
                 <input class="w-full rounded-md mt-2"
                        style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 8px 12px;"
                        value="@Block.Author"
-                       placeholder="Author"
+                       placeholder="@L["Author"]"
                        @oninput="e => Update(value => Block.Author = value, e.Value?.ToString() ?? string.Empty)" />
             </div>
         }
@@ -245,13 +246,13 @@ else
             {
                 <div class="pe-columns-controls">
                     <div class="pe-col-ctrl">
-                        <label>Columns: @Block.ColumnCount</label>
+                        <label>@L["Columns:"] @Block.ColumnCount</label>
                         <input type="range" min="1" max="12"
                                value="@Block.ColumnCount"
                                @oninput="e => UpdateColumnCount(int.TryParse(e.Value?.ToString(), out var count) ? count : 2)" />
                     </div>
                     <div class="pe-col-ctrl">
-                        <label>Gap: @(Block.Gap)px</label>
+                        <label>@L["Gap:"] @(Block.Gap)px</label>
                         <input type="range" min="0" max="64"
                                value="@Block.Gap"
                                @oninput="e => Update(value => Block.Gap = value, int.TryParse(e.Value?.ToString(), out var gap) ? gap : 16)" />
@@ -268,8 +269,8 @@ else
                         @if (IsSelected && !Editor.PreviewMode)
                         {
                             <div class="pe-column-header">
-                                <span class="pe-column-label">Col @(colIndex + 1)</span>
-                                <button class="pe-column-add-btn" title="Add text"
+                                <span class="pe-column-label">@L["Col"] @(colIndex + 1)</span>
+                                <button class="pe-column-add-btn" title="@L["Add text"]"
                                         @onclick:stopPropagation="true"
                                         @onclick='() => AddBlockToColumn(colIndex, "text")'>
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -302,7 +303,7 @@ else
                             @if (col.Blocks.Count == 0 && IsSelected && !Editor.PreviewMode)
                             {
                                 <div class="pe-column-drop-hint">
-                                    <span>Drag blocks here or click + to add</span>
+                                    <span>@L["Drag blocks here or click + to add"]</span>
                                 </div>
                             }
                         </div>
@@ -323,7 +324,7 @@ else
                         <circle cx="8.5" cy="8.5" r="1.5" />
                         <polyline points="21 15 16 10 5 21" />
                     </svg>
-                    <span>Add Image</span>
+                                    <span>@L["Add Image"]</span>
                 </button>
             }
             else
@@ -333,12 +334,12 @@ else
                     @if (IsSelected && !Editor.PreviewMode)
                     {
                         <div class="pe-image-overlay">
-                            <button class="pe-overlay-btn"
-                                    @onclick:stopPropagation="true"
-                                    @onclick="() => Editor.OpenMediaSelector(Block)">Change</button>
-                            <button class="pe-overlay-btn delete"
-                                    @onclick:stopPropagation="true"
-                                    @onclick="() => Editor.RemoveImage(Block)">Remove</button>
+                                    <button class="pe-overlay-btn"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => Editor.OpenMediaSelector(Block)">@L["Change"]</button>
+                                    <button class="pe-overlay-btn delete"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => Editor.RemoveImage(Block)">@L["Remove"]</button>
                         </div>
                     }
                 </div>
@@ -347,7 +348,7 @@ else
                     <input class="w-full rounded-md mt-2"
                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 8px 12px;"
                            value="@Block.Alt"
-                           placeholder="Alt text"
+                            placeholder="@L["Alt text"]"
                            @oninput="e => Update(value => Block.Alt = value, e.Value?.ToString() ?? string.Empty)" />
                 }
             }
@@ -358,14 +359,14 @@ else
             @if (string.IsNullOrEmpty(Block.Src))
             {
                 <div class="pe-video-input">
-                    <input type="text" placeholder="Paste YouTube, Vimeo, or video URL"
+                    <input type="text" placeholder="@L["Paste YouTube, Vimeo, or video URL"]"
                            value="@Block.Url"
                            @oninput="e => Update(value => Block.Url = value, e.Value?.ToString() ?? string.Empty)"
                            @onkeydown="e => HandleVideoKeyDown(e)" />
                     <button class="pe-btn pe-btn-secondary pe-btn-sm"
                             @onclick:stopPropagation="true"
                             @onclick='() => Editor.OpenMediaSelector(Block, false, "video")'>
-                        Select Video
+                        @L["Select Video"]
                     </button>
                 </div>
             }
@@ -377,7 +378,7 @@ else
                     {
                         <button class="pe-overlay-btn delete"
                                 @onclick:stopPropagation="true"
-                                @onclick="() => Editor.RemoveVideo(Block)">Remove</button>
+                                @onclick="() => Editor.RemoveVideo(Block)">@L["Remove"]</button>
                     }
                 </div>
             }
@@ -412,7 +413,7 @@ else
                 <button class="pe-add-gallery-item"
                         @onclick:stopPropagation="true"
                         @onclick="() => Editor.OpenMediaSelector(Block, true)">
-                    Add images
+                    @L["Add images"]
                 </button>
             }
         </div>
@@ -424,7 +425,7 @@ else
                 <button class="pe-btn pe-btn-secondary pe-btn-sm"
                         @onclick:stopPropagation="true"
                         @onclick="() => Editor.OpenAudioSelector(Block)">
-                    Add Audio
+                    @L["Add Audio"]
                 </button>
             }
             else
@@ -435,7 +436,7 @@ else
                     <button class="pe-btn pe-btn-ghost pe-btn-sm"
                             @onclick:stopPropagation="true"
                             @onclick="() => Update(value => Block.Src = value, string.Empty)">
-                        Remove Audio
+                        @L["Remove Audio"]
                     </button>
                 }
             }
@@ -447,7 +448,7 @@ else
             <textarea class="w-full rounded-md font-mono"
                       style="min-height: 180px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
                       value="@Block.Content"
-                      placeholder="<section>...</section>"
+                      placeholder="@L["<section>...</section>"]"
                       @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
         }
         else
@@ -456,7 +457,7 @@ else
         }
         break;
     case "dynamic_template":
-        <div class="pe-block-placeholder">Scriban Template</div>
+        <div class="pe-block-placeholder">@L["Scriban Template"]</div>
         break;
         default:
             <div class="pe-block-placeholder">@Block.Type</div>
@@ -599,7 +600,7 @@ else
                 <div class="pe-nested-video">
                     @if (string.IsNullOrEmpty(nb.Src))
                     {
-                        <input type="text" placeholder="Video URL"
+                        <input type="text" placeholder="@L["Video URL"]"
                                value="@nb.Url"
                                @oninput="e => { nb.Url = e.Value?.ToString() ?? string.Empty; Editor.BlockChanged(Block); }"
                                @onkeydown="e => HandleNestedVideoKeyDown(e, nb)" />
@@ -612,7 +613,7 @@ else
                 break;
             default:
                 <textarea value="@nb.Content"
-                          placeholder="Text..."
+                          placeholder="@L["Text..."]"
                           rows="3"
                           @oninput="e => { nb.Content = e.Value?.ToString() ?? string.Empty; Editor.BlockChanged(Block); }"></textarea>
                 break;

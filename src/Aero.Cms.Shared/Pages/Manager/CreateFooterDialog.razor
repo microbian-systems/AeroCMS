@@ -1,23 +1,23 @@
 <div class="p-6 rounded" style="background: var(--pe-bg-secondary);">
     <div class="mb-6">
-        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">Create Footer</h3>
-        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">Name the footer first, then edit content on the next screen.</p>
+        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">@L["Create Footer"]</h3>
+        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">@L["Name the footer first, then edit content on the next screen."]</p>
     </div>
 
     <div class="space-y-4">
         <div class="flex flex-col gap-1.5">
-            <label for="createFooterName" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Name</label>
+            <label for="createFooterName" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">@L["Name"]</label>
             <RadzenTextBox id="createFooterName"
                            @bind-Value="_name"
-                           Placeholder="Site Footer"
+                           Placeholder="@L["Site Footer"]"
                            class="w-full border-none rounded text-sm px-4 py-2"
                            style="background: var(--pe-bg-tertiary);" />
         </div>
         <div class="flex flex-col gap-1.5">
-            <label for="createFooterDescription" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Description</label>
+            <label for="createFooterDescription" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">@L["Description"]</label>
             <RadzenTextArea id="createFooterDescription"
                             @bind-Value="_description"
-                            Placeholder="Primary site footer"
+                            Placeholder="@L["Primary site footer"]"
                             Rows="3"
                             class="w-full border-none rounded text-sm px-4 py-2"
                             style="background: var(--pe-bg-tertiary);" />
@@ -25,11 +25,11 @@
     </div>
 
     <div class="mt-8 pt-6 border-t flex justify-end gap-3" style="border-color: var(--pe-border);">
-        <RadzenButton Text="Cancel"
+        <RadzenButton Text="@L["Cancel"]"
                       ButtonStyle="ButtonStyle.Light"
                       Variant="Variant.Text"
                       Click="@Cancel" />
-        <RadzenButton Text="Create Footer"
+        <RadzenButton Text="@L["Create Footer"]"
                       Icon="add"
                       ButtonStyle="ButtonStyle.Primary"
                       Variant="Variant.Filled"

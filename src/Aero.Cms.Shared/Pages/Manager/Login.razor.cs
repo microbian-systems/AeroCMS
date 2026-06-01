@@ -5,6 +5,7 @@ using Aero.Core.Http;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
@@ -24,6 +25,9 @@ public abstract class LoginBase : ComponentBase
 
     [Inject]
     private IHttpClientFactory HttpClientFactory { get; set; } = default!;
+
+    [Inject]
+    protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     [SupplyParameterFromQuery(Name = "returnUrl")]
     protected string? ReturnUrl { get; set; }

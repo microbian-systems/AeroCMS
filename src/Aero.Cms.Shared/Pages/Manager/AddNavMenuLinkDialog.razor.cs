@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Radzen;
 
@@ -20,6 +21,7 @@ public partial class AddNavMenuLinkDialog
     [Inject] private IPagesHttpClient PagesClient { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private ILogger<AddNavMenuLinkDialog> Logger { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private string _label = string.Empty;
     private string _url = "/";
@@ -31,12 +33,12 @@ public partial class AddNavMenuLinkDialog
     private IReadOnlyList<PageSummary> _pages = Array.Empty<PageSummary>();
     private bool _showPageSearch;
     private bool _isSearching;
-    private static readonly IReadOnlyList<LinkTargetOption> TargetOptions =
+    private IReadOnlyList<LinkTargetOption> TargetOptions =>
     [
-        new("_self", "Same tab"),
-        new("_blank", "New tab"),
-        new("_parent", "Parent frame"),
-        new("_top", "Top frame")
+        new("_self", L["Same tab"]),
+        new("_blank", L["New tab"]),
+        new("_parent", L["Parent frame"]),
+        new("_top", L["Top frame"])
     ];
 
     private bool IsSubmitDisabled => string.IsNullOrWhiteSpace(_label) || string.IsNullOrWhiteSpace(_url);

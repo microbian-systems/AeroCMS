@@ -6,6 +6,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
@@ -19,6 +20,7 @@ public partial class ContentItemEditor
     [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private ContentTypeDetail? _typeDefinition;
     private readonly Dictionary<string, string> _fieldValues = [];

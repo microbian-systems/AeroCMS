@@ -4,6 +4,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 using Radzen.Blazor;
 
@@ -14,6 +15,7 @@ public partial class Users : ComponentBase
     [Inject] protected DialogService DialogService { get; set; } = default!;
 
     [Inject] protected NavigationManager Navigation { get; set; } = default!;
+    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     protected RadzenDataGrid<UserSummary>? _grid;
     protected IEnumerable<UserSummary> _users = [];

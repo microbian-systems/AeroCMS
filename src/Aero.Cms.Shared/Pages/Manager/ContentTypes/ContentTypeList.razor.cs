@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 using Radzen.Blazor;
 
@@ -12,6 +13,7 @@ public partial class ContentTypeList
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private RadzenDataGrid<ContentTypeSummary>? _grid;
     private IReadOnlyList<ContentTypeSummary> _types = [];

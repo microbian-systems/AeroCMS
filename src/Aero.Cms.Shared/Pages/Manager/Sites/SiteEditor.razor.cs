@@ -6,6 +6,7 @@ using Aero.Core;
 using Aero.Core.Globalization;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.Sites;
@@ -16,6 +17,7 @@ public partial class SiteEditor : ComponentBase
 
     [Inject] protected ISitesHttpClient SitesClient { get; set; } = null!;
     [Inject] protected NavigationManager Navigation { get; set; } = null!;
+    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     protected bool IsLoading { get; set; }
     protected bool IsSaving { get; set; }
@@ -30,8 +32,8 @@ public partial class SiteEditor : ComponentBase
     protected IReadOnlyList<AeroLocaleOption> LocaleOptions { get; } = AeroLocaleCatalog.GetLocales();
 
     protected bool IsNew => Id is null or 0;
-    protected string PageTitle => IsNew ? "New Site" : $"Edit {Name}";
-    protected string SaveButtonText => IsSaving ? "Saving..." : IsNew ? "Create Site" : "Save Site";
+    protected string PageTitle => IsNew ? L["New Site"] : $"{L["Edit"]} {Name}";
+    protected string SaveButtonText => IsSaving ? L["Saving..."] : IsNew ? L["Create Site"] : L["Save Site"];
 
     protected IEnumerable<AeroLocaleOption> FilteredLocales
     {

@@ -5,6 +5,7 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Radzen;
 using Radzen.Blazor;
@@ -21,6 +22,7 @@ public partial class NavMenuEditor
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILogger<NavMenuEditor> Logger { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private NavigationDetail? _selected;
     private SiteViewModel? _currentSite;
@@ -47,12 +49,12 @@ public partial class NavMenuEditor
             .Where(culture => !_cultureVariants.Any(variant =>
                 string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
             .ToList();
-    private static readonly IReadOnlyList<LinkTargetOption> TargetOptions =
+    private IReadOnlyList<LinkTargetOption> TargetOptions =>
     [
-        new("_self", "Same tab"),
-        new("_blank", "New tab"),
-        new("_parent", "Parent frame"),
-        new("_top", "Top frame")
+        new("_self", L["Same tab"]),
+        new("_blank", L["New tab"]),
+        new("_parent", L["Parent frame"]),
+        new("_top", L["Top frame"])
     ];
 
     protected override async Task OnParametersSetAsync()

@@ -7,20 +7,21 @@
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Posts</h1>
-            <p class="mt-1 text-sm pe-description">Manage your blog content and articles.</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Posts"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Manage your blog content and articles."]</p>
         </div>
         <div class="flex space-x-3">
-             <RadzenTextBox Placeholder="Search posts..." 
+             <RadzenTextBox Placeholder="@L["Search posts..."]" 
                             Value="@searchText" 
                             ValueChanged="@(args => OnSearch(args))" 
                             class="w-64" />
-            <RadzenButton Icon="file_upload" Text="Import" ButtonStyle="ButtonStyle.Secondary" Click="@OpenImportDialog" />
-            <RadzenButton Icon="add" Text="New Post" ButtonStyle="ButtonStyle.Primary" Click="@(() => Navigation.NavigateTo("/manager/post/editor"))" />
+            <RadzenButton Icon="file_upload" Text="@L["Import"]" ButtonStyle="ButtonStyle.Secondary" Click="@OpenImportDialog" />
+            <RadzenButton Icon="add" Text="@L["New Post"]" ButtonStyle="ButtonStyle.Primary" Click="@(() => Navigation.NavigateTo("/manager/post/editor"))" />
         </div>
     </div>
 
@@ -37,7 +38,7 @@
                     ShowPagingSummary="true"
                     class="aero-grid cursor-pointer"
                     RowClick="@(args => HandleRowClick(args.Data))"
-                    EmptyText="No posts found. Time to write something!">
+                    EmptyText="@L["No posts found. Time to write something!"]">
         <Columns>
             <RadzenDataGridColumn TItem="BlogSummary" Width="48px" Filterable="false" Sortable="false">
                 <HeaderTemplate>
@@ -55,7 +56,7 @@
                            class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="BlogSummary" Property="Title" Title="Title">
+            <RadzenDataGridColumn TItem="BlogSummary" Property="Title" Title="@L["Title"]">
                 <Template Context="post">
                     <div class="flex items-center gap-3">
                          @if (!string.IsNullOrEmpty(post.FeaturedImageUrl))
@@ -66,24 +67,24 @@
                     </div>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="BlogSummary" Property="Slug" Title="URL Slug">
+            <RadzenDataGridColumn TItem="BlogSummary" Property="Slug" Title="@L["URL Slug"]">
                  <Template Context="post">
                       <span class="text-xs font-mono" style="color: var(--pe-text-muted);">/@post.Slug</span>
                  </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="BlogSummary" Property="PublishedAt" Title="Status">
+            <RadzenDataGridColumn TItem="BlogSummary" Property="PublishedAt" Title="@L["Status"]">
                 <Template Context="post">
                     @if (post.PublishedAt.HasValue)
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Published" class="px-2 py-1" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Published"]" class="px-2 py-1" />
                     }
                     else
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Draft" class="px-2 py-1" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@L["Draft"]" class="px-2 py-1" />
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="BlogSummary" Property="CreatedAt" Title="Created">
+            <RadzenDataGridColumn TItem="BlogSummary" Property="CreatedAt" Title="@L["Created"]">
                  <Template Context="post">
                       <span style="color: var(--pe-text-secondary);">@post.CreatedAt.ToShortDateString()</span>
                  </Template>
@@ -95,7 +96,7 @@
     {
         <div class="flex items-center gap-3 justify-end">
             <span style="color: var(--pe-text-muted);">@selectedPosts.Count selected</span>
-            <RadzenButton Icon="delete" Text="Delete Selected" 
+            <RadzenButton Icon="delete" Text="@L["Delete Selected"]" 
                           ButtonStyle="ButtonStyle.Danger" 
                           Variant="Variant.Outlined"
                           class="rounded-xl px-6 font-bold text-xs"
@@ -180,9 +181,9 @@
         if (selectedPosts.Count == 0) return;
 
         var confirm = await DialogService.Confirm(
-            $"Are you sure you want to delete {selectedPosts.Count} post(s)? This action cannot be undone.",
-            "Delete Posts",
-            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+            string.Format(L["Are you sure you want to delete {0} post(s)? This action cannot be undone."], selectedPosts.Count),
+            L["Delete Posts"],
+            new ConfirmOptions { OkButtonText = L["Delete"], CancelButtonText = L["Cancel"] });
 
         if (confirm != true) return;
 

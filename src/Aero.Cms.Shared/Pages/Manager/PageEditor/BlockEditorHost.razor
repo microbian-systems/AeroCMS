@@ -6,6 +6,7 @@
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Media
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.UI
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 @if (Block != null)
 {
@@ -46,7 +47,7 @@
             break;
         default:
             <div class="pe-property-panel p-4 text-muted-foreground text-sm">
-                <p>Properties not available for this block type.</p>
+                <p>@L["Properties not available for this block type."]</p>
                 <p class="text-xs mt-1">@Block.BlockType</p>
             </div>
             break;
@@ -56,7 +57,7 @@
 else
 {
     <div class="pe-property-panel p-4 text-muted-foreground text-sm">
-        <p>Select a block to edit its properties.</p>
+        <p>@L["Select a block to edit its properties."]</p>
     </div>
 }
 

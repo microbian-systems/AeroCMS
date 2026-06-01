@@ -1,7 +1,8 @@
 @using Aero.Cms.Abstractions.Blocks.Neo
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-property-panel p-4 text-muted-foreground text-sm">
-    <p>Separator block — no properties to configure.</p>
+    <p>@L["Separator block — no properties to configure."]</p>
 </div>
 
 @code {

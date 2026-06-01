@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Radzen;
 using Radzen.Blazor;
@@ -14,6 +15,7 @@ public partial class Footers
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILogger<Footers> Logger { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private RadzenDataGrid<FooterSummary>? _footerGrid;
     private IReadOnlyList<FooterSummary> _footers = Array.Empty<FooterSummary>();
@@ -37,13 +39,13 @@ public partial class Footers
             }
             else if (result is Result<IReadOnlyList<FooterSummary>, AeroError>.Failure fail)
             {
-                Notify(NotificationSeverity.Error, "Footers failed to load", fail.Error.ToString());
+                Notify(NotificationSeverity.Error, L[L["Footers failed to load"]], fail.Error.ToString());
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to load footers");
-            Notify(NotificationSeverity.Error, "Footers failed to load", ex.Message);
+            Notify(NotificationSeverity.Error, L["Footers failed to load"], ex.Message);
         }
         finally
         {
@@ -54,7 +56,7 @@ public partial class Footers
     private async Task CreateFooterAsync()
     {
         var dialogResult = await DialogService.OpenAsync<CreateFooterDialog>(
-            "New Footer",
+            L["New Footer"],
             null,
             new DialogOptions { Width = "460px", Resizable = false, Draggable = false });
 
@@ -72,18 +74,18 @@ public partial class Footers
 
             if (result is Result<FooterDetail, AeroError>.Ok ok)
             {
-                Notify(NotificationSeverity.Success, "Footer created");
+                Notify(NotificationSeverity.Success, L["Footer created"]);
                 Navigation.NavigateTo(EditorUrl(ok.Value.Id));
             }
             else if (result is Result<FooterDetail, AeroError>.Failure fail)
             {
-                Notify(NotificationSeverity.Error, "Footer was not created", fail.Error.ToString());
+                Notify(NotificationSeverity.Error, L["Footer was not created"], fail.Error.ToString());
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to create footer");
-            Notify(NotificationSeverity.Error, "Footer was not created", ex.Message);
+            Notify(NotificationSeverity.Error, L["Footer was not created"], ex.Message);
         }
         finally
         {

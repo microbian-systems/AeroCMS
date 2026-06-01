@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using System.Net.Http.Json;
 
 namespace Aero.Cms.Shared.Pages.Manager.Audit;
@@ -13,6 +14,7 @@ public partial class AuditDashboard : ComponentBase
 {
     [Inject] private HttpClient Http { get; set; } = null!;
     [Inject] private NavigationManager Nav { get; set; } = null!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private bool _loading;
     private string? _error;
@@ -74,19 +76,19 @@ public partial class AuditDashboard : ComponentBase
         _ => "text-gray-600"
     };
 
-    private static string FormatEventType(string eventType) => eventType switch
+    private string FormatEventType(string eventType) => eventType switch
     {
-        "PageCreated" => "Created",
-        "PageContentUpdated" => "Updated",
-        "PagePublished" => "Published",
-        "PageArchived" => "Archived",
-        "PageDeleted" => "Deleted",
-        "PageRestored" => "Restored",
-        "PageMoved" => "Moved",
-        "PageVisibilityChanged" => "Hidden Toggled",
-        "PageStateChanged" => "State Changed",
-        "BlogPostCreated" => "Created",
-        "BlogPostContentUpdated" => "Updated",
+        "PageCreated" => L["Created"],
+        "PageContentUpdated" => L["Updated"],
+        "PagePublished" => L["Published"],
+        "PageArchived" => L["Archived"],
+        "PageDeleted" => L["Deleted"],
+        "PageRestored" => L["Restored"],
+        "PageMoved" => L["Moved"],
+        "PageVisibilityChanged" => L["Hidden Toggled"],
+        "PageStateChanged" => L["State Changed"],
+        "BlogPostCreated" => L["Created"],
+        "BlogPostContentUpdated" => L["Updated"],
         _ => eventType
     };
 

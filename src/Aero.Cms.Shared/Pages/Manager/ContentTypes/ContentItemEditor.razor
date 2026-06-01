@@ -1,7 +1,8 @@
 @page "/manager/content/{alias}/editor/{id:long?}"
 @using Aero.Cms.Shared.Layout
+@using Microsoft.Extensions.Localization
 
-<PageTitle>@(Id.HasValue ? $"Edit {_typeName}" : $"New {_typeName}")</PageTitle>
+<PageTitle>@(Id.HasValue ? L["Edit {0}", _typeName] : L["New {0}", _typeName])</PageTitle>
 
 <style>
     .ci-editor-shell {
@@ -57,31 +58,31 @@
 <div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between gap-4">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-wide ci-muted">Content entry</p>
-            <h1 class="text-2xl font-bold pe-heading">@(Id.HasValue ? $"Edit {_typeName}" : $"New {_typeName}")</h1>
-            <p class="mt-1 text-sm pe-description">@(_allowPublicUrl ? "This entry can have its own public page." : "This entry is designed to be embedded in pages and blocks.")</p>
+            <p class="text-xs font-semibold uppercase tracking-wide ci-muted">@L["Content entry"]</p>
+            <h1 class="text-2xl font-bold pe-heading">@(Id.HasValue ? L["Edit {0}", _typeName] : L["New {0}", _typeName])</h1>
+            <p class="mt-1 text-sm pe-description">@(_allowPublicUrl ? L["This entry can have its own public page."] : L["This entry is designed to be embedded in pages and blocks."])</p>
         </div>
         <div class="flex gap-3">
-            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@Cancel" />
+            <RadzenButton Text="@L["Cancel"]" ButtonStyle="ButtonStyle.Secondary" Click="@Cancel" />
             @if (Id.HasValue)
             {
-                <RadzenButton Icon="delete" Text="Delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Click="@DeleteAsync" Disabled="@_isSaving" />
+                <RadzenButton Icon="delete" Text="@L["Delete"]" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Outlined" Click="@DeleteAsync" Disabled="@_isSaving" />
             }
-            <RadzenButton Icon="save" Text="Save Draft" ButtonStyle="ButtonStyle.Primary" Click="@SaveDraftAsync" Disabled="@_isSaving" />
+            <RadzenButton Icon="save" Text="@L["Save Draft"]" ButtonStyle="ButtonStyle.Primary" Click="@SaveDraftAsync" Disabled="@_isSaving" />
             @if (Id.HasValue && _publicationState == "Published")
             {
-                <RadzenButton Icon="unpublished" Text="Unpublish" ButtonStyle="ButtonStyle.Warning" Click="@UnpublishAsync" Disabled="@_isSaving" />
+                <RadzenButton Icon="unpublished" Text="@L["Unpublish"]" ButtonStyle="ButtonStyle.Warning" Click="@UnpublishAsync" Disabled="@_isSaving" />
             }
             else
             {
-                <RadzenButton Icon="publish" Text="Publish" ButtonStyle="ButtonStyle.Success" Click="@PublishAsync" Disabled="@_isSaving" />
+                <RadzenButton Icon="publish" Text="@L["Publish"]" ButtonStyle="ButtonStyle.Success" Click="@PublishAsync" Disabled="@_isSaving" />
             }
         </div>
     </div>
 
     @if (_typeDefinition is null)
     {
-        <div class="ci-panel text-sm ci-muted">Loading entry form...</div>
+        <div class="ci-panel text-sm ci-muted">@L["Loading entry form..."]</div>
     }
     else
     {
@@ -90,8 +91,8 @@
                 @if (_typeDefinition.Fields.Count == 0)
                 {
                     <div class="text-center py-10">
-                        <p class="font-medium" style="color: var(--pe-text-primary);">This content type has no fields yet.</p>
-                        <p class="text-sm mt-1 ci-muted">Add fields to the content type before creating entries.</p>
+                        <p class="font-medium" style="color: var(--pe-text-primary);">@L["This content type has no fields yet."]</p>
+                        <p class="text-sm mt-1 ci-muted">@L["Add fields to the content type before creating entries."]</p>
                     </div>
                 }
                 else
@@ -129,8 +130,8 @@
                                             <img src="@_fieldValues[field.Name]" alt="" class="ci-image-preview" />
                                         }
                                         <div class="flex gap-2">
-                                            <RadzenButton Icon="image" Text="Choose image" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => OpenMediaSelector(field.Name))" />
-                                            <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="Image URL" Class="w-full" />
+                                            <RadzenButton Icon="image" Text="@L["Choose image"]" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => OpenMediaSelector(field.Name))" />
+                                            <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@L["Image URL"]" Class="w-full" />
                                         </div>
                                     </div>
                                     break;
@@ -140,14 +141,14 @@
                                 case "boolean":
                                     <label class="flex items-center gap-2 text-sm" style="color: var(--pe-text-secondary);">
                                         <RadzenCheckBox TValue="bool" @bind-Value="_boolValues[field.Name]" />
-                                        Yes
+                                        @L["Yes"]
                                     </label>
                                     break;
                                 case "date":
                                     <RadzenDatePicker TValue="DateTime?" Value="@_dateValues[field.Name]" Change="@(args => SetDateValue(field.Name, args))" Class="w-full" />
                                     break;
                                 case "reference":
-                                    <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="Referenced entry ID" Class="w-full" />
+                                    <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@L["Referenced entry ID"]" Class="w-full" />
                                     break;
                                 default:
                                     <RadzenTextBox Value="@_fieldValues[field.Name]" ValueChanged="@(v => _fieldValues[field.Name] = v)" Placeholder="@field.Placeholder" Class="w-full" />
@@ -161,37 +162,37 @@
             <aside class="space-y-4">
                 <section class="ci-panel space-y-4" aria-label="Entry metadata">
                     <div class="flex items-center justify-between gap-3">
-                        <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Details</h2>
+                        <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Details"]</h2>
                         <RadzenBadge BadgeStyle="@StatusBadgeStyle" Text="@_publicationState" />
                     </div>
                     <label class="pe-property-group">
-                        <span class="pe-property-label">Title</span>
-                        <RadzenTextBox Value="@_title" ValueChanged="@OnTitleChanged" Placeholder="@($"Untitled {_typeName}")" Class="w-full" />
+                        <span class="pe-property-label">@L["Title"]</span>
+                        <RadzenTextBox Value="@_title" ValueChanged="@OnTitleChanged" Placeholder="@L["Untitled {0}", _typeName]" Class="w-full" />
                     </label>
                     @if (_allowPublicUrl)
                     {
                         <label class="pe-property-group">
-                            <span class="pe-property-label">Public URL slug</span>
-                            <RadzenTextBox Value="@_slug" ValueChanged="@OnSlugChanged" Placeholder="entry-url" Class="w-full" />
+                            <span class="pe-property-label">@L["Public URL slug"]</span>
+                            <RadzenTextBox Value="@_slug" ValueChanged="@OnSlugChanged" Placeholder="@L["entry-url"]" Class="w-full" />
                             <span class="text-xs ci-muted">/content/@Alias/@_slug</span>
                         </label>
                     }
                     else
                     {
                         <div class="ci-panel" style="background: var(--pe-bg-primary);">
-                            <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">Embedded entry</h3>
-                            <p class="ci-help mt-1">This entry will be selected from blocks or listings instead of having a standalone page.</p>
+                            <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Embedded entry"]</h3>
+                            <p class="ci-help mt-1">@L["This entry will be selected from blocks or listings instead of having a standalone page."]</p>
                         </div>
                     }
                     @if (Id.HasValue)
                     {
                         <div class="grid grid-cols-2 gap-3 text-sm">
                             <div>
-                                <span class="ci-muted">Version</span>
+                                <span class="ci-muted">@L["Version"]</span>
                                 <p style="color: var(--pe-text-primary);">v@_versionNumber</p>
                             </div>
                             <div>
-                                <span class="ci-muted">Published</span>
+                                <span class="ci-muted">@L["Published"]</span>
                                 <p style="color: var(--pe-text-primary);">@FormatDate(_publishedOn)</p>
                             </div>
                         </div>
@@ -199,8 +200,8 @@
                 </section>
 
                 <section class="ci-panel space-y-3" aria-label="Publishing note">
-                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">Publishing</h2>
-                    <p class="ci-help">Drafts can be incomplete. Publishing checks required fields and then makes the latest version available to pages, blocks, and public URLs when enabled.</p>
+                    <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Publishing"]</h2>
+                    <p class="ci-help">@L["Drafts can be incomplete. Publishing checks required fields and then makes the latest version available to pages, blocks, and public URLs when enabled."]</p>
                 </section>
             </aside>
         </div>

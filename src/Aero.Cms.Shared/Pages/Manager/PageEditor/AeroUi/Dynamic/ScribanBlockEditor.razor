@@ -1,12 +1,13 @@
 @using Aero.Cms.Abstractions.Blocks.Neo
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-property-panel">
     <div class="pe-property-group">
-        <label class="pe-property-label">Display Name</label>
+        <label class="pe-property-label">@L["Display Name"]</label>
         <RadzenTextBox @bind-Value="Block.Name" Class="w-full" />
     </div>
     <div class="pe-property-group">
-        <label class="pe-property-label">Scriban Template</label>
+        <label class="pe-property-label">@L["Scriban Template"]</label>
         <RadzenTextArea @bind-Value="Block.Template" Class="w-full" Rows="12" Style="font-family: monospace;" />
     </div>
 </div>

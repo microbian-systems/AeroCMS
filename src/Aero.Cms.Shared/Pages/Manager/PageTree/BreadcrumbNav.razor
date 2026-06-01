@@ -1,3 +1,5 @@
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 <nav aria-label="Breadcrumb" class="flex items-center text-sm">
     <ol class="flex flex-wrap items-center gap-1">
         @for (var i = 0; i < _items.Count; i++)

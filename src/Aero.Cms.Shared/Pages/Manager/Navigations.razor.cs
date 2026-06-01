@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Radzen;
 using Radzen.Blazor;
@@ -14,6 +15,7 @@ public partial class Navigations
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILogger<Navigations> Logger { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private RadzenDataGrid<NavigationSummary>? _menuGrid;
     private IReadOnlyList<NavigationSummary> _menus = Array.Empty<NavigationSummary>();
@@ -37,13 +39,13 @@ public partial class Navigations
             }
             else if (result is Result<IReadOnlyList<NavigationSummary>, AeroError>.Failure fail)
             {
-                Notify(NotificationSeverity.Error, "Header menus failed to load", fail.Error.ToString());
+                Notify(NotificationSeverity.Error, L["Header menus failed to load"], fail.Error.ToString());
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to load header menus");
-            Notify(NotificationSeverity.Error, "Header menus failed to load", ex.Message);
+            Notify(NotificationSeverity.Error, L["Header menus failed to load"], ex.Message);
         }
         finally
         {
@@ -54,7 +56,7 @@ public partial class Navigations
     private async Task CreateMenuAsync()
     {
         var dialogResult = await DialogService.OpenAsync<CreateNavMenuDialog>(
-            "New Header Menu",
+            L["New Header Menu"],
             null,
             new DialogOptions { Width = "460px", Resizable = false, Draggable = false });
 
@@ -73,18 +75,18 @@ public partial class Navigations
 
             if (result is Result<NavigationDetail, AeroError>.Ok ok)
             {
-                Notify(NotificationSeverity.Success, "Header menu created");
+                Notify(NotificationSeverity.Success, L["Header menu created"]);
                 Navigation.NavigateTo(EditorUrl(ok.Value.Id));
             }
             else if (result is Result<NavigationDetail, AeroError>.Failure fail)
             {
-                Notify(NotificationSeverity.Error, "Header menu was not created", fail.Error.ToString());
+                Notify(NotificationSeverity.Error, L["Header menu was not created"], fail.Error.ToString());
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to create header menu");
-            Notify(NotificationSeverity.Error, "Header menu was not created", ex.Message);
+            Notify(NotificationSeverity.Error, L["Header menu was not created"], ex.Message);
         }
         finally
         {

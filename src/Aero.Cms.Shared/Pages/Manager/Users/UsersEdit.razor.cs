@@ -4,6 +4,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Radzen;
 
 public partial class UsersEdit : ComponentBase
@@ -13,6 +14,7 @@ public partial class UsersEdit : ComponentBase
     [Inject] protected IUsersHttpClient UsersApi { get; set; } = default!;
 
     [Inject] protected NavigationManager Navigation { get; set; } = default!;
+    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     protected bool IsLoading { get; set; }
     protected bool IsSaving { get; set; }
@@ -27,11 +29,11 @@ public partial class UsersEdit : ComponentBase
     protected List<string> Roles { get; } = [];
 
     protected bool IsNew => Id is null or 0;
-    protected string PageTitle => IsNew ? "New User" : $"Edit {DisplayNameOrUserName}";
-    protected string SaveButtonText => IsSaving ? "Saving..." : IsNew ? "Create User" : "Save User";
-    protected string StatusDescription => IsEnabled ? "This user can sign in." : "This user is disabled.";
+    protected string PageTitle => IsNew ? L["New User"] : $"{L["Edit"]} {DisplayNameOrUserName}";
+    protected string SaveButtonText => IsSaving ? L["Saving..."] : IsNew ? L["Create User"] : L["Save User"];
+    protected string StatusDescription => IsEnabled ? L["This user can sign in."] : L["This user is disabled."];
     protected string CreatedAtText => CreatedAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? "-";
-    protected string LastLoginText => LastLoginAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? "Never";
+    protected string LastLoginText => LastLoginAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? L["Never"];
 
     private string DisplayNameOrUserName
         => !string.IsNullOrWhiteSpace(DisplayName) ? DisplayName : UserName;

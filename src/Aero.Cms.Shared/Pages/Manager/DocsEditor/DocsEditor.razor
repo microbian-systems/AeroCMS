@@ -4,29 +4,30 @@
 
 @using Aero.Cms.Abstractions.Enums
 @using Aero.Cms.Abstractions.Http.Clients
+@using Microsoft.Extensions.Localization
 @using NeoUI.Blazor
 
-<PageTitle>@(Space?.Title ?? "Docs Editor")</PageTitle>
+<PageTitle>@(Space?.Title ?? L["Docs Editor"])</PageTitle>
 
 <div class="pe-doc-editor-shell">
     <header class="pe-doc-editor-topbar">
         <div class="pe-doc-editor-title-block">
-            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="BackToSpaces">Spaces</button>
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="BackToSpaces">@L["Spaces"]</button>
             <span class="pe-doc-editor-breadcrumb">/</span>
-            <span class="pe-doc-editor-space-name">@(Space?.Title ?? "Loading")</span>
+            <span class="pe-doc-editor-space-name">@(Space?.Title ?? L["Loading"])</span>
         </div>
         <div class="pe-doc-editor-actions">
             @if (Current is not null)
             {
-                <a class="pe-btn pe-btn-ghost pe-btn-sm" href="@PublicUrl(Current)" target="_blank" rel="noopener noreferrer">View</a>
+                <a class="pe-btn pe-btn-ghost pe-btn-sm" href="@PublicUrl(Current)" target="_blank" rel="noopener noreferrer">@L["View"]</a>
                 <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="TogglePreview">
-                    @(PreviewMode ? "Edit" : "Preview")
+                    @(PreviewMode ? L["Edit"] : L["Preview"])
                 </button>
                 <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="SaveCurrentAsync" disabled="@_isSaving">
-                    @(_isSaving ? "Saving..." : "Save")
+                    @(_isSaving ? L["Saving..."] : L["Save"])
                 </button>
                 <button type="button" class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishCurrentAsync" disabled="@_isSaving">
-                    Publish
+                    @L["Publish"]
                 </button>
             }
         </div>
@@ -34,11 +35,11 @@
 
     @if (_isLoading)
     {
-        <div class="pe-doc-editor-loading">Loading space...</div>
+        <div class="pe-doc-editor-loading">@L["Loading space..."]</div>
     }
     else if (Space is null)
     {
-        <div class="pe-doc-editor-loading">Space not found.</div>
+        <div class="pe-doc-editor-loading">@L["Space not found."]</div>
     }
     else
     {
@@ -46,33 +47,33 @@
             <aside class="pe-doc-editor-explorer" aria-label="Space outline">
                 <div class="pe-doc-editor-panel-head">
                     <div>
-                        <p class="pe-docs-kicker">Explorer</p>
+                        <p class="pe-docs-kicker">@L["Explorer"]</p>
                         <h2>@Space.Title</h2>
                     </div>
-                    <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="CreateChildAsync">Add</button>
+                    <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="CreateChildAsync">@L["Add"]</button>
                 </div>
 
                 <div class="pe-doc-tree-tools">
                     <label class="pe-field pe-doc-tree-search">
-                        <span>Find</span>
-                        <input value="@_outlineSearch" @oninput="OnOutlineSearchChanged" placeholder="Search this space" />
+                        <span>@L["Find"]</span>
+                        <input value="@_outlineSearch" @oninput="OnOutlineSearchChanged" placeholder="@L["Search this space"]" />
                     </label>
                     <label class="pe-doc-tree-check">
                         <input type="checkbox" checked="@_multiSelect" @onchange="ToggleMultiSelect" />
-                        Multi-select
+                        @L["Multi-select"]
                     </label>
                     @if (_selectedIds.Count > 0)
                     {
-                        <span>@_selectedIds.Count selected</span>
+                        <span>@string.Format(L["{0} selected"], _selectedIds.Count)</span>
                     }
                 </div>
 
                 @if (_selectedIds.Count > 0)
                 {
                     <div class="pe-doc-batch-bar" aria-label="Batch actions">
-                        <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="PublishSelectedAsync">Publish</button>
-                        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="UnpublishSelectedAsync">Unpublish</button>
-                        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm pe-doc-delete-btn" @onclick="DeleteSelectedAsync">Delete</button>
+                        <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="PublishSelectedAsync">@L["Publish"]</button>
+                        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="UnpublishSelectedAsync">@L["Unpublish"]</button>
+                        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm pe-doc-delete-btn" @onclick="DeleteSelectedAsync">@L["Delete"]</button>
                     </div>
                 }
 
@@ -92,25 +93,25 @@
                                         <span class="pe-doc-tree-node-title">@node.Title</span>
                                         <span class="pe-doc-tree-node-meta">@node.ChildCount</span>
                                     </button>
-                                    <button type="button" class="pe-doc-tree-node-action" title="Move up" @onclick="() => MoveNodeAsync(node.Id, -1)" disabled="@IsSpaceNode(node)">Up</button>
-                                    <button type="button" class="pe-doc-tree-node-action" title="Move down" @onclick="() => MoveNodeAsync(node.Id, 1)" disabled="@IsSpaceNode(node)">Down</button>
-                                    <button type="button" class="pe-doc-tree-node-action" title="Add child section" @onclick="() => CreateChildAsync(node.Id)">+</button>
+                                    <button type="button" class="pe-doc-tree-node-action" title="@L["Move up"]" @onclick="() => MoveNodeAsync(node.Id, -1)" disabled="@IsSpaceNode(node)">@L["Up"]</button>
+                                    <button type="button" class="pe-doc-tree-node-action" title="@L["Move down"]" @onclick="() => MoveNodeAsync(node.Id, 1)" disabled="@IsSpaceNode(node)">@L["Down"]</button>
+                                    <button type="button" class="pe-doc-tree-node-action" title="@L["Add child section"]" @onclick="() => CreateChildAsync(node.Id)">+</button>
                                 </div>
                             </ContextMenuTrigger>
                             <ContextMenuContent Class="pe-doc-context-menu">
-                                <ContextMenuItem OnClick="@(() => SelectNode(node))">Open</ContextMenuItem>
-                                <ContextMenuItem OnClick="@(() => CreateChildAsync(node.Id))">Add child section</ContextMenuItem>
-                                <ContextMenuItem OnClick="@(() => EditNodeAttributes(node))">Edit attributes</ContextMenuItem>
-                                <ContextMenuItem OnClick="@(() => DuplicateNodeAsync(node.Id))" Disabled="@IsSpaceNode(node)">Duplicate</ContextMenuItem>
+                                <ContextMenuItem OnClick="@(() => SelectNode(node))">@L["Open"]</ContextMenuItem>
+                                <ContextMenuItem OnClick="@(() => CreateChildAsync(node.Id))">@L["Add child section"]</ContextMenuItem>
+                                <ContextMenuItem OnClick="@(() => EditNodeAttributes(node))">@L["Edit attributes"]</ContextMenuItem>
+                                <ContextMenuItem OnClick="@(() => DuplicateNodeAsync(node.Id))" Disabled="@IsSpaceNode(node)">@L["Duplicate"]</ContextMenuItem>
                                 <ContextMenuSeparator />
-                                <ContextMenuItem OnClick="@(() => MoveNodeAsync(node.Id, -1))" Disabled="@IsSpaceNode(node)">Move up</ContextMenuItem>
-                                <ContextMenuItem OnClick="@(() => MoveNodeAsync(node.Id, 1))" Disabled="@IsSpaceNode(node)">Move down</ContextMenuItem>
-                                <ContextMenuItem OnClick="@(() => MoveNodeToSpaceRootAsync(node.Id))" Disabled="@IsSpaceNode(node)">Move to space root</ContextMenuItem>
+                                <ContextMenuItem OnClick="@(() => MoveNodeAsync(node.Id, -1))" Disabled="@IsSpaceNode(node)">@L["Move up"]</ContextMenuItem>
+                                <ContextMenuItem OnClick="@(() => MoveNodeAsync(node.Id, 1))" Disabled="@IsSpaceNode(node)">@L["Move down"]</ContextMenuItem>
+                                <ContextMenuItem OnClick="@(() => MoveNodeToSpaceRootAsync(node.Id))" Disabled="@IsSpaceNode(node)">@L["Move to space root"]</ContextMenuItem>
                                 <ContextMenuSeparator />
-                                <ContextMenuItem OnClick="@(() => PublishNodeAsync(node.Id))">Publish</ContextMenuItem>
-                                <ContextMenuItem OnClick="@(() => UnpublishNodeAsync(node.Id))">Unpublish</ContextMenuItem>
+                                <ContextMenuItem OnClick="@(() => PublishNodeAsync(node.Id))">@L["Publish"]</ContextMenuItem>
+                                <ContextMenuItem OnClick="@(() => UnpublishNodeAsync(node.Id))">@L["Unpublish"]</ContextMenuItem>
                                 <ContextMenuSeparator />
-                                <ContextMenuItem Class="pe-doc-context-danger" OnClick="@(() => DeleteNodeAsync(node.Id))" Disabled="@IsSpaceNode(node)">Delete</ContextMenuItem>
+                                <ContextMenuItem Class="pe-doc-context-danger" OnClick="@(() => DeleteNodeAsync(node.Id))" Disabled="@IsSpaceNode(node)">@L["Delete"]</ContextMenuItem>
                             </ContextMenuContent>
                         </ContextMenu>
                     }
@@ -120,7 +121,7 @@
             <main class="pe-doc-editor-main">
                 @if (Current is null)
                 {
-                    <div class="pe-doc-editor-empty">Select a section to start editing.</div>
+                    <div class="pe-doc-editor-empty">@L["Select a section to start editing."]</div>
                 }
                 else
                 {
@@ -130,7 +131,7 @@
                                 <input class="pe-doc-title-input"
                                        value="@Current.Title"
                                        @oninput="OnTitleChanged"
-                                       placeholder="Untitled section" />
+                                       placeholder="@L["Untitled section"]" />
                                 <span class="@StatusClass(Current.PublicationState)">@Current.PublicationState</span>
                             </div>
                             <div class="pe-doc-document-meta-row">
@@ -138,7 +139,7 @@
                                 <span>@FormatCulture(Current.Culture)</span>
                                 @if (HasUnpublishedChanges)
                                 {
-                                    <span>Unpublished changes</span>
+                                    <span>@L["Unpublished changes"]</span>
                                 }
                             </div>
                         </div>
@@ -147,9 +148,9 @@
                              style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
                             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div>
-                                    <h3 class="text-base font-semibold" style="color: var(--pe-text-primary);">Translations</h3>
-                                    <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">Current variant: @FormatCulture(Current.Culture)</p>
-                                    <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">@DocCultureVariants.Count of @SupportedCultures.Count site cultures created.</p>
+                                    <h3 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Translations"]</h3>
+                                    <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">@L["Current variant:"] @FormatCulture(Current.Culture)</p>
+                                    <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">@string.Format(L["{0} of {1} site cultures created."], DocCultureVariants.Count, SupportedCultures.Count)</p>
                                 </div>
                                 @if (Current.TranslationSetId is { } translationSetId)
                                 {
@@ -163,19 +164,19 @@
                             <div class="rounded-md border p-3"
                                  style="border-color: var(--pe-border); background: var(--pe-bg-primary);">
                                 <div class="mb-3 flex flex-wrap items-center gap-2 text-xs" style="color: var(--pe-text-muted);">
-                                    <span class="font-semibold uppercase tracking-wider">Available variants</span>
+                                    <span class="font-semibold uppercase tracking-wider">@L["Available variants"]</span>
                                     @if (!AvailableTranslationCultures.Any())
                                     {
-                                        <span class="rounded px-2 py-0.5" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">Complete</span>
+                                        <span class="rounded px-2 py-0.5" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">@L["Complete"]</span>
                                     }
                                 </div>
                                 @if (IsLoadingTranslations)
                                 {
-                                    <p class="text-sm" style="color: var(--pe-text-muted);">Loading translations...</p>
+                                    <p class="text-sm" style="color: var(--pe-text-muted);">@L["Loading translations..."]</p>
                                 }
                                 else if (DocCultureVariants.Count == 0)
                                 {
-                                    <p class="text-sm" style="color: var(--pe-text-muted);">No translation variants found.</p>
+                                    <p class="text-sm" style="color: var(--pe-text-muted);">@L["No translation variants found."]</p>
                                 }
                                 else
                                 {
@@ -199,7 +200,7 @@
                             {
                                 <div class="grid grid-cols-1 md:grid-cols-[220px_1fr_auto] gap-3 items-end">
                                     <label class="pe-field">
-                                        <span>Target culture</span>
+                                        <span>@L["Target culture"]</span>
                                         <select @bind="SelectedTranslationCulture">
                                             @foreach (var culture in AvailableTranslationCultures)
                                             {
@@ -208,38 +209,38 @@
                                         </select>
                                     </label>
                                     <label class="pe-field">
-                                        <span>Translated slug</span>
+                                        <span>@L["Translated slug"]</span>
                                         <input @bind="TranslationSlug" @bind:event="oninput" placeholder="@Current.Slug" />
-                                        <small>Leave blank to copy the current slug, or enter the translated URL path.</small>
+                                        <small>@L["Leave blank to copy the current slug, or enter the translated URL path."]</small>
                                     </label>
                                     <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="CreateTranslationAsync" disabled="@IsCreatingTranslation">
-                                        @(IsCreatingTranslation ? "Creating..." : "Create Translation")
+                                        @(IsCreatingTranslation ? L["Creating..."] : L["Create Translation"])
                                     </button>
                                 </div>
                             }
                             else
                             {
-                                <p class="text-sm" style="color: var(--pe-text-muted);">All supported site cultures already have a docs variant.</p>
+                                <p class="text-sm" style="color: var(--pe-text-muted);">@L["All supported site cultures already have a docs variant."]</p>
                             }
                         </div>
 
                         <div class="pe-doc-editor-tabs" role="tablist">
-                            <button type="button" class="@TabClass("content")" @onclick='() => ActiveTab = "content"'>Content</button>
-                            <button type="button" class="@TabClass("preview")" @onclick='() => ActiveTab = "preview"'>Preview</button>
-                            <button type="button" class="@TabClass("attributes")" @onclick='() => ActiveTab = "attributes"'>Attributes</button>
+                            <button type="button" class="@TabClass("content")" @onclick='() => ActiveTab = "content"'>@L["Content"]</button>
+                            <button type="button" class="@TabClass("preview")" @onclick='() => ActiveTab = "preview"'>@L["Preview"]</button>
+                            <button type="button" class="@TabClass("attributes")" @onclick='() => ActiveTab = "attributes"'>@L["Attributes"]</button>
                         </div>
 
                         @if (ActiveTab == "content")
                         {
                             <div class="pe-doc-write-grid">
                                 <label class="pe-field pe-doc-markdown-field">
-                                    <span>Markdown</span>
+                                    <span>@L["Markdown"]</span>
                                     <textarea value="@Current.MarkdownContent"
                                               @oninput="OnMarkdownChanged"
                                               placeholder="# Start writing..."></textarea>
                                 </label>
                                 <div class="pe-doc-live-preview">
-                                    <div class="pe-doc-preview-label">Live preview</div>
+                                    <div class="pe-doc-preview-label">@L["Live preview"]</div>
                                     <RadzenMarkdown Text="@Current.MarkdownContent" AllowHtml="true" />
                                 </div>
                             </div>
@@ -248,7 +249,7 @@
                         {
                             <article class="pe-doc-public-preview">
                                 <div class="pe-doc-public-preview-inner">
-                                    <p class="pe-doc-public-eyebrow">Docs</p>
+                                    <p class="pe-doc-public-eyebrow">@L["Docs"]</p>
                                     <h1>@Current.Title</h1>
                                     @if (!string.IsNullOrWhiteSpace(Current.Summary))
                                     {
@@ -262,11 +263,11 @@
                         {
                             <div class="pe-doc-attributes-grid">
                                 <label class="pe-field">
-                                    <span>Slug</span>
+                                    <span>@L["Slug"]</span>
                                     <input value="@Current.Slug" @oninput="OnSlugChanged" />
                                 </label>
                                 <label class="pe-field">
-                                    <span>Parent</span>
+                                    <span>@L["Parent"]</span>
                                     <select value="@ParentSelectValue" @onchange="OnParentChanged" disabled="@IsEditingSpaceRoot">
                                         @foreach (var option in ParentOptions)
                                         {
@@ -275,36 +276,36 @@
                                     </select>
                                 </label>
                                 <label class="pe-field">
-                                    <span>Order</span>
+                                    <span>@L["Order"]</span>
                                     <input type="number" value="@Current.Order" @oninput="OnOrderChanged" />
                                 </label>
                                 <label class="pe-field">
-                                    <span>Status</span>
+                                    <span>@L["Status"]</span>
                                     <select value="@Current.PublicationState" @onchange="OnStatusChanged">
-                                        <option value="@ContentPublicationState.Draft">Draft</option>
-                                        <option value="@ContentPublicationState.Published">Published</option>
-                                        <option value="@ContentPublicationState.Archived">Archived</option>
+                                        <option value="@ContentPublicationState.Draft">@L["Draft"]</option>
+                                        <option value="@ContentPublicationState.Published">@L["Published"]</option>
+                                        <option value="@ContentPublicationState.Archived">@L["Archived"]</option>
                                     </select>
                                 </label>
                                 <label class="pe-field pe-doc-attributes-wide">
-                                    <span>Summary</span>
+                                    <span>@L["Summary"]</span>
                                     <textarea rows="3" value="@Current.Summary" @oninput="e => UpdateCurrent(current => current.Summary = e.Value?.ToString())"></textarea>
                                 </label>
                                 <label class="pe-field">
-                                    <span>SEO title</span>
+                                    <span>@L["SEO title"]</span>
                                     <input value="@Current.SeoTitle" @oninput="e => UpdateCurrent(current => current.SeoTitle = e.Value?.ToString())" />
                                 </label>
                                 <label class="pe-field">
-                                    <span>SEO description</span>
+                                    <span>@L["SEO description"]</span>
                                     <textarea rows="3" value="@Current.SeoDescription" @oninput="e => UpdateCurrent(current => current.SeoDescription = e.Value?.ToString())"></textarea>
                                 </label>
                                 <label class="pe-field">
-                                    <span>Header image URL</span>
+                                    <span>@L["Header image URL"]</span>
                                     <input value="@Current.HeaderImageUrl" @oninput="e => UpdateCurrent(current => current.HeaderImageUrl = e.Value?.ToString())" />
                                 </label>
                                 <label class="pe-doc-toggle">
                                     <input type="checkbox" checked="@Current.ShowHeaderNavigation" @onchange="OnShowHeaderNavigationChanged" />
-                                    Show site navigation
+                                    @L["Show site navigation"]
                                 </label>
                             </div>
                         }
@@ -314,41 +315,41 @@
 
             <aside class="pe-doc-editor-inspector" aria-label="Document tools">
                 <section>
-                    <p class="pe-docs-kicker">Structure</p>
+                    <p class="pe-docs-kicker">@L["Structure"]</p>
                     <h2>@(Current?.Title ?? Space.Title)</h2>
                     <dl class="pe-doc-inspector-list">
                         <div>
-                            <dt>Space</dt>
+                            <dt>@L["Space"]</dt>
                             <dd>@Space.Title</dd>
                         </div>
                         <div>
-                            <dt>Depth</dt>
+                            <dt>@L["Depth"]</dt>
                             <dd>@(SelectedNode?.Depth ?? 0)</dd>
                         </div>
                         <div>
-                            <dt>Children</dt>
+                            <dt>@L["Children"]</dt>
                             <dd>@(SelectedNode?.ChildCount ?? 0)</dd>
                         </div>
                     </dl>
                 </section>
 
                 <section>
-                    <p class="pe-docs-kicker">Content blocks</p>
+                    <p class="pe-docs-kicker">@L["Content blocks"]</p>
                     <div class="pe-doc-block-tray">
-                        <button type="button" @onclick='() => InsertSnippet("markdown")'>Markdown</button>
-                        <button type="button" @onclick='() => InsertSnippet("code")'>Code</button>
-                        <button type="button" @onclick='() => InsertSnippet("callout")'>Callout</button>
-                        <button type="button" @onclick='() => InsertSnippet("table")'>Table</button>
-                        <button type="button" @onclick='() => InsertSnippet("image")'>Image</button>
-                        <button type="button" @onclick='() => InsertSnippet("children")'>Child links</button>
+                        <button type="button" @onclick='() => InsertSnippet("markdown")'>@L["Markdown"]</button>
+                        <button type="button" @onclick='() => InsertSnippet("code")'>@L["Code"]</button>
+                        <button type="button" @onclick='() => InsertSnippet("callout")'>@L["Callout"]</button>
+                        <button type="button" @onclick='() => InsertSnippet("table")'>@L["Table"]</button>
+                        <button type="button" @onclick='() => InsertSnippet("image")'>@L["Image"]</button>
+                        <button type="button" @onclick='() => InsertSnippet("children")'>@L["Child links"]</button>
                     </div>
                 </section>
 
                 <section class="pe-doc-danger-zone">
-                    <p class="pe-docs-kicker">Actions</p>
-                    <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="DuplicateCurrentAsync" disabled="@(Current is null)">Duplicate</button>
-                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="UnpublishCurrentAsync" disabled="@(Current is null)">Unpublish</button>
-                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm pe-doc-delete-btn" @onclick="DeleteCurrentAsync" disabled="@IsEditingSpaceRoot">Delete</button>
+                    <p class="pe-docs-kicker">@L["Actions"]</p>
+                    <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="DuplicateCurrentAsync" disabled="@(Current is null)">@L["Duplicate"]</button>
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="UnpublishCurrentAsync" disabled="@(Current is null)">@L["Unpublish"]</button>
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm pe-doc-delete-btn" @onclick="DeleteCurrentAsync" disabled="@IsEditingSpaceRoot">@L["Delete"]</button>
                 </section>
             </aside>
         </div>
