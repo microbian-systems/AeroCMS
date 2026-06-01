@@ -12,7 +12,7 @@ public sealed class NavMenuCultureForkerTests
         {
             Id = 100,
             SiteId = 42,
-            TranslationSetId = 900,
+            TranslationGroupId = 900,
             Culture = "en-US",
             Name = "Header",
             Key = "main"
@@ -35,7 +35,7 @@ public sealed class NavMenuCultureForkerTests
 
         await Assert.That(fork.Created.SiteId).IsEqualTo(42);
         await Assert.That(fork.Created.Culture).IsEqualTo("es-MX");
-        await Assert.That(fork.Created.TranslationSetId).IsEqualTo(900);
+        await Assert.That(fork.Created.TranslationGroupId).IsEqualTo(900);
         await Assert.That(fork.Created.UserId).IsEqualTo(7);
         await Assert.That(fork.DraftSaved.Snapshot.Left).Count().IsEqualTo(1);
         await Assert.That(fork.DraftSaved.Snapshot.Left[0]).IsAssignableTo<NavLink>();
@@ -57,7 +57,7 @@ public sealed class NavMenuCultureForkerTests
 
         var fork = NavMenuCultureForker.Fork(source, NavMenuSnapshot.Empty, 200, "ar-SA");
 
-        await Assert.That(fork.Created.TranslationSetId).IsEqualTo(100);
+        await Assert.That(fork.Created.TranslationGroupId).IsEqualTo(100);
         await Assert.That(fork.Created.Culture).IsEqualTo("ar-SA");
     }
 }

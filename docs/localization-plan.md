@@ -2,12 +2,12 @@
 
 ## Overview
 
-Add multi-culture support across the full AeroCMS stack using **document-per-culture** for rich entities (Pages, Posts, NavMenus, Footers) and **sidecar translation tables** for simple entities (Categories, Tags, Products). Documents of the same logical content are linked by `TranslationSetId`, each with their own blocks, layouts, and slug. URL-prefix routing is site-aware via a custom `AeroRequestCultureProvider`. Full RTL layout support for both public and admin UIs.
+Add multi-culture support across the full AeroCMS stack using **document-per-culture** for rich entities (Pages, Posts, NavMenus, Footers) and **sidecar translation tables** for simple entities (Categories, Tags, Products). Documents of the same logical content are linked by `TranslationGroupId`, each with their own blocks, layouts, and slug. URL-prefix routing is site-aware via a custom `AeroRequestCultureProvider`. Full RTL layout support for both public and admin UIs.
 
 ## Architecture Decisions
 
 ### Decision: Document-per-culture for rich entities (not sidecar translation tables)
-**Rationale:** AeroCMS's Marten document model and Wolverine event sourcing treat documents as the unit of change. PageDocument already owns slug, title, SEO, hierarchy, LayoutRegions, Blocks, BlockIdMap, and publish state — updates apply these together. Creating a separate `PageTranslation` sidecar would fracture this natural unit. Each culture gets its own full PageDocument with `Culture` and `TranslationSetId`, so blocks, images, CTAs, layouts, and publish state can all differ per culture. This is idiomatic Marten.
+**Rationale:** AeroCMS's Marten document model and Wolverine event sourcing treat documents as the unit of change. PageDocument already owns slug, title, SEO, hierarchy, LayoutRegions, Blocks, BlockIdMap, and publish state — updates apply these together. Creating a separate `PageTranslation` sidecar would fracture this natural unit. Each culture gets its own full PageDocument with `Culture` and `TranslationGroupId`, so blocks, images, CTAs, layouts, and publish state can all differ per culture. This is idiomatic Marten.
 
 ### Decision: Sidecar translations for simple entities (Categories, Tags)
 **Rationale:** CategoryModel and TagModel have only name/slug/description — they are referenced by ID from posts. A full document-per-culture approach here wastes storage and complicates ID references. A sidecar `CategoryTranslation`/`TagTranslation` is the right weight for these simple types.
@@ -16,7 +16,7 @@ Add multi-culture support across the full AeroCMS stack using **document-per-cul
 **Rationale:** URL prefix (`/en-us/page-slug`) is SEO-friendly, cache-friendly (same URL = same content), and works without JavaScript. Loading cultures globally at startup is wrong for a multi-site CMS — each site has different supported cultures. A custom `AeroRequestCultureProvider` resolves the site from the host header first, then validates the URL culture against that site's `SupportedCultures`, before setting `CurrentCulture`/`CurrentUICulture`.
 
 ### Decision: Separate NavMenu per culture (not per-item translation table)
-**Rationale:** NavMenu structure often differs between cultures (different menu items, different hierarchy). Document-per-culture NavMenus linked by `TranslationSetId` give full flexibility. Each NavMenu has its own `Culture` field for direct querying (`(TranslationSetId, Culture)` → NavMenu).
+**Rationale:** NavMenu structure often differs between cultures (different menu items, different hierarchy). Document-per-culture NavMenus linked by `TranslationGroupId` give full flexibility. Each NavMenu has its own `Culture` field for direct querying (`(TranslationGroupId, Culture)` → NavMenu).
 
 ### Decision: Culture banner on missing translations (not redirect, not silent)
 **Rationale:** A fallback banner preserves SEO (avoids 404/301 noise), signals to users that more translated content exists, and doesn't break the navigation flow. The user can still read the default-culture content.
@@ -47,20 +47,20 @@ Add multi-culture support across the full AeroCMS stack using **document-per-cul
   - **Files:** `src/Aero.Cms.Abstractions/Requests/CreateSiteRequest.cs`, `src/Aero.Cms.Modules.Sites/SitesApi.cs`, `src/Aero.Cms.Abstractions/Models/SiteViewModel.cs`
   - **Scope:** S (3 files)
 
-- [ ] **Task 1.3:** Add `Culture` + `TranslationSetId` to document-per-culture entities
-  - **Acceptance:** `PageDocument`, `PostDocument`, `NavMenuDocument`, and `FooterDocument` each gain `long? TranslationSetId` (nullable) and `string Culture` (non-null, defaults to `"en-US"`). Existing documents without culture values default to site's `DefaultCulture` via migration or document read fallback.
+- [ ] **Task 1.3:** Add `Culture` + `TranslationGroupId` to document-per-culture entities
+  - **Acceptance:** `PageDocument`, `PostDocument`, `NavMenuDocument`, and `FooterDocument` each gain `long? TranslationGroupId` (nullable) and `string Culture` (non-null, defaults to `"en-US"`). Existing documents without culture values default to site's `DefaultCulture` via migration or document read fallback.
   - **Verify:** Build succeeds. Existing documents can be read from Marten without errors.
   - **Files:** `src/Aero.Cms.Core.Entities/PageDocument.cs`, `src/Aero.Cms.Core.Entities/PostDocument.cs`, `src/Aero.Cms.Modules.Navigation/Domain/NavMenuDocument.cs`, `src/Aero.Cms.Modules.Footer/Domain/FooterDocument.cs`
   - **Scope:** M (4 files)
 
 #### Checkpoint 1B: Events + Slug Registry + Sidecar Translations (Tasks 1.4–1.7)
 
-- [ ] **Task 1.4:** Add `Culture` + `TranslationSetId` to document-per-culture events
+- [ ] **Task 1.4:** Add `Culture` + `TranslationGroupId` to document-per-culture events
   - **Acceptance:** Wolverine events gain culture parameters where needed:
-    - `PageCreated` → + `Culture`, `TranslationSetId`
-    - `NavMenuCreated` → + `Culture`, `TranslationSetId`
-    - `FooterCreated` → + `Culture`, `TranslationSetId`
-    - `PostCreated` (if any) → + `Culture`, `TranslationSetId`
+    - `PageCreated` → + `Culture`, `TranslationGroupId`
+    - `NavMenuCreated` → + `Culture`, `TranslationGroupId`
+    - `FooterCreated` → + `Culture`, `TranslationGroupId`
+    - `PostCreated` (if any) → + `Culture`, `TranslationGroupId`
     - Existing events that don't create new documents (e.g., `PageContentUpdated`, `NavMenuPublished`) do NOT need culture params — they inherit from the document's already-set culture.
     - Doc `Apply()` methods assign the new fields from events where present.
   - **Verify:** Build succeeds. Existing event-sourced documents replay correctly (new params are additive, null defaults).
@@ -122,9 +122,9 @@ Add multi-culture support across the full AeroCMS stack using **document-per-cul
 - [ ] **Task 3.1:** Update page services for culture-scoped queries + fork-to-culture
   - **Acceptance:** `PageService` exposes:
     - `GetPage(siteId, culture, slug)` — resolves PageDocument by `(SiteId, Culture, Slug)`. Falls back to default culture if not found. When falling back, returns a flag or wrapper identifying the fallback for `FallbackBanner`.
-    - `ForkPage(sourcePageId, targetCulture, targetSlug)` — creates new PageDocument with same `TranslationSetId`, new Snowflake `Id`, new `Culture`, new `Slug`. Clones blocks/layout by default (Phase 1).
-    - `ListPageCultureVariants(translationSetId)` — returns all PageDocuments sharing a `TranslationSetId`.
-  - **Verify:** Unit test: create page in `en-US` (TranslationSetId=42), fork to `es-MX` with different slug → second PageDocument exists with TranslationSetId=42 and Culture="es-MX". Query by (siteId, "es-MX", "nuevo-slug") returns the fork. Query by (siteId, "fr-FR", "about") falls back to `en-US` variant.
+    - `ForkPage(sourcePageId, targetCulture, targetSlug)` — creates new PageDocument with same `TranslationGroupId`, new Snowflake `Id`, new `Culture`, new `Slug`. Clones blocks/layout by default (Phase 1).
+    - `ListPageCultureVariants(TranslationGroupId)` — returns all PageDocuments sharing a `TranslationGroupId`.
+  - **Verify:** Unit test: create page in `en-US` (TranslationGroupId=42), fork to `es-MX` with different slug → second PageDocument exists with TranslationGroupId=42 and Culture="es-MX". Query by (siteId, "es-MX", "nuevo-slug") returns the fork. Query by (siteId, "fr-FR", "about") falls back to `en-US` variant.
   - **Files:** `src/Aero.Cms.Modules.Pages/Services/PageService.cs`, `src/Aero.Cms.Data/Queries/` (slug queries), `src/Aero.Cms.Modules.Pages/SlugRegistry.cs`
   - **Scope:** L (3-5 files, includes new fork method and query updates)
 
@@ -149,13 +149,13 @@ Add multi-culture support across the full AeroCMS stack using **document-per-cul
   - **Scope:** S (2-3 files)
 
 - [ ] **Task 3.5:** Update NavMenu service for per-culture document resolution
-  - **Acceptance:** `NavMenuService.GetByKey(siteId, key, culture)` resolves `(TranslationSetId, Culture)` to the correct `NavMenuDocument`. If no menu exists for that culture, falls back to `(TranslationSetId, DefaultCulture)`. Key uniqueness becomes `(SiteId, Key, Culture)`.
-  - **Verify:** Unit test: create two nav menus with same `TranslationSetId` but different `Culture`. `GetByKey("main", "es-MX")` returns the Spanish menu. `GetByKey("main", "fr-FR")` falls back to English.
+  - **Acceptance:** `NavMenuService.GetByKey(siteId, key, culture)` resolves `(TranslationGroupId, Culture)` to the correct `NavMenuDocument`. If no menu exists for that culture, falls back to `(TranslationGroupId, DefaultCulture)`. Key uniqueness becomes `(SiteId, Key, Culture)`.
+  - **Verify:** Unit test: create two nav menus with same `TranslationGroupId` but different `Culture`. `GetByKey("main", "es-MX")` returns the Spanish menu. `GetByKey("main", "fr-FR")` falls back to English.
   - **Files:** `src/Aero.Cms.Modules.Navigation/Services/NavMenuService.cs`, `src/Aero.Cms.Modules.Navigation/Domain/SiteNavigationSettingsDocument.cs`, query files
   - **Scope:** S (2-3 files)
 
 - [ ] **Task 3.6:** Update Footer service for per-culture document resolution
-  - **Acceptance:** Same pattern as NavMenu — `FooterService.GetByKey(siteId, key, culture)` resolves `(TranslationSetId, Culture)` to the correct `FooterDocument` with default-culture fallback.
+  - **Acceptance:** Same pattern as NavMenu — `FooterService.GetByKey(siteId, key, culture)` resolves `(TranslationGroupId, Culture)` to the correct `FooterDocument` with default-culture fallback.
   - **Verify:** Unit test with dual-culture footers.
   - **Files:** `src/Aero.Cms.Modules.Footer/Services/FooterService.cs`, `src/Aero.Cms.Modules.Footer/Domain/SiteFooterSettingsDocument.cs`, query files
   - **Scope:** S (2-3 files)
@@ -221,7 +221,7 @@ Add multi-culture support across the full AeroCMS stack using **document-per-cul
 ### Phase 6: SEO — Hreflang + Sitemaps + Fallback Banner
 
 - [ ] **Task 6.1:** Create `HreflangTags` component
-  - **Acceptance:** Component renders `<link rel="alternate" hreflang="en-us" href="..." />` for every supported culture's variant of the current page. Included in `PublicLayout` `<head>`. Uses `TranslationSetId` to find all variants.
+  - **Acceptance:** Component renders `<link rel="alternate" hreflang="en-us" href="..." />` for every supported culture's variant of the current page. Included in `PublicLayout` `<head>`. Uses `TranslationGroupId` to find all variants.
   - **Verify:** View page source — hreflang tags present for all site cultures. `x-default` points to default culture.
   - **Files:** `src/Aero.Cms.Shared/Components/HreflangTags.razor` (new), `PublicLayout.razor`
   - **Scope:** S (1-2 files)
@@ -243,14 +243,14 @@ Add multi-culture support across the full AeroCMS stack using **document-per-cul
 ### Phase 7: Seed Data + Translation Import + Tests
 
 - [ ] **Task 7.1:** Add Spanish (es-MX) seed variants
-  - **Acceptance:** `SeedDataService` creates `es-MX` PageDocument variants for core pages (homepage, about, contact) with Spanish slugs, titles, and content. Creates `es-MX` NavMenuDocument and FooterDocument variants with same `TranslationSetId`. Creates `es-MX` CategoryTranslations for seeded categories.
+  - **Acceptance:** `SeedDataService` creates `es-MX` PageDocument variants for core pages (homepage, about, contact) with Spanish slugs, titles, and content. Creates `es-MX` NavMenuDocument and FooterDocument variants with same `TranslationGroupId`. Creates `es-MX` CategoryTranslations for seeded categories.
   - **Verify:** Run setup wizard with `es-MX` as supported culture → seed data includes Spanish variants. Public site at `/es-mx/` shows Spanish content with Spanish navigation.
   - **Files:** `src/Aero.Cms.Modules.Setup/SeedDataService.cs`
   - **Scope:** M (1 file, substantial additions)
 
 - [ ] **Task 7.2:** Create translation import service and endpoint
   - **Acceptance:** `TranslationImportService` imports culture variants from zip/json files. For document-per-culture entities: imports create new document variants. For sidecar entities: imports create translation records. Admin upload endpoint provided.
-  - **Verify:** Upload zip with Spanish page variants → new PageDocuments created with Culture="es-MX", TranslationSetId linking to originals.
+  - **Verify:** Upload zip with Spanish page variants → new PageDocuments created with Culture="es-MX", TranslationGroupId linking to originals.
   - **Files:** `src/Aero.Cms.Modules.Setup/Services/TranslationImportService.cs` (new), `src/Aero.Cms.Modules.Setup/Endpoints/TranslationImportEndpoint.cs` (new)
   - **Scope:** S (2 new files)
 
@@ -264,8 +264,8 @@ Add multi-culture support across the full AeroCMS stack using **document-per-cul
   - **Acceptance:** TUnit integration tests covering:
     1. Create page in default culture, fork to `es-MX`, query both, verify fallback
     2. Culture-scoped slug uniqueness (`(SiteId, Culture, NormalizedSlug)` unique)
-    3. NavMenu per-culture resolution (`(TranslationSetId, Culture)` → correct menu)
-    4. Hreflang tag generation from `TranslationSetId` variant list
+    3. NavMenu per-culture resolution (`(TranslationGroupId, Culture)` → correct menu)
+    4. Hreflang tag generation from `TranslationGroupId` variant list
     5. Translation import → document-per-culture variant creation
     6. Custom `AeroRequestCultureProvider` site-aware routing
     7. Sidecar translation (CategoryTranslation) lookup with fallback
@@ -319,10 +319,10 @@ Phase 6      Phase 7
 | Risk | Impact | Mitigation |
 |---|---|---|
 | Slug unique index migration breaks existing URLs | High | Existing slugs assigned site's `DefaultCulture` during migration. Marten index rebuild script. Dry-run on backup first. |
-| PageDocument event stream versioning (Culture + TranslationSetId) | Med | New params are additive with defaults (`null`, `"en-US"`). Existing event streams replay correctly. Test with production-like data. |
+| PageDocument event stream versioning (Culture + TranslationGroupId) | Med | New params are additive with defaults (`null`, `"en-US"`). Existing event streams replay correctly. Test with production-like data. |
 | RTL CSS audit is tedious and error-prone | Med | `rg` search to find physical CSS. Fix in batches by directory. Playwright visual tests catch regressions. |
 | Forking a page clones blocks — edits to one variant don't affect others (Phase 1) | Low | Documented as intended behavior. Cross-culture block linking is a future feature. |
-| NavMenu event stream versioning with TranslationSetId + Culture | Low | Existing menus with null `TranslationSetId` + default `Culture` work as before. Additive fields. |
+| NavMenu event stream versioning with TranslationGroupId + Culture | Low | Existing menus with null `TranslationGroupId` + default `Culture` work as before. Additive fields. |
 | Cache invalidation per culture | Low | Existing cache key already includes `ctx.Culture`. Just verify it's populated by the new provider. |
 | AeroRequestCultureProvider resolves site per request | Med | Site resolution adds a query per request. Cache site resolution in `HttpContext.Items` for request duration. |
 

@@ -227,7 +227,7 @@ public sealed class DocsContentService : IDocsService
             var oldSlug = existing?.Slug;
             page.SiteId = _siteContext.SiteId;
             page.Culture = NormalizeCulture(page.Culture);
-            page.TranslationSetId ??= page.Id == 0 ? null : page.Id;
+            page.TranslationGroupId ??= page.Id == 0 ? null : page.Id;
 
             var now = DateTimeOffset.UtcNow;
             page.ModifiedOn = now;
@@ -305,9 +305,9 @@ public sealed class DocsContentService : IDocsService
             if (source is null || source.SiteId != _siteContext.SiteId)
                 return Fail<IReadOnlyList<DocsPage>, AeroError>(AeroError.NotFoundError($"Doc with id '{id}' not found or access denied"));
 
-            var translationSetId = source.TranslationSetId ?? source.Id;
+            var TranslationGroupId = source.TranslationGroupId ?? source.Id;
             var docs = await _session.Query<DocsPage>()
-                .Where(doc => doc.SiteId == _siteContext.SiteId && doc.TranslationSetId == translationSetId)
+                .Where(doc => doc.SiteId == _siteContext.SiteId && doc.TranslationGroupId == TranslationGroupId)
                 .OrderBy(doc => doc.Culture)
                 .ToListAsync(ct);
 
@@ -329,11 +329,11 @@ public sealed class DocsContentService : IDocsService
                 return Fail<DocsPage, AeroError>(AeroError.NotFoundError($"Doc with id '{id}' not found or access denied"));
 
             var culture = NormalizeCulture(targetCulture);
-            var translationSetId = source.TranslationSetId ?? source.Id;
+            var TranslationGroupId = source.TranslationGroupId ?? source.Id;
             var existing = await _session.Query<DocsPage>()
                 .FirstOrDefaultAsync(doc =>
                     doc.SiteId == _siteContext.SiteId
-                    && doc.TranslationSetId == translationSetId
+                    && doc.TranslationGroupId == TranslationGroupId
                     && doc.Culture == culture,
                     ct);
 
@@ -346,7 +346,7 @@ public sealed class DocsContentService : IDocsService
             {
                 Id = Snowflake.NewId(),
                 SiteId = source.SiteId,
-                TranslationSetId = translationSetId,
+                TranslationGroupId = TranslationGroupId,
                 Culture = culture,
                 Slug = slug.Trim().Trim('/'),
                 Title = source.Title,
@@ -556,7 +556,7 @@ public sealed class DocsContentService : IDocsService
                 : existing!;
 
             doc.SiteId = vm.SiteId;
-            doc.TranslationSetId = vm.TranslationSetId ?? (isNew ? null : doc.TranslationSetId);
+            doc.TranslationGroupId = vm.TranslationGroupId ?? (isNew ? null : doc.TranslationGroupId);
             doc.Culture = NormalizeCulture(vm.Culture);
             doc.Title = vm.Title ?? string.Empty;
             doc.Slug = vm.Slug ?? string.Empty;
@@ -602,7 +602,7 @@ public sealed class DocsContentService : IDocsService
     {
         Id = page.Id,
         SiteId = page.SiteId,
-        TranslationSetId = page.TranslationSetId,
+        TranslationGroupId = page.TranslationGroupId,
         Culture = page.Culture,
         Slug = page.Slug,
         Title = page.Title,
@@ -653,11 +653,11 @@ public sealed class DocsContentService : IDocsService
         if (parent is null)
             return sourceParentId;
 
-        var parentSetId = parent.TranslationSetId ?? parent.Id;
+        var parentSetId = parent.TranslationGroupId ?? parent.Id;
         var translatedParent = await _session.Query<DocsPage>()
             .FirstOrDefaultAsync(doc =>
                 doc.SiteId == _siteContext.SiteId
-                && doc.TranslationSetId == parentSetId
+                && doc.TranslationGroupId == parentSetId
                 && doc.Culture == culture,
                 ct);
 

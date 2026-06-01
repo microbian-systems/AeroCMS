@@ -35,7 +35,7 @@ public sealed class DocsModule : AeroWebModule
         opts.Schema.For<DocsPage>().Index(x => x.SiteId);
         opts.Schema.For<DocsPage>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Slug);
         opts.Schema.For<DocsPage>().Index(x => x.Culture);
-        opts.Schema.For<DocsPage>().Index(x => x.TranslationSetId);
+        opts.Schema.For<DocsPage>().Index(x => x.TranslationGroupId);
         opts.Schema.For<DocsPage>().Index(x => x.ParentId);
         opts.Schema.For<DocsPage>().Index(x => x.Order);
         opts.Schema.For<DocsPage>().Index(x => x.PublishedOn);

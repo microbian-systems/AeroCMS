@@ -9,7 +9,7 @@ namespace Aero.Cms.Core.Entities;
 public sealed class DocsPage : Entity, ISiteOwned
 {
     public long SiteId { get; set; }
-    public long? TranslationSetId { get; set; }
+    public long? TranslationGroupId { get; set; }
     public string Culture { get; set; } = "en-US";
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
@@ -78,7 +78,7 @@ public sealed class DocsPage : Entity, ISiteOwned
     {
         Id = Id,
         SiteId = SiteId,
-        TranslationSetId = TranslationSetId,
+        TranslationGroupId = TranslationGroupId,
         Culture = Culture,
         Slug = Slug,
         Title = Title,

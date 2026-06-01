@@ -15,7 +15,8 @@ namespace Aero.Cms.Core.Entities;
 public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableEntity
 {
     public long SiteId { get; set; }
-    public long? TranslationSetId { get; set; }
+    public long? TranslationGroupId { get; set; }
+    public long? SourcePageId { get; set; }
     public string Culture { get; set; } = SitesModel.DefaultCultureName;
     public PageKind Kind { get; set; } = PageKind.Standard;
     public string Slug { get; set; } = string.Empty;
@@ -144,7 +145,7 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
     public static PageDocument Create(PageCreated e) => new()
     {
         SiteId = e.SiteId,
-        TranslationSetId = e.TranslationSetId,
+        TranslationGroupId = e.TranslationGroupId,
         Culture = e.Culture,
         Title = e.Title,
         Slug = e.Slug,
@@ -266,7 +267,7 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         PublicationState = PublicationState,
         SiteId = SiteId,
         Culture = Culture,
-        TranslationSetId = TranslationSetId,
+        TranslationGroupId = TranslationGroupId,
         ParentId = ParentId,
         Path = Path,
         Depth = Depth,

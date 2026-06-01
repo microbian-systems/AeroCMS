@@ -145,29 +145,30 @@ public sealed class SiteMapService : ISiteMapService
                 .Where(p => p.SiteId == siteId
                          && p.Culture == culture
                          && p.PublicationState == ContentPublicationState.Published
+                         && !p.IsHidden
                          && !p.Deleted)
                 .ToListAsync(ct);
 
-            var translationSetIds = pages
-                .Select(p => p.TranslationSetId ?? p.Id)
+            var TranslationGroupIds = pages
+                .Select(p => p.TranslationGroupId ?? p.Id)
                 .Distinct()
                 .ToList();
 
-            var variantLookup = await BuildPageVariantLookupAsync(baseUrl, translationSetIds, ct);
+            var variantLookup = await BuildPageVariantLookupAsync(baseUrl, TranslationGroupIds, ct);
             var entries = new List<SitemapEntry>(pages.Count);
 
             foreach (var page in pages)
             {
-                if (!page.IsPubliclyVisible) continue;
+                if (!page.IsPubliclyVisible || page.IsHidden) continue;
                 var isHomepage = page.Kind is PageKind.Homepage;
-                var translationSetId = page.TranslationSetId ?? page.Id;
+                var TranslationGroupId = page.TranslationGroupId ?? page.Id;
                 entries.Add(new SitemapEntry
                 {
                     Loc = BuildCultureLoc(baseUrl, page.Culture, page.Slug, isHomepage),
                     LastMod = page.ModifiedOn ?? page.PublishedOn ?? page.CreatedOn,
                     ChangeFreq = isHomepage ? ChangeFrequency.Daily : ChangeFrequency.Weekly,
                     Priority = isHomepage ? 1.0 : 0.8,
-                    Alternates = variantLookup.GetValueOrDefault(translationSetId, [])
+                    Alternates = variantLookup.GetValueOrDefault(TranslationGroupId, [])
                 });
             }
 
@@ -190,23 +191,23 @@ public sealed class SiteMapService : ISiteMapService
                          && p.Culture == culture)
                 .ToListAsync(ct);
 
-            var translationSetIds = posts
-                .Select(p => p.TranslationSetId ?? p.Id)
+            var TranslationGroupIds = posts
+                .Select(p => p.TranslationGroupId ?? p.Id)
                 .Distinct()
                 .ToList();
 
-            var variantLookup = await BuildPostVariantLookupAsync(baseUrl, translationSetIds, ct);
+            var variantLookup = await BuildPostVariantLookupAsync(baseUrl, TranslationGroupIds, ct);
             var entries = new List<SitemapEntry>(posts.Count);
             foreach (var post in posts)
             {
-                var translationSetId = post.TranslationSetId ?? post.Id;
+                var TranslationGroupId = post.TranslationGroupId ?? post.Id;
                 entries.Add(new SitemapEntry
                 {
                     Loc = BuildBlogPostLoc(baseUrl, post.Culture, post.Slug),
                     LastMod = post.ModifiedOn ?? post.PublishedOn ?? post.CreatedOn,
                     ChangeFreq = ChangeFrequency.Weekly,
                     Priority = 0.6,
-                    Alternates = variantLookup.GetValueOrDefault(translationSetId, [])
+                    Alternates = variantLookup.GetValueOrDefault(TranslationGroupId, [])
                 });
             }
 
@@ -224,24 +225,24 @@ public sealed class SiteMapService : ISiteMapService
         if (result is Result<IReadOnlyList<DocsPage>, AeroError>.Ok ok)
         {
             var docs = ok.Value;
-            var translationSetIds = docs
-                .Select(doc => doc.TranslationSetId ?? doc.Id)
+            var TranslationGroupIds = docs
+                .Select(doc => doc.TranslationGroupId ?? doc.Id)
                 .Distinct()
                 .ToList();
-            var variantLookup = await BuildDocVariantLookupAsync(baseUrl, translationSetIds, ct);
+            var variantLookup = await BuildDocVariantLookupAsync(baseUrl, TranslationGroupIds, ct);
             var entries = new List<SitemapEntry>(docs.Count);
 
             foreach (var doc in docs)
             {
                 if (!doc.IsPubliclyVisible) continue;
-                var translationSetId = doc.TranslationSetId ?? doc.Id;
+                var TranslationGroupId = doc.TranslationGroupId ?? doc.Id;
                 entries.Add(new SitemapEntry
                 {
                     Loc = BuildCultureLoc(baseUrl, doc.Culture, doc.Slug, false),
                     LastMod = doc.ModifiedOn ?? doc.PublishedOn ?? doc.CreatedOn,
                     ChangeFreq = ChangeFrequency.Monthly,
                     Priority = 0.5,
-                    Alternates = variantLookup.GetValueOrDefault(translationSetId, [])
+                    Alternates = variantLookup.GetValueOrDefault(TranslationGroupId, [])
                 });
             }
 
@@ -253,25 +254,25 @@ public sealed class SiteMapService : ISiteMapService
 
     private async Task<Dictionary<long, IReadOnlyList<SitemapAlternateLink>>> BuildDocVariantLookupAsync(
         string baseUrl,
-        IReadOnlyList<long> translationSetIds,
+        IReadOnlyList<long> TranslationGroupIds,
         CancellationToken ct)
     {
-        if (translationSetIds.Count == 0)
+        if (TranslationGroupIds.Count == 0)
             return [];
 
-        var translationSetIdValues = translationSetIds
+        var TranslationGroupIdValues = TranslationGroupIds
             .Select(id => (long?)id)
             .ToArray();
 
         var variants = await _session.Query<DocsPage>()
             .Where(doc => doc.SiteId == _siteContext.SiteId
                        && doc.PublicationState == ContentPublicationState.Published
-                       && doc.TranslationSetId != null
-                       && doc.TranslationSetId.IsOneOf(translationSetIdValues))
+                       && doc.TranslationGroupId != null
+                       && doc.TranslationGroupId.IsOneOf(TranslationGroupIdValues))
             .ToListAsync(ct);
 
         return variants
-            .GroupBy(doc => doc.TranslationSetId ?? doc.Id)
+            .GroupBy(doc => doc.TranslationGroupId ?? doc.Id)
             .ToDictionary(
                 group => group.Key,
                 group => (IReadOnlyList<SitemapAlternateLink>)BuildDocAlternates(baseUrl, group));
@@ -279,26 +280,27 @@ public sealed class SiteMapService : ISiteMapService
 
     private async Task<Dictionary<long, IReadOnlyList<SitemapAlternateLink>>> BuildPageVariantLookupAsync(
         string baseUrl,
-        IReadOnlyList<long> translationSetIds,
+        IReadOnlyList<long> TranslationGroupIds,
         CancellationToken ct)
     {
-        if (translationSetIds.Count == 0)
+        if (TranslationGroupIds.Count == 0)
             return [];
 
-        var translationSetIdValues = translationSetIds
+        var TranslationGroupIdValues = TranslationGroupIds
             .Select(id => (long?)id)
             .ToArray();
 
         var variants = await _session.Query<PageDocument>()
             .Where(p => p.SiteId == _siteContext.SiteId
                      && p.PublicationState == ContentPublicationState.Published
+                     && !p.IsHidden
                      && !p.Deleted
-                     && p.TranslationSetId != null
-                     && p.TranslationSetId.IsOneOf(translationSetIdValues))
+                     && p.TranslationGroupId != null
+                     && p.TranslationGroupId.IsOneOf(TranslationGroupIdValues))
             .ToListAsync(ct);
 
         return variants
-            .GroupBy(p => p.TranslationSetId ?? p.Id)
+            .GroupBy(p => p.TranslationGroupId ?? p.Id)
             .ToDictionary(
                 group => group.Key,
                 group => (IReadOnlyList<SitemapAlternateLink>)BuildPageAlternates(baseUrl, group));
@@ -306,25 +308,25 @@ public sealed class SiteMapService : ISiteMapService
 
     private async Task<Dictionary<long, IReadOnlyList<SitemapAlternateLink>>> BuildPostVariantLookupAsync(
         string baseUrl,
-        IReadOnlyList<long> translationSetIds,
+        IReadOnlyList<long> TranslationGroupIds,
         CancellationToken ct)
     {
-        if (translationSetIds.Count == 0)
+        if (TranslationGroupIds.Count == 0)
             return [];
 
-        var translationSetIdValues = translationSetIds
+        var TranslationGroupIdValues = TranslationGroupIds
             .Select(id => (long?)id)
             .ToArray();
 
         var variants = await _session.Query<PostDocument>()
             .Where(p => p.SiteId == _siteContext.SiteId
                      && p.PublicationState == ContentPublicationState.Published
-                     && p.TranslationSetId != null
-                     && p.TranslationSetId.IsOneOf(translationSetIdValues))
+                     && p.TranslationGroupId != null
+                     && p.TranslationGroupId.IsOneOf(TranslationGroupIdValues))
             .ToListAsync(ct);
 
         return variants
-            .GroupBy(p => p.TranslationSetId ?? p.Id)
+            .GroupBy(p => p.TranslationGroupId ?? p.Id)
             .ToDictionary(
                 group => group.Key,
                 group => (IReadOnlyList<SitemapAlternateLink>)BuildPostAlternates(baseUrl, group));

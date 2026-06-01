@@ -1034,7 +1034,7 @@ public partial class DocsEditor
             detail.PublishedVersion,
             detail.DraftVersion,
             detail.Culture,
-            detail.TranslationSetId);
+            detail.TranslationGroupId);
 
     private static string NormalizeSlug(string value)
         => string.Join('/', value.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -1097,7 +1097,7 @@ public partial class DocsEditor
         public long PublishedVersion { get; set; }
         public long DraftVersion { get; set; }
         public string Culture { get; set; } = "en-US";
-        public long? TranslationSetId { get; set; }
+        public long? TranslationGroupId { get; set; }
 
         public static MutableDoc From(DocsDetail detail)
             => new()
@@ -1120,7 +1120,7 @@ public partial class DocsEditor
                 PublishedVersion = detail.PublishedVersion,
                 DraftVersion = detail.DraftVersion,
                 Culture = detail.Culture,
-                TranslationSetId = detail.TranslationSetId
+                TranslationGroupId = detail.TranslationGroupId
             };
 
         public DocsDetail ToDetail()
@@ -1143,6 +1143,6 @@ public partial class DocsEditor
                 PublishedVersion,
                 DraftVersion,
                 Culture,
-                TranslationSetId);
+                TranslationGroupId);
     }
 }

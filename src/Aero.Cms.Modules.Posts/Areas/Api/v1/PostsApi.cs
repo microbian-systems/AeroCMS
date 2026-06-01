@@ -31,6 +31,9 @@ public static class PostsApi
         group.MapGet("/", ListPosts)
             .WithName("ListPosts");
 
+        group.MapGet("/translation-groups", ListPostTranslationGroups)
+            .WithName("ListPostTranslationGroups");
+
         group.MapGet("/{id:long}", GetPostById)
             .WithName("GetPostById");
 
@@ -51,6 +54,9 @@ public static class PostsApi
 
         group.MapDelete("/{id:long}", DeletePost)
             .WithName("DeletePost");
+
+        group.MapDelete("/translation-groups/{translationGroupId:long}", DeletePostTranslationGroup)
+            .WithName("DeletePostTranslationGroup");
 
         group.MapPost("/{id:long}/publish", PublishPost)
             .WithName("PublishPost");
@@ -103,6 +109,47 @@ public static class PostsApi
             logger.LogError(ex, "Error retrieving blog posts");
             return TypedResults.Problem(ex.Message);
         }
+    }
+
+    private static async Task<IResult> ListPostTranslationGroups(
+        [FromServices] IQuerySession query,
+        [FromServices] ISiteContext siteContext,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] string? culture = null,
+        CancellationToken cancellationToken = default)
+    {
+        var site = await query.LoadAsync<SitesModel>(siteContext.SiteId, cancellationToken);
+        var defaultCulture = ContentSlugDocument.NormalizeCulture(site?.DefaultCulture ?? SitesModel.DefaultCultureName);
+        var selectedCulture = string.IsNullOrWhiteSpace(culture)
+            ? defaultCulture
+            : ContentSlugDocument.NormalizeCulture(culture);
+
+        var posts = await query.Query<PostDocument>()
+            .Where(x => x.SiteId == siteContext.SiteId)
+            .ToListAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var needle = search.Trim();
+            posts = posts
+                .Where(x => x.Title.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                    || x.Slug.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                    || x.Culture.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                    || (x.Excerpt?.Contains(needle, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+        }
+
+        var groups = posts
+            .GroupBy(x => x.TranslationGroupId ?? x.Id)
+            .Select(x => MapToTranslationGroupSummary(x.Key, x.ToList(), defaultCulture, selectedCulture))
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var items = groups.Skip(skip).Take(take).ToList();
+        return TypedResults.Ok(new PagedResult<BlogTranslationGroupSummary>(items, groups.Count, skip, take));
     }
 
     private static async Task<IResult> GetPostById(
@@ -315,6 +362,25 @@ public static class PostsApi
         }
     }
 
+    private static async Task<IResult> DeletePostTranslationGroup(
+        long translationGroupId,
+        [FromServices] IPostContentService postService,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await postService.DeleteTranslationGroupAsync(translationGroupId, cancellationToken);
+        return result switch
+        {
+            Result<int, AeroError>.Ok ok => TypedResults.Ok(new DeleteBlogTranslationGroupResult(ok.Value)),
+            Result<int, AeroError>.Failure failure => TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to delete post translation group",
+                Detail = failure.Error.ToString(),
+                Status = StatusCodes.Status400BadRequest
+            }),
+            _ => TypedResults.Problem("Unknown delete result.")
+        };
+    }
+
     private static async Task<IResult> PublishPost(
         long id,
         [FromServices] IAeroPostActor postsActor,
@@ -507,7 +573,47 @@ public static class PostsApi
             vm.CreatedOn,
             vm.ModifiedOn,
             vm.Culture,
-            vm.TranslationSetId
+            vm.TranslationGroupId
         );
     }
+
+    private static BlogTranslationGroupSummary MapToTranslationGroupSummary(
+        long translationGroupId,
+        IReadOnlyList<PostDocument> variants,
+        string defaultCulture,
+        string selectedCulture)
+    {
+        var defaultVariant = variants.FirstOrDefault(x => CultureEquals(x.Culture, defaultCulture));
+        var selectedVariant = variants.FirstOrDefault(x => CultureEquals(x.Culture, selectedCulture));
+        var display = selectedVariant ?? defaultVariant ?? variants.OrderBy(x => x.Culture).First();
+
+        return new BlogTranslationGroupSummary(
+            translationGroupId,
+            display.Id,
+            display.Culture,
+            defaultCulture,
+            display.Title,
+            display.Slug,
+            display.CreatedOn.DateTime,
+            display.PublishedOn?.DateTime,
+            display.Excerpt,
+            display.ImageUrl,
+            defaultVariant is null,
+            selectedVariant is null,
+            variants
+                .OrderByDescending(x => CultureEquals(x.Culture, defaultCulture))
+                .ThenBy(x => x.Culture, StringComparer.OrdinalIgnoreCase)
+                .Select(x => new BlogTranslationVariantSummary(
+                    x.Id,
+                    x.Culture,
+                    x.Title,
+                    x.Slug,
+                    x.CreatedOn.DateTime,
+                    x.PublishedOn?.DateTime,
+                    CultureEquals(x.Culture, defaultCulture)))
+                .ToList());
+    }
+
+    private static bool CultureEquals(string left, string right)
+        => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 }

@@ -25,7 +25,7 @@ public interface IPageContentService
     Task<Result<PageDocument?, AeroError>> LoadHomepageAsync(CancellationToken cancellationToken = default);
     Task<Result<PageDocument?, AeroError>> LoadBlogListingAsync(CancellationToken cancellationToken = default);
     Task<Result<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>> GetAllPagesAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
-    Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVariantsAsync(long translationSetId, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVariantsAsync(long TranslationGroupId, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(long sourcePageId, string targetCulture, string targetSlug, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default);
@@ -33,6 +33,7 @@ public interface IPageContentService
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
     Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDescendants, CancellationToken cancellationToken = default);
     Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants, CancellationToken cancellationToken = default);
+    Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default);
 }
 
 public sealed class MartenPageContentService(
@@ -174,14 +175,14 @@ public sealed class MartenPageContentService(
     }
 
     public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVariantsAsync(
-        long translationSetId,
+        long TranslationGroupId,
         CancellationToken cancellationToken = default)
     {
         try
         {
             var variants = await session.Query<PageDocument>()
                 .Where(x => x.SiteId == _siteContext.SiteId
-                    && x.TranslationSetId == translationSetId
+                    && x.TranslationGroupId == TranslationGroupId
                     && x.Deleted == false)
                 .OrderBy(x => x.Culture)
                 .ToListAsync(cancellationToken);
@@ -190,7 +191,7 @@ public sealed class MartenPageContentService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to list page culture variants for translation set {TranslationSetId}", translationSetId);
+            logger.LogError(ex, "Failed to list page culture variants for Translation Group {TranslationGroupId}", TranslationGroupId);
             return Prelude.Fail<IReadOnlyList<PageDocument>, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
@@ -218,11 +219,11 @@ public sealed class MartenPageContentService(
                     AeroError.ValidationError([$"Culture '{normalizedCulture}' is not supported by the current site."]));
             }
 
-            var translationSetId = source.TranslationSetId ?? source.Id;
+            var TranslationGroupId = source.TranslationGroupId ?? source.Id;
             var existingVariant = await session.Query<PageDocument>()
                 .FirstOrDefaultAsync(x =>
                     x.SiteId == source.SiteId &&
-                    x.TranslationSetId == translationSetId &&
+                    x.TranslationGroupId == TranslationGroupId &&
                     x.Culture == normalizedCulture &&
                     x.Deleted == false,
                     token: cancellationToken);
@@ -301,7 +302,7 @@ public sealed class MartenPageContentService(
                 HideFooter = request.HideFooter,
                 ShowChatAgent = request.ShowChatAgent
             };
-            page.TranslationSetId = page.Id;
+            page.TranslationGroupId = page.Id;
 
             if (request.EditorBlocks is not null)
             {
@@ -365,7 +366,7 @@ public sealed class MartenPageContentService(
             // Start an event stream for versioning (projection handles document persistence).
             // PageCreated establishes the page; PageContentUpdated carries blocks + layout.
             session.Events.StartStream($"page-{page.Id}",
-                new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind, page.Culture, page.TranslationSetId));
+                new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind, page.Culture, page.TranslationGroupId));
             session.Events.Append($"page-{page.Id}", new PageContentUpdated(
                 page.Title,
                 page.Slug,
@@ -651,6 +652,47 @@ public sealed class MartenPageContentService(
         }
     }
 
+    public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var variants = await session.Query<PageDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId
+                    && x.TranslationGroupId == translationGroupId
+                    && x.Deleted == false)
+                .ToListAsync(cancellationToken);
+
+            if (variants.Count == 0)
+            {
+                return Prelude.Ok<int, AeroError>(0);
+            }
+
+            var ids = variants.Select(x => x.Id).ToList();
+
+            session.DeleteWhere<PageDocument>(x =>
+                x.SiteId == _siteContext.SiteId && ids.Contains(x.Id));
+
+            session.DeleteWhere<ContentSlugDocument>(x =>
+                x.SiteId == _siteContext.SiteId
+                && ids.Contains(x.OwnerId)
+                && x.OwnerType == ContentSlugOwnerType.Page);
+
+            foreach (var id in ids)
+            {
+                session.Events.Append($"page-{id}", new PageDeleted(null));
+            }
+
+            await session.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Deleted page translation group {TranslationGroupId} with {Count} variants", translationGroupId, ids.Count);
+            return Prelude.Ok<int, AeroError>(ids.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete page translation group {TranslationGroupId}", translationGroupId);
+            return Prelude.Fail<int, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
     public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default)
     {
         try
@@ -682,7 +724,7 @@ public sealed class MartenPageContentService(
             }
 
             targetPage.Culture = ContentSlugDocument.NormalizeCulture(targetPage.Culture);
-            targetPage.TranslationSetId ??= targetPage.Id;
+            targetPage.TranslationGroupId ??= targetPage.Id;
 
             // If the caller provided editor blocks but no layout regions, map them now.
             // This handles both new pages (no existing) and updates where blocks were
@@ -721,7 +763,7 @@ public sealed class MartenPageContentService(
                 session.Events.StartStream($"page-{targetPage.Id}",
                     new PageCreated(targetPage.SiteId, targetPage.Title, targetPage.Slug,
                                     targetPage.ParentId, targetPage.Order, targetPage.Path, targetPage.Depth,
-                                    targetPage.PublicationState, targetPage.Kind, targetPage.Culture, targetPage.TranslationSetId));
+                                    targetPage.PublicationState, targetPage.Kind, targetPage.Culture, targetPage.TranslationGroupId));
             }
             session.Events.Append($"page-{targetPage.Id}", new PageContentUpdated(
                 targetPage.Title,
@@ -979,7 +1021,7 @@ public sealed class MartenPageContentService(
             return sourceParent;
         }
 
-        if (sourceParent.TranslationSetId is null)
+        if (sourceParent.TranslationGroupId is null)
         {
             return null;
         }
@@ -987,7 +1029,7 @@ public sealed class MartenPageContentService(
         return await session.Query<PageDocument>()
             .FirstOrDefaultAsync(x =>
                 x.SiteId == sourceParent.SiteId &&
-                x.TranslationSetId == sourceParent.TranslationSetId &&
+                x.TranslationGroupId == sourceParent.TranslationGroupId &&
                 x.Culture == targetCulture &&
                 x.Deleted == false,
                 token: cancellationToken);

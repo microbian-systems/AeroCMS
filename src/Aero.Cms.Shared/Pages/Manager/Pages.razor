@@ -50,10 +50,10 @@
         _previewBaseUri = Navigation.BaseUri.TrimEnd('/');
     }
 
-    private async Task OpenPreviewAsync(PageTreeItem item)
+    private async Task OpenPreviewAsync(PageTranslationGroupTreeItem item)
     {
         _previewVisible = true;
-        _previewPageId = item.Id;
+        _previewPageId = item.DisplayPageId;
         _previewFrameUrl = $"{_previewBaseUri}{item.Path}";
         _previewUrlBarText = item.Path;
         await InvokeAsync(StateHasChanged);

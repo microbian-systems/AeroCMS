@@ -151,11 +151,11 @@ else if (ActiveTab == "metadata")
                             @L["{0} of {1} site cultures created.", PageCultureVariants.Count, SupportedCultures.Count]
                         </p>
                     </div>
-                    @if (LoadedPage?.TranslationSetId is { } translationSetId)
+                    @if (LoadedPage?.TranslationGroupId is { } TranslationGroupId)
                     {
                         <span class="text-xs font-mono px-2 py-1 rounded"
                               style="background: var(--pe-bg-primary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
-                            Set @translationSetId
+                            Set @TranslationGroupId
                         </span>
                     }
                 </div>

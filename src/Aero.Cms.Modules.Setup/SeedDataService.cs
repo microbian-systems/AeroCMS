@@ -326,8 +326,8 @@ public sealed class SeedDatabaseService(
             session.Store(doc);
         }
 
-        var navMenuTranslationSetId = await SeedDefaultNavMenuAsync(siteId, defaultCulture, homepage.Id, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
-        var footerTranslationSetId = await SeedDefaultFooterAsync(siteId, defaultCulture, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
+        var navMenuTranslationGroupId = await SeedDefaultNavMenuAsync(siteId, defaultCulture, homepage.Id, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
+        var footerTranslationGroupId = await SeedDefaultFooterAsync(siteId, defaultCulture, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
 
         if (ShouldSeedSpanishMexico(defaultCulture, supportedCultures))
         {
@@ -338,8 +338,8 @@ public sealed class SeedDatabaseService(
                 blogListing.Id,
                 aboutPage.Id,
                 contactPage.Id,
-                navMenuTranslationSetId,
-                footerTranslationSetId,
+                navMenuTranslationGroupId,
+                footerTranslationGroupId,
                 cancellationToken);
         }
 
@@ -369,7 +369,7 @@ public sealed class SeedDatabaseService(
         {
             post.SiteId = siteId;
             post.Culture = defaultCulture;
-            post.TranslationSetId ??= post.Id;
+            post.TranslationGroupId ??= post.Id;
             await blogPostContentService.SaveAsync(post, cancellationToken);
         }
 
@@ -411,7 +411,7 @@ public sealed class SeedDatabaseService(
                     session.Events.Append(NavMenuStreams.SiteSettings(siteId), changed);
             }
 
-            return existingMenu.TranslationSetId ?? existingMenu.Id;
+            return existingMenu.TranslationGroupId ?? existingMenu.Id;
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -431,7 +431,7 @@ public sealed class SeedDatabaseService(
 
         session.Events.StartStream(
             NavMenuStreams.Menu(navMenuId),
-            new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationSetId: navMenuId),
+            new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: navMenuId),
             new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded starter navigation"),
             new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded starter navigation"));
 
@@ -474,7 +474,7 @@ public sealed class SeedDatabaseService(
                     session.Events.Append(FooterStreams.SiteSettings(siteId), changed);
             }
 
-            return existingFooter.TranslationSetId ?? existingFooter.Id;
+            return existingFooter.TranslationGroupId ?? existingFooter.Id;
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -538,7 +538,7 @@ public sealed class SeedDatabaseService(
 
         session.Events.StartStream(
             FooterStreams.Footer(footerId),
-            new FooterCreated(siteId, footerName, footerKey, "Default seeded site footer", UserId: null, now, Culture: culture, TranslationSetId: footerId),
+            new FooterCreated(siteId, footerName, footerKey, "Default seeded site footer", UserId: null, now, Culture: culture, TranslationGroupId: footerId),
             new FooterDraftSaved(siteId, footerName, footerKey, "Default seeded site footer", snapshot, UserId: null, now, "Seeded starter footer"),
             new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded starter footer"));
 
@@ -557,18 +557,18 @@ public sealed class SeedDatabaseService(
     private async Task SeedSpanishMexicoStarterContentAsync(
         SeedDatabaseRequest request,
         long siteId,
-        long homepageTranslationSetId,
-        long blogTranslationSetId,
-        long aboutTranslationSetId,
-        long contactTranslationSetId,
-        long navMenuTranslationSetId,
-        long footerTranslationSetId,
+        long homepageTranslationGroupId,
+        long blogTranslationGroupId,
+        long aboutTranslationGroupId,
+        long contactTranslationGroupId,
+        long navMenuTranslationGroupId,
+        long footerTranslationGroupId,
         CancellationToken cancellationToken)
     {
-        var (homepage, homepageBlocks) = BuildSpanishHomepage(request, homepageTranslationSetId);
-        var (blogListing, blogListingBlocks) = BuildSpanishBlogListingPage(request, blogTranslationSetId);
-        var (aboutPage, aboutBlocks) = BuildSpanishAboutPage(aboutTranslationSetId);
-        var (contactPage, contactBlocks) = BuildSpanishContactPage(contactTranslationSetId);
+        var (homepage, homepageBlocks) = BuildSpanishHomepage(request, homepageTranslationGroupId);
+        var (blogListing, blogListingBlocks) = BuildSpanishBlogListingPage(request, blogTranslationGroupId);
+        var (aboutPage, aboutBlocks) = BuildSpanishAboutPage(aboutTranslationGroupId);
+        var (contactPage, contactBlocks) = BuildSpanishContactPage(contactTranslationGroupId);
 
         homepage.SiteId = siteId;
         foreach (var block in homepageBlocks) session.Store(block);
@@ -596,7 +596,7 @@ public sealed class SeedDatabaseService(
             aboutPage.Id,
             contactPage.Id,
             blogListing.Id,
-            navMenuTranslationSetId,
+            navMenuTranslationGroupId,
             cancellationToken);
 
         await SeedSpanishMexicoFooterAsync(
@@ -604,7 +604,7 @@ public sealed class SeedDatabaseService(
             aboutPage.Id,
             contactPage.Id,
             blogListing.Id,
-            footerTranslationSetId,
+            footerTranslationGroupId,
             cancellationToken);
     }
 
@@ -614,7 +614,7 @@ public sealed class SeedDatabaseService(
         long aboutPageId,
         long contactPageId,
         long blogListingPageId,
-        long translationSetId,
+        long TranslationGroupId,
         CancellationToken cancellationToken)
     {
         const string culture = "es-MX";
@@ -645,7 +645,7 @@ public sealed class SeedDatabaseService(
 
         session.Events.StartStream(
             NavMenuStreams.Menu(navMenuId),
-            new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationSetId: translationSetId),
+            new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
             new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded es-MX starter navigation"),
             new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter navigation"));
     }
@@ -655,7 +655,7 @@ public sealed class SeedDatabaseService(
         long aboutPageId,
         long contactPageId,
         long blogListingPageId,
-        long translationSetId,
+        long TranslationGroupId,
         CancellationToken cancellationToken)
     {
         const string culture = "es-MX";
@@ -720,7 +720,7 @@ public sealed class SeedDatabaseService(
 
         session.Events.StartStream(
             FooterStreams.Footer(footerId),
-            new FooterCreated(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", UserId: null, now, Culture: culture, TranslationSetId: translationSetId),
+            new FooterCreated(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
             new FooterDraftSaved(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", snapshot, UserId: null, now, "Seeded es-MX starter footer"),
             new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter footer"));
     }
@@ -821,7 +821,7 @@ public sealed class SeedDatabaseService(
 
         // Stamp siteId on the oopsPage before storing
         oopsPage.SiteId = siteId;
-        oopsPage.TranslationSetId = oopsPage.Id;
+        oopsPage.TranslationGroupId = oopsPage.Id;
 
         // Store blocks first, then save page (matches BuildHomepage pattern)
         session.Store(heroBlock);
@@ -1466,7 +1466,7 @@ public sealed class SeedDatabaseService(
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishHomepage(
         SeedDatabaseRequest request,
-        long translationSetId)
+        long TranslationGroupId)
     {
         var title = $"Bienvenido a {Normalize(request.SiteName)}";
         var summary = "Una plataforma de contenido modular, rapida y preparada para sitios modernos.";
@@ -1492,7 +1492,7 @@ public sealed class SeedDatabaseService(
             {
                 Id = Snowflake.NewId(),
                 SiteId = 0,
-                TranslationSetId = translationSetId,
+                TranslationGroupId = TranslationGroupId,
                 Culture = "es-MX",
                 Kind = PageKind.Homepage,
                 Slug = "/",
@@ -1517,7 +1517,7 @@ public sealed class SeedDatabaseService(
 
     private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishBlogListingPage(
         SeedDatabaseRequest request,
-        long translationSetId)
+        long TranslationGroupId)
     {
         var headingBlock = new HeadingBlock
         {
@@ -1537,7 +1537,7 @@ public sealed class SeedDatabaseService(
             new PageDocument
             {
                 Id = Snowflake.NewId(),
-                TranslationSetId = translationSetId,
+                TranslationGroupId = TranslationGroupId,
                 Culture = "es-MX",
                 Kind = PageKind.BlogListing,
                 Slug = "blog",
@@ -1560,7 +1560,7 @@ public sealed class SeedDatabaseService(
         );
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishAboutPage(long translationSetId)
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishAboutPage(long TranslationGroupId)
     {
         const string title = "Acerca de";
         const string summary = "Conoce nuestra mision y la historia detras de la plataforma.";
@@ -1584,7 +1584,7 @@ public sealed class SeedDatabaseService(
             new PageDocument
             {
                 Id = Snowflake.NewId(),
-                TranslationSetId = translationSetId,
+                TranslationGroupId = TranslationGroupId,
                 Culture = "es-MX",
                 Kind = PageKind.Standard,
                 Slug = "acerca-de",
@@ -1607,7 +1607,7 @@ public sealed class SeedDatabaseService(
         );
     }
 
-    private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishContactPage(long translationSetId)
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishContactPage(long TranslationGroupId)
     {
         const string title = "Contacto";
         const string summary = "Ponte en contacto con nuestro equipo.";
@@ -1638,7 +1638,7 @@ public sealed class SeedDatabaseService(
             new PageDocument
             {
                 Id = Snowflake.NewId(),
-                TranslationSetId = translationSetId,
+                TranslationGroupId = TranslationGroupId,
                 Culture = "es-MX",
                 Kind = PageKind.Standard,
                 Slug = "contacto",
@@ -1814,7 +1814,7 @@ public sealed class SeedDatabaseService(
     private static void StampPageCulture(PageDocument page, string culture)
     {
         page.Culture = culture;
-        page.TranslationSetId ??= page.Id;
+        page.TranslationGroupId ??= page.Id;
     }
 
     private static bool ShouldSeedSpanishMexico(string defaultCulture, IReadOnlyList<string> supportedCultures)

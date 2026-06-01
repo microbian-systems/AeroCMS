@@ -23,6 +23,9 @@ public static class PagesTreeApi
         group.MapGet("/children", GetChildren)
             .WithName("GetPageChildren");
 
+        group.MapGet("/translation-groups/children", GetTranslationGroupChildren)
+            .WithName("GetPageTranslationGroupChildren");
+
         group.MapGet("/navigation", GetNavigation)
             .WithName("GetNavigationTree");
 
@@ -69,6 +72,36 @@ public static class PagesTreeApi
                 Results.Ok(await MapToTreeItemsAsync(query, ok.Value, ct)),
             _ => ToApiResult(result)
         };
+    }
+
+    private static async Task<IResult> GetTranslationGroupChildren(
+        [FromServices] IQuerySession query,
+        [FromServices] ISiteContext siteContext,
+        [FromQuery] long? parentTranslationGroupId,
+        [FromQuery] string? culture,
+        [FromQuery] string? search,
+        CancellationToken ct)
+    {
+        var site = await query.LoadAsync<SitesModel>(siteContext.SiteId, ct);
+        var defaultCulture = ContentSlugDocument.NormalizeCulture(site?.DefaultCulture ?? SitesModel.DefaultCultureName);
+        var selectedCulture = string.IsNullOrWhiteSpace(culture)
+            ? defaultCulture
+            : ContentSlugDocument.NormalizeCulture(culture);
+
+        var pagesQuery = query.Query<PageDocument>()
+            .Where(x => x.SiteId == siteContext.SiteId && x.Deleted == false);
+
+        var pages = await pagesQuery.ToListAsync(ct);
+        var allowedGroupIds = ResolveSearchGroupIds(pages, search);
+
+        var items = MapToTranslationGroupTreeItems(
+            pages,
+            parentTranslationGroupId,
+            defaultCulture,
+            selectedCulture,
+            allowedGroupIds);
+
+        return Results.Ok(items);
     }
 
     private static async Task<IResult> GetNavigation(
@@ -190,4 +223,143 @@ public static class PagesTreeApi
             HasChildren = parentSet.Contains(p.Id)
         }).ToList();
     }
+
+    private static IReadOnlyList<PageTranslationGroupTreeItem> MapToTranslationGroupTreeItems(
+        IReadOnlyList<PageDocument> pages,
+        long? parentTranslationGroupId,
+        string defaultCulture,
+        string selectedCulture,
+        IReadOnlySet<long>? allowedGroupIds)
+    {
+        if (pages.Count == 0)
+        {
+            return [];
+        }
+
+        var pageById = pages.ToDictionary(x => x.Id);
+        var groups = pages
+            .GroupBy(x => x.TranslationGroupId ?? x.Id)
+            .ToDictionary(x => x.Key, x => x.OrderBy(p => p.Order).ThenBy(p => p.Culture).ToList());
+
+        var groupParentIds = groups.ToDictionary(
+            x => x.Key,
+            x => ResolveParentTranslationGroupId(x.Value, pageById));
+
+        var parentSet = groupParentIds.Values
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .ToHashSet();
+
+        return groups
+            .Select(x => CreateTranslationGroupTreeItem(
+                x.Key,
+                x.Value,
+                groupParentIds[x.Key],
+                parentSet.Contains(x.Key),
+                defaultCulture,
+                selectedCulture))
+            .Where(x => x.ParentTranslationGroupId == parentTranslationGroupId)
+            .Where(x => allowedGroupIds is null || allowedGroupIds.Contains(x.TranslationGroupId))
+            .OrderBy(x => x.Order)
+            .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static long? ResolveParentTranslationGroupId(
+        IReadOnlyList<PageDocument> variants,
+        IReadOnlyDictionary<long, PageDocument> pageById)
+    {
+        foreach (var variant in variants.OrderBy(x => x.Culture))
+        {
+            if (variant.ParentId is not { } parentId)
+            {
+                continue;
+            }
+
+            if (pageById.TryGetValue(parentId, out var parent))
+            {
+                return parent.TranslationGroupId ?? parent.Id;
+            }
+        }
+
+        return null;
+    }
+
+    private static PageTranslationGroupTreeItem CreateTranslationGroupTreeItem(
+        long translationGroupId,
+        IReadOnlyList<PageDocument> variants,
+        long? parentTranslationGroupId,
+        bool hasChildren,
+        string defaultCulture,
+        string selectedCulture)
+    {
+        var defaultVariant = variants.FirstOrDefault(x => CultureEquals(x.Culture, defaultCulture));
+        var selectedVariant = variants.FirstOrDefault(x => CultureEquals(x.Culture, selectedCulture));
+        var display = selectedVariant ?? defaultVariant ?? variants.OrderBy(x => x.Culture).First();
+
+        return new PageTranslationGroupTreeItem(
+            translationGroupId,
+            display.Id,
+            display.Culture,
+            defaultCulture,
+            display.Title,
+            display.Slug,
+            display.Path,
+            display.Depth,
+            display.Order,
+            parentTranslationGroupId,
+            display.PublicationState.ToString(),
+            display.IsHidden,
+            hasChildren,
+            defaultVariant is null,
+            selectedVariant is null,
+            variants
+                .OrderByDescending(x => CultureEquals(x.Culture, defaultCulture))
+                .ThenBy(x => x.Culture, StringComparer.OrdinalIgnoreCase)
+                .Select(x => new PageTranslationVariantItem(
+                    x.Id,
+                    x.Culture,
+                    x.Title,
+                    x.Slug,
+                    x.Path,
+                    x.PublicationState.ToString(),
+                    x.IsHidden,
+                    CultureEquals(x.Culture, defaultCulture)))
+                .ToList());
+    }
+
+    private static bool CultureEquals(string left, string right)
+        => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private static IReadOnlySet<long>? ResolveSearchGroupIds(IReadOnlyList<PageDocument> pages, string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return null;
+        }
+
+        var needle = search.Trim();
+        var pageById = pages.ToDictionary(x => x.Id);
+        var groups = new HashSet<long>();
+
+        foreach (var page in pages.Where(page => MatchesSearch(page, needle)))
+        {
+            groups.Add(page.TranslationGroupId ?? page.Id);
+
+            var current = page;
+            while (current.ParentId is { } parentId && pageById.TryGetValue(parentId, out var parent))
+            {
+                groups.Add(parent.TranslationGroupId ?? parent.Id);
+                current = parent;
+            }
+        }
+
+        return groups;
+    }
+
+    private static bool MatchesSearch(PageDocument page, string search)
+        => page.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || page.Slug.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || page.Path.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || page.Culture.Contains(search, StringComparison.OrdinalIgnoreCase);
 }

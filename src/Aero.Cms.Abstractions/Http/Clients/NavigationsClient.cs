@@ -184,7 +184,7 @@ public record NavigationSummary(
     long Version = 0,
     string? State = null,
     string Culture = "en-US",
-    long? TranslationSetId = null);
+    long? TranslationGroupId = null);
 
 /// <summary>
 /// Detailed navigation menu information.
@@ -200,7 +200,7 @@ public record NavigationDetail(
     string? State = null,
     string? SiteLogoUrl = null,
     string Culture = "en-US",
-    long? TranslationSetId = null);
+    long? TranslationGroupId = null);
 
 public sealed record ForkNavigationCultureRequest(string Culture);
 

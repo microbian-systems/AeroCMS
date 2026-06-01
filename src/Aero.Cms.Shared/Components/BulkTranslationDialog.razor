@@ -1,0 +1,52 @@
+<div class="p-6 rounded" style="background: var(--pe-bg-secondary);">
+    <div class="mb-6">
+        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">Create Localized Versions</h3>
+        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">Create missing localized drafts from the default culture content.</p>
+    </div>
+
+    <div class="space-y-5">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Missing cultures</p>
+            @if (MissingCultures.Count == 0)
+            {
+                <p class="mt-2 text-sm" style="color: var(--pe-text-secondary);">No missing cultures.</p>
+            }
+            else
+            {
+                <div class="mt-2 flex flex-wrap gap-2">
+                    @foreach (var culture in MissingCultures)
+                    {
+                        <span class="rounded bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">@culture</span>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (ExistingCultures.Count > 0)
+        {
+            <label class="flex items-start gap-3 rounded border p-3 text-sm"
+                   style="border-color: var(--pe-border); color: var(--pe-text-primary);">
+                <RadzenCheckBox TValue="bool" @bind-Value="_overwriteExisting" />
+                <span>
+                    <span class="block font-semibold">Overwrite existing localized content</span>
+                    <span class="block text-xs" style="color: var(--pe-text-muted);">Existing culture variants keep their slugs, but their editable content is replaced from the default culture source.</span>
+                </span>
+            </label>
+        }
+    </div>
+
+    <div class="mt-8 pt-6 border-t flex justify-end gap-3" style="border-color: var(--pe-border);">
+        <RadzenButton Text="Cancel"
+                      ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text"
+                      Click="@Cancel" />
+        <RadzenButton Text="Continue"
+                      Icon="translate"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Variant="Variant.Filled"
+                      Disabled="@(MissingCultures.Count == 0 && !_overwriteExisting)"
+                      class="rounded px-6"
+                      Click="@Submit" />
+    </div>
+</div>
+

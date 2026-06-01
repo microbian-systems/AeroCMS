@@ -10,13 +10,14 @@ public static class PageCultureForker
         ArgumentNullException.ThrowIfNull(source);
 
         var normalizedSlug = targetSlug.Trim().Trim('/');
-        var translationSetId = source.TranslationSetId ?? source.Id;
+        var translationGroupId = source.TranslationGroupId ?? source.Id;
 
         return new PageDocument
         {
             Id = targetPageId,
             SiteId = source.SiteId,
-            TranslationSetId = translationSetId,
+            TranslationGroupId = translationGroupId,
+            SourcePageId = source.Id,
             Culture = ContentSlugDocument.NormalizeCulture(targetCulture),
             Kind = source.Kind,
             Slug = normalizedSlug,

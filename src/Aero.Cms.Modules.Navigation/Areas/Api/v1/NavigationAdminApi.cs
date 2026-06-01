@@ -83,7 +83,7 @@ public static class NavigationAdminApi
                     version,
                     menu.State.ToString(),
                     menu.Culture,
-                    menu.TranslationSetId));
+                    menu.TranslationGroupId));
             }
 
             return TypedResults.Ok(summaries);

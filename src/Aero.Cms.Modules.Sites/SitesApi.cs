@@ -359,7 +359,7 @@ public static class SitesApi
             ModifiedBy = createdBy
         };
 
-        page.TranslationSetId = page.Id;
+        page.TranslationGroupId = page.Id;
         session.Store(page);
         await session.SaveChangesAsync();
     }
@@ -420,7 +420,7 @@ public static class SitesApi
             ]
         };
 
-        page.TranslationSetId = page.Id;
+        page.TranslationGroupId = page.Id;
         session.Store(page);
         await session.SaveChangesAsync();
     }

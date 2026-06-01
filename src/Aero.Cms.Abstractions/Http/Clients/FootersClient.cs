@@ -80,7 +80,7 @@ public record FooterSummary(
     long Version = 0,
     string? State = null,
     string Culture = "en-US",
-    long? TranslationSetId = null);
+    long? TranslationGroupId = null);
 
 public record FooterDetail(
     long Id,
@@ -98,7 +98,7 @@ public record FooterDetail(
     decimal OverlayOpacity = 0.35m,
     string? CopyrightText = null,
     string Culture = "en-US",
-    long? TranslationSetId = null,
+    long? TranslationGroupId = null,
     IReadOnlyList<FooterLinkDetail> LegalLinks = null)
 {
     public IReadOnlyList<FooterLinkDetail> LegalLinks { get; init; } = LegalLinks ?? [];

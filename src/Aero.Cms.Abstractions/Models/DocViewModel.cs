@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Models;
 
@@ -65,7 +65,7 @@ public sealed record DocViewModel : AeroEntityViewModel
     public string Culture { get; set; } = "en-US";
 
     [Id(15)]
-    public long? TranslationSetId { get; set; }
+    public long? TranslationGroupId { get; set; }
 }
 
 [GenerateSerializer]

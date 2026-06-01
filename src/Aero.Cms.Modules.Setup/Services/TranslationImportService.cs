@@ -134,12 +134,12 @@ public sealed class TranslationImportService : ITranslationImportService
             return;
         }
 
-        var translationSetId = source.TranslationSetId ?? source.Id;
+        var TranslationGroupId = source.TranslationGroupId ?? source.Id;
         var existing = await _session.Query<PageDocument>()
             .FirstOrDefaultAsync(x =>
                 x.SiteId == source.SiteId &&
                 x.Culture == culture &&
-                x.TranslationSetId == translationSetId,
+                x.TranslationGroupId == TranslationGroupId,
                 cancellationToken);
 
         var slug = ResolveSlug(page.Slug, source.Slug);
@@ -184,12 +184,12 @@ public sealed class TranslationImportService : ITranslationImportService
             return;
         }
 
-        var translationSetId = source.TranslationSetId ?? source.Id;
+        var TranslationGroupId = source.TranslationGroupId ?? source.Id;
         var existing = await _session.Query<PostDocument>()
             .FirstOrDefaultAsync(x =>
                 x.SiteId == source.SiteId &&
                 x.Culture == culture &&
-                x.TranslationSetId == translationSetId,
+                x.TranslationGroupId == TranslationGroupId,
                 cancellationToken);
 
         var slug = ResolveSlug(post.Slug, source.Slug);

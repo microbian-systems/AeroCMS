@@ -56,7 +56,7 @@ public static class FooterAdminApi
                     version,
                     footer.State.ToString(),
                     footer.Culture,
-                    footer.TranslationSetId));
+                    footer.TranslationGroupId));
             }
 
             return TypedResults.Ok(summaries);

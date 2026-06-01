@@ -22,7 +22,7 @@ public static class FooterCultureForker
         ArgumentNullException.ThrowIfNull(sourceSnapshot);
 
         var forkedOn = timestamp ?? DateTimeOffset.UtcNow;
-        var translationSetId = source.TranslationSetId ?? source.Id;
+        var TranslationGroupId = source.TranslationGroupId ?? source.Id;
         var culture = NormalizeCulture(targetCulture);
         var snapshot = CloneSnapshot(sourceSnapshot);
 
@@ -34,7 +34,7 @@ public static class FooterCultureForker
             userId,
             forkedOn,
             culture,
-            translationSetId);
+            TranslationGroupId);
 
         var draftSaved = new FooterDraftSaved(
             source.SiteId,
