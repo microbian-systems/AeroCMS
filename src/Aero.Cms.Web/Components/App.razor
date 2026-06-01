@@ -13,6 +13,29 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <script>
+        (function () {
+            const names = ['manager-theme', 'AeroCms.ManagerTheme', 'AeroCms.Theme', 'aero-manager-theme'];
+            const cookies = document.cookie ? document.cookie.split(';') : [];
+            let theme = null;
+
+            for (const name of names) {
+                const prefix = name + '=';
+                const match = cookies.map(c => c.trim()).find(c => c.startsWith(prefix));
+                if (match) {
+                    theme = decodeURIComponent(match.substring(prefix.length));
+                    break;
+                }
+            }
+
+            theme = theme || localStorage.getItem('manager-theme') || 'dark';
+            theme = theme === 'light' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            document.addEventListener('DOMContentLoaded', function () {
+                document.body.setAttribute('data-theme', theme);
+            });
+        })();
+    </script>
     <ResourcePreloader />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/app.css" />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/aero-manager.css" />

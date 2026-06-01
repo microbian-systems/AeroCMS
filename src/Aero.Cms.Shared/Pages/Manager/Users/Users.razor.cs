@@ -1,4 +1,4 @@
-namespace Aero.Cms.Shared.Pages.Manager;
+namespace Aero.Cms.Shared.Pages.Manager.Users;
 
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;

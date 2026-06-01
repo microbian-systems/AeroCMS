@@ -51,6 +51,7 @@ public abstract class LoginBase : ComponentBase
     {
         ErrorMessage = null;
         IsSubmitting = true;
+        await InvokeAsync(StateHasChanged);
 
         try
         {

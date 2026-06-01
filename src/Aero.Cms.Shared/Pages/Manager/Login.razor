@@ -68,8 +68,16 @@
                 <span>Remember me</span>
             </label>
 
-            <button type="submit" disabled="@IsSubmitting" class="h-12 w-full rounded-2xl bg-slate-950 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                @(IsSubmitting ? "Signing in..." : "Sign In")
+            <button type="submit" disabled="@IsSubmitting" class="h-12 w-full rounded-2xl bg-slate-950 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                @if (IsSubmitting)
+                {
+                    <span class="login-submit-spinner" aria-hidden="true"></span>
+                    <span>Signing in...</span>
+                }
+                else
+                {
+                    <span>Sign In</span>
+                }
             </button>
         </EditForm>
     </div>
