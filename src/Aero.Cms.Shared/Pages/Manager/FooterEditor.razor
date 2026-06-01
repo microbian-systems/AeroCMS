@@ -112,6 +112,49 @@
                 </div>
             </div>
 
+            <div class="rounded space-y-3"
+                 style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary); padding: 16px;">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-semibold" style="color: var(--pe-text-primary);">@L["Legal Links"]</h2>
+                        <p class="mt-1 text-sm pe-description">@L["Privacy, terms, cookies, and other links shown in the footer bottom bar."]</p>
+                    </div>
+                    <RadzenButton Icon="add"
+                                  Text="@L["Add Link"]"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.Small"
+                                  Click="@((Action)(() => AddLegalLink()))"
+                                  Disabled="@(_isLoading || _isSaving)" />
+                </div>
+
+                @if (_legalLinks.Count == 0)
+                {
+                    <div class="rounded p-4 text-center"
+                         style="border: 1px dashed var(--pe-border); background: var(--pe-bg-primary);">
+                        <p class="text-sm pe-description">@L["No legal links yet. Add privacy, terms, or cookie policy links."]</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="space-y-2">
+                        @for (var i = 0; i < _legalLinks.Count; i++)
+                        {
+                            var link = _legalLinks[i];
+                            var index = i;
+                            <div class="grid grid-cols-1 gap-2 rounded md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]"
+                                 style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); padding: 8px;">
+                                <input @bind="link.Label" aria-label="Legal link label" placeholder="@L["Label"]" class="rounded px-3 py-2"
+                                       style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                                <input @bind="link.Href" aria-label="Legal link URL" placeholder="@L["/privacy"]" class="rounded px-3 py-2"
+                                       style="border: 1px solid var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-primary);" />
+                                <RadzenButton Icon="close" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
+                                              Click="@(() => RemoveLegalLink(link))" />
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
             <div class="rounded space-y-4"
                  style="border: 1px solid var(--pe-border); background: var(--pe-bg-secondary); padding: 16px;">
                 <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

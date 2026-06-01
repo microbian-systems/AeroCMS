@@ -42,6 +42,7 @@ public partial class FooterEditor
     private string? _backgroundImageUrl;
     private decimal _overlayOpacity = 0.35m;
     private string? _copyrightText;
+    private List<FooterLinkEditorModel> _legalLinks = [];
     private IReadOnlyList<string> SupportedCultures =>
         _currentSite?.SupportedCultures is { Count: > 0 } cultures
             ? cultures
@@ -227,6 +228,27 @@ public partial class FooterEditor
         }
     }
 
+    private void AddLegalLink()
+    {
+        var nextOrder = _legalLinks.Count == 0 ? 0 : _legalLinks.Max(x => x.Order) + 1;
+        _legalLinks.Add(new FooterLinkEditorModel { Label = "New Link", Href = "/", Order = nextOrder });
+        NormalizeLegalLinkOrders();
+    }
+
+    private void RemoveLegalLink(FooterLinkEditorModel link)
+    {
+        _legalLinks = _legalLinks.Where(x => !ReferenceEquals(x, link)).ToList();
+        NormalizeLegalLinkOrders();
+    }
+
+    private void NormalizeLegalLinkOrders()
+    {
+        for (var i = 0; i < _legalLinks.Count; i++)
+        {
+            _legalLinks[i].Order = i;
+        }
+    }
+
     private async Task SaveDraftAsync()
     {
         if (_selected is null)
@@ -261,7 +283,8 @@ public partial class FooterEditor
                 _logoUrl?.Trim(),
                 _backgroundImageUrl?.Trim(),
                 _overlayOpacity,
-                _copyrightText?.Trim());
+                _copyrightText?.Trim(),
+                _legalLinks.Select(x => new UpdateFooterLinkRequest(x.Id, x.Label.Trim(), x.Href.Trim(), x.Order, x.OpenInNewTab)).ToList());
 
             var result = await FootersClient.SaveDraftAsync(_selected.Id, request, _selected.Version);
             if (result is Result<FooterDetail, AeroError>.Ok ok)
@@ -409,6 +432,16 @@ public partial class FooterEditor
                     .ToList()
             })
             .ToList();
+        _legalLinks = detail.LegalLinks
+            .Select(x => new FooterLinkEditorModel
+            {
+                Id = x.Id,
+                Label = x.Label,
+                Href = x.Href,
+                Order = x.Order,
+                OpenInNewTab = x.OpenInNewTab
+            })
+            .ToList();
         NormalizeOrders();
     }
 
@@ -425,6 +458,7 @@ public partial class FooterEditor
         _overlayOpacity = 0.35m;
         _copyrightText = null;
         _groups = [];
+        _legalLinks = [];
         ResetTranslationDraft();
     }
 
@@ -457,7 +491,13 @@ public partial class FooterEditor
         }
 
         var invalidLink = _groups.SelectMany(x => x.Links).FirstOrDefault(x => string.IsNullOrWhiteSpace(x.Label) || string.IsNullOrWhiteSpace(x.Href));
-        return invalidLink is null ? null : "Every link needs a label and URL.";
+        if (invalidLink is not null)
+        {
+            return "Every link needs a label and URL.";
+        }
+
+        var invalidLegalLink = _legalLinks.FirstOrDefault(x => string.IsNullOrWhiteSpace(x.Label) || string.IsNullOrWhiteSpace(x.Href));
+        return invalidLegalLink is null ? null : "Every legal link needs a label and URL.";
     }
 
     private async Task<SiteViewModel?> ResolveCurrentSiteAsync()

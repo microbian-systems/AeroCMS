@@ -98,7 +98,11 @@ public record FooterDetail(
     decimal OverlayOpacity = 0.35m,
     string? CopyrightText = null,
     string Culture = "en-US",
-    long? TranslationSetId = null);
+    long? TranslationSetId = null,
+    IReadOnlyList<FooterLinkDetail> LegalLinks = null)
+{
+    public IReadOnlyList<FooterLinkDetail> LegalLinks { get; init; } = LegalLinks ?? [];
+}
 
 public sealed record ForkFooterCultureRequest(string Culture);
 
@@ -111,7 +115,8 @@ public record CreateFooterRequest(
     string? LogoUrl = null,
     string? BackgroundImageUrl = null,
     decimal OverlayOpacity = 0.35m,
-    string? CopyrightText = null);
+    string? CopyrightText = null,
+    IReadOnlyList<CreateFooterLinkRequest>? LegalLinks = null);
 
 public record UpdateFooterRequest(
     string Name,
@@ -122,7 +127,8 @@ public record UpdateFooterRequest(
     string? LogoUrl = null,
     string? BackgroundImageUrl = null,
     decimal OverlayOpacity = 0.35m,
-    string? CopyrightText = null);
+    string? CopyrightText = null,
+    IReadOnlyList<UpdateFooterLinkRequest>? LegalLinks = null);
 
 public record FooterLinkGroupDetail(long Id, string Title, IReadOnlyList<FooterLinkDetail> Links, int Order);
 

@@ -590,7 +590,11 @@ public sealed class FooterService(
                 BackgroundImageUrl = Clean(request.BackgroundImageUrl),
                 OverlayOpacity = request.OverlayOpacity
             },
-            Legal = FooterLegalSettings.Default with { CopyrightText = Clean(request.CopyrightText) },
+            Legal = FooterLegalSettings.Default with
+            {
+                CopyrightText = Clean(request.CopyrightText),
+                LegalLinks = MapLegalLinksCreate(request.LegalLinks ?? [])
+            },
             Sections = (request.LinkGroups ?? [])
                 .OrderBy(x => x.Order)
                 .Select(MapLinkGroup)
@@ -613,7 +617,11 @@ public sealed class FooterService(
                 BackgroundImageUrl = Clean(request.BackgroundImageUrl),
                 OverlayOpacity = request.OverlayOpacity
             },
-            Legal = FooterLegalSettings.Default with { CopyrightText = Clean(request.CopyrightText) },
+            Legal = FooterLegalSettings.Default with
+            {
+                CopyrightText = Clean(request.CopyrightText),
+                LegalLinks = MapLegalLinksUpdate(request.LegalLinks ?? [])
+            },
             Sections = request.LinkGroups
                 .OrderBy(x => x.Order)
                 .Select(MapLinkGroup)
@@ -662,10 +670,17 @@ public sealed class FooterService(
             snapshot.Style.OverlayOpacity,
             snapshot.Legal.CopyrightText,
             footer.Culture,
-            footer.TranslationSetId);
+            footer.TranslationSetId,
+            snapshot.Legal.LegalLinks.Select(x => new FooterLinkDetail(x.Id, x.Label, x.Href, 0, x.OpenInNewTab)).ToList());
 
     private static long ParseKey(string key)
         => long.TryParse(key, out var id) ? id : 0;
+
+    private static List<FooterLink> MapLegalLinksCreate(IReadOnlyList<CreateFooterLinkRequest> links)
+        => links.OrderBy(x => x.Order).Select(x => new FooterLink(x.Label.Trim(), x.Href.Trim(), x.OpenInNewTab, Snowflake.NewId())).ToList();
+
+    private static List<FooterLink> MapLegalLinksUpdate(IReadOnlyList<UpdateFooterLinkRequest> links)
+        => links.OrderBy(x => x.Order).Select(x => new FooterLink(x.Label.Trim(), x.Href.Trim(), x.OpenInNewTab, x.Id == 0 ? Snowflake.NewId() : x.Id)).ToList();
 
     private static string? Clean(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

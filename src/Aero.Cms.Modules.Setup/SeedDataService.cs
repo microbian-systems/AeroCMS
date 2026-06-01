@@ -255,6 +255,9 @@ public sealed class SeedDatabaseService(
         var (blogListing, blogListingBlocks) = BuildBlogListingPage(request);
         var (aboutPage, aboutBlocks) = BuildAboutPage();
         var (contactPage, contactBlocks) = BuildContactPage();
+        var (privacyPage, privacyBlocks) = BuildPrivacyPage();
+        var (termsPage, termsBlocks) = BuildTermsPage();
+        var (cookiesPage, cookiesBlocks) = BuildCookiesPage();
         var docs = BuildStarterDocsContent();
         var rootDoc = docs.First(d => d.Slug == "docs");
 
@@ -262,6 +265,9 @@ public sealed class SeedDatabaseService(
         StampPageCulture(blogListing, defaultCulture);
         StampPageCulture(aboutPage, defaultCulture);
         StampPageCulture(contactPage, defaultCulture);
+        StampPageCulture(privacyPage, defaultCulture);
+        StampPageCulture(termsPage, defaultCulture);
+        StampPageCulture(cookiesPage, defaultCulture);
         // Create main navigation menu
         var mainNav = new NavigationBlock
         {
@@ -298,6 +304,21 @@ public sealed class SeedDatabaseService(
         foreach (var block in contactBlocks) session.Store(block);
         var contactR = await pageContentService.SaveAsync(contactPage, cancellationToken);
         if (contactR.IsFailure) Log.Warning("Failed to seed contact page: {Error}", ErrMsg(contactR));
+
+        privacyPage.SiteId = siteId;
+        foreach (var block in privacyBlocks) session.Store(block);
+        var privacyR = await pageContentService.SaveAsync(privacyPage, cancellationToken);
+        if (privacyR.IsFailure) Log.Warning("Failed to seed privacy page: {Error}", ErrMsg(privacyR));
+
+        termsPage.SiteId = siteId;
+        foreach (var block in termsBlocks) session.Store(block);
+        var termsR = await pageContentService.SaveAsync(termsPage, cancellationToken);
+        if (termsR.IsFailure) Log.Warning("Failed to seed terms page: {Error}", ErrMsg(termsR));
+
+        cookiesPage.SiteId = siteId;
+        foreach (var block in cookiesBlocks) session.Store(block);
+        var cookiesR = await pageContentService.SaveAsync(cookiesPage, cancellationToken);
+        if (cookiesR.IsFailure) Log.Warning("Failed to seed cookies page: {Error}", ErrMsg(cookiesR));
         
         foreach (var doc in docs)
         {
@@ -1224,6 +1245,222 @@ public sealed class SeedDatabaseService(
                 PublicationState = ContentPublicationState.Published
             },
             new List<BlockBase> { heroBlock, bodyBlock, ctaBlock }
+        );
+    }
+
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildPrivacyPage()
+    {
+        const string summary = "Our commitment to your privacy and data protection.";
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = "Privacy Policy",
+            Summary = summary,
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-6'>We take your privacy seriously. This Privacy Policy explains how we collect, use, and protect your personal information when you use our site.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Information We Collect</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We may collect information you provide directly, such as your name and email address when you contact us or sign up for updates. We also automatically collect certain information about your device and how you interact with our site.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>How We Use Information</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We use the information we collect to provide, maintain, and improve our services, to communicate with you, and to comply with legal obligations.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Data Sharing</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We do not sell your personal information. We may share data with trusted service providers who help us operate our site, subject to confidentiality agreements.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Your Rights</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>You have the right to access, correct, or delete your personal data. Contact us to exercise these rights.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Contact</h2>" +
+                      "<p class='leading-relaxed text-slate-600'>If you have questions about this policy, please reach out through our contact page.</p>",
+            Order = 1
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                Kind = PageKind.Standard,
+                Slug = "privacy",
+                Path = "/privacy",
+                Depth = 0,
+                Order = 0,
+                Title = "Privacy Policy",
+                Summary = summary,
+                SeoTitle = "Privacy Policy | Aero CMS",
+                SeoDescription = "Learn how we collect, use, and protect your personal information.",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "boring_hero", MainText = "Privacy Policy", SubText = summary, FullWidth = true },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                },
+                LayoutRegions =
+                [
+                    new LayoutRegion
+                    {
+                        Name = "MainContent",
+                        Order = 0,
+                        Columns =
+                        [
+                            new LayoutColumn
+                            {
+                                Width = 12, Order = 0,
+                                Blocks =
+                                [
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublicationState = ContentPublicationState.Published
+            },
+            new List<BlockBase> { heroBlock, bodyBlock }
+        );
+    }
+
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildTermsPage()
+    {
+        const string summary = "Terms and conditions governing the use of our site.";
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = "Terms of Service",
+            Summary = summary,
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-6'>By accessing and using this site, you agree to be bound by the following terms and conditions. Please read them carefully.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Use of the Site</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>You may use our site for lawful purposes only. You agree not to misuse or interfere with the operation of the site.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Intellectual Property</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>All content on this site, including text, graphics, logos, and software, is the property of Aero CMS or its licensors and is protected by copyright and other intellectual property laws.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Limitation of Liability</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We strive to provide accurate and up-to-date information, but we make no warranties regarding the completeness or accuracy of the content. Use the site at your own risk.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Changes to These Terms</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We may revise these terms at any time. Continued use of the site after changes constitutes acceptance of the new terms.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Contact</h2>" +
+                      "<p class='leading-relaxed text-slate-600'>If you have questions about these terms, please reach out through our contact page.</p>",
+            Order = 1
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                Kind = PageKind.Standard,
+                Slug = "terms",
+                Path = "/terms",
+                Depth = 0,
+                Order = 0,
+                Title = "Terms of Service",
+                Summary = summary,
+                SeoTitle = "Terms of Service | Aero CMS",
+                SeoDescription = "Read the terms and conditions for using our site.",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "boring_hero", MainText = "Terms of Service", SubText = summary, FullWidth = true },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                },
+                LayoutRegions =
+                [
+                    new LayoutRegion
+                    {
+                        Name = "MainContent",
+                        Order = 0,
+                        Columns =
+                        [
+                            new LayoutColumn
+                            {
+                                Width = 12, Order = 0,
+                                Blocks =
+                                [
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublicationState = ContentPublicationState.Published
+            },
+            new List<BlockBase> { heroBlock, bodyBlock }
+        );
+    }
+
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildCookiesPage()
+    {
+        const string summary = "How we use cookies to improve your browsing experience.";
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = "Cookie Policy",
+            Summary = summary,
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-6'>This Cookie Policy explains what cookies are, how we use them, and your choices regarding their use.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>What Are Cookies?</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>Cookies are small text files stored on your device when you visit a website. They help websites remember your preferences, improve performance, and provide a more personalized experience.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>How We Use Cookies</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We use essential cookies for site functionality, analytics cookies to understand how visitors use our site, and preference cookies to remember your settings.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Managing Cookies</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>Most browsers allow you to control cookies through their settings. You can block or delete cookies, but this may affect your experience on our site.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Third-Party Cookies</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>Some third-party services we use may also set cookies on your device. These are governed by the respective third-party privacy policies.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Contact</h2>" +
+                      "<p class='leading-relaxed text-slate-600'>If you have questions about our cookie policy, please reach out through our contact page.</p>",
+            Order = 1
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                Kind = PageKind.Standard,
+                Slug = "cookies",
+                Path = "/cookies",
+                Depth = 0,
+                Order = 0,
+                Title = "Cookie Policy",
+                Summary = summary,
+                SeoTitle = "Cookie Policy | Aero CMS",
+                SeoDescription = "Learn how we use cookies and how you can manage them.",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "boring_hero", MainText = "Cookie Policy", SubText = summary, FullWidth = true },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                },
+                LayoutRegions =
+                [
+                    new LayoutRegion
+                    {
+                        Name = "MainContent",
+                        Order = 0,
+                        Columns =
+                        [
+                            new LayoutColumn
+                            {
+                                Width = 12, Order = 0,
+                                Blocks =
+                                [
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublicationState = ContentPublicationState.Published
+            },
+            new List<BlockBase> { heroBlock, bodyBlock }
         );
     }
 
