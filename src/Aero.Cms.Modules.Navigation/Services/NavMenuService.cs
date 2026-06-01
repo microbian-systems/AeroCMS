@@ -95,10 +95,10 @@ public sealed class NavMenuService(
             }
 
             var menu = ((Result<NavMenuDocument, AeroError>.Ok)menuResult).Value;
-            var translationSetId = menu.TranslationSetId ?? menu.Id;
+            var TranslationGroupId = menu.TranslationGroupId ?? menu.Id;
             var variants = await session.Query<NavMenuDocument>()
                 .Where(x => x.SiteId == menu.SiteId &&
-                            x.TranslationSetId == translationSetId &&
+                            x.TranslationGroupId == TranslationGroupId &&
                             x.State != NavMenuLifecycleState.Archived)
                 .OrderBy(x => x.Culture)
                 .ToListAsync(token: cancellationToken);
@@ -217,7 +217,7 @@ public sealed class NavMenuService(
             var snapshot = MapSnapshot(request.Items, request.SiteLogoUrl);
             snapshot.Validate();
 
-            var created = new NavMenuCreated(siteId, request.Name, key, userId, now, Culture: culture, TranslationSetId: id);
+            var created = new NavMenuCreated(siteId, request.Name, key, userId, now, Culture: culture, TranslationGroupId: id);
             var draftSaved = new NavMenuDraftSaved(siteId, request.Name, key, snapshot, userId, now, "Initial draft");
 
             session.Events.StartStream(NavMenuStreams.Menu(id), created, draftSaved);
@@ -505,12 +505,12 @@ public sealed class NavMenuService(
 
             var source = ((Result<NavMenuDocument, AeroError>.Ok)menuResult).Value;
             var culture = NormalizeCulture(targetCulture);
-            var translationSetId = source.TranslationSetId ?? source.Id;
+            var TranslationGroupId = source.TranslationGroupId ?? source.Id;
 
             var duplicate = await session.Query<NavMenuDocument>()
                 .AnyAsync(x =>
                     x.SiteId == source.SiteId &&
-                    x.TranslationSetId == translationSetId &&
+                    x.TranslationGroupId == TranslationGroupId &&
                     x.Culture == culture &&
                     x.State != NavMenuLifecycleState.Archived,
                     cancellationToken);
@@ -546,14 +546,14 @@ public sealed class NavMenuService(
         var defaultMenu = await session.LoadAsync<NavMenuDocument>(defaultMenuId, cancellationToken);
         if (defaultMenu is null ||
             string.Equals(defaultMenu.Culture, culture, StringComparison.OrdinalIgnoreCase) ||
-            defaultMenu.TranslationSetId is null)
+            defaultMenu.TranslationGroupId is null)
         {
             return defaultMenuId;
         }
 
         var cultureVariant = await session.Query<NavMenuDocument>()
             .Where(x => x.SiteId == siteId &&
-                        x.TranslationSetId == defaultMenu.TranslationSetId &&
+                        x.TranslationGroupId == defaultMenu.TranslationGroupId &&
                         x.Culture == culture &&
                         x.State != NavMenuLifecycleState.Archived &&
                         x.HasPublishedSnapshot)
@@ -658,7 +658,7 @@ public sealed class NavMenuService(
             menu.State.ToString(),
             snapshot.SiteLogoUrl,
             menu.Culture,
-            menu.TranslationSetId);
+            menu.TranslationGroupId);
 
     private static long ParseKey(string key)
         => long.TryParse(key, out var id) ? id : 0;

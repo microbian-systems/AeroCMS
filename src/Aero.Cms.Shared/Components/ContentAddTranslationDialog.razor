@@ -1,0 +1,45 @@
+<div class="p-6 rounded" style="background: var(--pe-bg-secondary);">
+    <div class="mb-6">
+        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">Add Translation</h3>
+        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">Create a draft localized version from the current default content.</p>
+    </div>
+
+    <div class="space-y-4">
+        <div class="flex flex-col gap-1.5">
+            <label for="contentTranslationCulture" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Culture</label>
+            <select id="contentTranslationCulture"
+                    class="w-full rounded border px-4 py-2 text-sm"
+                    style="border-color: var(--pe-border); background: var(--pe-bg-tertiary); color: var(--pe-text-primary);"
+                    @bind="_culture">
+                @foreach (var culture in AvailableCultures)
+                {
+                    <option value="@culture">@culture</option>
+                }
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+            <label for="contentTranslationSlug" class="text-[10px] font-black uppercase tracking-widest" style="color: var(--pe-text-muted);">Translated slug</label>
+            <RadzenTextBox id="contentTranslationSlug"
+                           @bind-Value="_slug"
+                           Placeholder="@SourceSlug"
+                           class="w-full border-none rounded text-sm px-4 py-2"
+                           style="background: var(--pe-bg-tertiary);" />
+            <p class="text-xs" style="color: var(--pe-text-muted);">You can change this later in the editor.</p>
+        </div>
+    </div>
+
+    <div class="mt-8 pt-6 border-t flex justify-end gap-3" style="border-color: var(--pe-border);">
+        <RadzenButton Text="Cancel"
+                      ButtonStyle="ButtonStyle.Light"
+                      Variant="Variant.Text"
+                      Click="@Cancel" />
+        <RadzenButton Text="Create Translation"
+                      Icon="add"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Variant="Variant.Filled"
+                      Disabled="@(!CanSubmit)"
+                      class="rounded px-6"
+                      Click="@Submit" />
+    </div>
+</div>

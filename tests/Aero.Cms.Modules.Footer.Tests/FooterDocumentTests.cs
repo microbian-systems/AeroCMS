@@ -31,12 +31,12 @@ public sealed class FooterDocumentTests
             UserId: null,
             CreatedOn: DateTimeOffset.UtcNow,
             Culture: "es-MX",
-            TranslationSetId: 42);
+            TranslationGroupId: 42);
 
         var footer = FooterDocument.Create(100, created);
 
         footer.Culture.Should().Be("es-MX");
-        footer.TranslationSetId.Should().Be(42);
+        footer.TranslationGroupId.Should().Be(42);
     }
 
     [Test]

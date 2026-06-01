@@ -22,7 +22,7 @@ public static class NavMenuCultureForker
         ArgumentNullException.ThrowIfNull(sourceSnapshot);
 
         var forkedOn = timestamp ?? DateTimeOffset.UtcNow;
-        var translationSetId = source.TranslationSetId ?? source.Id;
+        var TranslationGroupId = source.TranslationGroupId ?? source.Id;
         var culture = NormalizeCulture(targetCulture);
         var snapshot = CloneSnapshot(sourceSnapshot);
 
@@ -33,7 +33,7 @@ public static class NavMenuCultureForker
             userId,
             forkedOn,
             culture,
-            translationSetId);
+            TranslationGroupId);
 
         var draftSaved = new NavMenuDraftSaved(
             source.SiteId,

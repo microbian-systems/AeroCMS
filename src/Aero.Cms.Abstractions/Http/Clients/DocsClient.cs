@@ -205,7 +205,7 @@ public record DocsSummary(
     long PublishedVersion = 0,
     long DraftVersion = 0,
     string Culture = "en-US",
-    long? TranslationSetId = null);
+    long? TranslationGroupId = null);
 
 /// <summary>
 /// Request to create a child docs section under a parent in a space.
@@ -249,7 +249,7 @@ public record DocsDetail(
     long PublishedVersion = 0,
     long DraftVersion = 0,
     string Culture = "en-US",
-    long? TranslationSetId = null)
+    long? TranslationGroupId = null)
 {
     public static DocsDetail Create(
         string title,

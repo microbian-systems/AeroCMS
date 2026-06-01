@@ -1,5 +1,6 @@
 namespace Aero.Cms.Abstractions.Http.Clients;
 
+using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,11 @@ public interface IBlogHttpClient
     /// <param name="ct">The cancellation token.</param>
     /// <returns>A paged result of blog summaries or an error.</returns>
     Task<Result<PagedResult<BlogSummary>, AeroError>> GetAllAsync(int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets blog posts grouped by translation group for manager localization UX.
+    /// </summary>
+    Task<Result<PagedResult<BlogTranslationGroupSummary>, AeroError>> GetTranslationGroupsAsync(int skip = 0, int take = 10, string? search = null, string? culture = null, CancellationToken ct = default);
 
     /// <summary>
     /// Gets a blog post by its identifier.
@@ -55,6 +61,11 @@ public interface IBlogHttpClient
     /// <param name="ct">The cancellation token.</param>
     /// <returns>True if deletion was successful or an error.</returns>
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes every localized variant in a post translation group.
+    /// </summary>
+    Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
     /// <summary>
     /// Publishes a blog post.
@@ -95,6 +106,15 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
         var url = $"?skip={skip}&take={take}";
         if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
         return GetAsync<PagedResult<BlogSummary>>(url, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<PagedResult<BlogTranslationGroupSummary>, AeroError>> GetTranslationGroupsAsync(int skip = 0, int take = 10, string? search = null, string? culture = null, CancellationToken ct = default)
+    {
+        var url = $"translation-groups?skip={skip}&take={take}";
+        if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+        if (!string.IsNullOrEmpty(culture)) url += $"&culture={Uri.EscapeDataString(culture)}";
+        return GetAsync<PagedResult<BlogTranslationGroupSummary>>(url, ct);
     }
 
     /// <inheritdoc />
@@ -140,6 +160,31 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
     }
 
     /// <inheritdoc />
+    public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+    {
+        var response = await base.DeleteAsync($"translation-groups/{translationGroupId}", ct);
+        return response switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok ok => await ReadDeleteTranslationGroupResultAsync(ok.Value, ct),
+            Result<HttpResponseMessage, AeroError>.Failure(var error) => error,
+            _ => AeroError.CreateError("Unexpected result from DeleteTranslationGroupAsync")
+        };
+    }
+
+    private static async Task<Result<int, AeroError>> ReadDeleteTranslationGroupResultAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<DeleteBlogTranslationGroupResult>(cancellationToken: ct);
+            return body?.Deleted ?? 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    /// <inheritdoc />
     public Task<Result<BlogDetail, AeroError>> PublishAsync(long id, CancellationToken ct = default)
     {
         return PostAsync<object, BlogDetail>($"{id}/publish", new object(), ct);
@@ -174,6 +219,38 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
 public record BlogSummary(long Id, string Title, string Slug, DateTime CreatedAt, DateTime? PublishedAt, string? Excerpt, string? FeaturedImageUrl);
 
 /// <summary>
+/// Translation-group summary for the posts manager.
+/// </summary>
+public sealed record BlogTranslationGroupSummary(
+    long TranslationGroupId,
+    long DisplayPostId,
+    string DisplayCulture,
+    string DefaultCulture,
+    string Title,
+    string Slug,
+    DateTime CreatedAt,
+    DateTime? PublishedAt,
+    string? Excerpt,
+    string? FeaturedImageUrl,
+    bool MissingDefaultCulture,
+    bool MissingSelectedCulture,
+    IReadOnlyList<BlogTranslationVariantSummary> Variants);
+
+/// <summary>
+/// Culture-specific post variant summary.
+/// </summary>
+public sealed record BlogTranslationVariantSummary(
+    long Id,
+    string Culture,
+    string Title,
+    string Slug,
+    DateTime CreatedAt,
+    DateTime? PublishedAt,
+    bool IsDefaultCulture);
+
+public sealed record DeleteBlogTranslationGroupResult(int Deleted);
+
+/// <summary>
 /// Detailed information for a blog post.
 /// </summary>
 public record BlogDetail(
@@ -194,7 +271,7 @@ public record BlogDetail(
     DateTimeOffset CreatedOn,
     DateTimeOffset? ModifiedOn,
     string Culture = "en-US",
-    long? TranslationSetId = null);
+    long? TranslationGroupId = null);
 
 public sealed record ForkBlogCultureRequest(string Culture, string Slug);
 

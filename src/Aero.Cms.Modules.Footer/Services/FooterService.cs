@@ -95,10 +95,10 @@ public sealed class FooterService(
             }
 
             var footer = ((Result<FooterDocument, AeroError>.Ok)footerResult).Value;
-            var translationSetId = footer.TranslationSetId ?? footer.Id;
+            var TranslationGroupId = footer.TranslationGroupId ?? footer.Id;
             var variants = await session.Query<FooterDocument>()
                 .Where(x => x.SiteId == footer.SiteId &&
-                            x.TranslationSetId == translationSetId &&
+                            x.TranslationGroupId == TranslationGroupId &&
                             x.State != FooterLifecycleState.Archived)
                 .OrderBy(x => x.Culture)
                 .ToListAsync(token: cancellationToken);
@@ -226,7 +226,7 @@ public sealed class FooterService(
             var snapshot = MapSnapshot(request);
             snapshot.Validate();
 
-            var created = new FooterCreated(siteId, request.Name, key, request.Description, userId, now, Culture: culture, TranslationSetId: id);
+            var created = new FooterCreated(siteId, request.Name, key, request.Description, userId, now, Culture: culture, TranslationGroupId: id);
             var draftSaved = new FooterDraftSaved(siteId, request.Name, key, request.Description, snapshot, userId, now, "Initial draft");
 
             session.Events.StartStream(FooterStreams.Footer(id), created, draftSaved);
@@ -490,12 +490,12 @@ public sealed class FooterService(
 
             var source = ((Result<FooterDocument, AeroError>.Ok)footerResult).Value;
             var culture = NormalizeCulture(targetCulture);
-            var translationSetId = source.TranslationSetId ?? source.Id;
+            var TranslationGroupId = source.TranslationGroupId ?? source.Id;
 
             var duplicate = await session.Query<FooterDocument>()
                 .AnyAsync(x =>
                     x.SiteId == source.SiteId &&
-                    x.TranslationSetId == translationSetId &&
+                    x.TranslationGroupId == TranslationGroupId &&
                     x.Culture == culture &&
                     x.State != FooterLifecycleState.Archived,
                     cancellationToken);
@@ -531,14 +531,14 @@ public sealed class FooterService(
         var defaultFooter = await session.LoadAsync<FooterDocument>(defaultFooterId, cancellationToken);
         if (defaultFooter is null ||
             string.Equals(defaultFooter.Culture, culture, StringComparison.OrdinalIgnoreCase) ||
-            defaultFooter.TranslationSetId is null)
+            defaultFooter.TranslationGroupId is null)
         {
             return defaultFooterId;
         }
 
         var cultureVariant = await session.Query<FooterDocument>()
             .Where(x => x.SiteId == siteId &&
-                        x.TranslationSetId == defaultFooter.TranslationSetId &&
+                        x.TranslationGroupId == defaultFooter.TranslationGroupId &&
                         x.Culture == culture &&
                         x.State != FooterLifecycleState.Archived &&
                         x.HasPublishedSnapshot)
@@ -670,7 +670,7 @@ public sealed class FooterService(
             snapshot.Style.OverlayOpacity,
             snapshot.Legal.CopyrightText,
             footer.Culture,
-            footer.TranslationSetId,
+            footer.TranslationGroupId,
             snapshot.Legal.LegalLinks.Select(x => new FooterLinkDetail(x.Id, x.Label, x.Href, 0, x.OpenInNewTab)).ToList());
 
     private static long ParseKey(string key)

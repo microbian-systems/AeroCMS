@@ -17,7 +17,7 @@ public interface IPostContentService
     Task<Result<PostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
     Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
-    Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(long translationSetId, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(long TranslationGroupId, CancellationToken cancellationToken = default);
     Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(long sourcePostId, string targetCulture, string targetSlug, CancellationToken cancellationToken = default);
     Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default);
     Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default);
@@ -27,6 +27,7 @@ public interface IPostContentService
     Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAsync(CancellationToken cancellationToken = default);
     Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default);
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
+    Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default);
 }
 
 public sealed class PostContentService(
@@ -221,7 +222,7 @@ public sealed class PostContentService(
             if (existingPost is null && post.SiteId == 0)
                 post.SiteId = _siteContext.SiteId;
             post.Culture = ContentSlugDocument.NormalizeCulture(post.Culture);
-            post.TranslationSetId ??= post.Id;
+            post.TranslationGroupId ??= post.Id;
             await ContentSlugReservation.ReserveAsync(
                 session,
                 post.Id,
@@ -397,14 +398,52 @@ public sealed class PostContentService(
         return await FindSlugReservationAsync(normalizedSlug, defaultCulture, cancellationToken);
     }
 
+    public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var variants = await session.Query<PostDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId && x.TranslationGroupId == translationGroupId)
+                .ToListAsync(cancellationToken);
+
+            if (variants.Count == 0)
+            {
+                return Prelude.Ok<int, AeroError>(0);
+            }
+
+            var ids = variants.Select(x => x.Id).ToList();
+
+            session.DeleteWhere<PostDocument>(x =>
+                x.SiteId == _siteContext.SiteId && ids.Contains(x.Id));
+
+            session.DeleteWhere<ContentSlugDocument>(x =>
+                x.SiteId == _siteContext.SiteId
+                && ids.Contains(x.OwnerId)
+                && x.OwnerType == ContentSlugOwnerType.BlogPost);
+
+            await session.SaveChangesAsync(cancellationToken);
+
+            foreach (var variant in variants)
+            {
+                await PublishContentUpdatedAsync(variant, variant.Slug, cancellationToken);
+            }
+
+            return Prelude.Ok<int, AeroError>(ids.Count);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<int, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
     public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(
-        long translationSetId,
+        long TranslationGroupId,
         CancellationToken cancellationToken = default)
     {
         try
         {
             var variants = await session.Query<PostDocument>()
-                .Where(x => x.SiteId == _siteContext.SiteId && x.TranslationSetId == translationSetId)
+                .Where(x => x.SiteId == _siteContext.SiteId && x.TranslationGroupId == TranslationGroupId)
                 .OrderBy(x => x.Culture)
                 .ToListAsync(token: cancellationToken);
 
@@ -433,11 +472,11 @@ public sealed class PostContentService(
             if (!supported)
                 return Prelude.Fail<PostDocument, AeroError>(AeroError.ValidationError([$"Culture '{normalizedCulture}' is not supported by the current site."]));
 
-            var translationSetId = source.TranslationSetId ?? source.Id;
+            var TranslationGroupId = source.TranslationGroupId ?? source.Id;
             var existingVariant = await session.Query<PostDocument>()
                 .FirstOrDefaultAsync(x =>
                     x.SiteId == source.SiteId &&
-                    x.TranslationSetId == translationSetId &&
+                    x.TranslationGroupId == TranslationGroupId &&
                     x.Culture == normalizedCulture,
                     token: cancellationToken);
 

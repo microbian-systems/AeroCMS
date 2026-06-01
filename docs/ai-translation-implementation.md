@@ -33,7 +33,7 @@ The existing localization infrastructure already provides:
 
 | Capability | Status |
 |---|---|
-| Document-per-culture with `TranslationSetId` + `Culture` | ✅ Pages, Posts, Docs, NavMenus, Footers |
+| Document-per-culture with `TranslationGroupId` + `Culture` | ✅ Pages, Posts, Docs, NavMenus, Footers |
 | Sidecar translation entities | ✅ CategoryTranslation, TagTranslation |
 | Fork endpoints (manual copy to new culture) | ✅ All content types |
 | Translation variant switching in editors | ✅ DocsEditor, PostEditor, PageEditor, NavMenuEditor, FooterEditor |
@@ -72,13 +72,13 @@ Each content module owns its own translation data in its own document type. Ther
 
 | Content Type | Document | Module | Key Fields |
 |---|---|---|---|
-| **Page** | `PageDocument` | `Aero.Cms.Modules.Pages` | `Culture`, `TranslationSetId`, culture-specific `Slug`, title, SEO fields, layout/blocks |
-| **Post** | `PostDocument` | `Aero.Cms.Modules.Posts` | `Culture`, `TranslationSetId`, culture-specific `Slug`, title, content/excerpt, SEO fields |
-| **Doc** | `DocsPage` | `Aero.Cms.Modules.Docs` | `Culture`, `TranslationSetId`, culture-specific `Slug`, markdown content, title, SEO fields, parent/tree info |
-| **NavMenu** | `NavMenuDocument` | `Aero.Cms.Modules.Navigation` | `Culture`, `TranslationSetId`, published snapshot |
-| **Footer** | `FooterDocument` | `Aero.Cms.Modules.Footer` | `Culture`, `TranslationSetId`, published snapshot |
+| **Page** | `PageDocument` | `Aero.Cms.Modules.Pages` | `Culture`, `TranslationGroupId`, culture-specific `Slug`, title, SEO fields, layout/blocks |
+| **Post** | `PostDocument` | `Aero.Cms.Modules.Posts` | `Culture`, `TranslationGroupId`, culture-specific `Slug`, title, content/excerpt, SEO fields |
+| **Doc** | `DocsPage` | `Aero.Cms.Modules.Docs` | `Culture`, `TranslationGroupId`, culture-specific `Slug`, markdown content, title, SEO fields, parent/tree info |
+| **NavMenu** | `NavMenuDocument` | `Aero.Cms.Modules.Navigation` | `Culture`, `TranslationGroupId`, published snapshot |
+| **Footer** | `FooterDocument` | `Aero.Cms.Modules.Footer` | `Culture`, `TranslationGroupId`, published snapshot |
 
-Each translated variant is a full document in its own right (same document type, same `TranslationSetId`, different `Culture`). The module's service layer resolves the correct variant at query time, per `(SiteId, Culture, Slug)`.
+Each translated variant is a full document in its own right (same document type, same `TranslationGroupId`, different `Culture`). The module's service layer resolves the correct variant at query time, per `(SiteId, Culture, Slug)`.
 
 Sidecar translations for simpler entities follow the same module-owned pattern:
 

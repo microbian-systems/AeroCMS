@@ -124,7 +124,7 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         opts.Schema.For<PageDocument>().Index(x => x.IsHidden);
         opts.Schema.For<PageDocument>().Index(x => x.ShowInNavMenu);
         opts.Schema.For<PageDocument>().Index(x => x.Culture);
-        opts.Schema.For<PageDocument>().Index(x => x.TranslationSetId);
+        opts.Schema.For<PageDocument>().Index(x => x.TranslationGroupId);
 
         // Compound indexes for common query patterns
         opts.Schema.For<PageDocument>().Index(x => new { x.SiteId, x.Path });

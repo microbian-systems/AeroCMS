@@ -60,7 +60,7 @@ public record PageViewModel : AeroEntityViewModel
     [Id(25)]
     public string Culture { get; init; } = "en-US";
     [Id(26)]
-    public long? TranslationSetId { get; init; }
+    public long? TranslationGroupId { get; init; }
     [Id(27)]
     public ContentPublicationState PublicationState { get; init; } = ContentPublicationState.Draft;
 }

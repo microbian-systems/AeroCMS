@@ -12,7 +12,7 @@ public sealed class FooterCultureForkerTests
         {
             Id = 100,
             SiteId = 42,
-            TranslationSetId = 900,
+            TranslationGroupId = 900,
             Culture = "en-US",
             Name = "Footer",
             Key = "footer",
@@ -41,7 +41,7 @@ public sealed class FooterCultureForkerTests
 
         await Assert.That(fork.Created.SiteId).IsEqualTo(42);
         await Assert.That(fork.Created.Culture).IsEqualTo("es-MX");
-        await Assert.That(fork.Created.TranslationSetId).IsEqualTo(900);
+        await Assert.That(fork.Created.TranslationGroupId).IsEqualTo(900);
         await Assert.That(fork.Created.UserId).IsEqualTo(7);
         await Assert.That(fork.DraftSaved.Snapshot.Sections).Count().IsEqualTo(1);
         await Assert.That(fork.DraftSaved.Snapshot.Sections[0]).IsAssignableTo<FooterLinkGroup>();
@@ -66,7 +66,7 @@ public sealed class FooterCultureForkerTests
 
         var fork = FooterCultureForker.Fork(source, FooterSnapshot.Empty, 200, "ar-SA");
 
-        await Assert.That(fork.Created.TranslationSetId).IsEqualTo(100);
+        await Assert.That(fork.Created.TranslationGroupId).IsEqualTo(100);
         await Assert.That(fork.Created.Culture).IsEqualTo("ar-SA");
     }
 }

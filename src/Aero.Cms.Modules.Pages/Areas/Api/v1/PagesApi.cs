@@ -57,6 +57,9 @@ public static class PagesApi
         
         group.MapDelete("/{id:long}", DeletePage)
             .WithName("DeletePage");
+
+        group.MapDelete("/translation-groups/{translationGroupId:long}", DeleteTranslationGroup)
+            .WithName("DeletePageTranslationGroup");
         
         group.MapDelete("/{id:long}/cascade", DeletePageCascade)
             .WithName("DeletePageCascade");
@@ -306,6 +309,25 @@ public static class PagesApi
             : TypedResults.Ok(true);
     }
 
+    private static async Task<IResult> DeleteTranslationGroup(
+        long translationGroupId,
+        [FromServices] IPageContentService pageService,
+        CancellationToken ct)
+    {
+        var result = await pageService.DeleteTranslationGroupAsync(translationGroupId, ct);
+        return result switch
+        {
+            Result<int, AeroError>.Ok ok => TypedResults.Ok(new DeleteMultipleResult(ok.Value)),
+            Result<int, AeroError>.Failure failure => TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to delete translation group",
+                Detail = failure.Error.ToString(),
+                Status = StatusCodes.Status400BadRequest
+            }),
+            _ => TypedResults.Problem("Unknown delete result.")
+        };
+    }
+
     private static async Task<IResult> DeletePageCascade(
         long id,
         [FromServices] IAeroPageActor pagesActor,
@@ -485,7 +507,7 @@ public static class PagesApi
             vm.Path ?? "",
             vm.Depth,
             vm.Culture,
-            vm.TranslationSetId
+            vm.TranslationGroupId
         );
     }
 

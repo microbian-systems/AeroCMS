@@ -266,11 +266,11 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         if (page is null)
             return [];
 
-        var translationSetId = page.TranslationSetId ?? page.Id;
+        var TranslationGroupId = page.TranslationGroupId ?? page.Id;
 
         await using var session = _store.LightweightSession();
         var pageService = CreatePageService(session, page.SiteId);
-        var result = await pageService.ListCultureVariantsAsync(translationSetId, ct);
+        var result = await pageService.ListCultureVariantsAsync(TranslationGroupId, ct);
 
         return result is Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok
             ? ok.Value.Select(p => p.ToViewModel()).ToList()

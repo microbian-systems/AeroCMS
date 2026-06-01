@@ -1,11 +1,14 @@
 @using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Abstractions.Interfaces
+@using Aero.Cms.Abstractions.Models
 @inject IPagesHttpClient PagesApi
 @inject NavigationManager Navigation
 @inject Radzen.DialogService DialogService
 @inject Radzen.ContextMenuService ContextMenuService
 @inject Radzen.NotificationService NotificationService
+@inject ICurrentSiteAccessor CurrentSiteAccessor
 
-<RadzenDataGrid TItem="PageTreeItem"
+<RadzenDataGrid TItem="PageTranslationGroupTreeItem"
                 Data="@_rootNodes"
                 AllowRowSelectOnRowClick="true"
                 RowClick="@OnRowClick"
@@ -16,7 +19,7 @@
                 style="max-height: 70vh; overflow-y: auto;">
     <Columns>
         @* Checkbox column — multi-select *@
-        <RadzenDataGridColumn TItem="PageTreeItem" Title="" Width="48px" Filterable="false" Sortable="false">
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="" Width="48px" Filterable="false" Sortable="false">
             <HeaderTemplate>
                 <input type="checkbox"
                        @onchange="ToggleSelectAll"
@@ -26,15 +29,15 @@
             </HeaderTemplate>
             <Template Context="node">
                 <input type="checkbox"
-                       checked="@_selectedIds.Contains(node.Id)"
-                       @onchange="() => ToggleSelection(node.Id)"
+                       checked="@_selectedIds.Contains(node.TranslationGroupId)"
+                       @onchange="() => ToggleSelection(node.TranslationGroupId)"
                        @onclick:stopPropagation="true"
                        class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
             </Template>
         </RadzenDataGridColumn>
 
         @* Icon / preview column *@
-        <RadzenDataGridColumn TItem="PageTreeItem" Title="" Width="50px" Sortable="false">
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="" Width="50px" Sortable="false">
             <Template Context="node">
                 <button @onclick="() => PreviewAsync(node)" @onclick:stopPropagation="true"
                         class="hover:opacity-70 cursor-pointer border-0 bg-transparent p-0"
@@ -47,20 +50,57 @@
             </Template>
         </RadzenDataGridColumn>
 
-        <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.Title)" Title="Title" Width="250px" Sortable="true" />
-        <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.Slug)" Title="Slug" Width="180px" Sortable="true" />
-        <RadzenDataGridColumn TItem="PageTreeItem" Title="Path" Width="300px" Sortable="true">
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Property="@nameof(PageTranslationGroupTreeItem.Title)" Title="Title" Width="250px" Sortable="true">
+            <Template Context="node">
+                <div class="flex flex-col gap-1">
+                    <span class="font-medium">@node.Title</span>
+                    @if (node.MissingDefaultCulture || node.MissingSelectedCulture)
+                    {
+                        <span class="inline-flex w-fit items-center rounded bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-800">
+                            @(node.MissingSelectedCulture ? $"Missing {_selectedCulture}" : $"Missing {node.DefaultCulture}")
+                        </span>
+                    }
+                </div>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Property="@nameof(PageTranslationGroupTreeItem.Slug)" Title="Slug" Width="180px" Sortable="true" />
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="Path" Width="300px" Sortable="true">
             <Template Context="node">
                 <span class="text-gray-500 text-sm font-mono">@node.Path</span>
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.PublicationState)" Title="Status" Width="110px" Sortable="true">
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="Cultures" Width="190px" Sortable="false">
+            <Template Context="node">
+                <div class="flex flex-wrap items-center gap-1">
+                    @foreach (var variant in node.Variants)
+                    {
+                        <button class="rounded border px-2 py-0.5 text-xs font-semibold"
+                                style="border-color: var(--pe-border); color: var(--pe-text-secondary);"
+                                title="@($"{variant.Culture}: {variant.Title}")"
+                                @onclick="() => ViewTranslationsAsync(node)"
+                                @onclick:stopPropagation="true">
+                            @variant.Culture
+                        </button>
+                    }
+                    @if (GetMissingCultures(node).Any())
+                    {
+                        <button class="rounded bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-800"
+                                title="View missing translations"
+                                @onclick="() => ViewTranslationsAsync(node)"
+                                @onclick:stopPropagation="true">
+                            @node.Variants.Count / @SupportedCultures.Count
+                        </button>
+                    }
+                </div>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Property="@nameof(PageTranslationGroupTreeItem.PublicationState)" Title="Status" Width="110px" Sortable="true">
             <Template Context="node">
                 <RadzenBadge Text="@node.PublicationState" BadgeStyle="@GetBadgeStyle(node.PublicationState)" />
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="PageTreeItem" Property="@nameof(PageTreeItem.Depth)" Title="Depth" Width="70px" Sortable="true" />
-        <RadzenDataGridColumn TItem="PageTreeItem" Title="Hidden" Width="70px" Sortable="true">
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Property="@nameof(PageTranslationGroupTreeItem.Depth)" Title="Depth" Width="70px" Sortable="true" />
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="Hidden" Width="70px" Sortable="true">
             <Template Context="node">
                 @if (node.IsHidden)
                 { <RadzenIcon Icon="visibility_off" class="text-gray-400" /> }
@@ -68,11 +108,13 @@
                 { <RadzenIcon Icon="visibility" class="text-green-500" /> }
             </Template>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="PageTreeItem" Title="Actions" Width="170px" Sortable="false">
+        <RadzenDataGridColumn TItem="PageTranslationGroupTreeItem" Title="Actions" Width="210px" Sortable="false">
             <Template Context="node">
                 <div class="flex gap-1">
                     <RadzenButton Icon="control_point" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
                                   Click="@(() => AddChildAsync(node))" Title="Add child page" />
+                    <RadzenButton Icon="translate" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                  Click="@(() => ViewTranslationsAsync(node))" Title="View translations" />
                     <RadzenButton Icon="edit" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
                                   Click="@(() => EditAsync(node))" />
                     <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
@@ -97,18 +139,28 @@
 }
 
 @code {
-    private List<PageTreeItem> _rootNodes = [];
+    private List<PageTranslationGroupTreeItem> _rootNodes = [];
     private string? _error;
     private HashSet<long> _selectedIds = [];
+    private SiteViewModel? _currentSite;
+    private string _selectedCulture = "";
+    private string? _search;
+
+    private IReadOnlyList<string> SupportedCultures =>
+        _currentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [_currentSite?.DefaultCulture ?? "en-US"];
 
     /// <summary>
     /// Optional callback: when the icon column is clicked, fires so
     /// the parent page can show a preview overlay instead of navigating.
     /// </summary>
-    [Parameter] public EventCallback<PageTreeItem> OnPreview { get; set; }
+    [Parameter] public EventCallback<PageTranslationGroupTreeItem> OnPreview { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        _currentSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        _selectedCulture = _currentSite?.DefaultCulture ?? "en-US";
         await LoadRootsAsync();
     }
 
@@ -118,27 +170,27 @@
         _selectedIds.Clear();
         try
         {
-            var result = await PagesApi.GetChildrenAsync(parentId: null);
-            _rootNodes = result is Result<IReadOnlyList<PageTreeItem>, AeroError>.Ok ok
+            var result = await PagesApi.GetTranslationGroupChildrenAsync(null, _selectedCulture, _search);
+            _rootNodes = result is Result<IReadOnlyList<PageTranslationGroupTreeItem>, AeroError>.Ok ok
                 ? ok.Value.ToList()
                 : [];
         }
         catch (Exception ex) { _error = ex.Message; }
     }
 
-    private async Task LoadChildData(DataGridLoadChildDataEventArgs<PageTreeItem> args)
+    private async Task LoadChildData(DataGridLoadChildDataEventArgs<PageTranslationGroupTreeItem> args)
     {
         try
         {
-            var result = await PagesApi.GetChildrenAsync(args.Item!.Id);
-            args.Data = result is Result<IReadOnlyList<PageTreeItem>, AeroError>.Ok ok
+            var result = await PagesApi.GetTranslationGroupChildrenAsync(args.Item!.TranslationGroupId, _selectedCulture, _search);
+            args.Data = result is Result<IReadOnlyList<PageTranslationGroupTreeItem>, AeroError>.Ok ok
                 ? ok.Value.ToList()
                 : [];
         }
         catch { /* children silently fail */ }
     }
 
-    private static void RowRender(RowRenderEventArgs<PageTreeItem> args)
+    private static void RowRender(RowRenderEventArgs<PageTranslationGroupTreeItem> args)
     {
         args.Expandable = args.Data.HasChildren;
     }
@@ -157,7 +209,7 @@
 
     private bool AreAllVisibleSelected()
     {
-        return _rootNodes.Count > 0 && _rootNodes.All(n => _selectedIds.Contains(n.Id));
+        return _rootNodes.Count > 0 && _rootNodes.All(n => _selectedIds.Contains(n.TranslationGroupId));
     }
 
     private void ToggleSelection(long id)
@@ -173,7 +225,7 @@
         if (args.Value is bool isChecked && isChecked)
         {
             foreach (var node in _rootNodes)
-                _selectedIds.Add(node.Id);
+                _selectedIds.Add(node.TranslationGroupId);
         }
         else
         {
@@ -183,33 +235,38 @@
 
     // ── Inline row actions ────────────────────────────────────────
 
-    private async Task PreviewAsync(PageTreeItem node)
+    private async Task PreviewAsync(PageTranslationGroupTreeItem node)
     {
         if (OnPreview.HasDelegate)
             await OnPreview.InvokeAsync(node);
         else
-            Navigation.NavigateTo($"/manager/page/editor/{node.Id}");
+            Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}");
     }
 
-    private void EditAsync(PageTreeItem node)
+    private void EditAsync(PageTranslationGroupTreeItem node)
     {
-        Navigation.NavigateTo($"/manager/page/editor/{node.Id}");
+        Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}");
     }
 
-    private void AddChildAsync(PageTreeItem node)
+    private void AddChildAsync(PageTranslationGroupTreeItem node)
     {
-        Navigation.NavigateTo($"/manager/page/editor?parentId={node.Id}");
+        Navigation.NavigateTo($"/manager/page/editor?parentId={node.DisplayPageId}");
     }
 
-    private void OnRowClick(DataGridRowMouseEventArgs<PageTreeItem> args)
+    private void OnRowClick(DataGridRowMouseEventArgs<PageTranslationGroupTreeItem> args)
     {
         if (args.Data is not null)
-            Navigation.NavigateTo($"/manager/page/editor/{args.Data.Id}");
+            Navigation.NavigateTo($"/manager/page/editor/{args.Data.DisplayPageId}");
+    }
+
+    private void ViewTranslationsAsync(PageTranslationGroupTreeItem node)
+    {
+        Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}?tab=translations");
     }
 
     // ── Delete (with cascade support) ─────────────────────────────
 
-    private async Task ConfirmDeleteAsync(PageTreeItem node)
+    private async Task ConfirmDeleteAsync(PageTranslationGroupTreeItem node)
     {
         if (node.HasChildren)
         {
@@ -226,7 +283,7 @@
             var action = choice?.ToString();
             if (action == "delete")
             {
-                var result = await PagesApi.DeleteCascadeAsync(node.Id);
+                var result = await PagesApi.DeleteCascadeAsync(node.DisplayPageId);
                 if (result is Result<bool, AeroError>.Ok)
                     NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"Page '{node.Title}' and its descendants removed.");
                 else
@@ -234,7 +291,7 @@
             }
             else if (action == "unpublish")
             {
-                var result = await PagesApi.UnpublishAsync(node.Id);
+                var result = await PagesApi.UnpublishAsync(node.DisplayPageId);
                 if (result is Result<PageDetail, AeroError>.Ok)
                     NotificationService.Notify(NotificationSeverity.Success, "Draft", $"Page '{node.Title}' converted to draft. Children preserved.");
                 else
@@ -244,12 +301,26 @@
         }
         else
         {
+            var defaultVariant = GetDefaultVariant(node);
+            var deletesGroup = defaultVariant is null || defaultVariant.Id == node.DisplayPageId;
+            var message = deletesGroup
+                ? $"Delete '{node.Title}' and all {node.Variants.Count} localized version(s)? This cannot be undone."
+                : $"Delete page '{node.Title}'?";
+            var okText = deletesGroup ? "Delete All Locales" : "Delete";
             var confirmed = await DialogService.Confirm(
-                $"Delete page '{node.Title}'?", "Confirm Delete",
-                new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+                message, "Confirm Delete",
+                new ConfirmOptions { OkButtonText = okText, CancelButtonText = "Cancel" });
             if (confirmed == true)
             {
-                await PagesApi.DeleteAsync(node.Id);
+                if (deletesGroup)
+                {
+                    await PagesApi.DeleteTranslationGroupAsync(node.TranslationGroupId);
+                }
+                else
+                {
+                    await PagesApi.DeleteAsync(node.DisplayPageId);
+                }
+
                 await LoadRootsAsync();
             }
         }
@@ -266,30 +337,38 @@
 
         if (confirm != true) return;
 
-        var ids = _selectedIds.ToList();
-        var result = await PagesApi.DeleteMultipleAsync(ids, deleteDescendants: false);
-
-        if (result is Result<int, AeroError>.Ok ok)
+        var deleted = 0;
+        foreach (var translationGroupId in _selectedIds.ToList())
         {
-            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"{ok.Value} page(s) removed.");
+            var result = await PagesApi.DeleteTranslationGroupAsync(translationGroupId);
+            if (result is Result<int, AeroError>.Ok ok)
+            {
+                deleted += ok.Value;
+            }
+        }
+
+        if (deleted > 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"{deleted} localized page(s) removed.");
             _selectedIds.Clear();
             await LoadRootsAsync();
         }
-        else if (result is Result<int, AeroError>.Failure f)
+        else
         {
-            NotificationService.Notify(NotificationSeverity.Error, "Delete Failed", f.Error.ToString());
+            NotificationService.Notify(NotificationSeverity.Warning, "Delete", "No pages were removed.");
         }
     }
 
     // ── Right-click context menu ──────────────────────────────────
 
-    private void OnCellContextMenu(DataGridCellMouseEventArgs<PageTreeItem> args)
+    private void OnCellContextMenu(DataGridCellMouseEventArgs<PageTranslationGroupTreeItem> args)
     {
         if (args.Data is null) return;
 
         ContextMenuService.Open(args,
         [
             new() { Text = "Edit", Value = "edit", Icon = "edit" },
+            new() { Text = "View translations", Value = "translations", Icon = "translate" },
             new() { Text = "Add child page", Value = "add-child", Icon = "control_point" },
             new() { Text = "Delete", Value = "delete", Icon = "delete" },
         ],
@@ -299,10 +378,13 @@
             switch (item.Value as string)
             {
                 case "edit":
-                    Navigation.NavigateTo($"/manager/page/editor/{node.Id}");
+                    Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}");
+                    break;
+                case "translations":
+                    ViewTranslationsAsync(node);
                     break;
                 case "add-child":
-                    Navigation.NavigateTo($"/manager/page/editor?parentId={node.Id}");
+                    Navigation.NavigateTo($"/manager/page/editor?parentId={node.DisplayPageId}");
                     break;
                 case "delete":
                     _ = ConfirmDeleteAsync(node);
@@ -310,4 +392,20 @@
             }
         });
     }
+
+    private IReadOnlyList<string> GetMissingCultures(PageTranslationGroupTreeItem node)
+    {
+        var existing = node.Variants
+            .Select(variant => variant.Culture)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return SupportedCultures
+            .Where(culture => !existing.Contains(culture))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(culture => culture, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static PageTranslationVariantItem? GetDefaultVariant(PageTranslationGroupTreeItem node)
+        => node.Variants.FirstOrDefault(variant => variant.IsDefaultCulture);
 }

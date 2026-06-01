@@ -82,7 +82,7 @@ public sealed class PostsModule : AeroWebModule, IUiModule
         opts.Schema.For<PostDocument>().Identity(x => x.Id);
         opts.Schema.For<PostDocument>().Index(x => x.SiteId);
         opts.Schema.For<PostDocument>().Index(x => x.Culture);
-        opts.Schema.For<PostDocument>().Index(x => x.TranslationSetId);
+        opts.Schema.For<PostDocument>().Index(x => x.TranslationGroupId);
         opts.Schema.For<PostDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Slug);
         opts.Schema.For<PostDocument>().Index(x => x.PublishedOn);
         opts.Schema.For<PostDocument>().Index(x => x.CreatedOn);

@@ -11,13 +11,14 @@ public static class PostCultureForker
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        var translationSetId = source.TranslationSetId ?? source.Id;
+        var translationGroupId = source.TranslationGroupId ?? source.Id;
 
         return new PostDocument
         {
             Id = targetPostId,
             SiteId = source.SiteId,
-            TranslationSetId = translationSetId,
+            TranslationGroupId = translationGroupId,
+            SourcePostId = source.Id,
             Culture = ContentSlugDocument.NormalizeCulture(targetCulture),
             Slug = targetSlug.Trim().Trim('/'),
             Title = source.Title,

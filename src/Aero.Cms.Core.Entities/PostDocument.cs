@@ -9,7 +9,8 @@ namespace Aero.Cms.Core.Entities;
 public sealed class PostDocument : Entity, ISiteOwned
 {
     public long SiteId { get; set; }
-    public long? TranslationSetId { get; set; }
+    public long? TranslationGroupId { get; set; }
+    public long? SourcePostId { get; set; }
     public string Culture { get; set; } = SitesModel.DefaultCultureName;
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;

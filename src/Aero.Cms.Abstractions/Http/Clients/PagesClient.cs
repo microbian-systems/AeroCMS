@@ -1,5 +1,6 @@
 namespace Aero.Cms.Abstractions.Http.Clients;
 
+using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
@@ -83,6 +84,11 @@ public interface IPagesHttpClient
     Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants = false, CancellationToken ct = default);
 
     /// <summary>
+    /// Deletes every localized variant in a translation group.
+    /// </summary>
+    Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+
+    /// <summary>
     /// Publishes a page.
     /// </summary>
     /// <param name="id">The page identifier to publish.</param>
@@ -131,6 +137,11 @@ public interface IPagesHttpClient
     /// Gets immediate children of a parent page (or root-level pages).
     /// </summary>
     Task<Result<IReadOnlyList<PageTreeItem>, AeroError>> GetChildrenAsync(long? parentId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets immediate translation-group children for the page manager tree.
+    /// </summary>
+    Task<Result<IReadOnlyList<PageTranslationGroupTreeItem>, AeroError>> GetTranslationGroupChildrenAsync(long? parentTranslationGroupId, string? culture = null, string? search = null, CancellationToken ct = default);
 
     /// <summary>
     /// Gets breadcrumb trail for a page.
@@ -223,6 +234,31 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
         };
     }
 
+    public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+    {
+        var result = await base.DeleteAsync($"translation-groups/{translationGroupId}", ct);
+        return result switch
+        {
+            Result<HttpResponseMessage, AeroError>.Ok ok =>
+                await ReadDeleteTranslationGroupResultAsync(ok.Value, ct),
+            Result<HttpResponseMessage, AeroError>.Failure f => new Result<int, AeroError>.Failure(f.Error),
+            _ => new Result<int, AeroError>.Failure(AeroError.CreateError("Translation group delete failed"))
+        };
+    }
+
+    private static async Task<Result<int, AeroError>> ReadDeleteTranslationGroupResultAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<DeleteMultipleResult>(cancellationToken: ct);
+            return new Result<int, AeroError>.Ok(body?.Deleted ?? 0);
+        }
+        catch
+        {
+            return new Result<int, AeroError>.Ok(0);
+        }
+    }
+
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
     {
         var response = await task;
@@ -290,6 +326,37 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
         return GetAsync<IReadOnlyList<PageTreeItem>>(url, ct);
     }
 
+    public Task<Result<IReadOnlyList<PageTranslationGroupTreeItem>, AeroError>> GetTranslationGroupChildrenAsync(
+        long? parentTranslationGroupId,
+        string? culture = null,
+        string? search = null,
+        CancellationToken ct = default)
+    {
+        var parameters = new List<string>();
+        if (parentTranslationGroupId.HasValue)
+        {
+            parameters.Add($"parentTranslationGroupId={parentTranslationGroupId.Value}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(culture))
+        {
+            parameters.Add($"culture={Uri.EscapeDataString(culture)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            parameters.Add($"search={Uri.EscapeDataString(search)}");
+        }
+
+        var url = "tree/translation-groups/children";
+        if (parameters.Count > 0)
+        {
+            url += "?" + string.Join("&", parameters);
+        }
+
+        return GetAsync<IReadOnlyList<PageTranslationGroupTreeItem>>(url, ct);
+    }
+
     public Task<Result<IReadOnlyList<TreeBreadcrumbItem>, AeroError>> GetBreadcrumbAsync(long id, CancellationToken ct = default)
     {
         return GetAsync<IReadOnlyList<TreeBreadcrumbItem>>($"tree/breadcrumb/{id}", ct);
@@ -343,7 +410,7 @@ public record PageDetail(
     string Path = "",
     int Depth = 0,
     string Culture = "en-US",
-    long? TranslationSetId = null);
+    long? TranslationGroupId = null);
 
 /// <summary>
 /// Request to create a new page.
@@ -424,6 +491,40 @@ public record PageTreeItem(
     string PublicationState,
     bool IsHidden,
     bool HasChildren);
+
+/// <summary>
+/// Translation-group tree node for page hierarchy display.
+/// </summary>
+public sealed record PageTranslationGroupTreeItem(
+    long TranslationGroupId,
+    long DisplayPageId,
+    string DisplayCulture,
+    string DefaultCulture,
+    string Title,
+    string Slug,
+    string Path,
+    int Depth,
+    int Order,
+    long? ParentTranslationGroupId,
+    string PublicationState,
+    bool IsHidden,
+    bool HasChildren,
+    bool MissingDefaultCulture,
+    bool MissingSelectedCulture,
+    IReadOnlyList<PageTranslationVariantItem> Variants);
+
+/// <summary>
+/// Culture-specific variant under a translation-group page row.
+/// </summary>
+public sealed record PageTranslationVariantItem(
+    long Id,
+    string Culture,
+    string Title,
+    string Slug,
+    string Path,
+    string PublicationState,
+    bool IsHidden,
+    bool IsDefaultCulture);
 
 /// <summary>
 /// Single breadcrumb trail item.

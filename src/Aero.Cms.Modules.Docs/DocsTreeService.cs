@@ -122,7 +122,7 @@ public sealed class DocsTreeService(
             {
                 Id = Snowflake.NewId(),
                 SiteId = siteId,
-                TranslationSetId = null,
+                TranslationGroupId = null,
                 Culture = parent.Culture,
                 Title = title.Trim(),
                 Summary = summary,
@@ -134,7 +134,7 @@ public sealed class DocsTreeService(
                 ModifiedBy = "system"
             };
 
-            page.TranslationSetId = page.Id;
+            page.TranslationGroupId = page.Id;
 
             session.Store(page);
             await session.SaveChangesAsync(ct);

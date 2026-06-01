@@ -2,36 +2,49 @@
 @page "/manager/posts/general"
 @attribute [Authorize]
 @using Aero.Cms.Abstractions.Http.Clients
+@using Aero.Cms.Abstractions.Interfaces
+@using Aero.Cms.Abstractions.Models
+@using Aero.Cms.Shared.Components
 @using Aero.Core
 @inject IBlogHttpClient BlogApi
+@inject ICurrentSiteAccessor CurrentSiteAccessor
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold pe-heading">@L["Posts"]</h1>
             <p class="mt-1 text-sm pe-description">@L["Manage your blog content and articles."]</p>
         </div>
-        <div class="flex space-x-3">
-             <RadzenTextBox Placeholder="@L["Search posts..."]" 
-                            Value="@searchText" 
-                            ValueChanged="@(args => OnSearch(args))" 
-                            class="w-64" />
+        <div class="flex flex-wrap justify-end gap-3">
+            <select class="rounded border px-3 py-2 text-sm"
+                    style="border-color: var(--pe-border); background: var(--pe-surface); color: var(--pe-text);"
+                    value="@selectedCulture"
+                    @onchange="OnCultureChanged">
+                @foreach (var option in cultureOptions)
+                {
+                    <option value="@option.Value">@option.Label</option>
+                }
+            </select>
+            <RadzenTextBox Placeholder="@L["Search posts..."]"
+                           Value="@searchText"
+                           ValueChanged="@(args => OnSearch(args))"
+                           class="w-64" />
             <RadzenButton Icon="file_upload" Text="@L["Import"]" ButtonStyle="ButtonStyle.Secondary" Click="@OpenImportDialog" />
             <RadzenButton Icon="add" Text="@L["New Post"]" ButtonStyle="ButtonStyle.Primary" Click="@(() => Navigation.NavigateTo("/manager/post/editor"))" />
         </div>
     </div>
 
     <RadzenDataGrid @ref="grid"
-                    Data="@posts" 
-                    TItem="BlogSummary" 
+                    Data="@posts"
+                    TItem="BlogTranslationGroupSummary"
                     Count="@count"
                     LoadData="@LoadData"
                     IsLoading="@isLoading"
-                    AllowPaging="true" 
+                    AllowPaging="true"
                     @bind-PageSize="@pageSize"
                     PageSizeOptions="@(new List<int> { 10, 20, 50, 100 })"
                     PagerHorizontalAlign="HorizontalAlign.Left"
@@ -40,39 +53,63 @@
                     RowClick="@(args => HandleRowClick(args.Data))"
                     EmptyText="@L["No posts found. Time to write something!"]">
         <Columns>
-            <RadzenDataGridColumn TItem="BlogSummary" Width="48px" Filterable="false" Sortable="false">
+            <RadzenDataGridColumn TItem="BlogTranslationGroupSummary" Width="48px" Filterable="false" Sortable="false">
                 <HeaderTemplate>
-                    <input type="checkbox" 
-                           @onchange="ToggleSelectAll" 
-                           checked="@AreAllSelected()" 
+                    <input type="checkbox"
+                           @onchange="ToggleSelectAll"
+                           checked="@AreAllSelected()"
                            @onclick:stopPropagation="true"
                            class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                 </HeaderTemplate>
                 <Template Context="post">
-                    <input type="checkbox" 
-                           checked="@IsSelected(post)" 
-                           @onchange="() => ToggleSelection(post)" 
+                    <input type="checkbox"
+                           checked="@IsSelected(post)"
+                           @onchange="() => ToggleSelection(post)"
                            @onclick:stopPropagation="true"
                            class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="BlogSummary" Property="Title" Title="@L["Title"]">
+            <RadzenDataGridColumn TItem="BlogTranslationGroupSummary" Property="Title" Title="@L["Title"]">
                 <Template Context="post">
                     <div class="flex items-center gap-3">
-                         @if (!string.IsNullOrEmpty(post.FeaturedImageUrl))
-                         {
-                             <img src="@post.FeaturedImageUrl" class="w-8 h-8 rounded object-cover shadow-sm" alt="" />
-                         }
-                         <span class="font-medium" style="color: var(--pe-text-primary);">@post.Title</span>
+                        @if (!string.IsNullOrEmpty(post.FeaturedImageUrl))
+                        {
+                            <img src="@post.FeaturedImageUrl" class="w-8 h-8 rounded object-cover shadow-sm" alt="" />
+                        }
+                        <div class="flex flex-col gap-1">
+                            <span class="font-medium" style="color: var(--pe-text-primary);">@post.Title</span>
+                            @if (post.MissingDefaultCulture || post.MissingSelectedCulture)
+                            {
+                                <span class="inline-flex w-fit items-center rounded bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-800">
+                                    @(post.MissingSelectedCulture ? $"Missing {selectedCulture}" : $"Missing {post.DefaultCulture}")
+                                </span>
+                            }
+                        </div>
                     </div>
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="BlogSummary" Property="Slug" Title="@L["URL Slug"]">
-                 <Template Context="post">
-                      <span class="text-xs font-mono" style="color: var(--pe-text-muted);">/@post.Slug</span>
-                 </Template>
+            <RadzenDataGridColumn TItem="BlogTranslationGroupSummary" Property="Slug" Title="@L["URL Slug"]">
+                <Template Context="post">
+                    <span class="text-xs font-mono" style="color: var(--pe-text-muted);">/@post.Slug</span>
+                </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="BlogSummary" Property="PublishedAt" Title="@L["Status"]">
+            <RadzenDataGridColumn TItem="BlogTranslationGroupSummary" Title="@L["Cultures"]">
+                <Template Context="post">
+                    <div class="flex flex-wrap gap-1">
+                        @foreach (var variant in post.Variants)
+                        {
+                            <button class="rounded border px-2 py-0.5 text-xs font-semibold"
+                                    style="border-color: var(--pe-border); color: var(--pe-text-secondary);"
+                                    title="@($"{variant.Culture}: {variant.Title}")"
+                                    @onclick="() => NavigateToPost(variant.Id)"
+                                    @onclick:stopPropagation="true">
+                                @variant.Culture
+                            </button>
+                        }
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="BlogTranslationGroupSummary" Property="PublishedAt" Title="@L["Status"]">
                 <Template Context="post">
                     @if (post.PublishedAt.HasValue)
                     {
@@ -84,20 +121,116 @@
                     }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="BlogSummary" Property="CreatedAt" Title="@L["Created"]">
-                 <Template Context="post">
-                      <span style="color: var(--pe-text-secondary);">@post.CreatedAt.ToShortDateString()</span>
-                 </Template>
+            <RadzenDataGridColumn TItem="BlogTranslationGroupSummary" Property="CreatedAt" Title="@L["Created"]">
+                <Template Context="post">
+                    <span style="color: var(--pe-text-secondary);">@post.CreatedAt.ToShortDateString()</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="BlogTranslationGroupSummary" Title="@L["Actions"]" Width="130px" Sortable="false">
+                <Template Context="post">
+                    <div class="flex gap-1">
+                        <RadzenButton Icon="translate" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                      Click="@(() => TranslatePost(post))" Title="@L["Translate post"]" />
+                        <RadzenButton Icon="edit" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                      Click="@(() => NavigateToPost(post.DisplayPostId))" />
+                    </div>
+                </Template>
             </RadzenDataGridColumn>
         </Columns>
+        <Template Context="post">
+            <div class="px-8 py-4" style="background: var(--pe-bg-secondary);">
+                <div class="mb-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Localized versions"]</h3>
+                            <p class="text-xs" style="color: var(--pe-text-muted);">@post.Variants.Count of @SupportedCultures.Count site cultures created.</p>
+                        </div>
+                        @if (GetMissingCultures(post).Any())
+                        {
+                            <RadzenButton Icon="add"
+                                          Text="@L["Add translation"]"
+                                          Size="ButtonSize.Small"
+                                          ButtonStyle="ButtonStyle.Primary"
+                                          Click="@(() => AddTranslation(post))" />
+                        }
+                    </div>
+                </div>
+                <div class="overflow-hidden rounded border" style="border-color: var(--pe-border);">
+                    <table class="w-full text-sm">
+                        <thead style="background: var(--pe-bg-tertiary); color: var(--pe-text-muted);">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-semibold">@L["Culture"]</th>
+                                <th class="px-3 py-2 text-left font-semibold">@L["Title"]</th>
+                                <th class="px-3 py-2 text-left font-semibold">@L["Slug"]</th>
+                                <th class="px-3 py-2 text-left font-semibold">@L["Status"]</th>
+                                <th class="px-3 py-2 text-left font-semibold">@L["Actions"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var variant in post.Variants)
+                            {
+                                <tr class="border-t" style="border-color: var(--pe-border); color: var(--pe-text-primary);">
+                                    <td class="px-3 py-2">
+                                        <span class="font-semibold">@variant.Culture</span>
+                                        @if (variant.IsDefaultCulture)
+                                        {
+                                            <span class="ml-2 rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">@L["default"]</span>
+                                        }
+                                    </td>
+                                    <td class="px-3 py-2">@variant.Title</td>
+                                    <td class="px-3 py-2 font-mono text-xs" style="color: var(--pe-text-muted);">/@variant.Slug</td>
+                                    <td class="px-3 py-2">
+                                        @if (variant.PublishedAt.HasValue)
+                                        {
+                                            <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Published"]" />
+                                        }
+                                        else
+                                        {
+                                            <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@L["Draft"]" />
+                                        }
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <div class="flex gap-1">
+                                            <RadzenButton Icon="edit" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                          Click="@(() => NavigateToPost(variant.Id))" />
+                                            @if (variant.PublishedAt.HasValue)
+                                            {
+                                                <RadzenButton Icon="visibility_off" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                              Click="@(() => UnpublishVariant(variant))" />
+                                            }
+                                            else
+                                            {
+                                                <RadzenButton Icon="publish" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                              Click="@(() => PublishVariant(variant))" />
+                                            }
+                                            <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
+                                                          Click="@(() => DeleteVariant(variant))" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (GetMissingCultures(post).Any())
+                {
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @foreach (var culture in GetMissingCultures(post))
+                        {
+                            <span class="rounded bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">Missing @culture</span>
+                        }
+                    </div>
+                }
+            </div>
+        </Template>
     </RadzenDataGrid>
 
     @if (selectedPosts.Count > 0)
     {
         <div class="flex items-center gap-3 justify-end">
             <span style="color: var(--pe-text-muted);">@selectedPosts.Count selected</span>
-            <RadzenButton Icon="delete" Text="@L["Delete Selected"]" 
-                          ButtonStyle="ButtonStyle.Danger" 
+            <RadzenButton Icon="delete" Text="@L["Delete Selected"]"
+                          ButtonStyle="ButtonStyle.Danger"
                           Variant="Variant.Outlined"
                           class="rounded-xl px-6 font-bold text-xs"
                           Click="@DeleteSelected" />
@@ -106,27 +239,42 @@
 </div>
 
 @code {
-    RadzenDataGrid<BlogSummary>? grid;
-    IEnumerable<BlogSummary>? posts;
+    RadzenDataGrid<BlogTranslationGroupSummary>? grid;
+    IEnumerable<BlogTranslationGroupSummary>? posts;
     int count;
     bool isLoading = true;
     string searchText = "";
+    string selectedCulture = "";
     int pageSize = 10;
-    IList<BlogSummary> selectedPosts = new List<BlogSummary>();
+    IList<BlogTranslationGroupSummary> selectedPosts = new List<BlogTranslationGroupSummary>();
+    SiteViewModel? currentSite;
+    List<CultureFilterOption> cultureOptions = [new("", "All cultures")];
+
+    IReadOnlyList<string> SupportedCultures =>
+        currentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [currentSite?.DefaultCulture ?? "en-US"];
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        selectedCulture = currentSite?.DefaultCulture ?? "en-US";
+        cultureOptions = BuildCultureOptions(currentSite);
+    }
 
     async Task LoadData(LoadDataArgs args)
     {
         isLoading = true;
         selectedPosts.Clear();
-        
-        var result = await BlogApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchText);
-        
-        if (result is Result<PagedResult<BlogSummary>, AeroError>.Ok ok)
+
+        var result = await BlogApi.GetTranslationGroupsAsync(args.Skip ?? 0, args.Top ?? 10, searchText, selectedCulture);
+
+        if (result is Result<PagedResult<BlogTranslationGroupSummary>, AeroError>.Ok ok)
         {
             posts = ok.Value.Items;
             count = (int)ok.Value.TotalCount;
         }
-        
+
         isLoading = false;
         StateHasChanged();
     }
@@ -137,13 +285,21 @@
         grid?.Reload();
     }
 
-    void HandleRowClick(BlogSummary? post)
+    async Task OnCultureChanged(ChangeEventArgs args)
     {
-        if (post == null) return;
-        Navigation.NavigateTo($"/manager/post/editor/{post.Id}");
+        selectedCulture = args.Value?.ToString() ?? "";
+        await (grid?.Reload() ?? Task.CompletedTask);
     }
 
-    bool IsSelected(BlogSummary post) => selectedPosts.Contains(post);
+    void HandleRowClick(BlogTranslationGroupSummary? post)
+    {
+        if (post == null) return;
+        NavigateToPost(post.DisplayPostId);
+    }
+
+    void NavigateToPost(long id) => Navigation.NavigateTo($"/manager/post/editor/{id}");
+
+    bool IsSelected(BlogTranslationGroupSummary post) => selectedPosts.Contains(post);
 
     bool AreAllSelected()
     {
@@ -151,7 +307,7 @@
         return list is { Count: > 0 } && selectedPosts.Count == list.Count;
     }
 
-    void ToggleSelection(BlogSummary post)
+    void ToggleSelection(BlogTranslationGroupSummary post)
     {
         if (selectedPosts.Contains(post))
             selectedPosts.Remove(post);
@@ -181,7 +337,7 @@
         if (selectedPosts.Count == 0) return;
 
         var confirm = await DialogService.Confirm(
-            string.Format(L["Are you sure you want to delete {0} post(s)? This action cannot be undone."], selectedPosts.Count),
+            string.Format(L["Are you sure you want to delete {0} post group(s)? This action cannot be undone."], selectedPosts.Count),
             L["Delete Posts"],
             new ConfirmOptions { OkButtonText = L["Delete"], CancelButtonText = L["Cancel"] });
 
@@ -192,10 +348,10 @@
 
         foreach (var post in selectedPosts.ToList())
         {
-            var result = await BlogApi.DeleteAsync(post.Id);
-            if (result is Result<bool, AeroError>.Ok { Value: true })
+            var result = await BlogApi.DeleteTranslationGroupAsync(post.TranslationGroupId);
+            if (result is Result<int, AeroError>.Ok ok && ok.Value > 0)
             {
-                deleted++;
+                deleted += ok.Value;
                 selectedPosts.Remove(post);
             }
             else
@@ -205,10 +361,10 @@
         }
 
         if (deleted > 0)
-            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"{deleted} post(s) removed.");
+            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"{deleted} localized post(s) removed.");
 
         if (failed > 0)
-            NotificationService.Notify(NotificationSeverity.Error, "Delete Failed", $"{failed} post(s) could not be deleted.");
+            NotificationService.Notify(NotificationSeverity.Error, "Delete Failed", $"{failed} post group(s) could not be deleted.");
 
         grid?.Reload();
     }
@@ -223,4 +379,188 @@
             grid?.Reload();
         }
     }
+
+    async Task PublishVariant(BlogTranslationVariantSummary variant)
+    {
+        var result = await BlogApi.PublishAsync(variant.Id);
+        if (result is Result<BlogDetail, AeroError>.Ok)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Published", $"{variant.Culture} post published.");
+            await (grid?.Reload() ?? Task.CompletedTask);
+        }
+    }
+
+    async Task UnpublishVariant(BlogTranslationVariantSummary variant)
+    {
+        var result = await BlogApi.UnpublishAsync(variant.Id);
+        if (result is Result<BlogDetail, AeroError>.Ok)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Draft", $"{variant.Culture} post unpublished.");
+            await (grid?.Reload() ?? Task.CompletedTask);
+        }
+    }
+
+    async Task DeleteVariant(BlogTranslationVariantSummary variant)
+    {
+        var message = variant.IsDefaultCulture
+            ? L["Delete the default post variant? Use selected group delete to remove every localized version."]
+            : L["Delete this localized post variant?"];
+        var confirm = await DialogService.Confirm(message, L["Delete Post"], new ConfirmOptions { OkButtonText = L["Delete"], CancelButtonText = L["Cancel"] });
+        if (confirm != true) return;
+
+        var result = await BlogApi.DeleteAsync(variant.Id);
+        if (result is Result<bool, AeroError>.Ok)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"{variant.Culture} post removed.");
+            await (grid?.Reload() ?? Task.CompletedTask);
+        }
+    }
+
+    async Task AddTranslation(BlogTranslationGroupSummary post)
+    {
+        var missingCultures = GetMissingCultures(post).ToList();
+        if (missingCultures.Count == 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Info, "Complete", "All supported cultures already exist for this post.");
+            return;
+        }
+
+        var result = await DialogService.OpenAsync<ContentAddTranslationDialog>(
+            "Add Translation",
+            new Dictionary<string, object>
+            {
+                ["AvailableCultures"] = missingCultures,
+                ["SourceSlug"] = post.Slug
+            },
+            new DialogOptions { Width = "520px", CloseDialogOnOverlayClick = false });
+
+        if (result is not ContentAddTranslationDialogResult request)
+        {
+            return;
+        }
+
+        var sourceId = GetDefaultVariant(post)?.Id ?? post.DisplayPostId;
+        var created = await BlogApi.ForkToCultureAsync(sourceId, new ForkBlogCultureRequest(request.Culture, request.Slug));
+
+        if (created is Result<BlogDetail, AeroError>.Ok ok)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Translation created", $"{ok.Value.Culture} draft created.");
+            await (grid?.Reload() ?? Task.CompletedTask);
+            return;
+        }
+
+        if (created is Result<BlogDetail, AeroError>.Failure failure)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Translation failed", failure.Error.ToString());
+        }
+    }
+
+    async Task TranslatePost(BlogTranslationGroupSummary post)
+    {
+        var missingCultures = GetMissingCultures(post).ToList();
+        var existingCultures = post.Variants
+            .Where(variant => !variant.IsDefaultCulture)
+            .Select(variant => variant.Culture)
+            .ToList();
+
+        var dialogResult = await DialogService.OpenAsync<BulkTranslationDialog>(
+            "Translate Post",
+            new Dictionary<string, object>
+            {
+                ["MissingCultures"] = missingCultures,
+                ["ExistingCultures"] = existingCultures
+            },
+            new DialogOptions { Width = "560px", CloseDialogOnOverlayClick = false });
+
+        if (dialogResult is not BulkTranslationDialogResult decision)
+        {
+            return;
+        }
+
+        var sourceId = GetDefaultVariant(post)?.Id ?? post.DisplayPostId;
+        var sourceResult = await BlogApi.GetByIdAsync(sourceId);
+        if (sourceResult is not Result<BlogDetail, AeroError>.Ok sourceOk)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Translate failed", "Could not load the default culture post.");
+            return;
+        }
+
+        var source = sourceOk.Value;
+        var markdown = source.Content?.OfType<Aero.Cms.Abstractions.Blocks.Common.MarkdownBlock>().FirstOrDefault()?.Content;
+        var created = 0;
+        var overwritten = 0;
+
+        foreach (var culture in missingCultures)
+        {
+            var result = await BlogApi.ForkToCultureAsync(sourceId, new ForkBlogCultureRequest(culture, source.Slug));
+            if (result is Result<BlogDetail, AeroError>.Ok)
+            {
+                created++;
+            }
+        }
+
+        if (decision.OverwriteExisting)
+        {
+            foreach (var variant in post.Variants.Where(variant => !variant.IsDefaultCulture))
+            {
+                var existing = await BlogApi.GetByIdAsync(variant.Id);
+                if (existing is not Result<BlogDetail, AeroError>.Ok existingOk)
+                {
+                    continue;
+                }
+
+                var current = existingOk.Value;
+                var request = new UpdateBlogRequest
+                {
+                    Id = current.Id,
+                    Title = source.Title,
+                    Slug = current.Slug,
+                    Summary = source.Excerpt,
+                    SeoTitle = source.SeoTitle,
+                    SeoDescription = source.SeoDescription,
+                    MarkdownContent = markdown,
+                    ImageUrl = source.ImageUrl,
+                    PublicationState = current.PublicationState
+                };
+
+                var updated = await BlogApi.UpdateAsync(current.Id, request);
+                if (updated is Result<BlogDetail, AeroError>.Ok)
+                {
+                    overwritten++;
+                }
+            }
+        }
+
+        NotificationService.Notify(NotificationSeverity.Success, "Translate complete", $"{created} created, {overwritten} overwritten.");
+        await (grid?.Reload() ?? Task.CompletedTask);
+    }
+
+    IReadOnlyList<string> GetMissingCultures(BlogTranslationGroupSummary post)
+    {
+        var existing = post.Variants
+            .Select(variant => variant.Culture)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return SupportedCultures
+            .Where(culture => !existing.Contains(culture))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(culture => culture, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    static BlogTranslationVariantSummary? GetDefaultVariant(BlogTranslationGroupSummary post)
+        => post.Variants.FirstOrDefault(variant => variant.IsDefaultCulture);
+
+    static List<CultureFilterOption> BuildCultureOptions(SiteViewModel? site)
+    {
+        var cultures = site?.SupportedCultures is { Count: > 0 }
+            ? site.SupportedCultures
+            : [site?.DefaultCulture ?? "en-US"];
+
+        return [new("", "All cultures"), .. cultures
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(culture => new CultureFilterOption(culture, culture))];
+    }
+
+    sealed record CultureFilterOption(string Value, string Label);
 }

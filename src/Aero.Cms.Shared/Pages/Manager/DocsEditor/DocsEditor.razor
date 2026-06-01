@@ -152,11 +152,11 @@
                                     <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">@L["Current variant:"] @FormatCulture(Current.Culture)</p>
                                     <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">@string.Format(L["{0} of {1} site cultures created."], DocCultureVariants.Count, SupportedCultures.Count)</p>
                                 </div>
-                                @if (Current.TranslationSetId is { } translationSetId)
+                                @if (Current.TranslationGroupId is { } TranslationGroupId)
                                 {
                                     <span class="text-xs font-mono px-2 py-1 rounded"
                                           style="background: var(--pe-bg-primary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
-                                        Set @translationSetId
+                                        Set @TranslationGroupId
                                     </span>
                                 }
                             </div>

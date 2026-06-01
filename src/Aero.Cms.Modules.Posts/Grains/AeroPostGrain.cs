@@ -104,11 +104,11 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         if (source is null)
             return [];
 
-        var translationSetId = source.TranslationSetId ?? source.Id;
+        var TranslationGroupId = source.TranslationGroupId ?? source.Id;
 
         await using var session = _store.LightweightSession();
         var postService = CreatePostService(session, source.SiteId);
-        var result = await postService.ListCultureVariantsAsync(translationSetId, ct);
+        var result = await postService.ListCultureVariantsAsync(TranslationGroupId, ct);
         return result is Result<IReadOnlyList<PostDocument>, AeroError>.Ok ok
             ? ok.Value.Select(MapToViewModel).ToList()
             : [];
@@ -402,7 +402,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
             ImageUrl = d.ImageUrl,
             Likes = d.Likes,
             Culture = d.Culture,
-            TranslationSetId = d.TranslationSetId,
+            TranslationGroupId = d.TranslationGroupId,
             CreatedOn = d.CreatedOn,
             ModifiedOn = d.ModifiedOn,
             CreatedBy = d.CreatedBy ?? "system",
@@ -429,7 +429,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
             ImageUrl = vm.ImageUrl,
             Likes = vm.Likes,
             Culture = vm.Culture,
-            TranslationSetId = vm.TranslationSetId,
+            TranslationGroupId = vm.TranslationGroupId,
             CreatedOn = vm.CreatedOn,
             ModifiedOn = vm.ModifiedOn,
             CreatedBy = vm.CreatedBy ?? "system",

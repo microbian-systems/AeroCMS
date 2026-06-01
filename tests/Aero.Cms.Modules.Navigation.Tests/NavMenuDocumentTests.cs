@@ -30,12 +30,12 @@ public sealed class NavMenuDocumentTests
             UserId: null,
             CreatedOn: DateTimeOffset.UtcNow,
             Culture: "es-MX",
-            TranslationSetId: 42);
+            TranslationGroupId: 42);
 
         var menu = NavMenuDocument.Create(100, created);
 
         menu.Culture.Should().Be("es-MX");
-        menu.TranslationSetId.Should().Be(42);
+        menu.TranslationGroupId.Should().Be(42);
     }
 
     [Test]

@@ -14,7 +14,7 @@ public sealed class PostCultureForkerTests
         {
             Id = 100,
             SiteId = 42,
-            TranslationSetId = 900,
+            TranslationGroupId = 900,
             Culture = "en-US",
             Slug = "hello-world",
             Title = "Hello World",
@@ -43,7 +43,7 @@ public sealed class PostCultureForkerTests
 
         await Assert.That(fork.Id).IsEqualTo(200);
         await Assert.That(fork.SiteId).IsEqualTo(42);
-        await Assert.That(fork.TranslationSetId).IsEqualTo(900);
+        await Assert.That(fork.TranslationGroupId).IsEqualTo(900);
         await Assert.That(fork.Culture).IsEqualTo("es-MX");
         await Assert.That(fork.Slug).IsEqualTo("hola-mundo");
         await Assert.That(fork.Title).IsEqualTo("Hello World");
@@ -71,7 +71,7 @@ public sealed class PostCultureForkerTests
 
         var fork = PostCultureForker.Fork(source, 200, "ar-SA", "/مرحبا");
 
-        await Assert.That(fork.TranslationSetId).IsEqualTo(100);
+        await Assert.That(fork.TranslationGroupId).IsEqualTo(100);
         await Assert.That(fork.Slug).IsEqualTo("مرحبا");
         await Assert.That(fork.Culture).IsEqualTo("ar-SA");
     }

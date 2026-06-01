@@ -54,6 +54,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
     [Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
     [Inject] protected IEnumerable<IPageEditorBlockProvider> PageEditorBlockProviders { get; set; } = [];
+    [Inject] protected DialogService DialogService { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
@@ -120,6 +121,9 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     [SupplyParameterFromQuery(Name = "parentId")]
     protected long? ParentId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "tab")]
+    protected string? RequestedTab { get; set; }
+
     /// <summary>Read-only parent path prefix shown as a pill before the slug input.</summary>
     protected string ParentSlugPrefix { get; set; } = "";
 
@@ -185,6 +189,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     protected override async Task OnParametersSetAsync()
     {
+        if (IsKnownTab(RequestedTab))
+        {
+            ActiveTab = NormalizeTab(RequestedTab);
+        }
+
         if (_previousParentId != ParentId)
         {
             _previousParentId = ParentId;
@@ -1383,7 +1392,45 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     }
 
     protected void OpenTranslation(long pageId)
-        => NavManager.NavigateTo($"/manager/page/editor/{pageId}");
+        => NavManager.NavigateTo($"/manager/page/editor/{pageId}?tab=translations");
+
+    protected void OpenPublicTranslation(CmsPageDetail variant)
+    {
+        var baseUri = _previewBaseUri ?? NavManager.BaseUri.TrimEnd('/');
+        NavManager.NavigateTo($"{baseUri.TrimEnd('/')}{variant.Path}");
+    }
+
+    protected async Task DeleteTranslationAsync(CmsPageDetail variant)
+    {
+        if (LoadedPage is null)
+            return;
+
+        var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
+        if (isDefault)
+        {
+            ShowToast(L["Delete the default culture page from the Pages list so the full translation group warning is shown."], "error");
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            L["Delete the {0} translation for '{1}'?", FormatCulture(variant.Culture), variant.Title],
+            L["Delete Translation"],
+            new ConfirmOptions { OkButtonText = L["Delete Translation"], CancelButtonText = L["Cancel"] });
+
+        if (confirmed != true)
+            return;
+
+        var result = await PagesClient.DeleteAsync(variant.Id);
+        if (result is Result<bool, AeroError>.Ok)
+        {
+            ShowToast(L["Deleted {0} translation", FormatCulture(variant.Culture)], "success");
+            await LoadPageTranslationsAsync();
+            return;
+        }
+
+        if (result is Result<bool, AeroError>.Failure failure)
+            ShowToast(L["Delete failed: {0}", failure.Error], "error");
+    }
 
     private void ResetTranslationDraft()
     {
@@ -1697,6 +1744,18 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     private string TabBtnClass(string tab) =>
         ActiveTab == tab ? "pe-tab-btn active" : "pe-tab-btn";
+
+    private static bool IsKnownTab(string? tab)
+        => string.Equals(tab, "editor", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "metadata", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "translations", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeTab(string? tab)
+        => string.Equals(tab, "metadata", StringComparison.OrdinalIgnoreCase)
+            ? "metadata"
+            : string.Equals(tab, "translations", StringComparison.OrdinalIgnoreCase)
+                ? "translations"
+                : "editor";
 
     // ──────────────────────────────────────────────────────────
     // IBlockEditorCallbacks explicit implementation

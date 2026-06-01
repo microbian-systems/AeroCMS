@@ -19,7 +19,7 @@ public sealed record PageCreated(
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
     PageKind Kind = PageKind.Standard,
     string Culture = "en-US",
-    long? TranslationSetId = null);
+    long? TranslationGroupId = null);
 
 /// <summary>
 /// Appended when content fields change: Title, Slug, LayoutRegions,

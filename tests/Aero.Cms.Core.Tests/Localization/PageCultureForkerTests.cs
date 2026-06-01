@@ -14,7 +14,7 @@ public sealed class PageCultureForkerTests
         {
             Id = 100,
             SiteId = 42,
-            TranslationSetId = 900,
+            TranslationGroupId = 900,
             Culture = "en-US",
             Slug = "about",
             Title = "About",
@@ -38,7 +38,7 @@ public sealed class PageCultureForkerTests
 
         await Assert.That(fork.Id).IsEqualTo(200);
         await Assert.That(fork.SiteId).IsEqualTo(42);
-        await Assert.That(fork.TranslationSetId).IsEqualTo(900);
+        await Assert.That(fork.TranslationGroupId).IsEqualTo(900);
         await Assert.That(fork.Culture).IsEqualTo("es-MX");
         await Assert.That(fork.Slug).IsEqualTo("acerca-de");
         await Assert.That(fork.Path).IsEqualTo("/acerca-de");
@@ -66,7 +66,7 @@ public sealed class PageCultureForkerTests
 
         var fork = PageCultureForker.Fork(source, 200, "ar-SA", "/حول");
 
-        await Assert.That(fork.TranslationSetId).IsEqualTo(100);
+        await Assert.That(fork.TranslationGroupId).IsEqualTo(100);
         await Assert.That(fork.Slug).IsEqualTo("حول");
         await Assert.That(fork.Path).IsEqualTo("/حول");
     }

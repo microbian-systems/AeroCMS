@@ -9,7 +9,7 @@ public sealed record NavMenuCreated(
     long? UserId,
     DateTimeOffset CreatedOn,
     string Culture = "en-US",
-    long? TranslationSetId = null);
+    long? TranslationGroupId = null);
 
 public sealed record NavMenuDraftSaved(
     long SiteId,

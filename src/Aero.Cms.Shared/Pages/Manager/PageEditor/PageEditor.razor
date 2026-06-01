@@ -20,6 +20,10 @@
             @onclick='() => ActiveTab = "metadata"'>
         @L["Metadata"]
     </button>
+    <button class="@TabBtnClass("translations")"
+            @onclick='() => ActiveTab = "translations"'>
+        @L["Culture / Translations"]
+    </button>
 </div>
 
 @if (ActiveTab == "editor")
@@ -138,106 +142,6 @@ else if (ActiveTab == "metadata")
             </div>
         </div>
 
-        @if (Id.HasValue)
-        {
-            <div class="mt-8 pt-6 border-t space-y-4" style="border-top-color: var(--pe-border);">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                    <div>
-                        <h3 class="text-lg font-medium" style="color: var(--pe-text-primary);">@L["Translations"]</h3>
-                        <p class="text-sm mt-1" style="color: var(--pe-text-muted);">
-                            @L["Current variant:"] @FormatCulture(LoadedPage?.Culture)
-                        </p>
-                        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">
-                            @L["{0} of {1} site cultures created.", PageCultureVariants.Count, SupportedCultures.Count]
-                        </p>
-                    </div>
-                    @if (LoadedPage?.TranslationSetId is { } translationSetId)
-                    {
-                        <span class="text-xs font-mono px-2 py-1 rounded"
-                              style="background: var(--pe-bg-primary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
-                            Set @translationSetId
-                        </span>
-                    }
-                </div>
-
-                <div class="rounded-md border p-4 space-y-3"
-                     style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
-                    <div class="flex flex-wrap items-center gap-2 text-xs" style="color: var(--pe-text-muted);">
-                        <span class="font-semibold uppercase tracking-wider">@L["Available variants"]</span>
-                        @if (!AvailableTranslationCultures.Any())
-                        {
-                            <span class="rounded px-2 py-0.5" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">@L["Complete"]</span>
-                        }
-                    </div>
-                    @if (IsLoadingTranslations)
-                    {
-                        <p class="text-sm" style="color: var(--pe-text-muted);">@L["Loading translations..."]</p>
-                    }
-                    else if (PageCultureVariants.Count == 0)
-                    {
-                        <p class="text-sm" style="color: var(--pe-text-muted);">@L["No translation variants found."]</p>
-                    }
-                    else
-                    {
-                        <div class="flex flex-wrap gap-2">
-                            @foreach (var variant in PageCultureVariants)
-                            {
-                                var isCurrent = LoadedPage?.Id == variant.Id;
-                                var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
-                                <button type="button"
-                                        class="pe-btn @(isCurrent ? "pe-btn-primary" : "pe-btn-ghost") pe-btn-sm"
-                                        disabled="@isCurrent"
-                                        @onclick="() => OpenTranslation(variant.Id)">
-                                    @FormatCulture(variant.Culture)@(isDefault ? " · " + L["Default"] : "")
-                                </button>
-                            }
-                        </div>
-                    }
-                </div>
-
-                @if (AvailableTranslationCultures.Any())
-                {
-                    <div class="grid grid-cols-1 md:grid-cols-[220px_1fr_auto] gap-3 items-end">
-                        <div>
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Target Culture"]</label>
-                            <select class="w-full rounded-md shadow-sm sm:text-sm"
-                                    style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                                    @bind="SelectedTranslationCulture">
-                                @foreach (var culture in AvailableTranslationCultures)
-                                {
-                                    <option value="@culture">@FormatCulture(culture)</option>
-                                }
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Translated Slug"]</label>
-                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
-                                   style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
-                                   @bind="TranslationSlug" @bind:event="oninput" placeholder="@PageSlug" />
-                            <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">@L["Leave blank to copy the current slug, or enter the translated URL segment."]</p>
-                        </div>
-                        <button type="button"
-                                class="pe-btn pe-btn-primary pe-btn-sm"
-                                disabled="@IsCreatingTranslation"
-                                @onclick="CreateTranslationAsync">
-                            @(IsCreatingTranslation ? L["Creating..."] : L["Create Translation"])
-                        </button>
-                    </div>
-                }
-                else
-                {
-                    <p class="text-sm" style="color: var(--pe-text-muted);">@L["All supported site cultures already have a page variant."]</p>
-                }
-            </div>
-        }
-        else
-        {
-            <div class="mt-8 pt-6 border-t" style="border-top-color: var(--pe-border);">
-                <h3 class="text-lg font-medium mb-2" style="color: var(--pe-text-primary);">@L["Translations"]</h3>
-                <p class="text-sm" style="color: var(--pe-text-muted);">@L["Save the page before creating translation variants."]</p>
-            </div>
-        }
-
         <div class="mt-8 pt-6 border-t" style="border-top-color: var(--pe-border);">
             <h3 class="text-lg font-medium mb-4" style="color: var(--pe-text-primary);">@L["Publishing & History"]</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-md border" 
@@ -282,6 +186,189 @@ else if (ActiveTab == "metadata")
                 </div>
             }
         </div>
+    </div>
+}
+else if (ActiveTab == "translations")
+{
+    <div class="p-6 rounded-lg shadow-sm m-4 space-y-6 max-w-5xl" style="background: var(--pe-bg-secondary); color: var(--pe-text-primary);">
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div>
+                <h2 class="text-xl font-semibold" style="color: var(--pe-text-primary);">@L["Culture / Translations"]</h2>
+                <p class="text-sm mt-1" style="color: var(--pe-text-muted);">
+                    @if (Id.HasValue)
+                    {
+                        @L["Manage localized versions for this page."]
+                    }
+                    else
+                    {
+                        @L["Save this page before creating localized versions."]
+                    }
+                </p>
+            </div>
+            @if (LoadedPage?.TranslationGroupId is { } translationGroupId)
+            {
+                <span class="text-xs font-mono px-2 py-1 rounded"
+                      style="background: var(--pe-bg-primary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
+                    Group @translationGroupId
+                </span>
+            }
+        </div>
+
+        @if (!Id.HasValue)
+        {
+            <div class="rounded-md border p-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                <p class="text-sm" style="color: var(--pe-text-muted);">@L["Save the page before creating translation variants."]</p>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="rounded-md border p-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">@L["Current Variant"]</span>
+                    <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@FormatCulture(LoadedPage?.Culture)</span>
+                </div>
+                <div class="rounded-md border p-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">@L["Default Culture"]</span>
+                    <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@FormatCulture(CurrentSite?.DefaultCulture)</span>
+                </div>
+                <div class="rounded-md border p-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">@L["Coverage"]</span>
+                    <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@L["{0} of {1} site cultures", PageCultureVariants.Count, SupportedCultures.Count]</span>
+                </div>
+            </div>
+
+            <div class="rounded-md border overflow-hidden" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                <div class="px-4 py-3 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-2" style="border-color: var(--pe-border);">
+                    <div>
+                        <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Localized Versions"]</h3>
+                        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">@L["Open a variant to edit its translated title, slug, metadata, and content."]</p>
+                    </div>
+                    @if (AvailableTranslationCultures.Any())
+                    {
+                        <span class="rounded bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
+                            @L["{0} missing", AvailableTranslationCultures.Count()]
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="rounded px-2 py-1 text-xs font-semibold" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">
+                            @L["Complete"]
+                        </span>
+                    }
+                </div>
+
+                @if (IsLoadingTranslations)
+                {
+                    <div class="p-4 text-sm" style="color: var(--pe-text-muted);">@L["Loading translations..."]</div>
+                }
+                else if (PageCultureVariants.Count == 0)
+                {
+                    <div class="p-4 text-sm" style="color: var(--pe-text-muted);">@L["No translation variants found."]</div>
+                }
+                else
+                {
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead style="background: var(--pe-bg-tertiary); color: var(--pe-text-muted);">
+                                <tr>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Culture"]</th>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Title"]</th>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Path"]</th>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Status"]</th>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Actions"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var variant in PageCultureVariants)
+                                {
+                                    var isCurrent = LoadedPage?.Id == variant.Id;
+                                    var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
+                                    <tr class="border-t @(isCurrent ? "bg-blue-50" : "")" style="border-color: var(--pe-border); color: var(--pe-text-primary);">
+                                        <td class="px-4 py-3">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="font-semibold">@FormatCulture(variant.Culture)</span>
+                                                @if (isDefault)
+                                                {
+                                                    <span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">@L["Default"]</span>
+                                                }
+                                                @if (isCurrent)
+                                                {
+                                                    <span class="rounded px-2 py-0.5 text-xs font-semibold" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">@L["Current"]</span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">@variant.Title</td>
+                                        <td class="px-4 py-3 font-mono text-xs" style="color: var(--pe-text-muted);">@variant.Path</td>
+                                        <td class="px-4 py-3">
+                                            @if (variant.PublicationState == ContentPublicationState.Published)
+                                            {
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">@L["Published"]</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">@L["Draft"]</span>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex gap-1">
+                                                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => OpenPublicTranslation(variant)">
+                                                    @L["Open"]
+                                                </button>
+                                                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" disabled="@isCurrent" @onclick="() => OpenTranslation(variant.Id)">
+                                                    @L["Edit"]
+                                                </button>
+                                                @if (!isDefault)
+                                                {
+                                                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => DeleteTranslationAsync(variant)">
+                                                        @L["Delete"]
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            @if (AvailableTranslationCultures.Any())
+            {
+                <div class="rounded-md border p-4 space-y-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    <div>
+                        <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Add Translation"]</h3>
+                        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">@L["Creates a draft copy that you can localize after opening the new variant."]</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-[220px_1fr_auto] gap-3 items-end">
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Target Culture"]</label>
+                            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                    style="background: var(--pe-bg-secondary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                    @bind="SelectedTranslationCulture">
+                                @foreach (var culture in AvailableTranslationCultures)
+                                {
+                                    <option value="@culture">@FormatCulture(culture)</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Translated Slug"]</label>
+                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
+                                   style="background: var(--pe-bg-secondary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
+                                   @bind="TranslationSlug" @bind:event="oninput" placeholder="@PageSlug" />
+                            <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">@L["Leave blank to copy the current slug, or enter the translated URL segment."]</p>
+                        </div>
+                        <button type="button"
+                                class="pe-btn pe-btn-primary pe-btn-sm"
+                                disabled="@IsCreatingTranslation"
+                                @onclick="CreateTranslationAsync">
+                            @(IsCreatingTranslation ? L["Creating..."] : L["Create Translation"])
+                        </button>
+                    </div>
+                </div>
+            }
+        }
     </div>
 }
 

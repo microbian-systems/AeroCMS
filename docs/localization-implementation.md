@@ -33,18 +33,18 @@ Ef Mig:    dotnet ef migrations add [name]
 
 ```
 src/Aero.Cms.Core.Entities/
-  ├── PageDocument.cs              ← Updated: Culture + TranslationSetId
-  ├── PostDocument.cs              ← Updated: Culture + TranslationSetId
+  ├── PageDocument.cs              ← Updated: Culture + TranslationGroupId
+  ├── PostDocument.cs              ← Updated: Culture + TranslationGroupId
   ├── CategoryTranslation.cs       ← New (sidecar translation table)
   ├── TagTranslation.cs            ← New (sidecar translation table)
   ├── SitesModel.cs                ← Updated: add SupportedCultures (retain DefaultCulture)
   └── ContentSlugDocument.cs       ← Updated: add Culture field (see SlugRegistry)
 
 src/Aero.Cms.Abstractions/Events/
-  ├── PageCreated.cs               ← Updated: add Culture + TranslationSetId params
+  ├── PageCreated.cs               ← Updated: add Culture + TranslationGroupId params
   ├── PageContentUpdated.cs        ← Updated: add Culture param
   ├── PageMetadataUpdated.cs       ← Updated: add Culture param
-  ├── PostCreated.cs               ← Updated: add Culture + TranslationSetId params
+  ├── PostCreated.cs               ← Updated: add Culture + TranslationGroupId params
   ├── CategoryTranslationSaved.cs  ← New
   ├── TagTranslationSaved.cs       ← New
   └── ProductTranslationSaved.cs   ← New
@@ -81,13 +81,13 @@ src/Aero.Cms.Modules.Posts/
 
 src/Aero.Cms.Modules.Navigation/
   └── Domain/
-      ├── NavMenuDocument.cs       ← Updated: Culture + TranslationSetId
-      └── NavMenuEvents.cs         ← Updated: Culture + TranslationSetId in events
+      ├── NavMenuDocument.cs       ← Updated: Culture + TranslationGroupId
+      └── NavMenuEvents.cs         ← Updated: Culture + TranslationGroupId in events
 
 src/Aero.Cms.Modules.Footer/
   └── Domain/
-      ├── FooterDocument.cs        ← Updated: Culture + TranslationSetId
-      └── FooterEvents.cs          ← Updated: Culture + TranslationSetId in events
+      ├── FooterDocument.cs        ← Updated: Culture + TranslationGroupId
+      └── FooterEvents.cs          ← Updated: Culture + TranslationGroupId in events
 
 src/Aero.Cms.Modules.Commerce/
   └── Catalog/Models/
@@ -115,10 +115,10 @@ Follow existing patterns — Railway Oriented Programming, event-sourced entitie
 
 ## Core Architecture Decision: Document-Per-Culture (not sidecar translations)
 
-For AeroCMS's Marten document model and event sourcing, the correct approach is **document-per-culture** for rich entities. Each culture gets its own full document, linked by `TranslationSetId`. This is idiomatic Marten — documents are the unit of change, and having one document per culture means each culture can have independent blocks, layouts, publish state, and hierarchy.
+For AeroCMS's Marten document model and event sourcing, the correct approach is **document-per-culture** for rich entities. Each culture gets its own full document, linked by `TranslationGroupId`. This is idiomatic Marten — documents are the unit of change, and having one document per culture means each culture can have independent blocks, layouts, publish state, and hierarchy.
 
 ```text
-                        TranslationSetId: 42
+                        TranslationGroupId: 42
               ┌────────────────┼────────────────┐
               ▼                ▼                ▼
     PageDocument           PageDocument      PageDocument
@@ -154,7 +154,7 @@ only when a translated page variant is created.
 public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableEntity
 {
     public long SiteId { get; set; }
-    public long? TranslationSetId { get; set; }   // NEW: links culture variants
+    public long? TranslationGroupId { get; set; }   // NEW: links culture variants
     public string Culture { get; set; }            // NEW: "en-US", "es-MX", etc.
     // ... all existing fields (Slug, Title, Path, LayoutRegions, Blocks, etc.)
 }
@@ -163,7 +163,7 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
 public sealed class PostDocument : Entity, ISiteOwned
 {
     public long SiteId { get; set; }
-    public long? TranslationSetId { get; set; }   // NEW
+    public long? TranslationGroupId { get; set; }   // NEW
     public string Culture { get; set; }            // NEW
     // ... all existing fields
 }
@@ -172,7 +172,7 @@ public sealed class PostDocument : Entity, ISiteOwned
 public sealed class NavMenuDocument : Entity, ISiteOwned
 {
     public long SiteId { get; set; }
-    public long? TranslationSetId { get; set; }   // NEW
+    public long? TranslationGroupId { get; set; }   // NEW
     public string Culture { get; set; }            // NEW
     // ... all existing fields (Name, Key, State, etc.)
 }
@@ -181,7 +181,7 @@ public sealed class NavMenuDocument : Entity, ISiteOwned
 public sealed class FooterDocument : Entity, ISiteOwned
 {
     public long SiteId { get; set; }
-    public long? TranslationSetId { get; set; }   // NEW
+    public long? TranslationGroupId { get; set; }   // NEW
     public string Culture { get; set; }            // NEW
     // ... all existing fields
 }
@@ -254,17 +254,17 @@ public sealed class ContentSlugDocument : Entity
 ### Phase 1 — Data Model + Site Config
 
 **Files modified (document-per-culture entities):**
-- `src/Aero.Cms.Core.Entities/PageDocument.cs` — add `TranslationSetId` (nullable long), `Culture` (string)
-- `src/Aero.Cms.Core.Entities/PostDocument.cs` — add `TranslationSetId`, `Culture`
-- `src/Aero.Cms.Modules.Navigation/Domain/NavMenuDocument.cs` — add `TranslationSetId`, `Culture`
-- `src/Aero.Cms.Modules.Footer/Domain/FooterDocument.cs` — add `TranslationSetId`, `Culture`
+- `src/Aero.Cms.Core.Entities/PageDocument.cs` — add `TranslationGroupId` (nullable long), `Culture` (string)
+- `src/Aero.Cms.Core.Entities/PostDocument.cs` — add `TranslationGroupId`, `Culture`
+- `src/Aero.Cms.Modules.Navigation/Domain/NavMenuDocument.cs` — add `TranslationGroupId`, `Culture`
+- `src/Aero.Cms.Modules.Footer/Domain/FooterDocument.cs` — add `TranslationGroupId`, `Culture`
 - `src/Aero.Cms.Core.Entities/SitesModel.cs` — add `SupportedCultures` (retain `DefaultCulture`; `DefaultCulture` must be in `SupportedCultures`)
 - `src/Aero.Cms.Modules.Pages/SlugRegistry.cs` (`ContentSlugDocument`) — add `Culture` field + update unique index to `(SiteId, Culture, NormalizedSlug)`
 
-**Files modified (events — add Culture + TranslationSetId to existing Wolverine events):**
-- `src/Aero.Cms.Abstractions/Events/PageEvents.cs` — `PageCreated` gains `Culture`, `TranslationSetId` params
-- Navigation events — `NavMenuCreated` gains `Culture`, `TranslationSetId` params
-- Footer events — `FooterCreated` gains `Culture`, `TranslationSetId` params
+**Files modified (events — add Culture + TranslationGroupId to existing Wolverine events):**
+- `src/Aero.Cms.Abstractions/Events/PageEvents.cs` — `PageCreated` gains `Culture`, `TranslationGroupId` params
+- Navigation events — `NavMenuCreated` gains `Culture`, `TranslationGroupId` params
+- Footer events — `FooterCreated` gains `Culture`, `TranslationGroupId` params
 
 **Files created (sidecar translations for simple entities):**
 - `src/Aero.Cms.Core.Entities/CategoryTranslation.cs`
@@ -304,9 +304,9 @@ public sealed class ContentSlugDocument : Entity
 
 **Files modified (per entity query scoping):**
 - `src/Aero.Cms.Data/Queries/` — all slug+site queries: `SiteId + Culture + Slug`
-- `src/Aero.Cms.Modules.Pages/Services/PageService.cs` — `ForkPageForCulture(sourcePageId, targetCulture, targetSlug)` creates new PageDocument with same `TranslationSetId`, new `Id`, independent blocks/layout. `GetPage(siteId, culture, slug)` returns page or falls back to default culture.
+- `src/Aero.Cms.Modules.Pages/Services/PageService.cs` — `ForkPageForCulture(sourcePageId, targetCulture, targetSlug)` creates new PageDocument with same `TranslationGroupId`, new `Id`, independent blocks/layout. `GetPage(siteId, culture, slug)` returns page or falls back to default culture.
 - `src/Aero.Cms.Modules.Posts/Services/PostService.cs` — same fork/query pattern
-- `src/Aero.Cms.Modules.Navigation/Services/NavMenuService.cs` — `GetByKey(siteId, key, culture)` resolves `(TranslationSetId, Culture)` to the correct NavMenuDocument; falls back to default culture
+- `src/Aero.Cms.Modules.Navigation/Services/NavMenuService.cs` — `GetByKey(siteId, key, culture)` resolves `(TranslationGroupId, Culture)` to the correct NavMenuDocument; falls back to default culture
 - `src/Aero.Cms.Modules.Footer/Services/FooterService.cs` — same pattern as NavMenu
 - `src/Aero.Cms.Modules.Commerce/Catalog/Services/ProductService.cs` — culture-scoped sidecar translation lookups, default-culture fallback
 - `src/Aero.Cms.Modules.Posts/Services/CategoryService.cs` — sidecar translation lookups + fallback
@@ -314,7 +314,7 @@ public sealed class ContentSlugDocument : Entity
 
 **Default culture fallback (for querying non-existent translations):**
 - When a document-per-culture entity is requested in `es-MX` but no `es-MX` variant exists:
-  1. Find any document with same `TranslationSetId` and site's `DefaultCulture`
+  1. Find any document with same `TranslationGroupId` and site's `DefaultCulture`
   2. Render it with a `FallbackBanner` component
   3. Do NOT redirect — preserve the URL the user requested
 
@@ -375,7 +375,7 @@ public sealed class ContentSlugDocument : Entity
 ## Success Criteria
 
 - [ ] Site config supports multiple cultures with a configured default
-- [ ] `/en-us/about` and `/es-mx/acerca-de` resolve to different PageDocuments with the same `TranslationSetId`
+- [ ] `/en-us/about` and `/es-mx/acerca-de` resolve to different PageDocuments with the same `TranslationGroupId`
 - [ ] Each PageDocument variant can have independent blocks, layouts, and slug
 - [ ] Admin can fork/clone a page to a new culture via CMS UI
 - [ ] Import/export translations via file (bulk endpoint)
@@ -387,7 +387,7 @@ public sealed class ContentSlugDocument : Entity
 - [ ] `BlockRenderContext.Culture` populated from request
 - [ ] Fallback banner shown when no translation exists for requested culture
 - [ ] Cache keys include culture dimension (verify existing pattern)
-- [ ] NavMenu resolves per `(TranslationSetId, Culture)`
+- [ ] NavMenu resolves per `(TranslationGroupId, Culture)`
 - [ ] Custom `AeroRequestCultureProvider` validates culture against resolved site
 - [ ] `ContentSlugDocument` unique constraint scoped to `(SiteId, Culture, NormalizedSlug)`
 - [ ] All existing tests still pass
