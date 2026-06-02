@@ -267,7 +267,7 @@
 }
 .pe-collapse-btn:hover { background: var(--pe-bg-hover); color: var(--pe-text-primary); }
 .pe-sidebar:not(.pe-sidebar-right).collapsed .pe-collapse-btn svg { transform: rotate(180deg); }
-.pe-sidebar.pe-sidebar-right:not(.collapsed) .pe-collapse-btn svg { transform: rotate(180deg); }
+.pe-sidebar.pe-sidebar-right.collapsed .pe-collapse-btn svg { transform: rotate(180deg); }
 .pe-sidebar-title { font-size: 14px; font-weight: 600; color: var(--pe-text-primary); white-space: nowrap; }
 
 .pe-sidebar-content { flex: 1; overflow-y: auto; padding: 12px; }

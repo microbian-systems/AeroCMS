@@ -26,8 +26,8 @@
                               Click="@ReloadUsersAsync"
                               Title="@L["Refresh list"]" />
                 <RadzenButton Icon="person_add"
-Text="@L["Add User"]"
-                               ButtonStyle="ButtonStyle.Primary"
+                              Text="@L["Add User"]"
+                              ButtonStyle="ButtonStyle.Primary"
                               Click="@(() => Navigation.NavigateTo("/manager/users/new"))" />
             </div>
         </div>
@@ -89,8 +89,8 @@ Text="@L["Add User"]"
                 <Template Context="user">
                     <div class="flex items-center justify-end gap-2" @onclick:stopPropagation="true">
                         <RadzenButton Icon="edit"
-Text="@L["Edit"]"
-                                       ButtonStyle="ButtonStyle.Secondary"
+                                      Text="@L["Edit"]"
+                                      ButtonStyle="ButtonStyle.Secondary"
                                       Size="ButtonSize.Small"
                                       Click="@(() => Navigation.NavigateTo($"/manager/users/{user.Id}"))" />
                         <RadzenButton Icon="delete"

@@ -1,4 +1,7 @@
+using System.Globalization;
+using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Navigation.Domain;
 using Aero.Cms.Modules.Navigation.Events;
 using Aero.Cms.Modules.Navigation.Services;
@@ -33,6 +36,9 @@ public static class NavigationAdminApi
 
         group.MapPost("/{id:long}/translations", ForkNavigationToCulture)
             .WithName("ForkNavigationMenuToCulture");
+
+        group.MapPost("/{id:long}/ai-translate", TranslateNavigationWithAi)
+            .WithName("TranslateNavigationMenuWithAi");
 
         group.MapPut("/{id:long}", SaveDraftCompatibility)
             .WithName("UpdateNavigationMenu");
@@ -155,6 +161,102 @@ public static class NavigationAdminApi
             : ToProblem(result);
     }
 
+    private static async Task<IResult> TranslateNavigationWithAi(
+        long id,
+        [FromBody] AiTranslateNavigationRequest request,
+        [FromServices] INavMenuService service,
+        [FromServices] IQuerySession query,
+        [FromServices] IAiContentTranslationService translationService,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.Targets.Count == 0)
+        {
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "No target cultures",
+                Detail = "At least one target culture is required."
+            });
+        }
+
+        var sourceDocumentResult = await service.GetAsync(id, cancellationToken);
+        if (sourceDocumentResult is not Result<NavMenuDocument, AeroError>.Ok sourceDocumentOk)
+        {
+            return ToProblem(sourceDocumentResult);
+        }
+
+        var sourceDetailResult = await service.GetDetailAsync(id, cancellationToken);
+        if (sourceDetailResult is not Result<NavigationDetail, AeroError>.Ok sourceDetailOk)
+        {
+            return ToProblem(sourceDetailResult);
+        }
+
+        var sourceDocument = sourceDocumentOk.Value;
+        var source = sourceDetailOk.Value;
+        var supportedCultures = await GetSupportedCulturesAsync(query, sourceDocument.SiteId, cancellationToken);
+        var variantsResult = await service.ListCultureVariantsAsync(source.Id, cancellationToken);
+        var variants = variantsResult is Result<IReadOnlyList<NavigationDetail>, AeroError>.Ok variantsOk
+            ? variantsOk.Value
+            : [source];
+
+        var immediateResults = new List<AiTranslateNavigationCultureResult>();
+        var plans = new List<AiTranslateNavigationPlan>();
+        var plannedCultures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var target in request.Targets)
+        {
+            var culture = NormalizeCultureName(target.Culture);
+            if (!plannedCultures.Add(culture))
+            {
+                continue;
+            }
+
+            if (CultureEquals(culture, source.Culture))
+            {
+                immediateResults.Add(FailedNavigationTranslation(culture, "Target culture must be different from the source culture."));
+                continue;
+            }
+
+            if (!supportedCultures.Contains(culture))
+            {
+                immediateResults.Add(FailedNavigationTranslation(culture, $"Culture '{culture}' is not supported by this site."));
+                continue;
+            }
+
+            var existing = variants.FirstOrDefault(x => CultureEquals(x.Culture, culture));
+            if (existing is not null && !request.OverwriteExisting)
+            {
+                immediateResults.Add(FailedNavigationTranslation(culture, $"A '{culture}' translation already exists."));
+                continue;
+            }
+
+            plans.Add(new AiTranslateNavigationPlan(culture, existing));
+        }
+
+        var translatedPlans = await Task.WhenAll(plans.Select(plan =>
+            TranslateNavigationPlanAsync(source, plan, request.ProviderId, translationService, cancellationToken)));
+
+        var results = new List<AiTranslateNavigationCultureResult>(immediateResults);
+        foreach (var translated in translatedPlans)
+        {
+            if (!translated.Succeeded || translated.Response is null)
+            {
+                results.Add(FailedNavigationTranslation(translated.Culture, translated.Error ?? "AI translation failed."));
+                continue;
+            }
+
+            results.Add(await SaveTranslatedNavigationAsync(
+                source.Id,
+                translated.Plan,
+                translated.Response,
+                service,
+                cancellationToken));
+        }
+
+        return TypedResults.Ok(new AiTranslateNavigationResult(results
+            .OrderBy(x => x.Culture, StringComparer.OrdinalIgnoreCase)
+            .ToList()));
+    }
+
     private static async Task<IResult> SaveDraftCompatibility(
         long id,
         [FromBody] UpdateNavigationRequest request,
@@ -261,6 +363,186 @@ public static class NavigationAdminApi
         return TypedResults.Ok(new NavigationEventHistory(id, history.Count, history));
     }
 
+    private static async Task<IReadOnlySet<string>> GetSupportedCulturesAsync(
+        IQuerySession query,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var site = await query.LoadAsync<SitesModel>(siteId, cancellationToken);
+        var cultures = site?.SupportedCultures.Count > 0
+            ? site.SupportedCultures
+            : [site?.DefaultCulture ?? SitesModel.DefaultCultureName];
+
+        return cultures
+            .Select(NormalizeCultureName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static async Task<AiTranslatedNavigationPlan> TranslateNavigationPlanAsync(
+        NavigationDetail source,
+        AiTranslateNavigationPlan plan,
+        string? providerId,
+        IAiContentTranslationService translationService,
+        CancellationToken cancellationToken)
+    {
+        var fields = BuildTranslatableFields(source);
+        if (fields.Count == 0)
+        {
+            return AiTranslatedNavigationPlan.Failed(plan, "The source header menu does not contain translatable content.");
+        }
+
+        var response = await translationService.TranslateAsync(
+            new TranslateDocumentRequest(fields, source.Culture, plan.Culture, providerId),
+            cancellationToken);
+
+        return response switch
+        {
+            Result<TranslateDocumentResponse>.Ok ok => AiTranslatedNavigationPlan.Success(plan, ok.Value),
+            Result<TranslateDocumentResponse>.Failure failure => AiTranslatedNavigationPlan.Failed(plan, GetErrorMessage(failure.Error)),
+            _ => AiTranslatedNavigationPlan.Failed(plan, "Unexpected AI translation result.")
+        };
+    }
+
+    private static List<TranslateDocumentField> BuildTranslatableFields(NavigationDetail source)
+    {
+        var fields = new List<TranslateDocumentField>();
+        AddOptionalField(fields, "name", ContentFieldHint.GroupName, source.Name);
+        AddOptionalField(fields, "title", ContentFieldHint.BlockText, source.Title);
+
+        for (var i = 0; i < source.Items.Count; i++)
+        {
+            AddOptionalField(fields, $"items.{i}.label", ContentFieldHint.Label, source.Items[i].Label);
+            AddOptionalField(fields, $"items.{i}.altText", ContentFieldHint.AltText, source.Items[i].AltText);
+        }
+
+        return fields;
+    }
+
+    private static async Task<AiTranslateNavigationCultureResult> SaveTranslatedNavigationAsync(
+        long sourceId,
+        AiTranslateNavigationPlan plan,
+        TranslateDocumentResponse response,
+        INavMenuService service,
+        CancellationToken cancellationToken)
+    {
+        NavigationDetail target;
+        if (plan.ExistingVariant is null)
+        {
+            var forkResult = await service.ForkToCultureAsync(sourceId, plan.Culture, userId: null, cancellationToken);
+            if (forkResult is not Result<NavMenuDocument, AeroError>.Ok forkOk)
+            {
+                return FailedNavigationTranslation(plan.Culture, forkResult is Result<NavMenuDocument, AeroError>.Failure forkFailure
+                    ? GetErrorMessage(forkFailure.Error)
+                    : "Failed to create translated header menu.");
+            }
+
+            var detailResult = await service.GetDetailAsync(forkOk.Value.Id, cancellationToken);
+            if (detailResult is not Result<NavigationDetail, AeroError>.Ok detailOk)
+            {
+                return FailedNavigationTranslation(plan.Culture, detailResult is Result<NavigationDetail, AeroError>.Failure detailFailure
+                    ? GetErrorMessage(detailFailure.Error)
+                    : "Failed to load translated header menu.");
+            }
+
+            target = detailOk.Value;
+        }
+        else
+        {
+            target = plan.ExistingVariant;
+        }
+
+        var request = BuildTranslatedRequest(target, response);
+        var saveResult = await service.SaveDraftAsync(target.Id, request, target.Version, userId: null, cancellationToken);
+        if (saveResult is not Result<NavMenuDocument, AeroError>.Ok saveOk)
+        {
+            return FailedNavigationTranslation(plan.Culture, saveResult is Result<NavMenuDocument, AeroError>.Failure saveFailure
+                ? GetErrorMessage(saveFailure.Error)
+                : "Failed to save translated header menu.");
+        }
+
+        var savedDetail = await service.GetDetailAsync(saveOk.Value.Id, cancellationToken);
+        return savedDetail is Result<NavigationDetail, AeroError>.Ok ok
+            ? new AiTranslateNavigationCultureResult(plan.Culture, true, ok.Value, response.Warnings, null)
+            : FailedNavigationTranslation(plan.Culture, savedDetail is Result<NavigationDetail, AeroError>.Failure savedFailure
+                ? GetErrorMessage(savedFailure.Error)
+                : "Failed to load saved header menu.");
+    }
+
+    private static UpdateNavigationRequest BuildTranslatedRequest(NavigationDetail target, TranslateDocumentResponse response)
+        => new(
+            GetTranslated(response, "name", target.Name),
+            GetTranslated(response, "title", target.Title),
+            target.Items
+                .OrderBy(x => x.Order)
+                .Select((item, index) => new UpdateNavigationItemRequest(
+                    item.Id,
+                    GetTranslated(response, $"items.{index}.label", item.Label),
+                    item.Url,
+                    item.PageId,
+                    item.Order,
+                    GetTranslated(response, $"items.{index}.altText", item.AltText),
+                    item.IsExternal,
+                    item.Target))
+                .ToList(),
+            target.SiteLogoUrl);
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+        {
+            return SitesModel.DefaultCultureName;
+        }
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return culture.Trim();
+        }
+    }
+
+    private static string GetTranslated(TranslateDocumentResponse response, string key, string? fallback)
+        => response.TranslatedFields.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback ?? string.Empty;
+
+    private static void AddOptionalField(List<TranslateDocumentField> fields, string key, ContentFieldHint hint, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            fields.Add(new TranslateDocumentField(key, hint, value));
+        }
+    }
+
+    private static AiTranslateNavigationCultureResult FailedNavigationTranslation(string culture, string error)
+        => new(culture, false, null, [], error);
+
+    private static bool CultureEquals(string left, string right)
+        => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetErrorMessage(AeroError error) => error switch
+    {
+        AeroError.Error e => e.msg,
+        AeroError.NotFound e => e.msg,
+        AeroError.Conflict e => e.msg,
+        AeroError.Database e => e.msg,
+        AeroError.Unauthorized e => e.msg,
+        AeroError.Forbidden e => e.msg,
+        AeroError.Timeout e => e.msg,
+        AeroError.InvalidRequest e => e.msg,
+        AeroError.BadRequest e => e.msg,
+        AeroError.Exists e => e.msg,
+        AeroError.NullReferro e => e.msg,
+        AeroError.Cancelled e => e.msg,
+        AeroError.NotAllowed e => e.msg,
+        AeroError.Configuration e => e.msg,
+        AeroError.Validation e => string.Join("; ", e.Errors),
+        AeroError.HttpRequest e => e.msg ?? "HTTP request error",
+        _ => error.ToString()
+    };
+
     private static IResult ToProblem<T>(Result<T, AeroError> result)
         => result is Result<T, AeroError>.Failure failure
             ? failure.Error switch
@@ -285,3 +567,22 @@ public sealed record NavigationEventHistory(
     long NavMenuId,
     int TotalEvents,
     IReadOnlyList<NavigationEventItem> Events);
+
+internal sealed record AiTranslateNavigationPlan(
+    string Culture,
+    NavigationDetail? ExistingVariant);
+
+internal sealed record AiTranslatedNavigationPlan(
+    AiTranslateNavigationPlan Plan,
+    bool Succeeded,
+    TranslateDocumentResponse? Response,
+    string? Error)
+{
+    public string Culture => Plan.Culture;
+
+    public static AiTranslatedNavigationPlan Success(AiTranslateNavigationPlan plan, TranslateDocumentResponse response)
+        => new(plan, true, response, null);
+
+    public static AiTranslatedNavigationPlan Failed(AiTranslateNavigationPlan plan, string error)
+        => new(plan, false, null, error);
+}

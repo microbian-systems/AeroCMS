@@ -416,10 +416,7 @@ public sealed class SeedDatabaseService(
 
         var now = DateTimeOffset.UtcNow;
         var navMenuId = Snowflake.NewId();
-        var snapshot = new NavMenuSnapshot(
-            NavMenuLayout.Default,
-            NavMenuResponsiveSettings.Default,
-            NavMenuStyleSettings.Default,
+        var snapshot = BuildSeedNavMenuSnapshot(
             [
                 new NavLink { Key = "home", Label = "Home", Href = "/", PageId = homepageId, AltText = "Home Page", Alignment = NavAlignment.Left },
                 new NavLink { Key = "about", Label = "About", Href = "/about", PageId = aboutPageId, AltText = "About Us", Alignment = NavAlignment.Left },
@@ -497,42 +494,42 @@ public sealed class SeedDatabaseService(
                     new FooterLink("Cookies", "/cookies")
                 ]
             },
-            Sections =
-            [
-                new FooterLinkGroup
-                {
-                    Key = "company",
-                    Title = "Company",
-                    Order = 0,
-                    Links =
-                    [
-                        new FooterLink("About", "/about"),
-                        new FooterLink("Contact", "/contact")
-                    ]
-                },
-                new FooterLinkGroup
-                {
-                    Key = "content",
-                    Title = "Content",
-                    Order = 1,
-                    Links =
-                    [
-                        new FooterLink("Blog", "/blog"),
-                        new FooterLink("Docs", "/docs")
-                    ]
-                },
-                new FooterLinkGroup
-                {
-                    Key = "site",
-                    Title = "Site",
-                    Order = 2,
-                    Links =
-                    [
-                        new FooterLink("Home", "/"),
-                        new FooterLink("Sitemap", "/sitemap.xml")
-                    ]
-                }
-            ]
+            Rows = BuildSeedFooterRows(
+                [
+                    new FooterLinkGroup
+                    {
+                        Key = "company",
+                        Title = "Company",
+                        Order = 0,
+                        Links =
+                        [
+                            new FooterLink("About", "/about"),
+                            new FooterLink("Contact", "/contact")
+                        ]
+                    },
+                    new FooterLinkGroup
+                    {
+                        Key = "content",
+                        Title = "Content",
+                        Order = 1,
+                        Links =
+                        [
+                            new FooterLink("Blog", "/blog"),
+                            new FooterLink("Docs", "/docs")
+                        ]
+                    },
+                    new FooterLinkGroup
+                    {
+                        Key = "site",
+                        Title = "Site",
+                        Order = 2,
+                        Links =
+                        [
+                            new FooterLink("Home", "/"),
+                            new FooterLink("Sitemap", "/sitemap.xml")
+                        ]
+                    }
+                ])
         };
         snapshot.Validate();
 
@@ -631,10 +628,7 @@ public sealed class SeedDatabaseService(
 
         var now = DateTimeOffset.UtcNow;
         var navMenuId = Snowflake.NewId();
-        var snapshot = new NavMenuSnapshot(
-            NavMenuLayout.Default,
-            NavMenuResponsiveSettings.Default,
-            NavMenuStyleSettings.Default,
+        var snapshot = BuildSeedNavMenuSnapshot(
             [
                 new NavLink { Key = "home", Label = "Inicio", Href = "/es-mx/", PageId = homepageId, AltText = "Pagina de inicio", Alignment = NavAlignment.Left },
                 new NavLink { Key = "about", Label = "Acerca de", Href = "/es-mx/acerca-de", PageId = aboutPageId, AltText = "Acerca de nosotros", Alignment = NavAlignment.Left },
@@ -690,31 +684,31 @@ public sealed class SeedDatabaseService(
                     new FooterLink("Cookies", "/es-mx/cookies")
                 ]
             },
-            Sections =
-            [
-                new FooterLinkGroup
-                {
-                    Key = "company",
-                    Title = "Compania",
-                    Order = 0,
-                    Links =
-                    [
-                        new FooterLink("Acerca de", "/es-mx/acerca-de"),
-                        new FooterLink("Contacto", "/es-mx/contacto")
-                    ]
-                },
-                new FooterLinkGroup
-                {
-                    Key = "content",
-                    Title = "Contenido",
-                    Order = 1,
-                    Links =
-                    [
-                        new FooterLink("Blog", "/es-mx/blog"),
-                        new FooterLink("Mapa del sitio", "/sitemap-es-mx.xml")
-                    ]
-                }
-            ]
+            Rows = BuildSeedFooterRows(
+                [
+                    new FooterLinkGroup
+                    {
+                        Key = "company",
+                        Title = "Compania",
+                        Order = 0,
+                        Links =
+                        [
+                            new FooterLink("Acerca de", "/es-mx/acerca-de"),
+                            new FooterLink("Contacto", "/es-mx/contacto")
+                        ]
+                    },
+                    new FooterLinkGroup
+                    {
+                        Key = "content",
+                        Title = "Contenido",
+                        Order = 1,
+                        Links =
+                        [
+                            new FooterLink("Blog", "/es-mx/blog"),
+                            new FooterLink("Mapa del sitio", "/sitemap-es-mx.xml")
+                        ]
+                    }
+                ])
         };
         snapshot.Validate();
 
@@ -723,6 +717,87 @@ public sealed class SeedDatabaseService(
             new FooterCreated(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
             new FooterDraftSaved(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", snapshot, UserId: null, now, "Seeded es-MX starter footer"),
             new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter footer"));
+    }
+
+    private static NavMenuSnapshot BuildSeedNavMenuSnapshot(IReadOnlyList<INavMenuComponent> components)
+        => new()
+        {
+            Layout = NavMenuLayout.Default,
+            Responsive = NavMenuResponsiveSettings.Default,
+            Style = NavMenuStyleSettings.Default,
+            Rows =
+            [
+                new NavCanvasRow
+                {
+                    Key = "header-row",
+                    Order = 0,
+                    Label = "Header",
+                    DesktopDisplay = "Flex",
+                    TabletDisplay = "Flex",
+                    MobileDisplay = "Stack",
+                    Columns =
+                    [
+                        new NavCanvasColumn
+                        {
+                            Key = "primary-nav",
+                            Order = 0,
+                            DesktopSpan = 12,
+                            TabletSpan = 12,
+                            MobileSpan = 12,
+                            Blocks = components
+                                .Select((component, index) => new NavCanvasBlock
+                                {
+                                    Key = component.Key,
+                                    Order = index,
+                                    Component = component
+                                })
+                                .ToList()
+                        }
+                    ]
+                }
+            ]
+        };
+
+    private static List<FooterCanvasRow> BuildSeedFooterRows(IReadOnlyList<IFooterComponent> components)
+    {
+        var orderedComponents = components.OrderBy(component => component.Order).ToList();
+        var columnSpan = orderedComponents.Count switch
+        {
+            <= 1 => 12,
+            2 => 6,
+            3 => 4,
+            _ => 3
+        };
+
+        return
+        [
+            new FooterCanvasRow
+            {
+                Key = "footer-main",
+                Order = 0,
+                Label = "Main footer",
+                DesktopDisplay = "Grid",
+                TabletDisplay = "Grid",
+                MobileDisplay = "Stack",
+                Columns = orderedComponents.Select((component, index) => new FooterCanvasColumn
+                {
+                    Key = $"footer-column-{index + 1}",
+                    Order = index,
+                    DesktopSpan = columnSpan,
+                    TabletSpan = orderedComponents.Count <= 2 ? 6 : 12,
+                    MobileSpan = 12,
+                    Blocks =
+                    [
+                        new FooterCanvasBlock
+                        {
+                            Key = component.Key,
+                            Order = 0,
+                            Component = component
+                        }
+                    ]
+                }).ToList()
+            }
+        ];
     }
 
     private void SeedDefaultSettings(string defaultCulture)

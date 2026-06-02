@@ -27,6 +27,8 @@ public interface INavigationsHttpClient
 
     Task<Result<NavigationDetail, AeroError>> ForkToCultureAsync(long id, ForkNavigationCultureRequest request, CancellationToken ct = default);
 
+    Task<Result<AiTranslateNavigationResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateNavigationRequest request, CancellationToken ct = default);
+
     /// <summary>
     /// Creates a new navigation menu.
     /// </summary>
@@ -117,6 +119,11 @@ public class NavigationsHttpClient(HttpClient httpClient, ILogger<NavigationsHtt
         return PostAsync<ForkNavigationCultureRequest, NavigationDetail>($"{id}/translations", request, ct);
     }
 
+    public Task<Result<AiTranslateNavigationResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateNavigationRequest request, CancellationToken ct = default)
+    {
+        return PostAsync<AiTranslateNavigationRequest, AiTranslateNavigationResult>($"{id}/ai-translate", request, ct);
+    }
+
     /// <inheritdoc />
     public Task<Result<NavigationDetail, AeroError>> CreateAsync(CreateNavigationRequest request, CancellationToken ct = default)
     {
@@ -200,9 +207,32 @@ public record NavigationDetail(
     string? State = null,
     string? SiteLogoUrl = null,
     string Culture = "en-US",
-    long? TranslationGroupId = null);
+    long? TranslationGroupId = null,
+    IReadOnlyList<NavigationComponentDetail>? Components = null,
+    IReadOnlyList<NavigationCanvasRowDetail>? Rows = null)
+{
+    public IReadOnlyList<NavigationComponentDetail> Components { get; init; } = Components ?? [];
+    public IReadOnlyList<NavigationCanvasRowDetail> Rows { get; init; } = Rows ?? [];
+}
 
 public sealed record ForkNavigationCultureRequest(string Culture);
+
+public sealed record AiTranslateNavigationRequest(
+    IReadOnlyList<AiTranslateNavigationCultureRequest> Targets,
+    string? ProviderId = null,
+    bool OverwriteExisting = false);
+
+public sealed record AiTranslateNavigationCultureRequest(string Culture);
+
+public sealed record AiTranslateNavigationResult(
+    IReadOnlyList<AiTranslateNavigationCultureResult> Results);
+
+public sealed record AiTranslateNavigationCultureResult(
+    string Culture,
+    bool Succeeded,
+    NavigationDetail? Navigation,
+    IReadOnlyList<string> Warnings,
+    string? Error);
 
 /// <summary>
 /// Detailed navigation item information.
@@ -217,6 +247,50 @@ public record NavigationItemDetail(
     bool IsExternal = false,
     string? Target = null);
 
+public record NavigationComponentDetail(
+    long Id,
+    string Kind,
+    string? Label,
+    string? Url,
+    long? PageId,
+    int Order,
+    string Alignment = "Left",
+    string? AltText = null,
+    bool IsExternal = false,
+    string? Target = null,
+    IReadOnlyList<NavigationComponentDetail>? Children = null,
+    string? Html = null,
+    string? Placeholder = null,
+    string? SearchAction = null,
+    string? ButtonLabel = null,
+    string Visibility = "Always")
+{
+    public IReadOnlyList<NavigationComponentDetail> Children { get; init; } = Children ?? [];
+}
+
+public record NavigationCanvasRowDetail(
+    long Id,
+    int Order,
+    string? Label,
+    string DesktopDisplay = "Flex",
+    string TabletDisplay = "Flex",
+    string MobileDisplay = "Stack",
+    IReadOnlyList<NavigationCanvasColumnDetail>? Columns = null)
+{
+    public IReadOnlyList<NavigationCanvasColumnDetail> Columns { get; init; } = Columns ?? [];
+}
+
+public record NavigationCanvasColumnDetail(
+    long Id,
+    int Order,
+    int DesktopSpan,
+    int TabletSpan,
+    int MobileSpan,
+    IReadOnlyList<NavigationComponentDetail>? Blocks = null)
+{
+    public IReadOnlyList<NavigationComponentDetail> Blocks { get; init; } = Blocks ?? [];
+}
+
 /// <summary>
 /// Request to create a new navigation menu.
 /// </summary>
@@ -225,7 +299,17 @@ public record CreateNavigationRequest(string Name, string? Title, IReadOnlyList<
 /// <summary>
 /// Request to update an existing navigation menu.
 /// </summary>
-public record UpdateNavigationRequest(string Name, string? Title, IReadOnlyList<UpdateNavigationItemRequest> Items, string? SiteLogoUrl = null);
+public record UpdateNavigationRequest(
+    string Name,
+    string? Title,
+    IReadOnlyList<UpdateNavigationItemRequest> Items,
+    string? SiteLogoUrl = null,
+    IReadOnlyList<UpdateNavigationComponentRequest>? Components = null,
+    IReadOnlyList<UpdateNavigationCanvasRowRequest>? Rows = null)
+{
+    public IReadOnlyList<UpdateNavigationComponentRequest> Components { get; init; } = Components ?? [];
+    public IReadOnlyList<UpdateNavigationCanvasRowRequest> Rows { get; init; } = Rows ?? [];
+}
 
 /// <summary>
 /// Request to create a navigation menu item.
@@ -251,3 +335,47 @@ public record UpdateNavigationItemRequest(
     string? AltText,
     bool IsExternal = false,
     string? Target = null);
+
+public record UpdateNavigationComponentRequest(
+    long Id,
+    string Kind,
+    string? Label,
+    string? Url,
+    long? PageId,
+    int Order,
+    string Alignment = "Left",
+    string? AltText = null,
+    bool IsExternal = false,
+    string? Target = null,
+    IReadOnlyList<UpdateNavigationComponentRequest>? Children = null,
+    string? Html = null,
+    string? Placeholder = null,
+    string? SearchAction = null,
+    string? ButtonLabel = null,
+    string Visibility = "Always")
+{
+    public IReadOnlyList<UpdateNavigationComponentRequest> Children { get; init; } = Children ?? [];
+}
+
+public record UpdateNavigationCanvasRowRequest(
+    long Id,
+    int Order,
+    string? Label,
+    string DesktopDisplay = "Flex",
+    string TabletDisplay = "Flex",
+    string MobileDisplay = "Stack",
+    IReadOnlyList<UpdateNavigationCanvasColumnRequest>? Columns = null)
+{
+    public IReadOnlyList<UpdateNavigationCanvasColumnRequest> Columns { get; init; } = Columns ?? [];
+}
+
+public record UpdateNavigationCanvasColumnRequest(
+    long Id,
+    int Order,
+    int DesktopSpan,
+    int TabletSpan,
+    int MobileSpan,
+    IReadOnlyList<UpdateNavigationComponentRequest>? Blocks = null)
+{
+    public IReadOnlyList<UpdateNavigationComponentRequest> Blocks { get; init; } = Blocks ?? [];
+}

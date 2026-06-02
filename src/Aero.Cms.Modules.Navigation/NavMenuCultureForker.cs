@@ -54,9 +54,28 @@ public static class NavMenuCultureForker
             Responsive = snapshot.Responsive,
             Style = snapshot.Style,
             SiteLogoUrl = snapshot.SiteLogoUrl,
+            Rows = snapshot.Rows.Select(CloneRow).ToList(),
             Left = snapshot.Left.Select(CloneComponent).ToList(),
             Center = snapshot.Center.Select(CloneComponent).ToList(),
             Right = snapshot.Right.Select(CloneComponent).ToList()
+        };
+
+    private static NavCanvasRow CloneRow(NavCanvasRow row)
+        => row with
+        {
+            Columns = row.Columns.Select(CloneColumn).ToList()
+        };
+
+    private static NavCanvasColumn CloneColumn(NavCanvasColumn column)
+        => column with
+        {
+            Blocks = column.Blocks.Select(CloneBlock).ToList()
+        };
+
+    private static NavCanvasBlock CloneBlock(NavCanvasBlock block)
+        => block with
+        {
+            Component = CloneComponent(block.Component)
         };
 
     private static INavMenuComponent CloneComponent(INavMenuComponent component)

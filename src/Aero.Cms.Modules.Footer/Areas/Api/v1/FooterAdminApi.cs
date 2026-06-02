@@ -1,4 +1,7 @@
+using System.Globalization;
+using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Footer.Domain;
 using Aero.Cms.Modules.Footer.Events;
 using Aero.Cms.Modules.Footer.Services;
@@ -22,6 +25,7 @@ public static class FooterAdminApi
         group.MapGet("/{id:long}/translations", ListFooterTranslations).WithName("ListFooterTranslations");
         group.MapPost("/", CreateFooter).WithName("CreateFooter");
         group.MapPost("/{id:long}/translations", ForkFooterToCulture).WithName("ForkFooterToCulture");
+        group.MapPost("/{id:long}/ai-translate", TranslateFooterWithAi).WithName("TranslateFooterWithAi");
         group.MapPut("/{id:long}", SaveDraftCompatibility).WithName("UpdateFooter");
         group.MapPut("/{id:long}/draft", SaveDraft).WithName("SaveFooterDraft");
         group.MapPut("/{id:long}/publish", Publish).WithName("PublishFooter");
@@ -123,6 +127,102 @@ public static class FooterAdminApi
             : ToProblem(result);
     }
 
+    private static async Task<IResult> TranslateFooterWithAi(
+        long id,
+        [FromBody] AiTranslateFooterRequest request,
+        [FromServices] IFooterService service,
+        [FromServices] IQuerySession query,
+        [FromServices] IAiContentTranslationService translationService,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.Targets.Count == 0)
+        {
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "No target cultures",
+                Detail = "At least one target culture is required."
+            });
+        }
+
+        var sourceDocumentResult = await service.GetAsync(id, cancellationToken);
+        if (sourceDocumentResult is not Result<FooterDocument, AeroError>.Ok sourceDocumentOk)
+        {
+            return ToProblem(sourceDocumentResult);
+        }
+
+        var sourceDetailResult = await service.GetDetailAsync(id, cancellationToken);
+        if (sourceDetailResult is not Result<FooterDetail, AeroError>.Ok sourceDetailOk)
+        {
+            return ToProblem(sourceDetailResult);
+        }
+
+        var sourceDocument = sourceDocumentOk.Value;
+        var source = sourceDetailOk.Value;
+        var supportedCultures = await GetSupportedCulturesAsync(query, sourceDocument.SiteId, cancellationToken);
+        var variantsResult = await service.ListCultureVariantsAsync(source.Id, cancellationToken);
+        var variants = variantsResult is Result<IReadOnlyList<FooterDetail>, AeroError>.Ok variantsOk
+            ? variantsOk.Value
+            : [source];
+
+        var immediateResults = new List<AiTranslateFooterCultureResult>();
+        var plans = new List<AiTranslateFooterPlan>();
+        var plannedCultures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var target in request.Targets)
+        {
+            var culture = NormalizeCultureName(target.Culture);
+            if (!plannedCultures.Add(culture))
+            {
+                continue;
+            }
+
+            if (CultureEquals(culture, source.Culture))
+            {
+                immediateResults.Add(FailedFooterTranslation(culture, "Target culture must be different from the source culture."));
+                continue;
+            }
+
+            if (!supportedCultures.Contains(culture))
+            {
+                immediateResults.Add(FailedFooterTranslation(culture, $"Culture '{culture}' is not supported by this site."));
+                continue;
+            }
+
+            var existing = variants.FirstOrDefault(x => CultureEquals(x.Culture, culture));
+            if (existing is not null && !request.OverwriteExisting)
+            {
+                immediateResults.Add(FailedFooterTranslation(culture, $"A '{culture}' translation already exists."));
+                continue;
+            }
+
+            plans.Add(new AiTranslateFooterPlan(culture, existing));
+        }
+
+        var translatedPlans = await Task.WhenAll(plans.Select(plan =>
+            TranslateFooterPlanAsync(source, plan, request.ProviderId, translationService, cancellationToken)));
+
+        var results = new List<AiTranslateFooterCultureResult>(immediateResults);
+        foreach (var translated in translatedPlans)
+        {
+            if (!translated.Succeeded || translated.Response is null)
+            {
+                results.Add(FailedFooterTranslation(translated.Culture, translated.Error ?? "AI translation failed."));
+                continue;
+            }
+
+            results.Add(await SaveTranslatedFooterAsync(
+                source.Id,
+                translated.Plan,
+                translated.Response,
+                service,
+                cancellationToken));
+        }
+
+        return TypedResults.Ok(new AiTranslateFooterResult(results
+            .OrderBy(x => x.Culture, StringComparer.OrdinalIgnoreCase)
+            .ToList()));
+    }
+
     private static async Task<IResult> SaveDraftCompatibility(
         long id,
         [FromBody] UpdateFooterRequest request,
@@ -212,6 +312,216 @@ public static class FooterAdminApi
         return TypedResults.Ok(new FooterEventHistory(id, history.Count, history));
     }
 
+    private static async Task<IReadOnlySet<string>> GetSupportedCulturesAsync(
+        IQuerySession query,
+        long siteId,
+        CancellationToken cancellationToken)
+    {
+        var site = await query.LoadAsync<SitesModel>(siteId, cancellationToken);
+        var cultures = site?.SupportedCultures.Count > 0
+            ? site.SupportedCultures
+            : [site?.DefaultCulture ?? SitesModel.DefaultCultureName];
+
+        return cultures
+            .Select(NormalizeCultureName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static async Task<AiTranslatedFooterPlan> TranslateFooterPlanAsync(
+        FooterDetail source,
+        AiTranslateFooterPlan plan,
+        string? providerId,
+        IAiContentTranslationService translationService,
+        CancellationToken cancellationToken)
+    {
+        var fields = BuildTranslatableFields(source);
+        if (fields.Count == 0)
+        {
+            return AiTranslatedFooterPlan.Failed(plan, "The source footer does not contain translatable content.");
+        }
+
+        var response = await translationService.TranslateAsync(
+            new TranslateDocumentRequest(fields, source.Culture, plan.Culture, providerId),
+            cancellationToken);
+
+        return response switch
+        {
+            Result<TranslateDocumentResponse>.Ok ok => AiTranslatedFooterPlan.Success(plan, ok.Value),
+            Result<TranslateDocumentResponse>.Failure failure => AiTranslatedFooterPlan.Failed(plan, GetErrorMessage(failure.Error)),
+            _ => AiTranslatedFooterPlan.Failed(plan, "Unexpected AI translation result.")
+        };
+    }
+
+    private static List<TranslateDocumentField> BuildTranslatableFields(FooterDetail source)
+    {
+        var fields = new List<TranslateDocumentField>();
+        AddOptionalField(fields, "name", ContentFieldHint.GroupName, source.Name);
+        AddOptionalField(fields, "description", ContentFieldHint.BlockText, source.Description);
+        AddOptionalField(fields, "companyName", ContentFieldHint.CompanyName, source.CompanyName);
+        AddOptionalField(fields, "tagline", ContentFieldHint.Tagline, source.Tagline);
+        AddOptionalField(fields, "copyrightText", ContentFieldHint.CopyrightText, source.CopyrightText);
+
+        for (var i = 0; i < source.LinkGroups.Count; i++)
+        {
+            var group = source.LinkGroups[i];
+            AddOptionalField(fields, $"groups.{i}.title", ContentFieldHint.GroupName, group.Title);
+            for (var j = 0; j < group.Links.Count; j++)
+            {
+                AddOptionalField(fields, $"groups.{i}.links.{j}.label", ContentFieldHint.Label, group.Links[j].Label);
+            }
+        }
+
+        for (var i = 0; i < source.LegalLinks.Count; i++)
+        {
+            AddOptionalField(fields, $"legalLinks.{i}.label", ContentFieldHint.Label, source.LegalLinks[i].Label);
+        }
+
+        return fields;
+    }
+
+    private static async Task<AiTranslateFooterCultureResult> SaveTranslatedFooterAsync(
+        long sourceId,
+        AiTranslateFooterPlan plan,
+        TranslateDocumentResponse response,
+        IFooterService service,
+        CancellationToken cancellationToken)
+    {
+        FooterDetail target;
+        if (plan.ExistingVariant is null)
+        {
+            var forkResult = await service.ForkToCultureAsync(sourceId, plan.Culture, userId: null, cancellationToken);
+            if (forkResult is not Result<FooterDocument, AeroError>.Ok forkOk)
+            {
+                return FailedFooterTranslation(plan.Culture, forkResult is Result<FooterDocument, AeroError>.Failure forkFailure
+                    ? GetErrorMessage(forkFailure.Error)
+                    : "Failed to create translated footer.");
+            }
+
+            var detailResult = await service.GetDetailAsync(forkOk.Value.Id, cancellationToken);
+            if (detailResult is not Result<FooterDetail, AeroError>.Ok detailOk)
+            {
+                return FailedFooterTranslation(plan.Culture, detailResult is Result<FooterDetail, AeroError>.Failure detailFailure
+                    ? GetErrorMessage(detailFailure.Error)
+                    : "Failed to load translated footer.");
+            }
+
+            target = detailOk.Value;
+        }
+        else
+        {
+            target = plan.ExistingVariant;
+        }
+
+        var request = BuildTranslatedRequest(target, response);
+        var saveResult = await service.SaveDraftAsync(target.Id, request, target.Version, userId: null, cancellationToken);
+        if (saveResult is not Result<FooterDocument, AeroError>.Ok saveOk)
+        {
+            return FailedFooterTranslation(plan.Culture, saveResult is Result<FooterDocument, AeroError>.Failure saveFailure
+                ? GetErrorMessage(saveFailure.Error)
+                : "Failed to save translated footer.");
+        }
+
+        var savedDetail = await service.GetDetailAsync(saveOk.Value.Id, cancellationToken);
+        return savedDetail is Result<FooterDetail, AeroError>.Ok ok
+            ? new AiTranslateFooterCultureResult(plan.Culture, true, ok.Value, response.Warnings, null)
+            : FailedFooterTranslation(plan.Culture, savedDetail is Result<FooterDetail, AeroError>.Failure savedFailure
+                ? GetErrorMessage(savedFailure.Error)
+                : "Failed to load saved footer.");
+    }
+
+    private static UpdateFooterRequest BuildTranslatedRequest(FooterDetail target, TranslateDocumentResponse response)
+        => new(
+            GetTranslated(response, "name", target.Name),
+            GetTranslated(response, "description", target.Description),
+            GetTranslated(response, "companyName", target.CompanyName),
+            target.LinkGroups
+                .OrderBy(x => x.Order)
+                .Select((group, groupIndex) => new UpdateFooterLinkGroupRequest(
+                    group.Id,
+                    GetTranslated(response, $"groups.{groupIndex}.title", group.Title),
+                    group.Links
+                        .OrderBy(x => x.Order)
+                        .Select((link, linkIndex) => new UpdateFooterLinkRequest(
+                            link.Id,
+                            GetTranslated(response, $"groups.{groupIndex}.links.{linkIndex}.label", link.Label),
+                            link.Href,
+                            link.Order,
+                            link.OpenInNewTab))
+                        .ToList(),
+                    group.Order))
+                .ToList(),
+            GetTranslated(response, "tagline", target.Tagline),
+            target.LogoUrl,
+            target.BackgroundImageUrl,
+            target.OverlayOpacity,
+            GetTranslated(response, "copyrightText", target.CopyrightText),
+            target.LegalLinks
+                .OrderBy(x => x.Order)
+                .Select((link, index) => new UpdateFooterLinkRequest(
+                    link.Id,
+                    GetTranslated(response, $"legalLinks.{index}.label", link.Label),
+                    link.Href,
+                    link.Order,
+                    link.OpenInNewTab))
+                .ToList());
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+        {
+            return SitesModel.DefaultCultureName;
+        }
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return culture.Trim();
+        }
+    }
+
+    private static string GetTranslated(TranslateDocumentResponse response, string key, string? fallback)
+        => response.TranslatedFields.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback ?? string.Empty;
+
+    private static void AddOptionalField(List<TranslateDocumentField> fields, string key, ContentFieldHint hint, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            fields.Add(new TranslateDocumentField(key, hint, value));
+        }
+    }
+
+    private static AiTranslateFooterCultureResult FailedFooterTranslation(string culture, string error)
+        => new(culture, false, null, [], error);
+
+    private static bool CultureEquals(string left, string right)
+        => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetErrorMessage(AeroError error) => error switch
+    {
+        AeroError.Error e => e.msg,
+        AeroError.NotFound e => e.msg,
+        AeroError.Conflict e => e.msg,
+        AeroError.Database e => e.msg,
+        AeroError.Unauthorized e => e.msg,
+        AeroError.Forbidden e => e.msg,
+        AeroError.Timeout e => e.msg,
+        AeroError.InvalidRequest e => e.msg,
+        AeroError.BadRequest e => e.msg,
+        AeroError.Exists e => e.msg,
+        AeroError.NullReferro e => e.msg,
+        AeroError.Cancelled e => e.msg,
+        AeroError.NotAllowed e => e.msg,
+        AeroError.Configuration e => e.msg,
+        AeroError.Validation e => string.Join("; ", e.Errors),
+        AeroError.HttpRequest e => e.msg ?? "HTTP request error",
+        _ => error.ToString()
+    };
+
     private static IResult ValidationProblem(string title, IEnumerable<string> errors)
         => TypedResults.BadRequest(new ProblemDetails
         {
@@ -236,3 +546,22 @@ public static class FooterAdminApi
 public sealed record FooterEventItem(long Version, string EventType, DateTimeOffset Timestamp, string StreamKey, bool IsArchived);
 
 public sealed record FooterEventHistory(long FooterId, int TotalEvents, IReadOnlyList<FooterEventItem> Events);
+
+internal sealed record AiTranslateFooterPlan(
+    string Culture,
+    FooterDetail? ExistingVariant);
+
+internal sealed record AiTranslatedFooterPlan(
+    AiTranslateFooterPlan Plan,
+    bool Succeeded,
+    TranslateDocumentResponse? Response,
+    string? Error)
+{
+    public string Culture => Plan.Culture;
+
+    public static AiTranslatedFooterPlan Success(AiTranslateFooterPlan plan, TranslateDocumentResponse response)
+        => new(plan, true, response, null);
+
+    public static AiTranslatedFooterPlan Failed(AiTranslateFooterPlan plan, string error)
+        => new(plan, false, null, error);
+}

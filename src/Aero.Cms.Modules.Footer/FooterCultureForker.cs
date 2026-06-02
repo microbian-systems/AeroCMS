@@ -53,7 +53,26 @@ public static class FooterCultureForker
         => snapshot with
         {
             Legal = snapshot.Legal with { LegalLinks = snapshot.Legal.LegalLinks.Select(CloneLink).ToList() },
+            Rows = snapshot.Rows.Select(CloneRow).ToList(),
             Sections = snapshot.Sections.Select(CloneComponent).ToList()
+        };
+
+    private static FooterCanvasRow CloneRow(FooterCanvasRow row)
+        => row with
+        {
+            Columns = row.Columns.Select(CloneColumn).ToList()
+        };
+
+    private static FooterCanvasColumn CloneColumn(FooterCanvasColumn column)
+        => column with
+        {
+            Blocks = column.Blocks.Select(CloneBlock).ToList()
+        };
+
+    private static FooterCanvasBlock CloneBlock(FooterCanvasBlock block)
+        => block with
+        {
+            Component = CloneComponent(block.Component)
         };
 
     private static IFooterComponent CloneComponent(IFooterComponent component)

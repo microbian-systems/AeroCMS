@@ -268,6 +268,16 @@ else if (ActiveTab == "translations")
                                 @L["Complete"]
                             </span>
                         }
+                        <button type="button"
+                                class="pe-btn pe-btn-primary pe-btn-sm"
+                                disabled="@IsTranslatingAll"
+                                @onclick="TranslateAllCulturesAsync">
+                            @(IsTranslatingAll ? L["Translating..."] : L["AI Translate All"])
+                        </button>
+                        <label class="inline-flex items-center gap-2 text-xs" style="color: var(--pe-text-secondary);">
+                            <input type="checkbox" @bind="OverwriteExistingTranslations" />
+                            @L["Overwrite existing translations"]
+                        </label>
                     </div>
                 </div>
 
@@ -327,6 +337,12 @@ else if (ActiveTab == "translations")
                                             <div class="flex gap-1">
                                                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => OpenPublicTranslation(variant)">
                                                     @L["Open"]
+                                                </button>
+                                                <button type="button"
+                                                        class="pe-btn pe-btn-ghost pe-btn-sm"
+                                                        disabled="@(isCurrent || TranslatingCultures.Contains(variant.Culture))"
+                                                        @onclick="() => TranslateCultureAsync(variant)">
+                                                    @(TranslatingCultures.Contains(variant.Culture) ? L["Translating..."] : L["AI Translate"])
                                                 </button>
                                                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" disabled="@isCurrent" @onclick="() => OpenTranslation(variant.Id)">
                                                     @L["Edit"]

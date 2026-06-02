@@ -8,7 +8,15 @@ public sealed record FooterSnapshot
     public FooterStyleSettings Style { get; init; } = FooterStyleSettings.Default;
     public FooterResponsiveSettings Responsive { get; init; } = FooterResponsiveSettings.Default;
     public FooterLegalSettings Legal { get; init; } = FooterLegalSettings.Default;
+    public List<FooterCanvasRow> Rows { get; init; } = [];
     public List<IFooterComponent> Sections { get; init; } = [];
+
+    [JsonIgnore]
+    public IEnumerable<IFooterComponent> Components => Rows.Count > 0
+        ? Rows.OrderBy(row => row.Order)
+            .SelectMany(row => row.Columns.OrderBy(column => column.Order))
+            .SelectMany(column => column.Blocks.OrderBy(block => block.Order).Select(block => block.Component))
+        : Sections.OrderBy(x => x.Order);
 
     public static FooterSnapshot Empty { get; } = new();
 
@@ -18,7 +26,7 @@ public sealed record FooterSnapshot
         Style.Validate();
 
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var component in Sections.OrderBy(x => x.Order))
+        foreach (var component in Components)
         {
             ValidateComponent(component, keys);
         }
@@ -67,6 +75,34 @@ public sealed record FooterSnapshot
                 break;
         }
     }
+}
+
+public sealed record FooterCanvasRow
+{
+    public string Key { get; init; } = string.Empty;
+    public int Order { get; init; }
+    public string? Label { get; init; }
+    public string DesktopDisplay { get; init; } = "Grid";
+    public string TabletDisplay { get; init; } = "Grid";
+    public string MobileDisplay { get; init; } = "Stack";
+    public List<FooterCanvasColumn> Columns { get; init; } = [];
+}
+
+public sealed record FooterCanvasColumn
+{
+    public string Key { get; init; } = string.Empty;
+    public int Order { get; init; }
+    public int DesktopSpan { get; init; } = 4;
+    public int TabletSpan { get; init; } = 6;
+    public int MobileSpan { get; init; } = 12;
+    public List<FooterCanvasBlock> Blocks { get; init; } = [];
+}
+
+public sealed record FooterCanvasBlock
+{
+    public string Key { get; init; } = string.Empty;
+    public int Order { get; init; }
+    public IFooterComponent Component { get; init; } = new FooterTextBlock { Text = "Footer text" };
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]

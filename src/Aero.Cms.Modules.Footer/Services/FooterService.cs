@@ -129,6 +129,10 @@ public sealed class FooterService(
 
             return Ok<long?, AeroError>(settings?.DefaultFooterId);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return Ok<long?, AeroError>(null);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load default footer id for site {SiteId}", siteId);
@@ -157,6 +161,10 @@ public sealed class FooterService(
 
             return Ok<FooterSnapshot?, AeroError>(published?.Snapshot);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return Ok<FooterSnapshot?, AeroError>(null);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load published footer snapshot {FooterId}", id);
@@ -168,21 +176,21 @@ public sealed class FooterService(
         long siteId,
         CancellationToken cancellationToken = default)
     {
-        var defaultResult = await GetDefaultIdAsync(siteId, cancellationToken);
-        if (defaultResult is Result<long?, AeroError>.Failure failure)
-        {
-            return Fail<FooterSnapshot?, AeroError>(failure.Error);
-        }
-
-        var footerId = ((Result<long?, AeroError>.Ok)defaultResult).Value;
-        if (footerId is not null)
-        {
-            footerId = await ResolveCultureVariantIdAsync(siteId, footerId.Value, GetCurrentCulture(), cancellationToken);
-            return await GetPublishedSnapshotAsync(footerId.Value, cancellationToken);
-        }
-
         try
         {
+            var defaultResult = await GetDefaultIdAsync(siteId, cancellationToken);
+            if (defaultResult is Result<long?, AeroError>.Failure failure)
+            {
+                return Fail<FooterSnapshot?, AeroError>(failure.Error);
+            }
+
+            var footerId = ((Result<long?, AeroError>.Ok)defaultResult).Value;
+            if (footerId is not null)
+            {
+                footerId = await ResolveCultureVariantIdAsync(siteId, footerId.Value, GetCurrentCulture(), cancellationToken);
+                return await GetPublishedSnapshotAsync(footerId.Value, cancellationToken);
+            }
+
             var fallback = await session.Query<FooterDocument>()
                 .Where(x => x.SiteId == siteId && x.State != FooterLifecycleState.Archived && x.HasPublishedSnapshot)
                 .OrderBy(x => x.CreatedOn)
@@ -191,6 +199,10 @@ public sealed class FooterService(
             return fallback is null
                 ? Ok<FooterSnapshot?, AeroError>(null)
                 : await GetPublishedSnapshotAsync(fallback.Id, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return Ok<FooterSnapshot?, AeroError>(null);
         }
         catch (Exception ex)
         {
@@ -622,10 +634,58 @@ public sealed class FooterService(
                 CopyrightText = Clean(request.CopyrightText),
                 LegalLinks = MapLegalLinksUpdate(request.LegalLinks ?? [])
             },
-            Sections = request.LinkGroups
+            Rows = request.Rows.Count > 0
+                ? request.Rows
+                    .OrderBy(x => x.Order)
+                    .Select(MapRow)
+                    .ToList()
+                : [],
+            Sections = request.Rows.Count > 0
+                ? []
+                : request.Components.Count > 0
+                ? request.Components
+                    .OrderBy(x => x.Order)
+                    .Select(MapComponent)
+                    .ToList()
+                : request.LinkGroups
+                    .OrderBy(x => x.Order)
+                    .Select(MapLinkGroup)
+                    .Cast<IFooterComponent>()
+                    .ToList()
+        };
+
+    private static FooterCanvasRow MapRow(UpdateFooterCanvasRowRequest row)
+        => new()
+        {
+            Key = (row.Id == 0 ? Snowflake.NewId() : row.Id).ToString(),
+            Order = row.Order,
+            Label = Clean(row.Label),
+            DesktopDisplay = Clean(row.DesktopDisplay) ?? "Grid",
+            TabletDisplay = Clean(row.TabletDisplay) ?? "Grid",
+            MobileDisplay = Clean(row.MobileDisplay) ?? "Stack",
+            Columns = row.Columns
                 .OrderBy(x => x.Order)
-                .Select(MapLinkGroup)
-                .Cast<IFooterComponent>()
+                .Select(column => new FooterCanvasColumn
+                {
+                    Key = (column.Id == 0 ? Snowflake.NewId() : column.Id).ToString(),
+                    Order = column.Order,
+                    DesktopSpan = Math.Clamp(column.DesktopSpan, 1, 12),
+                    TabletSpan = Math.Clamp(column.TabletSpan, 1, 12),
+                    MobileSpan = Math.Clamp(column.MobileSpan, 1, 12),
+                    Blocks = column.Blocks
+                        .OrderBy(block => block.Order)
+                        .Select(block =>
+                        {
+                            var component = MapComponent(block);
+                            return new FooterCanvasBlock
+                            {
+                                Key = component.Key,
+                                Order = block.Order,
+                                Component = component
+                            };
+                        })
+                        .ToList()
+                })
                 .ToList()
         };
 
@@ -647,12 +707,74 @@ public sealed class FooterService(
             Links = group.Links.OrderBy(x => x.Order).Select(x => new FooterLink(x.Label.Trim(), x.Href.Trim(), x.OpenInNewTab, x.Id == 0 ? Snowflake.NewId() : x.Id)).ToList()
         };
 
+    private static IFooterComponent MapComponent(UpdateFooterComponentRequest component)
+    {
+        var key = (component.Id == 0 ? Snowflake.NewId() : component.Id).ToString();
+        var placement = ParsePlacement(component.Placement);
+        var kind = component.Kind.Trim().ToLowerInvariant();
+
+        return kind switch
+        {
+            "text" => new FooterTextBlock
+            {
+                Key = key,
+                Order = component.Order,
+                Placement = placement,
+                Text = component.Text?.Trim() ?? string.Empty
+            },
+            "social" or "sociallinks" => new FooterSocialLinks
+            {
+                Key = key,
+                Order = component.Order,
+                Placement = placement,
+                Links = component.SocialLinks
+                    .Select(x => new FooterSocialLink(x.Platform.Trim(), x.Href.Trim()))
+                    .ToList()
+            },
+            "newsletter" => new FooterNewsletterSignup
+            {
+                Key = key,
+                Order = component.Order,
+                Placement = placement,
+                EndpointKey = component.EndpointKey?.Trim() ?? string.Empty,
+                Placeholder = string.IsNullOrWhiteSpace(component.Placeholder) ? "Email address" : component.Placeholder.Trim(),
+                ButtonLabel = string.IsNullOrWhiteSpace(component.ButtonLabel) ? "Subscribe" : component.ButtonLabel.Trim()
+            },
+            "search" => new FooterSearch
+            {
+                Key = key,
+                Order = component.Order,
+                Placement = placement,
+                Placeholder = string.IsNullOrWhiteSpace(component.Placeholder) ? "Search..." : component.Placeholder.Trim(),
+                SearchAction = string.IsNullOrWhiteSpace(component.SearchAction) ? "/search" : component.SearchAction.Trim()
+            },
+            "spacer" => new FooterSpacer
+            {
+                Key = key,
+                Order = component.Order,
+                Placement = placement,
+                SizeToken = string.IsNullOrWhiteSpace(component.SizeToken) ? "md" : component.SizeToken.Trim()
+            },
+            _ => new FooterLinkGroup
+            {
+                Key = key,
+                Order = component.Order,
+                Placement = placement,
+                Title = component.Title?.Trim() ?? "Links",
+                Links = component.Links
+                    .OrderBy(x => x.Order)
+                    .Select(x => new FooterLink(x.Label.Trim(), x.Href.Trim(), x.OpenInNewTab, x.Id == 0 ? Snowflake.NewId() : x.Id))
+                    .ToList()
+            }
+        };
+    }
+
     private static FooterDetail MapDetail(FooterDocument footer, FooterSnapshot snapshot, long version)
         => new(
             footer.Id,
             footer.Name,
             footer.Description,
-            snapshot.Sections.OfType<FooterLinkGroup>()
+            snapshot.Components.OfType<FooterLinkGroup>()
                 .Select((x, index) => new FooterLinkGroupDetail(
                     ParseKey(x.Key),
                     x.Title,
@@ -671,7 +793,85 @@ public sealed class FooterService(
             snapshot.Legal.CopyrightText,
             footer.Culture,
             footer.TranslationGroupId,
-            snapshot.Legal.LegalLinks.Select(x => new FooterLinkDetail(x.Id, x.Label, x.Href, 0, x.OpenInNewTab)).ToList());
+            snapshot.Legal.LegalLinks.Select(x => new FooterLinkDetail(x.Id, x.Label, x.Href, 0, x.OpenInNewTab)).ToList(),
+            snapshot.Components
+                .OrderBy(x => x.Order)
+                .Select(MapComponentDetail)
+                .ToList(),
+            snapshot.Rows
+                .OrderBy(x => x.Order)
+                .Select(MapRowDetail)
+                .ToList());
+
+    private static FooterCanvasRowDetail MapRowDetail(FooterCanvasRow row)
+        => new(
+            ParseKey(row.Key),
+            row.Order,
+            row.Label,
+            row.DesktopDisplay,
+            row.TabletDisplay,
+            row.MobileDisplay,
+            row.Columns.OrderBy(x => x.Order).Select(MapColumnDetail).ToList());
+
+    private static FooterCanvasColumnDetail MapColumnDetail(FooterCanvasColumn column)
+        => new(
+            ParseKey(column.Key),
+            column.Order,
+            column.DesktopSpan,
+            column.TabletSpan,
+            column.MobileSpan,
+            column.Blocks.OrderBy(x => x.Order).Select(x => MapComponentDetail(x.Component)).ToList());
+
+    private static FooterComponentDetail MapComponentDetail(IFooterComponent component)
+        => component switch
+        {
+            FooterLinkGroup group => new FooterComponentDetail(
+                ParseKey(group.Key),
+                "linkGroup",
+                group.Order,
+                group.Placement.ToString(),
+                group.Title,
+                Links: group.Links.Select((link, index) => new FooterLinkDetail(link.Id, link.Label, link.Href, index, link.OpenInNewTab)).ToList()),
+            FooterTextBlock text => new FooterComponentDetail(
+                ParseKey(text.Key),
+                "text",
+                text.Order,
+                text.Placement.ToString(),
+                Text: text.Text),
+            FooterSocialLinks social => new FooterComponentDetail(
+                ParseKey(social.Key),
+                "social",
+                social.Order,
+                social.Placement.ToString(),
+                SocialLinks: social.Links.Select(x => new FooterSocialLinkDetail(x.Platform, x.Href)).ToList()),
+            FooterNewsletterSignup newsletter => new FooterComponentDetail(
+                ParseKey(newsletter.Key),
+                "newsletter",
+                newsletter.Order,
+                newsletter.Placement.ToString(),
+                EndpointKey: newsletter.EndpointKey,
+                Placeholder: newsletter.Placeholder,
+                ButtonLabel: newsletter.ButtonLabel),
+            FooterSearch search => new FooterComponentDetail(
+                ParseKey(search.Key),
+                "search",
+                search.Order,
+                search.Placement.ToString(),
+                Placeholder: search.Placeholder,
+                SearchAction: search.SearchAction),
+            FooterSpacer spacer => new FooterComponentDetail(
+                ParseKey(spacer.Key),
+                "spacer",
+                spacer.Order,
+                spacer.Placement.ToString(),
+                SizeToken: spacer.SizeToken),
+            _ => new FooterComponentDetail(0, "unknown", component.Order, component.Placement.ToString())
+        };
+
+    private static FooterSectionPlacement ParsePlacement(string? placement)
+        => Enum.TryParse<FooterSectionPlacement>(placement, true, out var parsed)
+            ? parsed
+            : FooterSectionPlacement.Main;
 
     private static long ParseKey(string key)
         => long.TryParse(key, out var id) ? id : 0;

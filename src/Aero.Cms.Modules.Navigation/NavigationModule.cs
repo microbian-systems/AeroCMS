@@ -28,6 +28,7 @@ public sealed class NavigationModule : AeroWebModule, IUiModule, IConfigureMarte
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
+        services.AddHttpContextAccessor();
         services.AddScoped<INavMenuService, NavMenuService>();
         services.AddScoped<NavMenuContext>();
         services.AddSingleton<INavMenuHtmlRenderer, NavMenuHtmlRenderer>();

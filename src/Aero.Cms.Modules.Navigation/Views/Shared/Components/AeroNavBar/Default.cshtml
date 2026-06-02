@@ -7,9 +7,27 @@
     var hasSiteLogo = !string.IsNullOrWhiteSpace(siteLogoUrl);
 }
 
+<style>
+    .aero-nav-canvas-column {
+        grid-column: span 12 / span 12;
+    }
+
+    @@media (min-width: 768px) {
+        .aero-nav-canvas-column {
+            grid-column: span var(--aero-tablet-span) / span var(--aero-tablet-span);
+        }
+    }
+
+    @@media (min-width: 1024px) {
+        .aero-nav-canvas-column {
+            grid-column: span var(--aero-desktop-span) / span var(--aero-desktop-span);
+        }
+    }
+</style>
+
 <header class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 transition-all duration-300">
     <div class="mx-auto px-4 sm:px-6 lg:px-12">
-        <div class="flex justify-between h-20 items-center">
+        <div class="flex min-h-20 justify-between gap-4 py-3 items-center">
             <div class="flex-shrink-0 flex items-center">
                 <a href="/" class="group flex items-center gap-2">
                     @if (hasSiteLogo)
@@ -32,26 +50,48 @@
                 </a>
             </div>
 
-            <nav class="hidden md:flex md:items-center md:gap-1">
-                @foreach (var component in Model.Left)
-                {
-                    @NavRenderer.Render(component, NavMenuRenderMode.Desktop)
-                }
-            </nav>
+            @if (Model.Rows.Count > 0)
+            {
+                <div class="hidden min-w-0 flex-1 space-y-2 md:block">
+                    @foreach (var row in Model.Rows.OrderBy(x => x.Order))
+                    {
+                        <div class="grid grid-cols-12 items-center gap-3">
+                            @foreach (var column in row.Columns.OrderBy(x => x.Order))
+                            {
+                                <nav class="aero-nav-canvas-column flex min-w-0 items-center gap-1" style="@ColumnStyle(column)">
+                                    @foreach (var block in column.Blocks.OrderBy(x => x.Order))
+                                    {
+                                        @NavRenderer.Render(block.Component, NavMenuRenderMode.Desktop)
+                                    }
+                                </nav>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <nav class="hidden md:flex md:items-center md:gap-1">
+                    @foreach (var component in Model.Left)
+                    {
+                        @NavRenderer.Render(component, NavMenuRenderMode.Desktop)
+                    }
+                </nav>
 
-            <nav class="hidden md:flex md:items-center md:gap-1">
-                @foreach (var component in Model.Center)
-                {
-                    @NavRenderer.Render(component, NavMenuRenderMode.Desktop)
-                }
-            </nav>
+                <nav class="hidden md:flex md:items-center md:gap-1">
+                    @foreach (var component in Model.Center)
+                    {
+                        @NavRenderer.Render(component, NavMenuRenderMode.Desktop)
+                    }
+                </nav>
 
-            <nav class="hidden md:ml-auto md:flex md:items-center md:gap-1">
-                @foreach (var component in Model.Right)
-                {
-                    @NavRenderer.Render(component, NavMenuRenderMode.Desktop)
-                }
-            </nav>
+                <nav class="hidden md:ml-auto md:flex md:items-center md:gap-1">
+                    @foreach (var component in Model.Right)
+                    {
+                        @NavRenderer.Render(component, NavMenuRenderMode.Desktop)
+                    }
+                </nav>
+            }
 
             <div class="flex items-center ml-4 md:hidden">
                 <label for="mobile-menu-toggle" class="inline-flex items-center justify-center p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer">
@@ -87,7 +127,7 @@
         </div>
 
         <div class="flex-grow py-6 px-4 space-y-2 overflow-y-auto">
-            @foreach (var component in Model.Left.Concat(Model.Center).Concat(Model.Right))
+            @foreach (var component in MobileComponents())
             {
                 @NavRenderer.Render(component, NavMenuRenderMode.Mobile)
             }
@@ -98,3 +138,16 @@
         </div>
     </div>
 </div>
+
+@functions {
+    private IEnumerable<Aero.Cms.Modules.Navigation.Domain.INavMenuComponent> MobileComponents()
+        => Model.Rows.Count > 0
+            ? Model.Rows
+                .OrderBy(row => row.Order)
+                .SelectMany(row => row.Columns.OrderBy(column => column.Order))
+                .SelectMany(column => column.Blocks.OrderBy(block => block.Order).Select(block => block.Component))
+            : Model.Left.Concat(Model.Center).Concat(Model.Right);
+
+    private static string ColumnStyle(Aero.Cms.Modules.Navigation.Domain.NavCanvasColumn column)
+        => $"--aero-tablet-span:{Math.Clamp(column.TabletSpan, 1, 12)};--aero-desktop-span:{Math.Clamp(column.DesktopSpan, 1, 12)};";
+}

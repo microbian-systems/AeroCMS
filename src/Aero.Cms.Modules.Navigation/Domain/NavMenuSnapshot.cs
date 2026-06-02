@@ -8,6 +8,7 @@ public sealed record NavMenuSnapshot
     public NavMenuResponsiveSettings Responsive { get; init; } = NavMenuResponsiveSettings.Default;
     public NavMenuStyleSettings Style { get; init; } = NavMenuStyleSettings.Default;
     public string? SiteLogoUrl { get; init; }
+    public List<NavCanvasRow> Rows { get; init; } = [];
     public List<INavMenuComponent> Left { get; init; } = [];
     public List<INavMenuComponent> Center { get; init; } = [];
     public List<INavMenuComponent> Right { get; init; } = [];
@@ -29,6 +30,7 @@ public sealed record NavMenuSnapshot
         Responsive = responsive;
         Style = style;
         SiteLogoUrl = string.IsNullOrWhiteSpace(siteLogoUrl) ? null : siteLogoUrl.Trim();
+        Rows = BuildRowsFromComponents(components);
 
         foreach (var component in components)
         {
@@ -37,7 +39,11 @@ public sealed record NavMenuSnapshot
     }
 
     [JsonIgnore]
-    public IEnumerable<INavMenuComponent> Components => Left.Concat(Center).Concat(Right);
+    public IEnumerable<INavMenuComponent> Components => Rows.Count > 0
+        ? Rows.OrderBy(row => row.Order)
+            .SelectMany(row => row.Columns.OrderBy(column => column.Order))
+            .SelectMany(column => column.Blocks.OrderBy(block => block.Order).Select(block => block.Component))
+        : Left.Concat(Center).Concat(Right);
 
     public void Validate()
     {
@@ -100,6 +106,16 @@ public sealed record NavMenuSnapshot
                 if (string.IsNullOrWhiteSpace(search.SearchAction))
                     throw new InvalidOperationException("Search navigation component requires an action route.");
                 break;
+
+            case NavAuthButton authButton:
+                if (string.IsNullOrWhiteSpace(authButton.Label))
+                    throw new InvalidOperationException("Auth button label is required.");
+
+                if (string.IsNullOrWhiteSpace(authButton.Href))
+                    throw new InvalidOperationException("Auth button href is required.");
+
+                ValidateRelativeUrl(authButton.Href, "Auth button href must be a relative URL.");
+                break;
         }
     }
 
@@ -130,6 +146,17 @@ public sealed record NavMenuSnapshot
         throw new InvalidOperationException("Internal navigation links must use a relative URL or selected page.");
     }
 
+    private static void ValidateRelativeUrl(string href, string message)
+    {
+        var trimmed = href.Trim();
+        if (trimmed.StartsWith('/') && !trimmed.StartsWith("//", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(message);
+    }
+
     private static void ValidateLinkTarget(string? target)
     {
         if (string.IsNullOrWhiteSpace(target) || target is "_self" or "_blank" or "_parent" or "_top")
@@ -139,6 +166,82 @@ public sealed record NavMenuSnapshot
 
         throw new InvalidOperationException("Navigation link target must be _self, _blank, _parent, or _top.");
     }
+
+    private static List<NavCanvasRow> BuildRowsFromComponents(IReadOnlyList<INavMenuComponent> components)
+    {
+        if (components.Count == 0)
+        {
+            return [];
+        }
+
+        return
+        [
+            new()
+            {
+                Key = "header-row",
+                Order = 0,
+                Label = "Header",
+                Columns =
+                [
+                    new()
+                    {
+                        Key = NavLayoutSlots.Left,
+                        Order = 0,
+                        DesktopSpan = 4,
+                        TabletSpan = 6,
+                        MobileSpan = 12,
+                        Blocks = components.Where(x => x.Alignment == NavAlignment.Left).Select((x, index) => new NavCanvasBlock { Key = x.Key, Order = index, Component = x }).ToList()
+                    },
+                    new()
+                    {
+                        Key = NavLayoutSlots.Center,
+                        Order = 1,
+                        DesktopSpan = 4,
+                        TabletSpan = 6,
+                        MobileSpan = 12,
+                        Blocks = components.Where(x => x.Alignment == NavAlignment.Center).Select((x, index) => new NavCanvasBlock { Key = x.Key, Order = index, Component = x }).ToList()
+                    },
+                    new()
+                    {
+                        Key = NavLayoutSlots.Right,
+                        Order = 2,
+                        DesktopSpan = 4,
+                        TabletSpan = 12,
+                        MobileSpan = 12,
+                        Blocks = components.Where(x => x.Alignment == NavAlignment.Right).Select((x, index) => new NavCanvasBlock { Key = x.Key, Order = index, Component = x }).ToList()
+                    }
+                ]
+            }
+        ];
+    }
+}
+
+public sealed record NavCanvasRow
+{
+    public string Key { get; init; } = string.Empty;
+    public int Order { get; init; }
+    public string? Label { get; init; }
+    public string DesktopDisplay { get; init; } = "Flex";
+    public string TabletDisplay { get; init; } = "Flex";
+    public string MobileDisplay { get; init; } = "Stack";
+    public List<NavCanvasColumn> Columns { get; init; } = [];
+}
+
+public sealed record NavCanvasColumn
+{
+    public string Key { get; init; } = string.Empty;
+    public int Order { get; init; }
+    public int DesktopSpan { get; init; } = 4;
+    public int TabletSpan { get; init; } = 6;
+    public int MobileSpan { get; init; } = 12;
+    public List<NavCanvasBlock> Blocks { get; init; } = [];
+}
+
+public sealed record NavCanvasBlock
+{
+    public string Key { get; init; } = string.Empty;
+    public int Order { get; init; }
+    public INavMenuComponent Component { get; init; } = new NavLink();
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
@@ -146,10 +249,13 @@ public sealed record NavMenuSnapshot
 [JsonDerivedType(typeof(NavMenu), "menu")]
 [JsonDerivedType(typeof(NavHtml), "html")]
 [JsonDerivedType(typeof(NavSearch), "search")]
+[JsonDerivedType(typeof(NavLanguageSelect), "language")]
+[JsonDerivedType(typeof(NavAuthButton), "authButton")]
 public interface INavMenuComponent
 {
     string Key { get; }
     NavAlignment Alignment { get; }
+    NavAuthVisibility Visibility { get; }
 }
 
 public enum NavAlignment
@@ -163,6 +269,7 @@ public sealed record NavLink : INavMenuComponent
 {
     public string Key { get; init; } = string.Empty;
     public NavAlignment Alignment { get; init; }
+    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
     public string Label { get; init; } = string.Empty;
     public string Href { get; init; } = string.Empty;
     public bool OpenInNewTab { get; init; }
@@ -176,6 +283,7 @@ public sealed record NavMenu : INavMenuComponent
 {
     public string Key { get; init; } = string.Empty;
     public NavAlignment Alignment { get; init; }
+    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
     public string Label { get; init; } = string.Empty;
     public List<INavMenuComponent> Children { get; init; } = [];
 }
@@ -184,6 +292,7 @@ public sealed record NavHtml : INavMenuComponent
 {
     public string Key { get; init; } = string.Empty;
     public NavAlignment Alignment { get; init; }
+    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
     public string Html { get; init; } = string.Empty;
 }
 
@@ -191,8 +300,35 @@ public sealed record NavSearch : INavMenuComponent
 {
     public string Key { get; init; } = string.Empty;
     public NavAlignment Alignment { get; init; }
+    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
     public string Placeholder { get; init; } = "Search...";
     public string SearchAction { get; init; } = string.Empty;
+    public string ButtonLabel { get; init; } = "Search";
+}
+
+public sealed record NavLanguageSelect : INavMenuComponent
+{
+    public string Key { get; init; } = string.Empty;
+    public NavAlignment Alignment { get; init; } = NavAlignment.Right;
+    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
+    public string Label { get; init; } = "Language";
+}
+
+public sealed record NavAuthButton : INavMenuComponent
+{
+    public string Key { get; init; } = string.Empty;
+    public NavAlignment Alignment { get; init; } = NavAlignment.Right;
+    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
+    public string Label { get; init; } = string.Empty;
+    public string Href { get; init; } = string.Empty;
+    public string ButtonStyle { get; init; } = "Primary";
+}
+
+public enum NavAuthVisibility
+{
+    Always,
+    AnonymousOnly,
+    AuthenticatedOnly
 }
 
 public sealed record NavMenuLayout(IReadOnlyList<NavLayoutSlot> Slots)

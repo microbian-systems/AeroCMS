@@ -129,6 +129,10 @@ public sealed class NavMenuService(
 
             return Ok<long?, AeroError>(settings?.DefaultNavMenuId);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return Ok<long?, AeroError>(null);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load default navigation menu id for site {SiteId}", siteId);
@@ -157,6 +161,10 @@ public sealed class NavMenuService(
 
             return Ok<NavMenuSnapshot?, AeroError>(published?.Snapshot);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return Ok<NavMenuSnapshot?, AeroError>(null);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load published navigation snapshot {NavMenuId}", id);
@@ -169,25 +177,32 @@ public sealed class NavMenuService(
         long? pageOverrideId = null,
         CancellationToken cancellationToken = default)
     {
-        var navMenuId = pageOverrideId;
-        if (navMenuId is null)
+        try
         {
-            var defaultResult = await GetDefaultIdAsync(siteId, cancellationToken);
-            if (defaultResult is Result<long?, AeroError>.Failure failure)
+            var navMenuId = pageOverrideId;
+            if (navMenuId is null)
             {
-                return Fail<NavMenuSnapshot?, AeroError>(failure.Error);
+                var defaultResult = await GetDefaultIdAsync(siteId, cancellationToken);
+                if (defaultResult is Result<long?, AeroError>.Failure failure)
+                {
+                    return Fail<NavMenuSnapshot?, AeroError>(failure.Error);
+                }
+
+                navMenuId = ((Result<long?, AeroError>.Ok)defaultResult).Value;
             }
 
-            navMenuId = ((Result<long?, AeroError>.Ok)defaultResult).Value;
-        }
+            if (navMenuId is null)
+            {
+                return Ok<NavMenuSnapshot?, AeroError>(null);
+            }
 
-        if (navMenuId is null)
+            navMenuId = await ResolveCultureVariantIdAsync(siteId, navMenuId.Value, GetCurrentCulture(), cancellationToken);
+            return await GetPublishedSnapshotAsync(navMenuId.Value, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             return Ok<NavMenuSnapshot?, AeroError>(null);
         }
-
-        navMenuId = await ResolveCultureVariantIdAsync(siteId, navMenuId.Value, GetCurrentCulture(), cancellationToken);
-        return await GetPublishedSnapshotAsync(navMenuId.Value, cancellationToken);
     }
 
     public async Task<Result<NavMenuDocument, AeroError>> CreateAsync(
@@ -252,7 +267,11 @@ public sealed class NavMenuService(
             await EnsureExpectedVersionAsync(id, expectedVersion, cancellationToken);
 
             var menu = ((Result<NavMenuDocument, AeroError>.Ok)menuResult).Value;
-            var snapshot = MapSnapshot(request.Items, request.SiteLogoUrl);
+            var snapshot = request.Rows.Count > 0
+                ? MapSnapshot(request.Rows, request.SiteLogoUrl)
+                : request.Components.Count > 0
+                ? MapSnapshot(request.Components, request.SiteLogoUrl)
+                : MapSnapshot(request.Items, request.SiteLogoUrl);
             snapshot.Validate();
             var now = DateTimeOffset.UtcNow;
             var draftSaved = new NavMenuDraftSaved(
@@ -634,6 +653,133 @@ public sealed class NavMenuService(
                 .ToList(),
             siteLogoUrl);
 
+    private static NavMenuSnapshot MapSnapshot(IReadOnlyList<UpdateNavigationComponentRequest> components, string? siteLogoUrl)
+        => new(
+            NavMenuLayout.Default,
+            NavMenuResponsiveSettings.Default,
+            NavMenuStyleSettings.Default,
+            components.OrderBy(x => x.Order)
+                .Select(MapComponent)
+                .ToList(),
+            siteLogoUrl);
+
+    private static NavMenuSnapshot MapSnapshot(IReadOnlyList<UpdateNavigationCanvasRowRequest> rows, string? siteLogoUrl)
+    {
+        var canvasRows = rows
+            .OrderBy(x => x.Order)
+            .Select(row => new NavCanvasRow
+            {
+                Key = (row.Id == 0 ? Snowflake.NewId() : row.Id).ToString(),
+                Order = row.Order,
+                Label = row.Label?.Trim(),
+                DesktopDisplay = CleanDisplay(row.DesktopDisplay, "Flex"),
+                TabletDisplay = CleanDisplay(row.TabletDisplay, "Flex"),
+                MobileDisplay = CleanDisplay(row.MobileDisplay, "Stack"),
+                Columns = row.Columns
+                    .OrderBy(column => column.Order)
+                    .Select(column => new NavCanvasColumn
+                    {
+                        Key = (column.Id == 0 ? Snowflake.NewId() : column.Id).ToString(),
+                        Order = column.Order,
+                        DesktopSpan = ClampSpan(column.DesktopSpan),
+                        TabletSpan = ClampSpan(column.TabletSpan),
+                        MobileSpan = ClampSpan(column.MobileSpan),
+                        Blocks = column.Blocks
+                            .OrderBy(block => block.Order)
+                            .Select(block =>
+                            {
+                                var component = MapComponent(block);
+                                return new NavCanvasBlock
+                                {
+                                    Key = component.Key,
+                                    Order = block.Order,
+                                    Component = component
+                                };
+                            })
+                            .ToList()
+                    })
+                    .ToList()
+            })
+            .ToList();
+
+        var snapshot = new NavMenuSnapshot
+        {
+            SiteLogoUrl = string.IsNullOrWhiteSpace(siteLogoUrl) ? null : siteLogoUrl.Trim(),
+            Rows = canvasRows
+        };
+
+        return snapshot;
+    }
+
+    private static INavMenuComponent MapComponent(UpdateNavigationComponentRequest component)
+    {
+        var key = (component.Id == 0 ? Snowflake.NewId() : component.Id).ToString();
+        var alignment = ParseAlignment(component.Alignment);
+        var kind = component.Kind.Trim().ToLowerInvariant();
+
+        return kind switch
+        {
+            "menu" => new NavMenu
+            {
+                Key = key,
+                Alignment = alignment,
+                Visibility = ParseVisibility(component.Visibility),
+                Label = component.Label?.Trim() ?? "Menu",
+                Children = component.Children
+                    .OrderBy(x => x.Order)
+                    .Select(MapComponent)
+                    .ToList()
+            },
+            "html" or "richmenu" or "customhtml" => new NavHtml
+            {
+                Key = key,
+                Alignment = alignment,
+                Visibility = ParseVisibility(component.Visibility),
+                Html = component.Html?.Trim() ?? string.Empty
+            },
+            "search" => new NavSearch
+            {
+                Key = key,
+                Alignment = alignment,
+                Visibility = ParseVisibility(component.Visibility),
+                Placeholder = string.IsNullOrWhiteSpace(component.Placeholder) ? "Search..." : component.Placeholder.Trim(),
+                SearchAction = string.IsNullOrWhiteSpace(component.SearchAction) ? "/search" : component.SearchAction.Trim(),
+                ButtonLabel = string.IsNullOrWhiteSpace(component.ButtonLabel) ? "Search" : component.ButtonLabel.Trim()
+            },
+            "language" or "languageselect" => new NavLanguageSelect
+            {
+                Key = key,
+                Alignment = alignment,
+                Visibility = ParseVisibility(component.Visibility),
+                Label = string.IsNullOrWhiteSpace(component.Label) ? "Language" : component.Label.Trim()
+            },
+            "login" or "register" or "authbutton" => new NavAuthButton
+            {
+                Key = key,
+                Alignment = alignment,
+                Visibility = ParseVisibility(component.Visibility),
+                Label = component.Label?.Trim() ?? (kind == "register" ? "Register" : "Login"),
+                Href = string.IsNullOrWhiteSpace(component.Url)
+                    ? (kind == "register" ? "/register" : "/login")
+                    : component.Url.Trim(),
+                ButtonStyle = kind == "register" ? "Primary" : "Secondary"
+            },
+            _ => new NavLink
+            {
+                Key = key,
+                Alignment = alignment,
+                Visibility = ParseVisibility(component.Visibility),
+                Label = component.Label?.Trim() ?? "Link",
+                Href = component.Url?.Trim() ?? string.Empty,
+                IsExternal = component.IsExternal,
+                Target = NormalizeTarget(component.Target, component.IsExternal),
+                OpenInNewTab = NormalizeTarget(component.Target, component.IsExternal) == "_blank",
+                PageId = component.PageId,
+                AltText = component.AltText?.Trim()
+            }
+        };
+    }
+
     private static NavigationDetail MapDetail(NavMenuDocument menu, NavMenuSnapshot snapshot, long version)
         => new(
             menu.Id,
@@ -658,7 +804,119 @@ public sealed class NavMenuService(
             menu.State.ToString(),
             snapshot.SiteLogoUrl,
             menu.Culture,
-            menu.TranslationGroupId);
+            menu.TranslationGroupId,
+            snapshot.Components
+                .Select((x, index) => MapComponentDetail(x, index))
+                .ToList(),
+            snapshot.Rows
+                .OrderBy(x => x.Order)
+                .Select(MapRowDetail)
+                .ToList());
+
+    private static NavigationCanvasRowDetail MapRowDetail(NavCanvasRow row)
+        => new(
+            ParseKey(row.Key),
+            row.Order,
+            row.Label,
+            row.DesktopDisplay,
+            row.TabletDisplay,
+            row.MobileDisplay,
+            row.Columns.OrderBy(x => x.Order).Select(MapColumnDetail).ToList());
+
+    private static NavigationCanvasColumnDetail MapColumnDetail(NavCanvasColumn column)
+        => new(
+            ParseKey(column.Key),
+            column.Order,
+            column.DesktopSpan,
+            column.TabletSpan,
+            column.MobileSpan,
+            column.Blocks.OrderBy(x => x.Order).Select(x => MapComponentDetail(x.Component, x.Order)).ToList());
+
+    private static NavigationComponentDetail MapComponentDetail(INavMenuComponent component, int order)
+        => component switch
+        {
+            NavMenu menu => new NavigationComponentDetail(
+                ParseKey(menu.Key),
+                "menu",
+                menu.Label,
+                null,
+                null,
+                order,
+                menu.Alignment.ToString(),
+                Children: menu.Children.Select((x, index) => MapComponentDetail(x, index)).ToList(),
+                Visibility: menu.Visibility.ToString()),
+            NavHtml html => new NavigationComponentDetail(
+                ParseKey(html.Key),
+                "html",
+                null,
+                null,
+                null,
+                order,
+                html.Alignment.ToString(),
+                Html: html.Html,
+                Visibility: html.Visibility.ToString()),
+            NavSearch search => new NavigationComponentDetail(
+                ParseKey(search.Key),
+                "search",
+                null,
+                null,
+                null,
+                order,
+                search.Alignment.ToString(),
+                Placeholder: search.Placeholder,
+                SearchAction: search.SearchAction,
+                ButtonLabel: search.ButtonLabel,
+                Visibility: search.Visibility.ToString()),
+            NavLanguageSelect language => new NavigationComponentDetail(
+                ParseKey(language.Key),
+                "language",
+                language.Label,
+                null,
+                null,
+                order,
+                language.Alignment.ToString(),
+                Visibility: language.Visibility.ToString()),
+            NavAuthButton authButton => new NavigationComponentDetail(
+                ParseKey(authButton.Key),
+                authButton.Label.Equals("Register", StringComparison.OrdinalIgnoreCase) ? "register" : "login",
+                authButton.Label,
+                authButton.Href,
+                null,
+                order,
+                authButton.Alignment.ToString(),
+                Visibility: authButton.Visibility.ToString()),
+            NavLink link => new NavigationComponentDetail(
+                ParseKey(link.Key),
+                "link",
+                link.Label,
+                link.Href,
+                link.PageId,
+                order,
+                link.Alignment.ToString(),
+                link.AltText,
+                link.IsExternal || IsHttpUrl(link.Href),
+                string.IsNullOrWhiteSpace(link.Target)
+                    ? (link.OpenInNewTab ? "_blank" : "_self")
+                    : link.Target,
+                Visibility: link.Visibility.ToString()),
+            _ => new NavigationComponentDetail(0, "unknown", null, null, null, order)
+        };
+
+    private static NavAlignment ParseAlignment(string? alignment)
+        => Enum.TryParse<NavAlignment>(alignment, true, out var parsed)
+            ? parsed
+            : NavAlignment.Left;
+
+    private static NavAuthVisibility ParseVisibility(string? visibility)
+        => Enum.TryParse<NavAuthVisibility>(visibility, true, out var parsed)
+            ? parsed
+            : NavAuthVisibility.Always;
+
+    private static int ClampSpan(int span)
+        => Math.Clamp(span, 1, 12);
+
+    private static string CleanDisplay(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
 
     private static long ParseKey(string key)
         => long.TryParse(key, out var id) ? id : 0;

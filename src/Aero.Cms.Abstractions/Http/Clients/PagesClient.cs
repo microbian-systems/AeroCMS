@@ -92,6 +92,8 @@ public interface IPagesHttpClient
 
     Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
+    Task<Result<AiTranslatePageResult, AeroError>> TranslateWithAiAsync(long id, AiTranslatePageRequest request, CancellationToken ct = default);
+
     /// <summary>
     /// Publishes a page.
     /// </summary>
@@ -271,6 +273,11 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
     public Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
     {
         return PutAsync<object, PublicationBulkResult>($"translation-groups/{translationGroupId}/unpublish", new object(), ct);
+    }
+
+    public Task<Result<AiTranslatePageResult, AeroError>> TranslateWithAiAsync(long id, AiTranslatePageRequest request, CancellationToken ct = default)
+    {
+        return PostAsync<AiTranslatePageRequest, AiTranslatePageResult>($"{id}/ai-translate", request, ct);
     }
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
@@ -588,3 +595,22 @@ public sealed record DeleteMultiplePagesRequest(
 /// Response from bulk page deletion.
 /// </summary>
 public sealed record DeleteMultipleResult(int Deleted);
+
+public sealed record AiTranslatePageRequest(
+    IReadOnlyList<AiTranslatePageCultureRequest> Targets,
+    string? ProviderId = null,
+    bool OverwriteExisting = false);
+
+public sealed record AiTranslatePageCultureRequest(
+    string Culture,
+    string? Slug = null);
+
+public sealed record AiTranslatePageResult(
+    IReadOnlyList<AiTranslatePageCultureResult> Results);
+
+public sealed record AiTranslatePageCultureResult(
+    string Culture,
+    bool Succeeded,
+    PageDetail? Page,
+    IReadOnlyList<string> Warnings,
+    string? Error);

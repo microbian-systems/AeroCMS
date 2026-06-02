@@ -135,6 +135,9 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected bool IsLoadingTranslations { get; set; }
     protected bool IsCreatingTranslation { get; set; }
     protected bool IsBulkPublishingTranslations { get; set; }
+    protected bool IsTranslatingAll { get; set; }
+    protected bool OverwriteExistingTranslations { get; set; }
+    protected HashSet<string> TranslatingCultures { get; } = new(StringComparer.OrdinalIgnoreCase);
     protected IReadOnlyList<string> SupportedCultures =>
         CurrentSite?.SupportedCultures is { Count: > 0 } cultures
             ? cultures
@@ -1392,6 +1395,153 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         }
     }
 
+    protected async Task TranslateAllCulturesAsync()
+    {
+        if (LoadedPage is null || Id is null || IsTranslatingAll)
+            return;
+
+        var existingCultures = PageCultureVariants
+            .Select(x => NormalizeCultureName(x.Culture))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var targets = SupportedCultures
+            .Select(NormalizeCultureName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(culture => !string.Equals(culture, LoadedPage.Culture, StringComparison.OrdinalIgnoreCase))
+            .Where(culture => OverwriteExistingTranslations || !existingCultures.Contains(culture))
+            .Select(culture =>
+            {
+                var existing = PageCultureVariants.FirstOrDefault(x => string.Equals(x.Culture, culture, StringComparison.OrdinalIgnoreCase));
+                return new AiTranslatePageCultureRequest(
+                    culture,
+                    existing?.Slug ?? BuildDefaultTranslationSlug(PageSlug, culture));
+            })
+            .ToList();
+
+        if (targets.Count == 0)
+        {
+            ShowToast(
+                OverwriteExistingTranslations
+                    ? L["There are no other site cultures to translate."]
+                    : L["All enabled cultures already have translations. Enable overwrite to refresh existing translations."],
+                "info");
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            OverwriteExistingTranslations
+                ? L["Translate all enabled cultures and overwrite existing localized page content? Existing variants will become drafts."]
+                : L["Translate all missing enabled cultures for this page? New localized variants will be created as drafts."],
+            L["AI Translate All"],
+            new ConfirmOptions
+            {
+                OkButtonText = L["Translate"],
+                CancelButtonText = L["Cancel"]
+            });
+
+        if (confirmed != true)
+            return;
+
+        await TranslateCulturesAsync(targets, OverwriteExistingTranslations, translateAll: true);
+    }
+
+    protected Task TranslateCultureAsync(CmsPageDetail variant)
+    {
+        if (LoadedPage is null || Id is null)
+            return Task.CompletedTask;
+
+        if (string.Equals(variant.Culture, LoadedPage.Culture, StringComparison.OrdinalIgnoreCase))
+        {
+            ShowToast(L["Open another culture variant and translate from that source if needed."], "info");
+            return Task.CompletedTask;
+        }
+
+        return TranslateCulturesAsync(
+            [new AiTranslatePageCultureRequest(variant.Culture, variant.Slug)],
+            overwriteExisting: true,
+            translateAll: false);
+    }
+
+    private async Task TranslateCulturesAsync(
+        IReadOnlyList<AiTranslatePageCultureRequest> targets,
+        bool overwriteExisting,
+        bool translateAll)
+    {
+        if (Id is null || targets.Count == 0)
+            return;
+
+        if (_pageState == PageState.Dirty)
+        {
+            await SavePage();
+
+            if (_pageState != PageState.Clean)
+                return;
+        }
+
+        if (translateAll)
+        {
+            IsTranslatingAll = true;
+        }
+
+        foreach (var target in targets)
+        {
+            TranslatingCultures.Add(target.Culture);
+        }
+
+        try
+        {
+            var request = new AiTranslatePageRequest(targets, ProviderId: null, overwriteExisting);
+            var result = await PagesClient.TranslateWithAiAsync(Id.Value, request);
+
+            if (result is Result<AiTranslatePageResult, AeroError>.Ok ok)
+            {
+                var succeeded = ok.Value.Results.Count(x => x.Succeeded);
+                var failed = ok.Value.Results.Count - succeeded;
+
+                if (succeeded > 0)
+                {
+                    ShowToast(
+                        failed == 0
+                            ? L["Translated {0} culture(s)", succeeded]
+                            : L["Translated {0} culture(s); {1} failed", succeeded, failed],
+                        failed == 0 ? "success" : "info");
+
+                    await LoadPageTranslationsAsync();
+                }
+
+                foreach (var failure in ok.Value.Results.Where(x => !x.Succeeded))
+                {
+                    ShowToast(L["{0}: {1}", FormatCulture(failure.Culture), failure.Error ?? L["AI translation failed"]], "error");
+                }
+
+                return;
+            }
+
+            if (result is Result<AiTranslatePageResult, AeroError>.Failure apiFailure)
+            {
+                ShowToast(L["AI translation failed: {0}", apiFailure.Error], "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast(L["AI translation failed: {0}", ex.Message], "error");
+        }
+        finally
+        {
+            if (translateAll)
+            {
+                IsTranslatingAll = false;
+            }
+
+            foreach (var target in targets)
+            {
+                TranslatingCultures.Remove(target.Culture);
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     protected void OpenTranslation(long pageId)
         => NavManager.NavigateTo($"/manager/page/editor/{pageId}?tab=translations");
 
@@ -1530,6 +1680,14 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         {
             return culture.Trim();
         }
+    }
+
+    private static string BuildDefaultTranslationSlug(string slug, string culture)
+    {
+        var normalized = TitleToSlug(slug.Trim().Trim('/'));
+        return string.IsNullOrWhiteSpace(normalized)
+            ? culture.ToLowerInvariant()
+            : $"{normalized}-{culture.ToLowerInvariant()}";
     }
 
     private static string BuildPreviewFrameDocument(string? html, string baseUri, IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L)

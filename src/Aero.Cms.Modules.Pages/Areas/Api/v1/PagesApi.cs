@@ -1,4 +1,5 @@
 using System.Text.Encodings.Web;
+using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
@@ -51,6 +52,9 @@ public static class PagesApi
 
         group.MapPost("/{id:long}/translations", ForkPageToCulture)
             .WithName("ForkPageToCulture");
+
+        group.MapPost("/{id:long}/ai-translate", TranslatePageWithAi)
+            .WithName("TranslatePageWithAi");
         
         group.MapPut("/{id:long}", UpdatePage)
             .WithName("UpdatePage");
@@ -302,6 +306,103 @@ public static class PagesApi
             logger.LogError(ex, "Error creating page translation for page {Id}", id);
             return TypedResults.Problem(ex.Message);
         }
+    }
+
+    private static async Task<IResult> TranslatePageWithAi(
+        long id,
+        [FromBody] AiTranslatePageRequest request,
+        [FromServices] IPageContentService pageService,
+        [FromServices] IQuerySession query,
+        [FromServices] IAiContentTranslationService translationService,
+        CancellationToken ct = default)
+    {
+        if (request.Targets.Count == 0)
+        {
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "No target cultures",
+                Detail = "At least one target culture is required."
+            });
+        }
+
+        var sourceResult = await pageService.LoadAsync(id, ct);
+        if (sourceResult is not Result<PageDocument?, AeroError>.Ok { Value: not null } sourceOk)
+        {
+            return TypedResults.NotFound(new { error = "Source page was not found." });
+        }
+
+        var source = sourceOk.Value;
+        var site = await query.LoadAsync<SitesModel>(source.SiteId, ct);
+        var supportedCultures = GetSupportedCultures(site);
+        var groupId = source.TranslationGroupId ?? source.Id;
+        var variantsResult = await pageService.ListCultureVariantsAsync(groupId, ct);
+        var variants = variantsResult is Result<IReadOnlyList<PageDocument>, AeroError>.Ok variantsOk
+            ? variantsOk.Value
+            : [source];
+
+        var immediateResults = new List<AiTranslatePageCultureResult>();
+        var plans = new List<AiTranslatePagePlan>();
+        var plannedCultures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var target in request.Targets)
+        {
+            var culture = ContentSlugDocument.NormalizeCulture(target.Culture);
+            if (!plannedCultures.Add(culture))
+            {
+                continue;
+            }
+
+            if (CultureEquals(culture, source.Culture))
+            {
+                immediateResults.Add(FailedPageTranslation(culture, "Target culture must be different from the source culture."));
+                continue;
+            }
+
+            if (!supportedCultures.Contains(culture))
+            {
+                immediateResults.Add(FailedPageTranslation(culture, $"Culture '{culture}' is not supported by this site."));
+                continue;
+            }
+
+            var existing = variants.FirstOrDefault(x => CultureEquals(x.Culture, culture));
+            if (existing is not null && !request.OverwriteExisting)
+            {
+                immediateResults.Add(FailedPageTranslation(culture, $"A '{culture}' translation already exists."));
+                continue;
+            }
+
+            var slug = string.IsNullOrWhiteSpace(target.Slug)
+                ? BuildDefaultLocalizedSlug(source.Slug, culture)
+                : target.Slug.Trim().Trim('/');
+
+            plans.Add(new AiTranslatePagePlan(culture, slug, existing));
+        }
+
+        var translatedPlans = await Task.WhenAll(plans.Select(plan =>
+            TranslatePagePlanAsync(source, plan, request.ProviderId, translationService, ct)));
+
+        var results = new List<AiTranslatePageCultureResult>(immediateResults);
+        foreach (var translated in translatedPlans)
+        {
+            if (!translated.Succeeded || translated.Response is null)
+            {
+                results.Add(FailedPageTranslation(translated.Culture, translated.Error ?? "AI translation failed."));
+                continue;
+            }
+
+            var saveResult = await SaveTranslatedPageAsync(
+                source.Id,
+                translated.Plan,
+                translated.Response,
+                pageService,
+                ct);
+
+            results.Add(saveResult);
+        }
+
+        return TypedResults.Ok(new AiTranslatePageResult(results
+            .OrderBy(x => x.Culture, StringComparer.OrdinalIgnoreCase)
+            .ToList()));
     }
 
     private static async Task<IResult> DeletePage(
@@ -604,6 +705,390 @@ public static class PagesApi
         );
     }
 
+    private static PageDetail MapToDetail(PageDocument document)
+        => new(
+            document.Id,
+            document.Title ?? "",
+            document.Slug ?? "",
+            document.Summary,
+            document.SeoTitle,
+            document.SeoDescription,
+            document.CreatedOn.DateTime,
+            (document.ModifiedOn ?? document.CreatedOn).DateTime,
+            document.PublishedOn?.DateTime,
+            document.PublicationState,
+            document.Blocks?.Count ?? 0,
+            document.ShowInNavMenu,
+            document.ShowHeaderNavigation,
+            document.HideFooter,
+            document.ShowChatAgent,
+            document.Blocks,
+            document.ParentId,
+            document.Path ?? "",
+            document.Depth,
+            document.Culture,
+            document.TranslationGroupId);
+
+    private static IReadOnlySet<string> GetSupportedCultures(SitesModel? site)
+    {
+        var cultures = site?.SupportedCultures.Count > 0
+            ? site.SupportedCultures
+            : [site?.DefaultCulture ?? SitesModel.DefaultCultureName];
+
+        return cultures
+            .Select(ContentSlugDocument.NormalizeCulture)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static async Task<AiTranslatedPagePlan> TranslatePagePlanAsync(
+        PageDocument source,
+        AiTranslatePagePlan plan,
+        string? providerId,
+        IAiContentTranslationService translationService,
+        CancellationToken ct)
+    {
+        var fields = BuildTranslatableFields(source);
+        if (fields.Count == 0)
+        {
+            return AiTranslatedPagePlan.Failed(plan, "The source page does not contain translatable content.");
+        }
+
+        var response = await translationService.TranslateAsync(
+            new TranslateDocumentRequest(fields, source.Culture, plan.Culture, providerId),
+            ct);
+
+        return response switch
+        {
+            Result<TranslateDocumentResponse>.Ok ok => AiTranslatedPagePlan.Success(plan, ok.Value),
+            Result<TranslateDocumentResponse>.Failure failure => AiTranslatedPagePlan.Failed(plan, GetErrorMessage(failure.Error)),
+            _ => AiTranslatedPagePlan.Failed(plan, "Unexpected AI translation result.")
+        };
+    }
+
+    private static List<TranslateDocumentField> BuildTranslatableFields(PageDocument source)
+    {
+        var fields = new List<TranslateDocumentField>
+        {
+            new("title", ContentFieldHint.Title, source.Title),
+            new("slug", ContentFieldHint.Slug, source.Slug)
+        };
+
+        AddOptionalField(fields, "summary", ContentFieldHint.Excerpt, source.Summary);
+        AddOptionalField(fields, "seoTitle", ContentFieldHint.SeoTitle, source.SeoTitle);
+        AddOptionalField(fields, "seoDescription", ContentFieldHint.SeoDescription, source.SeoDescription);
+
+        for (var i = 0; i < source.Blocks.Count; i++)
+        {
+            AddBlockFields(fields, $"blocks.{i}", source.Blocks[i]);
+        }
+
+        return fields;
+    }
+
+    private static async Task<AiTranslatePageCultureResult> SaveTranslatedPageAsync(
+        long sourcePageId,
+        AiTranslatePagePlan plan,
+        TranslateDocumentResponse response,
+        IPageContentService pageService,
+        CancellationToken ct)
+    {
+        PageDocument target;
+        if (plan.ExistingVariant is null)
+        {
+            var forkResult = await pageService.ForkPageForCultureAsync(
+                sourcePageId,
+                plan.Culture,
+                GetTranslatedSlug(response, plan.Slug),
+                ct);
+
+            if (forkResult is not Result<PageDocument, AeroError>.Ok forkOk)
+            {
+                return FailedPageTranslation(plan.Culture, forkResult is Result<PageDocument, AeroError>.Failure failure
+                    ? GetErrorMessage(failure.Error)
+                    : "Failed to create translated page.");
+            }
+
+            target = forkOk.Value;
+        }
+        else
+        {
+            target = plan.ExistingVariant;
+            target.Slug = plan.Slug;
+            target.PublicationState = ContentPublicationState.Draft;
+            target.PublishedOn = null;
+        }
+
+        ApplyTranslatedFields(target, response);
+        var saveResult = await pageService.SaveAsync(target, ct);
+
+        return saveResult switch
+        {
+            Result<PageDocument, AeroError>.Ok ok => new AiTranslatePageCultureResult(
+                plan.Culture,
+                true,
+                MapToDetail(ok.Value),
+                response.Warnings,
+                null),
+            Result<PageDocument, AeroError>.Failure failure => FailedPageTranslation(plan.Culture, GetErrorMessage(failure.Error)),
+            _ => FailedPageTranslation(plan.Culture, "Failed to save translated page.")
+        };
+    }
+
+    private static void ApplyTranslatedFields(PageDocument target, TranslateDocumentResponse response)
+    {
+        target.Title = GetTranslated(response, "title", target.Title);
+        target.Summary = GetTranslated(response, "summary", target.Summary);
+        target.SeoTitle = GetTranslated(response, "seoTitle", target.SeoTitle);
+        target.SeoDescription = GetTranslated(response, "seoDescription", target.SeoDescription);
+
+        for (var i = 0; i < target.Blocks.Count; i++)
+        {
+            ApplyBlockFields(target.Blocks[i], $"blocks.{i}", response);
+        }
+    }
+
+    private static void AddBlockFields(List<TranslateDocumentField> fields, string prefix, EditorBlock block)
+    {
+        AddOptionalField(fields, $"{prefix}.title", ContentFieldHint.Title, block.Title);
+        AddOptionalField(fields, $"{prefix}.mainText", ContentFieldHint.BlockText, block.MainText);
+        AddOptionalField(fields, $"{prefix}.subText", ContentFieldHint.BlockText, block.SubText);
+        AddOptionalField(fields, $"{prefix}.ctaText", ContentFieldHint.Label, block.CtaText);
+        AddOptionalField(fields, $"{prefix}.ctaText2", ContentFieldHint.Label, block.CtaText2);
+        AddOptionalField(fields, $"{prefix}.eyebrow", ContentFieldHint.BlockText, block.Eyebrow);
+        AddOptionalField(fields, $"{prefix}.highlight", ContentFieldHint.BlockText, block.Highlight);
+        AddOptionalField(fields, $"{prefix}.alternativeLinkText", ContentFieldHint.Label, block.AlternativeLinkText);
+        AddOptionalField(fields, $"{prefix}.sectionTitle", ContentFieldHint.Title, block.SectionTitle);
+        AddOptionalField(fields, $"{prefix}.pageTitle", ContentFieldHint.Title, block.PageTitle);
+        AddOptionalField(fields, $"{prefix}.description", ContentFieldHint.BlockText, block.Description);
+        AddOptionalField(fields, $"{prefix}.pageDescription", ContentFieldHint.BlockText, block.PageDescription);
+        AddOptionalField(fields, $"{prefix}.content", GetContentHint(block), block.Content);
+        AddOptionalField(fields, $"{prefix}.author", ContentFieldHint.BlockText, block.Author);
+        AddOptionalField(fields, $"{prefix}.alt", ContentFieldHint.AltText, block.Alt);
+        AddOptionalField(fields, $"{prefix}.caption", ContentFieldHint.BlockCaption, block.Caption);
+
+        for (var i = 0; i < block.TrustMarkers.Count; i++)
+        {
+            AddOptionalField(fields, $"{prefix}.trustMarkers.{i}", ContentFieldHint.BlockText, block.TrustMarkers[i]);
+        }
+
+        for (var i = 0; i < block.EditorColumns.Count; i++)
+        {
+            var column = block.EditorColumns[i];
+            for (var j = 0; j < column.Blocks.Count; j++)
+            {
+                AddOptionalField(fields, $"{prefix}.editorColumns.{i}.blocks.{j}.content", ContentFieldHint.BlockText, column.Blocks[j].Content);
+                AddOptionalField(fields, $"{prefix}.editorColumns.{i}.blocks.{j}.text", ContentFieldHint.BlockText, column.Blocks[j].Text);
+                AddOptionalField(fields, $"{prefix}.editorColumns.{i}.blocks.{j}.alt", ContentFieldHint.AltText, column.Blocks[j].Alt);
+            }
+        }
+
+        for (var i = 0; i < block.GalleryImages.Count; i++)
+        {
+            AddOptionalField(fields, $"{prefix}.galleryImages.{i}.alt", ContentFieldHint.AltText, block.GalleryImages[i].Alt);
+        }
+
+        for (var i = 0; i < block.FeatureItems.Count; i++)
+        {
+            AddOptionalField(fields, $"{prefix}.featureItems.{i}.title", ContentFieldHint.Title, block.FeatureItems[i].Title);
+            AddOptionalField(fields, $"{prefix}.featureItems.{i}.description", ContentFieldHint.BlockText, block.FeatureItems[i].Description);
+        }
+
+        for (var i = 0; i < block.PricingPlans.Count; i++)
+        {
+            AddOptionalField(fields, $"{prefix}.pricingPlans.{i}.name", ContentFieldHint.Title, block.PricingPlans[i].Name);
+            AddOptionalField(fields, $"{prefix}.pricingPlans.{i}.description", ContentFieldHint.BlockText, block.PricingPlans[i].Description);
+            AddOptionalField(fields, $"{prefix}.pricingPlans.{i}.ctaText", ContentFieldHint.Label, block.PricingPlans[i].CtaText);
+
+            for (var j = 0; j < block.PricingPlans[i].Features.Count; j++)
+            {
+                AddOptionalField(fields, $"{prefix}.pricingPlans.{i}.features.{j}", ContentFieldHint.BlockText, block.PricingPlans[i].Features[j]);
+            }
+        }
+
+        for (var i = 0; i < block.TeamMembers.Count; i++)
+        {
+            AddOptionalField(fields, $"{prefix}.teamMembers.{i}.role", ContentFieldHint.BlockText, block.TeamMembers[i].Role);
+            AddOptionalField(fields, $"{prefix}.teamMembers.{i}.description", ContentFieldHint.BlockText, block.TeamMembers[i].Description);
+        }
+
+        for (var i = 0; i < block.Testimonials.Count; i++)
+        {
+            AddOptionalField(fields, $"{prefix}.testimonials.{i}.authorRole", ContentFieldHint.BlockText, block.Testimonials[i].AuthorRole);
+            AddOptionalField(fields, $"{prefix}.testimonials.{i}.content", ContentFieldHint.BlockText, block.Testimonials[i].Content);
+        }
+
+        for (var i = 0; i < block.FaqItems.Count; i++)
+        {
+            AddOptionalField(fields, $"{prefix}.faqItems.{i}.question", ContentFieldHint.Title, block.FaqItems[i].Question);
+            AddOptionalField(fields, $"{prefix}.faqItems.{i}.answer", ContentFieldHint.BlockText, block.FaqItems[i].Answer);
+        }
+
+        for (var i = 0; i < block.PortfolioItems.Count; i++)
+        {
+            AddOptionalField(fields, $"{prefix}.portfolioItems.{i}.projectTitle", ContentFieldHint.Title, block.PortfolioItems[i].ProjectTitle);
+            AddOptionalField(fields, $"{prefix}.portfolioItems.{i}.projectCategory", ContentFieldHint.BlockText, block.PortfolioItems[i].ProjectCategory);
+            AddOptionalField(fields, $"{prefix}.portfolioItems.{i}.projectDescription", ContentFieldHint.BlockText, block.PortfolioItems[i].ProjectDescription);
+        }
+
+        for (var i = 0; i < block.ContactDetails.Count; i++)
+        {
+            AddOptionalField(fields, $"{prefix}.contactDetails.{i}.label", ContentFieldHint.BlockText, block.ContactDetails[i].Label);
+            AddOptionalField(fields, $"{prefix}.contactDetails.{i}.value", ContentFieldHint.BlockText, block.ContactDetails[i].Value);
+        }
+    }
+
+    private static void ApplyBlockFields(EditorBlock block, string prefix, TranslateDocumentResponse response)
+    {
+        block.Title = GetTranslated(response, $"{prefix}.title", block.Title);
+        block.MainText = GetTranslated(response, $"{prefix}.mainText", block.MainText);
+        block.SubText = GetTranslated(response, $"{prefix}.subText", block.SubText);
+        block.CtaText = GetTranslated(response, $"{prefix}.ctaText", block.CtaText);
+        block.CtaText2 = GetTranslated(response, $"{prefix}.ctaText2", block.CtaText2);
+        block.Eyebrow = GetTranslated(response, $"{prefix}.eyebrow", block.Eyebrow);
+        block.Highlight = GetTranslated(response, $"{prefix}.highlight", block.Highlight);
+        block.AlternativeLinkText = GetTranslated(response, $"{prefix}.alternativeLinkText", block.AlternativeLinkText);
+        block.SectionTitle = GetTranslated(response, $"{prefix}.sectionTitle", block.SectionTitle);
+        block.PageTitle = GetTranslated(response, $"{prefix}.pageTitle", block.PageTitle);
+        block.Description = GetTranslated(response, $"{prefix}.description", block.Description);
+        block.PageDescription = GetTranslated(response, $"{prefix}.pageDescription", block.PageDescription);
+        block.Content = GetTranslated(response, $"{prefix}.content", block.Content);
+        block.Author = GetTranslated(response, $"{prefix}.author", block.Author);
+        block.Alt = GetTranslated(response, $"{prefix}.alt", block.Alt);
+        block.Caption = GetTranslated(response, $"{prefix}.caption", block.Caption);
+
+        for (var i = 0; i < block.TrustMarkers.Count; i++)
+        {
+            block.TrustMarkers[i] = GetTranslated(response, $"{prefix}.trustMarkers.{i}", block.TrustMarkers[i]);
+        }
+
+        for (var i = 0; i < block.EditorColumns.Count; i++)
+        {
+            var column = block.EditorColumns[i];
+            for (var j = 0; j < column.Blocks.Count; j++)
+            {
+                column.Blocks[j].Content = GetTranslated(response, $"{prefix}.editorColumns.{i}.blocks.{j}.content", column.Blocks[j].Content);
+                column.Blocks[j].Text = GetTranslated(response, $"{prefix}.editorColumns.{i}.blocks.{j}.text", column.Blocks[j].Text);
+                column.Blocks[j].Alt = GetTranslated(response, $"{prefix}.editorColumns.{i}.blocks.{j}.alt", column.Blocks[j].Alt);
+            }
+        }
+
+        for (var i = 0; i < block.GalleryImages.Count; i++)
+        {
+            block.GalleryImages[i].Alt = GetTranslated(response, $"{prefix}.galleryImages.{i}.alt", block.GalleryImages[i].Alt);
+        }
+
+        for (var i = 0; i < block.FeatureItems.Count; i++)
+        {
+            block.FeatureItems[i].Title = GetTranslated(response, $"{prefix}.featureItems.{i}.title", block.FeatureItems[i].Title);
+            block.FeatureItems[i].Description = GetTranslated(response, $"{prefix}.featureItems.{i}.description", block.FeatureItems[i].Description);
+        }
+
+        for (var i = 0; i < block.PricingPlans.Count; i++)
+        {
+            block.PricingPlans[i].Name = GetTranslated(response, $"{prefix}.pricingPlans.{i}.name", block.PricingPlans[i].Name);
+            block.PricingPlans[i].Description = GetTranslated(response, $"{prefix}.pricingPlans.{i}.description", block.PricingPlans[i].Description);
+            block.PricingPlans[i].CtaText = GetTranslated(response, $"{prefix}.pricingPlans.{i}.ctaText", block.PricingPlans[i].CtaText);
+
+            for (var j = 0; j < block.PricingPlans[i].Features.Count; j++)
+            {
+                block.PricingPlans[i].Features[j] = GetTranslated(response, $"{prefix}.pricingPlans.{i}.features.{j}", block.PricingPlans[i].Features[j]);
+            }
+        }
+
+        for (var i = 0; i < block.TeamMembers.Count; i++)
+        {
+            block.TeamMembers[i].Role = GetTranslated(response, $"{prefix}.teamMembers.{i}.role", block.TeamMembers[i].Role);
+            block.TeamMembers[i].Description = GetTranslated(response, $"{prefix}.teamMembers.{i}.description", block.TeamMembers[i].Description);
+        }
+
+        for (var i = 0; i < block.Testimonials.Count; i++)
+        {
+            block.Testimonials[i].AuthorRole = GetTranslated(response, $"{prefix}.testimonials.{i}.authorRole", block.Testimonials[i].AuthorRole);
+            block.Testimonials[i].Content = GetTranslated(response, $"{prefix}.testimonials.{i}.content", block.Testimonials[i].Content);
+        }
+
+        for (var i = 0; i < block.FaqItems.Count; i++)
+        {
+            block.FaqItems[i].Question = GetTranslated(response, $"{prefix}.faqItems.{i}.question", block.FaqItems[i].Question);
+            block.FaqItems[i].Answer = GetTranslated(response, $"{prefix}.faqItems.{i}.answer", block.FaqItems[i].Answer);
+        }
+
+        for (var i = 0; i < block.PortfolioItems.Count; i++)
+        {
+            block.PortfolioItems[i].ProjectTitle = GetTranslated(response, $"{prefix}.portfolioItems.{i}.projectTitle", block.PortfolioItems[i].ProjectTitle);
+            block.PortfolioItems[i].ProjectCategory = GetTranslated(response, $"{prefix}.portfolioItems.{i}.projectCategory", block.PortfolioItems[i].ProjectCategory);
+            block.PortfolioItems[i].ProjectDescription = GetTranslated(response, $"{prefix}.portfolioItems.{i}.projectDescription", block.PortfolioItems[i].ProjectDescription);
+        }
+
+        for (var i = 0; i < block.ContactDetails.Count; i++)
+        {
+            block.ContactDetails[i].Label = GetTranslated(response, $"{prefix}.contactDetails.{i}.label", block.ContactDetails[i].Label);
+            block.ContactDetails[i].Value = GetTranslated(response, $"{prefix}.contactDetails.{i}.value", block.ContactDetails[i].Value);
+        }
+    }
+
+    private static ContentFieldHint GetContentHint(EditorBlock block)
+        => string.Equals(block.Type, "markdown", StringComparison.OrdinalIgnoreCase)
+            ? ContentFieldHint.MarkdownContent
+            : ContentFieldHint.BlockText;
+
+    private static string GetTranslatedSlug(TranslateDocumentResponse response, string fallback)
+    {
+        var translated = GetTranslated(response, "slug", fallback);
+        return string.IsNullOrWhiteSpace(translated)
+            ? fallback
+            : ContentSlugDocument.Normalize(translated);
+    }
+
+    private static string GetTranslated(TranslateDocumentResponse response, string key, string? fallback)
+        => response.TranslatedFields.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback ?? string.Empty;
+
+    private static void AddOptionalField(List<TranslateDocumentField> fields, string key, ContentFieldHint hint, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            fields.Add(new TranslateDocumentField(key, hint, value));
+        }
+    }
+
+    private static AiTranslatePageCultureResult FailedPageTranslation(string culture, string error)
+        => new(culture, false, null, [], error);
+
+    private static string BuildDefaultLocalizedSlug(string slug, string culture)
+    {
+        var suffix = culture.ToLowerInvariant();
+        var normalized = ContentSlugDocument.Normalize(slug);
+        return string.IsNullOrWhiteSpace(normalized)
+            ? suffix
+            : $"{normalized}-{suffix}";
+    }
+
+    private static string GetErrorMessage(AeroError error) => error switch
+    {
+        AeroError.Error e => e.msg,
+        AeroError.NotFound e => e.msg,
+        AeroError.Conflict e => e.msg,
+        AeroError.Database e => e.msg,
+        AeroError.Unauthorized e => e.msg,
+        AeroError.Forbidden e => e.msg,
+        AeroError.Timeout e => e.msg,
+        AeroError.InvalidRequest e => e.msg,
+        AeroError.BadRequest e => e.msg,
+        AeroError.Exists e => e.msg,
+        AeroError.NullReferro e => e.msg,
+        AeroError.Cancelled e => e.msg,
+        AeroError.NotAllowed e => e.msg,
+        AeroError.Configuration e => e.msg,
+        AeroError.Validation e => string.Join("; ", e.Errors),
+        AeroError.HttpRequest e => e.msg ?? "HTTP request error",
+        _ => error.ToString()
+    };
+
+    private static bool CultureEquals(string left, string right)
+        => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
     private static List<EditorBlock>? DeserializeEditorBlockList(string? json)
     {
         if (json is null)
@@ -697,5 +1182,25 @@ public static class PagesApi
         return System.Text.Json.JsonSerializer.Serialize(
             regions,
             BlockJsonContext.Default.Options);
+    }
+
+    private sealed record AiTranslatePagePlan(
+        string Culture,
+        string Slug,
+        PageDocument? ExistingVariant);
+
+    private sealed record AiTranslatedPagePlan(
+        AiTranslatePagePlan Plan,
+        bool Succeeded,
+        TranslateDocumentResponse? Response,
+        string? Error)
+    {
+        public string Culture => Plan.Culture;
+
+        public static AiTranslatedPagePlan Success(AiTranslatePagePlan plan, TranslateDocumentResponse response)
+            => new(plan, true, response, null);
+
+        public static AiTranslatedPagePlan Failed(AiTranslatePagePlan plan, string error)
+            => new(plan, false, null, error);
     }
 }

@@ -12,6 +12,7 @@ public sealed class NavMenuContext
     public IReadOnlyList<INavMenuComponent> Left => Snapshot?.Left ?? [];
     public IReadOnlyList<INavMenuComponent> Center => Snapshot?.Center ?? [];
     public IReadOnlyList<INavMenuComponent> Right => Snapshot?.Right ?? [];
+    public IReadOnlyList<NavCanvasRow> Rows => Snapshot?.Rows ?? [];
     public string? SiteLogoUrl => Snapshot?.SiteLogoUrl;
 
     public async Task<Result<bool, AeroError>> ResolveAsync(
