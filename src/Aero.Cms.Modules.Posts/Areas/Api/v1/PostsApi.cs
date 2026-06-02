@@ -231,6 +231,7 @@ public static class PostsApi
                 SeoTitle = request.SeoTitle,
                 SeoDescription = request.SeoDescription,
                 ImageUrl = request.ImageUrl,
+                SeriesId = request.SeriesId,
                 PublicationState = request.PublicationState,
                 // Store raw markdown string — Orleans can't serialize MarkdownBlock
                 Content = string.IsNullOrWhiteSpace(request.MarkdownContent)
@@ -297,6 +298,7 @@ public static class PostsApi
             existing.SeoTitle = request.SeoTitle;
             existing.SeoDescription = request.SeoDescription;
             existing.ImageUrl = request.ImageUrl;
+            existing.SeriesId = request.SeriesId;
             existing.PublicationState = request.PublicationState;
 
             // Update markdown content if provided
@@ -573,7 +575,8 @@ public static class PostsApi
             vm.CreatedOn,
             vm.ModifiedOn,
             vm.Culture,
-            vm.TranslationGroupId
+            vm.TranslationGroupId,
+            vm.SeriesId
         );
     }
 

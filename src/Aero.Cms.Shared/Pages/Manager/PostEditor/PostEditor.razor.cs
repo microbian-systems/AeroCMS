@@ -15,6 +15,7 @@ using Aero.Core.Railway;
 using BlazorMonaco.Editor;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
+using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.PostEditor;
 
@@ -27,16 +28,21 @@ public partial class PostEditor : ComponentBase, IDisposable
     /// <summary>Optional ID of an existing post to edit.</summary>
     [Parameter] public long? Id { get; set; }
 
+    [SupplyParameterFromQuery(Name = "tab")]
+    protected string? RequestedTab { get; set; }
+
     [Inject] protected IBlogHttpClient BlogApi { get; set; } = default!;
     [Inject] protected IAiHttpClient AiClient { get; set; } = default!;
     [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
     [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
+    [Inject] protected ISeriesHttpClient SeriesClient { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
     [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
     [Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
     [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
     [Inject] protected AdminStateContainer AdminState { get; set; } = default!;
+    [Inject] protected DialogService DialogService { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // Editor state
@@ -50,6 +56,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected string SeoDescription { get; set; } = string.Empty;
     protected string FeaturedImageUrl { get; set; } = string.Empty;
     protected long CategoryId { get; set; }
+    protected long SeriesId { get; set; }
     protected List<long> SelectedTagIds { get; set; } = [];
     protected DateTime? PublishedAt { get; set; }
 
@@ -93,6 +100,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Reference data
     protected List<CategorySummary> Categories { get; set; } = [];
     protected List<TagSummary> AllTags { get; set; } = [];
+    protected List<SeriesSummary> Series { get; set; } = [];
 
     // BlazorMonaco editor reference
     protected StandaloneCodeEditor? _editor;
@@ -143,6 +151,15 @@ public partial class PostEditor : ComponentBase, IDisposable
     // ──────────────────────────────────────────────────────────
     // Lifecycle
     // ──────────────────────────────────────────────────────────
+
+    protected override void OnParametersSet()
+    {
+        if (IsKnownTab(RequestedTab))
+        {
+            ActiveTab = NormalizeTab(RequestedTab);
+            FullPreviewMode = string.Equals(ActiveTab, "preview", StringComparison.OrdinalIgnoreCase);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -195,15 +212,30 @@ public partial class PostEditor : ComponentBase, IDisposable
     {
         var catsTask = CategoriesClient.GetAllAsync();
         var tagsTask = TagsClient.GetAllAsync();
+        var seriesTask = SeriesClient.GetAllAsync();
+        var generalTask = SeriesClient.EnsureGeneralAsync();
 
         await catsTask;
         await tagsTask;
+        await seriesTask;
+        await generalTask;
 
         if (catsTask.Result is Result<IReadOnlyList<CategorySummary>, AeroError>.Ok catsOk)
             Categories = catsOk.Value.ToList();
 
         if (tagsTask.Result is Result<IReadOnlyList<TagSummary>, AeroError>.Ok tagsOk)
             AllTags = tagsOk.Value.ToList();
+
+        if (seriesTask.Result is Result<IReadOnlyList<SeriesSummary>, AeroError>.Ok seriesOk)
+            Series = seriesOk.Value.ToList();
+
+        if (generalTask.Result is Result<SeriesDetail, AeroError>.Ok generalOk)
+        {
+            if (!Series.Any(x => x.Id == generalOk.Value.Id))
+                Series.Insert(0, new SeriesSummary(generalOk.Value.Id, generalOk.Value.Name, generalOk.Value.Slug, generalOk.Value.Description, generalOk.Value.ContentCount));
+
+            SeriesId = generalOk.Value.Id;
+        }
     }
 
     private async Task LoadPostAsync(long id)
@@ -222,6 +254,7 @@ public partial class PostEditor : ComponentBase, IDisposable
             SeoDescription = post.SeoDescription ?? string.Empty;
             FeaturedImageUrl = post.ImageUrl ?? string.Empty;
             CategoryId = post.CategoryIds?.FirstOrDefault() ?? 0;
+            SeriesId = post.SeriesId ?? Series.FirstOrDefault(x => x.Slug.Equals("general", StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
             SelectedTagIds = post.TagIds?.ToList() ?? [];
             PublishedAt = post.PublishedOn?.DateTime;
             _postState = PostState.Clean;
@@ -649,7 +682,45 @@ public partial class PostEditor : ComponentBase, IDisposable
     }
 
     protected void OpenTranslation(long postId)
-        => NavManager.NavigateTo($"/manager/post/editor/{postId}");
+        => NavManager.NavigateTo($"/manager/post/editor/{postId}?tab=translations");
+
+    protected void OpenPublicTranslation(BlogDetail variant)
+    {
+        var baseUri = _previewBaseUri ?? NavManager.BaseUri.TrimEnd('/');
+        NavManager.NavigateTo($"{baseUri.TrimEnd('/')}/blog/{variant.Slug}");
+    }
+
+    protected async Task DeleteTranslationAsync(BlogDetail variant)
+    {
+        if (LoadedPost is null)
+            return;
+
+        var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
+        if (isDefault)
+        {
+            ShowToast("Delete the default culture post from the Posts list so the full translation group warning is shown.", "error");
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            $"Delete the {FormatCulture(variant.Culture)} translation for '{variant.Title}'?",
+            "Delete Translation",
+            new ConfirmOptions { OkButtonText = "Delete Translation", CancelButtonText = "Cancel" });
+
+        if (confirmed != true)
+            return;
+
+        var result = await BlogApi.DeleteAsync(variant.Id);
+        if (result is Result<bool, AeroError>.Ok)
+        {
+            ShowToast($"Deleted {FormatCulture(variant.Culture)} translation", "success");
+            await LoadPostTranslationsAsync();
+            return;
+        }
+
+        if (result is Result<bool, AeroError>.Failure failure)
+            ShowToast($"Delete failed: {failure.Error}", "error");
+    }
 
     private void ResetTranslationDraft()
     {
@@ -728,6 +799,12 @@ public partial class PostEditor : ComponentBase, IDisposable
         MarkDirty();
     }
 
+    protected void OnSeriesChanged(string seriesId)
+    {
+        if (long.TryParse(seriesId, out var id)) SeriesId = id;
+        MarkDirty();
+    }
+
     // ──────────────────────────────────────────────────────────
     // Save / Publish / Unpublish
     // ──────────────────────────────────────────────────────────
@@ -787,6 +864,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                     SeoTitle = string.IsNullOrWhiteSpace(SeoTitle) ? PostTitle : SeoTitle,
                     SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
+                    SeriesId = SeriesId > 0 ? SeriesId : null,
                     PublicationState = PublishedAt.HasValue
                         ? (int)ContentPublicationState.Published
                         : (int)ContentPublicationState.Draft
@@ -818,6 +896,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                     SeoTitle = string.IsNullOrWhiteSpace(SeoTitle) ? PostTitle : SeoTitle,
                     SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
+                    SeriesId = SeriesId > 0 ? SeriesId : null,
                     PublicationState = (int)ContentPublicationState.Draft
                 };
 
@@ -1119,6 +1198,24 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     private string TabBtnClass(string tab) =>
         ActiveTab == tab ? "pe-tab-btn active" : "pe-tab-btn";
+
+    private static bool IsKnownTab(string? tab)
+        => string.Equals(tab, "editor", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "code", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "preview", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "metadata", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "translations", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeTab(string? tab)
+        => string.Equals(tab, "code", StringComparison.OrdinalIgnoreCase)
+            ? "code"
+            : string.Equals(tab, "preview", StringComparison.OrdinalIgnoreCase)
+                ? "preview"
+                : string.Equals(tab, "metadata", StringComparison.OrdinalIgnoreCase)
+                    ? "metadata"
+                    : string.Equals(tab, "translations", StringComparison.OrdinalIgnoreCase)
+                        ? "translations"
+                        : "editor";
 
     protected sealed record EnhanceTargetOption(string Value, string Label);
 }

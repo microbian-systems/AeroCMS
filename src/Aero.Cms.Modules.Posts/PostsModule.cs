@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ActorCreateSeriesRequest = Aero.Cms.Abstractions.Requests.CreateSeriesRequest;
+using ActorUpdateSeriesRequest = Aero.Cms.Abstractions.Requests.UpdateSeriesRequest;
 
 namespace Aero.Cms.Modules.Posts;
 
@@ -52,12 +54,17 @@ public sealed class PostsModule : AeroWebModule, IUiModule
             sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroTagActor>(0, "aero"));
         services.AddSingleton<IAeroCategoryActor>(sp =>
             sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroCategoryActor>(0, "aero"));
+        services.AddSingleton<IAeroSeriesActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroSeriesActor>(0, "aero"));
 
         // FluentValidation validators
         services.AddScoped<IValidator<CreateTagRequest>, TagRequestValidator>();
+        services.AddScoped<IValidator<UpdateTagRequest>, UpdateTagRequestValidator>();
         services.AddScoped<IValidator<CreateCategoryRequest>, CreateCategoryRequestValidator>();
         services.AddScoped<IValidator<UpdateCategoryRequest>, UpdateCategoryRequestValidator>();
         services.AddScoped<IValidator<DeleteCategoryRequest>, DeleteCategoryRequestValidator>();
+        services.AddScoped<IValidator<ActorCreateSeriesRequest>, CreateSeriesRequestValidator>();
+        services.AddScoped<IValidator<ActorUpdateSeriesRequest>, UpdateSeriesRequestValidator>();
 
         // Register this assembly so the Razor Pages in Areas/Blog/Pages are discovered
         services.AddRazorPages()
@@ -83,6 +90,7 @@ public sealed class PostsModule : AeroWebModule, IUiModule
         opts.Schema.For<PostDocument>().Index(x => x.SiteId);
         opts.Schema.For<PostDocument>().Index(x => x.Culture);
         opts.Schema.For<PostDocument>().Index(x => x.TranslationGroupId);
+        opts.Schema.For<PostDocument>().Index(x => x.SeriesId);
         opts.Schema.For<PostDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Slug);
         opts.Schema.For<PostDocument>().Index(x => x.PublishedOn);
         opts.Schema.For<PostDocument>().Index(x => x.CreatedOn);
@@ -93,18 +101,24 @@ public sealed class PostsModule : AeroWebModule, IUiModule
         opts.Schema.For<Tag>().UniqueIndex(x => x.SiteId, x => x.Slug);
         opts.Schema.For<Category>().Index(x => x.SiteId);
         opts.Schema.For<Category>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        opts.Schema.For<Series>().Index(x => x.SiteId);
+        opts.Schema.For<Series>().UniqueIndex(x => x.SiteId, x => x.Slug);
         opts.Schema.For<TagTranslation>().Index(x => x.TagId);
         opts.Schema.For<TagTranslation>().Index(x => x.Culture);
         opts.Schema.For<TagTranslation>().UniqueIndex(x => x.TagId, x => x.Culture);
         opts.Schema.For<CategoryTranslation>().Index(x => x.CategoryId);
         opts.Schema.For<CategoryTranslation>().Index(x => x.Culture);
         opts.Schema.For<CategoryTranslation>().UniqueIndex(x => x.CategoryId, x => x.Culture);
+        opts.Schema.For<SeriesTranslation>().Index(x => x.SeriesId);
+        opts.Schema.For<SeriesTranslation>().Index(x => x.Culture);
+        opts.Schema.For<SeriesTranslation>().UniqueIndex(x => x.SeriesId, x => x.Culture);
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapCategoriesApi();
         builder.MapTagsApi();
+        builder.MapSeriesApi();
         builder.MapBlogApi();
 
         return Task.CompletedTask;

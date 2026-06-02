@@ -134,6 +134,8 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
     /// <summary>Save (create or update) a blog post, handling slug reservation + cache eviction.</summary>
     public async Task<AeroRequestResponse<PostViewModel>> SavePostAsync(PostViewModel vm, long siteId, CancellationToken ct)
     {
+        vm.SeriesId ??= await EnsureGeneralSeriesIdAsync(siteId, ct);
+
         var post = MapToDocument(vm);
         post.SiteId = siteId;
 
@@ -403,6 +405,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
             Likes = d.Likes,
             Culture = d.Culture,
             TranslationGroupId = d.TranslationGroupId,
+            SeriesId = d.SeriesId,
             CreatedOn = d.CreatedOn,
             ModifiedOn = d.ModifiedOn,
             CreatedBy = d.CreatedBy ?? "system",
@@ -430,6 +433,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
             Likes = vm.Likes,
             Culture = vm.Culture,
             TranslationGroupId = vm.TranslationGroupId,
+            SeriesId = vm.SeriesId,
             CreatedOn = vm.CreatedOn,
             ModifiedOn = vm.ModifiedOn,
             CreatedBy = vm.CreatedBy ?? "system",
@@ -461,6 +465,30 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         }
 
         return doc;
+    }
+
+    private async Task<long> EnsureGeneralSeriesIdAsync(long siteId, CancellationToken ct)
+    {
+        await using var session = _store.LightweightSession();
+        var general = await session.Query<Models.Series>()
+            .Where(x => x.SiteId == siteId && x.Slug == "general")
+            .FirstOrDefaultAsync(ct);
+
+        if (general is not null)
+            return general.Id;
+
+        general = new Models.Series
+        {
+            Id = Snowflake.NewId(),
+            SiteId = siteId,
+            Name = "General",
+            Slug = "general",
+            Description = "Default blog series"
+        };
+
+        session.Store(general);
+        await session.SaveChangesAsync(ct);
+        return general.Id;
     }
 
     // ── AeroRequestResponse helpers ────────────────────────────────────

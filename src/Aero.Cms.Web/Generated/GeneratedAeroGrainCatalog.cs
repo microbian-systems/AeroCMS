@@ -1,3 +1,9 @@
+using Aero.Actors;
+using Aero.Actors.Abstractions;
+using Aero.Cms.Abstractions.Actors;
+using Microsoft.Extensions.DependencyInjection;
+using Orleans.Serialization;
+
 namespace Aero.Cms.Web.Generated;
 
 /// <summary>
@@ -21,9 +27,16 @@ public static class GeneratedAeroGrainCatalog
     /// </summary>
     public static void Register(ISiloBuilder silo)
     {
-        // Assemblies containing grains (12 grains across 8 modules):
+        silo.Services.AddSerializer(serializer =>
+        {
+            serializer.AddAssembly(typeof(IPongGrain).Assembly);
+            serializer.AddAssembly(typeof(Message).Assembly);
+            serializer.AddAssembly(typeof(IAeroPageActor).Assembly);
+        });
+
+        // Assemblies containing grains (13 grains across 8 modules):
         //   Aero.Cms.Modules.Aliases     — AeroAliasGrain
-        //   Aero.Cms.Modules.Posts        — AeroCategoryGrain, AeroTagGrain, AeroPostGrain
+        //   Aero.Cms.Modules.Posts       — AeroCategoryGrain, AeroSeriesGrain, AeroTagGrain, AeroPostGrain
         //   Aero.Cms.Modules.Content     — AeroContentItemGrain, AeroContentTypeGrain
         //   Aero.Cms.Modules.Docs        — AeroDocsGrain
         //   Aero.Cms.Modules.Media       — AeroMediaGrain

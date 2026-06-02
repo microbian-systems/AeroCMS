@@ -19,6 +19,7 @@ public static class PostCultureForker
             SiteId = source.SiteId,
             TranslationGroupId = translationGroupId,
             SourcePostId = source.Id,
+            SeriesId = source.SeriesId,
             Culture = ContentSlugDocument.NormalizeCulture(targetCulture),
             Slug = targetSlug.Trim().Trim('/'),
             Title = source.Title,

@@ -1,26 +1,9 @@
 @page "/manager/taxonomy/tags"
 @attribute [Authorize]
-@using Microsoft.Extensions.Localization
-@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
-
-<div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold pe-heading">@L["Tags"]</h1>
-            <p class="mt-1 text-sm pe-description">@L["Label your content with keywords for better discoverability."]</p>
-        </div>
-        <RadzenButton Icon="add" Text="@L["Create Tag"]" ButtonStyle="ButtonStyle.Primary" />
-    </div>
-
-    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
-                    EmptyText="@L["No tags found. Put a label on it!"]">
-        <Columns>
-            <RadzenDataGridColumn TItem="object" Property="Name" Title="@L["Name"]" />
-            <RadzenDataGridColumn TItem="object" Property="Slug" Title="@L["Slug"]" />
-            <RadzenDataGridColumn TItem="object" Property="Count" Title="@L["Used In"]" Width="100px" />
-        </Columns>
-    </RadzenDataGrid>
-</div>
 
 @code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    protected override void OnInitialized()
+        => Navigation.NavigateTo("/manager/taxonomy?kind=tags", replace: true);
 }

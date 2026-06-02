@@ -60,6 +60,8 @@ public sealed record PostViewModel : AeroEntityViewModel
     public string Culture { get; set; } = "en-US";
     [Id(14)]
     public long? TranslationGroupId { get; set; }
+    [Id(15)]
+    public long? SeriesId { get; set; }
 
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 }

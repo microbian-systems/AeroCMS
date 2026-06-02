@@ -31,4 +31,17 @@ internal static class PostTaxonomyTranslationMapper
         CreatedBy = tag.CreatedBy,
         ModifiedBy = tag.ModifiedBy
     };
+
+    public static SeriesViewModel MapSeries(Models.Series series, SeriesTranslation? translation = null) => new()
+    {
+        Id = series.Id,
+        SiteId = series.SiteId,
+        Name = string.IsNullOrWhiteSpace(translation?.Name) ? series.Name : translation.Name,
+        Slug = string.IsNullOrWhiteSpace(translation?.Slug) ? series.Slug : translation.Slug,
+        Description = translation?.Description ?? series.Description,
+        CreatedOn = series.CreatedOn,
+        ModifiedOn = series.ModifiedOn,
+        CreatedBy = series.CreatedBy,
+        ModifiedBy = series.ModifiedBy
+    };
 }

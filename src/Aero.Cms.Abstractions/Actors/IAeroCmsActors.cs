@@ -22,6 +22,14 @@ public interface IAeroCategoryActor : IAeroCmsContentActor<CategoryViewModel>
     /// <summary>Get all categories (unpaged).</summary>
     Task<List<CategoryViewModel>> GetAllAsync(CancellationToken ct = default);
 }
+public interface IAeroSeriesActor : IAeroCmsContentActor<SeriesViewModel>
+{
+    /// <summary>Get all series (unpaged).</summary>
+    Task<List<SeriesViewModel>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Get or create the default General series for a site.</summary>
+    Task<SeriesViewModel> EnsureGeneralAsync(long siteId, CancellationToken ct = default);
+}
 public interface IAeroDocsActor : IAeroCmsContentActor<DocViewModel>
 {
     /// <summary>Get all docs for a site (unpaged).</summary>

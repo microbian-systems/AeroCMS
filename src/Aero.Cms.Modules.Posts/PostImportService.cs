@@ -124,6 +124,7 @@ public sealed class PostsImportService : IPostImportService
 
             // 4. Batch resolve tags across all posts
             var tagMap = await ResolveTagsAsync(importablePosts, ct);
+            var generalSeriesId = await EnsureGeneralSeriesIdAsync(request.SiteId, ct);
 
             // 5. Pre-check existing slugs
             var existingSlugs = await GetExistingSlugsAsync(importablePosts, ct);
@@ -214,20 +215,21 @@ public sealed class PostsImportService : IPostImportService
                             document.ModifiedOn = now;
                             document.TagIds = post.Tags.Select(t => tagMap.GetValueOrDefault(t.ToLowerInvariant(), 0L))
                                 .Where(id => id > 0).ToList();
+                            document.SeriesId ??= generalSeriesId;
                             if (request.DefaultAuthorId.HasValue)
                                 document.AuthorId = request.DefaultAuthorId;
                         }
                         else
                         {
                             // Existing slug but no document — treat as new
-                            document = CreateNewPost(post, postId, now, resolvedImageUrl, tagMap, request);
+                            document = CreateNewPost(post, postId, now, resolvedImageUrl, tagMap, request, generalSeriesId);
                         }
                     }
                     else
                     {
                         _log.LogInformation("[Import] Creating: slug={Slug}, parsedPublishedOn={Parsed}, publishFlag={Publish}",
                             post.Slug, post.PublishedOn?.ToString("yyyy-MM-dd") ?? "<null>", request.PublishImported);
-                        document = CreateNewPost(post, postId, now, resolvedImageUrl, tagMap, request);
+                        document = CreateNewPost(post, postId, now, resolvedImageUrl, tagMap, request, generalSeriesId);
                         _log.LogInformation("[Import] Created: slug={Slug}, doc.PublishedOn={DocPub}, doc.CreatedOn={DocCreated}",
                             document.Slug, document.PublishedOn?.ToString("yyyy-MM-dd") ?? "<null>",
                             document.CreatedOn.ToString("yyyy-MM-dd"));
@@ -290,7 +292,8 @@ public sealed class PostsImportService : IPostImportService
     private static PostDocument CreateNewPost(
         ImportablePost post, long postId, DateTimeOffset now,
         string? imageUrl, Dictionary<string, long> tagMap,
-        ImportFileRequest request)
+        ImportFileRequest request,
+        long generalSeriesId)
     {
         return new PostDocument
         {
@@ -313,6 +316,7 @@ public sealed class PostsImportService : IPostImportService
                 .Select(t => tagMap.GetValueOrDefault(t.ToLowerInvariant(), 0L))
                 .Where(id => id > 0)
                 .ToList(),
+            SeriesId = generalSeriesId,
             AuthorId = request.DefaultAuthorId
         };
     }
@@ -381,6 +385,27 @@ public sealed class PostsImportService : IPostImportService
         }
 
         return tagMap;
+    }
+
+    private async Task<long> EnsureGeneralSeriesIdAsync(long siteId, CancellationToken ct)
+    {
+        var general = await _session.Query<Series>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Slug == "general", ct);
+
+        if (general is not null)
+            return general.Id;
+
+        general = new Series
+        {
+            Id = Snowflake.NewId(),
+            SiteId = siteId,
+            Name = "General",
+            Slug = "general",
+            Description = "Default blog series"
+        };
+
+        _session.Store(general);
+        return general.Id;
     }
 
     private async Task<IReadOnlyList<ContentSlugDocument>> GetExistingSlugsAsync(

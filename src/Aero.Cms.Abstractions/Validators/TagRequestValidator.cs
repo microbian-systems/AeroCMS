@@ -15,3 +15,14 @@ public class TagRequestValidator : AbstractValidator<CreateTagRequest>
     }
 }
 
+public class UpdateTagRequestValidator : AbstractValidator<UpdateTagRequest>
+{
+    public UpdateTagRequestValidator()
+    {
+        RuleFor(x => x.Id)
+            .GreaterThan(0).WithMessage("Id must be a positive integer.");
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Name is required.")
+            .MaximumLength(100).WithMessage("Name cannot exceed 100 characters.");
+    }
+}

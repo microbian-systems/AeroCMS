@@ -64,6 +64,7 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<IPagesHttpClient, PagesHttpClient>();
         services.AddHttpClient<IProfileHttpClient, ProfileHttpClient>();
         services.AddHttpClient<ISettingsHttpClient, SettingsHttpClient>();
+        services.AddHttpClient<ISeriesHttpClient, SeriesHttpClient>();
         services.AddHttpClient<ITagsHttpClient, TagsHttpClient>();
         services.AddHttpClient<IThemesHttpClient, ThemesHttpClient>();
         services.AddHttpClient<IUsersHttpClient, UsersHttpClient>();

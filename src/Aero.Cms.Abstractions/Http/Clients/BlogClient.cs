@@ -271,7 +271,8 @@ public record BlogDetail(
     DateTimeOffset CreatedOn,
     DateTimeOffset? ModifiedOn,
     string Culture = "en-US",
-    long? TranslationGroupId = null);
+    long? TranslationGroupId = null,
+    long? SeriesId = null);
 
 public sealed record ForkBlogCultureRequest(string Culture, string Slug);
 
@@ -288,6 +289,7 @@ public class CreateBlogRequest
     public string? MarkdownContent { get; set; }
     public List<string>? Tags { get; set; }
     public string? Category { get; set; }
+    public long? SeriesId { get; set; }
     public string? Author { get; set; }
     public string? ImageUrl { get; set; }
     public int PublicationState { get; set; }
@@ -307,6 +309,7 @@ public class UpdateBlogRequest
     public string? MarkdownContent { get; set; }
     public List<string>? Tags { get; set; }
     public string? Category { get; set; }
+    public long? SeriesId { get; set; }
     public string? Author { get; set; }
     public string? ImageUrl { get; set; }
     public int PublicationState { get; set; }
