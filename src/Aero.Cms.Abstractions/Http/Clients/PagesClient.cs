@@ -88,6 +88,10 @@ public interface IPagesHttpClient
     /// </summary>
     Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
+    Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+
+    Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+
     /// <summary>
     /// Publishes a page.
     /// </summary>
@@ -257,6 +261,16 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
         {
             return new Result<int, AeroError>.Ok(0);
         }
+    }
+
+    public Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+    {
+        return PutAsync<object, PublicationBulkResult>($"translation-groups/{translationGroupId}/publish", new object(), ct);
+    }
+
+    public Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+    {
+        return PutAsync<object, PublicationBulkResult>($"translation-groups/{translationGroupId}/unpublish", new object(), ct);
     }
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)

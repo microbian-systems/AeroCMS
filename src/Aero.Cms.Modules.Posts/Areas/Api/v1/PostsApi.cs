@@ -1,9 +1,11 @@
+using Aero.Cms.Abstractions.Ai;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Audit;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
@@ -49,6 +51,9 @@ public static class PostsApi
         group.MapPost("/{id:long}/translations", ForkPostToCulture)
             .WithName("ForkPostToCulture");
 
+        group.MapPost("/{id:long}/ai-translate", TranslatePostWithAi)
+            .WithName("TranslatePostWithAi");
+
         group.MapPut("/{id:long}", UpdatePost)
             .WithName("UpdatePost");
 
@@ -57,6 +62,12 @@ public static class PostsApi
 
         group.MapDelete("/translation-groups/{translationGroupId:long}", DeletePostTranslationGroup)
             .WithName("DeletePostTranslationGroup");
+
+        group.MapPost("/translation-groups/{translationGroupId:long}/publish", PublishPostTranslationGroup)
+            .WithName("PublishPostTranslationGroup");
+
+        group.MapPost("/translation-groups/{translationGroupId:long}/unpublish", UnpublishPostTranslationGroup)
+            .WithName("UnpublishPostTranslationGroup");
 
         group.MapPost("/{id:long}/publish", PublishPost)
             .WithName("PublishPost");
@@ -182,6 +193,103 @@ public static class PostsApi
         return !string.IsNullOrWhiteSpace(result.error.Message)
             ? TypedResults.BadRequest(new { error = result.error })
             : TypedResults.Ok(MapToBlogDetail(result.data));
+    }
+
+    private static async Task<IResult> TranslatePostWithAi(
+        long id,
+        [FromBody] AiTranslateBlogRequest request,
+        [FromServices] IPostContentService postService,
+        [FromServices] IQuerySession query,
+        [FromServices] IAiContentTranslationService translationService,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.Targets.Count == 0)
+        {
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "No target cultures",
+                Detail = "At least one target culture is required."
+            });
+        }
+
+        var sourceResult = await postService.LoadAsync(id, cancellationToken);
+        if (sourceResult is not Result<PostDocument?, AeroError>.Ok { Value: not null } sourceOk)
+        {
+            return TypedResults.NotFound(new { error = "Source post was not found." });
+        }
+
+        var source = sourceOk.Value;
+        var site = await query.LoadAsync<SitesModel>(source.SiteId, cancellationToken);
+        var supportedCultures = GetSupportedCultures(site);
+        var groupId = source.TranslationGroupId ?? source.Id;
+        var variantsResult = await postService.ListCultureVariantsAsync(groupId, cancellationToken);
+        var variants = variantsResult is Result<IReadOnlyList<PostDocument>, AeroError>.Ok variantsOk
+            ? variantsOk.Value
+            : [source];
+
+        var immediateResults = new List<AiTranslateBlogCultureResult>();
+        var plans = new List<AiTranslatePostPlan>();
+        var plannedCultures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var target in request.Targets)
+        {
+            var culture = ContentSlugDocument.NormalizeCulture(target.Culture);
+            if (!plannedCultures.Add(culture))
+            {
+                continue;
+            }
+
+            if (CultureEquals(culture, source.Culture))
+            {
+                immediateResults.Add(FailedTranslation(culture, "Target culture must be different from the source culture."));
+                continue;
+            }
+
+            if (!supportedCultures.Contains(culture))
+            {
+                immediateResults.Add(FailedTranslation(culture, $"Culture '{culture}' is not supported by this site."));
+                continue;
+            }
+
+            var existing = variants.FirstOrDefault(x => CultureEquals(x.Culture, culture));
+            if (existing is not null && !request.OverwriteExisting)
+            {
+                immediateResults.Add(FailedTranslation(culture, $"A '{culture}' translation already exists."));
+                continue;
+            }
+
+            var slug = string.IsNullOrWhiteSpace(target.Slug)
+                ? BuildDefaultLocalizedSlug(source.Slug, culture)
+                : target.Slug.Trim().Trim('/');
+
+            plans.Add(new AiTranslatePostPlan(culture, slug, existing));
+        }
+
+        var translatedPlans = await Task.WhenAll(plans.Select(plan =>
+            TranslatePostPlanAsync(source, plan, request.ProviderId, translationService, cancellationToken)));
+
+        var results = new List<AiTranslateBlogCultureResult>(immediateResults);
+        foreach (var translated in translatedPlans)
+        {
+            if (!translated.Succeeded || translated.Response is null)
+            {
+                results.Add(FailedTranslation(translated.Culture, translated.Error ?? "AI translation failed."));
+                continue;
+            }
+
+            var saveResult = await SaveTranslatedPostAsync(
+                source.Id,
+                translated.Plan,
+                translated.Response,
+                postService,
+                cancellationToken);
+
+            results.Add(saveResult);
+        }
+
+        return TypedResults.Ok(new AiTranslateBlogResult(results
+            .OrderBy(x => x.Culture, StringComparer.OrdinalIgnoreCase)
+            .ToList()));
     }
 
     private static async Task<IResult> GetPostBySlug(
@@ -383,6 +491,30 @@ public static class PostsApi
         };
     }
 
+    private static Task<IResult> PublishPostTranslationGroup(
+        long translationGroupId,
+        [FromServices] IPostContentService postService,
+        CancellationToken cancellationToken = default)
+    {
+        return SetPostTranslationGroupPublicationStateAsync(
+            translationGroupId,
+            ContentPublicationState.Published,
+            postService,
+            cancellationToken);
+    }
+
+    private static Task<IResult> UnpublishPostTranslationGroup(
+        long translationGroupId,
+        [FromServices] IPostContentService postService,
+        CancellationToken cancellationToken = default)
+    {
+        return SetPostTranslationGroupPublicationStateAsync(
+            translationGroupId,
+            ContentPublicationState.Draft,
+            postService,
+            cancellationToken);
+    }
+
     private static async Task<IResult> PublishPost(
         long id,
         [FromServices] IAeroPostActor postsActor,
@@ -435,6 +567,69 @@ public static class PostsApi
         {
             return TypedResults.BadRequest(new { error = ex.Message });
         }
+    }
+
+    private static async Task<IResult> SetPostTranslationGroupPublicationStateAsync(
+        long translationGroupId,
+        ContentPublicationState state,
+        IPostContentService postService,
+        CancellationToken cancellationToken)
+    {
+        var variantsResult = await postService.ListCultureVariantsAsync(translationGroupId, cancellationToken);
+        if (variantsResult is Result<IReadOnlyList<PostDocument>, AeroError>.Failure variantsFailure)
+        {
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to load post translations",
+                Detail = GetErrorMessage(variantsFailure.Error),
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        var variants = variantsResult is Result<IReadOnlyList<PostDocument>, AeroError>.Ok ok
+            ? ok.Value
+            : [];
+
+        if (variants.Count == 0)
+        {
+            return TypedResults.NotFound(new ProblemDetails
+            {
+                Title = "No post translations found",
+                Detail = $"No translated posts were found for translation group '{translationGroupId}'.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+
+        var items = new List<PublicationBulkItem>();
+        foreach (var post in variants)
+        {
+            post.PublicationState = state;
+            post.PublishedOn = state == ContentPublicationState.Published
+                ? post.PublishedOn ?? DateTimeOffset.UtcNow
+                : null;
+
+            var saveResult = await postService.SaveAsync(post, cancellationToken);
+            if (saveResult is Result<PostDocument, AeroError>.Failure saveFailure)
+            {
+                return TypedResults.BadRequest(new ProblemDetails
+                {
+                    Title = "Failed to update post publication state",
+                    Detail = GetErrorMessage(saveFailure.Error),
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            if (saveResult is Result<PostDocument, AeroError>.Ok saveOk)
+            {
+                items.Add(new PublicationBulkItem(
+                    saveOk.Value.Id,
+                    saveOk.Value.Culture,
+                    saveOk.Value.Title,
+                    saveOk.Value.PublicationState == ContentPublicationState.Published));
+            }
+        }
+
+        return TypedResults.Ok(new PublicationBulkResult(items.Count, items));
     }
 
     private static async Task<IResult> ImportPosts(
@@ -580,6 +775,209 @@ public static class PostsApi
         );
     }
 
+    private static BlogDetail MapToBlogDetail(PostDocument document)
+        => new(
+            document.Id,
+            document.Title,
+            document.Slug,
+            document.Excerpt,
+            document.SeoTitle,
+            document.SeoDescription,
+            document.PublishedOn,
+            (int)document.PublicationState,
+            document.Content,
+            document.TagIds ?? [],
+            document.CategoryIds ?? [],
+            document.AuthorId,
+            document.ImageUrl,
+            document.Likes,
+            document.CreatedOn,
+            document.ModifiedOn,
+            document.Culture,
+            document.TranslationGroupId,
+            document.SeriesId);
+
+    private static IReadOnlySet<string> GetSupportedCultures(SitesModel? site)
+    {
+        var cultures = site?.SupportedCultures.Count > 0
+            ? site.SupportedCultures
+            : [site?.DefaultCulture ?? SitesModel.DefaultCultureName];
+
+        return cultures
+            .Select(ContentSlugDocument.NormalizeCulture)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static async Task<AiTranslatedPostPlan> TranslatePostPlanAsync(
+        PostDocument source,
+        AiTranslatePostPlan plan,
+        string? providerId,
+        IAiContentTranslationService translationService,
+        CancellationToken cancellationToken)
+    {
+        var fields = BuildTranslatableFields(source);
+        if (fields.Count == 0)
+        {
+            return AiTranslatedPostPlan.Failed(plan, "The source post does not contain translatable content.");
+        }
+
+        var response = await translationService.TranslateAsync(
+            new TranslateDocumentRequest(fields, source.Culture, plan.Culture, providerId),
+            cancellationToken);
+
+        return response switch
+        {
+            Result<TranslateDocumentResponse>.Ok ok => AiTranslatedPostPlan.Success(plan, ok.Value),
+            Result<TranslateDocumentResponse>.Failure failure => AiTranslatedPostPlan.Failed(plan, GetErrorMessage(failure.Error)),
+            _ => AiTranslatedPostPlan.Failed(plan, "Unexpected AI translation result.")
+        };
+    }
+
+    private static List<TranslateDocumentField> BuildTranslatableFields(PostDocument source)
+    {
+        var fields = new List<TranslateDocumentField>
+        {
+            new("title", ContentFieldHint.Title, source.Title),
+            new("slug", ContentFieldHint.Slug, source.Slug)
+        };
+
+        AddOptionalField(fields, "excerpt", ContentFieldHint.Excerpt, source.Excerpt);
+        AddOptionalField(fields, "seoTitle", ContentFieldHint.SeoTitle, source.SeoTitle);
+        AddOptionalField(fields, "seoDescription", ContentFieldHint.SeoDescription, source.SeoDescription);
+
+        var markdownBlocks = source.Content
+            .OfType<MarkdownBlock>()
+            .Where(x => !string.IsNullOrWhiteSpace(x.Content))
+            .Select((block, index) => new { Block = block, Index = index })
+            .ToList();
+
+        foreach (var item in markdownBlocks)
+        {
+            fields.Add(new TranslateDocumentField(
+                $"markdown.{item.Index}",
+                ContentFieldHint.MarkdownContent,
+                item.Block.Content));
+        }
+
+        return fields;
+    }
+
+    private static async Task<AiTranslateBlogCultureResult> SaveTranslatedPostAsync(
+        long sourcePostId,
+        AiTranslatePostPlan plan,
+        TranslateDocumentResponse response,
+        IPostContentService postService,
+        CancellationToken cancellationToken)
+    {
+        PostDocument target;
+        if (plan.ExistingVariant is null)
+        {
+            var forkResult = await postService.ForkPostForCultureAsync(sourcePostId, plan.Culture, GetTranslatedSlug(response, plan.Slug), cancellationToken);
+            if (forkResult is not Result<PostDocument, AeroError>.Ok forkOk)
+            {
+                return FailedTranslation(plan.Culture, forkResult is Result<PostDocument, AeroError>.Failure failure
+                    ? GetErrorMessage(failure.Error)
+                    : "Failed to create translated post.");
+            }
+
+            target = forkOk.Value;
+        }
+        else
+        {
+            target = plan.ExistingVariant;
+            target.Slug = plan.Slug;
+            target.PublicationState = ContentPublicationState.Draft;
+            target.PublishedOn = null;
+        }
+
+        ApplyTranslatedFields(target, response);
+        var saveResult = await postService.SaveAsync(target, cancellationToken);
+
+        return saveResult switch
+        {
+            Result<PostDocument, AeroError>.Ok ok => new AiTranslateBlogCultureResult(
+                plan.Culture,
+                true,
+                MapToBlogDetail(ok.Value),
+                response.Warnings,
+                null),
+            Result<PostDocument, AeroError>.Failure failure => FailedTranslation(plan.Culture, GetErrorMessage(failure.Error)),
+            _ => FailedTranslation(plan.Culture, "Failed to save translated post.")
+        };
+    }
+
+    private static void ApplyTranslatedFields(PostDocument target, TranslateDocumentResponse response)
+    {
+        target.Title = GetTranslated(response, "title", target.Title);
+        target.Excerpt = GetTranslated(response, "excerpt", target.Excerpt);
+        target.SeoTitle = GetTranslated(response, "seoTitle", target.SeoTitle);
+        target.SeoDescription = GetTranslated(response, "seoDescription", target.SeoDescription);
+
+        var markdownBlocks = target.Content
+            .OfType<MarkdownBlock>()
+            .Where(x => !string.IsNullOrWhiteSpace(x.Content))
+            .Select((block, index) => new { Block = block, Index = index });
+
+        foreach (var item in markdownBlocks)
+        {
+            item.Block.Content = GetTranslated(response, $"markdown.{item.Index}", item.Block.Content);
+        }
+    }
+
+    private static string GetTranslatedSlug(TranslateDocumentResponse response, string fallback)
+    {
+        var translated = GetTranslated(response, "slug", fallback);
+        return string.IsNullOrWhiteSpace(translated)
+            ? fallback
+            : ContentSlugDocument.Normalize(translated);
+    }
+
+    private static string GetTranslated(TranslateDocumentResponse response, string key, string? fallback)
+        => response.TranslatedFields.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback ?? string.Empty;
+
+    private static void AddOptionalField(List<TranslateDocumentField> fields, string key, ContentFieldHint hint, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            fields.Add(new TranslateDocumentField(key, hint, value));
+        }
+    }
+
+    private static AiTranslateBlogCultureResult FailedTranslation(string culture, string error)
+        => new(culture, false, null, [], error);
+
+    private static string BuildDefaultLocalizedSlug(string slug, string culture)
+    {
+        var suffix = culture.ToLowerInvariant();
+        var normalized = ContentSlugDocument.Normalize(slug);
+        return string.IsNullOrWhiteSpace(normalized)
+            ? suffix
+            : $"{normalized}-{suffix}";
+    }
+
+    private static string GetErrorMessage(AeroError error) => error switch
+    {
+        AeroError.Error e => e.msg,
+        AeroError.NotFound e => e.msg,
+        AeroError.Conflict e => e.msg,
+        AeroError.Database e => e.msg,
+        AeroError.Unauthorized e => e.msg,
+        AeroError.Forbidden e => e.msg,
+        AeroError.Timeout e => e.msg,
+        AeroError.InvalidRequest e => e.msg,
+        AeroError.BadRequest e => e.msg,
+        AeroError.Exists e => e.msg,
+        AeroError.NullReferro e => e.msg,
+        AeroError.Cancelled e => e.msg,
+        AeroError.NotAllowed e => e.msg,
+        AeroError.Configuration e => e.msg,
+        AeroError.Validation e => string.Join("; ", e.Errors),
+        AeroError.HttpRequest e => e.msg ?? "HTTP request error",
+        _ => error.ToString()
+    };
+
     private static BlogTranslationGroupSummary MapToTranslationGroupSummary(
         long translationGroupId,
         IReadOnlyList<PostDocument> variants,
@@ -619,4 +1017,24 @@ public static class PostsApi
 
     private static bool CultureEquals(string left, string right)
         => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private sealed record AiTranslatePostPlan(
+        string Culture,
+        string Slug,
+        PostDocument? ExistingVariant);
+
+    private sealed record AiTranslatedPostPlan(
+        AiTranslatePostPlan Plan,
+        bool Succeeded,
+        TranslateDocumentResponse? Response,
+        string? Error)
+    {
+        public string Culture => Plan.Culture;
+
+        public static AiTranslatedPostPlan Success(AiTranslatePostPlan plan, TranslateDocumentResponse response)
+            => new(plan, true, response, null);
+
+        public static AiTranslatedPostPlan Failed(AiTranslatePostPlan plan, string error)
+            => new(plan, false, null, error);
+    }
 }

@@ -10,6 +10,7 @@ public enum ContentFieldHint
     Excerpt,
     SeoTitle,
     SeoDescription,
+    Slug,
     MarkdownContent,
     Label,
     AltText,

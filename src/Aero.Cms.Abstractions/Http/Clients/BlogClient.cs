@@ -37,6 +37,8 @@ public interface IBlogHttpClient
 
     Task<Result<BlogDetail, AeroError>> ForkToCultureAsync(long id, ForkBlogCultureRequest request, CancellationToken ct = default);
 
+    Task<Result<AiTranslateBlogResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateBlogRequest request, CancellationToken ct = default);
+
     /// <summary>
     /// Creates a new blog post.
     /// </summary>
@@ -66,6 +68,10 @@ public interface IBlogHttpClient
     /// Deletes every localized variant in a post translation group.
     /// </summary>
     Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+
+    Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+
+    Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
     /// <summary>
     /// Publishes a blog post.
@@ -136,6 +142,12 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
     }
 
     /// <inheritdoc />
+    public Task<Result<AiTranslateBlogResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateBlogRequest request, CancellationToken ct = default)
+    {
+        return PostAsync<AiTranslateBlogRequest, AiTranslateBlogResult>($"{id}/ai-translate", request, ct);
+    }
+
+    /// <inheritdoc />
     public Task<Result<BlogDetail, AeroError>> CreateAsync(CreateBlogRequest request, CancellationToken ct = default)
     {
         return PostAsync<CreateBlogRequest, BlogDetail>(string.Empty, request, ct);
@@ -182,6 +194,18 @@ public class BlogHttpClient(HttpClient httpClient, ILogger<BlogHttpClient> logge
         {
             return 0;
         }
+    }
+
+    /// <inheritdoc />
+    public Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+    {
+        return PostAsync<object, PublicationBulkResult>($"translation-groups/{translationGroupId}/publish", new object(), ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+    {
+        return PostAsync<object, PublicationBulkResult>($"translation-groups/{translationGroupId}/unpublish", new object(), ct);
     }
 
     /// <inheritdoc />
@@ -250,6 +274,16 @@ public sealed record BlogTranslationVariantSummary(
 
 public sealed record DeleteBlogTranslationGroupResult(int Deleted);
 
+public sealed record PublicationBulkResult(
+    int Updated,
+    IReadOnlyList<PublicationBulkItem> Items);
+
+public sealed record PublicationBulkItem(
+    long Id,
+    string Culture,
+    string Title,
+    bool Published);
+
 /// <summary>
 /// Detailed information for a blog post.
 /// </summary>
@@ -275,6 +309,25 @@ public record BlogDetail(
     long? SeriesId = null);
 
 public sealed record ForkBlogCultureRequest(string Culture, string Slug);
+
+public sealed record AiTranslateBlogRequest(
+    IReadOnlyList<AiTranslateBlogCultureRequest> Targets,
+    string? ProviderId = null,
+    bool OverwriteExisting = false);
+
+public sealed record AiTranslateBlogCultureRequest(
+    string Culture,
+    string? Slug = null);
+
+public sealed record AiTranslateBlogResult(
+    IReadOnlyList<AiTranslateBlogCultureResult> Results);
+
+public sealed record AiTranslateBlogCultureResult(
+    string Culture,
+    bool Succeeded,
+    BlogDetail? Post,
+    IReadOnlyList<string> Warnings,
+    string? Error);
 
 /// <summary>
 /// Request to create a new blog post.

@@ -134,6 +134,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected string TranslationSlug { get; set; } = string.Empty;
     protected bool IsLoadingTranslations { get; set; }
     protected bool IsCreatingTranslation { get; set; }
+    protected bool IsBulkPublishingTranslations { get; set; }
     protected IReadOnlyList<string> SupportedCultures =>
         CurrentSite?.SupportedCultures is { Count: > 0 } cultures
             ? cultures
@@ -1430,6 +1431,70 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
         if (result is Result<bool, AeroError>.Failure failure)
             ShowToast(L["Delete failed: {0}", failure.Error], "error");
+    }
+
+    protected Task PublishAllTranslationsAsync()
+        => SetAllTranslationsPublicationStateAsync(publish: true);
+
+    protected Task UnpublishAllTranslationsAsync()
+        => SetAllTranslationsPublicationStateAsync(publish: false);
+
+    private async Task SetAllTranslationsPublicationStateAsync(bool publish)
+    {
+        if (LoadedPage is null || IsBulkPublishingTranslations)
+            return;
+
+        var translationGroupId = LoadedPage.TranslationGroupId ?? LoadedPage.Id;
+        var action = publish ? L["publish"] : L["unpublish"];
+        var confirmed = await DialogService.Confirm(
+            L["This will {0} all existing localized versions for '{1}'. Continue?", action, LoadedPage.Title],
+            publish ? L["Publish All Translations"] : L["Unpublish All Translations"],
+            new ConfirmOptions
+            {
+                OkButtonText = publish ? L["Publish All"] : L["Unpublish All"],
+                CancelButtonText = L["Cancel"]
+            });
+
+        if (confirmed != true)
+            return;
+
+        IsBulkPublishingTranslations = true;
+        try
+        {
+            var result = publish
+                ? await PagesClient.PublishTranslationGroupAsync(translationGroupId)
+                : await PagesClient.UnpublishTranslationGroupAsync(translationGroupId);
+
+            if (result is Result<PublicationBulkResult, AeroError>.Ok ok)
+            {
+                var current = ok.Value.Items.FirstOrDefault(x => x.Id == LoadedPage.Id);
+                if (current is not null)
+                {
+                    PublicationState = current.Published
+                        ? ContentPublicationState.Published
+                        : ContentPublicationState.Draft;
+                }
+
+                ShowToast(
+                    publish
+                        ? L["Published {0} translation(s)", ok.Value.Updated]
+                        : L["Unpublished {0} translation(s)", ok.Value.Updated],
+                    "success");
+
+                await LoadPageTranslationsAsync();
+                return;
+            }
+
+            if (result is Result<PublicationBulkResult, AeroError>.Failure failure)
+            {
+                ShowToast(L["{0} all failed: {1}", publish ? L["Publish"] : L["Unpublish"], failure.Error], "error");
+            }
+        }
+        finally
+        {
+            IsBulkPublishingTranslations = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private void ResetTranslationDraft()

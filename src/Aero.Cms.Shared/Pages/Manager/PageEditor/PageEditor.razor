@@ -238,23 +238,37 @@ else if (ActiveTab == "translations")
             </div>
 
             <div class="rounded-md border overflow-hidden" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
-                <div class="px-4 py-3 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-2" style="border-color: var(--pe-border);">
+                <div class="px-4 py-3 border-b flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3" style="border-color: var(--pe-border);">
                     <div>
                         <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Localized Versions"]</h3>
                         <p class="text-xs mt-1" style="color: var(--pe-text-muted);">@L["Open a variant to edit its translated title, slug, metadata, and content."]</p>
                     </div>
-                    @if (AvailableTranslationCultures.Any())
-                    {
-                        <span class="rounded bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
-                            @L["{0} missing", AvailableTranslationCultures.Count()]
-                        </span>
-                    }
-                    else
-                    {
-                        <span class="rounded px-2 py-1 text-xs font-semibold" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">
-                            @L["Complete"]
-                        </span>
-                    }
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button"
+                                class="pe-btn pe-btn-success pe-btn-sm"
+                                disabled="@(IsBulkPublishingTranslations || PageCultureVariants.Count == 0)"
+                                @onclick="PublishAllTranslationsAsync">
+                            @(IsBulkPublishingTranslations ? L["Working..."] : L["Publish All"])
+                        </button>
+                        <button type="button"
+                                class="pe-btn pe-btn-secondary pe-btn-sm"
+                                disabled="@(IsBulkPublishingTranslations || PageCultureVariants.Count == 0)"
+                                @onclick="UnpublishAllTranslationsAsync">
+                            @(IsBulkPublishingTranslations ? L["Working..."] : L["Unpublish All"])
+                        </button>
+                        @if (AvailableTranslationCultures.Any())
+                        {
+                            <span class="rounded bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
+                                @L["{0} missing", AvailableTranslationCultures.Count()]
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="rounded px-2 py-1 text-xs font-semibold" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">
+                                @L["Complete"]
+                            </span>
+                        }
+                    </div>
                 </div>
 
                 @if (IsLoadingTranslations)

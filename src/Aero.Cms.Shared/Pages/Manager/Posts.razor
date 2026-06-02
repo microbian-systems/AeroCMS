@@ -128,7 +128,7 @@
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="BlogTranslationGroupSummary" Title="@L["Actions"]" Width="130px" Sortable="false">
                 <Template Context="post">
-                    <div class="flex gap-1">
+                    <div class="flex gap-1" @onclick:stopPropagation="true">
                         <RadzenButton Icon="translate" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
                                       Click="@(() => TranslatePost(post))" Title="@L["Translate post"]" />
                         <RadzenButton Icon="edit" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Light"
@@ -486,53 +486,53 @@
         }
 
         var source = sourceOk.Value;
-        var markdown = source.Content?.OfType<Aero.Cms.Abstractions.Blocks.Common.MarkdownBlock>().FirstOrDefault()?.Content;
-        var created = 0;
-        var overwritten = 0;
-
-        foreach (var culture in missingCultures)
-        {
-            var result = await BlogApi.ForkToCultureAsync(sourceId, new ForkBlogCultureRequest(culture, source.Slug));
-            if (result is Result<BlogDetail, AeroError>.Ok)
-            {
-                created++;
-            }
-        }
+        var targets = missingCultures
+            .Select(culture => new AiTranslateBlogCultureRequest(culture, BuildDefaultTranslationSlug(source.Slug, culture)))
+            .ToList();
 
         if (decision.OverwriteExisting)
         {
-            foreach (var variant in post.Variants.Where(variant => !variant.IsDefaultCulture))
-            {
-                var existing = await BlogApi.GetByIdAsync(variant.Id);
-                if (existing is not Result<BlogDetail, AeroError>.Ok existingOk)
-                {
-                    continue;
-                }
-
-                var current = existingOk.Value;
-                var request = new UpdateBlogRequest
-                {
-                    Id = current.Id,
-                    Title = source.Title,
-                    Slug = current.Slug,
-                    Summary = source.Excerpt,
-                    SeoTitle = source.SeoTitle,
-                    SeoDescription = source.SeoDescription,
-                    MarkdownContent = markdown,
-                    ImageUrl = source.ImageUrl,
-                    PublicationState = current.PublicationState
-                };
-
-                var updated = await BlogApi.UpdateAsync(current.Id, request);
-                if (updated is Result<BlogDetail, AeroError>.Ok)
-                {
-                    overwritten++;
-                }
-            }
+            targets.AddRange(post.Variants
+                .Where(variant => !variant.IsDefaultCulture)
+                .Select(variant => new AiTranslateBlogCultureRequest(variant.Culture, variant.Slug)));
         }
 
-        NotificationService.Notify(NotificationSeverity.Success, "Translate complete", $"{created} created, {overwritten} overwritten.");
+        if (targets.Count == 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Info, "Translate skipped", "All supported cultures already exist. Enable overwrite to refresh existing translations.");
+            return;
+        }
+
+        var translated = await BlogApi.TranslateWithAiAsync(
+            sourceId,
+            new AiTranslateBlogRequest(targets, ProviderId: null, decision.OverwriteExisting));
+
+        if (translated is Result<AiTranslateBlogResult, AeroError>.Failure failure)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Translate failed", failure.Error.ToString());
+            return;
+        }
+
+        var resultValue = ((Result<AiTranslateBlogResult, AeroError>.Ok)translated).Value;
+        var succeeded = resultValue.Results.Count(x => x.Succeeded);
+        var failed = resultValue.Results.Count - succeeded;
+
+        NotificationService.Notify(
+            failed > 0 ? NotificationSeverity.Warning : NotificationSeverity.Success,
+            "Translate complete",
+            failed > 0
+                ? $"{succeeded} translated, {failed} failed."
+                : $"{succeeded} localized version(s) translated.");
+
         await (grid?.Reload() ?? Task.CompletedTask);
+    }
+
+    static string BuildDefaultTranslationSlug(string slug, string culture)
+    {
+        var normalized = slug.Trim().Trim('/').ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(normalized)
+            ? culture.ToLowerInvariant()
+            : $"{normalized}-{culture.ToLowerInvariant()}";
     }
 
     IReadOnlyList<string> GetMissingCultures(BlogTranslationGroupSummary post)

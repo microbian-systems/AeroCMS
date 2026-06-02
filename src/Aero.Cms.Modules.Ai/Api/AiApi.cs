@@ -24,6 +24,9 @@ public static class AiApi
         group.MapPost("/content/enhance", EnhanceContent)
             .WithName("EnhanceContent");
 
+        group.MapPost("/content/translate", TranslateContent)
+            .WithName("TranslateContent");
+
         group.MapGet("/settings", GetSettings)
             .WithName("GetAiSettings");
 
@@ -32,6 +35,32 @@ public static class AiApi
 
         group.MapGet("/providers/options", GetProviderOptions)
             .WithName("GetAiProviderOptions");
+    }
+
+    private static async Task<IResult> TranslateContent(
+        [FromBody] TranslateDocumentRequest request,
+        [FromServices] IValidator<TranslateDocumentRequest> validator,
+        [FromServices] IAiContentTranslationService service,
+        [FromServices] ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var logger = loggerFactory.CreateLogger(typeof(AiApi));
+        var validation = await validator.ValidateAsync(request, cancellationToken);
+        if (!validation.IsValid)
+        {
+            return Results.ValidationProblem(validation.ToDictionary());
+        }
+
+        var started = TimeProvider.System.GetTimestamp();
+        var result = await service.TranslateAsync(request, cancellationToken);
+        var elapsed = TimeProvider.System.GetElapsedTime(started);
+
+        return result switch
+        {
+            Result<TranslateDocumentResponse>.Ok ok => LogTranslationSuccessAndReturn(logger, ok.Value, elapsed),
+            Result<TranslateDocumentResponse>.Failure failure => LogFailureAndReturn(logger, failure.Error, elapsed),
+            _ => Results.Problem("Unexpected AI translation result.")
+        };
     }
 
     private static async Task<IResult> GetSettings(
@@ -45,6 +74,21 @@ public static class AiApi
             Result<AiSettingsConfiguration, AeroError>.Failure failure => ToProblem(failure.Error),
             _ => Results.Problem("Unexpected AI settings result.")
         };
+    }
+
+    private static IResult LogTranslationSuccessAndReturn(
+        ILogger logger,
+        TranslateDocumentResponse response,
+        TimeSpan elapsed)
+    {
+        logger.LogInformation(
+            "AI translation completed. Provider={Provider} Model={Model} ElapsedMs={ElapsedMs} FieldCount={FieldCount}",
+            response.Provider,
+            response.Model,
+            elapsed.TotalMilliseconds,
+            response.TranslatedFields.Count);
+
+        return TypedResults.Ok(response);
     }
 
     private static async Task<IResult> SaveSettings(

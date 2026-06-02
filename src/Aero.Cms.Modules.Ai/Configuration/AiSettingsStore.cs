@@ -17,6 +17,8 @@ public sealed class AiSettingsStore(
     IAiSecretProtector secretProtector,
     ILogger<AiSettingsStore> logger) : IAiSettingsStore
 {
+    private readonly SemaphoreSlim _gate = new(1, 1);
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = false
@@ -25,9 +27,23 @@ public sealed class AiSettingsStore(
     public async Task<Result<AiSettingsConfiguration, AeroError>> GetConfigurationAsync(
         CancellationToken cancellationToken = default)
     {
+        await _gate.WaitAsync(cancellationToken);
         try
         {
-            await EnsureDefaultsAsync(cancellationToken);
+            return await GetConfigurationCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task<Result<AiSettingsConfiguration, AeroError>> GetConfigurationCoreAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await EnsureDefaultsCoreAsync(cancellationToken);
             var enabled = await GetBoolSettingAsync(AiSettingKeys.Enabled, false, cancellationToken);
             var defaultProviderId = await GetStringSettingAsync(
                 AiSettingKeys.DefaultProviderId,
@@ -56,9 +72,24 @@ public sealed class AiSettingsStore(
         SaveAiSettingsRequest request,
         CancellationToken cancellationToken = default)
     {
+        await _gate.WaitAsync(cancellationToken);
         try
         {
-            await EnsureDefaultsAsync(cancellationToken);
+            return await SaveConfigurationCoreAsync(request, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task<Result<AiSettingsConfiguration, AeroError>> SaveConfigurationCoreAsync(
+        SaveAiSettingsRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await EnsureDefaultsCoreAsync(cancellationToken);
 
             var existing = (await LoadProfilesAsync(cancellationToken))
                 .ToDictionary(profile => profile.Id, StringComparer.OrdinalIgnoreCase);
@@ -119,7 +150,7 @@ public sealed class AiSettingsStore(
             StoreSetting(AiSettingKeys.ProviderIds, JsonSerializer.Serialize(updatedProfiles.Select(x => x.Id), JsonOptions), "json");
 
             await session.SaveChangesAsync(cancellationToken);
-            return await GetConfigurationAsync(cancellationToken);
+            return await GetConfigurationCoreAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -131,7 +162,21 @@ public sealed class AiSettingsStore(
     public async Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProviderOptionsAsync(
         CancellationToken cancellationToken = default)
     {
-        var configResult = await GetConfigurationAsync(cancellationToken);
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            return await GetProviderOptionsCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProviderOptionsCoreAsync(
+        CancellationToken cancellationToken)
+    {
+        var configResult = await GetConfigurationCoreAsync(cancellationToken);
         if (configResult is Result<AiSettingsConfiguration, AeroError>.Failure failure)
         {
             return failure.Error;
@@ -155,9 +200,24 @@ public sealed class AiSettingsStore(
         string? providerId = null,
         CancellationToken cancellationToken = default)
     {
+        await _gate.WaitAsync(cancellationToken);
         try
         {
-            var configResult = await GetConfigurationAsync(cancellationToken);
+            return await GetRuntimeSettingsCoreAsync(providerId, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task<Result<AiRuntimeSettings>> GetRuntimeSettingsCoreAsync(
+        string? providerId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var configResult = await GetConfigurationCoreAsync(cancellationToken);
             if (configResult is Result<AiSettingsConfiguration, AeroError>.Failure failure)
             {
                 return failure.Error;
@@ -228,6 +288,19 @@ public sealed class AiSettingsStore(
 
     public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = default)
     {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await EnsureDefaultsCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task EnsureDefaultsCoreAsync(CancellationToken cancellationToken)
+    {
         var defaultProfiles = DefaultAiProviderProfiles.Create(configuration);
         var providerIdsSetting = await session.LoadAsync<Setting>(AiSettingKeys.ProviderIds, cancellationToken);
         var providerIds = providerIdsSetting is null
@@ -265,7 +338,11 @@ public sealed class AiSettingsStore(
             StoreSetting(AiSettingKeys.DefaultProviderId, DefaultAiProviderProfiles.GetDefaultProviderId(configuration), "string");
         }
 
-        StoreSetting(AiSettingKeys.ProviderIds, JsonSerializer.Serialize(providerIds.Distinct(StringComparer.OrdinalIgnoreCase), JsonOptions), "json");
+        var providerIdsSnapshot = providerIds
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        StoreSetting(AiSettingKeys.ProviderIds, JsonSerializer.Serialize(providerIdsSnapshot, JsonOptions), "json");
         await session.SaveChangesAsync(cancellationToken);
     }
 

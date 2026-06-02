@@ -1,7 +1,7 @@
 <div class="p-6 rounded" style="background: var(--pe-bg-secondary);">
     <div class="mb-6">
-        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">Create Localized Versions</h3>
-        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">Create missing localized drafts from the default culture content.</p>
+        <h3 class="text-lg font-bold" style="color: var(--pe-text-primary);">AI Translate Localized Versions</h3>
+        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">Translate missing localized drafts from the default culture content.</p>
     </div>
 
     <div class="space-y-5">
@@ -29,7 +29,7 @@
                 <RadzenCheckBox TValue="bool" @bind-Value="_overwriteExisting" />
                 <span>
                     <span class="block font-semibold">Overwrite existing localized content</span>
-                    <span class="block text-xs" style="color: var(--pe-text-muted);">Existing culture variants keep their slugs, but their editable content is replaced from the default culture source.</span>
+                    <span class="block text-xs" style="color: var(--pe-text-muted);">Existing culture variants keep their slugs, but their editable content is refreshed through AI translation.</span>
                 </span>
             </label>
         }
@@ -49,4 +49,3 @@
                       Click="@Submit" />
     </div>
 </div>
-

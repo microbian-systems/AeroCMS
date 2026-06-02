@@ -60,6 +60,12 @@ public static class PagesApi
 
         group.MapDelete("/translation-groups/{translationGroupId:long}", DeleteTranslationGroup)
             .WithName("DeletePageTranslationGroup");
+
+        group.MapPut("/translation-groups/{translationGroupId:long}/publish", PublishTranslationGroup)
+            .WithName("PublishPageTranslationGroup");
+
+        group.MapPut("/translation-groups/{translationGroupId:long}/unpublish", UnpublishTranslationGroup)
+            .WithName("UnpublishPageTranslationGroup");
         
         group.MapDelete("/{id:long}/cascade", DeletePageCascade)
             .WithName("DeletePageCascade");
@@ -328,6 +334,30 @@ public static class PagesApi
         };
     }
 
+    private static Task<IResult> PublishTranslationGroup(
+        long translationGroupId,
+        [FromServices] IPageContentService pageService,
+        CancellationToken ct)
+    {
+        return SetPageTranslationGroupPublicationStateAsync(
+            translationGroupId,
+            ContentPublicationState.Published,
+            pageService,
+            ct);
+    }
+
+    private static Task<IResult> UnpublishTranslationGroup(
+        long translationGroupId,
+        [FromServices] IPageContentService pageService,
+        CancellationToken ct)
+    {
+        return SetPageTranslationGroupPublicationStateAsync(
+            translationGroupId,
+            ContentPublicationState.Draft,
+            pageService,
+            ct);
+    }
+
     private static async Task<IResult> DeletePageCascade(
         long id,
         [FromServices] IAeroPageActor pagesActor,
@@ -388,6 +418,69 @@ public static class PagesApi
             logger.LogError(ex, "Error unpublishing page {Id}", id);
             return TypedResults.Problem(ex.Message);
         }
+    }
+
+    private static async Task<IResult> SetPageTranslationGroupPublicationStateAsync(
+        long translationGroupId,
+        ContentPublicationState state,
+        IPageContentService pageService,
+        CancellationToken ct)
+    {
+        var variantsResult = await pageService.ListCultureVariantsAsync(translationGroupId, ct);
+        if (variantsResult is Result<IReadOnlyList<PageDocument>, AeroError>.Failure variantsFailure)
+        {
+            return TypedResults.BadRequest(new ProblemDetails
+            {
+                Title = "Failed to load page translations",
+                Detail = variantsFailure.Error.ToString(),
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        var variants = variantsResult is Result<IReadOnlyList<PageDocument>, AeroError>.Ok ok
+            ? ok.Value
+            : [];
+
+        if (variants.Count == 0)
+        {
+            return TypedResults.NotFound(new ProblemDetails
+            {
+                Title = "No page translations found",
+                Detail = $"No translated pages were found for translation group '{translationGroupId}'.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+
+        var items = new List<PublicationBulkItem>();
+        foreach (var page in variants)
+        {
+            page.PublicationState = state;
+            page.PublishedOn = state == ContentPublicationState.Published
+                ? page.PublishedOn ?? DateTimeOffset.UtcNow
+                : null;
+
+            var saveResult = await pageService.SaveAsync(page, ct);
+            if (saveResult is Result<PageDocument, AeroError>.Failure saveFailure)
+            {
+                return TypedResults.BadRequest(new ProblemDetails
+                {
+                    Title = "Failed to update page publication state",
+                    Detail = saveFailure.Error.ToString(),
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+
+            if (saveResult is Result<PageDocument, AeroError>.Ok saveOk)
+            {
+                items.Add(new PublicationBulkItem(
+                    saveOk.Value.Id,
+                    saveOk.Value.Culture,
+                    saveOk.Value.Title,
+                    saveOk.Value.PublicationState == ContentPublicationState.Published));
+            }
+        }
+
+        return TypedResults.Ok(new PublicationBulkResult(items.Count, items));
     }
 
     // ── Draft handlers (lightweight, stay on session) ─────────────────
