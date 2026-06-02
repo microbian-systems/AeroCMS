@@ -23,6 +23,15 @@ public sealed class MartenContentService(IDocumentSession session) : IContentSer
             : Prelude.Ok<ContentItem, AeroError>(item);
     }
 
+    public async Task<Result<ContentItem, AeroError>> GetBySlugAndTypeAsync(long siteId, string contentTypeAlias, string slug, CancellationToken ct = default)
+    {
+        var item = await session.Query<ContentItem>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.ContentTypeAlias == contentTypeAlias && x.Slug == slug, ct);
+        return item is null
+            ? Prelude.Fail<ContentItem, AeroError>(AeroError.CreateError($"Content item with slug '{slug}' not found in type '{contentTypeAlias}'."))
+            : Prelude.Ok<ContentItem, AeroError>(item);
+    }
+
     public async Task<Result<ContentItem, AeroError>> SaveAsync(ContentItem item, CancellationToken ct = default)
     {
         session.Store(item);

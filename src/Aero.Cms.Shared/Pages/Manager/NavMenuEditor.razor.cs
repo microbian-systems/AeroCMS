@@ -553,14 +553,14 @@ public partial class NavMenuEditor
 
     private void RemoveRow(NavCanvasRowEditorModel row)
     {
-        _rows = _rows.Where(x => !ReferenceEquals(x, row)).ToList();
+        _rows = _rows.Where(x => x.ClientId != row.ClientId).ToList();
         NormalizeRowOrders();
     }
 
     private void MoveRow(NavCanvasRowEditorModel row, int direction)
     {
         var ordered = _rows.OrderBy(x => x.Order).ToList();
-        var index = ordered.FindIndex(x => ReferenceEquals(x, row));
+        var index = ordered.FindIndex(x => x.ClientId == row.ClientId);
         var target = index + direction;
         if (index < 0 || target < 0 || target >= ordered.Count)
         {
@@ -575,7 +575,7 @@ public partial class NavMenuEditor
     private void DuplicateRow(NavCanvasRowEditorModel row)
     {
         var ordered = _rows.OrderBy(x => x.Order).ToList();
-        var index = ordered.FindIndex(x => ReferenceEquals(x, row));
+        var index = ordered.FindIndex(x => x.ClientId == row.ClientId);
         if (index < 0)
         {
             return;
@@ -609,7 +609,7 @@ public partial class NavMenuEditor
 
     private void RemoveColumn(NavCanvasRowEditorModel row, NavCanvasColumnEditorModel column)
     {
-        row.Columns = row.Columns.Where(x => !ReferenceEquals(x, column)).ToList();
+        row.Columns = row.Columns.Where(x => x.ClientId != column.ClientId).ToList();
         if (row.Columns.Count == 0)
         {
             AddColumn(row);
@@ -626,7 +626,7 @@ public partial class NavMenuEditor
 
     private void RemoveBlockFromColumn(NavCanvasColumnEditorModel column, NavComponentEditorModel block)
     {
-        column.Blocks = column.Blocks.Where(x => !ReferenceEquals(x, block)).ToList();
+        column.Blocks = column.Blocks.Where(x => x.ClientId != block.ClientId).ToList();
         if (SelectedBlockId == block.ClientId)
         {
             SelectedBlockId = string.Empty;

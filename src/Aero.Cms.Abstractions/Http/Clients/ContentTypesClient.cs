@@ -61,6 +61,8 @@ public interface IContentItemsHttpClient
     Task<Result<bool, AeroError>> DeleteAsync(string alias, long id, CancellationToken ct = default);
     Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default);
     Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslationsAsync(string alias, long id, CancellationToken ct = default);
+    Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -94,6 +96,12 @@ public class ContentItemsHttpClient(HttpClient httpClient, ILogger<ContentItemsH
 
     public Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default)
         => PostAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/unpublish", new object(), ct);
+
+    public Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslationsAsync(string alias, long id, CancellationToken ct = default)
+        => GetAsync<IReadOnlyList<ContentItemDetail>>($"{Uri.EscapeDataString(alias)}/{id}/translations", ct);
+
+    public Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default)
+        => PostAsync<ForkContentItemCultureRequest, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/translations", request, ct);
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
     {
@@ -162,7 +170,10 @@ public record ContentItemSummary(
     string? FirstFieldValue,
     string PublicationState,
     DateTimeOffset? PublishedOn,
-    int VersionNumber);
+    int VersionNumber,
+    string Culture,
+    long? TranslationGroupId,
+    long? SourceItemId);
 
 /// <summary>Detailed information for a content item.</summary>
 public record ContentItemDetail(
@@ -175,7 +186,10 @@ public record ContentItemDetail(
     DateTimeOffset? PublishedOn,
     int VersionNumber,
     DateTimeOffset? SchedulePublishUtc,
-    DateTimeOffset? ScheduleUnpublishUtc);
+    DateTimeOffset? ScheduleUnpublishUtc,
+    string Culture,
+    long? TranslationGroupId,
+    long? SourceItemId);
 
 /// <summary>Request to create or update a content item.</summary>
 public record CreateContentItemRequest(
@@ -184,3 +198,5 @@ public record CreateContentItemRequest(
     IReadOnlyDictionary<string, object?> Fields,
     DateTimeOffset? SchedulePublishUtc,
     DateTimeOffset? ScheduleUnpublishUtc);
+
+public record ForkContentItemCultureRequest(string Culture, string Slug);

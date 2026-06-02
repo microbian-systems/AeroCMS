@@ -13,15 +13,25 @@ public sealed class MartenContentQueryService(IDocumentSession session) : IConte
     {
         var query = session.Query<ContentItem>().Where(x => x.SiteId == siteId && x.ContentTypeAlias == alias);
         var total = await query.CountAsync(ct);
-        var items = await query.Skip(skip).Take(take).OrderByDescending(x => x.PublishedOn ?? DateTimeOffset.MinValue).ToListAsync(ct);
+        var items = await query.OrderByDescending(x => x.PublishedOn).Skip(skip).Take(take).ToListAsync(ct);
         return Prelude.Ok<(IReadOnlyList<ContentItem> Items, long TotalCount), AeroError>((items, total));
+    }
+
+    public async Task<Result<long, AeroError>> CountByTypeAsync(
+        long siteId, string alias, CancellationToken ct = default)
+    {
+        var count = await session.Query<ContentItem>()
+            .Where(x => x.SiteId == siteId && x.ContentTypeAlias == alias)
+            .CountAsync(ct);
+
+        return Prelude.Ok<long, AeroError>(count);
     }
 
     public async Task<Result<IReadOnlyList<ContentItem>, AeroError>> SearchAsync(
         long siteId, string alias, Dictionary<string, string> filters, CancellationToken ct)
     {
         var query = session.Query<ContentItem>().Where(x => x.SiteId == siteId && x.ContentTypeAlias == alias);
-        var items = await query.OrderByDescending(x => x.PublishedOn ?? DateTimeOffset.MinValue).ToListAsync(ct);
+        var items = await query.OrderByDescending(x => x.PublishedOn).ToListAsync(ct);
         if (filters.TryGetValue("__search", out var search) && !string.IsNullOrWhiteSpace(search))
         {
             items = items
@@ -33,6 +43,20 @@ public sealed class MartenContentQueryService(IDocumentSession session) : IConte
         }
 
         return Prelude.Ok<IReadOnlyList<ContentItem>, AeroError>((IReadOnlyList<ContentItem>)items);
+    }
+
+    public async Task<Result<IReadOnlyList<ContentItem>, AeroError>> ListCultureVariantsAsync(
+        long siteId, string alias, long translationGroupId, CancellationToken ct = default)
+    {
+        var items = await session.Query<ContentItem>()
+            .Where(x =>
+                x.SiteId == siteId &&
+                x.ContentTypeAlias == alias &&
+                (x.TranslationGroupId == translationGroupId || x.Id == translationGroupId))
+            .OrderBy(x => x.Culture)
+            .ToListAsync(ct);
+
+        return Prelude.Ok<IReadOnlyList<ContentItem>, AeroError>(items);
     }
 
     private static bool Contains(string? value, string search)

@@ -9,7 +9,7 @@
 
 <style>
     .aero-nav-canvas-column {
-        grid-column: span 12 / span 12;
+        grid-column: span var(--aero-mobile-span) / span var(--aero-mobile-span);
     }
 
     @@media (min-width: 768px) {
@@ -149,5 +149,5 @@
             : Model.Left.Concat(Model.Center).Concat(Model.Right);
 
     private static string ColumnStyle(Aero.Cms.Modules.Navigation.Domain.NavCanvasColumn column)
-        => $"--aero-tablet-span:{Math.Clamp(column.TabletSpan, 1, 12)};--aero-desktop-span:{Math.Clamp(column.DesktopSpan, 1, 12)};";
+        => $"--aero-mobile-span:{Math.Clamp(column.MobileSpan, 1, 12)};--aero-tablet-span:{Math.Clamp(column.TabletSpan, 1, 12)};--aero-desktop-span:{Math.Clamp(column.DesktopSpan, 1, 12)};";
 }

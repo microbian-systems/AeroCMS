@@ -17,6 +17,10 @@
                            Value="@_searchText"
                            ValueChanged="@OnSearchChanged"
                            class="w-64" />
+            <RadzenButton Icon="refresh"
+                          ButtonStyle="ButtonStyle.Secondary"
+                          Click="@(async () => await RefreshAsync())"
+                          title="@L["Refresh"]" />
             <RadzenButton Icon="add"
                           Text="@L["New Content Type"]"
                           ButtonStyle="ButtonStyle.Primary"

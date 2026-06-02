@@ -9,6 +9,9 @@ public sealed class ContentItem : Entity
     public string ContentTypeAlias { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public string? Title { get; set; }
+    public long? TranslationGroupId { get; set; }
+    public string Culture { get; set; } = string.Empty;
+    public long? SourceItemId { get; set; }
 
     /// <summary>
     /// Field values stored as JsonElement for AOT-safe serialization.

@@ -27,6 +27,12 @@ public sealed record ContentItemViewModel : AeroEntityViewModel
     public DateTimeOffset? SchedulePublishUtc { get; set; }
     [Id(8)]
     public DateTimeOffset? ScheduleUnpublishUtc { get; set; }
+    [Id(9)]
+    public long? TranslationGroupId { get; set; }
+    [Id(10)]
+    public string Culture { get; set; } = string.Empty;
+    [Id(11)]
+    public long? SourceItemId { get; set; }
 }
 
 [GenerateSerializer]

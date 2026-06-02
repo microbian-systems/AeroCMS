@@ -46,7 +46,7 @@ public sealed record SecureScribanTemplateOptions
 
     public TimeSpan RegexTimeout { get; init; } = TimeSpan.FromSeconds(2);
 
-    public TimeSpan RenderTimeout { get; init; } = TimeSpan.FromSeconds(3);
+    public TimeSpan RenderTimeout { get; init; } = TimeSpan.FromSeconds(30);
 
     public int MaxInputDepth { get; init; } = 10;
 

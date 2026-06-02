@@ -11,6 +11,7 @@ namespace Aero.Cms.Modules.Navigation.Rendering;
 public enum NavMenuRenderMode
 {
     Desktop,
+    Tablet,
     Mobile
 }
 
@@ -48,6 +49,8 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
 
     private sealed class HtmlVisitor(NavMenuRenderMode mode, HttpContext? httpContext) : INavMenuComponentVisitor<IHtmlContent>
     {
+        private bool IsMobile => mode == NavMenuRenderMode.Mobile;
+
         public IHtmlContent Visit(NavLink link)
         {
             if (!ShouldRender(link.Visibility))
@@ -55,7 +58,7 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
                 return HtmlString.Empty;
             }
 
-            var css = mode == NavMenuRenderMode.Mobile
+            var css = IsMobile
                 ? "block px-4 py-4 rounded-2xl text-lg font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200"
                 : "px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 transition-all duration-200";
             var targetValue = string.IsNullOrWhiteSpace(link.Target)
@@ -76,11 +79,11 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
             }
 
             var builder = new StringBuilder();
-            var wrapperClass = mode == NavMenuRenderMode.Mobile ? "space-y-2" : "relative group";
-            var labelClass = mode == NavMenuRenderMode.Mobile
+            var wrapperClass = IsMobile ? "space-y-2" : "relative group";
+            var labelClass = IsMobile
                 ? "block px-4 py-4 rounded-2xl text-lg font-bold text-slate-700"
                 : "px-4 py-2 rounded-lg text-sm font-semibold text-slate-600";
-            var childWrapperClass = mode == NavMenuRenderMode.Mobile
+            var childWrapperClass = IsMobile
                 ? "ml-4 border-l border-slate-200 pl-2 space-y-2"
                 : "absolute left-0 top-full hidden min-w-48 rounded-lg border border-slate-200 bg-white p-2 shadow-xl group-hover:block";
 
@@ -103,13 +106,13 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
                 return HtmlString.Empty;
             }
 
-            var inputCss = mode == NavMenuRenderMode.Mobile
+            var inputCss = IsMobile
                 ? "block w-full rounded-xl border border-slate-200 px-4 py-3 text-base"
                 : "rounded-lg border border-slate-200 px-3 py-2 text-sm";
-            var formCss = mode == NavMenuRenderMode.Mobile
+            var formCss = IsMobile
                 ? "flex w-full items-center gap-2 px-4 py-2"
                 : "flex items-center gap-2";
-            var buttonCss = mode == NavMenuRenderMode.Mobile
+            var buttonCss = IsMobile
                 ? "rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white"
                 : "rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
 
@@ -128,21 +131,21 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
             }
 
             var currentCulture = CultureInfo.CurrentUICulture.Name;
-            var dropdownCss = mode == NavMenuRenderMode.Mobile
+            var dropdownCss = IsMobile
                 ? "mt-2 space-y-1 rounded-xl border border-slate-200 bg-white p-2"
                 : "absolute right-0 top-full z-50 mt-2 hidden min-w-40 rounded-lg border border-slate-200 bg-white p-2 shadow-xl group-open:block";
-            var triggerCss = mode == NavMenuRenderMode.Mobile
+            var triggerCss = IsMobile
                 ? "flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-lg font-bold text-slate-700"
                 : "flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg text-slate-600 hover:bg-slate-50 hover:text-indigo-600";
 
             var options = BuildCultureOptions(currentCulture, httpContext);
             var builder = new StringBuilder();
-            builder.Append(mode == NavMenuRenderMode.Mobile
+            builder.Append(IsMobile
                 ? "<details class=\"px-0\">"
                 : "<details class=\"relative group\">");
             builder.Append(CultureInfo.InvariantCulture, $"<summary class=\"{triggerCss}\" aria-label=\"{Encode(language.Label)}\">");
             builder.Append(GlobeSvg);
-            if (mode == NavMenuRenderMode.Mobile)
+            if (IsMobile)
             {
                 builder.Append(CultureInfo.InvariantCulture, $"<span>{Encode(language.Label)}</span>");
             }
@@ -167,10 +170,10 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
 
             var primary = authButton.ButtonStyle.Equals("Primary", StringComparison.OrdinalIgnoreCase);
             var css = primary
-                ? mode == NavMenuRenderMode.Mobile
+                ? IsMobile
                     ? "block rounded-2xl bg-indigo-600 px-4 py-4 text-center text-lg font-bold text-white"
                     : "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-                : mode == NavMenuRenderMode.Mobile
+                : IsMobile
                     ? "block rounded-2xl px-4 py-4 text-center text-lg font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600"
                     : "rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-indigo-600";
 

@@ -8,6 +8,7 @@ using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
 using Radzen;
+using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 
@@ -16,6 +17,8 @@ public partial class ContentTypeEditor
     [Parameter] public string? Alias { get; set; }
 
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
+    [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
+    [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
@@ -44,6 +47,11 @@ public partial class ContentTypeEditor
     private bool _aliasLocked;
     private bool _useCustomTemplate;
     private int? _selectedFieldIndex;
+    private RadzenDataGrid<ContentItemSummary>? _entriesGrid;
+    private IEnumerable<ContentItemSummary> _entries = [];
+    private int _entriesCount;
+    private bool _entriesLoading;
+    private string _entriesSearchText = string.Empty;
 
     private string Name { get; set; } = string.Empty;
     private string AliasValue { get; set; } = string.Empty;
@@ -56,6 +64,10 @@ public partial class ContentTypeEditor
     private List<ContentFieldDefinition> Fields { get; set; } = [];
 
     private string DisplayTypeName => string.IsNullOrWhiteSpace(Name) ? "content" : Name.ToLowerInvariant();
+
+    private string EntriesDescription => AllowPublicUrl
+        ? L["Managing {0} {1} entries with optional public pages.", _entriesCount, DisplayTypeName]
+        : L["Managing {0} {1} entries for embedding in pages and blocks.", _entriesCount, DisplayTypeName];
 
     private ContentFieldDefinition? SelectedField =>
         _selectedFieldIndex is int index && index >= 0 && index < Fields.Count
@@ -321,6 +333,139 @@ public partial class ContentTypeEditor
     private void Cancel()
         => Navigation.NavigateTo("/manager/content-types");
 
+    private async Task SwitchToEntriesTab()
+    {
+        _activeTab = EditorTab.Entries;
+        if (_entriesGrid is not null)
+        {
+            await _entriesGrid.Reload();
+        }
+    }
+
+    private async Task LoadEntriesAsync(LoadDataArgs args)
+    {
+        if (string.IsNullOrWhiteSpace(AliasValue))
+        {
+            _entries = [];
+            _entriesCount = 0;
+            return;
+        }
+
+        _entriesLoading = true;
+        try
+        {
+            var result = await ContentItemsApi.GetAllAsync(AliasValue, args.Skip ?? 0, args.Top ?? 10, _entriesSearchText);
+            if (result is Result<PagedResult<ContentItemSummary>, AeroError>.Ok ok)
+            {
+                _entries = ok.Value.Items;
+                _entriesCount = (int)ok.Value.TotalCount;
+                return;
+            }
+
+            if (result is Result<PagedResult<ContentItemSummary>, AeroError>.Failure failure)
+            {
+                Notify(NotificationSeverity.Error, "Entries failed to load", failure.Error.ToString());
+            }
+
+            _entries = [];
+            _entriesCount = 0;
+        }
+        finally
+        {
+            _entriesLoading = false;
+        }
+    }
+
+    private async Task OnEntriesSearchChanged(string value)
+    {
+        _entriesSearchText = value;
+        if (_entriesGrid is not null)
+        {
+            await _entriesGrid.FirstPage();
+        }
+    }
+
+    private void CreateEntry()
+        => Navigation.NavigateTo($"/manager/content/{AliasValue}/editor");
+
+    private void EditEntry(long id)
+        => Navigation.NavigateTo($"/manager/content/{AliasValue}/editor/{id}");
+
+    private void OnEntryRowClick(DataGridRowMouseEventArgs<ContentItemSummary> args)
+    {
+        if (args.Data is not null)
+        {
+            EditEntry(args.Data.Id);
+        }
+    }
+
+    private async Task DeleteEntryAsync(long id)
+    {
+        var confirmed = await DialogService.Confirm(
+            "Delete this entry? This cannot be undone.",
+            "Delete Entry",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirmed != true) return;
+
+        var result = await ContentItemsApi.DeleteAsync(AliasValue, id);
+        if (result is Result<bool, AeroError>.Failure failure)
+        {
+            Notify(NotificationSeverity.Error, "Delete failed", failure.Error.ToString());
+            return;
+        }
+
+        Notify(NotificationSeverity.Success, "Deleted", "Entry removed.");
+        if (_entriesGrid is not null)
+        {
+            await _entriesGrid.Reload();
+        }
+    }
+
+    private async Task PublishEntryAsync(long id)
+    {
+        var result = await ContentItemsApi.PublishAsync(AliasValue, id);
+        if (result is Result<ContentItemDetail, AeroError>.Failure failure)
+        {
+            Notify(NotificationSeverity.Error, "Publish failed", failure.Error.ToString());
+            return;
+        }
+
+        Notify(NotificationSeverity.Success, "Published", "Entry is live.");
+        if (_entriesGrid is not null)
+        {
+            await _entriesGrid.Reload();
+        }
+    }
+
+    private async Task UnpublishEntryAsync(long id)
+    {
+        var result = await ContentItemsApi.UnpublishAsync(AliasValue, id);
+        if (result is Result<ContentItemDetail, AeroError>.Failure failure)
+        {
+            Notify(NotificationSeverity.Error, "Unpublish failed", failure.Error.ToString());
+            return;
+        }
+
+        Notify(NotificationSeverity.Success, "Unpublished", "Entry returned to draft.");
+        if (_entriesGrid is not null)
+        {
+            await _entriesGrid.Reload();
+        }
+    }
+
+    private static string FormatEntryDate(DateTimeOffset? value)
+        => value?.ToLocalTime().ToString("MMM d, yyyy") ?? "-";
+
+    private static string FormatEntryCulture(string? culture)
+        => string.IsNullOrWhiteSpace(culture) ? "Default" : culture.Trim();
+
+    private static string FormatFirstField(string value)
+    {
+        var trimmed = value.Trim('"');
+        return trimmed.Length <= 96 ? trimmed : $"{trimmed[..96]}...";
+    }
+
     private string CreateUniqueFieldName(string baseName, ContentFieldDefinition? current = null)
     {
         var normalized = string.IsNullOrWhiteSpace(baseName) ? "new-field" : GenerateHandle(baseName);
@@ -367,7 +512,8 @@ public partial class ContentTypeEditor
     {
         Basics,
         Fields,
-        Display
+        Display,
+        Entries
     }
 
     private sealed record DropDownItem(string Text, string Value);

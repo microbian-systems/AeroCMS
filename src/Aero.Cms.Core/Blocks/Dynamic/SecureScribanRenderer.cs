@@ -3,6 +3,7 @@ using System.Text.Json;
 using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Core.Security;
+using Microsoft.Extensions.Logging;
 using Scriban;
 using Scriban.Syntax;
 

@@ -30,7 +30,7 @@ public sealed class FooterHtmlRenderer : IFooterHtmlRenderer
 
         if (snapshot.Rows.Count > 0)
         {
-            builder.Append("<style>.aero-footer-canvas-column{grid-column:span 12/span 12}@media (min-width:768px){.aero-footer-canvas-column{grid-column:span var(--aero-tablet-span)/span var(--aero-tablet-span)}}@media (min-width:1024px){.aero-footer-canvas-column{grid-column:span var(--aero-desktop-span)/span var(--aero-desktop-span)}}</style>");
+            builder.Append("<style>.aero-footer-canvas-column{grid-column:span var(--aero-mobile-span)/span var(--aero-mobile-span)}@media (min-width:768px){.aero-footer-canvas-column{grid-column:span var(--aero-tablet-span)/span var(--aero-tablet-span)}}@media (min-width:1024px){.aero-footer-canvas-column{grid-column:span var(--aero-desktop-span)/span var(--aero-desktop-span)}}</style>");
         }
 
         builder.Append("<div class=\"relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8\">");
@@ -233,5 +233,5 @@ public sealed class FooterHtmlRenderer : IFooterHtmlRenderer
         => HtmlEncoder.Default.Encode(value ?? string.Empty);
 
     private static string ColumnStyle(FooterCanvasColumn column)
-        => $"--aero-tablet-span:{Math.Clamp(column.TabletSpan, 1, 12)};--aero-desktop-span:{Math.Clamp(column.DesktopSpan, 1, 12)};";
+        => $"--aero-mobile-span:{Math.Clamp(column.MobileSpan, 1, 12)};--aero-tablet-span:{Math.Clamp(column.TabletSpan, 1, 12)};--aero-desktop-span:{Math.Clamp(column.DesktopSpan, 1, 12)};";
 }

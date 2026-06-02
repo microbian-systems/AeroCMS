@@ -2,6 +2,9 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Core.Content.Services;
+using Aero.Core;
+using Aero.Core.Railway;
 using Aero.Core.Http;
 
 namespace Aero.Cms.Modules.Content.Areas.Api.v1;
@@ -27,6 +30,7 @@ public static class ContentTypesApi
 
     private static async Task<IResult> ListContentTypes(
         [FromServices] IAeroContentTypeActor contentTypeActor,
+        [FromServices] IContentQueryService contentQueryService,
         [FromServices] ISiteContext siteContext,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
@@ -39,17 +43,25 @@ public static class ContentTypesApi
                 return MissingSite();
 
             var types = await contentTypeActor.GetAllAsync(siteId, ct);
-            var summaries = types.Select(t =>
+            var summaries = new List<ContentTypeSummary>(types.Count);
+            foreach (var t in types)
             {
                 var fields = string.IsNullOrWhiteSpace(t.FieldsJson) || t.FieldsJson == "[]"
                     ? []
                     : JsonSerializer.Deserialize<List<ContentFieldDefinition>>(t.FieldsJson) ?? [];
 
-                return new ContentTypeSummary(
+                var itemCount = 0L;
+                var countResult = await contentQueryService.CountByTypeAsync(siteId, t.Alias, ct);
+                if (countResult is Result<long, AeroError>.Ok ok)
+                {
+                    itemCount = ok.Value;
+                }
+
+                summaries.Add(new ContentTypeSummary(
                     t.Alias, t.Name, t.Description, t.Category,
                     t.AllowPublicUrl, t.HideFromSearch, fields.Count, t.RenderMode.ToString(),
-                    !string.IsNullOrWhiteSpace(t.ScribanTemplate), 0L);
-            }).ToList();
+                    !string.IsNullOrWhiteSpace(t.ScribanTemplate), itemCount));
+            }
 
             return TypedResults.Ok(summaries);
         }

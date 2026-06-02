@@ -69,6 +69,8 @@ public partial class ContentTypeList
     private void CreateType()
         => Navigation.NavigateTo("/manager/content-type/editor");
 
+    private async Task RefreshAsync() => await LoadAsync();
+
     private void EditType(string alias)
         => Navigation.NavigateTo($"/manager/content-type/editor/{Uri.EscapeDataString(alias)}");
 

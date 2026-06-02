@@ -55,6 +55,19 @@ public sealed class MartenContentTypeService(IDocumentSession session) : IConten
         return Prelude.Ok<ContentTypeDefinition, AeroError>(definition);
     }
 
+    public async Task<Result<bool, AeroError>> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
+    {
+        var doc = await session.Query<ContentTypeDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Alias == alias, ct);
+
+        if (doc is null)
+            return Prelude.Ok<bool, AeroError>(false);
+
+        session.Delete(doc);
+        await session.SaveChangesAsync(ct);
+        return Prelude.Ok<bool, AeroError>(true);
+    }
+
     private static ContentTypeDefinition Map(ContentTypeDocument doc) => new()
     {
         Id = doc.Id, SiteId = doc.SiteId, Alias = doc.Alias, Name = doc.Name, Description = doc.Description,

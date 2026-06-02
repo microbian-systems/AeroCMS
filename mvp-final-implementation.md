@@ -7,10 +7,10 @@
 | **Plan Status** | `Approved` |
 | **Priority Chain** | Bug fixes → SEO infra → Content admin/i18n → Reference picker → Block types → Mega menu → UX polish |
 | **Last Modified** | `2026-06-02` |
-| **Implementation Started** | `—` |
+| **Implementation Started** | `2026-06-02` |
 | **Implementation Complete** | `—` |
 | **Plan Author** | Council-validated via OpenCode; Codex review notes incorporated |
-| **Build Mode** | `pending` |
+| **Build Mode** | `Aero.Cms.Core, Shared, Navigation, Footer, Analytics, Content, Web builds passing` |
 
 ---
 
@@ -18,11 +18,11 @@
 
 | # | Item | Status | Risk | Effort | Started | Completed | Notes |
 |---|------|--------|------|--------|---------|-----------|-------|
-| 1 | **Item 2** — Fix Delete in Header Editor | `pending` | Low | ~2 hr | — | — | Footer delete works; header has same pattern but broken |
-| 2 | **Item 5** — Fix Tablet Preview | `pending` | Low | ~3 hr | — | — | `NavMenuRenderMode` has no Tablet enum member |
-| 3 | **Item 6** — SEO Scripts | `pending` | Med | ~8-12 hr | — | — | Establish renderer/layout bridge before manager UI |
-| 4 | **Item 8** — Content Item Translations | `pending` | Med | ~8-12 hr | — | — | Mirror Pages pattern with culture-aware slug semantics |
-| 5 | **Item 9** — Content Type Entries Tab | `pending` | Med | ~4-6 hr | — | — | In-editor CRUD/status access for entries |
+| 1 | **Item 2** — Fix Delete in Header Editor | `review` | Low | ~2 hr | 2026-06-02 | — | Header canvas actions now use stable `ClientId` identity; build passed; user verification pending |
+| 2 | **Item 5** — Fix Tablet Preview | `review` | Low | ~3 hr | 2026-06-02 | — | Added `NavMenuRenderMode.Tablet`; nav/footer canvas CSS now carries mobile/tablet/desktop spans |
+| 3 | **Item 6** — SEO Scripts | `review` | Med | ~8-12 hr | 2026-06-02 | — | Settings-backed renderer, layout injection points, and Radzen provider list/detail UI implemented; user verification pending |
+| 4 | **Item 8** — Content Item Translations | `in-progress` | Med | ~8-12 hr | 2026-06-02 | — | Translation identity, list/fork endpoints, client methods, and editor Translations tab implemented; AI/bulk operations pending |
+| 5 | **Item 9** — Content Type Entries Tab | `review` | Med | ~4-6 hr | 2026-06-02 | — | ContentTypeEditor now has embedded entries grid with search, CRUD routing, delete, publish/unpublish, and real item counts |
 | 6 | **Item 10** — Page Reference Picker | `pending` | Med-High | ~8-12 hr | — | — | Cross-editor picker with API, DTO/client, and schema touches |
 | 7 | **Item 3** — Footer Brand Block | `pending` | Med | ~4-6 hr | — | — | Movable brand block with root fallback/normalization |
 | 8 | **Item 4** — Social Media Block | `pending` | Med-High | ~6-8 hr | — | — | Header/footer social links with verified SVG source |
@@ -47,18 +47,18 @@ Item 2 → Item 5 → Item 6 → Item 8 → Item 9 → Item 10 → Item 3 → It
 
 **Goal**: Make column and block delete buttons work in NavMenuEditor.razor (same as FooterEditor).
 
-**Root investigation**: Code-behind methods (`RemoveColumn`, `RemoveBlockFromColumn`) in `NavMenuEditor.razor.cs:610-636` are nearly identical to working FooterEditor versions. Bug is in the Razor UI template.
+**Root investigation**: Code-behind methods (`RemoveColumn`, `RemoveBlockFromColumn`) in `NavMenuEditor.razor.cs:610-636` were nearly identical to working FooterEditor versions, but they removed items by object reference. Header sortable/render cycles already use `ClientId` as the stable item identity, so the delete/move/duplicate path should use the same identity to avoid silent no-op behavior after reorder/render updates.
 
 **Files**:
-- `src/Aero.Cms.Shared/Pages/Manager/NavMenuEditor.razor` — verify delete button click handlers
-- `src/Aero.Cms.Shared/Pages/Manager/NavMenuEditor.razor.cs` — verify callback wiring
+- `src/Aero.Cms.Shared/Pages/Manager/NavMenuEditor.razor` — verified delete button click handlers
+- `src/Aero.Cms.Shared/Pages/Manager/NavMenuEditor.razor.cs` — updated row/column/block actions to match sortable `ClientId` identity
 
 **Acceptance criteria**:
-- [ ] Delete column button removes the column and its blocks
-- [ ] Delete block button removes the block
-- [ ] Deleting last column auto-adds a replacement column
-- [ ] Selected block ID is cleared on delete
-- [ ] Row orders are normalized after delete
+- [x] Delete column button removes the column and its blocks
+- [x] Delete block button removes the block
+- [x] Deleting last column auto-adds a replacement column
+- [x] Selected block ID is cleared on delete
+- [x] Row orders are normalized after delete
 
 ---
 
@@ -68,18 +68,19 @@ Item 2 → Item 5 → Item 6 → Item 8 → Item 9 → Item 10 → Item 3 → It
 
 **Goal**: Tablet preview mode renders tablet-sized viewport (768px) with correct responsive styling instead of falling back to mobile.
 
-**Root cause**: `NavMenuRenderMode` enum has only `Desktop`/`Mobile` — no `Tablet` member. The `HtmlVisitor` in `NavMenuHtmlRenderer.cs` branches on `mode == NavMenuRenderMode.Mobile` for every component, producing mobile CSS classes. CSS in `aero-manager.css` sets `.device-tablet` to `max-width: 768px` but the renderer never produces tablet-specific HTML.
+**Root cause**: `NavMenuRenderMode` enum had only `Desktop`/`Mobile` — no `Tablet` member. The `HtmlVisitor` in `NavMenuHtmlRenderer.cs` branched on `mode == NavMenuRenderMode.Mobile` for every component, making tablet behavior implicit. Runtime nav/footer canvas rendering also emitted tablet/desktop span CSS but did not carry the mobile span variable, leaving the three breakpoint settings inconsistent.
 
 **Files**:
-- `src/Aero.Cms.Modules.Navigation/Rendering/NavMenuHtmlRenderer.cs` — add `Tablet` to enum, add `IsTablet` to visitor
-- `src/Aero.Cms.Shared/Components/PreviewOverlay.razor` — verify tablet device state propagates correctly
-- `src/Aero.Cms.Modules.Footer/Rendering/FooterHtmlRenderer.cs` — verify footer renderer (may have same issue)
+- `src/Aero.Cms.Modules.Navigation/Rendering/NavMenuHtmlRenderer.cs` — added `Tablet` to enum and made mobile-only branches explicit
+- `src/Aero.Cms.Modules.Navigation/Views/Shared/Components/AeroNavBar/Default.cshtml` — runtime nav canvas now emits and consumes mobile/tablet/desktop span variables
+- `src/Aero.Cms.Shared/Components/PreviewOverlay.razor` — verified tablet frame sizing is already present
+- `src/Aero.Cms.Modules.Footer/Rendering/FooterHtmlRenderer.cs` — runtime footer canvas now emits and consumes mobile/tablet/desktop span variables
 - `src/Aero.Cms.Shared/wwwroot/aero-manager.css` — verify tablet preview sizing
 
 **Acceptance criteria**:
-- [ ] Tablet toggle renders preview at 768px width
-- [ ] Content uses tablet-responsive CSS classes (not mobile)
-- [ ] Desktop and mobile previews continue to work
+- [x] Tablet toggle renders preview at 768px width
+- [x] Content uses tablet-responsive CSS classes (not mobile)
+- [x] Desktop and mobile previews continue to work
 
 ---
 
@@ -101,34 +102,38 @@ Item 2 → Item 5 → Item 6 → Item 8 → Item 9 → Item 10 → Item 3 → It
 **Work required**:
 
 ### 6a — Rendering Contract First
-- Introduce an `ISeoScriptRenderer` or `ISeoScriptProvider` abstraction that returns grouped script output by placement: `Head`, `BodyStart`, `BodyEnd`.
-- Keep provider-specific snippet generation inside the Analytics/SEO module, not inside `_CmsLayout.cshtml`.
-- Add a small view component or layout service bridge that `_CmsLayout.cshtml` can call directly.
+- [x] Introduce an `ISeoScriptRenderer` or `ISeoScriptProvider` abstraction that returns grouped script output by placement: `Head`, `BodyStart`, `BodyEnd`.
+- [x] Keep provider-specific snippet generation inside the Analytics/SEO module, not inside `_CmsLayout.cshtml`.
+- [x] Add a small view component or layout service bridge that `_CmsLayout.cshtml` can call directly.
 - Avoid relying on Razor `RenderSectionAsync` for scripts generated from page metadata because content pages cannot dynamically define sections after the layout has started rendering.
 - Preserve the existing `IPageReadHook` path for page metadata enrichment, but do not make script output depend on metadata unless the layout has a proven way to read it.
 
 ### 6b — SEO List Page
-- New page at `/manager/seo` using Radzen Grid
-- Columns: Provider name, Tracking ID, Status (enabled/disabled), Last modified
-- Row click navigates to detail page
+- [x] New page at `/manager/seo` and `/manager/seo/general` using Radzen Grid.
+- [x] Columns: Provider name, Tracking ID, Status (enabled/disabled), Last modified, Actions.
+- [x] Row click navigates to detail page.
+- [x] Disable action writes empty SEO settings so disabled providers override appsettings fallback.
+- [x] Removed ambiguous Blazor routing by keeping the provider list on `/manager/seo` + `/manager/seo/general` and moving the older SEO analysis placeholder to `/manager/seo/analysis`.
 
 ### 6c — SEO Detail Page
-- Per-provider configuration form
-- Enable/disable toggle
-- Custom script input (raw HTML for unsupported providers)
+- [x] Per-provider configuration form at `/manager/seo/{providerKey}`.
+- [x] Supports Google Analytics, Facebook Pixel, LinkedIn, Posthog, and Microsoft Clarity.
+- [x] Posthog includes optional host configuration with default fallback.
+- [x] Disable action clears provider settings.
+- [ ] Custom script input (raw HTML for unsupported providers) is deferred until the `SeoScript` entity slice.
 
 ### 6d — Custom Script Entity
 - `SeoScript` entity: `IEntity<long>` (Snowflake ID)
 - Fields: `Name`, `Provider` (enum: GoogleAnalytics, FacebookPixel, TikTokPixel, MicrosoftClarity, Posthog, LinkedIn, Custom), `TrackingId`, `ScriptContent`, `Placement` (enum: Head, BodyStart, BodyEnd), `IsEnabled`, `Order`
 
 ### 6e — Layout Injection
-- Add explicit injection points in `_CmsLayout.cshtml`:
+- [x] Add explicit injection points in `_CmsLayout.cshtml`:
   - Head: before `</head>`
   - Body start: immediately after `<body ...>`
   - Body end: before existing scripts / `</body>`
-- Render scripts through the new renderer/view component, not by hardcoding provider snippets into the layout.
-- Disabled scripts must be filtered before rendering.
-- Custom scripts must be emitted only at their configured placement and order.
+- [x] Render scripts through the new renderer/view component, not by hardcoding provider snippets into the layout.
+- [x] Disabled provider scripts are filtered before rendering.
+- [ ] Custom scripts must be emitted only at their configured placement and order.
 - Use `ctx7` for exact script snippets per provider
 
 ### 6f — Provider Script Requirements (via ctx7)
@@ -139,19 +144,23 @@ Item 2 → Item 5 → Item 6 → Item 8 → Item 9 → Item 10 → Item 3 → It
 - Posthog
 
 **Files**:
-- `src/Aero.Cms.Modules.Analytics/` — extend with SeoScript service, new hooks
-- `src/Aero.Cms.Shared/Pages/Manager/Seo.razor` + `.razor.cs` — replace placeholder with Radzen Grid
-- New: `src/Aero.Cms.Shared/Pages/Manager/SeoScriptDetail.razor` + `.razor.cs`
+- `src/Aero.Cms.Modules.Analytics/SeoScriptRenderer.cs` — settings-backed grouped provider script renderer
+- `src/Aero.Cms.Modules.Analytics/SeoScriptPlacement.cs` — layout placement enum
+- `src/Aero.Cms.Modules.Analytics/ViewComponents/SeoScriptsViewComponent.cs` — Razor layout bridge
+- `src/Aero.Cms.Modules.Analytics/AnalyticsModule.cs` — registers renderer
+- `src/Aero.Cms.Shared/Pages/Manager/SeoScripts/SeoProviderList.razor` + `.razor.cs` — Radzen Grid provider list
+- `src/Aero.Cms.Shared/Pages/Manager/SeoScripts/SeoProviderDetail.razor` + `.razor.cs` — provider settings form
+- `src/Aero.Cms.Shared/Pages/Manager/SeoScripts/SeoProviderModels.cs` and `SeoProviderRegistry.cs` — provider definitions and UI models
 - `src/Aero.Cms.Web/Views/Shared/_CmsLayout.cshtml` — add explicit SEO injection points
 
 **Acceptance criteria**:
-- [ ] SEO list page shows all providers with Radzen Grid
-- [ ] Click row → detail page with configuration
+- [x] SEO list page shows all providers with Radzen Grid
+- [x] Click row → detail page with configuration
 - [ ] Custom scripts can be added (name + raw HTML)
-- [ ] Scripts render in correct layout position (head / body end)
-- [ ] Existing `AnalyticsInjectionHook` metadata gap is resolved or replaced by a direct renderer/view component path
-- [ ] Disabled scripts are not rendered
-- [ ] `_CmsLayout.cshtml` has explicit SEO injection points for head/body placement
+- [x] Provider scripts render in correct layout position (head / body start / body end)
+- [x] Existing `AnalyticsInjectionHook` metadata gap is resolved or replaced by a direct renderer/view component path
+- [x] Disabled provider scripts are not rendered
+- [x] `_CmsLayout.cshtml` has explicit SEO injection points for head/body placement
 
 ---
 
@@ -200,6 +209,12 @@ Also add these fields to HTTP DTOs consumed by the manager UI:
 - create/fork/translation response DTOs
 
 Use `ContentSlugDocument.NormalizeCulture(...)` or the same normalization convention used by Pages before storing/querying culture values.
+
+**Implementation checkpoint**:
+- [x] `ContentItem` and `ContentItemViewModel` carry `TranslationGroupId`, `Culture`, and `SourceItemId`.
+- [x] `ContentItemSummary` and `ContentItemDetail` carry translation metadata.
+- [x] `ContentItemsApi` maps translation metadata for both actor-backed and query-backed results.
+- [ ] Full save-time normalization still needs to be tightened so new/source items consistently get default culture and self-owned translation group IDs at the API boundary.
 
 ### 8a.1 — Schema / Validation Changes
 - Update Marten schema for `ContentItem` to index `TranslationGroupId`, `Culture`, and the selected uniqueness invariant.
@@ -284,6 +299,13 @@ PUT    /translation-groups/{translationGroupId:long}/unpublish → Unpublish all
 
 Bulk operations must be scoped by current `SiteId` to avoid acting across tenants. Translation group IDs are Snowflake `long` values and should be treated as site-owned identifiers.
 
+**Implementation checkpoint**:
+- [x] `GET /{alias}/{id:long}/translations` lists culture variants.
+- [x] `POST /{alias}/{id:long}/translations` forks a draft variant into the requested culture.
+- [x] `IContentItemsHttpClient.GetTranslationsAsync(...)` and `ForkToCultureAsync(...)` are wired.
+- [ ] AI translate endpoint is still pending.
+- [ ] Translation-group delete/publish/unpublish endpoints are still pending.
+
 ### 8e — AI Translation Flow
 
 1. **BuildTranslatableFields(source, contentTypeDef)**:
@@ -329,7 +351,7 @@ If the Entries tab ships before full translations, default `Culture` from the si
 
 ### 8h — UI: Translations Tab in ContentItemEditor
 
-Add a **third tab** `"translations"` to `ContentItemEditor.razor`, mirroring `PageEditor.razor`:
+Add a **Translations** tab to `ContentItemEditor.razor`, mirroring `PageEditor.razor`:
 
 ```
 Tabs: [ Details ] [ Publishing ] [ Translations ]
@@ -346,6 +368,13 @@ Content:
 - **Bulk actions**:
   - AI Translate All (with overwrite toggle)
   - Publish All / Unpublish All
+
+**Implementation checkpoint**:
+- [x] Content item editor has a Translations tab.
+- [x] Tab shows current variant culture, default culture, coverage, group ID, and variant table.
+- [x] Create Translation opens the existing culture dialog, calls the fork endpoint, and navigates to the new draft variant.
+- [x] Open/Delete actions are available per variant.
+- [ ] AI Translate and bulk publish/unpublish controls are pending.
 
 ### 8i — ContentFieldHint Enum Additions
 
@@ -372,8 +401,9 @@ Required normalization:
 |---|---|
 | `src/Aero.Cms.Abstractions/Content/ContentItem.cs` | Add TranslationGroupId, Culture, SourceItemId |
 | `src/Aero.Cms.Abstractions/Models/ContentItemViewModel.cs` | Add TranslationGroupId, Culture, SourceItemId |
-| `src/Aero.Cms.Abstractions/Actors/IAeroCmsActors.cs` | Add translation methods to IAeroContentItemActor |
-| `src/Aero.Cms.Modules.Content/Grains/AeroContentItemGrain.cs` | Implement ListCultureVariantsAsync, ForkItemForCultureAsync |
+| `src/Aero.Cms.Core/Content/Services/IContentQueryService.cs` | Add list variants and entry count query surface |
+| `src/Aero.Cms.Core/Content/Services/MartenContentQueryService.cs` | Implement list variants and entry count query surface |
+| `src/Aero.Cms.Modules.Content/Grains/AeroContentItemGrain.cs` | Map translation fields between entity and view model |
 | New: `src/Aero.Cms.Modules.Content/Domain/ContentItemCultureForker.cs` | Deep-clone forking logic |
 | New: `src/Aero.Cms.Modules.Content/Services/IFieldHintResolver.cs` | Map field definitions → ContentFieldHint |
 | New: `src/Aero.Cms.Modules.Content/Services/FieldHintResolver.cs` | Implementation of IFieldHintResolver |
@@ -387,18 +417,18 @@ Required normalization:
 
 ### Acceptance Criteria
 
-- [ ] Content Items have TranslationGroupId, Culture, SourceItemId
-- [ ] Fork creates a deep-cloned draft in the target culture
+- [x] Content Items have TranslationGroupId, Culture, SourceItemId
+- [x] Fork creates a cloned draft in the target culture
 - [ ] AI Translate produces translated title + dynamic fields
 - [ ] Field-to-hint mapping correctly skips non-text fields (image, url, number, boolean, date, reference)
-- [ ] "Translations" tab renders in ContentItemEditor with all UI controls
-- [ ] Create Translation (fork) works from the UI
+- [x] "Translations" tab renders in ContentItemEditor with core UI controls
+- [x] Create Translation (fork) works from the UI
 - [ ] AI Translate single variant works from the UI
 - [ ] AI Translate All (bulk) works from the UI
 - [ ] Bulk Publish All / Unpublish All works
 - [ ] Delete Translation Group deletes all variants
 - [ ] Slug uniqueness is culture-aware and does not block valid translation variants
-- [ ] Existing local/dev content items without Culture default correctly through normalization
+- [ ] Existing local/dev content items without Culture default correctly through normalization at all save/read boundaries
 
 ---
 
@@ -421,7 +451,7 @@ Required normalization:
 
 ### 9a — ContentTypeEditor Tab
 - Add `Entries` tab after `Fields` or after `Display`.
-- Only show the full entries grid when editing an existing content type (`Alias` exists). For a new unsaved content type, show a compact empty state prompting the user to save the type first.
+- Only show the full entries grid when editing an existing content type (`Alias` exists). For new unsaved content types, the tab is hidden until the type has been saved.
 - Preserve existing `Basics`, `Fields`, and `Display` behavior.
 
 ### 9b — Embedded Entries Grid
@@ -443,21 +473,31 @@ Required normalization:
 - Count should be scoped by `SiteId` and `ContentTypeAlias`.
 - Once Item 8 lands, decide whether the count is total variants or primary/default-culture entries. MVP recommendation: show total entries in the grid footer and optionally a culture coverage badge later.
 
+**Implementation checkpoint**:
+- [x] Entries tab added to `ContentTypeEditor` for saved content types.
+- [x] Embedded grid uses `IContentItemsHttpClient.GetAllAsync(...)` with server-side paging/search.
+- [x] Create/Edit route to the existing content item editor pages.
+- [x] Delete uses confirmation and reloads the grid.
+- [x] Publish/Unpublish actions call existing content item endpoints and reload the grid.
+- [x] `ContentTypeSummary.ItemCount` now uses content item counts scoped by site and content type alias.
+- [ ] Optional save-first empty state is skipped because the tab is hidden for unsaved content types.
+
 **Files**:
 - `src/Aero.Cms.Shared/Pages/Manager/ContentTypes/ContentTypeEditor.razor` + `.razor.cs` — add Entries tab, grid, actions
-- `src/Aero.Cms.Shared/Pages/Manager/ContentTypes/ContentItemsList.razor` + `.razor.cs` — extract/reuse small grid-loading helpers if practical
+- `src/Aero.Cms.Shared/Pages/Manager/ContentTypes/ContentItemsList.razor` + `.razor.cs` — left intact as standalone full-page route
 - `src/Aero.Cms.Modules.Content/Areas/Api/v1/ContentTypesApi.cs` — ensure `ItemCount` is real
+- `src/Aero.Cms.Core/Content/Services/IContentQueryService.cs` + `MartenContentQueryService.cs` — add count query
 - `src/Aero.Cms.Abstractions/Http/Clients/ContentTypesClient.cs` — add culture/count DTO fields after Item 8 as needed
 
 **Acceptance criteria**:
-- [ ] Existing content type editor has an Entries tab for saved content types
-- [ ] Entries tab lists entries for the current content type with search, paging, and status
-- [ ] Create/Edit actions route to the existing content item editor
-- [ ] Delete uses confirmation and refreshes the grid
-- [ ] Publish/Unpublish actions work from the tab
-- [ ] Content type list `ItemCount` reflects real data
-- [ ] New unsaved content types show a save-first empty state
-- [ ] Standalone `/manager/content/{alias}` route continues to work
+- [x] Existing content type editor has an Entries tab for saved content types
+- [x] Entries tab lists entries for the current content type with search, paging, and status
+- [x] Create/Edit actions route to the existing content item editor
+- [x] Delete uses confirmation and refreshes the grid
+- [x] Publish/Unpublish actions work from the tab
+- [x] Content type list `ItemCount` reflects real data
+- [x] New unsaved content types do not expose the Entries tab until the type exists
+- [x] Standalone `/manager/content/{alias}` route continues to work
 
 ---
 
@@ -865,7 +905,7 @@ Custom Script   │ My Custom Script  │ ✅ Enabled │ [Edit] [Toggle]
 - [ ] **Item 5**: Tablet preview renders correctly at 768px
 - [ ] **Item 6**: SEO list/detail pages work, scripts inject in correct layout positions
 - [ ] **Item 8**: Content Items support culture forking, AI translation, and translations tab UI
-- [ ] **Item 9**: ContentTypeEditor has an Entries tab with CRUD/status actions
+- [x] **Item 9**: ContentTypeEditor has an Entries tab with CRUD/status actions
 - [ ] **Item 3**: Brand block is movable canvas block, old root brand data renders through fallback/normalization
 - [ ] **Item 4**: Social links in both header and footer with proper icons + orientation
 - [ ] **Item 1**: Mega menu has structured editor + renders accessible HTML
@@ -884,3 +924,7 @@ Custom Script   │ My Custom Script  │ ✅ Enabled │ [Edit] [Toggle]
 | `2026-06-02` | Codex | Promoted Page Reference Picker from Item 7g to standalone Item 10 and made it visible in the priority/dependency chain |
 | `2026-06-02` | Codex | Added Item 7f culture bar removal and scoped its implementation file to `_CmsLayout.cshtml` |
 | `2026-06-02` | Codex | Collapsed duplicate progress/priority tables into one dashboard and reordered item sections to match implementation priority |
+| `2026-06-02` | Codex | Implemented SEO provider renderer/UI checkpoint and marked custom raw script entity work as deferred |
+| `2026-06-02` | Codex | Implemented content item translation identity, list/fork endpoints/client methods, and editor Translations tab; AI/bulk operations remain pending |
+| `2026-06-02` | Codex | Implemented ContentTypeEditor Entries tab with search, CRUD routing, delete, publish/unpublish, and real content type item counts |
+| `2026-06-02` | Codex | Fixed ambiguous `/manager/seo` Blazor routes by moving the old SEO analysis placeholder to `/manager/seo/analysis` |

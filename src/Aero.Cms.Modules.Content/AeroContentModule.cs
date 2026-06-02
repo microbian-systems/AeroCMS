@@ -4,6 +4,7 @@ using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Content.Areas.Api.v1;
+using Aero.Cms.Modules.Content.Rendering;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +37,9 @@ public sealed class ContentModule : AeroWebModule, IContentDefinitionModule
     {
         // Register the entire content type system via the extension method
         services.AddContentTypeSystem();
+
+        // Public URL rendering for content types
+        services.AddScoped<ContentTypeUrlRenderer>();
 
         // Grain-backed actors — direct injection for thin API controllers
         services.AddSingleton<IAeroContentItemActor>(sp =>
@@ -80,6 +84,7 @@ public sealed class ContentModule : AeroWebModule, IContentDefinitionModule
         builder.MapContentTypesApi();
         builder.MapContentItemsApi();
         builder.MapBlocksApi();
+        builder.MapContentTypeRoutes();
 
         return Task.CompletedTask;
     }

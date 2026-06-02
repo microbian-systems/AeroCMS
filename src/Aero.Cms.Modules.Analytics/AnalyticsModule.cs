@@ -20,6 +20,7 @@ public class AnalyticsModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddOptions<AnalyticsSettings>().BindConfiguration("AeroCms:Analytics");
+        services.AddScoped<ISeoScriptRenderer, SeoScriptRenderer>();
         services.AddScoped<IPageReadHook, AnalyticsInjectionHook>();
     }
 

@@ -66,8 +66,20 @@ public sealed class ContentTypeDynamicBlockBridge(
                 d.Name == $"ct:{typeDef.Alias}" &&
                 d.IsPublished, ct);
 
+        // Always regenerate when there's no custom Scriban template — the
+        // auto-generated template may be stale (field changes, snippet fixes, etc.)
         if (existing is not null)
+        {
+            if (string.IsNullOrWhiteSpace(typeDef.ScribanTemplate))
+            {
+                existing.ScribanTemplate = ContentTypeTemplateGenerator.GenerateTemplate(typeDef, snippets);
+                existing.Version++;
+                session.Store(existing);
+                await session.SaveChangesAsync(ct);
+            }
+
             return Prelude.Ok<DynamicBlockDefinition, AeroError>(existing);
+        }
 
         // Auto-generate a Scriban template from the field definitions
         var template = string.IsNullOrWhiteSpace(typeDef.ScribanTemplate)

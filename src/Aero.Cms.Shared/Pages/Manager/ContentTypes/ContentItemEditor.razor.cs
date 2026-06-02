@@ -3,6 +3,8 @@ using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Shared.Components;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
@@ -15,9 +17,11 @@ public partial class ContentItemEditor
 {
     [Parameter] public string Alias { get; set; } = string.Empty;
     [Parameter] public long? Id { get; set; }
+    [SupplyParameterFromQuery(Name = "tab")] public string? RequestedTab { get; set; }
 
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
     [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
+    [Inject] private ISitesHttpClient SitesClient { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
@@ -29,7 +33,10 @@ public partial class ContentItemEditor
     private readonly Dictionary<string, DateTime?> _dateValues = [];
     private readonly Dictionary<string, string> _fieldErrors = [];
 
+    private IReadOnlyList<ContentItemDetail> _cultureVariants = [];
+    private SiteViewModel? _currentSite;
     private bool _isSaving;
+    private bool _isLoadingTranslations;
     private bool _slugLocked;
     private bool _allowPublicUrl;
     private bool _showMediaSelector;
@@ -40,6 +47,20 @@ public partial class ContentItemEditor
     private string _publicationState = "Draft";
     private DateTimeOffset? _publishedOn;
     private int _versionNumber;
+    private string _activeTab = "content";
+    private string _culture = string.Empty;
+    private long? _translationGroupId;
+    private long? _sourceItemId;
+
+    private IReadOnlyList<string> SupportedCultures =>
+        _currentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [_currentSite?.DefaultCulture ?? "en-US"];
+
+    private IEnumerable<string> AvailableTranslationCultures =>
+        SupportedCultures
+            .Where(culture => !string.Equals(NormalizeCulture(culture), NormalizeCulture(_culture), StringComparison.OrdinalIgnoreCase))
+            .Where(culture => _cultureVariants.All(variant => !string.Equals(NormalizeCulture(variant.Culture), NormalizeCulture(culture), StringComparison.OrdinalIgnoreCase)));
 
     private BadgeStyle StatusBadgeStyle => _publicationState == "Published"
         ? BadgeStyle.Success
@@ -47,6 +68,12 @@ public partial class ContentItemEditor
 
     protected override async Task OnInitializedAsync()
     {
+        _activeTab = string.Equals(RequestedTab, "translations", StringComparison.OrdinalIgnoreCase)
+            ? "translations"
+            : "content";
+
+        await LoadCurrentSiteAsync();
+
         var typeResult = await ContentTypesApi.GetByAliasAsync(Alias);
         if (typeResult is not Result<ContentTypeDetail, AeroError>.Ok typeOk)
         {
@@ -66,11 +93,21 @@ public partial class ContentItemEditor
             if (itemResult is Result<ContentItemDetail, AeroError>.Ok itemOk)
             {
                 LoadItem(itemOk.Value);
+                await LoadTranslationsAsync();
             }
             else if (itemResult is Result<ContentItemDetail, AeroError>.Failure failure)
             {
                 Notify(NotificationSeverity.Error, "Load failed", failure.Error.ToString());
             }
+        }
+    }
+
+    private async Task LoadCurrentSiteAsync()
+    {
+        var result = await SitesClient.GetDefaultAsync();
+        if (result is Result<SiteViewModel, AeroError>.Ok ok)
+        {
+            _currentSite = ok.Value;
         }
     }
 
@@ -106,6 +143,9 @@ public partial class ContentItemEditor
         _publicationState = detail.PublicationState;
         _publishedOn = detail.PublishedOn;
         _versionNumber = detail.VersionNumber;
+        _culture = detail.Culture;
+        _translationGroupId = detail.TranslationGroupId;
+        _sourceItemId = detail.SourceItemId;
         PopulateFieldValues(detail.Fields);
     }
 
@@ -187,6 +227,7 @@ public partial class ContentItemEditor
             {
                 Id = ok.Value.Id;
                 LoadItem(ok.Value);
+                await LoadTranslationsAsync();
                 Notify(NotificationSeverity.Success, "Saved", "Draft saved.");
                 if (navigateAfterSave)
                 {
@@ -295,6 +336,120 @@ public partial class ContentItemEditor
         }
     }
 
+    private async Task LoadTranslationsAsync()
+    {
+        if (!Id.HasValue)
+        {
+            _cultureVariants = [];
+            return;
+        }
+
+        _isLoadingTranslations = true;
+        try
+        {
+            var result = await ContentItemsApi.GetTranslationsAsync(Alias, Id.Value);
+            if (result is Result<IReadOnlyList<ContentItemDetail>, AeroError>.Ok ok)
+            {
+                _cultureVariants = ok.Value;
+                return;
+            }
+
+            if (result is Result<IReadOnlyList<ContentItemDetail>, AeroError>.Failure failure)
+            {
+                Notify(NotificationSeverity.Error, "Translations failed to load", failure.Error.ToString());
+            }
+        }
+        finally
+        {
+            _isLoadingTranslations = false;
+        }
+    }
+
+    private async Task AddTranslationAsync()
+    {
+        if (!Id.HasValue)
+        {
+            return;
+        }
+
+        var missingCultures = AvailableTranslationCultures.ToList();
+        if (missingCultures.Count == 0)
+        {
+            Notify(NotificationSeverity.Info, "Translations complete", "All supported site cultures already have entries.");
+            return;
+        }
+
+        var dialogResult = await DialogService.OpenAsync<ContentAddTranslationDialog>(
+            "Add Translation",
+            new Dictionary<string, object?>
+            {
+                ["AvailableCultures"] = missingCultures,
+                ["SourceSlug"] = _slug
+            },
+            new DialogOptions { Width = "520px", Resizable = false, Draggable = false });
+
+        if (dialogResult is not ContentAddTranslationDialogResult decision)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var request = new ForkContentItemCultureRequest(decision.Culture, decision.Slug);
+            var result = await ContentItemsApi.ForkToCultureAsync(Alias, Id.Value, request);
+            if (result is Result<ContentItemDetail, AeroError>.Ok ok)
+            {
+                Notify(NotificationSeverity.Success, "Translation created", $"{FormatCulture(ok.Value.Culture)} draft created.");
+                Navigation.NavigateTo($"/manager/content/{Alias}/editor/{ok.Value.Id}?tab=translations");
+                return;
+            }
+
+            if (result is Result<ContentItemDetail, AeroError>.Failure failure)
+            {
+                Notify(NotificationSeverity.Error, "Translation failed", failure.Error.ToString());
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void OpenTranslation(long id)
+        => Navigation.NavigateTo($"/manager/content/{Alias}/editor/{id}?tab=translations");
+
+    private async Task DeleteTranslationAsync(ContentItemDetail variant)
+    {
+        if (!Id.HasValue || variant.Id == Id.Value)
+        {
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            $"Delete the {FormatCulture(variant.Culture)} translation for '{variant.Title}'?",
+            "Delete Translation",
+            new ConfirmOptions { OkButtonText = "Delete Translation", CancelButtonText = "Cancel" });
+
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        var result = await ContentItemsApi.DeleteAsync(Alias, variant.Id);
+        if (result is Result<bool, AeroError>.Ok)
+        {
+            Notify(NotificationSeverity.Success, "Translation deleted", $"{FormatCulture(variant.Culture)} translation removed.");
+            await LoadTranslationsAsync();
+            return;
+        }
+
+        if (result is Result<bool, AeroError>.Failure failure)
+        {
+            Notify(NotificationSeverity.Error, "Delete failed", failure.Error.ToString());
+        }
+    }
+
     private bool ValidateForSave()
     {
         _fieldErrors.Clear();
@@ -387,11 +542,23 @@ public partial class ContentItemEditor
     private void Cancel()
         => Navigation.NavigateTo($"/manager/content/{Alias}");
 
+    private void SwitchTab(string tab)
+        => _activeTab = tab;
+
     private static string FieldLabel(ContentFieldDefinition field)
         => string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label!;
 
     private static string FormatDate(DateTimeOffset? value)
         => value?.ToLocalTime().ToString("MMM d, yyyy") ?? "-";
+
+    private static string FormatCulture(string? culture)
+    {
+        var normalized = NormalizeCulture(culture);
+        return string.IsNullOrWhiteSpace(normalized) ? "Default" : normalized;
+    }
+
+    private static string NormalizeCulture(string? culture)
+        => culture?.Trim() ?? string.Empty;
 
     private static decimal? TryParseDecimal(string? value)
         => decimal.TryParse(value, out var parsed) ? parsed : null;

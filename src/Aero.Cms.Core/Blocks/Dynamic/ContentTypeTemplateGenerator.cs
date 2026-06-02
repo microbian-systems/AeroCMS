@@ -1,9 +1,12 @@
+using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Content;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
 public static class ContentTypeTemplateGenerator
 {
+    private static readonly Regex SafeName = new("^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.Compiled);
+
     public static string GenerateTemplate(ContentTypeDefinition definition, IEnumerable<IFieldTemplateSnippet> snippets)
     {
         var sb = new StringBuilder();
@@ -22,6 +25,11 @@ public static class ContentTypeTemplateGenerator
         sb.AppendLine("</section>");
         return sb.ToString();
     }
+
+    public static string ScribanAccessor(string fieldName)
+        => SafeName.IsMatch(fieldName)
+            ? "block." + fieldName
+            : "block[\"" + fieldName + "\"]";
 }
 
 internal sealed class DefaultFieldSnippet(string fieldType) : IFieldTemplateSnippet
@@ -29,9 +37,7 @@ internal sealed class DefaultFieldSnippet(string fieldType) : IFieldTemplateSnip
     public string FieldType => fieldType;
     public string Render(ContentFieldDefinition field)
     {
-        return new StringBuilder()
-            .Append("<div class=\"aero-field aero-field-").Append(fieldType).Append("\">")
-            .Append("{{ block.").Append(field.Name).Append(" }}</div>")
-            .ToString();
+        var a = ContentTypeTemplateGenerator.ScribanAccessor(field.Name);
+        return "<div class=\"aero-field aero-field-" + fieldType + "\">{{" + a + "}}</div>";
     }
 }

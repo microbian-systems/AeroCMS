@@ -126,3 +126,13 @@ public sealed record TagViewModelDeleted(TagViewModel tag, string? msg = null) :
 public sealed record UserViewModelCreated(AeroUser user, string? msg = null) : AeroEvent<AeroUser>(user, msg);
 public sealed record UserViewModelUpdated(AeroUser user, string? msg = null) : AeroEvent<AeroUser>(user, msg);
 public sealed record UserViewModelDeleted(AeroUser user, string? msg = null) : AeroEvent<AeroUser>(user, msg);
+
+// content type events
+public sealed record ContentTypeViewModelCreated(ContentTypeViewModel contentType, string? msg = null) : AeroEvent<ContentTypeViewModel>(contentType, msg);
+public sealed record ContentTypeViewModelUpdated(ContentTypeViewModel contentType, string? msg = null) : AeroEvent<ContentTypeViewModel>(contentType, msg);
+public sealed record ContentTypeViewModelDeleted(ContentTypeViewModel contentType, string? msg = null) : AeroEvent<ContentTypeViewModel>(contentType, msg);
+
+// content item events
+public sealed record ContentItemViewModelCreated(ContentItemViewModel contentItem, string? msg = null) : AeroEvent<ContentItemViewModel>(contentItem, msg);
+public sealed record ContentItemViewModelUpdated(ContentItemViewModel contentItem, string? msg = null) : AeroEvent<ContentItemViewModel>(contentItem, msg);
+public sealed record ContentItemViewModelDeleted(ContentItemViewModel contentItem, string? msg = null) : AeroEvent<ContentItemViewModel>(contentItem, msg);

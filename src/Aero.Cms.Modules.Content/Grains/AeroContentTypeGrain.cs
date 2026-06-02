@@ -2,8 +2,10 @@ using System.Text.Json;
 using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Wolverine;
 
 namespace Aero.Cms.Modules.Content.Grains;
 
@@ -58,9 +60,16 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         var definition = ToEntity(vm, isNew: true);
         var result = await service.SaveAsync(definition, ct);
 
+        if (result is Result<ContentTypeDefinition, AeroError>.Ok ok)
+        {
+            var viewModel = MapToViewModel(ok.Value);
+            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+            await bus.PublishAsync(new ContentTypeViewModelCreated(viewModel));
+            return Ok(viewModel);
+        }
+
         return result switch
         {
-            Result<ContentTypeDefinition, AeroError>.Ok ok => Ok(MapToViewModel(ok.Value)),
             Result<ContentTypeDefinition, AeroError>.Failure failure => Fail(failure.Error.ToString()),
             _ => Fail("Unexpected result")
         };
@@ -74,9 +83,16 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         var definition = ToEntity(vm, isNew: false);
         var result = await service.SaveAsync(definition, ct);
 
+        if (result is Result<ContentTypeDefinition, AeroError>.Ok ok)
+        {
+            var viewModel = MapToViewModel(ok.Value);
+            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+            await bus.PublishAsync(new ContentTypeViewModelUpdated(viewModel));
+            return Ok(viewModel);
+        }
+
         return result switch
         {
-            Result<ContentTypeDefinition, AeroError>.Ok ok => Ok(MapToViewModel(ok.Value)),
             Result<ContentTypeDefinition, AeroError>.Failure failure => Fail(failure.Error.ToString()),
             _ => Fail("Unexpected result")
         };
@@ -84,8 +100,23 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
 
     public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
     {
-        // ContentTypeService doesn't have explicit delete — handled via Marten
-        return true; // stub — actual delete via service layer
+        using var scope = _scopeFactory.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
+
+        var existing = await service.GetByAliasAsync(siteId, alias, ct);
+        if (existing is not Result<ContentTypeDefinition, AeroError>.Ok ok)
+            return false;
+
+        var result = await service.DeleteAsync(siteId, alias, ct);
+        if (result is Result<bool, AeroError>.Ok deleteOk && deleteOk.Value)
+        {
+            var viewModel = MapToViewModel(ok.Value);
+            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+            await bus.PublishAsync(new ContentTypeViewModelDeleted(viewModel));
+            return true;
+        }
+
+        return false;
     }
 
     // ── AeroRequestResponse helpers ────────────────────────────────────

@@ -1,4 +1,6 @@
 @page "/manager/content-type/editor/{alias?}"
+@using Aero.Cms.Abstractions.Http.Clients
+@using Radzen.Blazor
 
 <PageTitle>@(IsNew ? L["New Content Type"] : $"{L["Edit"]} {Name}")</PageTitle>
 
@@ -91,6 +93,10 @@
         <button type="button" class="pe-tab-btn @(_activeTab == EditorTab.Basics ? "active" : "")" @onclick="() => _activeTab = EditorTab.Basics">@L["Basics"]</button>
         <button type="button" class="pe-tab-btn @(_activeTab == EditorTab.Fields ? "active" : "")" @onclick="() => _activeTab = EditorTab.Fields">@L["Fields"]</button>
         <button type="button" class="pe-tab-btn @(_activeTab == EditorTab.Display ? "active" : "")" @onclick="() => _activeTab = EditorTab.Display">@L["Display"]</button>
+        @if (!IsNew)
+        {
+            <button type="button" class="pe-tab-btn @(_activeTab == EditorTab.Entries ? "active" : "")" @onclick="SwitchToEntriesTab">@L["Entries"]</button>
+        }
     </div>
 
     @if (_isLoading)
@@ -338,6 +344,124 @@
                                     Style="font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace; font-size: 13px; line-height: 1.5;" />
                 </div>
             }
+        </section>
+    }
+    else if (_activeTab == EditorTab.Entries)
+    {
+        <section class="ct-panel space-y-5" aria-label="Content type entries">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Entries"]</h2>
+                    <p class="ct-help mt-1">@EntriesDescription</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <RadzenTextBox Placeholder="@L["Search entries..."]"
+                                   Value="@_entriesSearchText"
+                                   ValueChanged="@OnEntriesSearchChanged"
+                                   class="w-64" />
+                    <RadzenButton Icon="add"
+                                  Text="@L["New Entry"]"
+                                  ButtonStyle="ButtonStyle.Primary"
+                                  Click="@CreateEntry" />
+                </div>
+            </div>
+
+            <RadzenDataGrid @ref="_entriesGrid"
+                            Data="@_entries"
+                            TItem="ContentItemSummary"
+                            Count="@_entriesCount"
+                            LoadData="@LoadEntriesAsync"
+                            IsLoading="@_entriesLoading"
+                            AllowPaging="true"
+                            AutoLoadFirstPage="true"
+                            AllowSorting="true"
+                            PageSize="10"
+                            PageSizeOptions="@(new List<int> { 10, 20, 50 })"
+                            PagerHorizontalAlign="HorizontalAlign.Left"
+                            ShowPagingSummary="true"
+                            RowClick="@OnEntryRowClick"
+                            class="aero-grid cursor-pointer"
+                            EmptyText="@L["No entries found. Create the first one when you're ready."]">
+                <Columns>
+                    <RadzenDataGridColumn TItem="ContentItemSummary" Property="Title" Title="@L["Entry"]" MinWidth="240px">
+                        <Template Context="item">
+                            <div class="flex flex-col gap-1">
+                                <span class="font-medium" style="color: var(--pe-text-primary);">@item.Title</span>
+                                @if (!string.IsNullOrWhiteSpace(item.FirstFieldValue))
+                                {
+                                    <span class="text-sm" style="color: var(--pe-text-secondary);">@FormatFirstField(item.FirstFieldValue)</span>
+                                }
+                            </div>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ContentItemSummary" Property="Culture" Title="@L["Culture"]" Width="120px">
+                        <Template Context="item">
+                            <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@FormatEntryCulture(item.Culture)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ContentItemSummary" Property="Slug" Title="@L["URL"]" Width="220px">
+                        <Template Context="item">
+                            @if (AllowPublicUrl)
+                            {
+                                <code class="text-xs" style="color: var(--pe-text-muted);">/content/@AliasValue/@item.Slug</code>
+                            }
+                            else
+                            {
+                                <span style="color: var(--pe-text-muted);">@L["Embedded only"]</span>
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ContentItemSummary" Property="PublicationState" Title="@L["Status"]" Width="130px">
+                        <Template Context="item">
+                            @if (item.PublicationState == "Published")
+                            {
+                                <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Published"]" />
+                            }
+                            else
+                            {
+                                <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@L["Draft"]" />
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ContentItemSummary" Property="PublishedOn" Title="@L["Published"]" Width="150px">
+                        <Template Context="item">
+                            <span style="color: var(--pe-text-secondary);">@FormatEntryDate(item.PublishedOn)</span>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ContentItemSummary" Title="@L["Actions"]" Width="280px" Sortable="false" TextAlign="TextAlign.Right">
+                        <Template Context="item">
+                            <div class="flex items-center justify-end gap-2" @onclick:stopPropagation="true">
+                                @if (item.PublicationState == "Published")
+                                {
+                                    <RadzenButton Icon="visibility_off"
+                                                  Text="@L["Unpublish"]"
+                                                  ButtonStyle="ButtonStyle.Light"
+                                                  Size="ButtonSize.Small"
+                                                  Click="@(() => UnpublishEntryAsync(item.Id))" />
+                                }
+                                else
+                                {
+                                    <RadzenButton Icon="publish"
+                                                  Text="@L["Publish"]"
+                                                  ButtonStyle="ButtonStyle.Light"
+                                                  Size="ButtonSize.Small"
+                                                  Click="@(() => PublishEntryAsync(item.Id))" />
+                                }
+                                <RadzenButton Icon="edit"
+                                              Text="@L["Edit"]"
+                                              ButtonStyle="ButtonStyle.Secondary"
+                                              Size="ButtonSize.Small"
+                                              Click="@(() => EditEntry(item.Id))" />
+                                <RadzenButton Icon="delete"
+                                              ButtonStyle="ButtonStyle.Danger"
+                                              Variant="Variant.Outlined"
+                                              Size="ButtonSize.Small"
+                                              Click="@(() => DeleteEntryAsync(item.Id))" />
+                            </div>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
         </section>
     }
 </div>

@@ -4,9 +4,11 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Wolverine;
 using IRequest = Aero.Core.Commands.IRequest;
 
 namespace Aero.Cms.Modules.Content.Grains;
@@ -79,13 +81,22 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
     {
         using var scope = _scopeFactory.CreateScope();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
+        var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
+
+        var existing = await contentService.LoadAsync(id, ct);
 
         var result = await commandService.DeleteAsync(id, ct);
-        return result switch
+        if (result is Result<bool, AeroError>.Ok)
         {
-            Result<bool, AeroError>.Ok => Ok(new ContentItemViewModel()),
-            _ => Fail("Delete failed")
-        };
+            if (existing is Result<ContentItem, AeroError>.Ok ok)
+            {
+                var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+                await bus.PublishAsync(new ContentItemViewModelDeleted(MapToViewModel(ok.Value)));
+            }
+            return Ok(new ContentItemViewModel());
+        }
+
+        return Fail("Delete failed");
     }
 
     // ── ICanFindBySite / ICanFindBySlug — stubbed ────────────────────
@@ -121,11 +132,23 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
         using var scope = _scopeFactory.CreateScope();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
 
+        var isNew = vm.Id == 0;
         var item = ToEntity(vm);
         var result = await commandService.SaveDraftAsync(item, ct);
+
+        if (result is Result<ContentItem, AeroError>.Ok ok)
+        {
+            var viewModel = MapToViewModel(ok.Value);
+            var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+            if (isNew)
+                await bus.PublishAsync(new ContentItemViewModelCreated(viewModel));
+            else
+                await bus.PublishAsync(new ContentItemViewModelUpdated(viewModel));
+            return Ok(viewModel);
+        }
+
         return result switch
         {
-            Result<ContentItem, AeroError>.Ok ok => Ok(MapToViewModel(ok.Value)),
             Result<ContentItem, AeroError>.Failure failure => Fail(failure.Error.ToString()),
             _ => Fail("Unexpected result")
         };
@@ -191,6 +214,9 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
         ContentTypeAlias = item.ContentTypeAlias,
         Slug = item.Slug,
         Title = item.Title,
+        TranslationGroupId = item.TranslationGroupId,
+        Culture = item.Culture,
+        SourceItemId = item.SourceItemId,
         FieldsJson = JsonSerializer.Serialize(item.Fields, BlockJsonContext.Default.Options),
         PublicationState = item.PublicationState,
         PublishedOn = item.PublishedOn,
@@ -215,6 +241,9 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
             ContentTypeAlias = vm.ContentTypeAlias,
             Title = vm.Title,
             Slug = vm.Slug,
+            TranslationGroupId = vm.TranslationGroupId,
+            Culture = vm.Culture,
+            SourceItemId = vm.SourceItemId,
             Fields = fields,
             PublicationState = vm.PublicationState,
             PublishedOn = vm.PublishedOn,
