@@ -50,7 +50,7 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
         timeoutCts.CancelAfter(options.RenderTimeout);
 
         try
-        {
+        {   
             var template = GetOrAddTemplate(definition);
             var context = CreateContext(data, timeoutCts.Token);
             var output = await template.RenderAsync(context);

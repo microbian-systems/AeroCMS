@@ -31,6 +31,12 @@ public sealed record DocsPageContentUpdatedEvent(
     string NewSlug,
     string? OldSlug = null) : ContentUpdatedEvent(ContentId, SiteId, NewSlug, OldSlug, "docs");
 
+public sealed record ContentItemUpdatedEvent(
+    long ContentId,
+    long SiteId,
+    string NewSlug,
+    string? OldSlug = null) : ContentUpdatedEvent(ContentId, SiteId, NewSlug, OldSlug, "content-item");
+
 public sealed record NavigationMenuChangedEvent(
     long NavMenuId,
     long SiteId,

@@ -33,14 +33,8 @@ public sealed class FusionCacheInvalidationService(
 
     public async Task InvalidateContentAsync(ContentUpdatedEvent @event, CancellationToken cancellationToken = default)
     {
-        if (!CacheTags.TryGetValue(@event.ContentType, out var tags))
-        {
-            logger.LogDebug("Skipping cache invalidation for unknown content type {ContentType}", @event.ContentType);
-            return;
-        }
-
-        // ── Slug-based cache key eviction ──────────────────────────────
-        // FusionCache keys: cms:{type}:{siteId}:slug:{slug}
+        // ── Slug-based cache key eviction (always) ──────────────────────
+        // Works for any content type even if not in CacheTags
         await RemoveSlugKeyAsync(@event.ContentType, @event.SiteId, @event.NewSlug, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(@event.OldSlug) &&
@@ -49,10 +43,15 @@ public sealed class FusionCacheInvalidationService(
             await RemoveSlugKeyAsync(@event.ContentType, @event.SiteId, @event.OldSlug, cancellationToken);
         }
 
-        // ── Page ID-based cache key eviction ──────────────────────────
-        // FusionCache key: cms:{type}:{siteId}:id:{contentId}
-        // Allows evicting a specific page by ID (e.g., when unpublishing).
+        // ── Content ID-based cache key eviction (always) ────────────────
         await RemovePageIdKeyAsync(@event.ContentType, @event.SiteId, @event.ContentId, cancellationToken);
+
+        // ── Coarse tag eviction (known content types only) ──────────────
+        if (!CacheTags.TryGetValue(@event.ContentType, out var tags))
+        {
+            logger.LogDebug("Invalidated slug & id keys for {ContentType}; no coarse tags registered", @event.ContentType);
+            return;
+        }
 
         // ── Coarse tag eviction (all pages) ───────────────────────────
         await cache.RemoveByTagAsync(tags.FusionCacheTag, token: cancellationToken);

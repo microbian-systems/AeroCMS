@@ -336,6 +336,9 @@ public partial class ContentTypeEditor
     private async Task SwitchToEntriesTab()
     {
         _activeTab = EditorTab.Entries;
+        // Defer reload to next render cycle — _entriesGrid is null until
+        // the conditional Entries panel actually renders on the UI thread.
+        await Task.Yield();
         if (_entriesGrid is not null)
         {
             await _entriesGrid.Reload();

@@ -72,7 +72,16 @@ public sealed class ContentTypeDynamicBlockBridge(
         {
             if (string.IsNullOrWhiteSpace(typeDef.ScribanTemplate))
             {
+                // Auto-generate from field definitions — always fresh
                 existing.ScribanTemplate = ContentTypeTemplateGenerator.GenerateTemplate(typeDef, snippets);
+                existing.Version++;
+                session.Store(existing);
+                await session.SaveChangesAsync(ct);
+            }
+            else if (!string.Equals(typeDef.ScribanTemplate, existing.ScribanTemplate, StringComparison.Ordinal))
+            {
+                // Custom template updated — sync to dynamic definition
+                existing.ScribanTemplate = typeDef.ScribanTemplate;
                 existing.Version++;
                 session.Store(existing);
                 await session.SaveChangesAsync(ct);
