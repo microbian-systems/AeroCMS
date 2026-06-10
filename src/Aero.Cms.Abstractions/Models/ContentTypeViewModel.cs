@@ -29,6 +29,8 @@ public sealed record ContentTypeViewModel : AeroEntityViewModel
     public bool AllowPublicUrl { get; set; }
     [Id(9)]
     public bool HideFromSearch { get; set; }
+    [Id(10)]
+    public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
 }
 
 [GenerateSerializer]

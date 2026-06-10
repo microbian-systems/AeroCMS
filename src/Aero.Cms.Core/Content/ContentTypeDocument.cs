@@ -16,4 +16,5 @@ public sealed class ContentTypeDocument : Entity
     public List<ContentFieldDefinition> Fields { get; set; } = [];
     public string? ScribanTemplate { get; set; }
     public ContentTypeRenderMode RenderMode { get; set; }
+    public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
 }

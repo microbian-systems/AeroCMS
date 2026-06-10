@@ -52,9 +52,7 @@ public sealed record SecureScribanTemplateOptions
 
     public int MaxOutputLength { get; init; } = 1_048_576;
 
-    // TODO: Re-tighten this before production. MVP authoring temporarily allows
-    // arbitrary Scriban built-in function calls so custom templates can be tested quickly.
-    public bool AllowAllFunctions { get; init; } = true;
+    public bool AllowAllFunctions { get; init; }
 
     /// <summary>
     /// Fully qualified Scriban function names that user-authored templates may call.

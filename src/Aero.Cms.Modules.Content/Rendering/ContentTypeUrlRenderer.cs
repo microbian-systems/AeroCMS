@@ -1,7 +1,6 @@
-using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Core.Blocks.Dynamic;
+using Aero.Cms.Core.Content.Rendering;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -15,8 +14,7 @@ namespace Aero.Cms.Modules.Content.Rendering;
 public sealed class ContentTypeUrlRenderer(
     IContentTypeService typeService,
     IContentService contentService,
-    IContentTypeRenderingBridge bridge,
-    ISecureScribanRenderer scribanRenderer)
+    IContentItemRenderer itemRenderer)
 {
     /// <summary>
     /// Renders a published content item by content type alias and entry slug.
@@ -46,28 +44,6 @@ public sealed class ContentTypeUrlRenderer(
         if (item.PublicationState != ContentPublicationState.Published)
             return AeroError.CreateError("This entry is not published.");
 
-        // 3. Bridge to a DynamicTemplateBlock
-        var blockResult = await bridge.ToDynamicBlockAsync(type, item, ct);
-        if (blockResult is Result<DynamicTemplateBlock, AeroError>.Failure f1)
-            return f1.Error;
-
-        var block = ((Result<DynamicTemplateBlock, AeroError>.Ok)blockResult).Value;
-
-        // 4. Resolve the Scriban template definition
-        var defResult = await bridge.GetDefinitionAsync(type, ct);
-        if (defResult is Result<DynamicBlockDefinition, AeroError>.Failure f2)
-            return f2.Error;
-
-        var definition = ((Result<DynamicBlockDefinition, AeroError>.Ok)defResult).Value;
-
-        // 5. Render through Scriban
-        var htmlResult = await scribanRenderer.RenderAsync(definition, block.Data, ct);
-        if (htmlResult is Result<string, AeroError>.Ok htmlOk)
-            return htmlOk.Value;
-
-        if (htmlResult is Result<string, AeroError>.Failure f3)
-            return f3.Error;
-
-        return AeroError.CreateError("Unexpected rendering result.");
+        return await itemRenderer.RenderAsync(type, item, ct);
     }
 }

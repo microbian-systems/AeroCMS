@@ -46,11 +46,17 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
             return validationFailure.Error;
         }
 
+        var dataValidationResult = validator.ValidateData(data, definition.DataSchema);
+        if (dataValidationResult is Result<NoneType, AeroError>.Failure dataValidationFailure)
+        {
+            return dataValidationFailure.Error;
+        }
+
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(options.RenderTimeout);
 
         try
-        {   
+        {
             var template = GetOrAddTemplate(definition);
             var context = CreateContext(data, timeoutCts.Token);
             var output = await template.RenderAsync(context);

@@ -30,6 +30,21 @@ public static class ContentTypeTemplateGenerator
         => SafeName.IsMatch(fieldName)
             ? "block." + fieldName
             : "block[\"" + fieldName + "\"]";
+
+    public static string NormalizeFieldAccessors(
+        string template,
+        IEnumerable<ContentFieldDefinition> fields)
+    {
+        foreach (var field in fields.Where(field => !SafeName.IsMatch(field.Name)))
+        {
+            template = template.Replace(
+                "block." + field.Name,
+                ScribanAccessor(field.Name),
+                StringComparison.Ordinal);
+        }
+
+        return template;
+    }
 }
 
 internal sealed class DefaultFieldSnippet(string fieldType) : IFieldTemplateSnippet

@@ -20,8 +20,8 @@ public interface IContentTypeRenderingBridge
         CancellationToken ct = default);
 
     /// <summary>
-    /// Resolves (or creates) the DynamicBlockDefinition for the given content type,
-    /// which contains the Scriban template and data schema.
+    /// Resolves the save-time synchronized DynamicBlockDefinition for the given
+    /// content type. Rendering never creates or updates definitions.
     /// </summary>
     Task<Result<DynamicBlockDefinition, AeroError>> GetDefinitionAsync(
         ContentTypeDefinition typeDef,

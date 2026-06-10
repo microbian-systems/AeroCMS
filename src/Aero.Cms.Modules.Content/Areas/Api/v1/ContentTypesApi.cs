@@ -124,7 +124,8 @@ public static class ContentTypesApi
                 HideFromSearch = request.HideFromSearch,
                 FieldsJson = JsonSerializer.Serialize(request.Fields.ToList()),
                 ScribanTemplate = request.ScribanTemplate,
-                RenderMode = Enum.Parse<ContentTypeRenderMode>(request.RenderMode)
+                RenderMode = Enum.Parse<ContentTypeRenderMode>(request.RenderMode),
+                ScheduleConfig = request.ScheduleConfig
             };
 
             var result = await contentTypeActor.CreateAsync(vm, ct);
@@ -169,6 +170,7 @@ public static class ContentTypesApi
             existing.FieldsJson = JsonSerializer.Serialize(request.Fields.ToList());
             existing.ScribanTemplate = request.ScribanTemplate;
             existing.RenderMode = Enum.Parse<ContentTypeRenderMode>(request.RenderMode);
+            existing.ScheduleConfig = request.ScheduleConfig;
 
             var result = await contentTypeActor.UpdateAsync(existing, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -215,7 +217,7 @@ public static class ContentTypesApi
         return new ContentTypeDetail(
             vm.Alias, vm.Name, vm.Description, vm.Category,
             vm.Icon, vm.AllowPublicUrl, vm.HideFromSearch, fields, vm.ScribanTemplate,
-            vm.RenderMode.ToString(), null);
+            vm.RenderMode.ToString(), vm.ScheduleConfig);
     }
 
     private static IResult MissingSite()

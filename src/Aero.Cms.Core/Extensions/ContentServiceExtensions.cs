@@ -27,6 +27,7 @@ public static class ContentServiceExtensions
         services.AddScoped<ContentValidationService>();
         services.AddScoped<ContentCommandService>();
         services.AddScoped<ContentEmbedBlockRenderer>();
+        services.AddScoped<IContentItemRenderer, ContentItemRenderer>();
 
         // Rendering bridge (scoped — depends on IDocumentSession)
         services.AddScoped<IContentTypeRenderingBridge, ContentTypeDynamicBlockBridge>();

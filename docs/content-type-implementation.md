@@ -1,5 +1,23 @@
 # Content Type Implementation
 
+> [!IMPORTANT]
+> Current rendering contract (June 2026):
+>
+> - `DynamicBlock` is the supported runtime mode and renders through Scriban.
+> - The `DynamicBlockDefinition` template and `DataSchema` are synchronized when
+>   the content type is saved. Rendering is read-only and performs no database writes.
+> - Definitions are linked by `ContentTypeId` and `SiteId`; aliases are display and
+>   routing identifiers, not the persistence relationship.
+> - Legacy `ct:{alias}` definitions remain readable until the content type is next
+>   saved, at which point they are upgraded to the stable linkage.
+> - `ISecureScribanRenderer` validates both template syntax/security and content data
+>   against the generated schema before rendering.
+> - Embedded content and standalone content URLs share `IContentItemRenderer`.
+> - `BlockLayout` is not implemented and returns an explicit rendering failure.
+> - Trusted, developer-authored compiled `.cshtml` views are the final rendering mode
+>   planned after the Scriban and BlockLayout paths are complete. Database-authored
+>   Razor templates will not be supported.
+
 ## Runtime-defined content types without reflection for Aero CMS
 
 ---

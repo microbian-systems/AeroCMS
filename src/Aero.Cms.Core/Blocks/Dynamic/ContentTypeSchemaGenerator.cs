@@ -23,6 +23,20 @@ public static class ContentTypeSchemaGenerator
         }
 
         writer.WriteEndObject();
+
+        var requiredFields = definition.Fields
+            .Where(field => field.Required)
+            .Select(field => field.Name)
+            .ToList();
+        if (requiredFields.Count > 0)
+        {
+            writer.WriteStartArray("required");
+            foreach (var fieldName in requiredFields)
+                writer.WriteStringValue(fieldName);
+            writer.WriteEndArray();
+        }
+
+        writer.WriteBoolean("additionalProperties", false);
         writer.WriteEndObject();
         writer.Flush();
 
@@ -33,6 +47,7 @@ public static class ContentTypeSchemaGenerator
     private static string MapFieldType(string ft) => ft switch
     {
         "number" => "number", "boolean" => "boolean",
+        "reference" => "integer",
         _ => "string"
     };
 }

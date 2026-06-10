@@ -7,6 +7,7 @@ using Aero.Cms.Modules.Content.Areas.Api.v1;
 using Aero.Cms.Modules.Content.Rendering;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -40,6 +41,13 @@ public sealed class ContentModule : AeroWebModule, IContentDefinitionModule
 
         // Public URL rendering for content types
         services.AddScoped<ContentTypeUrlRenderer>();
+        services.AddRazorPages()
+            .AddApplicationPart(typeof(ContentModule).Assembly);
+        services.Configure<RazorPagesOptions>(options =>
+            options.Conventions.AddAreaPageRoute(
+                "Content",
+                "/PublicContent",
+                "/content/{typeAlias}/{entrySlug}"));
 
         // Grain-backed actors — direct injection for thin API controllers
         services.AddSingleton<IAeroContentItemActor>(sp =>
@@ -84,7 +92,6 @@ public sealed class ContentModule : AeroWebModule, IContentDefinitionModule
         builder.MapContentTypesApi();
         builder.MapContentItemsApi();
         builder.MapBlocksApi();
-        builder.MapContentTypeRoutes();
 
         return Task.CompletedTask;
     }

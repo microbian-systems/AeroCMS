@@ -142,7 +142,8 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         HideFromSearch = def.HideFromSearch,
         FieldsJson = JsonSerializer.Serialize(def.Fields),
         ScribanTemplate = def.ScribanTemplate,
-        RenderMode = def.RenderMode
+        RenderMode = def.RenderMode,
+        ScheduleConfig = def.ScheduleConfig
     };
 
     private static ContentTypeDefinition ToEntity(ContentTypeViewModel vm, bool isNew)
@@ -164,7 +165,8 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
             HideFromSearch = vm.HideFromSearch,
             Fields = fields,
             ScribanTemplate = vm.ScribanTemplate,
-            RenderMode = vm.RenderMode
+            RenderMode = vm.RenderMode,
+            ScheduleConfig = vm.ScheduleConfig
         };
     }
 }

@@ -72,7 +72,7 @@ public static class ContentItemsApi
             return TypedResults.Ok(new PagedResult<ContentItemSummary>(summaries, totalCount, skip, take));
         }
         catch (Exception ex)
-        {
+        { 
             logger.LogError(ex, "Error listing content items for type={ContentType}", contentType);
             return TypedResults.Problem(ex.Message);
         }

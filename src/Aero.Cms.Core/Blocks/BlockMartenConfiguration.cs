@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Core.Blocks.Dynamic;
 using Marten;
 
 namespace Aero.Cms.Core.Blocks;
@@ -24,5 +25,8 @@ public sealed class BlockMartenConfiguration : IConfigureMarten
             .ToArray();
 
         options.Schema.For<BlockBase>().AddSubClassHierarchy(mappedTypes);
+        options.Schema.For<DynamicBlockDefinition>()
+            .Index(x => x.ContentTypeId)
+            .Index(x => x.SiteId);
     }
 }
