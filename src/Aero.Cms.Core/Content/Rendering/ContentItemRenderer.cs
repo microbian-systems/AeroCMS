@@ -34,7 +34,7 @@ public sealed class ContentItemRenderer(
 
         var block = ((Result<DynamicTemplateBlock, AeroError>.Ok)blockResult).Value;
         var definition = ((Result<DynamicBlockDefinition, AeroError>.Ok)definitionResult).Value;
-        definition.ScribanTemplate = ContentTypeTemplateGenerator.NormalizeFieldAccessors(
+        definition.ScribanTemplate = ContentTypeTemplateGenerator.NormalizeTemplate(
             definition.ScribanTemplate,
             typeDefinition.Fields);
         return await scribanRenderer.RenderAsync(definition, block.Data, ct);

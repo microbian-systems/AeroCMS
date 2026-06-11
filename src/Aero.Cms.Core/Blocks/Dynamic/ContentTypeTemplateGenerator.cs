@@ -6,6 +6,10 @@ namespace Aero.Cms.Core.Blocks.Dynamic;
 public static class ContentTypeTemplateGenerator
 {
     private static readonly Regex SafeName = new("^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.Compiled);
+    private static readonly Regex LegacyComment = new(
+        @"\{\{\*(.*?)\*\}\}",
+        RegexOptions.Compiled | RegexOptions.Singleline,
+        TimeSpan.FromSeconds(1));
 
     public static string GenerateTemplate(ContentTypeDefinition definition, IEnumerable<IFieldTemplateSnippet> snippets)
     {
@@ -44,6 +48,14 @@ public static class ContentTypeTemplateGenerator
         }
 
         return template;
+    }
+
+    public static string NormalizeTemplate(
+        string template,
+        IEnumerable<ContentFieldDefinition> fields)
+    {
+        template = LegacyComment.Replace(template, "{{##$1##}}");
+        return NormalizeFieldAccessors(template, fields);
     }
 }
 

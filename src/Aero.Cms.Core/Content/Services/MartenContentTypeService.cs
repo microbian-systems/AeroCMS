@@ -116,7 +116,7 @@ public sealed class MartenContentTypeService(
         var template = string.IsNullOrWhiteSpace(definition.ScribanTemplate)
             ? ContentTypeTemplateGenerator.GenerateTemplate(definition, snippets)
             : definition.ScribanTemplate;
-        template = ContentTypeTemplateGenerator.NormalizeFieldAccessors(template, definition.Fields);
+        template = ContentTypeTemplateGenerator.NormalizeTemplate(template, definition.Fields);
         definition.ScribanTemplate = template;
         using var schema = ContentTypeSchemaGenerator.GenerateSchema(definition);
 

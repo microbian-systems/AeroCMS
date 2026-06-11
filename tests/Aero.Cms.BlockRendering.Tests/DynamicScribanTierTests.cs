@@ -266,6 +266,50 @@ public sealed class DynamicScribanTierTests
     }
 
     [Test]
+    public async Task ContentItemRenderer_NormalizesLegacyAsteriskComments()
+    {
+        using var data = JsonDocument.Parse("""{"title":"Monkey"}""");
+        var type = new ContentTypeDefinition
+        {
+            Id = 11,
+            SiteId = 21,
+            Alias = "animals",
+            Fields =
+            [
+                new() { Name = "title", Label = "Title", FieldType = "text" }
+            ]
+        };
+        var item = new ContentItem
+        {
+            Id = 31,
+            SiteId = type.SiteId,
+            ContentTypeAlias = type.Alias,
+            Fields = new Dictionary<string, JsonElement>
+            {
+                ["title"] = data.RootElement.GetProperty("title").Clone()
+            }
+        };
+        var definition = new DynamicBlockDefinition
+        {
+            Id = 41,
+            Version = 1,
+            ScribanTemplate = """
+                {{* HERO SECTION *}}
+                <h1>{{ block.title }}</h1>
+                """
+        };
+        var renderer = new ContentItemRenderer(
+            new StubContentTypeRenderingBridge(definition, data),
+            new SecureScribanRenderer());
+
+        var result = await renderer.RenderAsync(type, item);
+
+        result.Should().BeOfType<Result<string, AeroError>.Ok>();
+        ((Result<string, AeroError>.Ok)result).Value.Should().Contain("<h1>Monkey</h1>");
+        definition.ScribanTemplate.Should().Contain("{{## HERO SECTION ##}}");
+    }
+
+    [Test]
     public async Task ContentItemRenderer_RejectsUnimplementedBlockLayoutMode()
     {
         var renderer = new ContentItemRenderer(
