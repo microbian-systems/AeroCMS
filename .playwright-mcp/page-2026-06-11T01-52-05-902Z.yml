@@ -1,0 +1,78 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e4]:
+      - link "AeroCMS" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img [ref=e8]
+        - generic [ref=e10]: AeroCMS
+      - navigation [ref=e13]:
+        - link "Home" [ref=e14] [cursor=pointer]:
+          - /url: /
+        - link "About" [ref=e15] [cursor=pointer]:
+          - /url: /about
+        - link "Contact" [ref=e16] [cursor=pointer]:
+          - /url: /contact
+        - link "Docs" [ref=e17] [cursor=pointer]:
+          - /url: /docs
+        - link "Blog" [ref=e18] [cursor=pointer]:
+          - /url: /blog
+  - main [ref=e19]:
+    - article [ref=e20]:
+      - generic [ref=e21]:
+        - text: /media/1504185038039040000-snowflake-96.png
+        - generic [ref=e22]:
+          - navigation [ref=e23]:
+            - generic [ref=e24]: Home
+            - generic [ref=e25]: Exhibits
+            - generic [ref=e26]: Animal Profile
+          - heading "Monkey" [level=1] [ref=e28]
+      - generic [ref=e33]:
+        - generic [ref=e37]:
+          - generic [ref=e38]: "3"
+          - generic [ref=e39]: Wild Population
+        - generic [ref=e43]:
+          - generic [ref=e44]: "true"
+          - generic [ref=e45]: Conservation Status
+        - generic [ref=e49]:
+          - generic [ref=e50]: 2026-06-10T00:00:00
+          - generic [ref=e51]: Record Updated
+      - generic [ref=e53]: This is a monkey
+  - contentinfo [ref=e57]:
+    - generic [ref=e58]:
+      - generic [ref=e60]:
+        - navigation "Footer" [ref=e62]:
+          - heading "Company" [level=2] [ref=e63]
+          - list [ref=e64]:
+            - listitem [ref=e65]:
+              - link "About" [ref=e66] [cursor=pointer]:
+                - /url: /about
+            - listitem [ref=e67]:
+              - link "Contact" [ref=e68] [cursor=pointer]:
+                - /url: /contact
+        - navigation "Footer" [ref=e70]:
+          - heading "Content" [level=2] [ref=e71]
+          - list [ref=e72]:
+            - listitem [ref=e73]:
+              - link "Blog" [ref=e74] [cursor=pointer]:
+                - /url: /blog
+            - listitem [ref=e75]:
+              - link "Docs" [ref=e76] [cursor=pointer]:
+                - /url: /docs
+        - navigation "Footer" [ref=e78]:
+          - heading "Site" [level=2] [ref=e79]
+          - list [ref=e80]:
+            - listitem [ref=e81]:
+              - link "Home" [ref=e82] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e83]:
+              - link "Sitemap" [ref=e84] [cursor=pointer]:
+                - /url: /sitemap.xml
+      - generic [ref=e85]:
+        - paragraph [ref=e86]: © 2026 Aero CMS. All rights reserved.
+        - generic [ref=e87]:
+          - link "Privacy" [ref=e88] [cursor=pointer]:
+            - /url: /privacy
+          - link "Terms" [ref=e89] [cursor=pointer]:
+            - /url: /terms
+          - link "Cookies" [ref=e90] [cursor=pointer]:
+            - /url: /cookies
