@@ -1,0 +1,8 @@
+@page "/{typeAlias}/{entrySlug}"
+@model Aero.Cms.Modules.Content.Areas.Content.Pages.PublicContentModel
+@{
+    Layout = "_CmsLayout";
+    ViewBag.Title = Model.Title;
+}
+
+@Html.Raw(Model.RenderedHtml)

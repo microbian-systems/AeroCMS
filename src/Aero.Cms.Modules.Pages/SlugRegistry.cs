@@ -1,7 +1,7 @@
 using Aero.Cms.Abstractions.Interfaces;
-using Aero.Core;
+using Aero.Cms.Core.Entities;
 using Aero.Core.Entities;
-using Marten;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -18,6 +18,7 @@ public sealed class ContentSlugDocument : Entity, ISiteOwned
     private const string RootSlugKey = "__root__";
 
     public long SiteId { get; set; }
+    public string Culture { get; set; } = SitesModel.DefaultCultureName;
     public string Slug { get; set; } = string.Empty;
     public string NormalizedSlug { get; set; } = string.Empty;
     public long OwnerId { get; set; } 
@@ -35,7 +36,12 @@ public sealed class ContentSlugDocument : Entity, ISiteOwned
     }
 
 
-    public static ContentSlugDocument Create(string slug, long ownerId, ContentSlugOwnerType ownerType, long siteId)
+    public static ContentSlugDocument Create(
+        string slug,
+        long ownerId,
+        ContentSlugOwnerType ownerType,
+        long siteId,
+        string culture = SitesModel.DefaultCultureName)
     {
         var normalizedSlug = Normalize(slug);
 
@@ -46,8 +52,24 @@ public sealed class ContentSlugDocument : Entity, ISiteOwned
             NormalizedSlug = normalizedSlug,
             OwnerId = ownerId,
             OwnerType = ownerType,
-            SiteId = siteId
+            SiteId = siteId,
+            Culture = NormalizeCulture(culture)
         };
+    }
+
+    public static string NormalizeCulture(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return SitesModel.DefaultCultureName;
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return SitesModel.DefaultCultureName;
+        }
     }
 }
 
@@ -69,13 +91,35 @@ public static class ContentSlugReservation
         long siteId,
         string? previousSlug,
         CancellationToken cancellationToken)
+        => await ReserveAsync(
+            session,
+            ownerId,
+            ownerType,
+            slug,
+            siteId,
+            SitesModel.DefaultCultureName,
+            previousSlug,
+            cancellationToken);
+
+    public static async Task ReserveAsync(
+        IDocumentSession session,
+        long ownerId,
+        ContentSlugOwnerType ownerType,
+        string slug,
+        long siteId,
+        string culture,
+        string? previousSlug,
+        CancellationToken cancellationToken)
     {
         var normalizedSlug = ContentSlugDocument.Normalize(slug);
+        var normalizedCulture = ContentSlugDocument.NormalizeCulture(culture);
         
         // Find existing reservation for this slug within the current site.
         var existingReservation = await session.Query<ContentSlugDocument>()
             .FirstOrDefaultAsync(
-                x => x.SiteId == siteId && x.NormalizedSlug == normalizedSlug,
+                x => x.SiteId == siteId &&
+                     x.Culture == normalizedCulture &&
+                     x.NormalizedSlug == normalizedSlug,
                 cancellationToken);
             
         if (existingReservation is not null && existingReservation.OwnerId != ownerId)
@@ -92,6 +136,7 @@ public static class ContentSlugReservation
                 var previousReservation = await session.Query<ContentSlugDocument>()
                     .FirstOrDefaultAsync(
                         x => x.SiteId == siteId &&
+                             x.Culture == normalizedCulture &&
                              x.NormalizedSlug == normalizedPreviousSlug &&
                              x.OwnerId == ownerId,
                         cancellationToken);
@@ -106,7 +151,7 @@ public static class ContentSlugReservation
         // Only store if we don't already have this reservation (avoiding duplicates if it's an update with same slug)
         if (existingReservation is null)
         {
-            session.Store(ContentSlugDocument.Create(slug, ownerId, ownerType, siteId));
+            session.Store(ContentSlugDocument.Create(slug, ownerId, ownerType, siteId, normalizedCulture));
         }
     }
 }

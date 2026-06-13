@@ -23,6 +23,7 @@ public sealed class EnhanceContentRequestValidator : AbstractValidator<EnhanceCo
 
     public EnhanceContentRequestValidator()
     {
+        // todo - get ai provider settings/options from the database config
         RuleFor(x => x.ContentKind)
             .NotEmpty()
             .Must(kind => ContentKinds.Contains(kind))
@@ -39,7 +40,7 @@ public sealed class EnhanceContentRequestValidator : AbstractValidator<EnhanceCo
             .WithMessage("Current text must be 30,000 characters or fewer.");
 
         RuleFor(x => x.UserPrompt)
-            .MaximumLength(2_000)
+            .MaximumLength(20_000)
             .When(x => x.UserPrompt is not null);
 
         RuleFor(x => x.Title)

@@ -22,6 +22,11 @@ public sealed class CarouselBlock : BlockBase
     public string ControlLocation { get; set; } = "bottom";
 
     /// <summary>
+    /// Whether to show left/right overlay arrow controls on the carousel images.
+    /// </summary>
+    public bool ShowArrows { get; set; } = true;
+
+    /// <summary>
     /// Whether the carousel should automatically loop.
     /// </summary>
     public bool AutoPlay { get; set; } = true;

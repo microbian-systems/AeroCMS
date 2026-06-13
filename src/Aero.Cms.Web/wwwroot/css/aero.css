@@ -41,6 +41,16 @@
   body {
     @apply font-sans;
   }
+
+  html[dir="rtl"] .prose,
+  html[dir="rtl"] article,
+  html[dir="rtl"] main {
+    text-align: start;
+  }
+
+  html[dir="rtl"] svg {
+    transform-origin: center;
+  }
   
   /* Shared block utilities */
   .container-wide {

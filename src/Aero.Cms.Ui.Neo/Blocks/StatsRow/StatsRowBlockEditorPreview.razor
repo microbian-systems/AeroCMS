@@ -1,0 +1,10 @@
+<div class="pe-neo-preview pe-neo-stats-row-preview">
+    <StatsRowBlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private StatsRowBlock PreviewBlock => StatsRowBlockMapper.FromNode(Node);
+}

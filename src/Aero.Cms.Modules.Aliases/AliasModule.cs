@@ -1,9 +1,15 @@
-﻿using Aero.Cms.Core;
+﻿using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Abstractions.Services;
+using Aero.Cms.Abstractions.Validators;
+using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Repositories;
+using Aero.Cms.Modules.Aliases.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Core.Pipelines;
 using Aero.Modular;
+using FluentValidation;
 using Marten;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
@@ -45,6 +51,18 @@ public class AliasModule : AeroWebModule
         // Core alias services
         services.AddScoped<IAliasRepository, AliasRepository>();
         services.AddScoped<IAliasService, AliasService>();
+
+        // Grain-backed alias service (Orleans actor) — service wrapper
+        services.AddScoped<IAeroAliasService, AeroAliasService>();
+
+        // Grain interface — direct injection for thin API controllers
+        services.AddSingleton<IAeroAliasActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroAliasActor>(0, "aero"));
+
+        // FluentValidation validators — input validation in the API layer
+        services.AddScoped<IValidator<CreateAliasRequest>, CreateAliasRequestValidator>();
+        services.AddScoped<IValidator<DeleteAliasRequest>, DeleteAliasRequestValidator>();
+
         services.AddScoped<IPageSaveHook, SlugRewriteHook>();
 
         // In-memory alias cache — zero DB I/O per request
@@ -67,7 +85,7 @@ public class AliasModule : AeroWebModule
 
     public override async Task RunAsync(IEndpointRouteBuilder builder)
     {
-            
+        builder.MapAliasesApi();
     }
 
     public override void Configure(IServiceProvider services, StoreOptions opts)

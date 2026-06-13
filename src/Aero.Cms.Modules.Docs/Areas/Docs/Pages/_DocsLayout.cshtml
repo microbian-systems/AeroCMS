@@ -1,0 +1,42 @@
+@* _DocsLayout.cshtml — Three-column docs layout nested inside _CmsLayout *@
+@{
+    Layout = "_CmsLayout";
+}
+
+@* Phosphor Icons CDN + docs CSS (in headPartial to avoid render-block) *@
+@section headPartial {
+    <link rel="stylesheet" type="text/css"
+          href="https://unpkg.com/@@phosphor-icons/web@2.1.1/src/regular/style.css" />
+    @await RenderSectionAsync("headPartial", required: false)
+}
+
+@* Docs-specific CSS — pass through from child pages *@
+@section cssPartial {
+    <style type="text/tailwindcss" src="/_content/Aero.Cms.Modules.Docs/css/docs.css"></style>
+    @await RenderSectionAsync("cssPartial", required: false)
+}
+
+@* ── Three-column body ──────────────────────────────────────────────── *@
+<div class="flex min-h-[calc(100vh-4rem)]">
+    @* Left Sidebar *@
+    @if (IsSectionDefined("sidebarPartial"))
+    {
+        @await RenderSectionAsync("sidebarPartial", required: false)
+    }
+
+    @* Main Content *@
+    <main class="flex-1 min-w-0">
+        @RenderBody()
+    </main>
+
+    @* Right Panel *@
+    @if (IsSectionDefined("rightPanelPartial"))
+    {
+        @await RenderSectionAsync("rightPanelPartial", required: false)
+    }
+</div>
+
+@* Scripts pass-through *@
+@section Scripts {
+    @await RenderSectionAsync("Scripts", required: false)
+}

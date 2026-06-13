@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Primitives;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.OutputCache.Caching;
 
@@ -44,6 +45,8 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
 
         // Vary by all query parameters by default
         context.CacheVaryByRules.QueryKeys = "*";
+        context.CacheVaryByRules.VaryByValues["culture"] = CultureInfo.CurrentUICulture.Name;
+
         if (!attemptOutputCaching)
         {
             SetDiagnosticHeader(context, "BYPASS");
@@ -64,6 +67,11 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
     /// Called after the response is generated. Only caches HTTP 200 responses.
     /// Unlike the default policy, it does NOT exclude responses with Set-Cookie
     /// headers, since the antiforgery cookie is safe to cache alongside.
+    ///
+    /// Adds fine-grained per-page cache tags when the page model stored page
+    /// context in <c>HttpContext.Items["AeroCms.PageContext"]</c>. This enables
+    /// single-page eviction via <c>EvictByTagAsync("page-id-{id}")</c> without
+    /// invalidating the entire <c>pages-list</c> tag.
     /// </summary>
     ValueTask IOutputCachePolicy.ServeResponseAsync(
         OutputCacheContext context,
@@ -79,8 +87,42 @@ public sealed class CmsOutputCachePolicy : IOutputCachePolicy
             return ValueTask.CompletedTask;
         }
 
+        // Add per-page tags so individual pages can be evicted without
+        // blowing away the entire pages-list cache. The page model stores
+        // page ID and slug in HttpContext.Items during OnGetAsync under
+        // "AeroCms.PageId" and "AeroCms.PageSlug" keys.
+        AddPerPageTags(context);
+
         SetDiagnosticHeader(context, "MISS");
         return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Extracts page ID and slug from HttpContext.Items and adds
+    /// <c>page-id-{id}</c> and <c>page-slug-{slug}</c> tags to the
+    /// OutputCache entry. These tags are then usable in
+    /// <c>IOutputCacheStore.EvictByTagAsync</c> for single-page invalidation.
+    ///
+    /// Uses separate HttpContext.Items keys to avoid reflection:
+    ///   "AeroCms.PageId"  → long (stored as boxed long)
+    ///   "AeroCms.PageSlug" → string
+    /// Both are set by DynamicPageModel.OnGetAsync after page load.
+    /// </summary>
+    private static void AddPerPageTags(OutputCacheContext context)
+    {
+        var items = context.HttpContext.Items;
+
+        if (items["AeroCms.PageId"] is long id and > 0)
+        {
+            context.Tags.Add($"page-id-{id}");
+        }
+
+        if (items["AeroCms.PageSlug"] is string slug and { Length: > 0 })
+        {
+            var normalizedSlug = slug.ToLowerInvariant();
+            context.Tags.Add($"page-slug-{normalizedSlug}");
+            context.Tags.Add($"page-slug-{CultureInfo.CurrentUICulture.Name.ToLowerInvariant()}-{normalizedSlug}");
+        }
     }
 
     private static void SetDiagnosticHeader(OutputCacheContext context, string value)

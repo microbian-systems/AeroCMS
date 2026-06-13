@@ -1,17 +1,4 @@
 @inherits LayoutComponentBase
-@inject Aero.Cms.Shared.Services.ManagerThemeService Theme
 @layout ManagerShellLayout
 
 @Body
- 
- @code {
-     protected override async Task OnInitializedAsync()
-     {
-         // During server-side prerendering, JS interop is not available (OperatingSystem.IsBrowser() is false).
-         // On WASM interactive, OperatingSystem.IsBrowser() is true and we can safely call JS interop.
-         if (OperatingSystem.IsBrowser() && !Theme.IsDarkMode)
-         {
-             await Theme.SetDarkModeAsync(true);
-         }
-     }
- }

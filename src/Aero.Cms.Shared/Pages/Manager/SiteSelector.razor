@@ -13,16 +13,17 @@
 @inject AdminStateContainer AdminState
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="mb-6">
-    <h1 class="text-2xl font-bold mb-2">Select a Site</h1>
-    <p class="text-gray-500">Choose a site to manage</p>
+    <h1 class="text-2xl font-bold mb-2">@L["Select a Site"]</h1>
+    <p class="text-gray-500">@L["Choose a site to manage"]</p>
 </div>
 
 @if (_isLoading)
 {
     <div class="flex justify-center py-12">
-        <span class="text-gray-500">Loading sites...</span>
+        <span class="text-gray-500">@L["Loading sites..."]</span>
     </div>
 }
 else if (_errorMessage is not null)
@@ -34,7 +35,7 @@ else if (_errorMessage is not null)
 else if (_sites is null || _sites.Count == 0)
 {
     <div class="text-center py-12">
-        <p class="text-gray-500">No sites available. Contact your administrator.</p>
+        <p class="text-gray-500">@L["No sites available. Contact your administrator."]</p>
     </div>
 }
 else
@@ -47,7 +48,7 @@ else
                 <p class="text-sm text-gray-500">@site.PrimaryHost</p>
                 <div class="mt-2">
                     <span class="text-xs px-2 py-1 rounded @(site.IsEnabled ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")">
-                        @(site.IsEnabled ? "Active" : "Disabled")
+                        @(site.IsEnabled ? L["Active"] : L["Disabled"])
                     </span>
                 </div>
             </button>
@@ -59,7 +60,7 @@ else
 <AuthorizeView Roles="Admin">
     <Authorized>
         <div class="mt-6 text-center">
-            <a href="/manager/sites" class="text-sm text-indigo-600 hover:underline">Manage Sites</a>
+            <a href="/manager/sites" class="text-sm text-indigo-600 hover:underline">@L["Manage Sites"]</a>
         </div>
     </Authorized>
 </AuthorizeView>
@@ -101,7 +102,7 @@ else
                     {
                         var site = _sites[0];
                         await CurrentSiteAccessor.SetCurrentSiteAsync(site.Id);
-                        AdminState.SetSite(site.Id, site.Name ?? "Site");
+                        AdminState.SetSite(site.Id, site.Name ?? L["Site"]);
                         Navigation.NavigateTo("/manager", forceLoad: true);
                     }
                     break;
@@ -127,7 +128,7 @@ else
     {
         var site = _sites?.FirstOrDefault(s => s.Id == siteId);
         await CurrentSiteAccessor.SetCurrentSiteAsync(siteId);
-        AdminState.SetSite(siteId, site?.Name ?? "Site");
+        AdminState.SetSite(siteId, site?.Name ?? L["Site"]);
         Navigation.NavigateTo("/manager", forceLoad: true);
     }
 }

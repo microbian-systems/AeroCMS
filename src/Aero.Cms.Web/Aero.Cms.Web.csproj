@@ -3,6 +3,7 @@
 
 	<PropertyGroup>
 		<OutputType>exe</OutputType>
+		<InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.OpenApi.Generated</InterceptorsNamespaces>
 	</PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +13,8 @@
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" />
     <PackageReference Include="Microsoft.Orleans.Sdk" />
     <PackageReference Include="Microsoft.Orleans.Server" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore.Microsoft" />
     <PackageReference Include="WolverineFx.Marten" />
     <PackageReference Include="Boxed.AspNetCore" />
     <PackageReference Include="Htmx" />
@@ -274,7 +277,6 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Crm\Aero.Cms.Modules.Crm.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Export\Aero.Cms.Modules.Export.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Forum\Aero.Cms.Modules.Forum.csproj" />
-	  <ProjectReference Include="..\Aero.Cms.Modules.Headless\Aero.Cms.Modules.Headless.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.LettuceEncrypt\Aero.Cms.Modules.LettuceEncrypt.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Localization\Aero.Cms.Modules.Localization.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.MagicLink\Aero.Cms.Modules.MagicLink.csproj" />
@@ -282,6 +284,8 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Manager\Aero.Cms.Modules.Manager.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Mcp\Aero.Cms.Modules.Mcp.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Media\Aero.Cms.Modules.Media.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Navigation\Aero.Cms.Modules.Navigation.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Footer\Aero.Cms.Modules.Footer.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Members\Aero.Cms.Modules.Members.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.MiniProfiler\Aero.Cms.Modules.MiniProfiler.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.OneTimePasscode\Aero.Cms.Modules.OneTimePasscode.csproj" />
@@ -300,9 +304,11 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.WorkOS\Aero.Cms.Modules.WorkOS.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Services\Aero.Cms.Services.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Ui.Hyper\Aero.Cms.Ui.Hyper.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Ui.Neo\Aero.Cms.Ui.Neo.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Blog.Importer\Aero.Cms.Modules.Blog.Importer.csproj" />
-	  <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Grpc\Aero.Cms.Modules.Grpc.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Health\Aero.Cms.Modules.Health.csproj" />
@@ -323,7 +329,16 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.Security\Aero.Cms.Modules.Security.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.SimpleSecurity\Aero.Cms.Modules.SimpleSecurity.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.ServiceDefaults\Aero.Cms.ServiceDefaults.csproj" />
+	  <ProjectReference Include="..\Aero.Cms.Web.Bootstrap\Aero.Cms.Web.Bootstrap.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Client\Aero.Cms.Web.Client.csproj" />
   </ItemGroup>
+
+  <Target Name="AeroCompileWebTypeScriptBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
+    <PropertyGroup>
+      <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>
+      <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>
+    </PropertyGroup>
+    <Exec Command="&quot;$(AeroTscToolExe)&quot; &quot;$(TSJavaScriptFile)&quot; -p &quot;$(MSBuildProjectDirectory)\tsconfig.json&quot;" />
+  </Target>
 
 </Project>

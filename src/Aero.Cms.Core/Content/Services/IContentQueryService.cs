@@ -9,6 +9,12 @@ public interface IContentQueryService
     Task<Result<(IReadOnlyList<ContentItem> Items, long TotalCount), AeroError>> GetByTypeAsync(
         long siteId, string contentTypeAlias, int skip = 0, int take = 20, CancellationToken ct = default);
 
+    Task<Result<long, AeroError>> CountByTypeAsync(
+        long siteId, string contentTypeAlias, CancellationToken ct = default);
+
     Task<Result<IReadOnlyList<ContentItem>, AeroError>> SearchAsync(
         long siteId, string contentTypeAlias, Dictionary<string, string> fieldFilters, CancellationToken ct = default);
+
+    Task<Result<IReadOnlyList<ContentItem>, AeroError>> ListCultureVariantsAsync(
+        long siteId, string contentTypeAlias, long translationGroupId, CancellationToken ct = default);
 }

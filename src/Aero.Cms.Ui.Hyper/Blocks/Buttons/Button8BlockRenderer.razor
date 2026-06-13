@@ -1,0 +1,18 @@
+@* Button 8 — HyperUI marketing/buttons/8 *@
+@* Source: hyperui/public/examples/marketing/buttons/8.html *@
+@if (Block is not null)
+{
+    var isSolid = string.Equals(Block.Style, "solid", StringComparison.OrdinalIgnoreCase);
+    var rotateCls = string.Equals(Block.RotateDirection, "positive", StringComparison.OrdinalIgnoreCase)
+        ? "hover:rotate-2" : "hover:-rotate-2";
+
+    var cls = isSolid
+        ? $"inline-block rounded-sm bg-indigo-600 px-8 py-3 text-sm font-medium text-white transition hover:scale-110 {rotateCls}"
+        : $"inline-block rounded-sm border border-current px-8 py-3 text-sm font-medium text-indigo-600 transition hover:scale-110 {rotateCls}";
+
+    <a href="@Block.Url" class="@cls">@Block.Text</a>
+}
+@code {
+    [Parameter, EditorRequired]
+    public Button8Block? Block { get; set; }
+}

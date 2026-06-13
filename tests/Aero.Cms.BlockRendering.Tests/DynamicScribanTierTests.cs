@@ -2,7 +2,9 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Serialization;
+using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core.Blocks.Dynamic;
+using Aero.Cms.Core.Content.Rendering;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Shared.Blocks.Rendering;
 using Aero.Core;
@@ -137,6 +139,199 @@ public sealed class DynamicScribanTierTests
         var normalizedHtml = html.ToLowerInvariant();
         normalizedHtml.Should().NotContain("onerror");
         normalizedHtml.Should().NotContain("<script");
+    }
+
+    [Test]
+    public async Task SecureScribanRenderer_ValidatesContentDataAgainstSchema()
+    {
+        using var data = JsonDocument.Parse("""{"count":"not-a-number"}""");
+        using var schema = JsonDocument.Parse("""
+            {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "count": { "type": "number" }
+              },
+              "required": ["title"],
+              "additionalProperties": false
+            }
+            """);
+        var definition = new DynamicBlockDefinition
+        {
+            Id = 104,
+            Version = 1,
+            ScribanTemplate = "{{ block.title }}",
+            DataSchema = schema
+        };
+
+        var renderer = new SecureScribanRenderer();
+        var result = await renderer.RenderAsync(definition, data);
+
+        result.Should().BeOfType<Result<string, AeroError>.Failure>();
+        var validation = ((Result<string, AeroError>.Failure)result).Error
+            .Should().BeOfType<AeroError.Validation>().Subject;
+        validation.Errors.Should().Contain(error => error.Contains("Required field 'title'", StringComparison.Ordinal));
+        validation.Errors.Should().Contain(error => error.Contains("Field 'count' must be of type 'number'", StringComparison.Ordinal));
+    }
+
+    [Test]
+    public async Task GeneratedContentTypeTemplate_RendersAnimalsPayloadWithHyphenatedFieldName()
+    {
+        var type = new ContentTypeDefinition
+        {
+            Id = 1514362346261479424,
+            SiteId = 1514356897097744384,
+            Name = "Animals",
+            Alias = "animals",
+            Fields =
+            [
+                new() { Name = "title", Label = "Title", FieldType = "text" },
+                new() { Name = "image", Label = "Image", FieldType = "image" },
+                new() { Name = "rich-text", Label = "Rich text", FieldType = "richtext" },
+                new() { Name = "number", Label = "Number", FieldType = "number" },
+                new() { Name = "yesno", Label = "Yes/No", FieldType = "boolean" },
+                new() { Name = "date", Label = "Date", FieldType = "date" }
+            ]
+        };
+        using var data = JsonDocument.Parse("""
+            {
+              "date": "2026-06-10T00:00:00",
+              "image": "/media/1504185038039040000-snowflake-96.png",
+              "title": "Monkey",
+              "yesno": true,
+              "number": 3,
+              "rich-text": "This is a monkey"
+            }
+            """);
+        var template = ContentTypeTemplateGenerator.GenerateTemplate(type, []);
+        var definition = new DynamicBlockDefinition
+        {
+            Id = type.Id,
+            Version = 1,
+            ScribanTemplate = template
+        };
+
+        template.Should().Contain("""block["rich-text"]""");
+
+        var result = await new SecureScribanRenderer().RenderAsync(definition, data);
+
+        result.Should().BeOfType<Result<string, AeroError>.Ok>();
+        var html = ((Result<string, AeroError>.Ok)result).Value;
+        html.Should().Contain("Monkey");
+        html.Should().Contain("/media/1504185038039040000-snowflake-96.png");
+        html.Should().Contain("This is a monkey");
+        html.Should().Contain(">3<");
+        html.Should().Contain("2026-06-10T00:00:00");
+    }
+
+    [Test]
+    public async Task ContentItemRenderer_NormalizesLegacyDotAccessForHyphenatedFields()
+    {
+        using var data = JsonDocument.Parse("""{"rich-text":"test"}""");
+        var type = new ContentTypeDefinition
+        {
+            Id = 10,
+            SiteId = 20,
+            Alias = "test",
+            Fields =
+            [
+                new() { Name = "rich-text", Label = "Rich text", FieldType = "richtext" }
+            ]
+        };
+        var item = new ContentItem
+        {
+            Id = 30,
+            SiteId = type.SiteId,
+            ContentTypeAlias = type.Alias,
+            Fields = new Dictionary<string, JsonElement>
+            {
+                ["rich-text"] = data.RootElement.GetProperty("rich-text").Clone()
+            }
+        };
+        var definition = new DynamicBlockDefinition
+        {
+            Id = 40,
+            Version = 1,
+            ScribanTemplate = """<p>{{ block.rich-text }}</p>"""
+        };
+        var renderer = new ContentItemRenderer(
+            new StubContentTypeRenderingBridge(definition, data),
+            new SecureScribanRenderer());
+
+        var result = await renderer.RenderAsync(type, item);
+
+        result.Should().BeOfType<Result<string, AeroError>.Ok>();
+        ((Result<string, AeroError>.Ok)result).Value.Should().Contain("<p>test</p>");
+        definition.ScribanTemplate.Should().Contain("""block["rich-text"]""");
+    }
+
+    [Test]
+    public async Task ContentItemRenderer_NormalizesLegacyAsteriskComments()
+    {
+        using var data = JsonDocument.Parse("""{"title":"Monkey"}""");
+        var type = new ContentTypeDefinition
+        {
+            Id = 11,
+            SiteId = 21,
+            Alias = "animals",
+            Fields =
+            [
+                new() { Name = "title", Label = "Title", FieldType = "text" }
+            ]
+        };
+        var item = new ContentItem
+        {
+            Id = 31,
+            SiteId = type.SiteId,
+            ContentTypeAlias = type.Alias,
+            Fields = new Dictionary<string, JsonElement>
+            {
+                ["title"] = data.RootElement.GetProperty("title").Clone()
+            }
+        };
+        var definition = new DynamicBlockDefinition
+        {
+            Id = 41,
+            Version = 1,
+            ScribanTemplate = """
+                {{* HERO SECTION *}}
+                <h1>{{ block.title }}</h1>
+                """
+        };
+        var renderer = new ContentItemRenderer(
+            new StubContentTypeRenderingBridge(definition, data),
+            new SecureScribanRenderer());
+
+        var result = await renderer.RenderAsync(type, item);
+
+        result.Should().BeOfType<Result<string, AeroError>.Ok>();
+        ((Result<string, AeroError>.Ok)result).Value.Should().Contain("<h1>Monkey</h1>");
+        definition.ScribanTemplate.Should().Contain("{{## HERO SECTION ##}}");
+    }
+
+    [Test]
+    public async Task ContentItemRenderer_RejectsUnimplementedBlockLayoutMode()
+    {
+        var renderer = new ContentItemRenderer(
+            new ThrowingContentTypeRenderingBridge(),
+            new SecureScribanRenderer());
+        var type = new ContentTypeDefinition
+        {
+            Id = 1,
+            SiteId = 2,
+            Alias = "team-member",
+            RenderMode = ContentTypeRenderMode.BlockLayout
+        };
+        var item = new ContentItem
+        {
+            Id = 3,
+            SiteId = 2,
+            ContentTypeAlias = type.Alias
+        };
+
+        var result = await renderer.RenderAsync(type, item);
+
+        result.Should().BeOfType<Result<string, AeroError>.Failure>();
     }
 
     [Test]
@@ -288,6 +483,42 @@ public sealed class DynamicScribanTierTests
                 ? Task.FromResult<Result<DynamicBlockDefinition, AeroError>>(definition)
                 : Task.FromResult<Result<DynamicBlockDefinition, AeroError>>(AeroError.NotFoundError("Definition not found."));
         }
+    }
+
+    private sealed class ThrowingContentTypeRenderingBridge : IContentTypeRenderingBridge
+    {
+        public Task<Result<DynamicTemplateBlock, AeroError>> ToDynamicBlockAsync(
+            ContentTypeDefinition typeDef,
+            ContentItem item,
+            CancellationToken ct = default)
+            => throw new InvalidOperationException("BlockLayout should not enter the Scriban bridge.");
+
+        public Task<Result<DynamicBlockDefinition, AeroError>> GetDefinitionAsync(
+            ContentTypeDefinition typeDef,
+            CancellationToken ct = default)
+            => throw new InvalidOperationException("BlockLayout should not resolve a Scriban definition.");
+    }
+
+    private sealed class StubContentTypeRenderingBridge(
+        DynamicBlockDefinition definition,
+        JsonDocument data) : IContentTypeRenderingBridge
+    {
+        public Task<Result<DynamicTemplateBlock, AeroError>> ToDynamicBlockAsync(
+            ContentTypeDefinition typeDef,
+            ContentItem item,
+            CancellationToken ct = default)
+            => Task.FromResult<Result<DynamicTemplateBlock, AeroError>>(new DynamicTemplateBlock
+            {
+                Id = item.Id,
+                DefinitionId = definition.Id,
+                DefinitionVersion = definition.Version,
+                Data = data
+            });
+
+        public Task<Result<DynamicBlockDefinition, AeroError>> GetDefinitionAsync(
+            ContentTypeDefinition typeDef,
+            CancellationToken ct = default)
+            => Task.FromResult<Result<DynamicBlockDefinition, AeroError>>(definition);
     }
 
     private sealed class NoOpErrorBoundaryLogger : IErrorBoundaryLogger

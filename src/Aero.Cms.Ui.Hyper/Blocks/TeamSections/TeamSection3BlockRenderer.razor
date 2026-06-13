@@ -1,0 +1,34 @@
+@* Team Sections 3 — HyperUI marketing/team-sections/3 *@
+@* Source: hyperui/public/examples/marketing/team-sections/3.html + 3-dark.html *@
+@if (Block is not null && Block.Members.Count > 0)
+{
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        @if (!string.IsNullOrEmpty(Block.Title))
+        {
+            <h2 class="text-center text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">@Block.Title</h2>
+        }
+        @if (!string.IsNullOrEmpty(Block.Description))
+        {
+            <p class="mx-auto mt-4 max-w-lg text-center text-gray-700 dark:text-gray-200">@Block.Description</p>
+        }
+        <div class="mt-8 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6">
+            @foreach (var member in Block.Members)
+            {
+                <div>
+                    <img src="@member.AvatarUrl" alt="@member.Name"
+                         class="aspect-square rounded-full object-cover" />
+
+                    <div class="mt-4 text-center">
+                        <h3 class="text-lg/tight font-semibold text-gray-900 dark:text-white">@member.Name</h3>
+                        <p class="mt-0.5 text-sm text-gray-700 dark:text-gray-200">@member.Role</p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public TeamSection3Block? Block { get; set; }
+}

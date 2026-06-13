@@ -1,0 +1,87 @@
+@using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Blocks.Neo
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Dynamic
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Hero01
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Layout
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Media
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.UI
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+
+@if (Block != null)
+{
+    @if (TryGetRegisteredEditor(out var registeredEditorType, out var registeredEditorParameters))
+    {
+        <DynamicComponent Type="@registeredEditorType" Parameters="@registeredEditorParameters" />
+    }
+    else
+    {
+        @switch (Block.BlockType)
+        {
+        case "aero.hero.basic":
+            <BasicHeroBlockEditor Block="As<BasicHeroBlock>()" />
+            break;
+        case "media.image":
+            <ImageBlockEditor Block="As<Aero.Cms.Abstractions.Blocks.Neo.ImageBlock>()" />
+            break;
+        case "media.video":
+            <VideoBlockEditor Block="As<VideoBlock>()" />
+            break;
+        case "media.audio":
+            <AudioBlockEditor Block="As<AudioBlock>()" />
+            break;
+        case "media.gallery":
+            <GalleryBlockEditor Block="As<GalleryBlock>()" />
+            break;
+        case "ui.raw-html":
+            <NeoRawHtmlBlockEditor Block="As<NeoRawHtmlBlock>()" />
+            break;
+        case "ui.separator":
+            <SeparatorBlockEditor Block="As<SeparatorBlock>()" />
+            break;
+        case "neo.layout.columns":
+            <NeoColumnsBlockEditor Block="As<NeoColumnsBlock>()" />
+            break;
+        case "neo.template.scriban":
+            <ScribanBlockEditor Block="As<ScribanBlock>()" />
+            break;
+        default:
+            <div class="pe-property-panel p-4 text-muted-foreground text-sm">
+                <p>@L["Properties not available for this block type."]</p>
+                <p class="text-xs mt-1">@Block.BlockType</p>
+            </div>
+            break;
+        }
+    }
+}
+else
+{
+    <div class="pe-property-panel p-4 text-muted-foreground text-sm">
+        <p>@L["Select a block to edit its properties."]</p>
+    </div>
+}
+
+@code {
+    [Parameter] public BlockBase? Block { get; set; }
+
+    private T As<T>() where T : BlockBase => (T)Block!;
+
+    private bool TryGetRegisteredEditor(out Type editorType, out Dictionary<string, object?> parameters)
+    {
+        if (Block is not null &&
+            PageEditorBlockRegistry.TryGet(Block.BlockType, out var definition) &&
+            definition.PropertyEditorComponentType is { } propertyEditorType)
+        {
+            editorType = propertyEditorType;
+            parameters = new Dictionary<string, object?>
+            {
+                ["Block"] = Block
+            };
+            return true;
+        }
+
+        editorType = default!;
+        parameters = [];
+        return false;
+    }
+}

@@ -1,0 +1,10 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-neo-preview">
+    <RawHtmlBlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NeoPageNode Node { get; set; } = default!;
+    private NeoRawHtmlBlock PreviewBlock => NeoRawHtmlBlockMapper.FromNode(Node);
+}

@@ -61,7 +61,6 @@ public static class AeroWebAppExtensions
         services.AddBlockSystemServices();
         services.AddScoped<HtmlRenderer>();
         services.AddScoped<CmsBlockHtmlRenderer>();
-        services.AddScoped<IBlockSliceRenderer, CmsBlockSliceRenderer>();
         services.AddModuleSystemServices();
         await services.AddAeroModulesAsync(config, env, generatedDescriptors);
         services.AddAeroDataLayer(config, env);

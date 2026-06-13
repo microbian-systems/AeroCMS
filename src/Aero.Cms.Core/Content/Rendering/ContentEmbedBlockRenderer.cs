@@ -1,10 +1,9 @@
-using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Content;
-using Aero.Cms.Core.Blocks.Dynamic;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
 using Aero.Core.Railway;
+using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Core.Content.Rendering;
 
@@ -16,8 +15,8 @@ namespace Aero.Cms.Core.Content.Rendering;
 public sealed class ContentEmbedBlockRenderer(
     IContentService contentService,
     IContentTypeService typeService,
-    IContentTypeRenderingBridge bridge,
-    ISecureScribanRenderer scribanRenderer)
+    IContentItemRenderer itemRenderer,
+    ILogger<ContentEmbedBlockRenderer> logger)
 {
     /// <summary>
     /// Renders the content item referenced by the given embed block.
@@ -32,27 +31,33 @@ public sealed class ContentEmbedBlockRenderer(
         // 1. Load the ContentItem by ID
         var itemResult = await contentService.LoadAsync(block.ContentItemId, ct);
         if (itemResult is not Result<ContentItem, AeroError>.Ok itemOk)
+        {
+            logger.LogWarning("Content embed item {ContentItemId} could not be loaded.", block.ContentItemId);
             return string.Empty;
+        }
 
         // 2. Load the ContentTypeDefinition
         var typeResult = await typeService.GetByAliasAsync(itemOk.Value.SiteId, itemOk.Value.ContentTypeAlias, ct);
         if (typeResult is not Result<ContentTypeDefinition, AeroError>.Ok typeOk)
+        {
+            logger.LogWarning(
+                "Content type {ContentTypeAlias} for embedded item {ContentItemId} could not be loaded.",
+                itemOk.Value.ContentTypeAlias,
+                itemOk.Value.Id);
             return string.Empty;
+        }
 
-        // 3. Bridge to DynamicTemplateBlock
-        var blockResult = await bridge.ToDynamicBlockAsync(typeOk.Value, itemOk.Value, ct);
-        if (blockResult is not Result<DynamicTemplateBlock, AeroError>.Ok blockOk)
-            return string.Empty;
-
-        // 4. Get the DynamicBlockDefinition (for the Scriban template)
-        var defResult = await bridge.GetDefinitionAsync(typeOk.Value, ct);
-        if (defResult is not Result<DynamicBlockDefinition, AeroError>.Ok defOk)
-            return string.Empty;
-
-        // 5. Render through Scriban
-        var htmlResult = await scribanRenderer.RenderAsync(defOk.Value, blockOk.Value.Data, ct);
+        var htmlResult = await itemRenderer.RenderAsync(typeOk.Value, itemOk.Value, ct);
         if (htmlResult is Result<string, AeroError>.Ok htmlOk)
             return htmlOk.Value;
+
+        if (htmlResult is Result<string, AeroError>.Failure failure)
+        {
+            logger.LogError(
+                "Rendering embedded content item {ContentItemId} failed: {Error}",
+                itemOk.Value.Id,
+                failure.Error);
+        }
 
         return string.Empty;
     }

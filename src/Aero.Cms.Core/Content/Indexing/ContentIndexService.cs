@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core.Content.Search;
 using Aero.Cms.Core.Content.Services;
@@ -31,8 +30,6 @@ public sealed class ContentIndexService(
             return new ContentSearchDocument { Id = $"content:{item.SiteId}:{item.Id}" };
 
         var type = typeOk.Value;
-        var lookup = indexers.ToDictionary(x => x.FieldType, StringComparer.OrdinalIgnoreCase);
-
         var doc = new ContentSearchDocument
         {
             Id = $"content:{item.SiteId}:{item.Id}",
@@ -40,8 +37,14 @@ public sealed class ContentIndexService(
             ContentItemId = item.Id,
             ContentTypeAlias = item.ContentTypeAlias,
             Slug = item.Slug,
-            Title = item.Title ?? ""
+            Title = item.Title ?? "",
+            HideFromSearch = type.HideFromSearch
         };
+
+        if (type.HideFromSearch)
+            return doc;
+
+        var lookup = indexers.ToDictionary(x => x.FieldType, StringComparer.OrdinalIgnoreCase);
 
         foreach (var field in type.Fields)
         {

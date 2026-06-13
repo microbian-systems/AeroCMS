@@ -1,0 +1,31 @@
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+<nav aria-label="Breadcrumb" class="flex items-center text-sm">
+    <ol class="flex flex-wrap items-center gap-1">
+        @for (var i = 0; i < _items.Count; i++)
+        {
+            var item = _items[i];
+            var isLast = i == _items.Count - 1;
+
+            @if (i > 0)
+            {
+                <li class="text-gray-400 mx-1">
+                    <RadzenIcon Icon="chevron_right" class="text-xs" />
+                </li>
+            }
+
+            <li>
+                @if (isLast)
+                {
+                    <span class="font-medium text-gray-900">@item.Title</span>
+                }
+                else
+                {
+                    <RadzenLink Path="@($"/_cms/manager/pages/{item.Id}")" class="text-blue-600 hover:text-blue-800">
+                        @item.Title
+                    </RadzenLink>
+                }
+            </li>
+        }
+    </ol>
+</nav>

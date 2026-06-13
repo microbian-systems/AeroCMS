@@ -14,7 +14,8 @@ public record CreatePostRequest(
     string? AuthorName,
     DateTimeOffset? PublishDate,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
-    IReadOnlyList<EditorBlock>? EditorBlocks = null
+    IReadOnlyList<EditorBlock>? EditorBlocks = null,
+    long SiteId = 0
 ): IRequest;
 
 [GenerateSerializer]

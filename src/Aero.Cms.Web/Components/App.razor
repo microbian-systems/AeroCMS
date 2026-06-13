@@ -1,5 +1,5 @@
 @using System.Security.Claims
-@using Microsoft.AspNetCore.Components
+@using System.Globalization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Aero.Cms.Contracts.Models
 @implements IDisposable
@@ -7,12 +7,35 @@
 @inject AuthenticationStateProvider AuthProvider
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@CultureInfo.CurrentUICulture.Name" dir="@(CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? "rtl" : "ltr")">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <script>
+        (function () {
+            const names = ['manager-theme', 'AeroCms.ManagerTheme', 'AeroCms.Theme', 'aero-manager-theme'];
+            const cookies = document.cookie ? document.cookie.split(';') : [];
+            let theme = null;
+
+            for (const name of names) {
+                const prefix = name + '=';
+                const match = cookies.map(c => c.trim()).find(c => c.startsWith(prefix));
+                if (match) {
+                    theme = decodeURIComponent(match.substring(prefix.length));
+                    break;
+                }
+            }
+
+            theme = theme || localStorage.getItem('manager-theme') || 'dark';
+            theme = theme === 'light' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            document.addEventListener('DOMContentLoaded', function () {
+                document.body.setAttribute('data-theme', theme);
+            });
+        })();
+    </script>
     <ResourcePreloader />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/app.css" />
     <link rel="stylesheet" href="_content/Aero.Cms.Shared/aero-manager.css" />
@@ -26,6 +49,12 @@
     <link rel="stylesheet" href="_content/Radzen.Blazor/css/standard-base.css" />
     <!-- Radzen dark theme (disabled by default, swapped via JS) -->
     <link id="radzen-theme-link" rel="stylesheet" href="_content/Radzen.Blazor/css/standard-dark-base.css" disabled />
+    <!-- NeoUI components styles -->
+    <link rel="stylesheet" href="_content/NeoUI.Blazor/components.css" />
+    <!-- NeoUI theme: base color -->
+    <link rel="stylesheet" href="_content/NeoUI.Blazor/css/themes/base/zinc.css" />
+    <!-- NeoUI theme: primary accent color -->
+    <link rel="stylesheet" href="_content/NeoUI.Blazor/css/themes/primary/blue.css" />
     <script src="https://cdn.jsdelivr.net/npm/@@tailwindcss/browser@@4"></script>
     @* <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script> *@
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
@@ -51,6 +80,7 @@
     <script src="_content/BlazorMonaco/jsInterop.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
+    <script src="_content/NeoUI.Blazor/js/theme.js"></script>
     <script src="_content/Aero.Cms.Shared/splash.js"></script>
     <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
     <script>

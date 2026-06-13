@@ -1,5 +1,7 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Rendering;
 
 namespace Aero.Cms.Shared.Blocks.Rendering;
 
@@ -8,9 +10,6 @@ public partial class RichTextBlockRenderer;
 
 [CmsBlockRenderer(typeof(HeadingBlock))]
 public partial class HeadingBlockRenderer;
-
-[CmsBlockRenderer(typeof(ImageBlock))]
-public partial class ImageBlockRenderer;
 
 [CmsBlockRenderer(typeof(CtaBlock))]
 public partial class CtaBlockRenderer;
@@ -24,7 +23,7 @@ public partial class EmbedBlockRenderer;
 [CmsBlockRenderer(typeof(DynamicTemplateBlock))]
 public partial class DynamicTemplateBlockRenderer;
 
-[CmsBlockRenderer(typeof(ColumnsBlock))]
+[CmsBlockRenderer(typeof(Aero.Cms.Abstractions.Blocks.Common.ColumnsBlock))]
 public partial class ColumnsRenderer;
 
 [CmsBlockRenderer(typeof(BoringHeroBlock))]
@@ -68,3 +67,34 @@ public partial class AeroTableRenderer;
 
 [CmsBlockRenderer(typeof(AeroAuthBlock))]
 public partial class AeroAuthRenderer;
+
+[CmsBlockRenderer(typeof(CarouselBlock))]
+public partial class CarouselRenderer;
+
+[CmsBlockRenderer(typeof(NeoCompositionBlock))]
+public partial class NeoCompositionBlockRenderer;
+
+[CmsBlockRenderer(typeof(Aero.Cms.Abstractions.Blocks.Neo.ImageBlock))]
+public partial class ImageBlockRenderer;
+
+[CmsBlockRenderer(typeof(VideoBlock))]
+public partial class VideoBlockRenderer;
+
+[CmsBlockRenderer(typeof(AudioBlock))]
+public partial class AudioBlockRenderer;
+
+[CmsBlockRenderer(typeof(GalleryBlock))]
+public partial class GalleryBlockRenderer;
+
+[CmsBlockRenderer(typeof(NeoRawHtmlBlock))]
+public partial class RawHtmlBlockRenderer;
+
+[CmsBlockRenderer(typeof(SeparatorBlock))]
+public partial class SeparatorBlockRenderer;
+
+[CmsBlockRenderer(typeof(Aero.Cms.Abstractions.Blocks.Neo.NeoColumnsBlock))]
+public partial class ColumnsBlockRenderer;
+
+[CmsBlockRenderer(typeof(ScribanBlock))]
+public partial class ScribanBlockRenderer;
+

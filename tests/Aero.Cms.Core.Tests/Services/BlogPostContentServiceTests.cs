@@ -1,12 +1,10 @@
 using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Blog;
+using Aero.Cms.Modules.Posts;
 using Aero.Core;
 using Aero.Core.Http;
-using Aero.Core.Railway;
 using FluentAssertions;
 using Marten;
 using NSubstitute;
-using TUnit.Core;
 
 namespace Aero.Cms.Core.Tests.Services;
 
@@ -14,7 +12,7 @@ public sealed class BlogPostContentServiceTests
 {
     private IDocumentSession _session = null!;
     private ISiteContext _siteContext = null!;
-    private MartenBlogPostContentService _service = null!;
+    private PostContentService _service = null!;
 
     [Before(Test)]
     public async Task Setup()
@@ -27,7 +25,7 @@ public sealed class BlogPostContentServiceTests
         // Configure SaveChangesAsync to succeed (it's called at the end of SaveAsync / DeleteAsync)
         _session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        _service = new MartenBlogPostContentService(
+        _service = new PostContentService(
             _session,
             _siteContext
         );
@@ -46,11 +44,11 @@ public sealed class BlogPostContentServiceTests
     public async Task SaveAsync_StampsSiteId_FromContext()
     {
         var session = Substitute.For<IDocumentSession>();
-        session.LoadAsync<BlogPostDocument>(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns((BlogPostDocument?)null);
+        session.LoadAsync<PostDocument>(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns((PostDocument?)null);
 
-        var post = new BlogPostDocument { Id = Snowflake.NewId(), Title = "Test Blog Post", Slug = "test-blog-post" };
-        var service = new MartenBlogPostContentService(session, CreateSiteContext(42));
+        var post = new PostDocument { Id = Snowflake.NewId(), Title = "Test Blog Post", Slug = "test-blog-post" };
+        var service = new PostContentService(session, CreateSiteContext(42));
 
         var result = await service.SaveAsync(post, CancellationToken.None);
 
@@ -61,7 +59,7 @@ public sealed class BlogPostContentServiceTests
         }
         else
         {
-            session.Received(1).Store(Arg.Is<BlogPostDocument>(p => p.SiteId == 42));
+            session.Received(1).Store(Arg.Is<PostDocument>(p => p.SiteId == 42));
         }
     }
 
@@ -73,7 +71,7 @@ public sealed class BlogPostContentServiceTests
     {
         // Arrange
         const long postId = 100;
-        var existingPost = new BlogPostDocument
+        var existingPost = new PostDocument
         {
             Id = postId,
             Title = "Own Blog Post",
@@ -81,8 +79,8 @@ public sealed class BlogPostContentServiceTests
             SiteId = 42 // matches context
         };
 
-        _session.LoadAsync<BlogPostDocument>(postId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<BlogPostDocument?>(existingPost));
+        _session.LoadAsync<PostDocument>(postId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<PostDocument?>(existingPost));
 
         // Act
         var result = await _service.DeleteAsync(postId, CancellationToken.None);
@@ -93,7 +91,7 @@ public sealed class BlogPostContentServiceTests
         existingPost.SiteId.Should().Be(42, "loaded post should have matching SiteId");
         if (result.IsSuccess)
         {
-            _session.Received(1).Delete<BlogPostDocument>(postId);
+            _session.Received(1).Delete<PostDocument>(postId);
         }
         // else: ReserveAsync exception caught — ownership check passed nonetheless
     }
@@ -106,7 +104,7 @@ public sealed class BlogPostContentServiceTests
     {
         // Arrange
         const long postId = 200;
-        var existingPost = new BlogPostDocument
+        var existingPost = new PostDocument
         {
             Id = postId,
             Title = "Other Site Blog Post",
@@ -114,14 +112,14 @@ public sealed class BlogPostContentServiceTests
             SiteId = 99 // different site
         };
 
-        _session.LoadAsync<BlogPostDocument>(postId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<BlogPostDocument?>(existingPost));
+        _session.LoadAsync<PostDocument>(postId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<PostDocument?>(existingPost));
 
         // Act
         var result = await _service.DeleteAsync(postId, CancellationToken.None);
 
         // Assert
-        _session.DidNotReceive().Delete<BlogPostDocument>(Arg.Any<long>());
+        _session.DidNotReceive().Delete<PostDocument>(Arg.Any<long>());
         result.IsFailure.Should().BeTrue();
     }
 

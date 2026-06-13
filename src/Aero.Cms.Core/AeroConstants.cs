@@ -19,6 +19,10 @@ public static class Schemas
         public const string Aliases = "aliases";
         public const string Blocks = "blocks";
         public const string Categories = "categories";
+        public const string ContentItems = "content_items";
+        public const string ContentItemVersions = "content_items_versions";
+        public const string ContentTypes = "content_types";
+        public const string Docs = "docs";
         public const string Media = "media";
         public const string Modules = "modules";
         public const string Pages = "pages";

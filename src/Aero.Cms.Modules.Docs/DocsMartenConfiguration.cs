@@ -1,6 +1,3 @@
-using Aero.Cms.Core.Entities;
-using Marten;
-
 namespace Aero.Cms.Modules.Docs;
 
 public sealed class DocsMartenConfiguration : IConfigureMarten
@@ -9,5 +6,7 @@ public sealed class DocsMartenConfiguration : IConfigureMarten
     {
         // Marten will manage MarkdownPage in its own table.
         options.Schema.For<DocsPage>().Index(x => x.Slug);
+        options.Schema.For<DocsPage>().Index(x => x.Culture);
+        options.Schema.For<DocsPage>().Index(x => x.TranslationGroupId);
     }
 }

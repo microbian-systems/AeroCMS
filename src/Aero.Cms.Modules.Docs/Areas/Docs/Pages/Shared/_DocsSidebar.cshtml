@@ -1,0 +1,12 @@
+@* _DocsSidebar.cshtml — Left sidebar tree navigation powered by Alpine.js *@
+@model IEnumerable<Aero.Cms.Modules.Docs.Areas.Docs.Models.DocsSidebarNode>
+
+<aside class="hidden lg:block w-[300px] min-w-[300px] bg-white border-r border-slate-200 overflow-y-auto sticky top-0 max-h-[calc(100vh-4rem)] sidebar-scroll" 
+       x-data="{ activeId: @(ViewBag.ActiveDocId ?? 0) }">
+    <nav class="px-2 py-4">
+        @foreach (var node in Model)
+        {
+            @await Html.PartialAsync("_DocsSidebarNode", node)
+        }
+    </nav>
+</aside>

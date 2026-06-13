@@ -1,0 +1,101 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog
+
+@* ── NeoNodeRenderer — renders a single NeoPageNode ── *@
+@* V1: Renders a section wrapper with known catalog IDs.
+   Unknown catalog IDs render a placeholder comment.
+   Nesting beyond MaxDepth is silently truncated.
+   Uses INeoEditorCatalogProvider to resolve display names/icons
+   for catalog-driven labeling instead of raw [catalogId] text. *@
+
+@inject INeoEditorCatalogProvider Catalog
+
+@if (Node is not null && NestingDepth <= MaxDepth)
+{
+    var catalogId = Node.CatalogId;
+    var isContainer = Node.Kind is NeoPageNodeKind.Container or NeoPageNodeKind.Section;
+    var tag = isContainer ? "section" : "div";
+    Catalog.TryGet(catalogId, out var catalogItem);
+
+    @* Wrap in a section/div with catalog-id data attribute for debugging *@
+    <@tag class="neo-node neo-@(catalogId.Replace(".", "-")) neo-kind-@Node.Kind.ToString().ToLowerInvariant()"
+          data-catalog-id="@catalogId"
+          data-node-id="@Node.NodeId">
+
+        @switch (catalogId)
+        {
+            @* Typed block references — render via catalog metadata *@
+            case var _ when Node.Kind == NeoPageNodeKind.Block:
+            {
+                @if (catalogItem is not null)
+                {
+                    @* Catalog entry found — show display name + icon *@
+                    <div class="neo-block" data-catalog-id="@catalogId"
+                         title="@catalogItem.DisplayName">
+                        <span class="neo-block-icon">@catalogItem.IconName</span>
+                        <span class="neo-block-label">@catalogItem.DisplayName</span>
+                    </div>
+                }
+                else
+                {
+                    @* Unknown block — render its catalog ID so content authors
+                       can identify nodes that lack catalog definitions *@
+                    <div class="neo-block-placeholder" data-catalog-id="@catalogId">
+                        [@catalogId]
+                    </div>
+                }
+                break;
+            }
+
+            @* Container/section nodes render children recursively *@
+            case var _ when isContainer || Node.Children.Count > 0:
+            {
+                @if (catalogItem is not null)
+                {
+                    @* Section header with catalog display name *@
+                    <div class="neo-section-header">
+                        <span class="neo-section-icon">@catalogItem.IconName</span>
+                        <span class="neo-section-label">@catalogItem.DisplayName</span>
+                    </div>
+                }
+                @foreach (var child in Node.Children)
+                {
+                    <NeoNodeRenderer Node="child"
+                                     NestingDepth="NestingDepth + 1"
+                                     MaxDepth="MaxDepth" />
+                }
+                break;
+            }
+
+            @* Unknown catalog IDs render as placeholder in production *@
+            default:
+            {
+                @if (catalogItem is not null)
+                {
+                    <div class="neo-node" data-catalog-id="@catalogId">
+                        <span class="neo-node-icon">@catalogItem.IconName</span>
+                        <span class="neo-node-label">@catalogItem.DisplayName</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="neo-node-placeholder" data-catalog-id="@catalogId">
+                        @catalogId
+                    </div>
+                }
+                break;
+            }
+        }
+    </@tag>
+}
+
+@code {
+    [Parameter]
+    public NeoPageNode Node { get; set; } = default!;
+
+    [Parameter]
+    public int NestingDepth { get; set; }
+
+    [Parameter]
+    public int MaxDepth { get; set; } = 5;
+}

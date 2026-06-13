@@ -5,6 +5,7 @@ namespace Aero.Cms.Abstractions.Requests;
 public record CreateTagRequest(
     long siteId,
     string Name,
+    string? Slug = null,
     string? Description = null
 ) : IRequest;
 
@@ -13,6 +14,7 @@ public record CreateTagRequest(
 public record UpdateTagRequest(
     long Id,
     string Name,
+    string? Slug = null,
     string? Description = null
 ): IRequest;
 

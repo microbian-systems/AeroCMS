@@ -1,7 +1,6 @@
 ﻿using Aero.Cms.Data.Queries.Base;
 using Aero.Core.Entities;
 using Marten;
-using Marten.Linq;
 
 namespace Aero.Cms.Data.Repositories;
 

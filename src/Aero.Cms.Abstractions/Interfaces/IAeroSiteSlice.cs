@@ -9,6 +9,8 @@ public interface IAeroSiteSlice
 {
     long SiteId { get; }
     long TenantId { get; }
+    string? DefaultCulture { get; }
+    IReadOnlyList<string> SupportedCultures { get; }
 }
 
 /// <summary>
@@ -18,4 +20,6 @@ public sealed class AeroSiteSlice : IAeroSiteSlice
 {
     public long SiteId { get; init; }
     public long TenantId { get; init; }
+    public string? DefaultCulture { get; init; }
+    public IReadOnlyList<string> SupportedCultures { get; init; } = [];
 }

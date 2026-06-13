@@ -1,0 +1,36 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+@if (Block != null)
+{
+    <section class="relative flex flex-col items-center justify-center text-center px-6 py-24 bg-background @(string.IsNullOrEmpty(Block.BackgroundImageUrl) ? "" : "bg-cover bg-center")"
+             style="@(string.IsNullOrEmpty(Block.BackgroundImageUrl) ? "" : $"background-image: url('{Block.BackgroundImageUrl}')")">
+        @if (!string.IsNullOrEmpty(Block.BackgroundImageUrl))
+        {
+            <div class="absolute inset-0 bg-black/40"></div>
+        }
+        <div class="relative z-10 max-w-3xl">
+            <h1 class="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
+                @Block.Title
+            </h1>
+            <p class="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
+                @Block.Subtitle
+            </p>
+            @if (!string.IsNullOrEmpty(Block.CtaText) && !string.IsNullOrEmpty(Block.CtaUrl))
+            {
+                <a href="@Block.CtaUrl" class="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow hover:opacity-90">
+                    @Block.CtaText
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M5 12h14" />
+                        <path d="M12 5l7 7-7 7" />
+                    </svg>
+                </a>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public BasicHeroBlock? Block { get; set; }
+}

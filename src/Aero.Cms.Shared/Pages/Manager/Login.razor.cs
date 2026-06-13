@@ -1,12 +1,11 @@
 using System.ComponentModel.DataAnnotations;
-using System.Net.Http.Json;
-using System.Threading.Tasks;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
@@ -26,6 +25,9 @@ public abstract class LoginBase : ComponentBase
 
     [Inject]
     private IHttpClientFactory HttpClientFactory { get; set; } = default!;
+
+    [Inject]
+    protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     [SupplyParameterFromQuery(Name = "returnUrl")]
     protected string? ReturnUrl { get; set; }
@@ -53,6 +55,7 @@ public abstract class LoginBase : ComponentBase
     {
         ErrorMessage = null;
         IsSubmitting = true;
+        await InvokeAsync(StateHasChanged);
 
         try
         {

@@ -1,7 +1,5 @@
 using Aero.AppServer.Startup;
-using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Modules.Setup.Configuration;
-using Aero.Secrets;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -9,6 +7,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NeoUI.Blazor.Extensions;
+using NeoUI.Blazor.Primitives.Extensions;
 using Radzen;
 using Serilog;
 
@@ -63,6 +63,8 @@ public static class SetupAppFactory
 
         // Add Radzen components
         services.AddRadzenComponents();
+        services.AddNeoUIPrimitives();
+        services.AddNeoUIComponents();
 
         // Add memory cache for bootstrap operations
         services.AddMemoryCache();

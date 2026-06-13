@@ -3,7 +3,7 @@
 
 @if (Block is not null)
 {
-    if (CmsBlockRenderRegistry.TryGet(Block.BlockType, out var adapter))
+    if (TryResolveAdapter(Block.BlockType, out var adapter))
     {
         <ErrorBoundary @key="Block">
             <ChildContent>
@@ -30,4 +30,20 @@
 
     [Parameter]
     public NavigationDetail? Navigation { get; set; }
+
+    [Inject]
+    private IEnumerable<ICmsBlockRenderRegistry> BlockRenderRegistries { get; set; } = [];
+
+    private bool TryResolveAdapter(string blockType, out ICmsBlockRenderAdapter adapter)
+    {
+        foreach (var registry in BlockRenderRegistries)
+        {
+            if (registry.TryGet(blockType, out adapter!))
+            {
+                return true;
+            }
+        }
+
+        return CmsBlockRenderRegistry.TryGet(blockType, out adapter!);
+    }
 }

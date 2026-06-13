@@ -9,6 +9,10 @@ namespace Aero.Cms.Core.Blocks.Dynamic;
 /// </summary>
 public sealed class DynamicBlockDefinition : Entity
 {
+    public long? ContentTypeId { get; set; }
+
+    public long? SiteId { get; set; }
+
     public string Name { get; set; } = string.Empty;
 
     public string BlockType { get; set; } = DynamicTemplateBlock.Discriminator;

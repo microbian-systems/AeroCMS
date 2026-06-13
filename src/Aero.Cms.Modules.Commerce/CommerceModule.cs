@@ -1,4 +1,5 @@
 using Aero.Cms.Core;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Commerce.Basket.Api;
 using Aero.Cms.Modules.Commerce.Basket.Models;
 using Aero.Cms.Modules.Commerce.Basket.Services;
@@ -101,6 +102,10 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
             .Index(x => x.Price)
             .FullTextIndex(x => x.Name)
             .FullTextIndex(x => x.Description);
+
+        opts.Schema.For<ProductTranslation>().Index(x => x.ProductId);
+        opts.Schema.For<ProductTranslation>().Index(x => x.Culture);
+        opts.Schema.For<ProductTranslation>().UniqueIndex(x => x.ProductId, x => x.Culture);
 
         // Basket document — Marten schema
         opts.Schema.For<BasketDocument>()

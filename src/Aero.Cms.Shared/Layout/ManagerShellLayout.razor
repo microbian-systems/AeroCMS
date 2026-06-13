@@ -1,10 +1,8 @@
 @inherits LayoutComponentBase
 @using Aero.Cms.Shared.Services
-@using Aero.Cms.Shared.Layout
 @using Aero.Cms.Contracts.Abstractions
 @using Aero.Cms.Contracts.Models
 @using Aero.Core
-@using Aero.Core.Railway
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Sections
 @using System.Security.Claims
@@ -16,45 +14,54 @@
 @inject AppState AppState
 @inject ISitesHttpClient SitesClient
 @implements IDisposable
+@using NeoUI.Blazor
+@using NeoUI.Blazor.Primitives.Services
 
 <div class="pe-root" data-theme="@ThemeService.Theme">
-    <ManagerHeader />
+    <AppProvider>
+        <ManagerHeader />
 
-    @switch (shellState)
-    {
-        case ShellState.AuthPending:
-            @Body
-            break;
+        @switch (shellState)
+        {
+            case ShellState.AuthPending:
+                @Body
+                break;
 
-        case ShellState.Unauthenticated:
-            @* Redirect handled in OnAfterRenderAsync *@
-            break;
+            case ShellState.Unauthenticated:
+                @* Redirect handled in OnAfterRenderAsync *@
+                break;
 
-        case ShellState.SiteResolving:
-            <div class="pe-editor-area flex items-center justify-center min-h-screen">
-                <div class="flex flex-col items-center gap-6">
-                    <img src="_content/Aero.Cms.Shared/aero-spinner.svg" alt="Loading…" class="w-24 h-24" />
+            case ShellState.SiteResolving:
+                <div class="pe-editor-area flex items-center justify-center min-h-screen">
+                    <div class="flex flex-col items-center gap-6">
+                        <img src="_content/Aero.Cms.Shared/aero-spinner.svg" alt="Loading…" class="w-24 h-24" />
+                    </div>
                 </div>
-            </div>
-            break;
+                break;
 
-        case ShellState.Ready:
-            <div class="pe-main-layout">
-                <AeroSidebar Title="Menu"
-                             Side="SidebarSide.Left"
-                             IsCollapsed="@ThemeService.IsSidebarCollapsed"
-                             IsCollapsedChanged="@(async (c) => ThemeService.ToggleSidebar())">
-                    <NavMenu IsCollapsed="@ThemeService.IsSidebarCollapsed" />
-                </AeroSidebar>
+            case ShellState.Ready:
+                <div class="pe-main-layout">
+                    <AeroSidebar Title="Menu"
+                                 Side="SidebarSide.Left"
+                                 IsCollapsed="@ThemeService.IsSidebarCollapsed"
+                                 IsCollapsedChanged="@(async (c) => ThemeService.ToggleSidebar())">
+                        <NavMenu IsCollapsed="@ThemeService.IsSidebarCollapsed" />
+                    </AeroSidebar>
 
-                <div class="pe-editor-area">
-                    @Body
+                    <div class="pe-editor-area">
+                        @Body
+                    </div>
+
+                    <SectionOutlet SectionName="RightSidebar" />
                 </div>
+                break;
+        }
 
-                <SectionOutlet SectionName="RightSidebar" />
-            </div>
-            break;
-    }
+        <ToastViewport />
+        <DialogHost />
+        <ContainerPortalHost />
+        <OverlayPortalHost />
+    </AppProvider>
 </div>
 
 <RadzenComponents />
@@ -118,7 +125,6 @@
             if (siteId is null)
             {
                 siteId = await TryGetDefaultSiteAsync();
-                if (siteId is not null) return; // TryGetDefaultSiteAsync already called SetSite
             }
 
             if (siteId is null)
@@ -148,14 +154,17 @@
         redirectTarget = BuildLoginRedirectUrl(relative);
     }
 
-    protected override Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            await ThemeService.InitializeAsync();
+        }
+
         if (!string.IsNullOrWhiteSpace(redirectTarget))
         {
             Navigation.NavigateTo(redirectTarget, forceLoad: true);
         }
-
-        return Task.CompletedTask;
     }
 
     public void Dispose()

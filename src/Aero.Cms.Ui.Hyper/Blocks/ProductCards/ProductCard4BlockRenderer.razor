@@ -1,0 +1,23 @@
+@* Product Cards 4 — HyperUI marketing/product-cards/4 *@
+@* Source: hyperui/public/examples/marketing/product-cards/4.html *@
+@if (Block is not null)
+{
+    <a href="@Block.CtaUrl" class="group block">
+        <img
+            src="@Block.ImageUrl"
+            alt=""
+            class="aspect-square w-full rounded-xs object-cover"
+        />
+
+        <div class="mt-3">
+            <h3 class="font-medium text-gray-900 group-hover:underline group-hover:underline-offset-4 dark:text-white">@Block.Title</h3>
+
+            <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">@Block.Price</p>
+        </div>
+    </a>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ProductCard4Block? Block { get; set; }
+}

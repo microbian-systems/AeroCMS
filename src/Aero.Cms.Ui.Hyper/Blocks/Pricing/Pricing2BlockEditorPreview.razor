@@ -1,0 +1,12 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-neo-preview">
+    <Pricing2BlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private Pricing2Block PreviewBlock => Pricing2BlockMapper.FromNode(Node);
+}

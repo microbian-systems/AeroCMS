@@ -1,17 +1,25 @@
 using Aero.Cms.Abstractions.Http;
-using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Security;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Aero.Cms.Core.Extensions;
 using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
+using Aero.Cms.Shared.Localization;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Shared.Services;
+using Aero.Cms.Ui.Hyper;
+using Aero.Cms.Ui.Neo;
 using Aero.Cms.Web.Client.Services;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using NeoUI.Blazor;
+using NeoUI.Blazor.Extensions;
+using NeoUI.Blazor.Primitives.Extensions;
 using Radzen;
 using Aero.Cms.Abstractions.Blocks;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 
 // Add authentication state provider for InteractiveWebAssembly.
 // The ServerAuthenticationStateProvider calls the Identity API's /me endpoint,
@@ -48,8 +56,14 @@ builder.Services.AddSingleton<AppState>();
 
 // Legacy registrations
 builder.Services.AddScoped<ManagerThemeService>();
+builder.Services.AddSingleton<INeoEditorCatalogProvider, NeoEditorCatalogProvider>();
 builder.Services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor, CurrentSiteAccessor>();
 builder.Services.AddScoped<Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor, CurrentSiteAccessor>();
+builder.Services.AddNeoUIPrimitives();
+builder.Services.AddNeoUIComponents();
+builder.Services.Replace(ServiceDescriptor.Scoped<ILocalizer, NeoUiBridgeLocalizer>());
+builder.Services.AddAeroCmsHyperUiBlocks();
+builder.Services.AddAeroCmsNeoUiBlocks();
 builder.Services.AddRadzenComponents();
 
 // Register cross-cutting services that run client-side

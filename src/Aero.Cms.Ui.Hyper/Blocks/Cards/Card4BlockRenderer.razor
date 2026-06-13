@@ -1,0 +1,50 @@
+@* Cards 4 — HyperUI marketing/cards/4 *@
+@* Source: hyperui/public/examples/marketing/cards/4.html *@
+@if (Block is not null)
+{
+    <a href="@Block.CtaUrl" class="group relative block h-64 sm:h-80 lg:h-96">
+        <span class="absolute inset-0 border-2 border-dashed border-black dark:border-gray-400"></span>
+
+        <div
+            class="relative flex h-full transform items-end border-2 border-black bg-white transition-transform group-hover:-translate-x-2 group-hover:-translate-y-2 dark:border-gray-400 dark:bg-gray-900"
+        >
+            <div
+                class="px-4 pb-4 transition-opacity group-hover:absolute group-hover:opacity-0 sm:px-6 sm:pb-4 lg:px-8 lg:pb-8"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="size-10 sm:size-12 text-gray-900 dark:text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="@Block.SvgIcon"
+                    />
+                </svg>
+
+                <h2 class="mt-4 text-xl font-medium sm:text-2xl text-gray-900 dark:text-white">@Block.Title</h2>
+            </div>
+
+            <div
+                class="absolute p-4 opacity-0 transition-opacity group-hover:relative group-hover:opacity-100 sm:p-6 lg:p-8"
+            >
+                <h3 class="mt-4 text-xl font-medium sm:text-2xl text-gray-900 dark:text-white">@Block.Title</h3>
+
+                <p class="mt-4 text-sm sm:text-base text-gray-700 dark:text-gray-200">
+                    @Block.Description
+                </p>
+
+                <p class="mt-8 font-bold text-gray-900 dark:text-white">@Block.CtaText</p>
+            </div>
+        </div>
+    </a>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Card4Block? Block { get; set; }
+}

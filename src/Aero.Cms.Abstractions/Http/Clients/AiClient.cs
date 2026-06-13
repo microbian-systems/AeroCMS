@@ -32,6 +32,13 @@ public interface IAiHttpClient
     Task<Result<EnhanceContentResponse, AeroError>> EnhanceContentAsync(
         EnhanceContentRequest request,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Translates a document-shaped field payload and returns translated field values.
+    /// </summary>
+    Task<Result<TranslateDocumentResponse, AeroError>> TranslateContentAsync(
+        TranslateDocumentRequest request,
+        CancellationToken ct = default);
 }
 
 /// <summary>
@@ -69,5 +76,13 @@ public sealed class AiHttpClient(HttpClient httpClient, ILogger<AiHttpClient> lo
         CancellationToken ct = default)
     {
         return PostAsync<EnhanceContentRequest, EnhanceContentResponse>("content/enhance", request, ct);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<TranslateDocumentResponse, AeroError>> TranslateContentAsync(
+        TranslateDocumentRequest request,
+        CancellationToken ct = default)
+    {
+        return PostAsync<TranslateDocumentRequest, TranslateDocumentResponse>("content/translate", request, ct);
     }
 }

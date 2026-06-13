@@ -1,0 +1,12 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-neo-preview">
+    <Stats2BlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private Stats2Block PreviewBlock => Stats2BlockMapper.FromNode(Node);
+}

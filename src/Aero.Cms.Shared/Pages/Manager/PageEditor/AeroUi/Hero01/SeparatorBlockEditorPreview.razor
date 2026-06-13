@@ -1,0 +1,10 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-neo-preview">
+    <SeparatorBlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NeoPageNode Node { get; set; } = default!;
+    private SeparatorBlock PreviewBlock => SeparatorBlockMapper.FromNode(Node);
+}

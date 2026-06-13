@@ -2,108 +2,60 @@
 @page "/manager/pages/general"
 @attribute [Authorize]
 @using Aero.Cms.Abstractions.Http.Clients
-@using Aero.Core
-@using Aero.Core.Railway
+@using Aero.Cms.Shared.Components
 @inject NavigationManager Navigation
-@inject IPagesHttpClient PagesApi
-@inject DialogService DialogService
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
-<style>
-    .rz-datatable-row:hover {
-        cursor: pointer !important;
-        background-color: rgba(0, 0, 0, 0.02) !important;
-    }
-</style>
+<PageTitle>@L["Pages"]</PageTitle>
 
 <div class="pe-page-content space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Pages</h1>
-            <p class="mt-1 text-sm pe-description">Manage your static and landing pages.</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Pages"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Manage your page hierarchy and content."]</p>
         </div>
         <div class="flex gap-4">
-             <RadzenTextBox Placeholder="Search pages..." @bind-Value="@searchTerm" Change="@OnSearch" class="w-64" />
-             <RadzenButton Icon="add" Text="Create Page" ButtonStyle="ButtonStyle.Primary" Click='() => Navigation.NavigateTo("/manager/page/editor")' />
+            <RadzenButton Icon="add" Text="@L["Create Page"]" ButtonStyle="ButtonStyle.Primary"
+                          Click='() => Navigation.NavigateTo("/manager/page/editor")' />
         </div>
     </div>
 
-    <RadzenDataGrid @ref="grid" Data="@pages" TItem="PageSummary" LoadData="@LoadData" Count="@count" 
-                    IsLoading="@isLoading" AllowPaging="true" PageSize="10" 
-                    AllowSorting="true" EmptyText="No pages found. Start building!"
-                    RowClick="@OnRowClick">
-        <Columns>
-            <RadzenDataGridColumn TItem="PageSummary" Property="Title" Title="Title" />
-            <RadzenDataGridColumn TItem="PageSummary" Property="Slug" Title="Slug">
-                <Template Context="p">
-                    <span class="text-xs font-mono" style="background: var(--pe-bg-tertiary); color: var(--pe-text-secondary); padding: 2px 8px; border-radius: var(--pe-radius-sm);">@p.Slug</span>
-                </Template>
-            </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="PageSummary" Property="Excerpt" Title="Summary" />
-            <RadzenDataGridColumn TItem="PageSummary" Property="CreatedAt" Title="Created">
-                <Template Context="p">
-                    @p.CreatedAt.ToString("MMM dd, yyyy")
-                </Template>
-            </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="PageSummary" Title="Status">
-                <Template Context="p">
-                    @if (p.PublishedAt.HasValue)
-                    {
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Published
-                        </span>
-                    }
-                    else
-                    {
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                            Draft
-                        </span>
-                    }
-                </Template>
-            </RadzenDataGridColumn>
-        </Columns>
-    </RadzenDataGrid>
+    <PageTreeGrid OnPreview="OpenPreviewAsync" />
 </div>
 
+@if (_previewVisible && _previewPageId is not null)
+{
+    <PreviewOverlay Visible="true"
+                    OnClose="() => _previewVisible = false"
+                    FrameUrl="@_previewFrameUrl"
+                    FrameDocument=""
+                    UrlBarText="@_previewUrlBarText"
+                    Error=""
+                    IsLoading="false"
+                    Title="@L["Page preview"]" />
+}
+
 @code {
-    RadzenDataGrid<PageSummary>? grid;
-    IEnumerable<PageSummary>? pages;
-    int count;
-    bool isLoading = true;
-    string? searchTerm;
+    private bool _previewVisible;
+    private long? _previewPageId;
+    private string _previewBaseUri = "";
+    private string _previewFrameUrl = "";
+    private string _previewUrlBarText = "";
 
-    async Task LoadData(LoadDataArgs args)
+    protected override void OnInitialized()
     {
-        isLoading = true;
-        
-        var result = await PagesApi.GetAllAsync(args.Skip ?? 0, args.Top ?? 10, searchTerm);
-        
-        if (result is Result<PagedResult<PageSummary>, AeroError>.Ok ok)
-        {
-            pages = ok.Value.Items;
-            count = (int)ok.Value.TotalCount;
-        }
-        else
-        {
-            pages = Enumerable.Empty<PageSummary>();
-            count = 0;
-        }
-        
-        isLoading = false;
+        // Use the current app's base URI so preview works across dev/prod environments.
+        // Homepage (Path="/") → FrameUrl = "https://mysite.com/"
+        // About page (Path="/about") → FrameUrl = "https://mysite.com/about"
+        _previewBaseUri = Navigation.BaseUri.TrimEnd('/');
     }
 
-    async Task OnSearch(string value)
+    private async Task OpenPreviewAsync(PageTranslationGroupTreeItem item)
     {
-        searchTerm = value;
-        if (grid != null)
-        {
-            await grid.FirstPage();
-        }
-    }
-
-    void OnRowClick(DataGridRowMouseEventArgs<PageSummary> args)
-    {
-        if (args.Data == null) return;
-        
-        Navigation.NavigateTo($"/manager/page/editor/{args.Data.Id}");
+        _previewVisible = true;
+        _previewPageId = item.DisplayPageId;
+        _previewFrameUrl = $"{_previewBaseUri}{item.Path}";
+        _previewUrlBarText = item.Path;
+        await InvokeAsync(StateHasChanged);
     }
 }

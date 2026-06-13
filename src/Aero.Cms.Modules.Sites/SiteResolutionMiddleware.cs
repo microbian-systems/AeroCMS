@@ -15,6 +15,7 @@ namespace Aero.Cms.Modules.Sites;
 public sealed class SiteResolutionMiddleware(RequestDelegate next)
 {
     private static readonly PathString ManagerPathPrefix = "/manager";
+    private static readonly PathString AdminApiPathPrefix = "/api/v1/admin";
     private static readonly PathString NoSitePathPrefix = "/nosite";
 
     public async Task InvokeAsync(
@@ -22,7 +23,7 @@ public sealed class SiteResolutionMiddleware(RequestDelegate next)
         ISiteLookupService siteLookup)
     {
         // The manager resolves site from user cookie selection, not hostname.
-        if (context.Request.Path.StartsWithSegments(ManagerPathPrefix, StringComparison.OrdinalIgnoreCase))
+        if (IsSiteResolutionBypassPath(context.Request.Path))
         {
             await next(context);
             return;
@@ -50,9 +51,36 @@ public sealed class SiteResolutionMiddleware(RequestDelegate next)
         context.Features.Set<IAeroSiteSlice>(new AeroSiteSlice
         {
             SiteId = site.Id,
-            TenantId = site.TenantId
+            TenantId = site.TenantId,
+            DefaultCulture = site.DefaultCulture,
+            SupportedCultures = site.SupportedCultures
         });
 
         await next(context);
+    }
+
+    private static bool IsSiteResolutionBypassPath(PathString path)
+    {
+        if (path.StartsWithSegments(ManagerPathPrefix, StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWithSegments(AdminApiPathPrefix, StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWithSegments(NoSitePathPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Static assets and development tooling must be served by the static file
+        // and framework middleware, even when no public site matches the request host.
+        return path.StartsWithSegments("/_framework", StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWithSegments("/_content", StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWithSegments("/_blazor", StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWithSegments("/_vs", StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWithSegments("/css", StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWithSegments("/js", StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWithSegments("/lib", StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWithSegments("/assets", StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWithSegments("/media", StringComparison.OrdinalIgnoreCase) ||
+               path.Equals("/favicon.ico", StringComparison.OrdinalIgnoreCase) ||
+               path.Equals("/aspnetcore-browser-refresh.js", StringComparison.OrdinalIgnoreCase) ||
+               path.Equals("/browserLink", StringComparison.OrdinalIgnoreCase);
     }
 }

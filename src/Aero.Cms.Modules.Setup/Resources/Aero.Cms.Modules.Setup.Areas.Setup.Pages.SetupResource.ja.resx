@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    Aero.Cms.Modules.Setup.Areas.Setup.Pages.SetupResource resource file — ja
+    Display name: 
+    Translation status: NEEDS TRANSLATION
+    Copy keys from the English .resx (Aero.Cms.Modules.Setup.Areas.Setup.Pages.SetupResource.resx) and translate the values.
+  -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!-- TODO: Add translated <data> entries here. See Aero.Cms.Modules.Setup.Areas.Setup.Pages.SetupResource.resx for reference keys. -->
+</root>

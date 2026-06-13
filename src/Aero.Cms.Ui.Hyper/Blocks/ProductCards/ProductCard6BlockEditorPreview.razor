@@ -1,0 +1,12 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-neo-preview">
+    <ProductCard6BlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private ProductCard6Block PreviewBlock => ProductCard6BlockMapper.FromNode(Node);
+}

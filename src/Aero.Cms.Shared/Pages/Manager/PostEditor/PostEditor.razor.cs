@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Globalization;
 using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
@@ -16,9 +12,10 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Shared.Services;
 using Aero.Core;
 using Aero.Core.Railway;
-using BlazorMonaco;
 using BlazorMonaco.Editor;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
+using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.PostEditor;
 
@@ -31,15 +28,21 @@ public partial class PostEditor : ComponentBase, IDisposable
     /// <summary>Optional ID of an existing post to edit.</summary>
     [Parameter] public long? Id { get; set; }
 
+    [SupplyParameterFromQuery(Name = "tab")]
+    protected string? RequestedTab { get; set; }
+
     [Inject] protected IBlogHttpClient BlogApi { get; set; } = default!;
     [Inject] protected IAiHttpClient AiClient { get; set; } = default!;
+    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
     [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
     [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
+    [Inject] protected ISeriesHttpClient SeriesClient { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
     [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
     [Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
     [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
     [Inject] protected AdminStateContainer AdminState { get; set; } = default!;
+    [Inject] protected DialogService DialogService { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // Editor state
@@ -53,6 +56,7 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected string SeoDescription { get; set; } = string.Empty;
     protected string FeaturedImageUrl { get; set; } = string.Empty;
     protected long CategoryId { get; set; }
+    protected long SeriesId { get; set; }
     protected List<long> SelectedTagIds { get; set; } = [];
     protected DateTime? PublishedAt { get; set; }
 
@@ -67,17 +71,36 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected string? PreviewHtml { get; set; }
     protected string? PreviewError { get; set; }
     protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/blog-posts/render-fragment");
-    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
+    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri, L);
     protected string? PreviewFrameUrl => Id.HasValue
         ? BuildAbsoluteUrl($"_cms/preview/blog/drafts/{Id.Value}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
 
     // Loaded post data
     protected BlogDetail? LoadedPost { get; set; }
+    protected SiteViewModel? CurrentSite { get; set; }
+    protected IReadOnlyList<BlogDetail> PostCultureVariants { get; set; } = [];
+    protected string SelectedTranslationCulture { get; set; } = string.Empty;
+    protected string TranslationSlug { get; set; } = string.Empty;
+    protected bool IsLoadingTranslations { get; set; }
+    protected bool IsCreatingTranslation { get; set; }
+    protected IReadOnlyList<string> SupportedCultures =>
+        CurrentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [LoadedPost?.Culture ?? CurrentSite?.DefaultCulture ?? "en-US"];
+
+    protected IEnumerable<string> AvailableTranslationCultures =>
+        SupportedCultures
+            .Select(NormalizeCultureName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(culture => !PostCultureVariants.Any(variant =>
+                string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
     // Reference data
     protected List<CategorySummary> Categories { get; set; } = [];
     protected List<TagSummary> AllTags { get; set; } = [];
+    protected List<SeriesSummary> Series { get; set; } = [];
 
     // BlazorMonaco editor reference
     protected StandaloneCodeEditor? _editor;
@@ -104,14 +127,18 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected string? EnhanceRationale { get; set; }
     protected IReadOnlyList<string> EnhanceWarnings { get; set; } = [];
     protected IReadOnlyList<AiProviderOption> AiProviderOptions { get; set; } = [];
+    protected bool IsTranslatingAll { get; set; }
+    protected bool OverwriteExistingTranslations { get; set; }
+    protected HashSet<string> TranslatingCultures { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    protected bool IsBulkPublishingTranslations { get; set; }
 
-    protected IReadOnlyList<EnhanceTargetOption> EnhanceTargetOptions { get; } =
+    protected IReadOnlyList<EnhanceTargetOption> EnhanceTargetOptions =>
     [
-        new("body", "Body"),
-        new("title", "Title"),
-        new("summary", "Summary"),
-        new("seoTitle", "SEO Title"),
-        new("seoDescription", "SEO Description")
+        new("body", L["Body"]),
+        new("title", L["Title"]),
+        new("summary", L["Summary"]),
+        new("seoTitle", L["SEO Title"]),
+        new("seoDescription", L["SEO Description"])
     ];
 
     // Auto-save timer & dirty tracking
@@ -129,9 +156,19 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Lifecycle
     // ──────────────────────────────────────────────────────────
 
+    protected override void OnParametersSet()
+    {
+        if (IsKnownTab(RequestedTab))
+        {
+            ActiveTab = NormalizeTab(RequestedTab);
+            FullPreviewMode = string.Equals(ActiveTab, "preview", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await ResolvePreviewBaseUriAsync();
+        CurrentSite = await ResolveCurrentSiteAsync();
         await LoadReferenceDataAsync();
 
         if (Id.HasValue)
@@ -179,15 +216,30 @@ public partial class PostEditor : ComponentBase, IDisposable
     {
         var catsTask = CategoriesClient.GetAllAsync();
         var tagsTask = TagsClient.GetAllAsync();
+        var seriesTask = SeriesClient.GetAllAsync();
+        var generalTask = SeriesClient.EnsureGeneralAsync();
 
         await catsTask;
         await tagsTask;
+        await seriesTask;
+        await generalTask;
 
         if (catsTask.Result is Result<IReadOnlyList<CategorySummary>, AeroError>.Ok catsOk)
             Categories = catsOk.Value.ToList();
 
         if (tagsTask.Result is Result<IReadOnlyList<TagSummary>, AeroError>.Ok tagsOk)
             AllTags = tagsOk.Value.ToList();
+
+        if (seriesTask.Result is Result<IReadOnlyList<SeriesSummary>, AeroError>.Ok seriesOk)
+            Series = seriesOk.Value.ToList();
+
+        if (generalTask.Result is Result<SeriesDetail, AeroError>.Ok generalOk)
+        {
+            if (!Series.Any(x => x.Id == generalOk.Value.Id))
+                Series.Insert(0, new SeriesSummary(generalOk.Value.Id, generalOk.Value.Name, generalOk.Value.Slug, generalOk.Value.Description, generalOk.Value.ContentCount));
+
+            SeriesId = generalOk.Value.Id;
+        }
     }
 
     private async Task LoadPostAsync(long id)
@@ -206,10 +258,12 @@ public partial class PostEditor : ComponentBase, IDisposable
             SeoDescription = post.SeoDescription ?? string.Empty;
             FeaturedImageUrl = post.ImageUrl ?? string.Empty;
             CategoryId = post.CategoryIds?.FirstOrDefault() ?? 0;
+            SeriesId = post.SeriesId ?? Series.FirstOrDefault(x => x.Slug.Equals("general", StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
             SelectedTagIds = post.TagIds?.ToList() ?? [];
             PublishedAt = post.PublishedOn?.DateTime;
             _postState = PostState.Clean;
             UpdateLastSaved();
+            await LoadPostTranslationsAsync();
             await InvokeAsync(StateHasChanged);
         }
         else
@@ -405,10 +459,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         return [new MarkdownBlock { Content = currentContent }];
     }
 
-    private static string BuildPreviewFrameDocument(string? html, string baseUri)
+    private static string BuildPreviewFrameDocument(string? html, string baseUri, IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L)
     {
         var content = string.IsNullOrWhiteSpace(html)
-            ? "<main class=\"pe-empty-state\"><h3>No preview content</h3></main>"
+            ? $"<main class=\"pe-empty-state\"><h3>{L["No preview content"]}</h3></main>"
             : html;
         var appCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/app.css");
         var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");
@@ -496,6 +550,19 @@ public partial class PostEditor : ComponentBase, IDisposable
         return result is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
     }
 
+    private async Task<SiteViewModel?> ResolveCurrentSiteAsync()
+    {
+        if (AdminState.CurrentSiteId is { } selectedSiteId)
+            return await LoadSiteByIdAsync(selectedSiteId);
+
+        var selectedSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        if (selectedSite is not null)
+            return selectedSite;
+
+        var defaultResult = await SitesClient.GetDefaultAsync();
+        return defaultResult is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
+    }
+
     private static string? BuildSiteBaseUri(SiteViewModel? site)
     {
         var host = site?.PrimaryHost;
@@ -529,6 +596,378 @@ public partial class PostEditor : ComponentBase, IDisposable
     private static string EnsureTrailingSlash(string uri)
     {
         return uri.EndsWith("/", StringComparison.Ordinal) ? uri : $"{uri}/";
+    }
+
+    private async Task LoadPostTranslationsAsync()
+    {
+        if (Id is null)
+        {
+            PostCultureVariants = [];
+            ResetTranslationDraft();
+            return;
+        }
+
+        IsLoadingTranslations = true;
+
+        try
+        {
+            var result = await BlogApi.ListCultureVariantsAsync(Id.Value);
+            PostCultureVariants = result is Result<IReadOnlyList<BlogDetail>, AeroError>.Ok ok
+                ? ok.Value.OrderBy(post => post.Culture, StringComparer.OrdinalIgnoreCase).ToList()
+                : [];
+
+            ResetTranslationDraft();
+        }
+        catch
+        {
+            PostCultureVariants = [];
+        }
+        finally
+        {
+            IsLoadingTranslations = false;
+        }
+    }
+
+    protected async Task CreateTranslationAsync()
+    {
+        if (Id is null || IsCreatingTranslation)
+            return;
+
+        if (string.IsNullOrWhiteSpace(SelectedTranslationCulture))
+        {
+            ShowToast("Choose a target culture", "error");
+            return;
+        }
+
+        var slug = string.IsNullOrWhiteSpace(TranslationSlug)
+            ? PostSlug.Trim()
+            : TranslationSlug.Trim();
+
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            ShowToast("Enter a translated slug", "error");
+            return;
+        }
+
+        if (_postState == PostState.Dirty)
+        {
+            await SavePost();
+
+            if (_postState != PostState.Clean)
+                return;
+        }
+
+        IsCreatingTranslation = true;
+
+        try
+        {
+            var request = new ForkBlogCultureRequest(SelectedTranslationCulture, slug);
+            var result = await BlogApi.ForkToCultureAsync(Id.Value, request);
+
+            if (result is Result<BlogDetail, AeroError>.Ok ok)
+            {
+                ShowToast($"Created {FormatCulture(ok.Value.Culture)} translation", "success");
+                NavManager.NavigateTo($"/manager/post/editor/{ok.Value.Id}");
+                return;
+            }
+
+            if (result is Result<BlogDetail, AeroError>.Failure failure)
+                ShowToast($"Translation failed: {failure.Error}", "error");
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Translation failed: {ex.Message}", "error");
+        }
+        finally
+        {
+            IsCreatingTranslation = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected void OpenTranslation(long postId)
+        => NavManager.NavigateTo($"/manager/post/editor/{postId}?tab=translations");
+
+    protected async Task TranslateMissingCulturesAsync()
+    {
+        if (Id is null || IsTranslatingAll)
+            return;
+
+        var targets = AvailableTranslationCultures
+            .Select(culture => new AiTranslateBlogCultureRequest(culture, BuildDefaultTranslationSlug(culture)))
+            .ToList();
+
+        if (targets.Count == 0)
+        {
+            ShowToast("All supported cultures already have translations.", "info");
+            return;
+        }
+
+        await TranslateCulturesAsync(targets, overwriteExisting: false, translateAll: true);
+    }
+
+    protected async Task TranslateAllCulturesAsync()
+    {
+        if (Id is null || LoadedPost is null || IsTranslatingAll)
+            return;
+
+        var targets = AvailableTranslationCultures
+            .Select(culture => new AiTranslateBlogCultureRequest(culture, BuildDefaultTranslationSlug(culture)))
+            .ToList();
+
+        if (OverwriteExistingTranslations)
+        {
+            targets.AddRange(PostCultureVariants
+                .Where(variant => !string.Equals(variant.Culture, LoadedPost.Culture, StringComparison.OrdinalIgnoreCase))
+                .Select(variant => new AiTranslateBlogCultureRequest(variant.Culture, variant.Slug)));
+        }
+
+        if (targets.Count == 0)
+        {
+            ShowToast("All supported cultures already have translations. Check overwrite to refresh existing translations.", "info");
+            return;
+        }
+
+        await TranslateCulturesAsync(targets, OverwriteExistingTranslations, translateAll: true);
+    }
+
+    protected async Task TranslateCultureAsync(string culture, bool overwriteExisting)
+    {
+        if (Id is null || TranslatingCultures.Contains(culture))
+            return;
+
+        await TranslateCulturesAsync(
+            [new AiTranslateBlogCultureRequest(culture, BuildDefaultTranslationSlug(culture))],
+            overwriteExisting,
+            translateAll: false);
+    }
+
+    private async Task TranslateCulturesAsync(
+        IReadOnlyList<AiTranslateBlogCultureRequest> targets,
+        bool overwriteExisting,
+        bool translateAll)
+    {
+        if (Id is null)
+            return;
+
+        if (_postState == PostState.Dirty)
+        {
+            await SavePost();
+
+            if (_postState != PostState.Clean)
+                return;
+        }
+
+        if (AiProviderOptions.Count == 0)
+        {
+            await LoadAiProviderOptionsAsync();
+        }
+
+        if (AiProviderOptions.Count == 0)
+        {
+            ShowToast("Configure and enable an AI provider before translating.", "error");
+            return;
+        }
+
+        if (translateAll)
+        {
+            IsTranslatingAll = true;
+        }
+
+        foreach (var target in targets)
+        {
+            TranslatingCultures.Add(target.Culture);
+        }
+
+        try
+        {
+            var request = new AiTranslateBlogRequest(
+                targets,
+                string.IsNullOrWhiteSpace(SelectedAiProviderId) ? null : SelectedAiProviderId,
+                overwriteExisting);
+
+            var result = await BlogApi.TranslateWithAiAsync(Id.Value, request);
+            if (result is Result<AiTranslateBlogResult, AeroError>.Ok ok)
+            {
+                var succeeded = ok.Value.Results.Count(x => x.Succeeded);
+                var failed = ok.Value.Results.Count - succeeded;
+
+                if (succeeded > 0)
+                {
+                    ShowToast(failed == 0
+                        ? $"Translated {succeeded} culture{(succeeded == 1 ? string.Empty : "s")}"
+                        : $"Translated {succeeded} culture{(succeeded == 1 ? string.Empty : "s")}; {failed} failed",
+                        failed == 0 ? "success" : "info");
+
+                    await LoadPostTranslationsAsync();
+                }
+
+                foreach (var failure in ok.Value.Results.Where(x => !x.Succeeded))
+                {
+                    ShowToast($"{FormatCulture(failure.Culture)}: {failure.Error}", "error");
+                }
+
+                return;
+            }
+
+            if (result is Result<AiTranslateBlogResult, AeroError>.Failure apiFailure)
+            {
+                ShowToast($"AI translation failed: {apiFailure.Error}", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"AI translation failed: {ex.Message}", "error");
+        }
+        finally
+        {
+            if (translateAll)
+            {
+                IsTranslatingAll = false;
+            }
+
+            foreach (var target in targets)
+            {
+                TranslatingCultures.Remove(target.Culture);
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected void OpenPublicTranslation(BlogDetail variant)
+    {
+        var baseUri = _previewBaseUri ?? NavManager.BaseUri.TrimEnd('/');
+        NavManager.NavigateTo($"{baseUri.TrimEnd('/')}/blog/{variant.Slug}");
+    }
+
+    protected async Task DeleteTranslationAsync(BlogDetail variant)
+    {
+        if (LoadedPost is null)
+            return;
+
+        var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
+        if (isDefault)
+        {
+            ShowToast("Delete the default culture post from the Posts list so the full translation group warning is shown.", "error");
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            $"Delete the {FormatCulture(variant.Culture)} translation for '{variant.Title}'?",
+            "Delete Translation",
+            new ConfirmOptions { OkButtonText = "Delete Translation", CancelButtonText = "Cancel" });
+
+        if (confirmed != true)
+            return;
+
+        var result = await BlogApi.DeleteAsync(variant.Id);
+        if (result is Result<bool, AeroError>.Ok)
+        {
+            ShowToast($"Deleted {FormatCulture(variant.Culture)} translation", "success");
+            await LoadPostTranslationsAsync();
+            return;
+        }
+
+        if (result is Result<bool, AeroError>.Failure failure)
+            ShowToast($"Delete failed: {failure.Error}", "error");
+    }
+
+    protected Task PublishAllTranslationsAsync()
+        => SetAllTranslationsPublicationStateAsync(publish: true);
+
+    protected Task UnpublishAllTranslationsAsync()
+        => SetAllTranslationsPublicationStateAsync(publish: false);
+
+    private async Task SetAllTranslationsPublicationStateAsync(bool publish)
+    {
+        if (LoadedPost is null || IsBulkPublishingTranslations)
+            return;
+
+        var translationGroupId = LoadedPost.TranslationGroupId ?? LoadedPost.Id;
+        var action = publish ? "publish" : "unpublish";
+        var confirmed = await DialogService.Confirm(
+            $"This will {action} all existing localized versions for '{LoadedPost.Title}'. Continue?",
+            publish ? "Publish All Translations" : "Unpublish All Translations",
+            new ConfirmOptions
+            {
+                OkButtonText = publish ? "Publish All" : "Unpublish All",
+                CancelButtonText = "Cancel"
+            });
+
+        if (confirmed != true)
+            return;
+
+        IsBulkPublishingTranslations = true;
+        try
+        {
+            var result = publish
+                ? await BlogApi.PublishTranslationGroupAsync(translationGroupId)
+                : await BlogApi.UnpublishTranslationGroupAsync(translationGroupId);
+
+            if (result is Result<PublicationBulkResult, AeroError>.Ok ok)
+            {
+                var current = ok.Value.Items.FirstOrDefault(x => x.Id == LoadedPost.Id);
+                if (current is not null)
+                {
+                    PublishedAt = current.Published ? DateTime.Now : null;
+                }
+
+                ShowToast(
+                    publish
+                        ? $"Published {ok.Value.Updated} translation{(ok.Value.Updated == 1 ? string.Empty : "s")}"
+                        : $"Unpublished {ok.Value.Updated} translation{(ok.Value.Updated == 1 ? string.Empty : "s")}",
+                    "success");
+
+                await LoadPostTranslationsAsync();
+                return;
+            }
+
+            if (result is Result<PublicationBulkResult, AeroError>.Failure failure)
+            {
+                ShowToast($"{(publish ? "Publish" : "Unpublish")} all failed: {failure.Error}", "error");
+            }
+        }
+        finally
+        {
+            IsBulkPublishingTranslations = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ResetTranslationDraft()
+    {
+        SelectedTranslationCulture = AvailableTranslationCultures.FirstOrDefault() ?? string.Empty;
+        TranslationSlug = string.Empty;
+    }
+
+    protected string FormatCulture(string? culture)
+    {
+        var normalized = NormalizeCultureName(culture);
+        try
+        {
+            var info = CultureInfo.GetCultureInfo(normalized);
+            return $"{info.DisplayName} ({info.Name})";
+        }
+        catch (CultureNotFoundException)
+        {
+            return normalized;
+        }
+    }
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return "en-US";
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return culture.Trim();
+        }
     }
 
     // ──────────────────────────────────────────────────────────
@@ -570,6 +1009,24 @@ public partial class PostEditor : ComponentBase, IDisposable
     protected void OnCategoryChanged(string categoryId)
     {
         if (long.TryParse(categoryId, out var id)) CategoryId = id;
+        MarkDirty();
+    }
+
+    private string BuildDefaultTranslationSlug(string culture)
+    {
+        var slug = string.IsNullOrWhiteSpace(PostSlug)
+            ? PostTitle
+            : PostSlug;
+
+        var normalized = TitleToSlug(slug);
+        return string.IsNullOrWhiteSpace(normalized)
+            ? NormalizeCultureName(culture).ToLowerInvariant()
+            : $"{normalized}-{NormalizeCultureName(culture).ToLowerInvariant()}";
+    }
+
+    protected void OnSeriesChanged(string seriesId)
+    {
+        if (long.TryParse(seriesId, out var id)) SeriesId = id;
         MarkDirty();
     }
 
@@ -632,6 +1089,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                     SeoTitle = string.IsNullOrWhiteSpace(SeoTitle) ? PostTitle : SeoTitle,
                     SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
+                    SeriesId = SeriesId > 0 ? SeriesId : null,
                     PublicationState = PublishedAt.HasValue
                         ? (int)ContentPublicationState.Published
                         : (int)ContentPublicationState.Draft
@@ -644,6 +1102,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                     LoadedPost = ok.Value;
                     _postState = PostState.Clean;
                     UpdateLastSaved();
+                    await LoadPostTranslationsAsync();
                     ShowToast("Post saved successfully", "success");
                 }
                 else if (result is Result<BlogDetail, AeroError>.Failure err)
@@ -662,6 +1121,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                     SeoTitle = string.IsNullOrWhiteSpace(SeoTitle) ? PostTitle : SeoTitle,
                     SeoDescription = string.IsNullOrWhiteSpace(SeoDescription) ? Excerpt : SeoDescription,
                     ImageUrl = FeaturedImageUrl,
+                    SeriesId = SeriesId > 0 ? SeriesId : null,
                     PublicationState = (int)ContentPublicationState.Draft
                 };
 
@@ -673,6 +1133,7 @@ public partial class PostEditor : ComponentBase, IDisposable
                     PublishedAt = ok.Value.PublishedOn?.DateTime;
                     _postState = PostState.Clean;
                     UpdateLastSaved();
+                    await LoadPostTranslationsAsync();
                     ShowToast("Post created successfully", "success");
 
                     NavManager.NavigateTo($"/manager/post/editor/{Id}", false);
@@ -962,6 +1423,24 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     private string TabBtnClass(string tab) =>
         ActiveTab == tab ? "pe-tab-btn active" : "pe-tab-btn";
+
+    private static bool IsKnownTab(string? tab)
+        => string.Equals(tab, "editor", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "code", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "preview", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "metadata", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "translations", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeTab(string? tab)
+        => string.Equals(tab, "code", StringComparison.OrdinalIgnoreCase)
+            ? "code"
+            : string.Equals(tab, "preview", StringComparison.OrdinalIgnoreCase)
+                ? "preview"
+                : string.Equals(tab, "metadata", StringComparison.OrdinalIgnoreCase)
+                    ? "metadata"
+                    : string.Equals(tab, "translations", StringComparison.OrdinalIgnoreCase)
+                        ? "translations"
+                        : "editor";
 
     protected sealed record EnhanceTargetOption(string Value, string Label);
 }

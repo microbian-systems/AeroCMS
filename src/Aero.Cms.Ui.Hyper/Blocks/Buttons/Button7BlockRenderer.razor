@@ -1,0 +1,15 @@
+@* Button 7 — HyperUI marketing/buttons/7 *@
+@* Source: hyperui/public/examples/marketing/buttons/7.html *@
+@if (Block is not null)
+{
+    var isSolid = string.Equals(Block.Style, "solid", StringComparison.OrdinalIgnoreCase);
+    var cls = isSolid
+        ? "inline-block rounded-sm bg-indigo-600 px-8 py-3 text-sm font-medium text-white transition hover:scale-110 hover:shadow-xl"
+        : "inline-block rounded-sm border border-current px-8 py-3 text-sm font-medium text-indigo-600 transition hover:scale-110 hover:shadow-xl";
+
+    <a href="@Block.Url" class="@cls">@Block.Text</a>
+}
+@code {
+    [Parameter, EditorRequired]
+    public Button7Block? Block { get; set; }
+}

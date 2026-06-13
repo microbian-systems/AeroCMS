@@ -1,24 +1,16 @@
-@using Aero.Cms.Abstractions.Blocks
-@using Aero.Cms.Core.Blocks
+@using Aero.Cms.Abstractions.Blocks.Neo
 
 @if (Block != null)
 {
-    <figure class="my-6">
-        <img src="@(Block.Url ?? $"/api/media/{Block.MediaId}")" 
-             alt="@Block.AltText" 
-             class="w-full h-auto rounded-lg shadow-md" 
-             loading="lazy" />
-        
-        @if (!string.IsNullOrWhiteSpace(Block.Caption))
+    <figure class="my-8">
+        <img src="@Block.Src" alt="@Block.Alt" class="w-full rounded-lg" loading="lazy" />
+        @if (!string.IsNullOrEmpty(Block.Caption))
         {
-            <figcaption class="mt-2 text-sm text-gray-600 text-center italic">
-                @Block.Caption
-            </figcaption>
+            <figcaption class="mt-2 text-sm text-muted-foreground text-center">@Block.Caption</figcaption>
         }
     </figure>
 }
 
 @code {
-    [Parameter]
-    public ImageBlock? Block { get; set; }
+    [Parameter, EditorRequired] public ImageBlock? Block { get; set; }
 }

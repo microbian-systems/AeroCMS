@@ -1,0 +1,15 @@
+@using Aero.Cms.Abstractions.Blocks
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+
+<div class="pe-property-panel-shell">
+    <div class="pe-property-panel-header">
+        <h3 class="pe-property-panel-title">@L["Properties"]</h3>
+    </div>
+    <div class="pe-property-panel-content">
+        <BlockEditorHost Block="Block" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public BlockBase? Block { get; set; }
+}

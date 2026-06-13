@@ -2,25 +2,63 @@
 @page "/manager/navigations/general"
 @attribute [Authorize]
 
+@using Aero.Cms.Abstractions.Http.Clients
+
 <div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Navigations</h1>
-            <p class="mt-1 text-sm pe-description">Manage your site menus and link structure.</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["Header Menu"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Manage the menu that appears in the public site header."]</p>
         </div>
-        <RadzenButton Icon="add" Text="Create Navigation" ButtonStyle="ButtonStyle.Primary" />
+        <div class="flex items-center gap-2">
+            <RadzenButton Icon="refresh"
+                          Text="@L["Refresh"]"
+                          ButtonStyle="ButtonStyle.Light"
+                          Size="ButtonSize.Small"
+                          Click="@LoadMenusAsync"
+                          Disabled="@_isLoading" />
+            <RadzenButton Icon="add"
+                          Text="@L["New Menu"]"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Small"
+                          Click="@CreateMenuAsync"
+                          Disabled="@_isSaving" />
+        </div>
     </div>
 
-    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
-                    EmptyText="No navigations found. Let's create one!">
+    <RadzenDataGrid @ref="_menuGrid"
+                    Data="@_menus"
+                    TItem="NavigationSummary"
+                    IsLoading="@_isLoading"
+                    AllowPaging="true"
+                    PageSize="10"
+                    class="aero-grid cursor-pointer"
+                    RowClick="@(args => OpenEditor(args.Data))"
+                    EmptyText="@L["No header menus yet. Create one to begin."]">
         <Columns>
-            <RadzenDataGridColumn TItem="object" Property="Name" Title="Name" />
-            <RadzenDataGridColumn TItem="object" Property="Handle" Title="Handle / Slug" />
-            <RadzenDataGridColumn TItem="object" Property="Type" Title="Type" />
-            <RadzenDataGridColumn TItem="object" Property="Modified" Title="Last Modified" />
+            <RadzenDataGridColumn TItem="NavigationSummary" Property="Name" Title="@L["Menu"]">
+                <Template Context="menu">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-medium" style="color: var(--pe-text-primary);">@menu.Name</span>
+                        <span class="text-xs" style="color: var(--pe-text-secondary);">@menu.Title</span>
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="NavigationSummary" Property="State" Title="@L["Status"]" Width="170px">
+                <Template Context="menu">
+                    <RadzenBadge BadgeStyle="@BadgeStyleFor(menu.State)" Text="@DisplayState(menu.State)" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="NavigationSummary" Property="CreatedAt" Title="@L["Created"]" Width="180px">
+                <Template Context="menu">
+                    <span style="color: var(--pe-text-secondary);">@menu.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="NavigationSummary" Title="@L["Links"]" Width="100px">
+                <Template Context="menu">
+                    <span style="color: var(--pe-text-secondary);">@menu.ItemCount</span>
+                </Template>
+            </RadzenDataGridColumn>
         </Columns>
     </RadzenDataGrid>
 </div>
-
-@code {
-}

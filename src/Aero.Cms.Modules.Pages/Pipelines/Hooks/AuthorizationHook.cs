@@ -1,7 +1,4 @@
-using Aero.Cms.Core.Entities;
 using Aero.Cms.Web.Core.Pipelines;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Pages.Pipelines.Hooks;
 

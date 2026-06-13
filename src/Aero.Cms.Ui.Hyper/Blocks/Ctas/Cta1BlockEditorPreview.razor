@@ -1,0 +1,12 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-neo-preview">
+    <Cta1BlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private Cta1Block PreviewBlock => Cta1BlockMapper.FromNode(Node);
+}

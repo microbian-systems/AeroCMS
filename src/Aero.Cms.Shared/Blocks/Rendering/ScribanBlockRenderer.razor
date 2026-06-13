@@ -1,0 +1,17 @@
+@if (!string.IsNullOrEmpty(RenderedHtml))
+{
+    @((MarkupString)RenderedHtml)
+}
+else if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div class="p-4 border border-red-200 bg-red-50 rounded text-red-700 text-sm">
+        <p class="font-medium">Template Error</p>
+        <p class="mt-1 text-red-600">@ErrorMessage</p>
+    </div>
+}
+else if (Block != null && string.IsNullOrEmpty(Block.Template))
+{
+    <div class="p-4 border border-dashed border-border rounded text-muted-foreground text-sm text-center">
+        Scriban Template — add a template to render content.
+    </div>
+}

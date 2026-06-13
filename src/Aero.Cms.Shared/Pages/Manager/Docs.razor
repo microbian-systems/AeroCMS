@@ -1,140 +1,122 @@
 @page "/manager/docs"
 @page "/manager/docs/general"
-@page "/manager/docs/categories/{slug}"
 @attribute [Authorize]
 
-@using Aero.Core
+@using Aero.Cms.Abstractions.Enums
 @using Aero.Cms.Abstractions.Http.Clients
-@inject IDocsHttpClient DocsClient
-@inject NavigationManager NavigationManager
 
-<div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between">
+<PageTitle>@L["Docs"]</PageTitle>
+
+<div class="pe-page-content pe-docs-list-page space-y-6">
+    <div class="pe-docs-list-header">
         <div>
-            <h1 class="text-2xl font-bold pe-heading">Documentation</h1>
-            <p class="mt-1 text-sm pe-description">Manage hierarchical docs, guides, and API reference.</p>
+            <p class="pe-docs-kicker">@L["Knowledge base"]</p>
+            <h1 class="pe-heading">@L["Docs Spaces"]</h1>
+            <p class="pe-description">@L["Spaces are the top-level children under the virtual docs root."]</p>
         </div>
-        <div class="flex space-x-3">
-            <RadzenButton Icon="add" Text="New Category" ButtonStyle="ButtonStyle.Light" />
-            <RadzenButton Icon="add" Text="New Article" ButtonStyle="ButtonStyle.Primary" />
+        <div class="pe-docs-list-actions">
+            <RadzenTextBox Placeholder="@L["Search spaces..."]"
+                           Value="@_searchText"
+                           ValueChanged="@OnSearchChanged"
+                           class="pe-docs-search" />
+            <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="LoadAsync">
+                @L["Refresh"]
+            </button>
+            <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="ShowCreateSpace">
+                @L["New Space"]
+            </button>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <RadzenCard class="lg:col-span-1 border-r border-gray-100">
-            <RadzenText TextStyle="TextStyle.H6" class="mb-4">Explorer</RadzenText>
-            <RadzenTree Change="@OnTreeChange">
-                @if (categories != null)
-                {
-                    @foreach (var category in categories)
-                    {
-                        <RadzenTreeItem Text="@category.Title" Value="@category.Slug" Selected="@(category.Slug == slug)" />
-                    }
-                }
-            </RadzenTree>
-        </RadzenCard>
-        
-        <RadzenCard class="lg:col-span-3">
-            <div class="flex items-center justify-between mb-4">
-                <RadzenText TextStyle="TextStyle.H6">
-                    @(selectedCategory?.Title ?? "Recent Articles")
-                </RadzenText>
-                @if (selectedCategory != null)
-                {
-                    <RadzenButton Icon="edit" Text="Edit Category" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" />
-                }
+    @if (_showCreateForm)
+    {
+        <section class="pe-docs-create-panel" aria-label="@L["Create docs space"]">
+            <div>
+                <p class="pe-docs-kicker">@L["New space"]</p>
+                <h2>@L["Create a docs container"]</h2>
             </div>
-            
-            <RadzenDataGrid Data="@articles" TItem="DocsSummary" AllowPaging="true" PageSize="10" 
-                            EmptyText="No articles found in this category.">
-                <Columns>
-                    <RadzenDataGridColumn TItem="DocsSummary" Property="Title" Title="Title" />
-                    <RadzenDataGridColumn TItem="DocsSummary" Property="Slug" Title="Slug" />
-                    <RadzenDataGridColumn TItem="DocsSummary" Property="Order" Title="Order" Width="80px" />
-                    <RadzenDataGridColumn TItem="DocsSummary" Title="Actions" Width="100px" TextAlign="TextAlign.Center">
-                        <Template Context="doc">
-                            <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall" />
-                        </Template>
-                    </RadzenDataGridColumn>
-                </Columns>
-            </RadzenDataGrid>
-        </RadzenCard>
-    </div>
+            <div class="pe-docs-create-grid">
+                <label class="pe-field">
+                    <span>@L["Title"]</span>
+                    <input value="@_newSpace.Title" @oninput="OnNewSpaceTitleChanged" />
+                </label>
+                <label class="pe-field">
+                    <span>@L["Slug"]</span>
+                    <input value="@_newSpace.Slug" @oninput="e => _newSpace.Slug = e.Value?.ToString() ?? string.Empty" />
+                </label>
+                <label class="pe-field pe-docs-create-summary">
+                    <span>@L["Summary"]</span>
+                    <textarea rows="2" value="@_newSpace.Summary" @oninput="e => _newSpace.Summary = e.Value?.ToString()"></textarea>
+                </label>
+            </div>
+            <div class="pe-docs-create-actions">
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CancelCreateSpace">@L["Cancel"]</button>
+                <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="CreateSpaceAsync" disabled="@_isSaving">
+                    @(_isSaving ? L["Creating..."] : L["Create Space"])
+                </button>
+            </div>
+        </section>
+    }
+
+    <RadzenDataGrid @ref="_grid"
+                    Data="@FilteredSpaces"
+                    TItem="DocsSpaceRow"
+                    IsLoading="@_isLoading"
+                    AllowPaging="true"
+                    PageSize="12"
+                    RowClick="@OnSpaceRowClick"
+                    class="aero-grid pe-docs-spaces-grid"
+                    EmptyText="@L["No docs spaces found."]">
+        <Columns>
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="Title" Title="@L["Space"]" MinWidth="260px">
+                <Template Context="space">
+                    <div class="pe-docs-space-title">
+                        <strong>@space.Title</strong>
+                        @if (!string.IsNullOrWhiteSpace(space.Summary))
+                        {
+                            <span>@space.Summary</span>
+                        }
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="Slug" Title="@L["Slug"]" MinWidth="220px">
+                <Template Context="space">
+                    <code class="pe-docs-code">/docs/@space.Slug</code>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="SectionCount" Title="@L["Sections"]" Width="120px" TextAlign="TextAlign.Center" />
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="PublicationState" Title="@L["Status"]" Width="130px">
+                <Template Context="space">
+                    @if (space.PublicationState == ContentPublicationState.Published)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Published"]" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@L["Draft"]" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="PublishedOn" Title="@L["Published"]" Width="150px">
+                <Template Context="space">
+                    <span class="pe-docs-muted">@FormatDate(space.PublishedOn)</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Property="ModifiedOn" Title="@L["Modified"]" Width="150px">
+                <Template Context="space">
+                    <span class="pe-docs-muted">@FormatDate(space.ModifiedOn)</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="DocsSpaceRow" Title="@L["Actions"]" Width="210px" Sortable="false" TextAlign="TextAlign.Right">
+                <Template Context="space">
+                    <div class="pe-docs-row-actions" @onclick:stopPropagation="true">
+                        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => TogglePublicationAsync(space)">
+                            @(space.PublicationState == ContentPublicationState.Published ? L["Unpublish"] : L["Publish"])
+                        </button>
+                        <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="() => OpenSpace(space.Id)">@L["Edit"]</button>
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
 </div>
-
-@code {
-    [Parameter] public string? slug { get; set; }
-    private IReadOnlyList<DocsSummary>? categories;
-    private IReadOnlyList<DocsSummary>? articles;
-    private DocsDetail? selectedCategory;
-
-    protected override async Task OnInitializedAsync()
-    {
-        var result = await DocsClient.GetCategoriesAsync();
-        if (result is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok ok)
-        {
-            categories = ok.Value;
-        }
-        else if (result is Result<IReadOnlyList<DocsSummary>, AeroError>.Failure failure)
-        {
-            ShowError("Failed to load categories", failure.Error.ToString());
-        }
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (!string.IsNullOrEmpty(slug) && slug != "general")
-        {
-            var categoryResult = await DocsClient.GetBySlugAsync(slug);
-            if (categoryResult is Result<DocsDetail, AeroError>.Ok ok && ok.Value != null)
-            {
-                selectedCategory = ok.Value;
-                var childrenResult = await DocsClient.GetChildrenAsync(selectedCategory.Id);
-                if (childrenResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok childrenOk)
-                {
-                    articles = childrenOk.Value;
-                }
-                else if (childrenResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Failure childrenFailure)
-                {
-                    ShowError("Failed to load articles", childrenFailure.Error.ToString());
-                }
-            }
-            else if (categoryResult is Result<DocsDetail, AeroError>.Failure failure)
-            {
-                ShowError("Failed to load category", failure.Error.ToString());
-            }
-        }
-        else
-        {
-            selectedCategory = null;
-            var allResult = await DocsClient.GetAllAsync();
-            if (allResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok ok)
-            {
-                articles = ok.Value;
-            }
-            else if (allResult is Result<IReadOnlyList<DocsSummary>, AeroError>.Failure failure)
-            {
-                ShowError("Failed to load articles", failure.Error.ToString());
-            }
-        }
-    }
-
-    private void ShowError(string summary, string detail)
-    {
-        NotificationService.Notify(new NotificationMessage
-        {
-            Severity = NotificationSeverity.Error,
-            Summary = summary,
-            Detail = detail,
-            Duration = 4000
-        });
-    }
-
-    private void OnTreeChange(TreeEventArgs args)    {
-        var categorySlug = args.Value as string;
-        if (!string.IsNullOrEmpty(categorySlug))
-        {
-            NavigationManager.NavigateTo($"/manager/docs/categories/{categorySlug}");
-        }
-    }
-}

@@ -1,4 +1,6 @@
+using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Core;
+using Aero.Core.Ai;
 using Aero.Cms.Modules.Ai.Api;
 using Aero.Cms.Modules.Ai.Configuration;
 using Aero.Cms.Modules.Ai.Services;
@@ -32,8 +34,11 @@ public sealed class AiModule : AeroWebModule, IUiModule
         services.AddScoped<IAiSettingsProvider, AiSettingsProvider>();
         services.AddScoped<IAiChatClientFactory, TornadoAiChatClientFactory>();
         services.AddScoped<IAiContentEnhancementService, AiContentEnhancementService>();
+        services.AddScoped<IAiContentTranslationService, AiContentTranslationService>();
         services.AddScoped<IEnhanceContentPromptBuilder, EnhanceContentPromptBuilder>();
+        services.AddScoped<ITranslateDocumentPromptBuilder, TranslateDocumentPromptBuilder>();
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.EnhanceContentRequest>, EnhanceContentRequestValidator>();
+        services.AddScoped<IValidator<Aero.Cms.Abstractions.Ai.TranslateDocumentRequest>, TranslateDocumentRequestValidator>();
         services.AddTransient<TornadoRetryHandler>();
 
         // Typed HttpClient for outbound LLM provider calls.
@@ -64,4 +69,3 @@ public sealed class AiModule : AeroWebModule, IUiModule
         await settingsStore.EnsureDefaultsAsync();
     }
 }
-

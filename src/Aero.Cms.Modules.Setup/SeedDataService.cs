@@ -3,26 +3,27 @@ using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Services;
-using Aero.Cms.Core;
-using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Blog;
-using Aero.Cms.Modules.Blog.Models;
+using Aero.Cms.Modules.Posts;
+using Aero.Cms.Modules.Posts.Models;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
-using Aero.Cms.Web.Core.Modules;
+using Aero.Cms.Core.Entities;
 using Aero.Core;
-using Aero.Core.Railway;
 using Aero.Modular;
 using Marten;
 using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Modules.Services;
-using Aero.Cms.Modules.Aliases;
 using Aero.Cms.Modules.Commerce.Data;
+using Aero.Cms.Modules.Footer.Domain;
+using Aero.Cms.Modules.Footer.Events;
+using Aero.Cms.Modules.Navigation.Domain;
+using Aero.Cms.Modules.Navigation.Events;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Hosting;
 using Serilog;
+using System.Globalization;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -42,7 +43,8 @@ public sealed record SeedDatabaseRequest(
     string HomepageTitle,
     string BlogName,
     string Hostname,
-    string DefaultCulture);
+    string DefaultCulture,
+    IReadOnlyList<string> SupportedCultures);
 
 public sealed class SeedDatabaseResult
 {
@@ -82,7 +84,7 @@ public sealed class SeedDatabaseService(
     IWebHostEnvironment env,
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
-    IBlogPostContentService blogPostContentService,
+    IPostContentService blogPostContentService,
     IMediaService mediaService,
     ICommerceSeedService commerceSeedService,
     IModuleInitializationService moduleInitializationService,
@@ -141,9 +143,11 @@ public sealed class SeedDatabaseService(
             return SeedDatabaseResult.Failure("Failed to create tenant or site");
         }
 
+        var cultureSettings = NormalizeCultureSettings(request.DefaultCulture, request.SupportedCultures);
+
         try
         {
-            await SeedStarterContentAsync(request, site.Id, ct);
+            await SeedStarterContentAsync(request, site.Id, cultureSettings.DefaultCulture, cultureSettings.SupportedCultures, ct);
         }
         catch (Exception ex)
         {
@@ -166,7 +170,8 @@ public sealed class SeedDatabaseService(
             CreatedTenantId = tenant.Id,
             CreatedSiteId = site.Id,
             Hostname = request.Hostname,
-            DefaultCulture = request.DefaultCulture
+            DefaultCulture = cultureSettings.DefaultCulture,
+            SupportedCultures = cultureSettings.SupportedCultures
         });
         await session.SaveChangesAsync(ct);
 
@@ -213,6 +218,8 @@ public sealed class SeedDatabaseService(
             ? to.Value.Id 
             : tenant.Id;
 
+        var cultureSettings = NormalizeCultureSettings(request.DefaultCulture, request.SupportedCultures);
+
         // Create site linked to the tenant
         var site = new SitesModel
         {
@@ -220,7 +227,8 @@ public sealed class SeedDatabaseService(
             TenantId = createdTenantId,
             Name = request.SiteName,
             IsEnabled = true,
-            DefaultCulture = request.DefaultCulture
+            DefaultCulture = cultureSettings.DefaultCulture,
+            SupportedCultures = cultureSettings.SupportedCultures
         };
 
         var siteResult = await siteService.CreateSiteAsync(site, cancellationToken);
@@ -235,16 +243,31 @@ public sealed class SeedDatabaseService(
         return (tenantResult, siteResult);
     }
 
-    private async Task SeedStarterContentAsync(SeedDatabaseRequest request, long siteId, CancellationToken cancellationToken)
+    private async Task SeedStarterContentAsync(
+        SeedDatabaseRequest request,
+        long siteId,
+        string defaultCulture,
+        IReadOnlyList<string> supportedCultures,
+        CancellationToken cancellationToken)
     {
         // Build pages first to get their IDs for navigation items
         var (homepage, homepageBlocks) = BuildHomepage(request);
         var (blogListing, blogListingBlocks) = BuildBlogListingPage(request);
         var (aboutPage, aboutBlocks) = BuildAboutPage();
         var (contactPage, contactBlocks) = BuildContactPage();
+        var (privacyPage, privacyBlocks) = BuildPrivacyPage();
+        var (termsPage, termsBlocks) = BuildTermsPage();
+        var (cookiesPage, cookiesBlocks) = BuildCookiesPage();
         var docs = BuildStarterDocsContent();
         var rootDoc = docs.First(d => d.Slug == "docs");
 
+        StampPageCulture(homepage, defaultCulture);
+        StampPageCulture(blogListing, defaultCulture);
+        StampPageCulture(aboutPage, defaultCulture);
+        StampPageCulture(contactPage, defaultCulture);
+        StampPageCulture(privacyPage, defaultCulture);
+        StampPageCulture(termsPage, defaultCulture);
+        StampPageCulture(cookiesPage, defaultCulture);
         // Create main navigation menu
         var mainNav = new NavigationBlock
         {
@@ -264,24 +287,60 @@ public sealed class SeedDatabaseService(
         // Store pages and their blocks
         homepage.SiteId = siteId;
         foreach (var block in homepageBlocks) session.Store(block);
-        await pageContentService.SaveAsync(homepage, cancellationToken);
+        var homeR = await pageContentService.SaveAsync(homepage, cancellationToken);
+        if (homeR.IsFailure) Log.Warning("Failed to seed homepage: {Error}", ErrMsg(homeR));
 
         blogListing.SiteId = siteId;
         foreach (var block in blogListingBlocks) session.Store(block);
-        await pageContentService.SaveAsync(blogListing, cancellationToken);
+        var blogR = await pageContentService.SaveAsync(blogListing, cancellationToken);
+        if (blogR.IsFailure) Log.Warning("Failed to seed blog listing page: {Error}", ErrMsg(blogR));
 
         aboutPage.SiteId = siteId;
         foreach (var block in aboutBlocks) session.Store(block);
-        await pageContentService.SaveAsync(aboutPage, cancellationToken);
+        var aboutR = await pageContentService.SaveAsync(aboutPage, cancellationToken);
+        if (aboutR.IsFailure) Log.Warning("Failed to seed about page: {Error}", ErrMsg(aboutR));
 
         contactPage.SiteId = siteId;
         foreach (var block in contactBlocks) session.Store(block);
-        await pageContentService.SaveAsync(contactPage, cancellationToken);
+        var contactR = await pageContentService.SaveAsync(contactPage, cancellationToken);
+        if (contactR.IsFailure) Log.Warning("Failed to seed contact page: {Error}", ErrMsg(contactR));
+
+        privacyPage.SiteId = siteId;
+        foreach (var block in privacyBlocks) session.Store(block);
+        var privacyR = await pageContentService.SaveAsync(privacyPage, cancellationToken);
+        if (privacyR.IsFailure) Log.Warning("Failed to seed privacy page: {Error}", ErrMsg(privacyR));
+
+        termsPage.SiteId = siteId;
+        foreach (var block in termsBlocks) session.Store(block);
+        var termsR = await pageContentService.SaveAsync(termsPage, cancellationToken);
+        if (termsR.IsFailure) Log.Warning("Failed to seed terms page: {Error}", ErrMsg(termsR));
+
+        cookiesPage.SiteId = siteId;
+        foreach (var block in cookiesBlocks) session.Store(block);
+        var cookiesR = await pageContentService.SaveAsync(cookiesPage, cancellationToken);
+        if (cookiesR.IsFailure) Log.Warning("Failed to seed cookies page: {Error}", ErrMsg(cookiesR));
         
         foreach (var doc in docs)
         {
             doc.SiteId = siteId;
             session.Store(doc);
+        }
+
+        var navMenuTranslationGroupId = await SeedDefaultNavMenuAsync(siteId, defaultCulture, homepage.Id, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
+        var footerTranslationGroupId = await SeedDefaultFooterAsync(siteId, defaultCulture, aboutPage.Id, contactPage.Id, blogListing.Id, cancellationToken);
+
+        if (ShouldSeedSpanishMexico(defaultCulture, supportedCultures))
+        {
+            await SeedSpanishMexicoStarterContentAsync(
+                request,
+                siteId,
+                homepage.Id,
+                blogListing.Id,
+                aboutPage.Id,
+                contactPage.Id,
+                navMenuTranslationGroupId,
+                footerTranslationGroupId,
+                cancellationToken);
         }
 
         // Seed starter media assets from wwwroot/media
@@ -297,24 +356,451 @@ public sealed class SeedDatabaseService(
             session.Store(tag);
         }
 
+        if (ShouldSeedSpanishMexico(defaultCulture, supportedCultures))
+        {
+            foreach (var translation in BuildSpanishMexicoTagTranslations(tags))
+            {
+                session.Store(translation);
+            }
+        }
+
         // Save blog posts (blocks are stored inline in Content)
         foreach (var post in posts)
         {
             post.SiteId = siteId;
+            post.Culture = defaultCulture;
+            post.TranslationGroupId ??= post.Id;
             await blogPostContentService.SaveAsync(post, cancellationToken);
         }
 
         // Seed /oops 404 page with alias
-        await SeedOopsPageAsync(siteId, cancellationToken);
+        await SeedOopsPageAsync(siteId, defaultCulture, cancellationToken);
 
         // Seed commerce products
         await commerceSeedService.SeedAsync(siteId, cancellationToken);
 
         // Seed default global settings
-        SeedDefaultSettings();
+        SeedDefaultSettings(defaultCulture);
     }
 
-    private void SeedDefaultSettings()
+    private async Task<long> SeedDefaultNavMenuAsync(
+        long siteId,
+        string culture,
+        long homepageId,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        CancellationToken cancellationToken)
+    {
+        const string navMenuName = "Header Menu";
+        const string navMenuKey = "header-menu";
+
+        var existingMenu = await session.Query<NavMenuDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == navMenuKey, cancellationToken);
+        var settings = await session.Query<SiteNavigationSettingsDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId, cancellationToken);
+
+        if (existingMenu is not null)
+        {
+            if (settings?.DefaultNavMenuId is null)
+            {
+                var changed = new SiteDefaultNavMenuChanged(siteId, existingMenu.Id, UserId: null, DateTimeOffset.UtcNow);
+                if (settings is null)
+                    session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), changed);
+                else
+                    session.Events.Append(NavMenuStreams.SiteSettings(siteId), changed);
+            }
+
+            return existingMenu.TranslationGroupId ?? existingMenu.Id;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var navMenuId = Snowflake.NewId();
+        var snapshot = BuildSeedNavMenuSnapshot(
+            [
+                new NavLink { Key = "home", Label = "Home", Href = "/", PageId = homepageId, AltText = "Home Page", Alignment = NavAlignment.Left },
+                new NavLink { Key = "about", Label = "About", Href = "/about", PageId = aboutPageId, AltText = "About Us", Alignment = NavAlignment.Left },
+                new NavLink { Key = "contact", Label = "Contact", Href = "/contact", PageId = contactPageId, AltText = "Contact Us", Alignment = NavAlignment.Left },
+                new NavLink { Key = "docs", Label = "Docs", Href = "/docs", AltText = "Documentation", Alignment = NavAlignment.Left },
+                new NavLink { Key = "blog", Label = "Blog", Href = "/blog", PageId = blogListingPageId, AltText = "Blog and Field Notes", Alignment = NavAlignment.Left }
+            ]);
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            NavMenuStreams.Menu(navMenuId),
+            new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: navMenuId),
+            new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded starter navigation"),
+            new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded starter navigation"));
+
+        if (settings?.DefaultNavMenuId is null)
+        {
+            var defaultChanged = new SiteDefaultNavMenuChanged(siteId, navMenuId, UserId: null, now);
+            if (settings is null)
+                session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), defaultChanged);
+            else
+                session.Events.Append(NavMenuStreams.SiteSettings(siteId), defaultChanged);
+        }
+
+        return navMenuId;
+    }
+
+    private async Task<long> SeedDefaultFooterAsync(
+        long siteId,
+        string culture,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        CancellationToken cancellationToken)
+    {
+        const string footerName = "Site Footer";
+        const string footerKey = "site-footer";
+
+        var existingFooter = await session.Query<FooterDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == footerKey, cancellationToken);
+        var settings = await session.Query<SiteFooterSettingsDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId, cancellationToken);
+
+        if (existingFooter is not null)
+        {
+            if (settings?.DefaultFooterId is null)
+            {
+                var changed = new SiteDefaultFooterChanged(siteId, existingFooter.Id, UserId: null, DateTimeOffset.UtcNow);
+                if (settings is null)
+                    session.Events.StartStream(FooterStreams.SiteSettings(siteId), changed);
+                else
+                    session.Events.Append(FooterStreams.SiteSettings(siteId), changed);
+            }
+
+            return existingFooter.TranslationGroupId ?? existingFooter.Id;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var footerId = Snowflake.NewId();
+        var snapshot = new FooterSnapshot
+        {
+            Brand = new FooterBrandSettings
+            {
+                CompanyName = "Aero CMS",
+                Tagline = "A fast, modular CMS for modern .NET sites.",
+                LogoAltText = "Aero CMS logo"
+            },
+            Legal = FooterLegalSettings.Default with
+            {
+                CopyrightText = "Aero CMS. All rights reserved.",
+                LegalLinks =
+                [
+                    new FooterLink("Privacy", "/privacy"),
+                    new FooterLink("Terms", "/terms"),
+                    new FooterLink("Cookies", "/cookies")
+                ]
+            },
+            Rows = BuildSeedFooterRows(
+                [
+                    new FooterLinkGroup
+                    {
+                        Key = "company",
+                        Title = "Company",
+                        Order = 0,
+                        Links =
+                        [
+                            new FooterLink("About", "/about"),
+                            new FooterLink("Contact", "/contact")
+                        ]
+                    },
+                    new FooterLinkGroup
+                    {
+                        Key = "content",
+                        Title = "Content",
+                        Order = 1,
+                        Links =
+                        [
+                            new FooterLink("Blog", "/blog"),
+                            new FooterLink("Docs", "/docs")
+                        ]
+                    },
+                    new FooterLinkGroup
+                    {
+                        Key = "site",
+                        Title = "Site",
+                        Order = 2,
+                        Links =
+                        [
+                            new FooterLink("Home", "/"),
+                            new FooterLink("Sitemap", "/sitemap.xml")
+                        ]
+                    }
+                ])
+        };
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            FooterStreams.Footer(footerId),
+            new FooterCreated(siteId, footerName, footerKey, "Default seeded site footer", UserId: null, now, Culture: culture, TranslationGroupId: footerId),
+            new FooterDraftSaved(siteId, footerName, footerKey, "Default seeded site footer", snapshot, UserId: null, now, "Seeded starter footer"),
+            new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded starter footer"));
+
+        if (settings?.DefaultFooterId is null)
+        {
+            var defaultChanged = new SiteDefaultFooterChanged(siteId, footerId, UserId: null, now);
+            if (settings is null)
+                session.Events.StartStream(FooterStreams.SiteSettings(siteId), defaultChanged);
+            else
+                session.Events.Append(FooterStreams.SiteSettings(siteId), defaultChanged);
+        }
+
+        return footerId;
+    }
+
+    private async Task SeedSpanishMexicoStarterContentAsync(
+        SeedDatabaseRequest request,
+        long siteId,
+        long homepageTranslationGroupId,
+        long blogTranslationGroupId,
+        long aboutTranslationGroupId,
+        long contactTranslationGroupId,
+        long navMenuTranslationGroupId,
+        long footerTranslationGroupId,
+        CancellationToken cancellationToken)
+    {
+        var (homepage, homepageBlocks) = BuildSpanishHomepage(request, homepageTranslationGroupId);
+        var (blogListing, blogListingBlocks) = BuildSpanishBlogListingPage(request, blogTranslationGroupId);
+        var (aboutPage, aboutBlocks) = BuildSpanishAboutPage(aboutTranslationGroupId);
+        var (contactPage, contactBlocks) = BuildSpanishContactPage(contactTranslationGroupId);
+
+        homepage.SiteId = siteId;
+        foreach (var block in homepageBlocks) session.Store(block);
+        var homeR = await pageContentService.SaveAsync(homepage, cancellationToken);
+        if (homeR.IsFailure) Log.Warning("Failed to seed es-MX homepage: {Error}", ErrMsg(homeR));
+
+        blogListing.SiteId = siteId;
+        foreach (var block in blogListingBlocks) session.Store(block);
+        var blogR = await pageContentService.SaveAsync(blogListing, cancellationToken);
+        if (blogR.IsFailure) Log.Warning("Failed to seed es-MX blog listing page: {Error}", ErrMsg(blogR));
+
+        aboutPage.SiteId = siteId;
+        foreach (var block in aboutBlocks) session.Store(block);
+        var aboutR = await pageContentService.SaveAsync(aboutPage, cancellationToken);
+        if (aboutR.IsFailure) Log.Warning("Failed to seed es-MX about page: {Error}", ErrMsg(aboutR));
+
+        contactPage.SiteId = siteId;
+        foreach (var block in contactBlocks) session.Store(block);
+        var contactR = await pageContentService.SaveAsync(contactPage, cancellationToken);
+        if (contactR.IsFailure) Log.Warning("Failed to seed es-MX contact page: {Error}", ErrMsg(contactR));
+
+        await SeedSpanishMexicoNavMenuAsync(
+            siteId,
+            homepage.Id,
+            aboutPage.Id,
+            contactPage.Id,
+            blogListing.Id,
+            navMenuTranslationGroupId,
+            cancellationToken);
+
+        await SeedSpanishMexicoFooterAsync(
+            siteId,
+            aboutPage.Id,
+            contactPage.Id,
+            blogListing.Id,
+            footerTranslationGroupId,
+            cancellationToken);
+    }
+
+    private async Task SeedSpanishMexicoNavMenuAsync(
+        long siteId,
+        long homepageId,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        long TranslationGroupId,
+        CancellationToken cancellationToken)
+    {
+        const string culture = "es-MX";
+        const string navMenuName = "Menu Principal";
+        const string navMenuKey = "header-menu";
+
+        var existingMenu = await session.Query<NavMenuDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == navMenuKey, cancellationToken);
+
+        if (existingMenu is not null)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var navMenuId = Snowflake.NewId();
+        var snapshot = BuildSeedNavMenuSnapshot(
+            [
+                new NavLink { Key = "home", Label = "Inicio", Href = "/es-mx/", PageId = homepageId, AltText = "Pagina de inicio", Alignment = NavAlignment.Left },
+                new NavLink { Key = "about", Label = "Acerca de", Href = "/es-mx/acerca-de", PageId = aboutPageId, AltText = "Acerca de nosotros", Alignment = NavAlignment.Left },
+                new NavLink { Key = "contact", Label = "Contacto", Href = "/es-mx/contacto", PageId = contactPageId, AltText = "Contactanos", Alignment = NavAlignment.Left },
+                new NavLink { Key = "blog", Label = "Blog", Href = "/es-mx/blog", PageId = blogListingPageId, AltText = "Blog y notas", Alignment = NavAlignment.Left }
+            ]);
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            NavMenuStreams.Menu(navMenuId),
+            new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
+            new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded es-MX starter navigation"),
+            new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter navigation"));
+    }
+
+    private async Task SeedSpanishMexicoFooterAsync(
+        long siteId,
+        long aboutPageId,
+        long contactPageId,
+        long blogListingPageId,
+        long TranslationGroupId,
+        CancellationToken cancellationToken)
+    {
+        const string culture = "es-MX";
+        const string footerName = "Pie del sitio";
+        const string footerKey = "site-footer";
+
+        var existingFooter = await session.Query<FooterDocument>()
+            .FirstOrDefaultAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == footerKey, cancellationToken);
+
+        if (existingFooter is not null)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var footerId = Snowflake.NewId();
+        var snapshot = new FooterSnapshot
+        {
+            Brand = new FooterBrandSettings
+            {
+                CompanyName = "Aero CMS",
+                Tagline = "Un CMS modular y rapido para sitios modernos en .NET.",
+                LogoAltText = "Logo de Aero CMS"
+            },
+            Legal = FooterLegalSettings.Default with
+            {
+                CopyrightText = "Aero CMS. Todos los derechos reservados.",
+                LegalLinks =
+                [
+                    new FooterLink("Privacidad", "/es-mx/privacidad"),
+                    new FooterLink("Terminos", "/es-mx/terminos"),
+                    new FooterLink("Cookies", "/es-mx/cookies")
+                ]
+            },
+            Rows = BuildSeedFooterRows(
+                [
+                    new FooterLinkGroup
+                    {
+                        Key = "company",
+                        Title = "Compania",
+                        Order = 0,
+                        Links =
+                        [
+                            new FooterLink("Acerca de", "/es-mx/acerca-de"),
+                            new FooterLink("Contacto", "/es-mx/contacto")
+                        ]
+                    },
+                    new FooterLinkGroup
+                    {
+                        Key = "content",
+                        Title = "Contenido",
+                        Order = 1,
+                        Links =
+                        [
+                            new FooterLink("Blog", "/es-mx/blog"),
+                            new FooterLink("Mapa del sitio", "/sitemap-es-mx.xml")
+                        ]
+                    }
+                ])
+        };
+        snapshot.Validate();
+
+        session.Events.StartStream(
+            FooterStreams.Footer(footerId),
+            new FooterCreated(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
+            new FooterDraftSaved(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", snapshot, UserId: null, now, "Seeded es-MX starter footer"),
+            new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter footer"));
+    }
+
+    private static NavMenuSnapshot BuildSeedNavMenuSnapshot(IReadOnlyList<INavMenuComponent> components)
+        => new()
+        {
+            Layout = NavMenuLayout.Default,
+            Responsive = NavMenuResponsiveSettings.Default,
+            Style = NavMenuStyleSettings.Default,
+            Rows =
+            [
+                new NavCanvasRow
+                {
+                    Key = "header-row",
+                    Order = 0,
+                    Label = "Header",
+                    DesktopDisplay = "Flex",
+                    TabletDisplay = "Flex",
+                    MobileDisplay = "Stack",
+                    Columns =
+                    [
+                        new NavCanvasColumn
+                        {
+                            Key = "primary-nav",
+                            Order = 0,
+                            DesktopSpan = 12,
+                            TabletSpan = 12,
+                            MobileSpan = 12,
+                            Blocks = components
+                                .Select((component, index) => new NavCanvasBlock
+                                {
+                                    Key = component.Key,
+                                    Order = index,
+                                    Component = component
+                                })
+                                .ToList()
+                        }
+                    ]
+                }
+            ]
+        };
+
+    private static List<FooterCanvasRow> BuildSeedFooterRows(IReadOnlyList<IFooterComponent> components)
+    {
+        var orderedComponents = components.OrderBy(component => component.Order).ToList();
+        var columnSpan = orderedComponents.Count switch
+        {
+            <= 1 => 12,
+            2 => 6,
+            3 => 4,
+            _ => 3
+        };
+
+        return
+        [
+            new FooterCanvasRow
+            {
+                Key = "footer-main",
+                Order = 0,
+                Label = "Main footer",
+                DesktopDisplay = "Grid",
+                TabletDisplay = "Grid",
+                MobileDisplay = "Stack",
+                Columns = orderedComponents.Select((component, index) => new FooterCanvasColumn
+                {
+                    Key = $"footer-column-{index + 1}",
+                    Order = index,
+                    DesktopSpan = columnSpan,
+                    TabletSpan = orderedComponents.Count <= 2 ? 6 : 12,
+                    MobileSpan = 12,
+                    Blocks =
+                    [
+                        new FooterCanvasBlock
+                        {
+                            Key = component.Key,
+                            Order = 0,
+                            Component = component
+                        }
+                    ]
+                }).ToList()
+            }
+        ];
+    }
+
+    private void SeedDefaultSettings(string defaultCulture)
     {
         var defaults = new List<Setting>
         {
@@ -325,7 +811,7 @@ public sealed class SeedDatabaseService(
             new() { Key = "Security.MaintenanceMessage", Category = "Security", Value = "", Type = "string", Description = "Message shown during maintenance." },
 
             // General
-            new() { Key = "General.DefaultLocale", Category = "General", Value = "en-US", Type = "string", Description = "Default culture code." },
+            new() { Key = "General.DefaultLocale", Category = "General", Value = defaultCulture, Type = "string", Description = "Default culture code." },
             new() { Key = "General.DefaultTimezone", Category = "General", Value = "UTC", Type = "string", Description = "Default timezone." },
             new() { Key = "General.AdminPagination", Category = "General", Value = "20", Type = "int", Description = "Items per page in admin lists." },
             new() { Key = "General.MaxUploadSizeMB", Category = "General", Value = "50", Type = "int", Description = "Max file upload size in MB." },
@@ -347,7 +833,7 @@ public sealed class SeedDatabaseService(
         }
     }
 
-    private async Task SeedOopsPageAsync(long siteId, CancellationToken ct)
+    private async Task SeedOopsPageAsync(long siteId, string defaultCulture, CancellationToken ct)
     {
         var heroBlock = new BoringHeroBlock
         {
@@ -370,6 +856,9 @@ public sealed class SeedDatabaseService(
             Id = Snowflake.NewId(),
             Kind = PageKind.Standard,
             Slug = "oops",
+            Path = "/oops",
+            Depth = 0,
+            Order = 0,
             Title = "Page Not Found",
             Summary = "The page you're looking for doesn't exist or has been moved.",
             SeoTitle = "Page Not Found",
@@ -400,12 +889,14 @@ public sealed class SeedDatabaseService(
                 }
             ],
             PublicationState = ContentPublicationState.Published,
+            Culture = defaultCulture,
             CreatedBy = "seed",
             ModifiedBy = "seed"
         };
 
         // Stamp siteId on the oopsPage before storing
         oopsPage.SiteId = siteId;
+        oopsPage.TranslationGroupId = oopsPage.Id;
 
         // Store blocks first, then save page (matches BuildHomepage pattern)
         session.Store(heroBlock);
@@ -436,8 +927,19 @@ public sealed class SeedDatabaseService(
         };
         session.Store(alias500);
 
+        // Create alias /setup → /
+        var aliasSetup = new AliasDocument
+        {
+            Id = Snowflake.NewId(),
+            SiteId = siteId,
+            OldPath = "/setup",
+            NewPath = "/",
+            Notes = "Auto-seeded setup redirect"
+        };
+        session.Store(aliasSetup);
+
         await session.SaveChangesAsync(ct);
-        Log.Information("Seeded /oops error page with /404 → /oops and /500 → /oops aliases");
+        Log.Information("Seeded /oops error page with /404 → /oops, /500 → /oops, /setup → / aliases");
     }
 
     private async Task SeedStarterMediaAsync(CancellationToken ct)
@@ -516,7 +1018,7 @@ public sealed class SeedDatabaseService(
             Id = Snowflake.NewId(),
             Title = Normalize(request.HomepageTitle),
             Summary = homepageSummary,
-            BackgroundImageUrl = "/assets/hero-01.svg",
+            BackgroundImageUrl = "/media/data-center.png",
             FullWidth = true,
             Order = 0
         };
@@ -568,7 +1070,7 @@ public sealed class SeedDatabaseService(
                                 <img src='/img/typescript.C9-blvjE_1dalL.svg' alt='TypeScript' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/preact-logo.svg' alt='Preact' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/lavinmq.png' alt='LavinMQ' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
-                                <img src='/img/aspire.png' alt='Aspire' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
+                                <img src='/img/wolverine-logo.png' alt='Wolverine' class='h-14 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/maui-icon.oIIgefok_ZfsSNl.webp' alt='MAUI' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                                 <img src='/img/hydro_logo_s3.svg' alt='S3' class='h-12 w-auto transition-transform duration-500 hover:scale-110 drop-shadow-md' />
                             </div>
@@ -584,6 +1086,9 @@ public sealed class SeedDatabaseService(
                 Id = Snowflake.NewId(),
                 Kind = PageKind.Homepage,
                 Slug = "/",
+                Path = "/",
+                Depth = 0,
+                Order = 0,
                 Title = Normalize(request.HomepageTitle),
                 Summary = homepageSummary,
                 SeoTitle = $"{Normalize(request.HomepageTitle)} | {Normalize(request.SiteName)}",
@@ -642,6 +1147,9 @@ public sealed class SeedDatabaseService(
                 Id = Snowflake.NewId(),
                 Kind = PageKind.BlogListing,
                 Slug = "blog",
+                Path = "/blog",
+                Depth = 0,
+                Order = 0,
                 Title = Normalize(request.BlogName),
                 Summary = $"Updates and field notes from {Normalize(request.SiteName)}.",
                 SeoTitle = $"{Normalize(request.BlogName)} | {Normalize(request.SiteName)}",
@@ -703,6 +1211,9 @@ public sealed class SeedDatabaseService(
                 Id = Snowflake.NewId(),
                 Kind = PageKind.Standard,
                 Slug = "about",
+                Path = "/about",
+                Depth = 0,
+                Order = 0,
                 Title = "About Us",
                 Summary = summary,
                 SeoTitle = "About Us | Aero CMS",
@@ -771,6 +1282,9 @@ public sealed class SeedDatabaseService(
                 Id = Snowflake.NewId(),
                 Kind = PageKind.Standard,
                 Slug = "contact",
+                Path = "/contact",
+                Depth = 0,
+                Order = 0,
                 Title = "Contact Us",
                 Summary = summary,
                 SeoTitle = "Contact Us | Aero CMS",
@@ -809,7 +1323,442 @@ public sealed class SeedDatabaseService(
         );
     }
 
-    private static (IReadOnlyList<BlogPostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request)
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildPrivacyPage()
+    {
+        const string summary = "Our commitment to your privacy and data protection.";
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = "Privacy Policy",
+            Summary = summary,
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-6'>We take your privacy seriously. This Privacy Policy explains how we collect, use, and protect your personal information when you use our site.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Information We Collect</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We may collect information you provide directly, such as your name and email address when you contact us or sign up for updates. We also automatically collect certain information about your device and how you interact with our site.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>How We Use Information</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We use the information we collect to provide, maintain, and improve our services, to communicate with you, and to comply with legal obligations.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Data Sharing</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We do not sell your personal information. We may share data with trusted service providers who help us operate our site, subject to confidentiality agreements.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Your Rights</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>You have the right to access, correct, or delete your personal data. Contact us to exercise these rights.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Contact</h2>" +
+                      "<p class='leading-relaxed text-slate-600'>If you have questions about this policy, please reach out through our contact page.</p>",
+            Order = 1
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                Kind = PageKind.Standard,
+                Slug = "privacy",
+                Path = "/privacy",
+                Depth = 0,
+                Order = 0,
+                Title = "Privacy Policy",
+                Summary = summary,
+                SeoTitle = "Privacy Policy | Aero CMS",
+                SeoDescription = "Learn how we collect, use, and protect your personal information.",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "boring_hero", MainText = "Privacy Policy", SubText = summary, FullWidth = true },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                },
+                LayoutRegions =
+                [
+                    new LayoutRegion
+                    {
+                        Name = "MainContent",
+                        Order = 0,
+                        Columns =
+                        [
+                            new LayoutColumn
+                            {
+                                Width = 12, Order = 0,
+                                Blocks =
+                                [
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublicationState = ContentPublicationState.Published
+            },
+            new List<BlockBase> { heroBlock, bodyBlock }
+        );
+    }
+
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildTermsPage()
+    {
+        const string summary = "Terms and conditions governing the use of our site.";
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = "Terms of Service",
+            Summary = summary,
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-6'>By accessing and using this site, you agree to be bound by the following terms and conditions. Please read them carefully.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Use of the Site</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>You may use our site for lawful purposes only. You agree not to misuse or interfere with the operation of the site.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Intellectual Property</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>All content on this site, including text, graphics, logos, and software, is the property of Aero CMS or its licensors and is protected by copyright and other intellectual property laws.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Limitation of Liability</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We strive to provide accurate and up-to-date information, but we make no warranties regarding the completeness or accuracy of the content. Use the site at your own risk.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Changes to These Terms</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We may revise these terms at any time. Continued use of the site after changes constitutes acceptance of the new terms.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Contact</h2>" +
+                      "<p class='leading-relaxed text-slate-600'>If you have questions about these terms, please reach out through our contact page.</p>",
+            Order = 1
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                Kind = PageKind.Standard,
+                Slug = "terms",
+                Path = "/terms",
+                Depth = 0,
+                Order = 0,
+                Title = "Terms of Service",
+                Summary = summary,
+                SeoTitle = "Terms of Service | Aero CMS",
+                SeoDescription = "Read the terms and conditions for using our site.",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "boring_hero", MainText = "Terms of Service", SubText = summary, FullWidth = true },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                },
+                LayoutRegions =
+                [
+                    new LayoutRegion
+                    {
+                        Name = "MainContent",
+                        Order = 0,
+                        Columns =
+                        [
+                            new LayoutColumn
+                            {
+                                Width = 12, Order = 0,
+                                Blocks =
+                                [
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublicationState = ContentPublicationState.Published
+            },
+            new List<BlockBase> { heroBlock, bodyBlock }
+        );
+    }
+
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildCookiesPage()
+    {
+        const string summary = "How we use cookies to improve your browsing experience.";
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = "Cookie Policy",
+            Summary = summary,
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-6'>This Cookie Policy explains what cookies are, how we use them, and your choices regarding their use.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>What Are Cookies?</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>Cookies are small text files stored on your device when you visit a website. They help websites remember your preferences, improve performance, and provide a more personalized experience.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>How We Use Cookies</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>We use essential cookies for site functionality, analytics cookies to understand how visitors use our site, and preference cookies to remember your settings.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Managing Cookies</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>Most browsers allow you to control cookies through their settings. You can block or delete cookies, but this may affect your experience on our site.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Third-Party Cookies</h2>" +
+                      "<p class='leading-relaxed text-slate-600 mb-4'>Some third-party services we use may also set cookies on your device. These are governed by the respective third-party privacy policies.</p>" +
+                      "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Contact</h2>" +
+                      "<p class='leading-relaxed text-slate-600'>If you have questions about our cookie policy, please reach out through our contact page.</p>",
+            Order = 1
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                Kind = PageKind.Standard,
+                Slug = "cookies",
+                Path = "/cookies",
+                Depth = 0,
+                Order = 0,
+                Title = "Cookie Policy",
+                Summary = summary,
+                SeoTitle = "Cookie Policy | Aero CMS",
+                SeoDescription = "Learn how we use cookies and how you can manage them.",
+                Blocks = new List<EditorBlock>
+                {
+                    new() { Type = "boring_hero", MainText = "Cookie Policy", SubText = summary, FullWidth = true },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                },
+                LayoutRegions =
+                [
+                    new LayoutRegion
+                    {
+                        Name = "MainContent",
+                        Order = 0,
+                        Columns =
+                        [
+                            new LayoutColumn
+                            {
+                                Width = 12, Order = 0,
+                                Blocks =
+                                [
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublicationState = ContentPublicationState.Published
+            },
+            new List<BlockBase> { heroBlock, bodyBlock }
+        );
+    }
+
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishHomepage(
+        SeedDatabaseRequest request,
+        long TranslationGroupId)
+    {
+        var title = $"Bienvenido a {Normalize(request.SiteName)}";
+        var summary = "Una plataforma de contenido modular, rapida y preparada para sitios modernos.";
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = title,
+            Summary = summary,
+            BackgroundImageUrl = "/media/data-center.png",
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-xl leading-relaxed text-slate-700 mb-8'><strong>Aero CMS</strong> ayuda a equipos a crear, organizar y publicar contenido con un flujo claro y flexible.</p>" +
+                      "<p class='text-lg leading-relaxed text-slate-600'>Este sitio incluye una pagina principal, blog, navegacion y pie de pagina listos para personalizar en espanol.</p>",
+            Order = 1
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                SiteId = 0,
+                TranslationGroupId = TranslationGroupId,
+                Culture = "es-MX",
+                Kind = PageKind.Homepage,
+                Slug = "/",
+                Path = "/",
+                Depth = 0,
+                Order = 0,
+                Title = title,
+                Summary = summary,
+                SeoTitle = $"{title} | {Normalize(request.SiteName)}",
+                SeoDescription = $"Bienvenido a {Normalize(request.SiteName)}.",
+                Blocks =
+                [
+                    new() { Type = "boring_hero", MainText = title, SubText = summary, BackgroundImage = "/assets/hero-01.svg", FullWidth = true },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                ],
+                LayoutRegions = BuildSingleColumnLayout(heroBlock, bodyBlock),
+                PublicationState = ContentPublicationState.Published
+            },
+            [heroBlock, bodyBlock]
+        );
+    }
+
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishBlogListingPage(
+        SeedDatabaseRequest request,
+        long TranslationGroupId)
+    {
+        var headingBlock = new HeadingBlock
+        {
+            Id = Snowflake.NewId(),
+            Level = 1,
+            Text = "Blog",
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p>Notas, novedades y articulos publicados por el equipo.</p>",
+            Order = 1
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                TranslationGroupId = TranslationGroupId,
+                Culture = "es-MX",
+                Kind = PageKind.BlogListing,
+                Slug = "blog",
+                Path = "/blog",
+                Depth = 0,
+                Order = 0,
+                Title = "Blog",
+                Summary = $"Novedades y notas de {Normalize(request.SiteName)}.",
+                SeoTitle = $"Blog | {Normalize(request.SiteName)}",
+                SeoDescription = $"Lee las publicaciones mas recientes de {Normalize(request.SiteName)}.",
+                Blocks =
+                [
+                    new() { Type = "text", Content = "Blog" },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                ],
+                LayoutRegions = BuildSingleColumnLayout(headingBlock, bodyBlock),
+                PublicationState = ContentPublicationState.Published
+            },
+            [headingBlock, bodyBlock]
+        );
+    }
+
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishAboutPage(long TranslationGroupId)
+    {
+        const string title = "Acerca de";
+        const string summary = "Conoce nuestra mision y la historia detras de la plataforma.";
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = title,
+            Summary = summary,
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-6'>Creemos que la gestion de contenido debe ser clara, rapida y extensible.</p>" +
+                      "<p class='text-lg leading-relaxed text-slate-700'>Aero CMS esta disenado para que los equipos publiquen con confianza sin perder flexibilidad tecnica.</p>",
+            Order = 1
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                TranslationGroupId = TranslationGroupId,
+                Culture = "es-MX",
+                Kind = PageKind.Standard,
+                Slug = "acerca-de",
+                Path = "/acerca-de",
+                Depth = 0,
+                Order = 0,
+                Title = title,
+                Summary = summary,
+                SeoTitle = "Acerca de | Aero CMS",
+                SeoDescription = "Conoce nuestra historia y nuestra forma de construir experiencias digitales.",
+                Blocks =
+                [
+                    new() { Type = "boring_hero", MainText = title, SubText = summary, FullWidth = true },
+                    new() { Type = "content", Content = bodyBlock.Content }
+                ],
+                LayoutRegions = BuildSingleColumnLayout(heroBlock, bodyBlock),
+                PublicationState = ContentPublicationState.Published
+            },
+            [heroBlock, bodyBlock]
+        );
+    }
+
+    private static (PageDocument Page, List<BlockBase> Blocks) BuildSpanishContactPage(long TranslationGroupId)
+    {
+        const string title = "Contacto";
+        const string summary = "Ponte en contacto con nuestro equipo.";
+        var heroBlock = new BoringHeroBlock
+        {
+            Id = Snowflake.NewId(),
+            Title = title,
+            Summary = summary,
+            FullWidth = true,
+            Order = 0
+        };
+        var bodyBlock = new RichTextBlock
+        {
+            Id = Snowflake.NewId(),
+            Content = "<p class='text-lg leading-relaxed text-slate-700 mb-8'>Tienes una pregunta o quieres colaborar? Nos encantaria saber de ti.</p>",
+            Order = 1
+        };
+        var ctaBlock = new CtaBlock
+        {
+            Id = Snowflake.NewId(),
+            Text = "Enviar un mensaje",
+            Url = "mailto:hello@example.com",
+            Style = "primary",
+            Order = 2
+        };
+
+        return (
+            new PageDocument
+            {
+                Id = Snowflake.NewId(),
+                TranslationGroupId = TranslationGroupId,
+                Culture = "es-MX",
+                Kind = PageKind.Standard,
+                Slug = "contacto",
+                Path = "/contacto",
+                Depth = 0,
+                Order = 0,
+                Title = title,
+                Summary = summary,
+                SeoTitle = "Contacto | Aero CMS",
+                SeoDescription = "Tienes preguntas? Envia un mensaje al equipo.",
+                Blocks =
+                [
+                    new() { Type = "boring_hero", MainText = title, SubText = summary, FullWidth = true },
+                    new() { Type = "content", Content = bodyBlock.Content },
+                    new() { Type = "aero_cta", MainText = ctaBlock.Text, CtaText = ctaBlock.Text, CtaUrl = ctaBlock.Url }
+                ],
+                LayoutRegions =
+                [
+                    new LayoutRegion
+                    {
+                        Name = "MainContent",
+                        Order = 0,
+                        Columns =
+                        [
+                            new LayoutColumn
+                            {
+                                Width = 12,
+                                Order = 0,
+                                Blocks =
+                                [
+                                    new BlockPlacement { BlockId = heroBlock.Id, BlockType = heroBlock.BlockType, Order = 0 },
+                                    new BlockPlacement { BlockId = bodyBlock.Id, BlockType = bodyBlock.BlockType, Order = 1 },
+                                    new BlockPlacement { BlockId = ctaBlock.Id, BlockType = ctaBlock.BlockType, Order = 2 }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                PublicationState = ContentPublicationState.Published
+            },
+            [heroBlock, bodyBlock, ctaBlock]
+        );
+    }
+
+    private static (IReadOnlyList<PostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request)
     {
         var random = new Random();
         var tags = CreateTags();
@@ -825,7 +1774,7 @@ public sealed class SeedDatabaseService(
             $"{H}pexels-36009140.jpg", $"{H}pexels-36578877.jpg"
         };
 
-        var posts = new List<BlogPostDocument>
+        var posts = new List<PostDocument>
         {
             BuildPost(Snowflake.NewId(), "welcome-to-our-new-platform", "Welcome to Our New Platform",
                 "Launching a better way to share updates and connect with our community.",
@@ -914,8 +1863,8 @@ public sealed class SeedDatabaseService(
         new MarkdownBlock { Id = Snowflake.NewId(), Content = markdown, Order = 0 }
     ];
 
-    private static BlogPostDocument BuildPost(long id, string slug, string title, string excerpt, string markdown, List<long>? tagIds = null, string? imageUrl = null, int likes = 0) =>
-        new BlogPostDocument
+    private static PostDocument BuildPost(long id, string slug, string title, string excerpt, string markdown, List<long>? tagIds = null, string? imageUrl = null, int likes = 0) =>
+        new PostDocument
         {
             Id = id,
             Slug = slug,
@@ -934,6 +1883,81 @@ public sealed class SeedDatabaseService(
     private static string Normalize(string value)
         => value.Trim();
 
+    private static string ErrMsg(Result<PageDocument, AeroError> r) =>
+        r is Result<PageDocument, AeroError>.Failure f && f.Error is AeroError.Error e ? e.msg : "seed save failed";
+
+    private static void StampPageCulture(PageDocument page, string culture)
+    {
+        page.Culture = culture;
+        page.TranslationGroupId ??= page.Id;
+    }
+
+    private static bool ShouldSeedSpanishMexico(string defaultCulture, IReadOnlyList<string> supportedCultures)
+        => !string.Equals(defaultCulture, "es-MX", StringComparison.OrdinalIgnoreCase)
+           && supportedCultures.Any(culture => string.Equals(culture, "es-MX", StringComparison.OrdinalIgnoreCase));
+
+    private static List<LayoutRegion> BuildSingleColumnLayout(params BlockBase[] blocks) =>
+    [
+        new LayoutRegion
+        {
+            Name = "MainContent",
+            Order = 0,
+            Columns =
+            [
+                new LayoutColumn
+                {
+                    Width = 12,
+                    Order = 0,
+                    Blocks = blocks
+                        .OrderBy(block => block.Order)
+                        .Select((block, index) => new BlockPlacement
+                        {
+                            BlockId = block.Id,
+                            BlockType = block.BlockType,
+                            Order = index
+                        })
+                        .ToList()
+                }
+            ]
+        }
+    ];
+
+    private static (string DefaultCulture, List<string> SupportedCultures) NormalizeCultureSettings(
+        string? defaultCulture,
+        IEnumerable<string>? supportedCultures)
+    {
+        var normalizedDefault = NormalizeCultureName(defaultCulture);
+        var cultures = (supportedCultures ?? [])
+            .Select(NormalizeCultureName)
+            .Where(culture => !string.IsNullOrWhiteSpace(culture))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!cultures.Any(culture => string.Equals(culture, normalizedDefault, StringComparison.OrdinalIgnoreCase)))
+        {
+            cultures.Insert(0, normalizedDefault);
+        }
+
+        return (normalizedDefault, cultures.Count == 0 ? [normalizedDefault] : cultures);
+    }
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+        {
+            return SitesModel.DefaultCultureName;
+        }
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return SitesModel.DefaultCultureName;
+        }
+    }
+
     private static List<Tag> CreateTags()
     {
         var tagNames = new[]
@@ -949,6 +1973,49 @@ public sealed class SeedDatabaseService(
             Name = name,
             Slug = name.ToLowerInvariant().Replace(' ', '-')
         }).ToList();
+    }
+
+    private static IReadOnlyList<TagTranslation> BuildSpanishMexicoTagTranslations(IReadOnlyList<Tag> tags)
+    {
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["announcements"] = "anuncios",
+            ["community"] = "comunidad",
+            ["architecture"] = "arquitectura",
+            ["cms"] = "cms",
+            [".net"] = ".net",
+            ["design"] = "diseno",
+            ["ux"] = "ux",
+            ["orleans"] = "orleans",
+            ["distributed-systems"] = "sistemas distribuidos",
+            ["content-strategy"] = "estrategia de contenido",
+            ["blogging"] = "blogging",
+            ["postgresql"] = "postgresql",
+            ["performance"] = "rendimiento",
+            ["database"] = "base de datos",
+            ["blazor"] = "blazor",
+            ["htmx"] = "htmx",
+            ["frontend"] = "frontend",
+            ["observability"] = "observabilidad",
+            ["opentelemetry"] = "opentelemetry",
+            ["monitoring"] = "monitoreo",
+            ["tutorial"] = "tutorial",
+            ["guide"] = "guia",
+            ["future"] = "futuro",
+            ["trends"] = "tendencias"
+        };
+
+        return tags
+            .Where(tag => names.ContainsKey(tag.Name))
+            .Select(tag => new TagTranslation
+            {
+                Id = Snowflake.NewId(),
+                TagId = tag.Id,
+                Culture = "es-MX",
+                Name = names[tag.Name],
+                Description = $"Etiqueta para contenido sobre {names[tag.Name]}."
+            })
+            .ToList();
     }
 
     private List<DocsPage> BuildStarterDocsContent()

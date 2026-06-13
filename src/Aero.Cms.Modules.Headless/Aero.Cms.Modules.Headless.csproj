@@ -32,12 +32,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Areas\Api\v1\BlogApiV2.cs" />
-    <None Include="Areas\Api\v1\PagesApiV2.cs" />
-    <Compile Remove="Areas\Api\v1\BlogApiV2.cs" />
-    <None Include="Areas\Api\v1\BlogApiV2.cs" />
-    <Compile Remove="Areas\Api\v1\PagesApiV2.cs" />
-    <None Include="Areas\Api\v1\PagesApiV2.cs" />
     <None Include="Areas\Api\v1\PublishApi.cs" />
   </ItemGroup>
 

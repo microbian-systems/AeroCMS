@@ -1,0 +1,12 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="pe-neo-preview">
+    <ContactForm4BlockRenderer Block="PreviewBlock" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private ContactForm4Block PreviewBlock => ContactForm4BlockMapper.FromNode(Node);
+}

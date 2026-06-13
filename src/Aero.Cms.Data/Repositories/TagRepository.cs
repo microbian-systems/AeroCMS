@@ -1,9 +1,7 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries;
 using Aero.Cms.Data.Queries.Base;
-using JasperFx.Core;
 using Marten;
-using Marten.Linq;
 
 namespace Aero.Cms.Data.Repositories;
 

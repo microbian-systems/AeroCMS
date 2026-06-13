@@ -1,19 +1,16 @@
 using Aero.Cms.Abstractions.Services;
-using Aero.Cms.Core;
-using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Blog;
+using Aero.Cms.Modules.Posts;
 using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
-using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Modules.Modules.Services;
-using Aero.Core.Data;
 using Aero.Core.Http;
 using Aero.EfCore;
 using Aero.Models.Entities;
 using Aero.Core.Identity;
+using JasperFx.Events;
 using Marten;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -54,13 +51,22 @@ public sealed class ServerTargetSetupExecutor(
         ArgumentException.ThrowIfNullOrWhiteSpace(serverConnectionString);
         ArgumentNullException.ThrowIfNull(request);
 
-        await MigrateAsync(serverConnectionString, cancellationToken);
+        logger.LogInformation("=== ServerTargetSetup starting ===");
+        logger.LogInformation("Connection: {Connection} (masked)", serverConnectionString[..Math.Min(20, serverConnectionString.Length)] + "...");
+        logger.LogInformation("Seed request: siteName={SiteName}, adminEmail={AdminEmail}, hostname={Hostname}",
+            request.SiteName, request.AdminEmail, request.Hostname);
 
+        logger.LogInformation("Step 1/6: Running EF Core migrations...");
+        await MigrateAsync(serverConnectionString, cancellationToken);
+        logger.LogInformation("Step 1/6: Migrations complete.");
+
+        logger.LogInformation("Step 2/6: Creating Marten DocumentStore...");
         var store = DocumentStore.For(options =>
         {
             options.Connection(serverConnectionString);
             options.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
             options.UseAeroGeneratedJsonContext();
+            options.Events.StreamIdentity = StreamIdentity.AsString;
             options.Schema.For<AeroRole>().Identity(x => x.Id);
             options.Schema.For<AeroUser>().Identity(x => x.Id);
 
@@ -70,12 +76,17 @@ public sealed class ServerTargetSetupExecutor(
             }
         });
 
+        logger.LogInformation("Step 2/6: Marten DocumentStore created with {ConfigCount} IConfigureMarten registrations.",
+            rootServiceProvider.GetServices<IConfigureMarten>().Count());
+
+        logger.LogInformation("Step 3/6: Creating session and services...");
         await using var session = store.LightweightSession();
         var blockService = new MartenBlockService(session);
         var bus = rootServiceProvider.GetRequiredService<IMessageBus>();
         var noopSiteContext = new NoopSiteContext();
-        var pageContentService = new MartenPageContentService(session, blockService, bus, noopSiteContext);
-        var blogPostContentService = new MartenBlogPostContentService(session, noopSiteContext);
+        var pageContentService = new MartenPageContentService(session, blockService, bus, noopSiteContext,
+            rootServiceProvider.GetRequiredService<ILogger<MartenPageContentService>>());
+        var blogPostContentService = new PostContentService(session, noopSiteContext);
         var userStore = CreateUserStore(session, rootServiceProvider);
         var userManager = CreateUserManager(userStore, rootServiceProvider);
         var identityBootstrapper = new SetupIdentityBootstrapper(userManager);
@@ -86,8 +97,13 @@ public sealed class ServerTargetSetupExecutor(
         var siteService = rootServiceProvider.GetRequiredService<ISiteService>();
         var apiKeyService = rootServiceProvider.GetRequiredService<IApiKeyService>();
 
+        logger.LogInformation("Step 3/6: Services resolved. PageContent={PageSvc}, Media={MediaSvc}, Tenant={TenantSvc}",
+            pageContentService.GetType().Name, mediaService.GetType().Name, tenantService.GetType().Name);
+
         var moduleInitializationService = new ModuleInitializationService(
             new ModuleStateStore(session));
+
+        logger.LogInformation("Step 4/6: Creating SeedDatabaseService...");
 
         var env = rootServiceProvider.GetRequiredService<IWebHostEnvironment>();
         var seedService = new SeedDatabaseService(
@@ -105,14 +121,24 @@ public sealed class ServerTargetSetupExecutor(
             apiKeyService,
             descriptors ?? Array.Empty<ModuleDescriptor>());
 
+        logger.LogInformation("Step 5/6: Executing seed (descriptors={DescriptorCount})...",
+            descriptors?.Count ?? 0);
         var result = await seedService.CompleteAsync(request, cancellationToken);
         if (!result.Succeeded)
         {
             logger.LogWarning("Server-targeted setup seeding failed: {Errors}", string.Join("; ", result.Errors));
+            logger.LogError("=== ServerTargetSetup FAILED after seeding ===");
             return result;
         }
 
+        logger.LogInformation("Step 5/6: Seed completed successfully. admin={CreatedAdmin}, roles={CreatedRoles}, tenant={CreatedTenant}, site={CreatedSite} (siteId={SiteId})",
+            result.CreatedAdmin, result.CreatedRoles, result.CreatedTenant, result.CreatedSite, result.SiteId);
+
+        logger.LogInformation("Step 6/6: Writing bootstrap completion marker...");
         await bootstrapCompletionWriter.MarkCompleteAsync(cancellationToken);
+        logger.LogInformation("Step 6/6: Bootstrap marker written.");
+        logger.LogInformation("=== ServerTargetSetup COMPLETE (siteId={SiteId}, tenantId={TenantId}) ===",
+            result.SiteId, result.TenantId);
         return result;
     }
 

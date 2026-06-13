@@ -1,14 +1,13 @@
+using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Events;
-using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Docs;
 using Aero.Core;
 using Aero.Core.Http;
-using Aero.Core.Railway;
 using FluentAssertions;
 using Marten;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
-using TUnit.Core;
 using Wolverine;
 
 namespace Aero.Cms.Core.Tests.Services;
@@ -18,7 +17,9 @@ public sealed class DocsServiceTests
     private IDocumentSession _session = null!;
     private IMessageBus _bus = null!;
     private ISiteContext _siteContext = null!;
-    private DocsService _service = null!;
+    private IBlockService _blockService = null!;
+    private ILogger<DocsContentService> _logger = null!;
+    private DocsContentService _service = null!;
 
     [Before(Test)]
     public async Task Setup()
@@ -26,13 +27,15 @@ public sealed class DocsServiceTests
         _session = Substitute.For<IDocumentSession>();
         _bus = Substitute.For<IMessageBus>();
         _siteContext = Substitute.For<ISiteContext>();
+        _blockService = Substitute.For<IBlockService>();
+        _logger = Substitute.For<ILogger<DocsContentService>>();
 
         _siteContext.SiteId.Returns(42);
 
         // Configure SaveChangesAsync to succeed (called at end of SaveAsync / DeleteAsync)
         _session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        _service = new DocsService(_session, _bus, _siteContext);
+        _service = new DocsContentService(_session, _blockService, _bus, _siteContext, _logger);
     }
 
     [After(Test)]
@@ -52,7 +55,8 @@ public sealed class DocsServiceTests
             .Returns((DocsPage?)null);
 
         var page = new DocsPage { Id = Snowflake.NewId(), Title = "Test Doc", Slug = "test-doc" };
-        var service = new DocsService(session, Substitute.For<IMessageBus>(), CreateSiteContext(42));
+        var service = new DocsContentService(
+            session, _blockService, Substitute.For<IMessageBus>(), CreateSiteContext(42), _logger);
 
         var result = await service.SaveAsync(page, CancellationToken.None);
 
@@ -98,8 +102,8 @@ public sealed class DocsServiceTests
         // Assert — the event published via bus contains a DocViewModel with SiteId=42,
         // proving that the private ToViewModel method correctly mapped the property.
         publishedMessage.Should().NotBeNull();
-        publishedMessage.Should().BeOfType<AeroEvent<DocViewModel>.DocCreated>();
-        var docCreated = (AeroEvent<DocViewModel>.DocCreated)publishedMessage!;
+        publishedMessage.Should().BeOfType<DocViewModelCreated>();
+        var docCreated = (DocViewModelCreated)publishedMessage!;
         docCreated.doc.SiteId.Should().Be(42);
     }
 

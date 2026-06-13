@@ -2,6 +2,7 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
+using Orleans;
 
 /// <summary>
 /// Interface for settings HTTP client.
@@ -117,34 +118,46 @@ public class SettingsHttpClient(HttpClient httpClient, ILogger<SettingsHttpClien
 /// <summary>
 /// Summary information for a setting.
 /// </summary>
-/// <param name="Key">The setting key.</param>
-/// <param name="Category">The category it belongs to.</param>
-/// <param name="Description">The optional description.</param>
-public record SettingSummary(string Key, string Category, string? Description);
+[Alias("SettingSummary")]
+[GenerateSerializer]
+public record SettingSummary(
+    [property: Id(0)] string Key,
+    [property: Id(1)] string Category,
+    [property: Id(2)] string? Description
+);
 
 /// <summary>
 /// Detailed information for a setting.
 /// </summary>
-/// <param name="Key">The setting key.</param>
-/// <param name="Value">The current value.</param>
-/// <param name="Category">The category it belongs to.</param>
-/// <param name="Description">The optional description.</param>
-/// <param name="Type">The type identifier.</param>
-/// <param name="UpdatedAt">The last update time.</param>
-public record SettingDetail(string Key, string Value, string Category, string? Description, string Type, DateTime UpdatedAt);
+[Alias("SettingDetail")]
+[GenerateSerializer]
+public record SettingDetail(
+    [property: Id(0)] string Key,
+    [property: Id(1)] string Value,
+    [property: Id(2)] string Category,
+    [property: Id(3)] string? Description,
+    [property: Id(4)] string Type,
+    [property: Id(5)] DateTime UpdatedAt
+);
 
 /// <summary>
 /// Request to create or update a setting.
 /// </summary>
-/// <param name="Key">The setting key.</param>
-/// <param name="Value">The new value.</param>
-/// <param name="Category">The category it belongs to.</param>
-/// <param name="Type">The type identifier.</param>
-public record SetSettingRequest(string Key, string Value, string Category, string Type);
+[Alias("SetSettingRequest")]
+[GenerateSerializer]
+public record SetSettingRequest(
+    [property: Id(0)] string Key,
+    [property: Id(1)] string Value,
+    [property: Id(2)] string Category,
+    [property: Id(3)] string Type
+);
 
 /// <summary>
 /// Information about a setting category.
 /// </summary>
-/// <param name="Name">The category name.</param>
-/// <param name="SettingCount">Number of settings in this category.</param>
-public record SettingCategory(string Name, int SettingCount);
+[Alias("SettingCategory")]
+[GenerateSerializer]
+public record SettingCategory(
+    [property: Id(0)] string Name,
+    [property: Id(1)] int SettingCount
+);

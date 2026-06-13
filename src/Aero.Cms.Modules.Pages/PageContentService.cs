@@ -1,19 +1,18 @@
 
 using Aero.Cms.Modules.Pages.Validators;
-using Aero.Core;
 using Aero.Core.Extensions;
 using Wolverine;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
-using Aero.Core.Railway;
-using Microsoft.AspNetCore.Http;
+using System.Globalization;
 using ZiggyCreatures.Caching.Fusion;
+using static Aero.Core.Railway.Prelude;
 
 
 namespace Aero.Cms.Modules.Pages;
@@ -22,13 +21,19 @@ public interface IPageContentService
 {
     Task<Result<PageDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
     Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
+    Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default);
     Task<Result<PageDocument?, AeroError>> LoadHomepageAsync(CancellationToken cancellationToken = default);
     Task<Result<PageDocument?, AeroError>> LoadBlogListingAsync(CancellationToken cancellationToken = default);
     Task<Result<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>> GetAllPagesAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVariantsAsync(long TranslationGroupId, CancellationToken cancellationToken = default);
+    Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(long sourcePageId, string targetCulture, string targetSlug, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default);
     Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default);
     Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
+    Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDescendants, CancellationToken cancellationToken = default);
+    Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants, CancellationToken cancellationToken = default);
+    Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default);
 }
 
 public sealed class MartenPageContentService(
@@ -36,8 +41,10 @@ public sealed class MartenPageContentService(
     IBlockService blockService,
     IMessageBus bus,
     ISiteContext siteContext,
-    IHttpContextAccessor? httpContextAccessor = null,
-    IFusionCache? cache = null) : IPageContentService
+    ILogger<MartenPageContentService> logger,
+    string? actor = null,
+    IFusionCache? cache = null,
+    IPageTreeService? pageTreeService = null) : IPageContentService
 {
     private const string PageCacheTag = "pages-list";
     private readonly ISiteContext _siteContext = siteContext;
@@ -56,7 +63,7 @@ public sealed class MartenPageContentService(
             var document = await session.LoadAsync<PageDocument>(id, cancellationToken);
             if (document is null)
             {
-                return Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
+                return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
             }
 
             await SetCacheAsync(cacheKey, document, cancellationToken);
@@ -64,7 +71,8 @@ public sealed class MartenPageContentService(
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to load page {PageId}", id);
+            return Prelude.Fail<PageDocument?, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -106,25 +114,32 @@ public sealed class MartenPageContentService(
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to query all pages (skip={Skip}, take={Take})", skip, take);
+            return Prelude.Fail<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
-    public async Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
+        => FindBySlugAsync(slug, culture: null, cancellationToken);
+
+    public async Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
-            var cacheKey = BuildCacheKey($"slug:{NormalizeCachePart(slug)}");
+            var currentCulture = GetCurrentCulture(culture);
+            var routeSlug = AeroCultureRoute.StripLeadingCulture(slug);
+            var cacheKey = BuildCacheKey($"slug:{currentCulture}:{NormalizeCachePart(routeSlug)}");
             var cached = await TryGetCacheAsync<PageDocument>(cacheKey, cancellationToken);
             if (cached is not null)
             {
                 return Prelude.Ok<PageDocument?, AeroError>(cached);
             }
 
-            var reservation = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(x =>
-                    x.SiteId == _siteContext.SiteId &&
-                    string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase), token: cancellationToken);
+            var normalized = ContentSlugDocument.Normalize(routeSlug);
+
+            var reservation = await FindSlugReservationAsync(normalized, currentCulture, cancellationToken)
+                ?? await FindDefaultCultureSlugReservationAsync(normalized, currentCulture, cancellationToken);
+
             if (reservation is not null && reservation.OwnerType == ContentSlugOwnerType.Page)
             {
                 var document = await session.LoadAsync<PageDocument>(reservation.OwnerId, cancellationToken);
@@ -132,80 +147,167 @@ public sealed class MartenPageContentService(
                 {
                     // Filter by published state — unpublished pages must not be publicly accessible
                     if (document.PublicationState != ContentPublicationState.Published)
-            return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
-        }
+                        return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
+
+                    await SetCacheAsync(cacheKey, document, cancellationToken);
+                    return Prelude.Ok<PageDocument?, AeroError>(document);
+                }
             }
 
-            // Fallback: direct PageDocument lookup (handles pages created without slug reservation)
-            var directPage = await session.Query<PageDocument>()
-                .FirstOrDefaultAsync(x =>
-                    x.SiteId == _siteContext.SiteId &&
-                    string.Equals(slug, x.Slug, StringComparison.CurrentCultureIgnoreCase) &&
-                    x.PublicationState == ContentPublicationState.Published, token: cancellationToken);
+            // Fallback: direct Path lookup (handles pages created without slug reservation)
+            // PageDocument.Path stores the leading "/" (e.g., "/main-page/child-page")
+            var pathToMatch = "/" + normalized;
+            var directPage = await FindDirectPageAsync(pathToMatch, currentCulture, cancellationToken)
+                ?? await FindDefaultCultureDirectPageAsync(pathToMatch, currentCulture, cancellationToken);
             if (directPage is not null)
             {
                 await SetCacheAsync(cacheKey, directPage, cancellationToken);
                 return Prelude.Ok<PageDocument?, AeroError>(directPage);
             }
 
-            return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
+            return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{routeSlug}' not found"));
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<PageDocument?, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to find page by slug {Slug}", slug);
+            return Prelude.Fail<PageDocument?, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> ListCultureVariantsAsync(
+        long TranslationGroupId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var variants = await session.Query<PageDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId
+                    && x.TranslationGroupId == TranslationGroupId
+                    && x.Deleted == false)
+                .OrderBy(x => x.Culture)
+                .ToListAsync(cancellationToken);
+
+            return Prelude.Ok<IReadOnlyList<PageDocument>, AeroError>(variants);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list page culture variants for Translation Group {TranslationGroupId}", TranslationGroupId);
+            return Prelude.Fail<IReadOnlyList<PageDocument>, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<PageDocument, AeroError>> ForkPageForCultureAsync(
+        long sourcePageId,
+        string targetCulture,
+        string targetSlug,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var source = await session.LoadAsync<PageDocument>(sourcePageId, cancellationToken);
+            if (source is null || source.SiteId != _siteContext.SiteId)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.NotFoundError($"Page with id '{sourcePageId}' not found or access denied"));
+            }
+
+            var normalizedCulture = ContentSlugDocument.NormalizeCulture(targetCulture);
+            var supported = await IsSupportedCultureAsync(source.SiteId, normalizedCulture, cancellationToken);
+            if (!supported)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.ValidationError([$"Culture '{normalizedCulture}' is not supported by the current site."]));
+            }
+
+            var TranslationGroupId = source.TranslationGroupId ?? source.Id;
+            var existingVariant = await session.Query<PageDocument>()
+                .FirstOrDefaultAsync(x =>
+                    x.SiteId == source.SiteId &&
+                    x.TranslationGroupId == TranslationGroupId &&
+                    x.Culture == normalizedCulture &&
+                    x.Deleted == false,
+                    token: cancellationToken);
+
+            if (existingVariant is not null)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(
+                    AeroError.ConflictError($"Page already has a '{normalizedCulture}' variant."));
+            }
+
+            var fork = PageCultureForker.Fork(source, Snowflake.NewId(), normalizedCulture, targetSlug);
+            if (source.ParentId is long sourceParentId)
+            {
+                var parentVariant = await FindParentCultureVariantAsync(sourceParentId, normalizedCulture, cancellationToken);
+                if (parentVariant is not null)
+                {
+                    fork.ParentId = parentVariant.Id;
+                    if (pageTreeService is not null)
+                    {
+                        var pathResult = await pageTreeService.ComputePathAsync(
+                            source.SiteId,
+                            parentVariant.Id,
+                            fork.Slug,
+                            ct: cancellationToken);
+
+                        if (pathResult is Result<(string Path, int Depth), AeroError>.Ok pathOk)
+                        {
+                            fork.Path = pathOk.Value.Path;
+                            fork.Depth = pathOk.Value.Depth;
+                        }
+
+                        var orderResult = await pageTreeService.GetNextSiblingOrderAsync(
+                            source.SiteId,
+                            parentVariant.Id,
+                            cancellationToken);
+
+                        if (orderResult is Result<int, AeroError>.Ok orderOk)
+                        {
+                            fork.Order = orderOk.Value;
+                        }
+                    }
+                }
+            }
+
+            return await SaveAsync(fork, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to fork page {PageId} to culture {Culture}", sourcePageId, targetCulture);
+            return Prelude.Fail<PageDocument, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
     public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest request, CancellationToken cancellationToken = default)
     {
-        var page = new PageDocument
-        {
-            Id = Snowflake.NewId(),
-            SiteId = _siteContext.SiteId,
-            Title = request.Title,
-            Slug = string.IsNullOrEmpty(request.Slug)
-                ? request.Title.GenerateSlug()
-                : request.Slug,
-            Summary = request.Summary,
-            SeoTitle = request.SeoTitle,
-            SeoDescription = request.SeoDescription,
-            PublicationState = request.PublicationState,
-            ShowInNavMenu = request.ShowInNavMenu,
-            ShowHeaderNavigation = request.ShowHeaderNavigation,
-            HideFooter = request.HideFooter,
-            ShowChatAgent = request.ShowChatAgent
-        };
-
-        if (request.EditorBlocks is { Count: > 0 })
-        {
-            page.Blocks = request.EditorBlocks.ToList();
-            page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
-        }
-        else
-        {
-            page.Blocks = new List<EditorBlock>();
-            page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
-        }
-
-        return await SaveAsync(page, cancellationToken);
-    }
-
-    public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default)
-    {
         try
         {
-            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
-            if (page is null || page.SiteId != _siteContext.SiteId)
+            var slug = string.IsNullOrEmpty(request.Slug)
+                ? request.Title.GenerateSlug()
+                : request.Slug;
+
+            var siteId = _siteContext.SiteId;
+            var page = new PageDocument
             {
-                return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
-            }
+                Id = Snowflake.NewId(),
+                SiteId = siteId,
+                Culture = SitesModel.DefaultCultureName,
+                Title = request.Title,
+                Slug = slug,
+                Summary = request.Summary,
+                SeoTitle = request.SeoTitle,
+                SeoDescription = request.SeoDescription,
+                PublicationState = request.PublicationState,
+                ShowInNavMenu = request.ShowInNavMenu,
+                ShowHeaderNavigation = request.ShowHeaderNavigation,
+                HideFooter = request.HideFooter,
+                ShowChatAgent = request.ShowChatAgent
+            };
+            page.TranslationGroupId = page.Id;
 
-            ApplyUpdateRequest(page, request);
-
-            if (request.EditorBlocks is { Count: > 0 })
+            if (request.EditorBlocks is not null)
             {
                 page.Blocks = request.EditorBlocks.ToList();
-                page.LayoutRegions = await MapEditorBlocksToLayoutRegions(request.EditorBlocks, cancellationToken);
+                (page.LayoutRegions, page.BlockIdMap) = await ProcessEditorBlocks(request.EditorBlocks, [], cancellationToken);
             }
             else
             {
@@ -213,12 +315,187 @@ public sealed class MartenPageContentService(
                 page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
             }
 
-            return await SaveAsync(page, cancellationToken);
-        }
+            // Compute hierarchy fields (Path, Depth, Order) BEFORE validation
+            // so Path is available for both the validator and slug reservation.
+            var parentId = request.ParentId;
+            var path = "/" + page.Slug;
+            var depth = 0;
+            var order = 0;
 
+            if (parentId is not null and > 0 && pageTreeService is not null)
+            {
+                var pathResult = await pageTreeService.ComputePathAsync(siteId, parentId, page.Slug, ct: cancellationToken);
+                if (pathResult is Result<(string Path, int Depth), AeroError>.Ok pathOk)
+                {
+                    path = pathOk.Value.Path;
+                    depth = pathOk.Value.Depth;
+                }
+
+                var orderResult = await pageTreeService.GetNextSiblingOrderAsync(siteId, parentId, cancellationToken);
+                if (orderResult is Result<int, AeroError>.Ok orderOk)
+                {
+                    order = orderOk.Value;
+                }
+            }
+
+            page.ParentId = parentId;
+            page.Path = path;
+            page.Depth = depth;
+            page.Order = order;
+
+            var validationResult = await ValidatePage(page);
+            if (validationResult is Result<bool, AeroError>.Failure vf)
+            {
+                logger.LogWarning("Validation failed creating page '{Title}' (slug={Slug}): {Errors}", request.Title, request.Slug ?? "(auto)", vf.Error);
+                return Prelude.Fail<PageDocument, AeroError>(vf.Error);
+            }
+
+            // Reserve slug for public URL routing — use the full Path for
+            // hierarchical pages so /parent/child resolves correctly.
+            var publicSlug = page.Path.TrimStart('/'); // "/about/team" → "about/team"
+            await ContentSlugReservation.ReserveAsync(
+                session,
+                page.Id,
+                ContentSlugOwnerType.Page,
+                publicSlug,
+                siteId,
+                page.Culture,
+                previousSlug: null,
+                cancellationToken: cancellationToken);
+
+            // Start an event stream for versioning (projection handles document persistence).
+            // PageCreated establishes the page; PageContentUpdated carries blocks + layout.
+            session.Events.StartStream($"page-{page.Id}",
+                new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind, page.Culture, page.TranslationGroupId));
+            session.Events.Append($"page-{page.Id}", new PageContentUpdated(
+                page.Title,
+                page.Slug,
+                page.Summary,
+                page.SeoTitle,
+                page.SeoDescription,
+                page.LayoutRegions,
+                page.Blocks,
+                Kind: page.Kind,
+                ShowHeaderNavigation: page.ShowHeaderNavigation,
+                HeaderImageUrl: page.HeaderImageUrl,
+                HideHeader: page.HideHeader,
+                HideFooter: page.HideFooter,
+                ShowChatAgent: page.ShowChatAgent,
+                BlockIdMap: page.BlockIdMap));
+            await session.SaveChangesAsync(cancellationToken);
+
+            // Publish events via Wolverine outbox
+            await bus.PublishAsync(new PageViewModelCreated(
+                page.ToViewModel(), $"Page created: {page.Title}"));
+            await bus.PublishAsync(new PageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, null));
+
+            logger.LogInformation("Created page {PageId}: {Title} (slug={Slug})", page.Id, page.Title, page.Slug);
+            return Prelude.Ok<PageDocument, AeroError>(page);
+        }
         catch (Exception ex)
         {
-            return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to create page '{Title}' (slug={Slug})", request.Title, request.Slug ?? "(auto)");
+            return Prelude.Fail<PageDocument, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePageRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+
+            if (page is null || page.SiteId != _siteContext.SiteId)
+            {
+                return Fail<PageDocument, AeroError>(
+                    AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
+            }
+
+            var oldSlug = page.Slug;
+
+            // Apply metadata update to the document
+            ApplyUpdateRequest(page, request);
+
+            // Process editor blocks — map to layout regions and persist BlockBase entities
+            if (request.EditorBlocks is not null)
+            {
+                page.Blocks = request.EditorBlocks.ToList();
+                (page.LayoutRegions, page.BlockIdMap) = await ProcessEditorBlocks(
+                    request.EditorBlocks,
+                    page.BlockIdMap,
+                    cancellationToken);
+                logger.LogInformation("Mapped {BlockCount} editor blocks to layout regions for page {PageId}", request.EditorBlocks.Count, id);
+            }
+            else if (request.LayoutRegions is { Count: > 0 })
+            {
+                page.LayoutRegions = request.LayoutRegions.ToList();
+            }
+
+            // Validate the updated page
+            var validationResult = await ValidatePage(page);
+            if (validationResult is Result<bool, AeroError>.Failure vf)
+            {
+                logger.LogWarning("Validation failed updating page {PageId}: {Errors}", id, vf.Error);
+                return Prelude.Fail<PageDocument, AeroError>(vf.Error);
+            }
+
+            // Reserve the new slug path (if changed) — uses full Path so
+            // hierarchical pages like /parent/child route correctly.
+            if (oldSlug != request.Slug)
+            {
+                var oldPublicSlug = page.Path.TrimStart('/');
+                var segments = oldPublicSlug.Split('/');
+                segments[^1] = request.Slug;
+                var newPublicSlug = string.Join('/', segments);
+
+                await ContentSlugReservation.ReserveAsync(
+                    session,
+                    id,
+                    ContentSlugOwnerType.Page,
+                    newPublicSlug,
+                    _siteContext.SiteId,
+                    page.Culture,
+                    oldPublicSlug,
+                    cancellationToken);
+            }
+
+            // Append update event for version history
+            session.Events.Append($"page-{id}", new PageContentUpdated(
+                Title: page.Title,
+                Slug: page.Slug,
+                Summary: page.Summary,
+                SeoTitle: page.SeoTitle,
+                SeoDescription: page.SeoDescription,
+                LayoutRegions: page.LayoutRegions,
+                Blocks: page.Blocks,
+                Kind: page.Kind,
+                ShowHeaderNavigation: page.ShowHeaderNavigation,
+                HeaderImageUrl: page.HeaderImageUrl,
+                HideHeader: page.HideHeader,
+                HideFooter: page.HideFooter,
+                ShowChatAgent: page.ShowChatAgent,
+                BlockIdMap: page.BlockIdMap));
+
+            await session.SaveChangesAsync(cancellationToken);
+
+            // Publish events via Wolverine outbox
+            await bus.PublishAsync(new PageViewModelUpdated(
+                page.ToViewModel(), $"Page updated: {page.Title}"));
+
+            if (page.PublicationState == ContentPublicationState.Published)
+            {
+                await bus.PublishAsync(new SlugUpdated(id, "Page", request.Slug, oldSlug));
+            }
+
+            await bus.PublishAsync(new PageContentUpdatedEvent(id, _siteContext.SiteId, request.Slug, oldSlug));
+
+            logger.LogInformation("Updated page {PageId}: {Title} (slug={Slug})", id, page.Title, page.Slug);
+            return Prelude.Ok<PageDocument, AeroError>(page);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to update page {PageId}", id);
+            return Prelude.Fail<PageDocument, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -227,8 +504,9 @@ public sealed class MartenPageContentService(
         try
         {
             var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+
             if (page is null || page.SiteId != _siteContext.SiteId)
-                return Prelude.Fail<bool, AeroError>(AeroError.CreateError($"Page with id '{id}' not found or access denied"));
+                return Prelude.Fail<bool, AeroError>(AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
 
             var reservation = await session.Query<ContentSlugDocument>()
                 .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.Page && x.SiteId == _siteContext.SiteId, token: cancellationToken);
@@ -238,14 +516,180 @@ public sealed class MartenPageContentService(
                 session.Delete(reservation);
             }
 
-            session.Delete<PageDocument>(id);
+            // Append delete event for version history, then soft-delete via Marten ISoftDeleted
+            session.Events.Append($"page-{id}", new PageDeleted(null));
+            session.Delete(page);
+
             await session.SaveChangesAsync(cancellationToken);
-            await bus.PublishAsync(new PageContentUpdatedEvent(page.Id, page.SiteId, page.Slug, page.Slug));
+            await bus.PublishAsync(new PageViewModelDeleted(
+                page.ToViewModel(), $"Page deleted: {page.Title}"));
+            await bus.PublishAsync(new PageContentUpdatedEvent(id, _siteContext.SiteId, page.Slug, page.Slug));
+
+            logger.LogInformation("Deleted page {PageId}: {Slug}", id, page.Slug);
             return Prelude.Ok<bool, AeroError>(true);
         }
         catch (Exception ex)
         {
-            return Prelude.Fail<bool, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to delete page {PageId}", id);
+            return Prelude.Fail<bool, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDescendants, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var page = await session.LoadAsync<PageDocument>(id, cancellationToken);
+            if (page is null || page.SiteId != _siteContext.SiteId)
+                return Prelude.Fail<bool, AeroError>(AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
+
+            if (!deleteDescendants)
+            {
+                // Unpublish the parent page — children remain as-is
+                var previousState = page.PublicationState;
+                page.PublicationState = ContentPublicationState.Draft;
+                session.Events.Append($"page-{id}", new PageStateChanged(ContentPublicationState.Draft));
+                session.Store(page);
+                await session.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("Unpublished page {PageId} (was {PreviousState})", id, previousState);
+                return Prelude.Ok<bool, AeroError>(true);
+            }
+
+            // Cascade delete: find all descendants by Path prefix using NgramIndex
+            var prefix = page.Path == "/" ? "/" : page.Path.TrimEnd('/') + "/";
+            var descendants = await session.Query<PageDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId
+                    && x.Path.StartsWith(prefix)
+                    && x.Deleted == false)
+                .ToListAsync(cancellationToken);
+
+            // Exclude self — for root pages the prefix "/" matches everything
+            descendants = descendants.Where(d => d.Id != page.Id).ToList();
+
+            // Delete parent + descendants (deepest first)
+            var toDelete = new List<PageDocument> { page };
+            toDelete.AddRange(descendants.OrderByDescending(d => d.Path.Length));
+
+            logger.LogInformation("Cascade-deleting page {PageId} ({Path}) with {Count} descendants",
+                id, page.Path, descendants.Count);
+
+            foreach (var doc in toDelete)
+            {
+                var reservation = await session.Query<ContentSlugDocument>()
+                    .FirstOrDefaultAsync(x => x.OwnerId == doc.Id
+                        && x.OwnerType == ContentSlugOwnerType.Page
+                        && x.SiteId == _siteContext.SiteId, token: cancellationToken);
+                if (reservation is not null)
+                    session.Delete(reservation);
+
+                session.Events.Append($"page-{doc.Id}", new PageDeleted(null));
+                session.Delete(doc);
+            }
+
+            await session.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Cascade-deleted page {PageId} and {DescendantCount} descendants", id, descendants.Count);
+            return Prelude.Ok<bool, AeroError>(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete page {PageId}", id);
+            return Prelude.Fail<bool, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants, CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+            return Prelude.Ok<int, AeroError>(0);
+
+        try
+        {
+            var idList = ids.ToList();
+
+            // If cascade requested, expand the id list to include all descendants
+            if (deleteDescendants)
+            {
+                var pages = await session.Query<PageDocument>()
+                    .Where(x => x.SiteId == _siteContext.SiteId && idList.Contains(x.Id) && x.Deleted == false)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var page in pages)
+                {
+                    var prefix = page.Path == "/" ? "/" : page.Path.TrimEnd('/') + "/";
+                    var descendants = await session.Query<PageDocument>()
+                        .Where(x => x.SiteId == _siteContext.SiteId
+                            && x.Path.StartsWith(prefix)
+                            && x.Deleted == false)
+                        .ToListAsync(cancellationToken);
+                    idList.AddRange(descendants.Where(d => d.Id != page.Id).Select(d => d.Id));
+                }
+
+                idList = idList.Distinct().ToList();
+            }
+
+            // Bulk soft-delete documents via single SQL UPDATE (ISoftDeleted)
+            session.DeleteWhere<PageDocument>(x =>
+                x.SiteId == _siteContext.SiteId && idList.Contains(x.Id));
+
+            // Bulk-clean slug reservations
+            session.DeleteWhere<ContentSlugDocument>(x =>
+                x.SiteId == _siteContext.SiteId
+                && idList.Contains(x.OwnerId)
+                && x.OwnerType == ContentSlugOwnerType.Page);
+
+            // Append PageDeleted events to each stream (audit trail)
+            foreach (var id in idList)
+                session.Events.Append($"page-{id}", new PageDeleted(null));
+
+            await session.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Bulk-deleted {Count} pages (deleteDescendants={Cascade})", idList.Count, deleteDescendants);
+            return Prelude.Ok<int, AeroError>(idList.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to bulk-delete {Count} pages", ids.Count);
+            return Prelude.Fail<int, AeroError>(AeroError.DatabaseError(ex.Message));
+        }
+    }
+
+    public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var variants = await session.Query<PageDocument>()
+                .Where(x => x.SiteId == _siteContext.SiteId
+                    && x.TranslationGroupId == translationGroupId
+                    && x.Deleted == false)
+                .ToListAsync(cancellationToken);
+
+            if (variants.Count == 0)
+            {
+                return Prelude.Ok<int, AeroError>(0);
+            }
+
+            var ids = variants.Select(x => x.Id).ToList();
+
+            session.DeleteWhere<PageDocument>(x =>
+                x.SiteId == _siteContext.SiteId && ids.Contains(x.Id));
+
+            session.DeleteWhere<ContentSlugDocument>(x =>
+                x.SiteId == _siteContext.SiteId
+                && ids.Contains(x.OwnerId)
+                && x.OwnerType == ContentSlugOwnerType.Page);
+
+            foreach (var id in ids)
+            {
+                session.Events.Append($"page-{id}", new PageDeleted(null));
+            }
+
+            await session.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Deleted page translation group {TranslationGroupId} with {Count} variants", translationGroupId, ids.Count);
+            return Prelude.Ok<int, AeroError>(ids.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete page translation group {TranslationGroupId}", translationGroupId);
+            return Prelude.Fail<int, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
@@ -259,12 +703,17 @@ public sealed class MartenPageContentService(
                 page.SiteId = _siteContext.SiteId;
             }
 
-            await ValidatePage(page);
+            var validationResult = await ValidatePage(page);
+            if (validationResult is Result<bool, AeroError>.Failure vf)
+            {
+                logger.LogWarning("Validation failed saving page {PageId}: {Errors}", page.Id, vf.Error);
+                return Prelude.Fail<PageDocument, AeroError>(vf.Error);
+            }
 
             var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
             if (existingPage is not null && existingPage.SiteId != _siteContext.SiteId)
             {
-                return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError($"Page with id '{page.Id}' not found or access denied"));
+                return Prelude.Fail<PageDocument, AeroError>(AeroError.NotFoundError($"Page with id '{page.Id}' not found or access denied"));
             }
 
             var targetPage = existingPage ?? page;
@@ -274,26 +723,73 @@ public sealed class MartenPageContentService(
                 ApplyPersistedValues(page, existingPage);
             }
 
+            targetPage.Culture = ContentSlugDocument.NormalizeCulture(targetPage.Culture);
+            targetPage.TranslationGroupId ??= targetPage.Id;
+
+            // If the caller provided editor blocks but no layout regions, map them now.
+            // This handles both new pages (no existing) and updates where blocks were
+            // added but not yet persisted as BlockBase entities.
+            if (targetPage.Blocks.Count > 0 && targetPage.LayoutRegions.Count == 0)
+            {
+                (targetPage.LayoutRegions, targetPage.BlockIdMap) = await ProcessEditorBlocks(
+                    targetPage.Blocks, targetPage.BlockIdMap, cancellationToken);
+                logger.LogInformation("Generated layout regions from {BlockCount} blocks for page {PageId}", targetPage.Blocks.Count, targetPage.Id);
+            }
+
+            var targetPublicSlug = targetPage.Path.TrimStart('/');
             await ContentSlugReservation.ReserveAsync(
                 session,
                 targetPage.Id,
                 ContentSlugOwnerType.Page,
-                targetPage.Slug,
+                targetPublicSlug,
                 targetPage.SiteId,
-                oldSlug,
+                targetPage.Culture,
+                oldSlug,  // oldSlug is the leaf; reservation handles full-path matching
                 cancellationToken);
 
             var now = DateTimeOffset.UtcNow;
             var existingCreatedOn = existingPage?.CreatedOn;
             targetPage.CreatedOn = existingCreatedOn is null || existingCreatedOn == default ? now : existingCreatedOn.Value;
             targetPage.ModifiedOn = now;
-            targetPage.ModifiedBy = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
+            targetPage.ModifiedBy = actor ?? "system";
             targetPage.PublishedOn = targetPage.PublicationState == ContentPublicationState.Published
                 ? existingPage?.PublishedOn ?? now
                 : null;
 
-            session.Store(targetPage);
+            // Append events so the inline projection persists the page document.
+            // PageCreated for new pages; PageContentUpdated carries blocks + layout regions.
+            if (existingPage is null)
+            {
+                session.Events.StartStream($"page-{targetPage.Id}",
+                    new PageCreated(targetPage.SiteId, targetPage.Title, targetPage.Slug,
+                                    targetPage.ParentId, targetPage.Order, targetPage.Path, targetPage.Depth,
+                                    targetPage.PublicationState, targetPage.Kind, targetPage.Culture, targetPage.TranslationGroupId));
+            }
+            session.Events.Append($"page-{targetPage.Id}", new PageContentUpdated(
+                targetPage.Title,
+                targetPage.Slug,
+                targetPage.Summary,
+                targetPage.SeoTitle,
+                targetPage.SeoDescription,
+                targetPage.LayoutRegions,
+                targetPage.Blocks,
+                Kind: targetPage.Kind,
+                ShowHeaderNavigation: targetPage.ShowHeaderNavigation,
+                HeaderImageUrl: targetPage.HeaderImageUrl,
+                HideHeader: targetPage.HideHeader,
+                HideFooter: targetPage.HideFooter,
+                ShowChatAgent: targetPage.ShowChatAgent,
+                BlockIdMap: targetPage.BlockIdMap));
+
             await session.SaveChangesAsync(cancellationToken);
+
+            // Publish rich event + keep lean events for existing subscribers
+            var vm = targetPage.ToViewModel();
+
+            if (existingPage is null)
+                await bus.PublishAsync(new PageViewModelCreated(vm, $"Page saved: {targetPage.Title}"));
+            else
+                await bus.PublishAsync(new PageViewModelUpdated(vm, $"Page saved: {targetPage.Title}"));
 
             if (targetPage.PublicationState == ContentPublicationState.Published)
             {
@@ -302,64 +798,102 @@ public sealed class MartenPageContentService(
 
             await bus.PublishAsync(new PageContentUpdatedEvent(targetPage.Id, targetPage.SiteId, targetPage.Slug, oldSlug));
 
+            logger.LogInformation("Saved page {PageId}: {Title} (slug={Slug})", targetPage.Id, targetPage.Title, targetPage.Slug);
             return Prelude.Ok<PageDocument, AeroError>(targetPage);
 
         }
-        catch (ArgumentException ex)
-        {
-            return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError(ex.Message));
-        }
         catch (Exception ex)
         {
-            return Prelude.Fail<PageDocument, AeroError>(AeroError.CreateError(ex.Message));
+            logger.LogError(ex, "Failed to save page {PageId} (slug={Slug})", page.Id, page.Slug);
+            return Prelude.Fail<PageDocument, AeroError>(AeroError.DatabaseError(ex.Message));
         }
     }
 
-    private async Task<List<LayoutRegion>> MapEditorBlocksToLayoutRegions(IReadOnlyList<EditorBlock> editorBlocks, CancellationToken cancellationToken)
+    /// <summary>
+    /// Maps editor blocks to <see cref="BlockBase"/> entities, persists them via
+    /// <see cref="IBlockService"/>, and produces an ordered list of
+    /// <see cref="LayoutRegion"/>s.  Uses <paramref name="existingMap"/> to reuse
+    /// block IDs for blocks that have been saved before (keyed by
+    /// <see cref="EditorBlock.EditorId"/>), avoiding orphaned duplicate blocks on
+    /// every save.  Returns the updated map together with the layout regions.
+    /// </summary>
+    /// <param name="editorBlocks">The current set of editor blocks from the client.</param>
+    /// <param name="existingMap">
+    /// The previous <c>EditorId → BlockId</c> map (may be empty on first save).
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// A tuple containing the generated <see cref="LayoutRegion"/> list and the
+    /// updated <see cref="PageDocument.BlockIdMap"/>.
+    /// </returns>
+    private async Task<(List<LayoutRegion> LayoutRegions, Dictionary<string, long> BlockIdMap)>
+        ProcessEditorBlocks(
+            IReadOnlyList<EditorBlock> editorBlocks,
+            Dictionary<string, long> existingMap,
+            CancellationToken cancellationToken)
     {
+        var newMap = new Dictionary<string, long>();
         var placements = new List<BlockPlacement>();
         int order = 0;
 
         foreach (var eb in editorBlocks)
         {
             var block = EditorBlockMapper.MapBlock(eb);
-            if (block != null)
+            if (block is null)
+                continue;
+
+            if (!string.IsNullOrEmpty(eb.EditorId) && existingMap.TryGetValue(eb.EditorId, out var existingBlockId))
             {
+                // Block already exists — update in-place (upsert via Marten)
+                block.Id = existingBlockId;
                 await blockService.SaveAsync(block, cancellationToken);
-                placements.Add(new BlockPlacement
-                {
-                    BlockId = block.Id,
-                    Order = order++
-                });
+                newMap[eb.EditorId] = existingBlockId;
             }
+            else
+            {
+                // First-time save — get a fresh Snowflake ID
+                block.Id = Snowflake.NewId();
+                var saved = await blockService.SaveAsync(block, cancellationToken);
+                newMap[eb.EditorId] = saved.Id;
+            }
+
+            placements.Add(new BlockPlacement
+            {
+                BlockId = block.Id,
+                BlockType = block.BlockType,
+                Order = order++
+            });
         }
 
-        // For now, put all editor blocks in a single column in one "Main" region
+        // Put all editor blocks into a single full-width column in the "Main" region
         var column = new LayoutColumn
         {
-            Width = 12, // full width
+            Width = 12,
             Blocks = placements
         };
 
-        return [
-            new LayoutRegion
+        var regions = new List<LayoutRegion>
+        {
+            new()
             {
                 Name = "Main",
                 Order = 0,
                 Columns = [column]
             }
-        ];
+        };
+
+        return (regions, newMap);
     }
 
-    private static async Task ValidatePage(PageDocument page)
+    private static async Task<Result<bool, AeroError>> ValidatePage(PageDocument page)
     {
         var validator = new PageDocumentValidator();
         var valid = await validator.ValidateAsync(page);
 
         if (valid.Errors.Any())
-        {
-            throw new ArgumentException($"page errors: {string.Join(", ", valid.Errors.Select(e => e.ErrorMessage))}");
-        }
+            return Prelude.Fail<bool, AeroError>(AeroError.ValidationError(valid.Errors.Select(e => e.ErrorMessage)));
+
+        return Prelude.Ok<bool, AeroError>(true);
     }
 
     private static void ApplyUpdateRequest(PageDocument page, UpdatePageRequest request)
@@ -386,6 +920,7 @@ public sealed class MartenPageContentService(
         target.SeoDescription = source.SeoDescription;
         target.LayoutRegions = source.LayoutRegions;
         target.Blocks = source.Blocks;
+        target.BlockIdMap = source.BlockIdMap;
         target.PublicationState = source.PublicationState;
         target.ShowInNavMenu = source.ShowInNavMenu;
         target.ShowHeaderNavigation = source.ShowHeaderNavigation;
@@ -397,6 +932,111 @@ public sealed class MartenPageContentService(
 
     private string BuildCacheKey(string suffix)
         => $"cms:page:{_siteContext.SiteId}:{suffix}";
+
+    private async Task<ContentSlugDocument?> FindSlugReservationAsync(
+        string normalizedSlug,
+        string culture,
+        CancellationToken cancellationToken)
+        => await session.Query<ContentSlugDocument>()
+            .FirstOrDefaultAsync(x =>
+                x.SiteId == _siteContext.SiteId &&
+                x.Culture == culture &&
+                string.Equals(normalizedSlug, x.NormalizedSlug, StringComparison.OrdinalIgnoreCase),
+                token: cancellationToken);
+
+    private async Task<ContentSlugDocument?> FindDefaultCultureSlugReservationAsync(
+        string normalizedSlug,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        var defaultCulture = await GetSiteDefaultCultureAsync(cancellationToken);
+        if (string.Equals(culture, defaultCulture, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return await FindSlugReservationAsync(normalizedSlug, defaultCulture, cancellationToken);
+    }
+
+    private async Task<PageDocument?> FindDirectPageAsync(
+        string pathToMatch,
+        string culture,
+        CancellationToken cancellationToken)
+        => await session.Query<PageDocument>()
+            .FirstOrDefaultAsync(x =>
+                x.SiteId == _siteContext.SiteId &&
+                x.Culture == culture &&
+                string.Equals(pathToMatch, x.Path, StringComparison.OrdinalIgnoreCase) &&
+                x.PublicationState == ContentPublicationState.Published,
+                token: cancellationToken);
+
+    private async Task<PageDocument?> FindDefaultCultureDirectPageAsync(
+        string pathToMatch,
+        string culture,
+        CancellationToken cancellationToken)
+    {
+        var defaultCulture = await GetSiteDefaultCultureAsync(cancellationToken);
+        if (string.Equals(culture, defaultCulture, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return await FindDirectPageAsync(pathToMatch, defaultCulture, cancellationToken);
+    }
+
+    private async Task<string> GetSiteDefaultCultureAsync(CancellationToken cancellationToken)
+    {
+        var site = await session.LoadAsync<SitesModel>(_siteContext.SiteId, cancellationToken);
+        var defaultCulture = site?.DefaultCulture ?? SitesModel.DefaultCultureName;
+
+        return ContentSlugDocument.NormalizeCulture(defaultCulture);
+    }
+
+    private async Task<bool> IsSupportedCultureAsync(long siteId, string culture, CancellationToken cancellationToken)
+    {
+        var site = await session.LoadAsync<SitesModel>(siteId, cancellationToken);
+        if (site is null)
+        {
+            return string.Equals(culture, SitesModel.DefaultCultureName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        IReadOnlyList<string> supported = site.SupportedCultures is { Count: > 0 }
+            ? site.SupportedCultures
+            : [site.DefaultCulture ?? SitesModel.DefaultCultureName];
+
+        return supported
+            .Select(ContentSlugDocument.NormalizeCulture)
+            .Any(x => string.Equals(x, culture, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<PageDocument?> FindParentCultureVariantAsync(
+        long sourceParentId,
+        string targetCulture,
+        CancellationToken cancellationToken)
+    {
+        var sourceParent = await session.LoadAsync<PageDocument>(sourceParentId, cancellationToken);
+        if (sourceParent is null)
+        {
+            return null;
+        }
+
+        if (string.Equals(sourceParent.Culture, targetCulture, StringComparison.OrdinalIgnoreCase))
+        {
+            return sourceParent;
+        }
+
+        if (sourceParent.TranslationGroupId is null)
+        {
+            return null;
+        }
+
+        return await session.Query<PageDocument>()
+            .FirstOrDefaultAsync(x =>
+                x.SiteId == sourceParent.SiteId &&
+                x.TranslationGroupId == sourceParent.TranslationGroupId &&
+                x.Culture == targetCulture &&
+                x.Deleted == false,
+                token: cancellationToken);
+    }
+
+    private static string GetCurrentCulture(string? culture = null)
+        => ContentSlugDocument.NormalizeCulture(culture ?? CultureInfo.CurrentUICulture.Name);
 
     private async Task<T?> TryGetCacheAsync<T>(string key, CancellationToken cancellationToken) where T : class
     {

@@ -2,6 +2,9 @@
     Renders as a position:fixed overlay covering the entire viewport,
     outside any editor chrome or layout constraints. *@
 
+@inject Microsoft.JSInterop.IJSRuntime JSRuntime
+@implements System.IAsyncDisposable
+
 @if (Visible)
 {
     <div class="pe-preview-overlay">
@@ -76,7 +79,8 @@
                 {
                     <iframe class="pe-preview-iframe"
                             src="@FrameUrl"
-                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                            sandbox="@FrameUrlSandbox"
+                            data-suppress-browser-link-errors="@SuppressBrowserLinkErrors.ToString().ToLowerInvariant()"
                             title="@Title"
                             @key="FrameUrl"></iframe>
                 }
@@ -84,7 +88,8 @@
                 {
                     <iframe class="pe-preview-iframe"
                             srcdoc="@FrameDocument"
-                            sandbox="allow-scripts allow-same-origin"
+                            sandbox="@FrameDocumentSandbox"
+                            data-suppress-browser-link-errors="@SuppressBrowserLinkErrors.ToString().ToLowerInvariant()"
                             title="@Title"
                             @key="FrameDocument"></iframe>
                 }
@@ -108,6 +113,18 @@
     [Parameter] public string? Error { get; set; }
     [Parameter] public bool IsLoading { get; set; }
     [Parameter] public string Title { get; set; } = "Preview";
+    [Parameter] public bool AllowFrameScripts { get; set; } = true;
+    [Parameter] public bool SuppressBrowserLinkErrors { get; set; }
+
+    private Microsoft.JSInterop.IJSObjectReference? _previewFrameModule;
+
+    private string FrameUrlSandbox => AllowFrameScripts
+        ? "allow-scripts allow-same-origin allow-forms allow-popups"
+        : "allow-same-origin allow-forms allow-popups";
+
+    private string FrameDocumentSandbox => AllowFrameScripts
+        ? "allow-scripts allow-same-origin"
+        : "allow-same-origin";
 
     private string _device = "desktop";
     private string Device
@@ -117,6 +134,36 @@
         {
             _device = value;
             StateHasChanged();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Visible || !SuppressBrowserLinkErrors)
+        {
+            return;
+        }
+
+        _previewFrameModule ??= await JSRuntime.InvokeAsync<Microsoft.JSInterop.IJSObjectReference>(
+            "import",
+            "./_content/Aero.Cms.Shared/preview-overlay.js");
+
+        await _previewFrameModule.InvokeVoidAsync("installBrowserLinkErrorSuppressors");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_previewFrameModule is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _previewFrameModule.DisposeAsync();
+        }
+        catch (Microsoft.JSInterop.JSDisconnectedException)
+        {
         }
     }
 }

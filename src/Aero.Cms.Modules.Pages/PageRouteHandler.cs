@@ -1,6 +1,7 @@
 namespace Aero.Cms.Modules.Pages;
 
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Shared.Localization;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Builder;
@@ -19,8 +20,10 @@ public static class PageRouteHandler
             .WithName("GetHomepage")
             .WithTags("Pages");
 
-        // Dynamic page route at /{slug}
-        app.MapGet("/{slug}", GetPageBySlug)
+        // Dynamic page route at /{*slug} — catch-all for hierarchical paths
+        // NOTE: Public HTML rendering is handled by the Razor Page at Areas/Cms/Pages/Page.cshtml
+        // which also uses a catch-all (/{**slug}). This Minimal API is for headless/programmatic access.
+        app.MapGet("/{*slug}", GetPageBySlug)
             .WithName("GetPageBySlug")
             .WithTags("Pages");
     }
@@ -50,7 +53,7 @@ public static class PageRouteHandler
         CancellationToken cancellationToken)
     {
         // Normalize slug - remove leading slash if present for consistency
-        var normalizedSlug = slug.TrimStart('/');
+        var normalizedSlug = AeroCultureRoute.StripLeadingCulture(slug);
 
         var result = await pageService.FindBySlugAsync(normalizedSlug, cancellationToken);
 

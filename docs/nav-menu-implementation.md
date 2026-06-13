@@ -4,6 +4,32 @@
 
 Draft for implementation.
 
+> [!NOTE]
+> Current Marten event-sourcing decision: do not create or write
+> `NavMenuVersionDocument`. Marten event streams are the version history for
+> navigation menus. `NavMenuDraftSaved` and `NavMenuPublished` event payloads
+> carry the immutable `NavMenuSnapshot`; stream versions replace the earlier
+> `Revision`, `MenuRevision`, `DraftVersionId`, and `PublishedVersionId`
+> fields. `NavMenuDocument` remains an inline projection for the current read
+> model, and `SiteNavigationSettingsDocument` remains the site/layout-scoped
+> owner of the default nav-menu relationship.
+>
+> The current snapshot model is component based: `NavMenuSnapshot` has `Left`,
+> `Center`, and `Right` buckets of `INavMenuComponent`. Built-in components are
+> `NavLink`, `NavMenu`, `NavHtml`, and `NavSearch`, discriminated with
+> `System.Text.Json` polymorphism. Renderer substitution belongs at the renderer
+> layer, not in the persisted model. Page documents should not embed nav
+> components; if a page-level override is later needed, model it as a nullable
+> nav-menu ID override that resolves before the site default.
+>
+> Public rendering should resolve navigation outside the page and outside the
+> layout. The layout invokes an `AeroNavBar` ViewComponent, the ViewComponent
+> resolves `page override -> site default -> no menu` through `INavMenuService`,
+> and a scoped `NavMenuContext` carries the resolved snapshot to renderer code.
+> This keeps `PageDocument` lean, keeps `_CmsLayout.cshtml` out of Marten/query
+> logic, and leaves recursive component rendering behind a renderer/visitor
+> seam rather than scattered through the layout.
+
 ## Purpose
 
 Build a site-scoped navigation menu builder for AeroCMS. The builder lives in the
@@ -65,7 +91,11 @@ migrated or adapted, not silently broken.
 
 ## Design Summary
 
-Use a site-owned navigation aggregate with draft and published versions.
+Use a site-owned navigation aggregate with draft and published versions. The
+implementation must follow the current `Aero.Cms.Modules.Pages` event-sourced
+model: command services append Marten events, inline projections materialize the
+read documents, and manager APIs call the service layer instead of mutating
+documents directly.
 
 Core model:
 
@@ -75,6 +105,33 @@ Core model:
 - `SiteNavigationSettingsDocument`: one per site, owns the default menu
   reference.
 - `PageDocument.HeaderNavigationMenuId`: optional page-level override.
+
+Event-sourced write model:
+
+- `NavMenuCreated`: starts `nav-menu-{id}` and materializes
+  `NavMenuDocument`.
+- `NavMenuDraftSaved`: creates/replaces the editable draft snapshot and updates
+  `DraftVersionId` plus revision metadata.
+- `NavMenuPublished`: records an immutable published snapshot, updates
+  `PublishedVersionId`, clears or supersedes the draft pointer, and invalidates
+  render caches.
+- `NavMenuArchived`: removes the menu from public resolution without deleting
+  historical versions.
+- `SiteDefaultNavMenuChanged`: starts or appends `site-nav-settings-{siteId}`
+  and materializes `SiteNavigationSettingsDocument`.
+
+Read model:
+
+- `NavMenuDocument`, `NavMenuVersionDocument`, and
+  `SiteNavigationSettingsDocument` are projected documents. They may be queried
+  directly for manager lists and public resolution, but writes should append
+  events first.
+- Use custom `IProjection` implementations when the stream identity is a
+  Snowflake `long`, mirroring `PageDocumentProjection`, because the repo uses
+  stream keys like `page-{id}` rather than `Guid` identities.
+- Keep `NavigationBlock` compatibility as an adapter/migration path only. Do
+  not continue the global `NavigationBlock` admin API as the primary write
+  model.
 
 Rendering resolution:
 
@@ -262,8 +319,10 @@ src/Aero.Cms.Abstractions/
 src/Aero.Cms.Shared/
   Pages/Manager/Navigations.razor
   Pages/Manager/Navigations.razor.cs
-  Pages/Manager/NavigationEditor.razor
-  Pages/Manager/NavigationEditor.razor.cs
+  Pages/Manager/CreateNavMenuDialog.razor
+  Pages/Manager/CreateNavMenuDialog.razor.cs
+  Pages/Manager/NavMenuEditor.razor
+  Pages/Manager/NavMenuEditor.razor.cs
   Components/Navigation/
     NavMenuCanvas.razor
     NavMenuPropertiesPanel.razor
@@ -297,10 +356,8 @@ public sealed class NavMenuDocument : Entity, ISiteOwned
     public long? DraftVersionId { get; private set; }
     public long? PublishedVersionId { get; private set; }
     public int Revision { get; private set; } = 1;
-    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
-    public DateTimeOffset? ModifiedOn { get; set; }
-    public long? CreatedBy { get; set; }
-    public long? ModifiedBy { get; set; }
+    public long? CreatedByUserId { get; set; }
+    public long? ModifiedByUserId { get; set; }
 
     private NavMenuDocument()
     {
@@ -319,18 +376,16 @@ public sealed class NavMenuDocument : Entity, ISiteOwned
             Name = name.Trim(),
             Key = NormalizeKey(key),
             State = NavMenuLifecycleState.Draft,
-            CreatedBy = userId,
+            CreatedByUserId = userId,
             CreatedOn = DateTimeOffset.UtcNow
         };
     }
 
-    public void Rename(string name, string key, long? userId)
+    public void Rename(string name, long? userId)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name is required.", nameof(name));
-        if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Key is required.", nameof(key));
 
         Name = name.Trim();
-        Key = NormalizeKey(key);
         Touch(userId);
     }
 
@@ -441,15 +496,16 @@ public sealed record NavMenuSnapshot(
 
     public void Validate()
     {
-        var positions = new HashSet<int>();
+        var positions = new HashSet<(string SlotKey, int Order)>();
 
         foreach (var item in Items)
         {
             item.Validate(depth: 0);
 
-            if (!positions.Add(item.Order))
+            if (!positions.Add((item.SlotKey, item.Order)))
             {
-                throw new InvalidOperationException($"Duplicate top-level order {item.Order}.");
+                throw new InvalidOperationException(
+                    $"Duplicate top-level order {item.Order} in layout slot '{item.SlotKey}'.");
             }
         }
     }
@@ -1091,6 +1147,10 @@ Validation rules:
 - `Name`: required, max 100.
 - `Key`: required, max 50, lowercase slug pattern: `^[a-z0-9][a-z0-9-_]*$`.
 - `Key`: unique per site.
+- `Key`: stable after create for the first implementation slice. Existing
+  compatibility requests can rename the menu display name, but they should not
+  derive a new key from the display name unless a dedicated rename-key command
+  with duplicate checks is added.
 - `ExpectedRevision`: must equal current menu revision.
 - `Items`: top-level item count should have a practical limit, such as 100.
 - Dropdown depth: max 2.
@@ -1163,8 +1223,11 @@ Add configuration in `NavigationModule.cs` using `IConfigureMarten`.
 ```csharp
 public sealed class NavigationModule : AeroWebModule, IUiModule, IConfigureMarten
 {
-    public void ConfigureMarten(StoreOptions opts)
+    public override void Configure(IServiceProvider services, StoreOptions opts)
     {
+        opts.Projections.Add(new NavMenuDocumentProjection(), ProjectionLifecycle.Inline);
+        opts.Projections.Add(new SiteNavigationSettingsProjection(), ProjectionLifecycle.Inline);
+
         opts.Schema.For<NavMenuDocument>()
             .DocumentAlias("nav_menus")
             .Identity(x => x.Id)
@@ -1188,6 +1251,18 @@ public sealed class NavigationModule : AeroWebModule, IUiModule, IConfigureMarte
     }
 }
 ```
+
+The projection shape should mirror `PageDocumentProjection`, with one important
+guard: each inline projection must first filter to the stream family it owns.
+`NavMenuDocumentProjection` should only process `nav-menu-{id}` streams, and
+`SiteNavigationSettingsProjection` should only process
+`site-nav-settings-{siteId}` streams. Marten passes the full pending event batch
+to inline projections, so extracting a site id from a `nav-menu-{id}` stream
+will fail during create/save. After filtering, group by stream key, extract the
+Snowflake `long`, load the existing aggregate in async projection mode, apply
+event data, and store the materialized document. This keeps navigation
+consistent with the current Pages event-sourcing implementation while keeping
+menu and site-settings aggregates independent.
 
 System.Text.Json polymorphism for item types must be configured consistently
 with existing block JSON patterns. Prefer source-generated JSON metadata if the
@@ -1417,9 +1492,16 @@ Routes:
 
 ```text
 /manager/navigations
-/manager/navigations/editor
 /manager/navigations/editor/{id:long}
+/manager/nav-menu/editor/{id:long}
 ```
+
+The list and editor should remain separate screens, matching the current Posts
+and Pages manager flow. `Navigations.razor` is the Radzen grid/list page only.
+Clicking a row navigates to `NavMenuEditor.razor` with the selected menu id.
+Clicking `New Menu` opens a modal dialog for `Name` and `Description`; after OK,
+the manager posts to the Navigation API, reads the returned `long` menu id, and
+navigates to the editor route for that id.
 
 ### Editor Experience
 
@@ -1693,6 +1775,10 @@ failure.
 
 - Add module project if it does not exist.
 - Add nav menu documents and value objects.
+- Add navigation event records and event-stream naming helpers.
+- Add inline Marten projections for `NavMenuDocument` and
+  `SiteNavigationSettingsDocument`, following the current
+  `PageDocumentProjection` pattern.
 - Add Marten mapping and indexes.
 - Add serializers for item discriminators.
 - Add `NavMenuJsonContext` and compose it with the existing AeroCMS/Marten JSON
@@ -1705,6 +1791,8 @@ Acceptance:
 
 - `NavMenuDocument`, `NavMenuVersionDocument`, and
   `SiteNavigationSettingsDocument` persist with `long` IDs.
+- Writes append typed Marten events to `nav-menu-{id}` and
+  `site-nav-settings-{siteId}` streams; projected documents are the read model.
 - Site-scoped uniqueness works.
 - Draft/publish state transitions are tested.
 - Draft saves after publish leave the published version unchanged.

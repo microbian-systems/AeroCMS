@@ -1,24 +1,45 @@
 ﻿using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Requests;
 
 namespace Aero.Cms.Abstractions.Services;
 
+public interface IAeroAliasService
+{
+    /// <summary>Create alias. Throws <see cref="InvalidOperationException"/> on grain error.</summary>
+    Task<AliasViewModel> CreateAsync(CreateAliasRequest request, CancellationToken ct = default);
 
-public class AeroAliasService(IGrainFactory grainFactory)
+    /// <summary>Delete alias. Throws <see cref="InvalidOperationException"/> on grain error.</summary>
+    Task DeleteAsync(DeleteAliasRequest request, CancellationToken ct = default);
+
+    Task<List<AliasViewModel>> GetAllAliasesAsync(long? siteId = null, CancellationToken ct = default);
+    Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<AeroRequestResponse<AliasViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct = default);
+    Task<AeroRequestResponse<AliasViewModel>> GetBySiteIdAsync(long siteId, AeroSearchFilter? filter, int page = 1, int rows = 10, CancellationToken ct = default);
+    Task<AeroRequestResponse<AliasViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct = default);
+    Task<AliasViewModel> GetStateAsync(CancellationToken ct);
+    Task<AeroRequestResponse<AliasViewModel>> UpdateAsync(UpdateAliasRequest request, CancellationToken ct = default);
+    Task UpdateStateAsync(AliasViewModel state, CancellationToken ct);
+}
+
+public class AeroAliasService(IGrainFactory grainFactory) : IAeroAliasService
 {
     IAeroAliasActor actor => grainFactory.GetGrain<IAeroAliasActor>(0, "aero");
 
-    public async Task<AeroRequestResponse<AliasViewModel>> CreateAsync(CreateAliasRequest request, CancellationToken ct = default)
+    public async Task<AliasViewModel> CreateAsync(CreateAliasRequest request, CancellationToken ct = default)
     {
         var result = await actor.CreateAsync(request, ct);
-
-        return result;
+        return Unwrap(result);
     }
 
-    public async Task<AeroRequestResponse<AliasViewModel>> DeleteAsync(DeleteAliasRequest request, CancellationToken ct = default)
+    public async Task DeleteAsync(DeleteAliasRequest request, CancellationToken ct = default)
     {
         var result = await actor.DeleteAsync(request, ct);
+        Unwrap(result); // throws on error
+    }
+
+    public Task<List<AliasViewModel>> GetAllAliasesAsync(long? siteId = null, CancellationToken ct = default)
+    {
+        var result = actor.GetAllAliasesAsync(siteId, ct);
         return result;
     }
 
@@ -61,5 +82,13 @@ public class AeroAliasService(IGrainFactory grainFactory)
     public async Task UpdateStateAsync(AliasViewModel state, CancellationToken ct)
     {
         await actor.UpdateStateAsync(state, ct);
+    }
+
+    private static AliasViewModel Unwrap(AeroRequestResponse<AliasViewModel> result)
+    {
+        if (!string.IsNullOrEmpty(result.error?.Message))
+            throw new InvalidOperationException(result.error.Message);
+
+        return result.data;
     }
 }

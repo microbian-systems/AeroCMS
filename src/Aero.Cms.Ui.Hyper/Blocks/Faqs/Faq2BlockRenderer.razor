@@ -1,0 +1,51 @@
+@* FAQ 2 — HyperUI marketing/faqs/2 *@
+@* Source: hyperui/public/examples/marketing/faqs/2.html, 2-dark.html *@
+@if (Block is not null && Block.Items.Count > 0)
+{
+    <div class="mx-auto max-w-3xl p-6">
+        @if (!string.IsNullOrEmpty(Block.Title))
+        {
+            <h2 class="text-center text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">@((MarkupString)Block.Title)</h2>
+        }
+        @if (!string.IsNullOrEmpty(Block.Description))
+        {
+            <p class="mx-auto mt-2 max-w-lg text-center text-gray-700 dark:text-gray-300">@((MarkupString)Block.Description)</p>
+        }
+        <div class="mt-6 flow-root">
+            <div class="-my-4 flex flex-col divide-y divide-gray-200 dark:divide-gray-700">
+                @{
+                    var first = true;
+                }
+                @foreach (var item in Block.Items)
+                {
+                    <details class="group py-4 [&_summary::-webkit-details-marker]:hidden" @(first ? "open" : "")>
+                        <summary class="flex items-center justify-between gap-1.5 text-gray-900 dark:text-white">
+                            <h2 class="text-lg font-medium">@((MarkupString)(item.Question ?? ""))</h2>
+
+                            <svg class="size-5 shrink-0 transition-transform duration-300 group-open:-rotate-180"
+                                 xmlns="http://www.w3.org/2000/svg"
+                                 fill="none"
+                                 viewBox="0 0 24 24"
+                                 stroke="currentColor">
+                                <path stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      stroke-width="2"
+                                      d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </summary>
+
+                        <p class="pt-4 text-gray-900 dark:text-white">
+                            @((MarkupString)(item.Answer ?? ""))
+                        </p>
+                    </details>
+                    first = false;
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Faq2Block? Block { get; set; }
+}

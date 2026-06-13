@@ -1,4 +1,5 @@
 ﻿using Aero.Cms.Core;
+using Aero.Cms.Modules.Manager.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Microsoft.AspNetCore.Routing;
@@ -9,7 +10,7 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Manager;
 
 [Module(nameof(ManagerModule))]
-public class ManagerModule : AeroModuleBase
+public class ManagerModule : AeroWebModule
 {
     public override string Name { get; } = nameof(ManagerModule);
     public override string Version { get; } = AeroConstants.Version;
@@ -21,5 +22,12 @@ public class ManagerModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
+    }
+
+    public override Task RunAsync(IEndpointRouteBuilder builder)
+    {
+        builder.MapDashboardApi();
+        builder.MapPreviewBlockFragmentApi();
+        return Task.CompletedTask;
     }
 }

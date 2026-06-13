@@ -1,5 +1,4 @@
-﻿using Aero.Cms.Abstractions.Interfaces;
-using Aero.Core.Entities;
+﻿using Aero.Core.Entities;
 
 namespace Aero.Cms.Abstractions.Models;
 

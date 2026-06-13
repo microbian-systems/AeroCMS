@@ -1,0 +1,27 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Title *</label>
+        <RadzenTextBox @bind-Value="Block.Title" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Description</label>
+        <RadzenTextArea @bind-Value="Block.Description" Class="w-full" Rows="3" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Placeholder</label>
+        <RadzenTextBox @bind-Value="Block.Placeholder" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Button Text</label>
+        <RadzenTextBox @bind-Value="Block.ButtonText" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Privacy Text</label>
+        <RadzenTextArea @bind-Value="Block.PrivacyText" Class="w-full" Rows="2" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NewsletterBlock Block { get; set; } = default!;
+}

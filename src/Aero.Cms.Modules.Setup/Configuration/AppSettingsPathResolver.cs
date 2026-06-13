@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace Aero.Cms.Modules.Setup.Configuration;
 
 public static class AppSettingsPathResolver

@@ -1,0 +1,90 @@
+@page "/manager/seo/{ProviderKey}"
+@attribute [Authorize]
+@using Microsoft.Extensions.Localization
+
+<PageTitle>@(_provider?.Name ?? L["SEO Provider"])</PageTitle>
+
+<div class="pe-page-content space-y-6" style="max-width: 900px; margin: 0 auto;">
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--pe-text-muted);">@L["Tracking provider"]</p>
+            <h1 class="text-2xl font-bold pe-heading">@(_provider?.Name ?? L["SEO Provider"])</h1>
+            @if (_provider is not null)
+            {
+                <p class="mt-1 text-sm pe-description">@_provider.Description</p>
+            }
+        </div>
+        <RadzenButton Icon="arrow_back"
+                      Text="@L["Back"]"
+                      ButtonStyle="ButtonStyle.Secondary"
+                      Click="@BackToList" />
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="flex justify-center py-12">
+            <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+        </div>
+    }
+    else if (_provider is not null)
+    {
+        <div style="background: var(--pe-bg-secondary); border: 1px solid var(--pe-border); border-radius: var(--pe-radius-lg);">
+            <div class="px-4 py-5 sm:px-6 border-b" style="border-bottom-color: var(--pe-border);">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Provider Settings"]</h2>
+                        <p class="mt-1 text-sm" style="color: var(--pe-text-muted);">@L["Saved values are rendered by the public site layout."]</p>
+                    </div>
+                    @if (IsEnabled)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Enabled"]" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@L["Disabled"]" />
+                    }
+                </div>
+            </div>
+
+            <div class="px-4 py-5 sm:p-6">
+                <RadzenTemplateForm TItem="SeoProviderEditModel" Data="@_model" Submit="@SaveAsync">
+                    <RadzenStack Gap="1rem">
+                        <RadzenFormField Text="@_provider.TrackingIdLabel" Variant="Variant.Outlined">
+                            <RadzenTextBox @bind-Value="@_model.TrackingId"
+                                           Name="TrackingId"
+                                           Trim="true"
+                                           Style="width: 100%;" />
+                            <RadzenRequiredValidator Component="TrackingId" Text="@L["Tracking ID is required to enable this provider."]" />
+                        </RadzenFormField>
+
+                        @if (_provider.HostKey is not null)
+                        {
+                            <RadzenFormField Text="@(_provider.HostLabel ?? L["Host"])" Variant="Variant.Outlined">
+                                <RadzenTextBox @bind-Value="@_model.Host"
+                                               Name="Host"
+                                               Trim="true"
+                                               Placeholder="@_provider.HostDefault"
+                                               Style="width: 100%;" />
+                            </RadzenFormField>
+                        }
+
+                        <div class="flex items-center justify-between gap-3 border-t pt-4" style="border-top-color: var(--pe-border);">
+                            <RadzenButton Icon="power_settings_new"
+                                          Text="@L["Disable"]"
+                                          ButtonStyle="ButtonStyle.Danger"
+                                          Variant="Variant.Outlined"
+                                          Disabled="@(!IsEnabled || _isSaving)"
+                                          Click="@DisableAsync" />
+                            <RadzenButton Icon="save"
+                                          Text="@L["Save"]"
+                                          ButtonType="ButtonType.Submit"
+                                          ButtonStyle="ButtonStyle.Primary"
+                                          IsBusy="@_isSaving"
+                                          BusyText="@L["Saving..."]" />
+                        </div>
+                    </RadzenStack>
+                </RadzenTemplateForm>
+            </div>
+        </div>
+    }
+</div>

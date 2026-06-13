@@ -1,6 +1,7 @@
+using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
-using Aero.Cms.Core;
+using Aero.Cms.Abstractions.Models;
 using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Entities;
@@ -8,6 +9,8 @@ namespace Aero.Cms.Core.Entities;
 public sealed class DocsPage : Entity, ISiteOwned
 {
     public long SiteId { get; set; }
+    public long? TranslationGroupId { get; set; }
+    public string Culture { get; set; } = "en-US";
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Summary { get; set; }
@@ -18,6 +21,13 @@ public sealed class DocsPage : Entity, ISiteOwned
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset? PublishedOn { get; set; } = null;
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+
+    /// <summary>
+    /// Monotonic counter incremented on every publish.
+    /// Compared against <see cref="DocsEditorState.DraftVersion"/> in the admin
+    /// service layer to detect unpublished changes.
+    /// </summary>
+    public long PublishedVersion { get; set; }
 
     /// <summary>
     /// Gets or sets whether the global header navigation should be shown when viewing this page.
@@ -38,4 +48,55 @@ public sealed class DocsPage : Entity, ISiteOwned
     /// Gets or sets the sort order among siblings.
     /// </summary>
     public int Order { get; set; }
+
+    // ── Published block layout ──────────────────────────────────────────
+
+    /// <summary>
+    /// Published layout manifest: regions → columns → block placements.
+    /// Built from <see cref="DocsEditorState"/> on publish.
+    /// Rendered SSR by LayoutRegionRenderer components during public page rendering.
+    /// </summary>
+    public List<LayoutRegion> LayoutRegions { get; set; } = [];
+
+    // ── Block schema versioning ─────────────────────────────────────────
+
+    /// <summary>
+    /// Tracks the block content schema version. Incremented by migration when
+    /// legacy block content is transformed into Neo blocks. Used for idempotency.
+    /// Mirroring <c>PageDocument.BlockSchemaVersion</c>.
+    /// </summary>
+    public int BlockSchemaVersion { get; set; }
+
+    // ── Mapping ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Maps this document to a <see cref="DocViewModel"/> for Wolverine
+    /// message bus publishing and Orleans grain transport.
+    /// Mirroring <see cref="PageDocument.ToViewModel()"/>.
+    /// </summary>
+    public DocViewModel ToViewModel() => new()
+    {
+        Id = Id,
+        SiteId = SiteId,
+        TranslationGroupId = TranslationGroupId,
+        Culture = Culture,
+        Slug = Slug,
+        Title = Title,
+        Summary = Summary,
+        MarkdownContent = MarkdownContent,
+        SeoTitle = SeoTitle,
+        SeoDescription = SeoDescription,
+        PublicationState = PublicationState,
+        PublishedOn = PublishedOn,
+        ShowHeaderNavigation = ShowHeaderNavigation,
+        HeaderImageUrl = HeaderImageUrl,
+        ParentId = ParentId,
+        Order = Order,
+        PublishedVersion = PublishedVersion,
+        BlockSchemaVersion = BlockSchemaVersion,
+        CreatedOn = CreatedOn,
+        ModifiedOn = ModifiedOn,
+        CreatedBy = CreatedBy,
+        ModifiedBy = ModifiedBy
+    };
 }

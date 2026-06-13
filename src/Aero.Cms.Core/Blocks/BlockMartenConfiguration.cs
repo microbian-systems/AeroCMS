@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Core.Blocks.Dynamic;
 using Marten;
 
 namespace Aero.Cms.Core.Blocks;
@@ -10,10 +11,22 @@ public sealed class BlockMartenConfiguration : IConfigureMarten
 {
     public void Configure(IServiceProvider services, StoreOptions options)
     {
-        var mappedTypes = GeneratedBlockModelManifest.Blocks.Values
-            .Select(descriptor => new MappedType(descriptor.ModelType, descriptor.BlockType))
+        var generatedTypes = GeneratedBlockModelManifest.Blocks.Values
+            .Select(descriptor => new CmsBlockModelRegistration(descriptor.BlockType, descriptor.ModelType));
+
+        var providedTypes = services.GetServices<ICmsBlockModelProvider>()
+            .SelectMany(provider => provider.GetBlockModels());
+
+        var mappedTypes = generatedTypes
+            .Concat(providedTypes)
+            .GroupBy(registration => registration.BlockType, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .Select(registration => new MappedType(registration.ModelType, registration.BlockType))
             .ToArray();
 
         options.Schema.For<BlockBase>().AddSubClassHierarchy(mappedTypes);
+        options.Schema.For<DynamicBlockDefinition>()
+            .Index(x => x.ContentTypeId)
+            .Index(x => x.SiteId);
     }
 }

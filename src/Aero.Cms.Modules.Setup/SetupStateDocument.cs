@@ -20,4 +20,5 @@ public sealed class SetupStateDocument
     public long? CreatedSiteId { get; set; }
     public string? Hostname { get; set; }
     public string? DefaultCulture { get; set; }
+    public List<string> SupportedCultures { get; set; } = [];
 }

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Aero.Core;
 using Aero.Core.Railway;
 using Aero.Core.Security;
+using Microsoft.Extensions.Logging;
 using Scriban;
 using Scriban.Syntax;
 
@@ -43,6 +44,12 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
         if (validationResult is Result<NoneType, AeroError>.Failure validationFailure)
         {
             return validationFailure.Error;
+        }
+
+        var dataValidationResult = validator.ValidateData(data, definition.DataSchema);
+        if (dataValidationResult is Result<NoneType, AeroError>.Failure dataValidationFailure)
+        {
+            return dataValidationFailure.Error;
         }
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

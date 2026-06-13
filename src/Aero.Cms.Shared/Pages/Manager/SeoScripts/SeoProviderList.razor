@@ -1,0 +1,95 @@
+@page "/manager/seo"
+@page "/manager/seo/general"
+@attribute [Authorize]
+@using Aero.Cms.Abstractions.Http.Clients
+@using Microsoft.Extensions.Localization
+
+<PageTitle>@L["SEO"]</PageTitle>
+
+<div class="pe-page-content space-y-6">
+    <div class="flex items-center justify-between gap-4">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wide" style="color: var(--pe-text-muted);">@L["Tracking scripts"]</p>
+            <h1 class="text-2xl font-bold pe-heading">@L["SEO Scripts"]</h1>
+            <p class="mt-1 text-sm pe-description">@L["Manage analytics and tracking providers rendered by the public site layout."]</p>
+        </div>
+        <div class="flex gap-3">
+            <RadzenButton Icon="refresh"
+                          Text="@L["Refresh"]"
+                          ButtonStyle="ButtonStyle.Secondary"
+                          Click="@LoadAsync"
+                          Disabled="@_isLoading" />
+        </div>
+    </div>
+
+    <RadzenDataGrid @ref="_grid"
+                    Data="@_providers"
+                    TItem="SeoProviderSummary"
+                    IsLoading="@_isLoading"
+                    AllowPaging="true"
+                    AllowSorting="true"
+                    PageSize="10"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    ShowPagingSummary="true"
+                    RowClick="@OnRowClick"
+                    class="aero-grid cursor-pointer"
+                    EmptyText="@L["No SEO providers found."]">
+        <Columns>
+            <RadzenDataGridColumn TItem="SeoProviderSummary" Property="Name" Title="@L["Provider"]" MinWidth="280px">
+                <Template Context="provider">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-medium" style="color: var(--pe-text-primary);">@provider.Name</span>
+                        <span class="text-sm" style="color: var(--pe-text-secondary);">@provider.Description</span>
+                        <code class="text-xs" style="color: var(--pe-text-muted);">@provider.Key</code>
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="SeoProviderSummary" Property="TrackingId" Title="@L["Tracking ID"]" MinWidth="220px">
+                <Template Context="provider">
+                    @if (provider.Enabled)
+                    {
+                        <code class="text-xs" style="color: var(--pe-text-secondary);">@provider.TrackingId</code>
+                    }
+                    else
+                    {
+                        <span style="color: var(--pe-text-muted);">-</span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="SeoProviderSummary" Property="Enabled" Title="@L["Status"]" Width="150px">
+                <Template Context="provider">
+                    @if (provider.Enabled)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@L["Enabled"]" />
+                    }
+                    else
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@L["Disabled"]" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="SeoProviderSummary" Property="LastModified" Title="@L["Last Modified"]" Width="180px">
+                <Template Context="provider">
+                    <span style="color: var(--pe-text-secondary);">@(provider.LastModified?.ToLocalTime().ToString("g") ?? "-")</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="SeoProviderSummary" Title="@L["Actions"]" Width="180px" Sortable="false" TextAlign="TextAlign.Right">
+                <Template Context="provider">
+                    <div class="flex items-center justify-end gap-2" @onclick:stopPropagation="true">
+                        <RadzenButton Icon="edit"
+                                      Text="@L["Edit"]"
+                                      ButtonStyle="ButtonStyle.Secondary"
+                                      Size="ButtonSize.Small"
+                                      Click="@(() => EditProvider(provider.Key))" />
+                        <RadzenButton Icon="power_settings_new"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      Variant="Variant.Outlined"
+                                      Size="ButtonSize.Small"
+                                      Disabled="@(!provider.Enabled)"
+                                      Click="@(() => DisableProviderAsync(provider.Key))" />
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</div>

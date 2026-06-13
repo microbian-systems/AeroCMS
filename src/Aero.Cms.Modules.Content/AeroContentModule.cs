@@ -1,23 +1,23 @@
+using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Content;
-using Aero.Cms.Core.Content.Indexing;
-using Aero.Cms.Core.Content.Jobs;
-using Aero.Cms.Core.Content.Rendering;
-using Aero.Cms.Core.Content.Services;
 using Aero.Cms.Core.Extensions;
+using Aero.Cms.Modules.Content.Areas.Api.v1;
+using Aero.Cms.Modules.Content.Rendering;
+using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
-using Marten;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Content;
 
-[Module(nameof(AeroContentModule))]
-public sealed class AeroContentModule : AeroModuleBase, IContentDefinitionModule
+[Module(nameof(ContentModule))]
+public sealed class ContentModule : AeroWebModule, IContentDefinitionModule
 {
-    public override string Name => nameof(AeroContentModule);
+    public override string Name => nameof(ContentModule);
 
     public override string Version => AeroConstants.Version;
 
@@ -38,6 +38,22 @@ public sealed class AeroContentModule : AeroModuleBase, IContentDefinitionModule
     {
         // Register the entire content type system via the extension method
         services.AddContentTypeSystem();
+
+        // Public URL rendering for content types
+        services.AddScoped<ContentTypeUrlRenderer>();
+        services.AddRazorPages()
+            .AddApplicationPart(typeof(ContentModule).Assembly);
+        services.Configure<RazorPagesOptions>(options =>
+            options.Conventions.AddAreaPageRoute(
+                "Content",
+                "/PublicContent",
+                "/content/{typeAlias}/{entrySlug}"));
+
+        // Grain-backed actors — direct injection for thin API controllers
+        services.AddSingleton<IAeroContentItemActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroContentItemActor>(0, "aero"));
+        services.AddSingleton<IAeroContentTypeActor>(sp =>
+            sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroContentTypeActor>(0, "aero"));
     }
 
     public override void Configure(IAeroModuleBuilder builder)
@@ -56,17 +72,27 @@ public sealed class AeroContentModule : AeroModuleBase, IContentDefinitionModule
         // Marten document configuration for the content type system
         opts.Schema.For<ContentTypeDocument>()
             .Identity(x => x.Id)
-            .DocumentAlias("content_type_definitions")
-            .Index(x => x.SiteId);
+            .DocumentAlias(Schemas.Tables.ContentTypes)
+            .Index(x => x.SiteId)
+            .UniqueIndex(x => x.SiteId, x => x.Alias);
 
         opts.Schema.For<ContentItem>()
-            .DocumentAlias("content_items")
+            .DocumentAlias(Schemas.Tables.ContentItems)
             .Index(x => x.SiteId)
             .Index(x => x.Slug)
             .Index(x => x.ContentTypeAlias);
 
         opts.Schema.For<ContentItemVersion>()
-            .DocumentAlias("content_item_versions")
+            .DocumentAlias(Schemas.Tables.ContentItemVersions)
             .Index(x => x.ContentItemId);
+    }
+
+    public override Task RunAsync(IEndpointRouteBuilder builder)
+    {
+        builder.MapContentTypesApi();
+        builder.MapContentItemsApi();
+        builder.MapBlocksApi();
+
+        return Task.CompletedTask;
     }
 }

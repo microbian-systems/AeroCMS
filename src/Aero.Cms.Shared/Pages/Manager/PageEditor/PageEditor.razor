@@ -3,493 +3,496 @@
 @attribute [Authorize]
 
 @* @layout _PageEditorLayout *@
-@using Aero.Cms.Abstractions.Blocks
-@using Aero.Cms.Abstractions.Blocks.Common
-@using Aero.Cms.Abstractions.Blocks.Layout
 @using Aero.Cms.Abstractions.Enums
-@using Aero.Cms.Core.Blocks
-@using Aero.Cms.Shared.Blocks.Rendering
-@using Aero.Cms.Shared.Layout
+@using Aero.Cms.Shared.Pages.Manager.PageTree
 @using Microsoft.AspNetCore.Components.Sections
-@using Aero.Cms.Core
 @using Aero.Cms.Shared.Components
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.Palette
 
-@* ── Editor area (Content) ───────────────────────────── *@
-@* Note: .pe-editor-area is now provided by ManagerShellLayout *@
-@* We just need to handle the internal page header and block container *@
-
+@* ── Orchestrator: composes sub-components and owns page-level state ── *@
+<CascadingValue Value="this">
 <div class="pe-tabs" style="background: var(--pe-bg-secondary); border-bottom: 1px solid var(--pe-border); display: flex; padding: 8px 8px 0; gap: 4px;">
     <button class="@TabBtnClass("editor")" 
             @onclick='() => ActiveTab = "editor"'>
-        Content Editor
+        @L["Content Editor"]
     </button>
     <button class="@TabBtnClass("metadata")" 
             @onclick='() => ActiveTab = "metadata"'>
-        Metadata
+        @L["Metadata"]
+    </button>
+    <button class="@TabBtnClass("translations")"
+            @onclick='() => ActiveTab = "translations"'>
+        @L["Culture / Translations"]
     </button>
 </div>
 
 @if (ActiveTab == "editor")
 {
-@* Page header (edit mode) *@
-@if (!PreviewMode)
-{
-    <div class="pe-page-header">
-        <input class="pe-page-title-input" type="text" placeholder="Page Title"
-               value="@PageTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)"/>
-        <div class="pe-page-meta">
-            <div class="pe-meta-left">
-                <span class="pe-meta-item">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    Last saved: <strong>@LastSaved</strong>
-                </span>
-                <span class="pe-meta-item">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    @Author
-                </span>
-            </div>
-            <div class="pe-meta-right">
-                <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="TogglePreview">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                    Preview
-                </button>
-                <button class="pe-btn @(IsSaving ? "pe-btn-secondary" : "pe-btn-primary") pe-btn-sm" @onclick="SavePage" disabled="@IsSaving">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                        <polyline points="17 21 17 13 7 13 7 21"/>
-                        <polyline points="7 3 7 8 15 8"/>
-                    </svg>
-                    @(IsSaving ? "Saving..." : "Save")
-                </button>
-                @if (PublicationState == ContentPublicationState.Published)
-                {
-                    <button class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="UnpublishPage">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                        Unpublish
-                    </button>
-                }
-                else
-                {
-                    <button class="pe-btn pe-btn-success pe-btn-sm" @onclick="PublishPage">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                        Publish
-                    </button>
-                }
-            </div>
-        </div>
-    </div>
-}
+    @* Inline preview icon *@
+    <button class="pe-btn pe-btn-ghost pe-btn-sm absolute top-3 left-3 z-10" @onclick="TogglePreview" title="@L["Preview page"]">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+        </svg>
+    </button>
 
-@* Blocks canvas *@
-<div class="pe-blocks-container @(PreviewMode ? "pe-hidden" : "")"
-     @ondragover:preventDefault
-     @ondrop="OnDropCanvas">
-
-    @* Empty state *@
-    @if (Blocks.Count == 0)
+    @if (!PreviewMode)
     {
-        <div class="pe-empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
-                 style="cursor: pointer" @onclick="() => RightSidebarCollapsed = false">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <line x1="12" y1="8" x2="12" y2="16"/>
-                <line x1="8" y1="12" x2="16" y2="12"/>
-            </svg>
-            <h3>Start building your page</h3>
-            <p>Drag blocks from the sidebar or click to add them here</p>
-        </div>
+        <PageEditorHeader Title="@PageTitle"
+                          LastSaved="@LastSaved"
+                          Author="@Author"
+                          IsSaving="@IsSaving"
+                          PublicationState="@PublicationState"
+                          OnTitleChanged="OnTitleChanged"
+                          OnTogglePreview="TogglePreview"
+                          OnSave="SavePage"
+                          OnPublish="PublishPage"
+                          OnUnpublish="UnpublishPage" />
     }
 
-    @* Block list *@
-    @for (var i = 0; i < Blocks.Count; i++)
-    {
-        var block = Blocks[i];
-        var index = i; // capture for lambda
-        var isSelected = SelectedBlockId == block.EditorId;
-
-        <div class="pe-block-wrapper @(isSelected ? "selected" : "") @(DraggedBlockId == block.EditorId ? "dragging" : "") @(DragOverIndex == index ? "drag-over" : "")"
-             @onclick="() => SelectBlock(block.EditorId)"
-             draggable="true"
-             @ondragstart="e => DragStartBlock(e, block.EditorId, index)"
-             @ondragover="e => DragOverBlock(e, index)"
-             @ondragover:preventDefault
-             @ondrop="e => DropBlock(e, index)"
-             @ondrop:stopPropagation>
-
-            @* Toolbar *@
-            @if (isSelected)
-            {
-                <div class="pe-block-toolbar">
-                    <button class="pe-toolbar-btn" title="Move up"
-                            disabled="@(index == 0)"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => MoveBlockUp(index)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="18 15 12 9 6 15"/>
-                        </svg>
-                    </button>
-                    <button class="pe-toolbar-btn" title="Move down"
-                            disabled="@(index == Blocks.Count - 1)"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => MoveBlockDown(index)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    </button>
-                    <button class="pe-toolbar-btn" title="Duplicate"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => DuplicateBlock(index)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
-                    </button>
-                    <button class="pe-toolbar-btn delete" title="Delete"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => DeleteBlock(index)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
-                    </button>
-                </div>
-            }
-
-            <div class="pe-block-content">
-                @RenderBlock(block, isSelected)
-            </div>
-        </div>
-    }
-</div>
+    <PageEditorCanvas Blocks="@Blocks"
+                      SelectedBlockId="@SelectedBlockId"
+                      PreviewMode="@PreviewMode"
+                      OnToggleSidebar="ToggleSidebarPanels"
+                      OnSelectBlock="SelectBlock"
+                      OnOpenBlockEditor="OpenBlockEditor"
+                      OnMoveBlockUp="MoveBlockUp"
+                      OnMoveBlockDown="MoveBlockDown"
+                      OnDuplicateBlock="DuplicateBlock"
+                      OnDeleteBlock="DeleteBlock"
+                      OnCanvasReordered="OnCanvasReordered"
+                      OnCatalogItemTransferred="OnCatalogItemTransferred" />
 }
 else if (ActiveTab == "metadata")
 {
     <div class="p-6 rounded-lg shadow-sm m-4 space-y-6 max-w-4xl" style="background: var(--pe-bg-secondary); color: var(--pe-text-primary);">
-        <h2 class="text-xl font-semibold mb-4" style="color: var(--pe-text-primary);">Page Metadata</h2>
+        <h2 class="text-xl font-semibold mb-4" style="color: var(--pe-text-primary);">@L["Page Metadata"]</h2>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Page Title</label>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Page Title"]</label>
                     <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                           value="@PageTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. About Us" />
+                           value="@PageTitle" @oninput="e => OnTitleChanged(e.Value?.ToString() ?? string.Empty)" placeholder="@L["e.g. About Us"]" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">URL Slug</label>
-                    <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
-                           style="background: var(--pe-bg-primary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
-                           value="@PageSlug" @oninput="e => OnSlugChanged(e.Value?.ToString() ?? string.Empty)" placeholder="e.g. about-us" />
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["URL Slug"]</label>
+                    <div class="flex items-center" style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); border-radius: 0.375rem;">
+                        @if (ParentId.HasValue && ParentId > 0)
+                        {
+                            <span class="inline-flex items-center px-2 py-1 text-xs font-mono rounded-l-md"
+                                  style="background: var(--pe-primary); color: white; flex-shrink: 0;">
+                                @ParentSlugPrefix/
+                            </span>
+                        }
+                        <input type="text" class="flex-1 rounded-r-md shadow-none border-0 text-sm font-mono"
+                               style="background: transparent; color: var(--pe-primary);"
+                               value="@PageSlug" @oninput="e => OnSlugChanged(e.Value?.ToString() ?? string.Empty)" placeholder="@L["e.g. about-us"]" />
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">Summary / Excerpt</label>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Parent Page"]</label>
+                    <PageTreeSelect @bind-SelectedParentId="ParentId"
+                                    ExcludePageId="@Id"
+                                    Placeholder="@L["(root — no parent)"]" />
+                    <PathPreview ParentId="ParentId" Slug="@PageSlug" ExcludePageId="@Id" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Summary / Excerpt"]</label>
                     <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
                               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                              @bind="Summary" placeholder="Brief description..."></textarea>
+                              @bind="Summary" placeholder="@L["Brief description..."]"></textarea>
                 </div>
                 <div class="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="metaChkNav" @bind="ShowInNavMenu" class="h-4 w-4 rounded" 
                            style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
-                    <label for="metaChkNav" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Show in Navigation Menu</label>
+                    <label for="metaChkNav" class="text-sm font-medium" style="color: var(--pe-text-secondary);">@L["Show in Navigation Menu"]</label>
                 </div>
                 <div class="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="metaChkHeaderNav" @bind="ShowHeaderNavigation" class="h-4 w-4 rounded"
                            style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
-                    <label for="metaChkHeaderNav" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Show Site Navigation</label>
+                    <label for="metaChkHeaderNav" class="text-sm font-medium" style="color: var(--pe-text-secondary);">@L["Show Site Navigation"]</label>
                 </div>
                 <div class="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="metaChkFooter" @bind="HideFooter" class="h-4 w-4 rounded"
                            style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
-                    <label for="metaChkFooter" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Hide Footer</label>
+                    <label for="metaChkFooter" class="text-sm font-medium" style="color: var(--pe-text-secondary);">@L["Hide Footer"]</label>
                 </div>
                 <div class="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="metaChkChat" @bind="ShowChatAgent" class="h-4 w-4 rounded"
                            style="background: var(--pe-bg-primary); border-color: var(--pe-border); color: var(--pe-primary);" />
-                    <label for="metaChkChat" class="text-sm font-medium" style="color: var(--pe-text-secondary);">Show Chat Agent</label>
+                    <label for="metaChkChat" class="text-sm font-medium" style="color: var(--pe-text-secondary);">@L["Show Chat Agent"]</label>
                 </div>
             </div>
             
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">SEO Meta Title</label>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["SEO Meta Title"]</label>
                     <input type="text" class="w-full rounded-md shadow-sm sm:text-sm"
                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                           @bind="SeoTitle" placeholder="Custom Browser Title" />
+                           @bind="SeoTitle" placeholder="@L["Custom Browser Title"]" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">SEO Meta Description</label>
+                    <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["SEO Meta Description"]</label>
                     <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
                               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
-                              @bind="SeoDescription" placeholder="Description for search engines..."></textarea>
+                              @bind="SeoDescription" placeholder="@L["Description for search engines..."]"></textarea>
                 </div>
             </div>
         </div>
 
         <div class="mt-8 pt-6 border-t" style="border-top-color: var(--pe-border);">
-            <h3 class="text-lg font-medium mb-4" style="color: var(--pe-text-primary);">Publishing &amp; History</h3>
+            <h3 class="text-lg font-medium mb-4" style="color: var(--pe-text-primary);">@L["Publishing & History"]</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-md border" 
                  style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
                 <div>
-                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">Status</span>
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">@L["Status"]</span>
                     @if (PublicationState == ContentPublicationState.Published)
                     {
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
                               style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">
-                            Published
+                            @L["Published"]
                         </span>
                     }
                     else
                     {
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
                               style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
-                            Draft
+                            @L["Draft"]
                         </span>
                     }
                 </div>
                 <div>
-                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">Date Created</span>
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">@L["Date Created"]</span>
                     <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@(LoadedPage?.CreatedAt.ToShortDateString() ?? "-")</span>
                 </div>
                 <div>
-                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">Date Modified</span>
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">@L["Date Modified"]</span>
                     <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@(LoadedPage?.UpdatedAt.ToShortDateString() ?? "-")</span>
                 </div>
             </div>
+
+            @if (Id.HasValue)
+            {
+                <div class="mt-3">
+                    <button class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="ShowHistoryAsync">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        @L["Version History"]
+                    </button>
+                </div>
+            }
         </div>
+    </div>
+}
+else if (ActiveTab == "translations")
+{
+    <div class="p-6 rounded-lg shadow-sm m-4 space-y-6 max-w-5xl" style="background: var(--pe-bg-secondary); color: var(--pe-text-primary);">
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div>
+                <h2 class="text-xl font-semibold" style="color: var(--pe-text-primary);">@L["Culture / Translations"]</h2>
+                <p class="text-sm mt-1" style="color: var(--pe-text-muted);">
+                    @if (Id.HasValue)
+                    {
+                        @L["Manage localized versions for this page."]
+                    }
+                    else
+                    {
+                        @L["Save this page before creating localized versions."]
+                    }
+                </p>
+            </div>
+            @if (LoadedPage?.TranslationGroupId is { } translationGroupId)
+            {
+                <span class="text-xs font-mono px-2 py-1 rounded"
+                      style="background: var(--pe-bg-primary); color: var(--pe-text-muted); border: 1px solid var(--pe-border);">
+                    Group @translationGroupId
+                </span>
+            }
+        </div>
+
+        @if (!Id.HasValue)
+        {
+            <div class="rounded-md border p-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                <p class="text-sm" style="color: var(--pe-text-muted);">@L["Save the page before creating translation variants."]</p>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="rounded-md border p-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">@L["Current Variant"]</span>
+                    <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@FormatCulture(LoadedPage?.Culture)</span>
+                </div>
+                <div class="rounded-md border p-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">@L["Default Culture"]</span>
+                    <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@FormatCulture(CurrentSite?.DefaultCulture)</span>
+                </div>
+                <div class="rounded-md border p-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    <span class="block text-xs font-semibold uppercase tracking-wider mb-1" style="color: var(--pe-text-muted);">@L["Coverage"]</span>
+                    <span class="text-sm font-medium" style="color: var(--pe-text-primary);">@L["{0} of {1} site cultures", PageCultureVariants.Count, SupportedCultures.Count]</span>
+                </div>
+            </div>
+
+            <div class="rounded-md border overflow-hidden" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                <div class="px-4 py-3 border-b flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3" style="border-color: var(--pe-border);">
+                    <div>
+                        <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Localized Versions"]</h3>
+                        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">@L["Open a variant to edit its translated title, slug, metadata, and content."]</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button"
+                                class="pe-btn pe-btn-success pe-btn-sm"
+                                disabled="@(IsBulkPublishingTranslations || PageCultureVariants.Count == 0)"
+                                @onclick="PublishAllTranslationsAsync">
+                            @(IsBulkPublishingTranslations ? L["Working..."] : L["Publish All"])
+                        </button>
+                        <button type="button"
+                                class="pe-btn pe-btn-secondary pe-btn-sm"
+                                disabled="@(IsBulkPublishingTranslations || PageCultureVariants.Count == 0)"
+                                @onclick="UnpublishAllTranslationsAsync">
+                            @(IsBulkPublishingTranslations ? L["Working..."] : L["Unpublish All"])
+                        </button>
+                        @if (AvailableTranslationCultures.Any())
+                        {
+                            <span class="rounded bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
+                                @L["{0} missing", AvailableTranslationCultures.Count()]
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="rounded px-2 py-1 text-xs font-semibold" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">
+                                @L["Complete"]
+                            </span>
+                        }
+                        <button type="button"
+                                class="pe-btn pe-btn-primary pe-btn-sm"
+                                disabled="@IsTranslatingAll"
+                                @onclick="TranslateAllCulturesAsync">
+                            @(IsTranslatingAll ? L["Translating..."] : L["AI Translate All"])
+                        </button>
+                        <label class="inline-flex items-center gap-2 text-xs" style="color: var(--pe-text-secondary);">
+                            <input type="checkbox" @bind="OverwriteExistingTranslations" />
+                            @L["Overwrite existing translations"]
+                        </label>
+                    </div>
+                </div>
+
+                @if (IsLoadingTranslations)
+                {
+                    <div class="p-4 text-sm" style="color: var(--pe-text-muted);">@L["Loading translations..."]</div>
+                }
+                else if (PageCultureVariants.Count == 0)
+                {
+                    <div class="p-4 text-sm" style="color: var(--pe-text-muted);">@L["No translation variants found."]</div>
+                }
+                else
+                {
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead style="background: var(--pe-bg-tertiary); color: var(--pe-text-muted);">
+                                <tr>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Culture"]</th>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Title"]</th>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Path"]</th>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Status"]</th>
+                                    <th class="px-4 py-2 text-left font-semibold">@L["Actions"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var variant in PageCultureVariants)
+                                {
+                                    var isCurrent = LoadedPage?.Id == variant.Id;
+                                    var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
+                                    <tr class="border-t @(isCurrent ? "bg-blue-50" : "")" style="border-color: var(--pe-border); color: var(--pe-text-primary);">
+                                        <td class="px-4 py-3">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="font-semibold">@FormatCulture(variant.Culture)</span>
+                                                @if (isDefault)
+                                                {
+                                                    <span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">@L["Default"]</span>
+                                                }
+                                                @if (isCurrent)
+                                                {
+                                                    <span class="rounded px-2 py-0.5 text-xs font-semibold" style="background: var(--pe-bg-secondary); color: var(--pe-text-secondary);">@L["Current"]</span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">@variant.Title</td>
+                                        <td class="px-4 py-3 font-mono text-xs" style="color: var(--pe-text-muted);">@variant.Path</td>
+                                        <td class="px-4 py-3">
+                                            @if (variant.PublicationState == ContentPublicationState.Published)
+                                            {
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">@L["Published"]</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">@L["Draft"]</span>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex gap-1">
+                                                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => OpenPublicTranslation(variant)">
+                                                    @L["Open"]
+                                                </button>
+                                                <button type="button"
+                                                        class="pe-btn pe-btn-ghost pe-btn-sm"
+                                                        disabled="@(isCurrent || TranslatingCultures.Contains(variant.Culture))"
+                                                        @onclick="() => TranslateCultureAsync(variant)">
+                                                    @(TranslatingCultures.Contains(variant.Culture) ? L["Translating..."] : L["AI Translate"])
+                                                </button>
+                                                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" disabled="@isCurrent" @onclick="() => OpenTranslation(variant.Id)">
+                                                    @L["Edit"]
+                                                </button>
+                                                @if (!isDefault)
+                                                {
+                                                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="() => DeleteTranslationAsync(variant)">
+                                                        @L["Delete"]
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            @if (AvailableTranslationCultures.Any())
+            {
+                <div class="rounded-md border p-4 space-y-4" style="background: var(--pe-bg-primary); border-color: var(--pe-border);">
+                    <div>
+                        <h3 class="text-sm font-semibold" style="color: var(--pe-text-primary);">@L["Add Translation"]</h3>
+                        <p class="text-xs mt-1" style="color: var(--pe-text-muted);">@L["Creates a draft copy that you can localize after opening the new variant."]</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-[220px_1fr_auto] gap-3 items-end">
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Target Culture"]</label>
+                            <select class="w-full rounded-md shadow-sm sm:text-sm"
+                                    style="background: var(--pe-bg-secondary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                                    @bind="SelectedTranslationCulture">
+                                @foreach (var culture in AvailableTranslationCultures)
+                                {
+                                    <option value="@culture">@FormatCulture(culture)</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1" style="color: var(--pe-text-secondary);">@L["Translated Slug"]</label>
+                            <input type="text" class="w-full rounded-md shadow-sm sm:text-sm font-mono"
+                                   style="background: var(--pe-bg-secondary); color: var(--pe-primary); border: 1px solid var(--pe-border);"
+                                   @bind="TranslationSlug" @bind:event="oninput" placeholder="@PageSlug" />
+                            <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">@L["Leave blank to copy the current slug, or enter the translated URL segment."]</p>
+                        </div>
+                        <button type="button"
+                                class="pe-btn pe-btn-primary pe-btn-sm"
+                                disabled="@IsCreatingTranslation"
+                                @onclick="CreateTranslationAsync">
+                            @(IsCreatingTranslation ? L["Creating..."] : L["Create Translation"])
+                        </button>
+                    </div>
+                </div>
+            }
+        }
     </div>
 }
 
 @* Right sidebar content *@
 <SectionContent SectionName="RightSidebar">
-    <AeroSidebar Title="Blocks" Side="SidebarSide.Right" @bind-IsCollapsed="RightSidebarCollapsed">
+    <AeroSidebar Title="@L["Blocks"]" Side="SidebarSide.Right" @bind-IsCollapsed="RightSidebarCollapsed">
         <div class="pe-blocks-sidebar">
-            @* UI category *@
+            @* ── Catalog-driven Aero UI section ── *@
             <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("content")'
+                <button class="pe-category-header" @onclick='() => ToggleCategory("aeroui")'
                         data-pe-tooltip-target
-                        data-pe-tooltip="@(RightSidebarCollapsed ? "UI" : null)"
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Aero UI"] : null)"
                         data-pe-tooltip-placement="left">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="16" y1="13" x2="8" y2="13"/>
-                        <line x1="16" y1="17" x2="8" y2="17"/>
-                        <polyline points="10 9 9 9 8 9"/>
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
                     </svg>
                     @if (!RightSidebarCollapsed)
                     {
-                        @:UI
-                        <svg class="pe-chevron @(CategoryContent ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        @L["Aero UI"]
+                        <svg class="pe-chevron @(CategoryAeroUi ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     }
                 </button>
-                @if (CategoryContent)
+                @if (CategoryAeroUi)
                 {
-                    <div class="pe-category-items">
-                        <SidebarBlockItem Label="Boring Hero" @ondragstart='e => DragStart(e, "boring_hero")' OnClick='() => AddBlock("boring_hero")'>
-                            <rect x="3" y="4" width="18" height="16" rx="2"/>
-                            <line x1="7" y1="10" x2="17" y2="10"/>
-                            <line x1="7" y1="14" x2="14" y2="14"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Hero" @ondragstart='e => DragStart(e, "hero")' OnClick='() => AddBlock("hero")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <line x1="3" y1="9" x2="21" y2="9"/>
-                            <line x1="9" y1="21" x2="9" y2="9"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Text" @ondragstart='e => DragStart(e, "text")' OnClick='() => AddBlock("text")'>
-                            <polyline points="4 7 4 4 20 4 20 7"/>
-                            <line x1="9" y1="20" x2="15" y2="20"/>
-                            <line x1="12" y1="4" x2="12" y2="20"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Columns" @ondragstart='e => DragStart(e, "columns")' OnClick='() => AddBlock("columns")'>
-                            <rect x="3" y="3" width="7" height="18"/>
-                            <rect x="14" y="3" width="7" height="18"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Auth" 
-                                          @ondragstart='e => DragStart(e, "aero_auth")'
-                                          OnClick='() => AddBlock("aero_auth")'>
-                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Rich Text" @ondragstart='e => DragStart(e, "content")' OnClick='() => AddBlock("content")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <line x1="3" y1="9" x2="21" y2="9"/>
-                            <line x1="9" y1="21" x2="9" y2="9"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Markdown" @ondragstart='e => DragStart(e, "markdown")' OnClick='() => AddBlock("markdown")'>
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Raw HTML" @ondragstart='e => DragStart(e, "raw_html")' OnClick='() => AddBlock("raw_html")'>
-                            <polyline points="16 18 22 12 16 6"/>
-                            <polyline points="8 6 2 12 8 18"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Scriban" @ondragstart='e => DragStart(e, "dynamic_template")' OnClick='() => AddBlock("dynamic_template")'>
-                            <path d="M4 4h16v16H4z"/>
-                            <path d="M8 9h8"/>
-                            <path d="M8 13h5"/>
-                            <path d="M8 17h8"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Quote" @ondragstart='e => DragStart(e, "quote")' OnClick='() => AddBlock("quote")'>
-                            <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Separator" @ondragstart='e => DragStart(e, "separator")' OnClick='() => AddBlock("separator")'>
-                            <line x1="5" y1="12" x2="19" y2="12"/>
-                        </SidebarBlockItem>
-                    </div>
-                }
-            </div>
- 
-            @* Aero Meraki category *@
-            <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("aero")'
-                        data-pe-tooltip-target
-                        data-pe-tooltip="@(RightSidebarCollapsed ? "Aero UX" : null)"
-                        data-pe-tooltip-placement="left">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                    </svg>
-                    @if (!RightSidebarCollapsed)
-                    {
-                        @:Aero UX
-                        <svg class="pe-chevron @(CategoryAero ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    }
-                </button>
-                @if (CategoryAero)
-                {
-                    <div class="pe-category-items">
-                        <SidebarBlockItem Label="Hero" 
-                                          @ondragstart='e => DragStart(e, "aero_hero")'
-                                          OnClick='() => AddBlock("aero_hero")'>
-                            
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Features" 
-                                          @ondragstart='e => DragStart(e, "aero_features")'
-                                          OnClick='() => AddBlock("aero_features")'>
-                            
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                <polyline points="22 4 12 14.01 9 11.01"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="CTA" 
-                                          @ondragstart='e => DragStart(e, "aero_cta")'
-                                          OnClick='() => AddBlock("aero_cta")'>
-                            
-                                <path d="M11 5L6 9H2V15H6L11 19V5Z"/>
-                                <path d="M19.07 4.93C20.946 6.806 22 9.351 22 12C22 14.649 20.946 17.194 19.07 19.07"/>
-                                <path d="M15.54 8.46C16.477 9.398 17 10.669 17 12C17 13.331 16.477 14.602 15.54 15.54"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Blog" 
-                                          @ondragstart='e => DragStart(e, "aero_blog")'
-                                          OnClick='() => AddBlock("aero_blog")'>
-                            
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="16" y1="13" x2="8" y2="13"/>
-                                <line x1="16" y1="17" x2="8" y2="17"/>
-                                <polyline points="10 9 9 9 8 9"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Pricing" 
-                                          @ondragstart='e => DragStart(e, "aero_pricing")'
-                                          OnClick='() => AddBlock("aero_pricing")'>
-                            
-                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                                <line x1="7" y1="7" x2="7.01" y2="7"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Teams" 
-                                          @ondragstart='e => DragStart(e, "aero_teams")'
-                                          OnClick='() => AddBlock("aero_teams")'>
-                            
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                <circle cx="9" cy="7" r="4"/>
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Testimonials" 
-                                          @ondragstart='e => DragStart(e, "aero_testimonials")'
-                                          OnClick='() => AddBlock("aero_testimonials")'>
-                            
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="FAQ" 
-                                          @ondragstart='e => DragStart(e, "aero_faq")'
-                                          OnClick='() => AddBlock("aero_faq")'>
-                            
-                                <circle cx="12" cy="12" r="10"/>
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                                <line x1="12" y1="17" x2="12.01" y2="17"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Portfolio" 
-                                          @ondragstart='e => DragStart(e, "aero_portfolio")'
-                                          OnClick='() => AddBlock("aero_portfolio")'>
-                            
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                <line x1="3" y1="9" x2="21" y2="9"/>
-                                <line x1="9" y1="21" x2="9" y2="9"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Contact" 
-                                          @ondragstart='e => DragStart(e, "aero_contact")'
-                                          OnClick='() => AddBlock("aero_contact")'>
-                            
-                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Table" 
-                                          @ondragstart='e => DragStart(e, "aero_table")'
-                                          OnClick='() => AddBlock("aero_table")'>
-                            
-                                <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/>
-                            
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Auth" 
-                                          @ondragstart='e => DragStart(e, "aero_auth")'
-                                          OnClick='() => AddBlock("aero_auth")'>
-                            
-                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
-                            
-                        </SidebarBlockItem>
-                    </div>
+                    <PageEditorPaletteSection Items="NeoAeroCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
                 }
             </div>
 
-            @* Media category *@
             <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("media")'
+                <button class="pe-category-header" @onclick='() => ToggleCategory("legacyui")'
                         data-pe-tooltip-target
-                        data-pe-tooltip="@(RightSidebarCollapsed ? "Media" : null)"
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["UI"] : null)"
                         data-pe-tooltip-placement="left">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M7 8h10M7 12h6M7 16h8"/>
                     </svg>
                     @if (!RightSidebarCollapsed)
                     {
-                        @:Media
+                        @L["UI"]
+                        <svg class="pe-chevron @(CategoryLegacyUi ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryLegacyUi)
+                {
+                    <PageEditorPaletteSection Items="LegacyUiCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
+                }
+            </div>
+
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("aeroux")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Aero UX"] : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19V5"/>
+                        <path d="M4 5h16l-3 5 3 5H4"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @L["Aero UX"]
+                        <svg class="pe-chevron @(CategoryAeroUx ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryAeroUx)
+                {
+                    <PageEditorPaletteSection Items="AeroUxCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
+                }
+            </div>
+
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("media")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Media"] : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @L["Media"]
                         <svg class="pe-chevron @(CategoryMedia ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
@@ -497,45 +500,23 @@ else if (ActiveTab == "metadata")
                 </button>
                 @if (CategoryMedia)
                 {
-                    <div class="pe-category-items">
-                        <SidebarBlockItem Label="Image" @ondragstart='e => DragStart(e, "image")' OnClick='() => AddBlock("image")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Video" @ondragstart='e => DragStart(e, "video")' OnClick='() => AddBlock("video")'>
-                            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
-                            <line x1="7" y1="2" x2="7" y2="22"/>
-                            <line x1="17" y1="2" x2="17" y2="22"/>
-                            <line x1="2" y1="12" x2="22" y2="12"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Gallery" @ondragstart='e => DragStart(e, "gallery")' OnClick='() => AddBlock("gallery")'>
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Audio" @ondragstart='e => DragStart(e, "audio")' OnClick='() => AddBlock("audio")'>
-                            <path d="M9 18V5l12-2v13"/>
-                            <circle cx="6" cy="18" r="3"/>
-                            <circle cx="18" cy="16" r="3"/>
-                        </SidebarBlockItem>
-                    </div>
+                    <PageEditorPaletteSection Items="MediaCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
                 }
             </div>
 
-            @* References category *@
             <div class="pe-category">
                 <button class="pe-category-header" @onclick='() => ToggleCategory("references")'
                         data-pe-tooltip-target
-                        data-pe-tooltip="@(RightSidebarCollapsed ? "References" : null)"
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["References"] : null)"
                         data-pe-tooltip-placement="left">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 4.93"/>
+                        <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19.07"/>
                     </svg>
                     @if (!RightSidebarCollapsed)
                     {
-                        @:References
+                        @L["References"]
                         <svg class="pe-chevron @(CategoryReferences ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
@@ -543,33 +524,62 @@ else if (ActiveTab == "metadata")
                 </button>
                 @if (CategoryReferences)
                 {
-                    <div class="pe-category-items">
-                        <SidebarBlockItem Label="Pages" @ondragstart='e => DragStart(e, "pages")' OnClick='() => AddBlock("pages")'>
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Posts" @ondragstart='e => DragStart(e, "posts")' OnClick='() => AddBlock("posts")'>
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                            <polyline points="10 9 9 9 8 9"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Categories" @ondragstart='e => DragStart(e, "categories")' OnClick='() => AddBlock("categories")'>
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Tags" @ondragstart='e => DragStart(e, "tags")' OnClick='() => AddBlock("tags")'>
-                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                            <line x1="7" y1="7" x2="7.01" y2="7"/>
-                        </SidebarBlockItem>
-                        <SidebarBlockItem Label="Authors" @ondragstart='e => DragStart(e, "authors")' OnClick='() => AddBlock("authors")'>
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                        </SidebarBlockItem>
-                    </div>
+                    <PageEditorPaletteSection Items="ReferenceCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
                 }
             </div>
 
+            @* ── Hyper section (source-generated from [BlockMetadata] with Category="Hyper") ── *@
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("hyper")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Hyper"] : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @L["Hyper"]
+                        <svg class="pe-chevron @(CategoryHyper ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryHyper)
+                {
+                    <PageEditorPaletteSection Items="NeoHyperCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
+                }
+            </div>
+
+            @* ── Neo section ── *@
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("neo")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Neo"] : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @L["Neo"]
+                        <svg class="pe-chevron @(CategoryNeo ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (CategoryNeo)
+                {
+                    <PageEditorPaletteSection Items="NeoNeoCatalogItems.ToList()"
+                                              IsCollapsed="RightSidebarCollapsed" />
+                }
+            </div>
 
         </div>
     </AeroSidebar>
@@ -582,6 +592,34 @@ else if (ActiveTab == "metadata")
     MultiSelect="IsGalleryMode"
     OnClose="() => MediaModalOpen = false"
     OnConfirm="OnConfirmMediaSelection"/>
+
+@if (BlockEditorModalOpen && CurrentEditBlock is not null)
+{
+    <div class="pe-modal-overlay" @onclick="CloseBlockEditor">
+        <div class="pe-modal pe-block-edit-modal" @onclick:stopPropagation="true">
+            <div class="pe-modal-header">
+                <div>
+                    <div class="pe-modal-kicker">@L["Edit block"]</div>
+                    <h3>@GetBlockDisplayName(CurrentEditBlock)</h3>
+                </div>
+                <button class="pe-toolbar-btn" title="@L["Close"]" @onclick="CloseBlockEditor">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="pe-modal-body">
+                <EditorBlockPropertyPanel Block="CurrentEditBlock"
+                                          ShowHeader="false"
+                                          OnChanged="OnEditorBlockChanged" />
+            </div>
+            <div class="pe-modal-footer">
+                <button class="pe-btn pe-btn-primary pe-btn-sm" @onclick="CloseBlockEditor">@L["Done"]</button>
+            </div>
+        </div>
+    </div>
+}
 
 @* ── Toast notifications ─────────────────────────────────── *@
 <div class="pe-toast-container">
@@ -625,1245 +663,16 @@ else if (ActiveTab == "metadata")
                 UrlBarText="@(!string.IsNullOrWhiteSpace(PreviewFrameUrl) ? PreviewFrameUrl : PreviewFragmentUrl)"
                 Error="@PreviewError"
                 IsLoading="@IsPreviewRendering"
-                Title="Page preview" />
+                SuppressBrowserLinkErrors="true"
+                Title="@L["Page preview"]" />
 
-@* ── Inline render helpers ───────────────────────────────── *@
 
-@code {
+</CascadingValue>
 
-    RenderFragment RenderBlock(EditorBlock block, bool isSelected) => block.Type switch
-    {
-        "boring_hero" => RenderBoringHeroBlock(block, isSelected),
-        "hero" => RenderHeroBlock(block, isSelected),
-        "aero_hero"         => RenderAeroHeroBlock(block, isSelected),
-        "aero_features"     => RenderAeroFeaturesBlock(block, isSelected),
-        "aero_cta"          => RenderAeroCtaBlock(block, isSelected),
-        "aero_blog"         => RenderAeroBlogBlock(block, isSelected),
-        "aero_pricing"      => RenderAeroPricingBlock(block, isSelected),
-        "aero_teams"        => RenderAeroTeamsBlock(block, isSelected),
-        "aero_testimonials" => RenderAeroTestimonialsBlock(block, isSelected),
-        "aero_faq"          => RenderAeroFaqBlock(block, isSelected),
-        "aero_portfolio"    => RenderAeroPortfolioBlock(block, isSelected),
-        "aero_contact"      => RenderAeroContactBlock(block, isSelected),
-        "aero_table"        => RenderAeroTableBlock(block, isSelected),
-        "aero_auth"         => RenderAeroAuthBlock(block, isSelected),
-        "text" => RenderTextBlock(block),
-        "content" => RenderContentBlock(block),
-        "markdown" => RenderMarkdownBlock(block),
-        "quote" => RenderQuoteBlock(block),
-        "separator" => RenderSeparatorBlock(),
-        "columns" => RenderColumnsBlock(block, isSelected),
-        "image" => RenderImageBlock(block),
-        "video" => RenderVideoBlock(block),
-        "gallery" => RenderGalleryBlock(block),
-        "audio" => RenderAudioBlock(block),
-        "raw_html" => RenderHtmlBlock(block),
-        "dynamic_template" => RenderDynamicTemplateBlock(block),
-        _ => RenderReferenceBlock(block),
-    };
-
-    // -- Boring Hero -------------------------------------------------------
-    RenderFragment RenderBoringHeroBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var model = new BoringHeroBlock
-        {
-            FullWidth = true,
-            Title = b.MainText,
-            Summary = b.SubText,
-            BackgroundImageUrl = b.BackgroundImage
-        };
-
-        <div class="pe-hero-block-wrapper">
-            <BoringHeroRenderer Block="model" />
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-hero-bg-controls">
-                    <input class="pe-hero-title" type="text" placeholder="Page title"
-                           value="@b.MainText" @oninput="e => b.MainText = e.Value?.ToString() ?? string.Empty"
-                           @onfocus="() => SelectBlock(b.EditorId)" />
-                    <input class="pe-hero-subtitle" type="text" placeholder="Summary"
-                           value="@b.SubText" @oninput="e => b.SubText = e.Value?.ToString() ?? string.Empty"
-                           @onfocus="() => SelectBlock(b.EditorId)" />
-                    @if (string.IsNullOrEmpty(b.BackgroundImage))
-                    {
-                        <button class="pe-btn pe-btn-secondary pe-btn-sm"
-                                @onclick='() => OpenMediaSelector(b, false, "background")'>
-                            Add Background Image
-                        </button>
-                    }
-                    else
-                    {
-                        <button class="pe-btn pe-btn-ghost pe-btn-sm"
-                                @onclick="() => b.BackgroundImage = string.Empty">
-                            Remove Background
-                        </button>
-                    }
-                </div>
-            }
-        </div>
-    };
-
-    // ── Hero ───────────────────────────────────────────────────
-    RenderFragment RenderHeroBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var heroHeightStyle = b.FullScreen
-            ? "min-height: 100vh;"
-            : $"min-height: {Math.Max(240, b.Height)}px;";
-
-        <div class="pe-hero-block"
-             style="@($"{heroHeightStyle}{(string.IsNullOrEmpty(b.BackgroundImage) ? "" : $"background-image:url({b.BackgroundImage})")}")">
-            @if (!string.IsNullOrEmpty(b.BackgroundImage))
-            {
-                <div class="pe-hero-overlay"></div>
-            }
-            <div class="pe-hero-content">
-                <input class="pe-hero-title" type="text" placeholder="Main Headline"
-                       value="@b.MainText" @oninput="e => b.MainText = e.Value?.ToString() ?? string.Empty"
-                       @onfocus="() => SelectBlock(b.EditorId)"/>
-                <input class="pe-hero-subtitle" type="text" placeholder="Sub headline or description"
-                       value="@b.SubText" @oninput="e => b.SubText = e.Value?.ToString() ?? string.Empty"
-                       @onfocus="() => SelectBlock(b.EditorId)"/>
-                <div class="pe-hero-cta-row">
-                    <input class="pe-hero-cta-text" type="text" placeholder="Button text"
-                           value="@b.CtaText" @oninput="e => b.CtaText = e.Value?.ToString() ?? string.Empty"
-                           @onfocus="() => SelectBlock(b.EditorId)"/>
-                    <input class="pe-hero-cta-url" type="text" placeholder="Button URL"
-                           value="@b.CtaUrl" @oninput="e => b.CtaUrl = e.Value?.ToString() ?? string.Empty"
-                           @onfocus="() => SelectBlock(b.EditorId)"/>
-                </div>
-                <div class="pe-hero-bg-controls">
-                    <label class="pe-field-label">
-                        <input type="checkbox" @bind="b.FullScreen" />
-                        Full screen
-                    </label>
-                    @if (!b.FullScreen)
-                    {
-                        <input class="pe-hero-cta-url" type="number" min="240" max="1600" step="20"
-                               value="@b.Height"
-                               @oninput="e => b.Height = int.TryParse(e.Value?.ToString(), out var height) ? height : 512"
-                               @onfocus="() => SelectBlock(b.EditorId)" />
-                    }
-                    @if (string.IsNullOrEmpty(b.BackgroundImage))
-                    {
-                        <button class="pe-btn pe-btn-secondary pe-btn-sm"
-                                @onclick='() => OpenMediaSelector(b, false, "background")'>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                <circle cx="8.5" cy="8.5" r="1.5"/>
-                                <polyline points="21 15 16 10 5 21"/>
-                            </svg>
-                            Add Background Image
-                        </button>
-                    }
-                    else
-                    {
-                        <button class="pe-btn pe-btn-ghost pe-btn-sm"
-                                @onclick="() => b.BackgroundImage = string.Empty">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                <line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                            Remove Background
-                        </button>
-                    }
-                </div>
-            </div>
-        </div>
-    };
- 
-    // ── Aero Hero ──────────────────────────────────────────────
-    RenderFragment RenderAeroHeroBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var model = new AeroHeroBlock
-        {
-            Title = b.MainText,
-            Description = b.SubText,
-            Layout = Enum.TryParse<AeroHeroLayout>(b.AeroLayout, true, out var layout) ? layout : AeroHeroLayout.SideImage,
-            Buttons = new List<AeroButton>
-            {
-                new() { Text = b.CtaText, Url = b.CtaUrl, Style = Enum.TryParse<AeroButtonStyle>(b.Button1Style, true, out var s1) ? s1 : AeroButtonStyle.Primary },
-                new() { Text = b.CtaText2, Url = b.CtaUrl2, Style = Enum.TryParse<AeroButtonStyle>(b.Button2Style, true, out var s2) ? s2 : AeroButtonStyle.Secondary }
-            },
-            BackgroundImage = b.BackgroundImage
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick:stopPropagation>
-             <AeroHeroRenderer Block="model" />
-             
-             @if (sel && !PreviewMode)
-             {
-                 <div class="pe-aero-controls">
-                     <div class="pe-aero-controls-grid">
-                         <div class="pe-control-group">
-                             <label>Headline</label>
-                             <input type="text" @bind="b.MainText" @bind:event="oninput" placeholder="Main Headline" />
-                         </div>
-                         <div class="pe-control-group">
-                             <label>Description</label>
-                             <textarea @bind="b.SubText" @bind:event="oninput" placeholder="Description text..." rows="2"></textarea>
-                         </div>
-                         <div class="pe-control-group">
-                             <label>Layout</label>
-                             <select @bind="b.AeroLayout">
-                                 <option value="SideImage">Side Image (Left)</option>
-                                 <option value="CenterContent">Center Content</option>
-                                 <option value="BackgroundImage">Background Image</option>
-                             </select>
-                         </div>
-                          <div class="pe-control-group">
-                             <label>Background Image</label>
-                             <div class="pe-input-with-btn">
-                                 <input type="text" @bind="b.BackgroundImage" placeholder="Image URL..." />
-                                 <button class="pe-btn pe-btn-sm" @onclick='() => OpenMediaSelector(b, false, "background")'>
-                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                                     </svg>
-                                 </button>
-                             </div>
-                         </div>
-                         <div class="pe-control-row">
-                             <div class="pe-control-group">
-                                 <label>Primary Button</label>
-                                 <input type="text" @bind="b.CtaText" placeholder="Label" />
-                                 <input type="text" @bind="b.CtaUrl" placeholder="URL (#)" />
-                                 <select @bind="b.Button1Style">
-                                     <option value="Primary">Primary</option>
-                                     <option value="Secondary">Secondary</option>
-                                     <option value="Outline">Outline</option>
-                                 </select>
-                             </div>
-                             <div class="pe-control-group">
-                                 <label>Secondary Button</label>
-                                 <input type="text" @bind="b.CtaText2" placeholder="Label" />
-                                 <input type="text" @bind="b.CtaUrl2" placeholder="URL (#)" />
-                                 <select @bind="b.Button2Style">
-                                     <option value="Primary">Primary</option>
-                                     <option value="Secondary">Secondary</option>
-                                     <option value="Outline">Outline</option>
-                                 </select>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
-             }
-        </div>
-    };
-
-    // ── Aero Features ──────────────────────────────────────────
-    RenderFragment RenderAeroFeaturesBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroFeatures = new AeroFeaturesBlock
-        {
-            Title = b.MainText,
-            SubTitle = b.SubText,
-            Layout = Enum.TryParse<AeroFeaturesLayout>(b.AeroLayout, true, out var layout) ? layout : AeroFeaturesLayout.Simple,
-            Items = b.FeatureItems
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero Features</div>
-                
-            <AeroFeaturesRenderer Block="aeroFeatures" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-row">
-                            <div class="pe-control-group">
-                                <label>Section Title</label>
-                                <input @bind="b.MainText" @bind:event="oninput" placeholder="Enter title..." />
-                            </div>
-                            <div class="pe-control-group">
-                                <label>Layout</label>
-                                <select @bind="b.AeroLayout">
-                                    <option value="Simple">Simple</option>
-                                    <option value="Centered">Centered</option>
-                                    <option value="Cards">Cards</option>
-                                    <option value="GridList">Grid List</option>
-                                    <option value="Media">Media Grid</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.SubText" @bind:event="oninput" rows="2" placeholder="Enter description..."></textarea>
-                        </div>
-
-                        <div class="pe-features-editor">
-                            <label class="pe-label-mini">Feature Items (@b.FeatureItems.Count)</label>
-                            <div class="pe-features-list">
-                                @foreach (var item in b.FeatureItems)
-                                {
-                                    <div class="pe-feature-item-row">
-                                        <input @bind="item.Title" placeholder="Feature Title" class="pe-mini-input" />
-                                        <button class="pe-btn-icon-red" @onclick="() => b.FeatureItems.Remove(item)">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-                                    </div>
-                                }
-                                <button class="pe-btn-add-mini" @onclick='() => b.FeatureItems.Add(new AeroFeatureItem { Title = "New Feature", Description = "Description..." })'>
-                                    <i class="fa-solid fa-plus mr-1"></i> Add Feature
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero CTA ────────────────────────────────────────────────
-    RenderFragment RenderAeroCtaBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroCta = new AeroCtaBlock
-        {
-            Title = b.MainText,
-            Description = b.Description,
-            CtaText = b.CtaText,
-            CtaUrl = b.CtaUrl,
-            Layout = Enum.TryParse<AeroCtaLayout>(b.AeroLayout, true, out var layout) ? layout : AeroCtaLayout.Card
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero CTA</div>
-            <AeroCtaRenderer Block="aeroCta" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-group">
-                            <label>Headline</label>
-                            <input @bind="b.MainText" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
-                        </div>
-                        <div class="pe-control-row">
-                            <div class="pe-control-group">
-                                <label>Button Text</label>
-                                <input @bind="b.CtaText" @bind:event="oninput" />
-                            </div>
-                            <div class="pe-control-group">
-                                <label>Button URL</label>
-                                <input @bind="b.CtaUrl" @bind:event="oninput" />
-                            </div>
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Layout</label>
-                            <select @bind="b.AeroLayout">
-                                <option value="Simple">Simple</option>
-                                <option value="Card">Card</option>
-                                <option value="Split">Split</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero Blog ───────────────────────────────────────────────
-    RenderFragment RenderAeroBlogBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroBlog = new AeroBlogBlock
-        {
-            Title = b.SectionTitle,
-            Description = b.Description,
-            Posts = b.BlogPosts
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero Blog</div>
-            <AeroBlogRenderer Block="aeroBlog" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-group">
-                            <label>Section Title</label>
-                            <input @bind="b.SectionTitle" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
-                        </div>
-                        <div class="pe-list-editor">
-                            <label class="pe-label-mini">Posts (@b.BlogPosts.Count)</label>
-                            @foreach (var post in b.BlogPosts)
-                            {
-                                <div class="pe-list-item-row">
-                                    <input @bind="post.Title" placeholder="Post Title" class="pe-mini-input" />
-                                    <button class="pe-btn-icon-red" @onclick="() => b.BlogPosts.Remove(post)">
-                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                    </button>
-                                </div>
-                            }
-                            <button class="pe-btn-add-mini" @onclick='() => b.BlogPosts.Add(new AeroBlogItem { Title = "New Post", Description = "Excerpt...", PublishedAt = "Oct 2025" })'>
-                                Add Post
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero Pricing ────────────────────────────────────────────
-    RenderFragment RenderAeroPricingBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroPricing = new AeroPricingBlock
-        {
-            Title = b.PageTitle,
-            Description = b.PageDescription,
-            Plans = b.PricingPlans
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero Pricing</div>
-            <AeroPricingRenderer Block="aeroPricing" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                         <div class="pe-control-group">
-                            <label>Page Title</label>
-                            <input @bind="b.PageTitle" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.PageDescription" @bind:event="oninput" rows="2"></textarea>
-                        </div>
-                        <div class="pe-list-editor">
-                            <label class="pe-label-mini">Plans (@b.PricingPlans.Count)</label>
-                            @foreach (var plan in b.PricingPlans)
-                            {
-                                <div class="pe-list-item-row">
-                                    <input @bind="plan.Name" class="pe-mini-input" />
-                                    <input @bind="plan.Price" style="width: 60px" class="pe-mini-input" />
-                                    <button class="pe-btn-icon-red" @onclick="() => b.PricingPlans.Remove(plan)">
-                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                    </button>
-                                </div>
-                            }
-                            <button class="pe-btn-add-mini" @onclick='() => b.PricingPlans.Add(new AeroPricingPlan { Name = "New Plan", Price = "$9", Period = "mo" })'>
-                                Add Plan
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero Teams ──────────────────────────────────────────────
-    RenderFragment RenderAeroTeamsBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroTeams = new AeroTeamsBlock
-        {
-            Title = b.SectionTitle,
-            Description = b.Description,
-            Members = b.TeamMembers
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero Teams</div>
-            <AeroTeamsRenderer Block="aeroTeams" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-group">
-                            <label>Section Title</label>
-                            <input @bind="b.SectionTitle" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
-                        </div>
-                        <div class="pe-list-editor">
-                            <label class="pe-label-mini">Members (@b.TeamMembers.Count)</label>
-                            @foreach (var member in b.TeamMembers)
-                            {
-                                <div class="pe-list-item-row">
-                                    <input @bind="member.Name" placeholder="Name" class="pe-mini-input" />
-                                    <input @bind="member.Role" placeholder="Role" class="pe-mini-input" />
-                                    <button class="pe-btn-icon-red" @onclick="() => b.TeamMembers.Remove(member)">
-                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                    </button>
-                                </div>
-                            }
-                            <button class="pe-btn-add-mini" @onclick='() => b.TeamMembers.Add(new AeroTeamMember { Name = "John Smith", Role = "Team Member" })'>
-                                Add Member
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero Testimonials ──────────────────────────────────────
-    RenderFragment RenderAeroTestimonialsBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroTestimonials = new AeroTestimonialsBlock
-        {
-            Title = b.SectionTitle,
-            Description = b.Description,
-            Testimonials = b.Testimonials
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero Testimonials</div>
-            <AeroTestimonialsRenderer Block="aeroTestimonials" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-group">
-                            <label>Section Title</label>
-                            <input @bind="b.SectionTitle" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
-                        </div>
-                        <div class="pe-list-editor">
-                            <label class="pe-label-mini">Testimonials (@b.Testimonials.Count)</label>
-                            @foreach (var t in b.Testimonials)
-                            {
-                                <div class="pe-list-item-row">
-                                    <input @bind="t.AuthorName" class="pe-mini-input" />
-                                    <button class="pe-btn-icon-red" @onclick="() => b.Testimonials.Remove(t)">
-                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                    </button>
-                                </div>
-                            }
-                            <button class="pe-btn-add-mini" @onclick='() => b.Testimonials.Add(new AeroTestimonialItem { AuthorName = "Happy Client", Content = "Great work!" })'>
-                                Add Testimonial
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero FAQ ──────────────────────────────────────────────
-    RenderFragment RenderAeroFaqBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroFaq = new AeroFaqBlock
-        {
-            Title = b.Title,
-            Description = b.Description,
-            Items = b.FaqItems
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero FAQ</div>
-            <AeroFaqRenderer Block="aeroFaq" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-group">
-                            <label>Title</label>
-                            <input @bind="b.Title" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
-                        </div>
-                        <div class="pe-list-editor">
-                            <label class="pe-label-mini">Questions (@b.FaqItems.Count)</label>
-                            @foreach (var item in b.FaqItems)
-                            {
-                                <div class="pe-list-item-row">
-                                    <input @bind="item.Question" placeholder="Question" class="pe-mini-input" />
-                                    <button class="pe-btn-icon-red" @onclick="() => b.FaqItems.Remove(item)">
-                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                    </button>
-                                </div>
-                            }
-                            <button class="pe-btn-add-mini" @onclick='() => b.FaqItems.Add(new AeroFaqItem { Question = "New Question", Answer = "..." })'>
-                                Add Question
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero Portfolio ────────────────────────────────────────
-    RenderFragment RenderAeroPortfolioBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroPortfolio = new AeroPortfolioBlock
-        {
-            Title = b.Title,
-            Description = b.Description,
-            Items = b.PortfolioItems
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero Portfolio</div>
-            <AeroPortfolioRenderer Block="aeroPortfolio" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-group">
-                            <label>Title</label>
-                            <input @bind="b.Title" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
-                        </div>
-                        <div class="pe-list-editor">
-                            <label class="pe-label-mini">Projects (@b.PortfolioItems.Count)</label>
-                            @foreach (var item in b.PortfolioItems)
-                            {
-                                <div class="pe-list-item-row">
-                                    <input @bind="item.ProjectTitle" placeholder="Project Name" class="pe-mini-input" />
-                                    <button class="pe-btn-icon-red" @onclick="() => b.PortfolioItems.Remove(item)">
-                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                    </button>
-                                </div>
-                            }
-                            <button class="pe-btn-add-mini" @onclick='() => b.PortfolioItems.Add(new AeroPortfolioItem { ProjectTitle = "Project X", ProjectDescription = "Detail..." })'>
-                                Add Project
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero Contact ──────────────────────────────────────────
-    RenderFragment RenderAeroContactBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroContact = new AeroContactBlock
-        {
-            Title = b.Title,
-            Description = b.Description,
-            Details = b.ContactDetails
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero Contact</div>
-            <AeroContactRenderer Block="aeroContact" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-group">
-                            <label>Title</label>
-                            <input @bind="b.Title" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
-                        </div>
-                        <div class="pe-list-editor">
-                            <label class="pe-label-mini">Details (@b.ContactDetails.Count)</label>
-                            @foreach (var d in b.ContactDetails)
-                            {
-                                <div class="pe-list-item-row">
-                                    <input @bind="d.Label" placeholder="Label" class="pe-mini-input" />
-                                    <input @bind="d.Value" placeholder="Value" class="pe-mini-input" />
-                                    <button class="pe-btn-icon-red" @onclick="() => b.ContactDetails.Remove(d)">
-                                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                    </button>
-                                </div>
-                            }
-                            <button class="pe-btn-add-mini" @onclick='() => b.ContactDetails.Add(new AeroContactDetail { Label = "Email", Value = "hello@example.com" })'>
-                                Add Detail
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero Table ────────────────────────────────────────────
-    RenderFragment RenderAeroTableBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroTable = new AeroTableBlock
-        {
-            Title = b.Title,
-            Description = b.Description,
-            Headers = b.TableHeaders,
-            Rows = b.TableRows
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero Table</div>
-            <AeroTableRenderer Block="aeroTable" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-group">
-                            <label>Title</label>
-                            <input @bind="b.Title" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Description</label>
-                            <textarea @bind="b.Description" @bind:event="oninput" rows="2"></textarea>
-                        </div>
-                        <button class="pe-btn-add-mini" @onclick='() => { b.TableHeaders.Add(new AeroTableHeader { Label = "Header" }); b.TableRows.Add(new AeroTableRow { Cells = new List<string> { "Data" } }); }'>
-                            Setup Demo Table
-                        </button>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Aero Auth ─────────────────────────────────────────────
-    RenderFragment RenderAeroAuthBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        var aeroAuth = new AeroAuthBlock
-        {
-            Title = b.Title,
-            Description = b.Description,
-            SubmitButtonText = b.CtaText,
-            AlternativeLinkText = b.AlternativeLinkText,
-            AlternativeLinkUrl = b.AlternativeLinkUrl
-        };
-
-        <div class="pe-aero-hero-block @(sel ? "pe-selected" : "")" @onclick="() => SelectBlock(b.EditorId)" @onclick:stopPropagation>
-            <div class="pe-aero-badge">Aero Auth</div>
-            <AeroAuthRenderer Block="aeroAuth" />
-
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-aero-controls">
-                    <div class="pe-aero-controls-grid">
-                        <div class="pe-control-group">
-                            <label>Title</label>
-                            <input @bind="b.Title" @bind:event="oninput" />
-                        </div>
-                        <div class="pe-control-group">
-                            <label>Cta Text</label>
-                            <input @bind="b.CtaText" @bind:event="oninput" />
-                        </div>
-                    </div>
-                </div>
-            }
-        </div>
-    };
-
-
-    // ── Plain text ─────────────────────────────────────────────
-
-    RenderFragment RenderTextBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-text-block">
-            <textarea placeholder="Enter your text here..."
-                      @bind="b.Content"
-                      @onfocus="() => SelectBlock(b.EditorId)"></textarea>
-        </div>
-    };
-
-    // ── Rich content (RadzenHtmlEditor) ────────────────────────
-    RenderFragment RenderContentBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-content-block">
-            <RadzenHtmlEditor @bind-Value="b.Content" Style="height:300px"/>
-        </div>
-    };
-
-    // ── Markdown ───────────────────────────────────────────────
-    RenderFragment RenderMarkdownBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-markdown-block">
-            <div class="pe-markdown-tabs">
-                <button class='pe-tab-btn @(b.MarkdownView == "edit" ? "active" : "")'
-                        @onclick='() => b.MarkdownView = "edit"'>
-                    Edit
-                </button>
-                <button class='pe-tab-btn @(b.MarkdownView == "preview" ? "active" : "")'
-                        @onclick='() => b.MarkdownView = "preview"'>
-                    Preview
-                </button>
-            </div>
-            @if (b.MarkdownView == "edit")
-            {
-                <textarea placeholder="# Markdown content..."
-                          @bind="b.Content"
-                          @onfocus="() => SelectBlock(b.EditorId)"></textarea>
-            }
-            else
-            {
-                <div class="pe-markdown-preview">
-                    <RadzenMarkdown Text="@b.Content" AllowHtml="false" />
-                </div>
-            }
-        </div>
-    };
-    
-    // ── HTML ───────────────────────────────────────────────────
-    RenderFragment RenderHtmlBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-markdown-block">
-            <div class="pe-markdown-tabs">
-                <button class='pe-tab-btn @(b.MarkdownView == "edit" ? "active" : "")'
-                        @onclick='() => b.MarkdownView = "edit"'>
-                    Edit
-                </button>
-                <button class='pe-tab-btn @(b.MarkdownView == "preview" ? "active" : "")'
-                        @onclick='() => b.MarkdownView = "preview"'>
-                    Preview
-                </button>
-            </div>
-            @if (b.MarkdownView == "edit")
-            {
-                <RadzenHtmlEditor @bind-Value="b.Content"
-                                  UploadUrl="/api/v1/admin/media/html-editor-image"
-                                  Paste="SanitizeHtmlPaste"
-                                  Style="height:300px"
-                                  @onfocus="() => SelectBlock(b.EditorId)" />
-            }
-            else
-            {
-                <div class="pe-markdown-preview">
-                    <RawHtmlRenderer Block="@(new RawHtmlBlock { Content = b.Content })" />
-                </div>
-            }
-        </div>
-    };
-
-    // ── Scriban Dynamic Template ───────────────────────────────
-    RenderFragment RenderDynamicTemplateBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-markdown-block pe-dynamic-template-block">
-            <div class="pe-markdown-tabs">
-                <button class='pe-tab-btn @(b.ScribanView == "code" ? "active" : "")'
-                        @onclick='() => b.ScribanView = "code"'>
-                    Code
-                </button>
-                <button class='pe-tab-btn @(b.ScribanView == "preview" ? "active" : "")'
-                        @onclick='async () =>
-                        {
-                            b.ScribanView = "preview";
-                            await RefreshDynamicTemplatePreviewAsync(b);
-                        }'>
-                    Preview
-                </button>
-            </div>
-
-            @if (b.ScribanView == "preview")
-            {
-                <div class="pe-dynamic-template-actions">
-                    <button class="pe-btn pe-btn-secondary pe-btn-sm"
-                            @onclick="() => RefreshDynamicTemplatePreviewAsync(b)">
-                        Refresh Preview
-                    </button>
-                </div>
-                <div class="pe-markdown-preview">
-                    @if (DynamicTemplatePreviewHtml.TryGetValue(b.EditorId, out var previewHtml))
-                    {
-                        @((MarkupString)previewHtml)
-                    }
-                    else
-                    {
-                        <p>Click Refresh Preview to render this Scriban template on the server.</p>
-                    }
-                </div>
-            }
-            else
-            {
-                <label class="pe-field-label">Scriban template</label>
-                <textarea class="pe-code-textarea"
-                          placeholder="{{ block.title }}"
-                          @bind="b.ScribanTemplate"
-                          @onfocus="() => SelectBlock(b.EditorId)"></textarea>
-
-                <label class="pe-field-label">Preview data JSON</label>
-                <textarea class="pe-code-textarea pe-code-textarea-sm"
-                          placeholder="{ &quot;title&quot;: &quot;Hello&quot; }"
-                          @bind="b.ScribanDataJson"
-                          @onfocus="() => SelectBlock(b.EditorId)"></textarea>
-            }
-        </div>
-    };
-
-    // ── Quote ──────────────────────────────────────────────────
-    RenderFragment RenderQuoteBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-quote-block">
-            <blockquote>
-                <textarea placeholder="Enter quote text..."
-                          @bind="b.Content"
-                          @onfocus="() => SelectBlock(b.EditorId)"></textarea>
-            </blockquote>
-            <input class="pe-quote-author" type="text" placeholder="Author name"
-                   @bind="b.Author"
-                   @onfocus="() => SelectBlock(b.EditorId)"/>
-        </div>
-    };
-
-    // ── Separator ──────────────────────────────────────────────
-    RenderFragment RenderSeparatorBlock() => __builder => { <hr class="pe-separator-block"/> };
-
-    // ── Columns ────────────────────────────────────────────────
-    RenderFragment RenderColumnsBlock(EditorBlock b, bool sel) => __builder =>
-    {
-        <div class="pe-columns-block-wrapper">
-            @if (sel && !PreviewMode)
-            {
-                <div class="pe-columns-controls">
-                    <div class="pe-col-ctrl">
-                        <label>Columns: @b.ColumnCount</label>
-                        <input type="range" min="1" max="12"
-                               value="@b.ColumnCount"
-                               @oninput='e => UpdateColumnCount(b, int.Parse(e.Value?.ToString() ?? "2"))'/>
-                    </div>
-                    <div class="pe-col-ctrl">
-                        <label>Gap: @(b.Gap)px</label>
-                        <input type="range" min="0" max="64"
-                               value="@b.Gap"
-                               @oninput='e => b.Gap = int.Parse(e.Value?.ToString() ?? "16")'/>
-                    </div>
-                </div>
-            }
-            <div class="pe-columns-block" style="gap:@(b.Gap)px">
-                @for (var ci = 0; ci < b.EditorColumns.Count; ci++)
-                {
-                    var col = b.EditorColumns[ci];
-                    var colIndex = ci;
-                    <div class="pe-column"
-                         style="flex: 0 0 calc(@(100.0 / b.ColumnCount)% - @(b.Gap * (b.ColumnCount - 1.0) / b.ColumnCount)px)"
-                         @ondragover:preventDefault
-                         @ondrop="e => DropOnColumn(e, b, colIndex)">
-                        @if (sel && !PreviewMode)
-                        {
-                            <div class="pe-column-header">
-                                <span class="pe-column-label">Col @(colIndex + 1)</span>
-                                <button class="pe-column-add-btn" title="Add text"
-                                        @onclick='() => AddBlockToColumn(b, colIndex, "text")'>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <line x1="12" y1="5" x2="12" y2="19"/>
-                                        <line x1="5" y1="12" x2="19" y2="12"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        }
-                        <div class="pe-column-content">
-                            @for (var ni = 0; ni < col.Blocks.Count; ni++)
-                            {
-                                var nb = col.Blocks[ni];
-                                var nestedIndex = ni;
-                                <div class="pe-nested-block">
-                                    @RenderNestedBlock(nb, b, colIndex)
-                                    @if (sel && !PreviewMode)
-                                    {
-                                        <button class="pe-remove-nested-btn"
-                                                @onclick="() => RemoveNestedBlock(b, colIndex, nestedIndex)">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                                <line x1="6" y1="6" x2="18" y2="18"/>
-                                            </svg>
-                                        </button>
-                                    }
-                                </div>
-                            }
-                            @if (col.Blocks.Count == 0 && sel && !PreviewMode)
-                            {
-                                <div class="pe-column-drop-hint">
-                                    <span>Drag blocks here or click + to add</span>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
-            </div>
-        </div>
-    };
-
-    RenderFragment RenderNestedBlock(NestedBlock nb, EditorBlock parent, int colIndex) => __builder =>
-    {
-        switch (nb.Type)
-        {
-            case "text":
-                <textarea @bind="nb.Content" placeholder="Text..." rows="3"></textarea>
-                break;
-            case "image":
-                <div class="pe-nested-image">
-                    @if (string.IsNullOrEmpty(nb.Src))
-                    {
-                        <button class="pe-add-nested-btn"
-                                @onclick="() => OpenMediaSelectorForNested(parent, colIndex, nb)">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                                <circle cx="8.5" cy="8.5" r="1.5"/>
-                                <polyline points="21 15 16 10 5 21"/>
-                            </svg>
-                        </button>
-                    }
-                    else
-                    {
-                        <img src="@nb.Src" alt="@nb.Alt"/>
-                    }
-                </div>
-                break;
-            case "video":
-                <div class="pe-nested-video">
-                    @if (string.IsNullOrEmpty(nb.Src))
-                    {
-                        <input type="text" placeholder="Video URL" @bind="nb.Url"
-                               @onkeydown='e => { if (e.Key == "Enter") LoadNestedVideo(nb); }'/>
-                    }
-                    else
-                    {
-                        <iframe src="@nb.Src" frameborder="0" allowfullscreen></iframe>
-                    }
-                </div>
-                break;
-            case "button":
-                <div class="pe-nested-button-editor">
-                    <input type="text" placeholder="Button text" @bind="nb.Text"/>
-                    <input type="text" placeholder="URL" @bind="nb.Url"/>
-                    <select @bind="nb.Style">
-                        <option value="primary">Primary</option>
-                        <option value="secondary">Secondary</option>
-                        <option value="outline">Outline</option>
-                    </select>
-                </div>
-                break;
-        }
-    };
-
-    // ── Image ──────────────────────────────────────────────────
-    RenderFragment RenderImageBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-image-block">
-            @if (string.IsNullOrEmpty(b.Src))
-            {
-                <button class="pe-add-media-btn" @onclick="() => OpenMediaSelector(b)">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                    <span>Add Image</span>
-                </button>
-            }
-            else
-            {
-                <div class="pe-image-wrapper">
-                    <img src="@b.Src" alt="@b.Alt"/>
-                    <div class="pe-image-overlay">
-                        <button class="pe-overlay-btn" @onclick="() => OpenMediaSelector(b)">Change</button>
-                        <button class="pe-overlay-btn delete" @onclick="() => RemoveImage(b)">Remove</button>
-                    </div>
-                    <input class="pe-image-caption" type="text" placeholder="Add caption..."
-                           @bind="b.Caption"/>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Video ──────────────────────────────────────────────────
-    RenderFragment RenderVideoBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-video-block">
-            @if (string.IsNullOrEmpty(b.Src))
-            {
-                <div class="pe-video-input">
-                    <div class="pe-input-with-btn">
-                        <input type="text" placeholder="Enter video URL (YouTube, Vimeo, or direct link)"
-                               @bind="b.Url"/>
-                        <button class="pe-btn pe-btn-sm" title="Browse media"
-                                @onclick='() => OpenMediaSelector(b, false, "video")'>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                <circle cx="8.5" cy="8.5" r="1.5"/>
-                                <polyline points="21 15 16 10 5 21"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <button class="pe-btn pe-btn-primary" @onclick="() => LoadVideo(b)">Add Video</button>
-                </div>
-            }
-            else
-            {
-                var videoSrc = b.Src;
-                if (b.AutoPlay)
-                {
-                    var sep = videoSrc.Contains('?') ? '&' : '?';
-                    videoSrc += $"{sep}autoplay=1";
-                }
-
-                <div class="pe-video-wrapper">
-                    @if (b.Src.Contains("youtube.com/embed/") || b.Src.Contains("player.vimeo.com"))
-                    {
-                        <iframe src="@videoSrc" frameborder="0" allowfullscreen></iframe>
-                    }
-                    else
-                    {
-                        <video controls src="@b.Src" autoplay="@(b.AutoPlay ? true : null)" muted="@(b.AutoPlay ? true : null)" style="max-width:100%;border-radius:8px;"></video>
-                    }
-                    <button class="pe-remove-video" @onclick="() => RemoveVideo(b)">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"/>
-                            <line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
-                    </button>
-                    <label class="pe-auto-play-bar">
-                        <input type="checkbox" @bind="b.AutoPlay" />
-                        Auto-play
-                    </label>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Gallery ────────────────────────────────────────────────
-    RenderFragment RenderGalleryBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-gallery-block">
-            <div class="pe-gallery-grid">
-                @for (var gi = 0; gi < b.GalleryImages.Count; gi++)
-                {
-                    var img = b.GalleryImages[gi];
-                    var imgIndex = gi;
-                    <div class="pe-gallery-item">
-                        <img src="@img.Src" alt="@img.Alt"/>
-                        <button class="pe-remove-item" @onclick="() => b.GalleryImages.RemoveAt(imgIndex)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                <line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                        </button>
-                    </div>
-                }
-                <button class="pe-add-gallery-item" @onclick="() => OpenMediaSelector(b, true)">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"/>
-                        <line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    };
-
-    // ── Audio ──────────────────────────────────────────────────
-    RenderFragment RenderAudioBlock(EditorBlock b) => __builder =>
-    {
-        <div class="pe-audio-block">
-            @if (string.IsNullOrEmpty(b.Src))
-            {
-                <button class="pe-add-media-btn" @onclick="() => OpenAudioSelector(b)">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M9 18V5l12-2v13"/>
-                        <circle cx="6" cy="18" r="3"/>
-                        <circle cx="18" cy="16" r="3"/>
-                    </svg>
-                    <span>Add Audio</span>
-                </button>
-            }
-            else
-            {
-                <div class="pe-audio-wrapper">
-                    <audio controls src="@b.Src" style="flex:1"></audio>
-                    <button class="pe-remove-audio" @onclick="() => b.Src = string.Empty">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"/>
-                            <line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
-                    </button>
-                </div>
-            }
-        </div>
-    };
-
-    // ── Reference blocks ───────────────────────────────────────
-    RenderFragment RenderReferenceBlock(EditorBlock b) => __builder =>
-    {
-        var items = GetReferenceItems(b.Type);
-        <div class="pe-reference-block">
-            <div class="pe-reference-header">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    @if (b.Type == "pages" || b.Type == "posts")
-                    {
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    }
-                    else if (b.Type == "categories")
-                    {
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                    }
-                    else if (b.Type == "tags")
-                    {
-                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                    }
-                    else
-                    {
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                    }
-                </svg>
-                <span>@(char.ToUpper(b.Type[0]) + b.Type[1..]) Reference</span>
-            </div>
-            <select value="@b.SelectedReferenceId"
-                    @onchange="e => b.SelectedReferenceId = e.Value?.ToString() ?? string.Empty">
-                <option value="">Select @b.Type…</option>
-                @foreach (var item in items)
-                {
-                    <option value="@item.Id">@(item.Title ?? item.Name)</option>
-                }
-            </select>
-            @if (!string.IsNullOrEmpty(b.SelectedReferenceId))
-            {
-                @RenderReferencePreview(b, items)
-            }
-        </div>
-    };
-
-    RenderFragment RenderReferencePreview(EditorBlock b, List<ReferenceItem> items) => __builder =>
-    {
-        var item = items.FirstOrDefault(i => i.Id == b.SelectedReferenceId);
-        if (item is null) return;
-
-        if (b.Type is "pages" or "posts")
-        {
-            <div class="pe-reference-card">
-                <h4>@item.Title</h4>
-                <span class="pe-reference-type">@b.Type[..^1]</span>
-            </div>
-        }
-        else if (b.Type == "authors")
-        {
-            <div class="pe-reference-card pe-author-card">
-                <div class="pe-author-avatar">@(item.Name?[..1])</div>
-                <span>@item.Name</span>
-            </div>
-        }
-        else
-        {
-            <div class="pe-reference-card">
-                <span class="pe-tag-name">@item.Name</span>
-            </div>
-        }
-    };
-
-    // inline helper – call from SidebarBlockItem via ChildContent
-    RenderFragment<string> SidebarIcon => label => __builder => { };
-
-
+@* ── Version History Modal ── *@
+@if (Id.HasValue)
+{
+    <PageVersionHistory @ref="_historyPanel"
+                        PageId="Id.Value"
+                        PageTitle="@PageTitle" />
 }

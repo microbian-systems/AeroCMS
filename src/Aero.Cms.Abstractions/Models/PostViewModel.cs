@@ -1,5 +1,4 @@
-﻿using Aero.Cms.Abstractions.Enums;
-using Aero.Core.Entities;
+using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Models;
 
@@ -57,6 +56,12 @@ public sealed record PostViewModel : AeroEntityViewModel
     /// </summary>
     [Id(12)]
     public int Likes { get; set; }
+    [Id(13)]
+    public string Culture { get; set; } = "en-US";
+    [Id(14)]
+    public long? TranslationGroupId { get; set; }
+    [Id(15)]
+    public long? SeriesId { get; set; }
 
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 }

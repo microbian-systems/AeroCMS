@@ -14,6 +14,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="NeoUI.Blazor" />
+    <PackageReference Include="NeoUI.Blazor.Primitives" />
     <PackageReference Include="Radzen.Blazor" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Extensions.Logging" />
@@ -27,9 +29,11 @@
     <ProjectReference Include="..\Aero.Cms.Modules.Docs\Aero.Cms.Modules.Docs.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Commerce\Aero.Cms.Modules.Commerce.csproj" />
-    <ProjectReference Include="..\Aero.Cms.Modules.Blog\Aero.Cms.Modules.Blog.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Media\Aero.Cms.Modules.Media.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Navigation\Aero.Cms.Modules.Navigation.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Modules.Footer\Aero.Cms.Modules.Footer.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Sites\Aero.Cms.Modules.Sites.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Tenant\Aero.Cms.Modules.Tenant.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />

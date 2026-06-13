@@ -1,5 +1,4 @@
-﻿using TUnit.Core;
-using Aero.Cms.Modules.Setup;
+﻿using Aero.Cms.Modules.Setup;
 using Aero.Core.Identity;
 using Aero.Models.Entities;
 using FluentAssertions;

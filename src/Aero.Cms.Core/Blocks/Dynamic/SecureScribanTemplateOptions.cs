@@ -46,15 +46,13 @@ public sealed record SecureScribanTemplateOptions
 
     public TimeSpan RegexTimeout { get; init; } = TimeSpan.FromSeconds(2);
 
-    public TimeSpan RenderTimeout { get; init; } = TimeSpan.FromSeconds(3);
+    public TimeSpan RenderTimeout { get; init; } = TimeSpan.FromSeconds(30);
 
     public int MaxInputDepth { get; init; } = 10;
 
     public int MaxOutputLength { get; init; } = 1_048_576;
 
-    // TODO: Re-tighten this before production. MVP authoring temporarily allows
-    // arbitrary Scriban built-in function calls so custom templates can be tested quickly.
-    public bool AllowAllFunctions { get; init; } = true;
+    public bool AllowAllFunctions { get; init; }
 
     /// <summary>
     /// Fully qualified Scriban function names that user-authored templates may call.

@@ -1,22 +1,58 @@
+using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
-using Aero.Cms.Abstractions.Interfaces;
-using Aero.Cms.Core;
-using Aero.Core.Entities;
-
+using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Abstractions.Models;
+using Aero.Core.Entities;
+using Marten.Metadata;
 
 namespace Aero.Cms.Core.Entities;
 
-public sealed class PageDocument : Entity, ISiteOwned
+
+public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableEntity
 {
     public long SiteId { get; set; }
+    public long? TranslationGroupId { get; set; }
+    public long? SourcePageId { get; set; }
+    public string Culture { get; set; } = SitesModel.DefaultCultureName;
     public PageKind Kind { get; set; } = PageKind.Standard;
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Summary { get; set; }
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
+
+    // ── Hierarchy ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Parent page ID. <c>null</c> for root-level pages.
+    /// </summary>
+    public long? ParentId { get; set; }
+
+    /// <summary>
+    /// Full materialized path (e.g. "/sports/basketball/nba").
+    /// </summary>
+    public string Path { get; set; } = "/";
+
+    /// <summary>
+    /// Distance from root. 0 = root, 1 = direct child, etc.
+    /// </summary>
+    public int Depth { get; set; }
+
+    /// <summary>
+    /// Display order among siblings. Lower = first. Insertions require renumbering.
+    /// </summary>
+    public int Order { get; set; }
+
+    /// <summary>
+    /// When <c>true</c>, this page and all descendants are hidden from navigation menus.
+    /// </summary>
+    public bool IsHidden { get; set; }
+
+    // ── Layout ───────────────────────────────────────────────────────────
 
     /// <summary>
     /// Gets or sets the block-based layout regions for this page.
@@ -29,9 +65,34 @@ public sealed class PageDocument : Entity, ISiteOwned
     /// </summary>
     public List<EditorBlock> Blocks { get; set; } = [];
 
+    /// <summary>
+    /// Maps each client-side <see cref="EditorBlock.EditorId"/> to the persisted
+    /// <see cref="BlockBase.Id"/> of the corresponding block entity.  Rebuilt by
+    /// the service layer on every save so that existing blocks are updated in-place
+    /// rather than being re-created.
+    /// </summary>
+    public Dictionary<string, long> BlockIdMap { get; set; } = [];
+
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset? PublishedOn { get; set; } = null;
-    public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+
+    /// <summary>
+    /// Monotonic counter incremented on every publish.
+    /// Compared against <see cref="PageEditorState.DraftVersion"/> in the admin
+    /// service layer to detect unpublished changes. Not compared here.
+    /// </summary>
+    public long PublishedVersion { get; set; }
+
+    /// <summary>
+    /// Tracks the block content schema version. Incremented by migration when
+    /// legacy block content is transformed into Neo blocks. Used for idempotency:
+    /// the migration skips pages already at the current schema version.
+    /// Default 0 means not yet migrated to any Neo block schema.
+    /// </summary>
+    public int BlockSchemaVersion { get; set; }
+
+    public bool IsPubliclyVisible =>
+        PublicationState == ContentPublicationState.Published && !Deleted;
 
     /// <summary>
     /// Gets or sets whether this page should be displayed in the main navigation menu.
@@ -61,4 +122,166 @@ public sealed class PageDocument : Entity, ISiteOwned
     /// Gets or sets whether the chat agent widget should be shown on this page.
     /// </summary>
     public bool ShowChatAgent { get; set; } = true;
+
+    // ── Soft Delete ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// <c>true</c> when the page has been soft-deleted via Marten.
+    /// Managed automatically by Marten's <c>ISoftDeleted</c> policy.
+    /// </summary>
+    public bool Deleted { get; set; }
+
+    /// <summary>
+    /// Timestamp of soft deletion. Managed automatically by Marten.
+    /// </summary>
+    public DateTimeOffset? DeletedAt { get; set; }
+
+    // ── Event Sourcing: Self-Aggregating Snapshot ─────────────────────
+
+    /// <summary>
+    /// Creates a new PageDocument from a PageCreated event.
+    /// The service layer computes Path and Depth before calling this.
+    /// </summary>
+    public static PageDocument Create(PageCreated e) => new()
+    {
+        SiteId = e.SiteId,
+        TranslationGroupId = e.TranslationGroupId,
+        Culture = e.Culture,
+        Title = e.Title,
+        Slug = e.Slug,
+        ParentId = e.ParentId,
+        Path = e.Path,
+        Depth = e.Depth,
+        Order = e.Order,
+        PublicationState = e.PublicationState,
+        Kind = e.Kind
+    };
+
+    public void Apply(PageContentUpdated e)
+    {
+        Title = e.Title;
+        Slug = e.Slug;
+        Summary = e.Summary;
+        SeoTitle = e.SeoTitle;
+        SeoDescription = e.SeoDescription;
+        if (e.LayoutRegions is not null) LayoutRegions = e.LayoutRegions.ToList();
+        if (e.Blocks is not null) Blocks = e.Blocks.ToList();
+        Kind = e.Kind;
+        ShowHeaderNavigation = e.ShowHeaderNavigation;
+        HeaderImageUrl = e.HeaderImageUrl;
+        HideHeader = e.HideHeader;
+        HideFooter = e.HideFooter;
+        ShowChatAgent = e.ShowChatAgent;
+        if (e.BlockIdMap is not null) BlockIdMap = new Dictionary<string, long>(e.BlockIdMap);
+        ModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Metadata-only draft save. Updates title, slug, SEO, display settings.
+    /// LayoutRegions, Blocks, and BlockIdMap deliberately NOT touched.
+    /// </summary>
+    public void Apply(PageMetadataUpdated e)
+    {
+        Title = e.Title;
+        Slug = e.Slug;
+        Summary = e.Summary;
+        SeoTitle = e.SeoTitle;
+        SeoDescription = e.SeoDescription;
+        Kind = e.Kind;
+        ShowHeaderNavigation = e.ShowHeaderNavigation;
+        HeaderImageUrl = e.HeaderImageUrl;
+        HideHeader = e.HideHeader;
+        HideFooter = e.HideFooter;
+        ShowChatAgent = e.ShowChatAgent;
+        ModifiedOn = DateTimeOffset.UtcNow;
+        // ── LayoutRegions, Blocks, BlockIdMap: intentionally absent ─────────
+        // Publish path owns LayoutRegions. Block state lives in PageEditorState.
+    }
+
+    public void Apply(PagePublished e)
+    {
+        PublicationState = ContentPublicationState.Published;
+        PublishedOn = DateTimeOffset.UtcNow;
+
+        // Bump version: use the computed version from the event when available,
+        // otherwise increment locally (backward compat with old marker events).
+        PublishedVersion = e.Version > 0 ? e.Version : PublishedVersion + 1;
+
+        // Write layout manifest only when the event carries one.
+        if (e.LayoutRegions is not null)
+            LayoutRegions = e.LayoutRegions.ToList();
+    }
+
+    public void Apply(PageArchived _) =>
+        PublicationState = ContentPublicationState.Archived;
+
+    public void Apply(PageStateChanged e)
+    {
+        PublicationState = e.NewState;
+        if (e.NewState == ContentPublicationState.Published)
+        {
+            PublishedOn = DateTimeOffset.UtcNow;
+        }
+        else if (e.NewState == ContentPublicationState.Draft)
+        {
+            PublishedOn = null;
+        }
+    }
+
+    public void Apply(PageDeleted _) =>
+        Deleted = true;
+
+    public void Apply(PageRestored _) =>
+        Deleted = false;
+
+    public void Apply(PageMoved e)
+    {
+        ParentId = e.NewParentId;
+        Path = e.NewPath;
+        Depth = e.NewDepth;
+        Order = e.NewOrder;
+    }
+
+    public void Apply(PageVisibilityChanged e)
+    {
+        IsHidden = e.IsHidden;
+        ShowInNavMenu = e.ShowInNavMenu;
+    }
+
+    /// <summary>
+    /// Maps this document to a <see cref="PageViewModel"/> for Wolverine
+    /// message bus publishing.  Avoids exposing the internal PageDocument
+    /// type to downstream consumers.
+    /// </summary>
+    public PageViewModel ToViewModel() => new()
+    {
+        Id = Id,
+        Title = Title,
+        Slug = Slug,
+        Kind = Kind,
+        Summary = Summary,
+        SeoTitle = SeoTitle,
+        SeoDescription = SeoDescription,
+        PublishedOn = PublishedOn,
+        IsPublished = PublicationState == ContentPublicationState.Published,
+        PublicationState = PublicationState,
+        SiteId = SiteId,
+        Culture = Culture,
+        TranslationGroupId = TranslationGroupId,
+        ParentId = ParentId,
+        Path = Path,
+        Depth = Depth,
+        Order = Order,
+        IsHidden = IsHidden,
+        ShowInNavMenu = ShowInNavMenu,
+        ShowHeaderNavigation = ShowHeaderNavigation,
+        HideFooter = HideFooter,
+        ShowChatAgent = ShowChatAgent,
+        LayoutRegionsJson = LayoutRegions is { Count: > 0 }
+            ? JsonSerializer.Serialize(LayoutRegions, BlockJsonContext.Default.Options)
+            : null,
+        EditorBlocksJson = Blocks is { Count: > 0 }
+            ? JsonSerializer.Serialize(Blocks, BlockJsonContext.Default.Options)
+            : null
+    };
 }

@@ -1,17 +1,17 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Localization;
 using System.Text.Json;
-using System.Linq;
-using System.Threading.Tasks;
-using System;
+using System.Globalization;
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Neo;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using Aero.Core;
-using Aero.Cms.Core;
 using Aero.Core.Security;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Http.Clients;
@@ -21,11 +21,15 @@ using Aero.Core.Railway;
 using CmsPageDetail = Aero.Cms.Abstractions.Http.Clients.PageDetail;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Shared.Services;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
+using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
+using NeoUI.Blazor.Primitives;
+using PageEditorCatalog = Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
-public partial class PageEditor : ComponentBase, IDisposable
+public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallbacks
 {
     // ──────────────────────────────────────────────────────────
     // Parameters
@@ -48,6 +52,10 @@ public partial class PageEditor : ComponentBase, IDisposable
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
     [Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
+    [Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
+    [Inject] protected IEnumerable<IPageEditorBlockProvider> PageEditorBlockProviders { get; set; } = [];
+    [Inject] protected DialogService DialogService { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
@@ -62,10 +70,8 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     // Selection / drag state
     protected string? SelectedBlockId  { get; set; }
-    protected string? DraggedBlockId   { get; set; }
     protected string? DraggedType      { get; set; }
     protected int?    DraggedIndex     { get; set; }
-    protected int     DragOverIndex    { get; set; } = -1;
 
     // UI state
     protected bool   SidebarCollapsed { get; set; }
@@ -78,17 +84,20 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected string? PreviewFrameUrl => Id is { } id
         ? BuildAbsoluteUrl($"_cms/preview/pages/drafts/{id}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
-    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri);
+    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri, L);
     protected bool   RightSidebarCollapsed { get; set; } = true;
     protected bool   IsSaving              { get; set; }
     protected string ActiveTab             { get; set; } = "editor";
 
     // Sidebar category toggles
-    protected bool CategoryContent    { get; set; } = true;
-    protected bool CategoryMedia      { get; set; } = true;
-    protected bool CategoryReferences { get; set; } = true;
+    protected bool CategoryAeroUi    { get; set; } = true;
+    protected bool CategoryLegacyUi  { get; set; } = true;
+    protected bool CategoryAeroUx    { get; set; } = true;
+    protected bool CategoryMedia     { get; set; } = true;
+    protected bool CategoryReferences { get; set; }
     protected bool CategorySettings   { get; set; } = true;
-    protected bool CategoryAero       { get; set; } = true;
+    protected bool CategoryHyper      { get; set; } = true;
+    protected bool CategoryNeo        { get; set; } = true;
 
     // Page Settings
     protected string PageSlug { get; set; } = string.Empty;
@@ -108,8 +117,39 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool   HideFooter { get; set; }
     protected bool   ShowChatAgent { get; set; } = true;
     protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+    /// <summary>Optional parent page ID to pre-select when creating a new child page.</summary>
+    [SupplyParameterFromQuery(Name = "parentId")]
+    protected long? ParentId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tab")]
+    protected string? RequestedTab { get; set; }
+
+    /// <summary>Read-only parent path prefix shown as a pill before the slug input.</summary>
+    protected string ParentSlugPrefix { get; set; } = "";
 
     protected CmsPageDetail? LoadedPage { get; set; }
+    protected SiteViewModel? CurrentSite { get; set; }
+    protected IReadOnlyList<CmsPageDetail> PageCultureVariants { get; set; } = [];
+    protected string SelectedTranslationCulture { get; set; } = string.Empty;
+    protected string TranslationSlug { get; set; } = string.Empty;
+    protected bool IsLoadingTranslations { get; set; }
+    protected bool IsCreatingTranslation { get; set; }
+    protected bool IsBulkPublishingTranslations { get; set; }
+    protected bool IsTranslatingAll { get; set; }
+    protected bool OverwriteExistingTranslations { get; set; }
+    protected HashSet<string> TranslatingCultures { get; } = new(StringComparer.OrdinalIgnoreCase);
+    protected IReadOnlyList<string> SupportedCultures =>
+        CurrentSite?.SupportedCultures is { Count: > 0 } cultures
+            ? cultures
+            : [LoadedPage?.Culture ?? CurrentSite?.DefaultCulture ?? "en-US"];
+
+    protected IEnumerable<string> AvailableTranslationCultures =>
+        SupportedCultures
+            .Select(NormalizeCultureName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(culture => !PageCultureVariants.Any(variant =>
+                string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
     protected IReadOnlyList<DocsSummary>? DocsCategories { get; set; }
 
@@ -119,6 +159,14 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected bool         IsGalleryMode    { get; set; }
     protected string?      MediaContext     { get; set; }   // "background" | "nested"
     protected NestedBlock? NestedMediaTarget { get; set; }
+
+    // Block edit modal
+    protected bool BlockEditorModalOpen { get; set; }
+    protected string? EditingBlockId { get; set; }
+    protected EditorBlock? CurrentEditBlock =>
+        string.IsNullOrEmpty(EditingBlockId)
+            ? null
+            : Blocks.FirstOrDefault(block => block.EditorId == EditingBlockId);
 
     private Dictionary<string, List<ReferenceItem>> _referenceData = new();
     protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
@@ -141,9 +189,28 @@ public partial class PageEditor : ComponentBase, IDisposable
     // Lifecycle  (mirrors Alpine.js init())
     // ──────────────────────────────────────────────────────────
 
+    private long? _previousParentId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsKnownTab(RequestedTab))
+        {
+            ActiveTab = NormalizeTab(RequestedTab);
+        }
+
+        if (_previousParentId != ParentId)
+        {
+            _previousParentId = ParentId;
+            await RefreshParentSlugPrefixAsync();
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        PageEditorBlockRegistry.RegisterProviders(PageEditorBlockProviders);
+
         await ResolvePreviewBaseUriAsync();
+        CurrentSite = await ResolveCurrentSiteAsync();
 
         if (Id.HasValue)
         {
@@ -153,6 +220,8 @@ public partial class PageEditor : ComponentBase, IDisposable
         {
             UpdateLastSaved();
         }
+
+        await RefreshParentSlugPrefixAsync();
 
         _autoSaveTimer = new System.Timers.Timer(30_000);
         _autoSaveTimer.Elapsed += async (_, _) => await InvokeAsync(AutoSaveAsync);
@@ -187,6 +256,7 @@ public partial class PageEditor : ComponentBase, IDisposable
             ShowHeaderNavigation = page.ShowHeaderNavigation;
             HideFooter = page.HideFooter;
             ShowChatAgent = page.ShowChatAgent;
+            ParentId = page.ParentId;
             
             // Load blocks if available in API
             if (page.Blocks != null)
@@ -208,12 +278,48 @@ public partial class PageEditor : ComponentBase, IDisposable
 
             UpdateLastSaved();
             _pageState = PageState.Clean;
+            await LoadPageTranslationsAsync();
             await InvokeAsync(StateHasChanged);
         }
         else
         {
-            ShowToast("Error loading page", "error");
+            ShowToast(L["Error loading page"], "error");
         }
+    }
+
+    /// <summary>
+    /// Sets <see cref="ParentSlugPrefix"/> from the loaded page's Path
+    /// or by loading the parent page via the API.
+    /// </summary>
+    private async Task RefreshParentSlugPrefixAsync()
+    {
+        if (ParentId is null or <= 0)
+        {
+            ParentSlugPrefix = "";
+            return;
+        }
+
+        // Try to derive from the loaded page's Path first
+        if (LoadedPage is { Path: { Length: > 1 } path })
+        {
+            var trimmed = path.TrimStart('/');
+            var lastSlash = trimmed.LastIndexOf('/');
+            ParentSlugPrefix = lastSlash > 0 ? trimmed[..lastSlash] : "";
+            if (!string.IsNullOrEmpty(ParentSlugPrefix))
+                return;
+        }
+
+        // Fallback: load the parent page to get its slug
+        try
+        {
+            var result = await PagesClient.GetByIdAsync(ParentId.Value);
+            if (result is Result<CmsPageDetail, AeroError>.Ok { Value: var parent })
+            {
+                var parentPath = !string.IsNullOrEmpty(parent.Path) ? parent.Path.TrimStart('/').TrimEnd('/') : parent.Slug;
+                ParentSlugPrefix = parentPath;
+            }
+        }
+        catch { ParentSlugPrefix = ""; }
     }
 
     private async Task LoadReferenceDataAsync()
@@ -267,13 +373,133 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         switch (category)
         {
-            case "content":    CategoryContent    = !CategoryContent;    break;
-            case "media":      CategoryMedia      = !CategoryMedia;      break;
+            case "aeroui":    CategoryAeroUi    = !CategoryAeroUi;    break;
+            case "legacyui":  CategoryLegacyUi  = !CategoryLegacyUi;  break;
+            case "aeroux":    CategoryAeroUx    = !CategoryAeroUx;    break;
+            case "media":     CategoryMedia     = !CategoryMedia;     break;
             case "references": CategoryReferences = !CategoryReferences; break;
             case "settings":   CategorySettings   = !CategorySettings;   break;
-            case "aero":       CategoryAero       = !CategoryAero;       break;
+            case "hyper":      CategoryHyper      = !CategoryHyper;      break;
+            case "neo":        CategoryNeo        = !CategoryNeo;        break;
         }
     }
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoAeroCatalogItems =>
+        Catalog.GetCatalogItems()
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.AeroUi)
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> LegacyUiCatalogItems { get; } =
+    [
+        CatalogItem("boring_hero", "Boring Hero", 10),
+        CatalogItem("hero", "Hero", 20),
+        CatalogItem("text", "Text", 30),
+        CatalogItem("columns", "Columns", 40),
+        CatalogItem("content", "Rich Text", 50),
+        CatalogItem("markdown", "Markdown", 60),
+        CatalogItem("raw_html", "Raw HTML", 70),
+        CatalogItem("dynamic_template", "Scriban", 80),
+        CatalogItem("quote", "Quote", 90),
+        CatalogItem("separator", "Separator", 100)
+    ];
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> AeroUxCatalogItems { get; } =
+    [
+        CatalogItem("aero_hero", "Aero Hero", 10),
+        CatalogItem("aero_features", "Features", 20),
+        CatalogItem("aero_cta", "CTA", 30),
+        CatalogItem("aero_blog", "Blog", 40),
+        CatalogItem("aero_pricing", "Pricing", 50),
+        CatalogItem("aero_teams", "Teams", 60),
+        CatalogItem("aero_testimonials", "Testimonials", 70),
+        CatalogItem("aero_faq", "FAQ", 80),
+        CatalogItem("aero_portfolio", "Portfolio", 90),
+        CatalogItem("aero_contact", "Contact", 100),
+        CatalogItem("aero_table", "Table", 110),
+        CatalogItem("aero_auth", "Auth", 120)
+    ];
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> MediaCatalogItems { get; } =
+    [
+        CatalogItem("image", "Image", 10),
+        CatalogItem("video", "Video", 20),
+        CatalogItem("gallery", "Gallery", 30),
+        CatalogItem("carousel", "Carousel", 40),
+        CatalogItem("audio", "Audio", 50)
+    ];
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ReferenceCatalogItems { get; } =
+    [
+        CatalogItem("pages", "Pages", 10),
+        CatalogItem("posts", "Posts", 20),
+        CatalogItem("categories", "Categories", 30),
+        CatalogItem("tags", "Tags", 40),
+        CatalogItem("authors", "Authors", 50)
+    ];
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoHyperCatalogItems =>
+        Catalog.GetCatalogItems()
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
+            .Concat(PageEditorBlockRegistry.All.Select(ToCatalogItem))
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
+            .GroupBy(i => i.CatalogId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoNeoCatalogItems =>
+        PageEditorBlockRegistry.All
+            .Select(ToCatalogItem)
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Neo)
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+    private static PageEditorCatalog.NeoEditorCatalogItem ToCatalogItem(IPageEditorBlockDefinition definition) =>
+        new()
+        {
+            CatalogId = definition.CatalogId,
+            DisplayName = definition.DisplayName,
+            Description = definition.Description,
+            Section = ToCatalogSection(definition.Category),
+            Kind = ToCatalogKind(definition.Kind),
+            SortOrder = definition.SortOrder,
+            IconName = definition.IconName,
+            PublicStaticSsrSafe = definition.PublicStaticSsrSafe,
+            EditorPreviewComponentType = definition.PreviewComponentType,
+            PropertyEditorComponentType = definition.PropertyEditorComponentType
+        };
+
+    private static PageEditorCatalog.NeoEditorCatalogSection ToCatalogSection(string? category) =>
+        category?.Trim().ToLowerInvariant() switch
+        {
+            "aero ui" or "aeroui" or "aero" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
+            "primitive" or "primitives" => PageEditorCatalog.NeoEditorCatalogSection.Primitives,
+            "component" or "components" => PageEditorCatalog.NeoEditorCatalogSection.Components,
+            "hyper" or "hyperui" or "hyper ui" => PageEditorCatalog.NeoEditorCatalogSection.Hyper,
+            "neo" or "neoui" or "neo ui" => PageEditorCatalog.NeoEditorCatalogSection.Neo,
+            _ => PageEditorCatalog.NeoEditorCatalogSection.AeroUi
+        };
+
+    private static PageEditorCatalog.NeoEditorCatalogKind ToCatalogKind(string? kind) =>
+        kind?.Trim().ToLowerInvariant() switch
+        {
+            "primitive" => PageEditorCatalog.NeoEditorCatalogKind.Primitive,
+            "component" => PageEditorCatalog.NeoEditorCatalogKind.Component,
+            _ => PageEditorCatalog.NeoEditorCatalogKind.Block
+        };
+
+    private static PageEditorCatalog.NeoEditorCatalogItem CatalogItem(string id, string name, int sortOrder) =>
+        new()
+        {
+            CatalogId = id,
+            DisplayName = name,
+            Section = PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
+            Kind = PageEditorCatalog.NeoEditorCatalogKind.Block,
+            SortOrder = sortOrder,
+            IconName = "box",
+            PublicStaticSsrSafe = true
+        };
 
     // ──────────────────────────────────────────────────────────
     // Block management  (mirrors addBlock / deleteBlock / etc.)
@@ -285,214 +511,314 @@ public partial class PageEditor : ComponentBase, IDisposable
         Blocks.Add(block);
         SelectBlock(block.EditorId);
         MarkDirty();
-        ShowToast("Block added", "success");
+        ShowToast(L["Block added"], "success");
         QueuePreviewRefresh();
+    }
+
+    protected Task OnEditorBlockChanged(EditorBlock block)
+    {
+        MarkDirty();
+        QueuePreviewRefresh();
+        return Task.CompletedTask;
+    }
+
+    protected void OpenBlockEditor(string editorId)
+    {
+        SelectedBlockId = editorId;
+        EditingBlockId = editorId;
+        BlockEditorModalOpen = true;
+    }
+
+    private void OpenBlockEditor(EditorBlock block)
+    {
+        OpenBlockEditor(block.EditorId);
+    }
+
+    protected void CloseBlockEditor()
+    {
+        BlockEditorModalOpen = false;
+        EditingBlockId = null;
+    }
+
+    protected string GetBlockDisplayName(EditorBlock block)
+    {
+        var allItems = NeoAeroCatalogItems
+            .Concat(NeoHyperCatalogItems)
+            .Concat(LegacyUiCatalogItems)
+            .Concat(AeroUxCatalogItems)
+            .Concat(MediaCatalogItems)
+            .Concat(ReferenceCatalogItems);
+
+        return allItems.FirstOrDefault(item => item.CatalogId == block.Type)?.DisplayName
+            ?? block.Type;
     }
 
     private EditorBlock CreateBlock(string type)
     {
+        if (PageEditorBlockRegistry.TryGet(type, out var definition))
+        {
+            return definition.CreateDefaultEditorBlock();
+        }
+
         var block = new EditorBlock { Type = type };
 
         switch (type)
         {
-            case "boring_hero":
-                block.MainText        = "Page Title";
-                block.SubText         = "A simple full-width page intro.";
+            // Neo catalog blocks
+            case "aero.hero.01":
+                block.Eyebrow         = "Introducing NeoUI v3";
+                block.MainText        = "Build beautiful Blazor apps";
+                block.Highlight       = "faster than ever";
+                block.SubText         = "100+ production-ready components for .NET Blazor. Accessible, customizable, and built for speed.";
+                block.CtaText         = "Get started for free";
+                block.CtaUrl          = "#";
+                block.CtaText2        = "View on GitHub";
+                block.CtaUrl2         = "#";
+                block.TrustMarkers    =
+                [
+                    "Free & open source",
+                    ".NET 8+ compatible",
+                    "Dark mode included",
+                    "100+ components"
+                ];
+                block.BackgroundImage = string.Empty;
+                break;
+            case "aero.hero.basic":
+                block.MainText        = "Welcome";
+                block.SubText         = "Your message goes here.";
+                block.CtaText         = "";
+                block.CtaUrl          = "";
                 block.BackgroundImage = string.Empty;
                 block.FullWidth       = true;
                 break;
+            case "boring_hero":
+                block.MainText = "Welcome";
+                block.SubText = "Your message goes here.";
+                block.FullWidth = true;
+                break;
             case "hero":
-                block.MainText = string.Empty;
-                block.SubText  = string.Empty;
-                block.CtaText  = string.Empty;
-                block.CtaUrl   = string.Empty;
-                block.BackgroundImage = string.Empty;
+                block.MainText = "Main headline";
+                block.SubText = "Sub headline or description";
+                block.CtaText = "Learn more";
+                block.CtaUrl = "#";
                 block.Height = 512;
-                block.FullScreen = false;
-                break;
-            case "aero_hero":
-                block.MainText        = "Building Your Next Idea";
-                block.SubText         = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.";
-                block.CtaText         = "Get Started";
-                block.CtaUrl          = "#";
-                block.CtaText2        = "Learn More";
-                block.CtaUrl2         = "#";
-                block.AeroLayout      = "SideImage";
-                block.Button1Style    = "Primary";
-                block.Button2Style    = "Secondary";
-                block.BackgroundImage = "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800";
-                break;
-            case "aero_features":
-                block.MainText        = "Everything you need to build";
-                block.SubText         = "Focus on your business and let us handle the technical complexities.";
-                block.AeroLayout      = "Simple";
-                block.FeatureItems    = new List<AeroFeatureItem>
-                {
-                    new() { Title = "Fast & Reliable", Description = "Built for performance.", Icon = "M13 10V3L4 14h7v7l9-11h-7z" },
-                    new() { Title = "Modular Design", Description = "Customizable UI.", Icon = "M19 11H5m14 0V9a2-2 0 00-2-2M5 11V9a2 2 0 012-2" }
-                };
-                break;
-            case "aero_cta":
-                block.MainText    = "Build Your New Idea";
-                block.Description = "Lorem, ipsum dolor sit amet consectetur adipisicing elit. Quidem modi reprehenderit vitae exercitationem aliquid dolores ullam temporibus enim expedita aperiam.";
-                block.CtaText     = "Start Now";
-                block.CtaUrl      = "#";
-                block.AeroLayout  = "Card";
-                break;
-            case "aero_blog":
-                block.SectionTitle = "From the blog";
-                block.Description  = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Iure veritatis sint autem nesciunt.";
-                block.BlogPosts    = new List<AeroBlogItem>
-                {
-                    new() { Title = "All the features you want to know", Description = "Lorem ipsum dolor sit amet...", PublishedAt = "21 Oct 2025", Category = "Product", ImageUrl = "https://images.unsplash.com/photo-1644018335954-ab54c83e007f?w=800" },
-                    new() { Title = "Sticky note for problem solving", Description = "Lorem ipsum dolor sit amet...", PublishedAt = "20 Oct 2025", Category = "Design", ImageUrl = "https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?w=800" }
-                };
-                break;
-            case "aero_pricing":
-                block.PageTitle       = "Pricing Plans";
-                block.PageDescription = "Choose the plan that's right for you.";
-                block.PricingPlans    = new List<AeroPricingPlan>
-                {
-                    new() { Name = "Free", Price = "$0", Period = "mo", Description = "Essential features", Features = ["Basic Analytics", "1 Project"], CtaText = "Free trial", CtaUrl = "#" },
-                    new() { Name = "Pro", Price = "$29", Period = "mo", Description = "For growing teams", Features = ["Advanced Analytics", "10 Projects", "24/7 Support"], CtaText = "Get Pro", CtaUrl = "#", IsPopular = true }
-                };
-                break;
-            case "aero_teams":
-                block.SectionTitle = "Our Executive Team";
-                block.Description  = "Lorem ipsum dolor sit amet consectetur adipisicing elit.";
-                block.TeamMembers  = new List<AeroTeamMember>
-                {
-                    new() { Name = "Arthur Melo", Role = "Design Director", AvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400" },
-                    new() { Name = "Alice Williams", Role = "Senior Developer", AvatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400" }
-                };
-                break;
-            case "aero_testimonials":
-                block.SectionTitle = "What our clients say";
-                block.Description  = "Lorem ipsum dolor sit amet consectetur adipisicing elit.";
-                block.Testimonials  = new List<AeroTestimonialItem>
-                {
-                    new() { AuthorName = "John Doe", AuthorRole = "CEO", CompanyName = "Tech Corp", Content = "Excellent service and results." },
-                    new() { AuthorName = "Jane Smith", AuthorRole = "Product Manager", CompanyName = "Scale Up", Content = "Aero CMS transformed our workflow." }
-                };
-                break;
-            case "aero_faq":
-                block.Title = "Frequently Asked Questions";
-                block.Description = "Everything you need to know about the product and billing.";
-                block.FaqItems = new List<AeroFaqItem>
-                {
-                    new() { Question = "What is Aero CMS?", Answer = "Aero CMS is a modern, block-based content management system built with .NET." },
-                    new() { Question = "How do I get started?", Answer = "Simply drag and drop blocks from the sidebar to compose your page." }
-                };
-                break;
-            case "aero_portfolio":
-                block.Title = "Our Recent Work";
-                block.Description = "Explore some of the projects we've completed for our valued clients.";
-                block.PortfolioItems = new List<AeroPortfolioItem>
-                {
-                    new() { ProjectTitle = "Project One", ProjectDescription = "A brief description of this amazing project.", ProjectImageUrl = "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800", ProjectCategory = "Web Design" },
-                    new() { ProjectTitle = "Project Two", ProjectDescription = "Another great project with a different focus.", ProjectImageUrl = "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800", ProjectCategory = "Development" }
-                };
-                break;
-            case "aero_contact":
-                block.Title = "Get in Touch";
-                block.Description = "Our friendly team is always here to chat.";
-                block.ContactDetails = new List<AeroContactDetail>
-                {
-                    new() { Label = "Email", Value = "hello@getaerocms.net", Icon = "M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2m20 0v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6m20 0l-10 7L2 6" },
-                    new() { Label = "Phone", Value = "+1 (555) 000-0000", Icon = "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" }
-                };
-                break;
-            case "aero_table":
-                block.Title = "Resource List";
-                block.Description = "A summary of available resources and their status.";
-                block.TableHeaders = new List<AeroTableHeader> { new() { Label = "Name" }, new() { Label = "Status" }, new() { Label = "Date" } };
-                block.TableRows = new List<AeroTableRow>
-                {
-                    new() { Cells = new List<string> { "Resource A", "Active", "2025-01-01" } },
-                    new() { Cells = new List<string> { "Resource B", "Pending", "2025-01-15" } }
-                };
-                break;
-            case "aero_auth":
-                block.Title = "Sign in to your account";
-                block.CtaText = "Sign in";
-                break;
-            case "raw_html":
-                block.Content = "<!-- Custom HTML -->\n<div class=\"p-4 bg-gray-100\">Hello World</div>";
-                block.MarkdownView = "edit";
                 break;
             case "text":
-                block.Content = string.Empty;
+                block.Content = "Enter your text here...";
                 break;
-
             case "content":
-                block.Content = "<p>Start typing your content here...</p>";
+                block.Content = "<p>Start writing...</p>";
                 break;
-
             case "markdown":
-                block.Content      = "# Heading\n\nYour markdown content here...";
+                block.Content = "# Markdown content";
                 block.MarkdownView = "edit";
                 break;
-
+            case "raw_html":
+            case "ui.raw-html":
+                block.Content = "<p>Custom HTML</p>";
+                break;
             case "dynamic_template":
-                block.ScribanTemplate = "<section class=\"p-6 rounded-lg bg-slate-50\"><h2>{{ block.title }}</h2><p>{{ block.body }}</p></section>";
-                block.ScribanDataJson = """
-                    {
-                      "title": "Dynamic Template",
-                      "body": "Rendered with Scriban."
-                    }
-                    """;
-                block.ScribanView = "code";
+            case "neo.template.scriban":
+                block.ScribanTemplate = "{{ title }}";
+                block.ScribanDataJson = "{ \"title\": \"Hello\" }";
                 break;
-
             case "quote":
-                block.Content = string.Empty;
-                block.Author  = string.Empty;
+                block.Content = "Enter quote text...";
+                block.Author = "Author name";
                 break;
-
-            case "separator":
-                break;
-
             case "columns":
-                block.ColumnCount   = 2;
-                block.Gap           = 16;
+            case "neo.layout.columns":
+                block.ColumnCount = 2;
+                block.Gap = 16;
                 block.EditorColumns =
                 [
-                    new EditorColumn { Blocks = [] },
-                    new EditorColumn { Blocks = [] },
+                    new EditorColumn(),
+                    new EditorColumn()
                 ];
                 break;
-
-            case "image":
-                block.Src     = string.Empty;
-                block.Alt     = string.Empty;
-                block.Caption = string.Empty;
+            case "aero_hero":
+                block.MainText = "Aero Hero";
+                block.SubText = "Build a polished page section.";
+                block.CtaText = "Get started";
+                block.CtaUrl = "#";
                 break;
-
-            case "video":
-                block.Url = string.Empty;
-                block.Src = string.Empty;
-                block.AutoPlay = false;
+            case "aero_features":
+                block.MainText = "Features";
+                block.SubText = "Everything you need.";
+                block.FeatureItems =
+                [
+                    new AeroFeatureItem { Title = "Fast", Description = "Ship quickly.", Icon = "zap" },
+                    new AeroFeatureItem { Title = "Flexible", Description = "Compose freely.", Icon = "layout" }
+                ];
                 break;
-
-            case "gallery":
-                block.GalleryImages = [];
+            case "aero_cta":
+                block.MainText = "Ready to start?";
+                block.SubText = "Take the next step.";
+                block.CtaText = "Contact us";
+                block.CtaUrl = "#";
                 break;
-
-            case "audio":
-                block.Src = string.Empty;
+            case "aero_blog":
+                block.MainText = "Latest posts";
+                block.Description = "Recent articles and updates.";
                 break;
-
-            // Reference types
-            case "pages":
-            case "posts":
-            case "categories":
-            case "tags":
-            case "authors":
-                block.SelectedReferenceId = string.Empty;
+            case "aero_pricing":
+                block.MainText = "Pricing";
+                block.Description = "Simple plans for every team.";
+                break;
+            case "aero_teams":
+                block.MainText = "Our team";
+                block.Description = "Meet the people behind the work.";
+                break;
+            case "aero_testimonials":
+                block.MainText = "Testimonials";
+                block.Description = "What customers are saying.";
+                break;
+            case "aero_faq":
+                block.MainText = "FAQ";
+                block.Description = "Common questions.";
+                block.FaqItems = [new AeroFaqItem { Question = "Question?", Answer = "Answer." }];
+                break;
+            case "aero_portfolio":
+                block.MainText = "Portfolio";
+                block.Description = "Selected work.";
+                break;
+            case "aero_contact":
+                block.MainText = "Contact";
+                block.Description = "Get in touch.";
+                break;
+            case "aero_table":
+                block.MainText = "Table";
+                block.Description = "Structured information.";
+                break;
+            case "aero_auth":
+                block.MainText = "Sign in";
+                block.Description = "Access your account.";
+                block.CtaText = "Continue";
+                break;
+            default:
                 break;
         }
 
         return block;
+    }
+
+    /// <summary>
+    /// Converts an EditorBlock to its corresponding BlockBase for property editing.
+    /// </summary>
+    private BlockBase? GetBlockBaseForEditor(EditorBlock? block)
+    {
+        if (block == null) return null;
+
+        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        {
+            return definition.ToBlockBase(block);
+        }
+
+        var node = MapEditorBlockToNeoNode(block);
+        return block.Type switch
+        {
+            "aero.hero.basic" => BasicHeroBlockMapper.FromNode(node),
+            "media.image" => ImageBlockMapper.FromNode(node),
+            "media.video" => VideoBlockMapper.FromNode(node),
+            "media.audio" => AudioBlockMapper.FromNode(node),
+            "media.gallery" => GalleryBlockMapper.FromNode(node),
+            "ui.raw-html" => NeoRawHtmlBlockMapper.FromNode(node),
+            "ui.separator" => SeparatorBlockMapper.FromNode(node),
+            "neo.layout.columns" => NeoColumnsBlockMapper.FromNode(node),
+            _ => null
+        };
+    }
+
+    private static NeoPageNode MapEditorBlockToNeoNode(EditorBlock block)
+    {
+        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        {
+            return definition.ToNeoPageNode(block);
+        }
+
+        return block.Type switch
+        {
+        "aero.hero.01" => new NeoPageNode
+        {
+            CatalogId = "aero.hero.01", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["eyebrow"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Eyebrow),
+                ["title"] = System.Text.Json.JsonSerializer.SerializeToElement(block.MainText),
+                ["highlight"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Highlight),
+                ["description"] = System.Text.Json.JsonSerializer.SerializeToElement(block.SubText),
+                ["primaryText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText),
+                ["primaryUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl),
+                ["secondaryText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText2),
+                ["secondaryUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl2),
+                ["trustMarkers"] = System.Text.Json.JsonSerializer.SerializeToElement(block.TrustMarkers)
+            }
+        },
+        "aero.hero.basic" => new NeoPageNode
+        {
+            CatalogId = "aero.hero.basic", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["title"] = System.Text.Json.JsonSerializer.SerializeToElement(block.MainText),
+                ["subtitle"] = System.Text.Json.JsonSerializer.SerializeToElement(block.SubText),
+                ["backgroundImageUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.BackgroundImage),
+                ["ctaText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText),
+                ["ctaUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl)
+            }
+        },
+        "media.image" => new NeoPageNode
+        {
+            CatalogId = "media.image", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["src"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Src),
+                ["alt"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Alt ?? string.Empty),
+                ["caption"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Caption ?? string.Empty)
+            }
+        },
+        "media.video" => new NeoPageNode
+        {
+            CatalogId = "media.video", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["src"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Src),
+                ["autoplay"] = System.Text.Json.JsonSerializer.SerializeToElement(block.AutoPlay),
+                ["controls"] = System.Text.Json.JsonSerializer.SerializeToElement(true)
+            }
+        },
+        "media.audio" => new NeoPageNode
+        {
+            CatalogId = "media.audio", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["src"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Src),
+                ["controls"] = System.Text.Json.JsonSerializer.SerializeToElement(true)
+            }
+        },
+        "media.gallery" => new NeoPageNode
+        {
+            CatalogId = "media.gallery", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["images"] = System.Text.Json.JsonSerializer.SerializeToElement(block.GalleryImages.Select(g => g.Src).ToList()),
+                ["columns"] = System.Text.Json.JsonSerializer.SerializeToElement(3)
+            }
+        },
+        "ui.raw-html" => new NeoPageNode
+        {
+            CatalogId = "ui.raw-html", Kind = NeoPageNodeKind.Block,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["html"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Content)
+            }
+        },
+        "ui.separator" => new NeoPageNode
+        {
+            CatalogId = "ui.separator", Kind = NeoPageNodeKind.Block,
+            Properties = []
+        },
+        _ => new NeoPageNode { CatalogId = block.Type, Kind = NeoPageNodeKind.Block, Properties = [] }
+        };
     }
 
     protected void SelectBlock(string id) => SelectedBlockId = id;
@@ -502,7 +828,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         Blocks.RemoveAt(index);
         SelectedBlockId = null;
         MarkDirty();
-        ShowToast("Block deleted");
+        ShowToast(L["Block deleted"]);
         QueuePreviewRefresh();
     }
 
@@ -518,7 +844,7 @@ public partial class PageEditor : ComponentBase, IDisposable
 
         Blocks.Insert(index + 1, copy);
         MarkDirty();
-        ShowToast("Block duplicated", "success");
+        ShowToast(L["Block duplicated"], "success");
         QueuePreviewRefresh();
     }
 
@@ -545,128 +871,25 @@ public partial class PageEditor : ComponentBase, IDisposable
     protected void DragStart(DragEventArgs e, string type)
     {
         DraggedType  = type;
-        DraggedBlockId = null;
         DraggedIndex   = null;
     }
 
-    protected void DragStartBlock(DragEventArgs e, string id, int index)
+    /// <summary>Handle canvas reorder from Sortable.</summary>
+    protected void OnCanvasReordered(IList<EditorBlock> reordered)
     {
-        DraggedBlockId = id;
-        DraggedIndex   = index;
-        DraggedType    = null;
-    }
-
-    protected void DragOverBlock(DragEventArgs e, int index)
-    {
-        DragOverIndex = index;
-
-        // Reorder while dragging (live preview – like the Alpine version)
-        if (DraggedIndex is not null && DraggedIndex != index)
-        {
-            var block = Blocks[DraggedIndex.Value];
-            Blocks.RemoveAt(DraggedIndex.Value);
-            Blocks.Insert(index, block);
-            DraggedIndex = index;
-            QueuePreviewRefresh();
-        }
-    }
-
-    protected void OnDropCanvas(DragEventArgs e)
-    {
-        if (DraggedType is not null)
-        {
-            AddBlock(DraggedType);
-            DraggedType = null;
-        }
-
-        DraggedBlockId = null;
-        DraggedIndex   = null;
-        DragOverIndex  = -1;
+        Blocks = reordered.ToList();
+        MarkDirty();
         QueuePreviewRefresh();
     }
 
-    protected void DropBlock(DragEventArgs e, int index)
+    /// <summary>Handle catalog item dropped onto canvas from Sortable palette.</summary>
+    protected void OnCatalogItemTransferred(SortableTransferArgs args)
     {
-        DraggedBlockId = null;
-        DraggedIndex   = null;
-        DragOverIndex  = -1;
-        QueuePreviewRefresh();
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Column management  (mirrors updateColumnCount / addBlockToColumn / etc.)
-    // ──────────────────────────────────────────────────────────
-
-    protected void UpdateColumnCount(EditorBlock block, int newCount)
-    {
-        var current = block.EditorColumns.Count;
-
-        if (newCount > current)
+        var catalogId = args.ActiveId;
+        if (!string.IsNullOrEmpty(catalogId))
         {
-            for (var i = current; i < newCount; i++)
-                block.EditorColumns.Add(new EditorColumn { Blocks = [] });
+            AddBlock(catalogId);
         }
-        else if (newCount < current)
-        {
-            // Check for content in columns to be removed
-            var hasContent = block.EditorColumns.Skip(newCount).Any(c => c.Blocks.Count > 0);
-            if (hasContent)
-            {
-                // In Blazor we can't show a JS confirm() — show a toast warning instead.
-                // A future iteration can use RadzenDialogService.
-                ShowToast("Some columns have content; reduce columns in the settings panel to confirm.");
-                return;
-            }
-
-            block.EditorColumns.RemoveRange(newCount, current - newCount);
-        }
-
-        block.ColumnCount = newCount;
-        QueuePreviewRefresh();
-    }
-
-    protected void AddBlockToColumn(EditorBlock block, int colIndex, string type)
-    {
-        var nb = CreateNestedBlock(type);
-        block.EditorColumns[colIndex].Blocks.Add(nb);
-        QueuePreviewRefresh();
-    }
-
-    private static NestedBlock CreateNestedBlock(string type) => type switch
-    {
-        "text"   => new NestedBlock { Type = "text",   Content = string.Empty },
-        "image"  => new NestedBlock { Type = "image",  Src     = string.Empty, Alt = string.Empty },
-        "video"  => new NestedBlock { Type = "video",  Url     = string.Empty, Src = string.Empty },
-        "button" => new NestedBlock { Type = "button", Text    = "Click Me",   Url = "#", Style = "primary" },
-        _        => new NestedBlock { Type = type },
-    };
-
-    protected void RemoveNestedBlock(EditorBlock block, int colIndex, int nestedIndex)
-    {
-        block.EditorColumns[colIndex].Blocks.RemoveAt(nestedIndex);
-        QueuePreviewRefresh();
-    }
-
-    protected void DropOnColumn(DragEventArgs e, EditorBlock block, int colIndex)
-    {
-        if (DraggedType is null) return;
-
-        var mapped = DraggedType switch
-        {
-            "text"  => "text",
-            "image" => "image",
-            "video" => "video",
-            _       => null,
-        };
-
-        if (mapped is not null)
-        {
-            block.EditorColumns[colIndex].Blocks.Add(CreateNestedBlock(mapped));
-            ShowToast($"{DraggedType} added to column", "success");
-            QueuePreviewRefresh();
-        }
-
-        DraggedType = null;
     }
 
     // ──────────────────────────────────────────────────────────
@@ -714,7 +937,7 @@ public partial class PageEditor : ComponentBase, IDisposable
     {
         if (string.IsNullOrWhiteSpace(block.ScribanTemplate))
         {
-            DynamicTemplatePreviewHtml[block.EditorId] = "<div class=\"text-sm text-red-600\">Template is required.</div>";
+            DynamicTemplatePreviewHtml[block.EditorId] = $"<div class=\"text-sm text-red-600\">{L["Template is required."]}</div>";
             return;
         }
 
@@ -737,12 +960,12 @@ public partial class PageEditor : ComponentBase, IDisposable
             {
                 Result<string, AeroError>.Ok ok => ok.Value,
                 Result<string, AeroError>.Failure failure => BuildPreviewError(failure.Error.ToString()),
-                _ => BuildPreviewError("Preview failed.")
+                _ => BuildPreviewError(L["Preview failed."])
             };
         }
         catch (JsonException ex)
         {
-            DynamicTemplatePreviewHtml[block.EditorId] = BuildPreviewError($"Invalid JSON data: {ex.Message}");
+            DynamicTemplatePreviewHtml[block.EditorId] = BuildPreviewError(L["Invalid JSON data: {0}", ex.Message]);
         }
         finally
         {
@@ -766,6 +989,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         MediaContext      = context;
         NestedMediaTarget = null;
         MediaModalOpen    = true;
+        InvokeAsync(StateHasChanged);
     }
 
     protected void OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb)
@@ -775,13 +999,14 @@ public partial class PageEditor : ComponentBase, IDisposable
         MediaContext      = "nested";
         NestedMediaTarget = nb;
         MediaModalOpen    = true;
+        InvokeAsync(StateHasChanged);
     }
 
     protected void OpenAudioSelector(EditorBlock block)
     {
         // Simulate audio selection with a placeholder URL
         block.Src = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-        ShowToast("Audio added", "success");
+        ShowToast(L["Audio added"], "success");
     }
 
     private async Task OnConfirmMediaSelection(List<MediaItem> items)
@@ -819,7 +1044,9 @@ public partial class PageEditor : ComponentBase, IDisposable
         }
 
         MediaModalOpen = false;
-        ShowToast("Media added", "success");
+        MarkDirty();
+        QueuePreviewRefresh();
+        ShowToast(L["Media added"], "success");
     }
 
     protected void RemoveImage(EditorBlock block)
@@ -827,6 +1054,8 @@ public partial class PageEditor : ComponentBase, IDisposable
         block.Src     = string.Empty;
         block.Alt     = string.Empty;
         block.Caption = string.Empty;
+        MarkDirty();
+        QueuePreviewRefresh();
     }
 
     // ──────────────────────────────────────────────────────────
@@ -841,11 +1070,11 @@ public partial class PageEditor : ComponentBase, IDisposable
         if (!string.IsNullOrEmpty(embedUrl))
         {
             block.Src = embedUrl;
-            ShowToast("Video added", "success");
+            ShowToast(L["Video added"], "success");
         }
         else
         {
-            ShowToast("Invalid video URL", "error");
+            ShowToast(L["Invalid video URL"], "error");
         }
     }
 
@@ -970,7 +1199,7 @@ public partial class PageEditor : ComponentBase, IDisposable
         catch (Exception ex)
         {
             PreviewHtml = null;
-            PreviewError = $"Preview render failed: {ex.Message}";
+            PreviewError = L["Preview render failed: {0}", ex.Message];
         }
         finally
         {
@@ -1000,6 +1229,19 @@ public partial class PageEditor : ComponentBase, IDisposable
         }
 
         _previewBaseUri = ResolvePreviewBaseUri(selectedSite) ?? NavManager.BaseUri;
+    }
+
+    private async Task<SiteViewModel?> ResolveCurrentSiteAsync()
+    {
+        if (AdminState.CurrentSiteId is { } selectedSiteId)
+            return await LoadSiteByIdAsync(selectedSiteId);
+
+        var selectedSite = await CurrentSiteAccessor.GetCurrentSiteAsync();
+        if (selectedSite is not null)
+            return selectedSite;
+
+        var defaultResult = await SitesClient.GetDefaultAsync();
+        return defaultResult is Result<SiteViewModel, AeroError>.Ok ok ? ok.Value : null;
     }
 
     private string? ResolvePreviewBaseUri(SiteViewModel? site)
@@ -1066,10 +1308,392 @@ public partial class PageEditor : ComponentBase, IDisposable
         return uri.EndsWith("/", StringComparison.Ordinal) ? uri : $"{uri}/";
     }
 
-    private static string BuildPreviewFrameDocument(string? html, string baseUri)
+    private async Task LoadPageTranslationsAsync()
+    {
+        if (Id is null)
+        {
+            PageCultureVariants = [];
+            ResetTranslationDraft();
+            return;
+        }
+
+        IsLoadingTranslations = true;
+
+        try
+        {
+            var result = await PagesClient.ListCultureVariantsAsync(Id.Value);
+            PageCultureVariants = result is Result<IReadOnlyList<CmsPageDetail>, AeroError>.Ok ok
+                ? ok.Value.OrderBy(page => page.Culture, StringComparer.OrdinalIgnoreCase).ToList()
+                : [];
+
+            ResetTranslationDraft();
+        }
+        catch
+        {
+            PageCultureVariants = [];
+        }
+        finally
+        {
+            IsLoadingTranslations = false;
+        }
+    }
+
+    protected async Task CreateTranslationAsync()
+    {
+        if (Id is null || IsCreatingTranslation)
+            return;
+
+        if (string.IsNullOrWhiteSpace(SelectedTranslationCulture))
+        {
+            ShowToast(L["Choose a target culture"], "error");
+            return;
+        }
+
+        var slug = string.IsNullOrWhiteSpace(TranslationSlug)
+            ? PageSlug.Trim()
+            : TranslationSlug.Trim();
+
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            ShowToast(L["Enter a translated slug"], "error");
+            return;
+        }
+
+        if (_pageState == PageState.Dirty)
+        {
+            await SavePage();
+
+            if (_pageState != PageState.Clean)
+                return;
+        }
+
+        IsCreatingTranslation = true;
+
+        try
+        {
+            var request = new ForkPageCultureRequest(SelectedTranslationCulture, slug);
+            var result = await PagesClient.ForkToCultureAsync(Id.Value, request);
+
+            if (result is Result<CmsPageDetail, AeroError>.Ok ok)
+            {
+                ShowToast(L["Created {0} translation", FormatCulture(ok.Value.Culture)], "success");
+                NavManager.NavigateTo($"/manager/page/editor/{ok.Value.Id}");
+                return;
+            }
+
+            if (result is Result<CmsPageDetail, AeroError>.Failure failure)
+                ShowToast(L["Translation failed: {0}", failure.Error], "error");
+        }
+        catch (Exception ex)
+        {
+            ShowToast(L["Translation failed: {0}", ex.Message], "error");
+        }
+        finally
+        {
+            IsCreatingTranslation = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected async Task TranslateAllCulturesAsync()
+    {
+        if (LoadedPage is null || Id is null || IsTranslatingAll)
+            return;
+
+        var existingCultures = PageCultureVariants
+            .Select(x => NormalizeCultureName(x.Culture))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var targets = SupportedCultures
+            .Select(NormalizeCultureName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(culture => !string.Equals(culture, LoadedPage.Culture, StringComparison.OrdinalIgnoreCase))
+            .Where(culture => OverwriteExistingTranslations || !existingCultures.Contains(culture))
+            .Select(culture =>
+            {
+                var existing = PageCultureVariants.FirstOrDefault(x => string.Equals(x.Culture, culture, StringComparison.OrdinalIgnoreCase));
+                return new AiTranslatePageCultureRequest(
+                    culture,
+                    existing?.Slug ?? BuildDefaultTranslationSlug(PageSlug, culture));
+            })
+            .ToList();
+
+        if (targets.Count == 0)
+        {
+            ShowToast(
+                OverwriteExistingTranslations
+                    ? L["There are no other site cultures to translate."]
+                    : L["All enabled cultures already have translations. Enable overwrite to refresh existing translations."],
+                "info");
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            OverwriteExistingTranslations
+                ? L["Translate all enabled cultures and overwrite existing localized page content? Existing variants will become drafts."]
+                : L["Translate all missing enabled cultures for this page? New localized variants will be created as drafts."],
+            L["AI Translate All"],
+            new ConfirmOptions
+            {
+                OkButtonText = L["Translate"],
+                CancelButtonText = L["Cancel"]
+            });
+
+        if (confirmed != true)
+            return;
+
+        await TranslateCulturesAsync(targets, OverwriteExistingTranslations, translateAll: true);
+    }
+
+    protected Task TranslateCultureAsync(CmsPageDetail variant)
+    {
+        if (LoadedPage is null || Id is null)
+            return Task.CompletedTask;
+
+        if (string.Equals(variant.Culture, LoadedPage.Culture, StringComparison.OrdinalIgnoreCase))
+        {
+            ShowToast(L["Open another culture variant and translate from that source if needed."], "info");
+            return Task.CompletedTask;
+        }
+
+        return TranslateCulturesAsync(
+            [new AiTranslatePageCultureRequest(variant.Culture, variant.Slug)],
+            overwriteExisting: true,
+            translateAll: false);
+    }
+
+    private async Task TranslateCulturesAsync(
+        IReadOnlyList<AiTranslatePageCultureRequest> targets,
+        bool overwriteExisting,
+        bool translateAll)
+    {
+        if (Id is null || targets.Count == 0)
+            return;
+
+        if (_pageState == PageState.Dirty)
+        {
+            await SavePage();
+
+            if (_pageState != PageState.Clean)
+                return;
+        }
+
+        if (translateAll)
+        {
+            IsTranslatingAll = true;
+        }
+
+        foreach (var target in targets)
+        {
+            TranslatingCultures.Add(target.Culture);
+        }
+
+        try
+        {
+            var request = new AiTranslatePageRequest(targets, ProviderId: null, overwriteExisting);
+            var result = await PagesClient.TranslateWithAiAsync(Id.Value, request);
+
+            if (result is Result<AiTranslatePageResult, AeroError>.Ok ok)
+            {
+                var succeeded = ok.Value.Results.Count(x => x.Succeeded);
+                var failed = ok.Value.Results.Count - succeeded;
+
+                if (succeeded > 0)
+                {
+                    ShowToast(
+                        failed == 0
+                            ? L["Translated {0} culture(s)", succeeded]
+                            : L["Translated {0} culture(s); {1} failed", succeeded, failed],
+                        failed == 0 ? "success" : "info");
+
+                    await LoadPageTranslationsAsync();
+                }
+
+                foreach (var failure in ok.Value.Results.Where(x => !x.Succeeded))
+                {
+                    ShowToast(L["{0}: {1}", FormatCulture(failure.Culture), failure.Error ?? L["AI translation failed"]], "error");
+                }
+
+                return;
+            }
+
+            if (result is Result<AiTranslatePageResult, AeroError>.Failure apiFailure)
+            {
+                ShowToast(L["AI translation failed: {0}", apiFailure.Error], "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast(L["AI translation failed: {0}", ex.Message], "error");
+        }
+        finally
+        {
+            if (translateAll)
+            {
+                IsTranslatingAll = false;
+            }
+
+            foreach (var target in targets)
+            {
+                TranslatingCultures.Remove(target.Culture);
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected void OpenTranslation(long pageId)
+        => NavManager.NavigateTo($"/manager/page/editor/{pageId}?tab=translations");
+
+    protected void OpenPublicTranslation(CmsPageDetail variant)
+    {
+        var baseUri = _previewBaseUri ?? NavManager.BaseUri.TrimEnd('/');
+        NavManager.NavigateTo($"{baseUri.TrimEnd('/')}{variant.Path}");
+    }
+
+    protected async Task DeleteTranslationAsync(CmsPageDetail variant)
+    {
+        if (LoadedPage is null)
+            return;
+
+        var isDefault = string.Equals(CurrentSite?.DefaultCulture, variant.Culture, StringComparison.OrdinalIgnoreCase);
+        if (isDefault)
+        {
+            ShowToast(L["Delete the default culture page from the Pages list so the full translation group warning is shown."], "error");
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            L["Delete the {0} translation for '{1}'?", FormatCulture(variant.Culture), variant.Title],
+            L["Delete Translation"],
+            new ConfirmOptions { OkButtonText = L["Delete Translation"], CancelButtonText = L["Cancel"] });
+
+        if (confirmed != true)
+            return;
+
+        var result = await PagesClient.DeleteAsync(variant.Id);
+        if (result is Result<bool, AeroError>.Ok)
+        {
+            ShowToast(L["Deleted {0} translation", FormatCulture(variant.Culture)], "success");
+            await LoadPageTranslationsAsync();
+            return;
+        }
+
+        if (result is Result<bool, AeroError>.Failure failure)
+            ShowToast(L["Delete failed: {0}", failure.Error], "error");
+    }
+
+    protected Task PublishAllTranslationsAsync()
+        => SetAllTranslationsPublicationStateAsync(publish: true);
+
+    protected Task UnpublishAllTranslationsAsync()
+        => SetAllTranslationsPublicationStateAsync(publish: false);
+
+    private async Task SetAllTranslationsPublicationStateAsync(bool publish)
+    {
+        if (LoadedPage is null || IsBulkPublishingTranslations)
+            return;
+
+        var translationGroupId = LoadedPage.TranslationGroupId ?? LoadedPage.Id;
+        var action = publish ? L["publish"] : L["unpublish"];
+        var confirmed = await DialogService.Confirm(
+            L["This will {0} all existing localized versions for '{1}'. Continue?", action, LoadedPage.Title],
+            publish ? L["Publish All Translations"] : L["Unpublish All Translations"],
+            new ConfirmOptions
+            {
+                OkButtonText = publish ? L["Publish All"] : L["Unpublish All"],
+                CancelButtonText = L["Cancel"]
+            });
+
+        if (confirmed != true)
+            return;
+
+        IsBulkPublishingTranslations = true;
+        try
+        {
+            var result = publish
+                ? await PagesClient.PublishTranslationGroupAsync(translationGroupId)
+                : await PagesClient.UnpublishTranslationGroupAsync(translationGroupId);
+
+            if (result is Result<PublicationBulkResult, AeroError>.Ok ok)
+            {
+                var current = ok.Value.Items.FirstOrDefault(x => x.Id == LoadedPage.Id);
+                if (current is not null)
+                {
+                    PublicationState = current.Published
+                        ? ContentPublicationState.Published
+                        : ContentPublicationState.Draft;
+                }
+
+                ShowToast(
+                    publish
+                        ? L["Published {0} translation(s)", ok.Value.Updated]
+                        : L["Unpublished {0} translation(s)", ok.Value.Updated],
+                    "success");
+
+                await LoadPageTranslationsAsync();
+                return;
+            }
+
+            if (result is Result<PublicationBulkResult, AeroError>.Failure failure)
+            {
+                ShowToast(L["{0} all failed: {1}", publish ? L["Publish"] : L["Unpublish"], failure.Error], "error");
+            }
+        }
+        finally
+        {
+            IsBulkPublishingTranslations = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ResetTranslationDraft()
+    {
+        SelectedTranslationCulture = AvailableTranslationCultures.FirstOrDefault() ?? string.Empty;
+        TranslationSlug = string.Empty;
+    }
+
+    protected string FormatCulture(string? culture)
+    {
+        var normalized = NormalizeCultureName(culture);
+        try
+        {
+            var info = CultureInfo.GetCultureInfo(normalized);
+            return $"{info.DisplayName} ({info.Name})";
+        }
+        catch (CultureNotFoundException)
+        {
+            return normalized;
+        }
+    }
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return "en-US";
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return culture.Trim();
+        }
+    }
+
+    private static string BuildDefaultTranslationSlug(string slug, string culture)
+    {
+        var normalized = TitleToSlug(slug.Trim().Trim('/'));
+        return string.IsNullOrWhiteSpace(normalized)
+            ? culture.ToLowerInvariant()
+            : $"{normalized}-{culture.ToLowerInvariant()}";
+    }
+
+    private static string BuildPreviewFrameDocument(string? html, string baseUri, IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L)
     {
         var content = string.IsNullOrWhiteSpace(html)
-            ? "<main class=\"pe-empty-state\"><h3>No preview content</h3></main>"
+            ? $"<main class=\"pe-empty-state\"><h3>{L["No preview content"]}</h3></main>"
             : html;
         var appCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/app.css");
         var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");
@@ -1163,6 +1787,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                     SeoTitle,
                     SeoDescription,
                     PublicationState,
+                    ParentId,
                     null, // LayoutRegions are mapped on backend from EditorBlocks
                     ShowInNavMenu,
                     ShowHeaderNavigation,
@@ -1172,16 +1797,18 @@ public partial class PageEditor : ComponentBase, IDisposable
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
-                if (result is Result<CmsPageDetail, AeroError>.Ok)
+                if (result is Result<CmsPageDetail, AeroError>.Ok ok)
                 {
+                    LoadedPage = ok.Value;
                     UpdateLastSaved();
                     _pageState = PageState.Clean;
                     await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
-                    ShowToast("Page saved successfully", "success");
+                    await LoadPageTranslationsAsync();
+                    ShowToast(L["Page saved successfully"], "success");
                 }
                 else if (result is Result<CmsPageDetail, AeroError>.Failure err)
                 {
-                    ShowToast($"Error saving: {err.Error}", "error");
+                    ShowToast(L["Error saving: {0}", err.Error], "error");
                 }
             }
             else
@@ -1193,6 +1820,7 @@ public partial class PageEditor : ComponentBase, IDisposable
                     SeoTitle,
                     SeoDescription,
                     PublicationState,
+                    ParentId,
                     null,
                     ShowInNavMenu,
                     ShowHeaderNavigation,
@@ -1205,22 +1833,24 @@ public partial class PageEditor : ComponentBase, IDisposable
                 if (result is Result<CmsPageDetail, AeroError>.Ok createOk)
                 {
                     Id = createOk.Value.Id;
+                    LoadedPage = createOk.Value;
                     _slugState = SlugState.Locked;  // preserve generated slug going forward
                     _pageState = PageState.Clean;
                     UpdateLastSaved();
-                    ShowToast("Page created successfully", "success");
+                    await LoadPageTranslationsAsync();
+                    ShowToast(L["Page created successfully"], "success");
                     // Update URL without refreshing
                     // NavManager.NavigateTo($"/manager/page/editor/{Id}", false); 
                 }
                 else if (result is Result<CmsPageDetail, AeroError>.Failure err)
                 {
-                    ShowToast($"Error creating: {err.Error}", "error");
+                    ShowToast(L["Error creating: {0}", err.Error], "error");
                 }
             }
         }
         catch (Exception ex)
         {
-            ShowToast($"Save failed: {ex.Message}", "error");
+            ShowToast(L["Save failed: {0}", ex.Message], "error");
         }
         finally
         {
@@ -1244,11 +1874,11 @@ public partial class PageEditor : ComponentBase, IDisposable
                 PublicationState = ok.Value.PublicationState;
                 _pageState = PageState.Clean;
                 await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
-                ShowToast("Page published!", "success");
+                ShowToast(L["Page published!"], "success");
             }
             else
             {
-                ShowToast("Failed to publish", "error");
+                ShowToast(L["Failed to publish"], "error");
             }
         }
     }
@@ -1262,11 +1892,11 @@ public partial class PageEditor : ComponentBase, IDisposable
             {
                 PublicationState = ok.Value.PublicationState;
                 _pageState = PageState.Clean;
-                ShowToast("Page unpublished", "success");
+                ShowToast(L["Page unpublished"], "success");
             }
             else
             {
-                ShowToast("Failed to unpublish", "error");
+                ShowToast(L["Failed to unpublish"], "error");
             }
         }
     }
@@ -1337,5 +1967,72 @@ public partial class PageEditor : ComponentBase, IDisposable
 
     private string TabBtnClass(string tab) =>
         ActiveTab == tab ? "pe-tab-btn active" : "pe-tab-btn";
+
+    private static bool IsKnownTab(string? tab)
+        => string.Equals(tab, "editor", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "metadata", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(tab, "translations", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeTab(string? tab)
+        => string.Equals(tab, "metadata", StringComparison.OrdinalIgnoreCase)
+            ? "metadata"
+            : string.Equals(tab, "translations", StringComparison.OrdinalIgnoreCase)
+                ? "translations"
+                : "editor";
+
+    // ──────────────────────────────────────────────────────────
+    // IBlockEditorCallbacks explicit implementation
+    // These forward to protected methods and properties used by
+    // BlockEditorPreviewHost via the cascading IBlockEditorCallbacks.
+    // ──────────────────────────────────────────────────────────
+
+    bool IBlockEditorCallbacks.PreviewMode => PreviewMode;
+    Dictionary<string, string> IBlockEditorCallbacks.DynamicTemplatePreviewHtml => DynamicTemplatePreviewHtml;
+
+    void IBlockEditorCallbacks.SelectBlock(string editorId) => SelectBlock(editorId);
+    void IBlockEditorCallbacks.BlockChanged(EditorBlock block)
+    {
+        MarkDirty();
+        QueuePreviewRefresh();
+    }
+
+    void IBlockEditorCallbacks.OpenBlockEditor(EditorBlock block) => OpenBlockEditor(block);
+
+    void IBlockEditorCallbacks.OpenMediaSelector(EditorBlock block, bool multiSelect, string field)
+        => OpenMediaSelector(block, multiSelect, field);
+    void IBlockEditorCallbacks.OpenAudioSelector(EditorBlock block) => OpenAudioSelector(block);
+    void IBlockEditorCallbacks.RemoveImage(EditorBlock block) => RemoveImage(block);
+    void IBlockEditorCallbacks.RemoveVideo(EditorBlock block) => RemoveVideo(block);
+    void IBlockEditorCallbacks.LoadVideo(EditorBlock block) => LoadVideo(block);
+    Task IBlockEditorCallbacks.RefreshDynamicTemplatePreviewAsync(EditorBlock block)
+        => RefreshDynamicTemplatePreviewAsync(block);
+    void IBlockEditorCallbacks.LoadNestedVideo(NestedBlock nb) => LoadNestedVideo(nb);
+    void IBlockEditorCallbacks.OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb)
+        => OpenMediaSelectorForNested(parent, colIndex, nb);
+    List<ReferenceItem> IBlockEditorCallbacks.GetReferenceItems(string type) => GetReferenceItems(type);
+
+    string IBlockEditorCallbacks.RenderDynamicTemplateIfCached(EditorBlock block)
+    {
+        return DynamicTemplatePreviewHtml.TryGetValue(block.EditorId, out var html)
+            ? html
+            : string.Empty;
+    }
+
+    /// <summary>Toggle sidebar panels (from empty-state click).</summary>
+    protected void ToggleSidebarPanels() => RightSidebarCollapsed = false;
+
+    // ──────────────────────────────────────────────────────────
+    // Version History  (event sourcing — mt_events timeline)
+    // ──────────────────────────────────────────────────────────
+
+    private PageVersionHistory? _historyPanel;
+
+    private async Task ShowHistoryAsync()
+    {
+        if (_historyPanel is not null && Id.HasValue)
+        {
+            await _historyPanel.OpenAsync();
+        }
+    }
 }
 

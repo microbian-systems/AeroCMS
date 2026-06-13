@@ -1,0 +1,93 @@
+@using Aero.Cms.Abstractions.Http.Clients
+@using Microsoft.Extensions.Localization
+
+@if (!_isOpen) return;
+
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" @onclick="CloseAsync">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col m-4"
+         @onclick:stopPropagation="true">
+        
+        @* ── Header ── *@
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">@L["Version History"]</h3>
+                <p class="text-sm text-gray-500 mt-0.5">@PageTitle</p>
+            </div>
+            <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@CloseAsync" />
+        </div>
+
+        @* ── Body ── *@
+        <div class="flex-1 overflow-y-auto px-6 py-4">
+            @if (_loading)
+            {
+                <div class="flex items-center justify-center py-12">
+                    <RadzenProgressBarCircular />
+                </div>
+            }
+            else if (_error is not null)
+            {
+                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                    @_error
+                </div>
+            }
+            else if (_history is null || _history.Events.Count == 0)
+            {
+                <div class="text-center py-8 text-gray-400">
+                    <RadzenIcon Icon="history" class="text-3xl mb-2" />
+                    <p>@L["No version history available for this page."]</p>
+                    <p class="text-xs mt-1">@L["Events are recorded when the page is saved, published, or moved."]</p>
+                </div>
+            }
+            else
+            {
+                <div class="text-sm text-gray-500 mb-3">
+                    @_history.TotalEvents @(_history.TotalEvents == 1 ? L["event"] : L["events"]) @L["recorded"]
+                </div>
+
+                @* ── Timeline ── *@
+                <div class="relative">
+                    @* Vertical line *@
+                    <div class="absolute left-[17px] top-1 bottom-1 w-0.5 bg-gray-200"></div>
+
+                    <div class="space-y-4">
+                        @foreach (var evt in _history.Events.Reverse<PageEventItem>())
+                        {
+                            var isLatest = evt == _history.Events[^1];
+                            <div class="flex gap-3">
+                                @* Dot *@
+                                <div class="relative flex-shrink-0 mt-1">
+                                    <div class="@GetDotClass(isLatest)">
+                                        <RadzenIcon Icon="@GetEventIcon(evt.EventType)"
+                                                    class="@(isLatest ? "text-blue-600 text-sm" : "text-gray-400 text-sm")" />
+                                    </div>
+                                </div>
+
+                                @* Content *@
+                                <div class="flex-1 min-w-0 pb-2">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-medium text-gray-900">
+                                            @FormatEventType(evt.EventType)
+                                        </span>
+                                        @if (isLatest)
+                                        {
+                                            <RadzenBadge Text="@L["latest"]" BadgeStyle="BadgeStyle.Info" />
+                                        }
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-0.5">
+                                        v@(evt.Version) — @evt.Timestamp.ToString("MMM dd, yyyy 'at' h:mm tt")
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* ── Footer ── *@
+        <div class="px-6 py-3 border-t bg-gray-50 rounded-b-lg">
+            <RadzenButton Text="@L["Close"]" ButtonStyle="ButtonStyle.Light" Click="@CloseAsync" />
+        </div>
+    </div>
+</div>

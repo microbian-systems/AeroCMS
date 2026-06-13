@@ -1,0 +1,8 @@
+@model Aero.Cms.Web.Pages.Components.Counter
+
+<div>
+    Count: <strong>@Model.Count</strong>
+    <button on:click="@(() => Model.Add())">
+        Add
+    </button>
+</div>

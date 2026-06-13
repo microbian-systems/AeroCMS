@@ -3,7 +3,6 @@ using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Content;
 using Aero.Core;
-using Aero.Core.Entities;
 using Aero.Core.Railway;
 using Marten;
 
@@ -15,8 +14,7 @@ namespace Aero.Cms.Core.Blocks.Dynamic;
 /// produces a DynamicTemplateBlock from a ContentItem.
 /// </summary>
 public sealed class ContentTypeDynamicBlockBridge(
-    IEnumerable<IFieldTemplateSnippet> snippets,
-    IDocumentSession session) : IContentTypeRenderingBridge
+    IQuerySession session) : IContentTypeRenderingBridge
 {
     /// <inheritdoc />
     public async Task<Result<DynamicTemplateBlock, AeroError>> ToDynamicBlockAsync(
@@ -27,8 +25,8 @@ public sealed class ContentTypeDynamicBlockBridge(
         ArgumentNullException.ThrowIfNull(typeDef);
         ArgumentNullException.ThrowIfNull(item);
 
-        // 1. Resolve or create the DynamicBlockDefinition for this content type
-        var definitionResult = await GetOrCreateDefinitionAsync(typeDef, ct);
+        // Definitions are synchronized when the content type is saved.
+        var definitionResult = await GetDefinitionAsync(typeDef, ct);
         if (definitionResult is Result<DynamicBlockDefinition, AeroError>.Failure fail)
             return fail.Error;
 
@@ -53,41 +51,28 @@ public sealed class ContentTypeDynamicBlockBridge(
         ContentTypeDefinition typeDef,
         CancellationToken ct = default)
     {
-        return await GetOrCreateDefinitionAsync(typeDef, ct);
-    }
+        ArgumentNullException.ThrowIfNull(typeDef);
 
-    private async Task<Result<DynamicBlockDefinition, AeroError>> GetOrCreateDefinitionAsync(
-        ContentTypeDefinition typeDef,
-        CancellationToken ct)
-    {
-        // Check if a DynamicBlockDefinition already exists for this content type
-        var existing = await session.Query<DynamicBlockDefinition>()
+        var definition = await session.Query<DynamicBlockDefinition>()
             .FirstOrDefaultAsync(d =>
+                d.ContentTypeId == typeDef.Id &&
+                d.SiteId == typeDef.SiteId &&
                 d.BlockType == DynamicTemplateBlock.Discriminator &&
-                d.Name == $"ct:{typeDef.Alias}" &&
                 d.IsPublished, ct);
 
-        if (existing is not null)
-            return Prelude.Ok<DynamicBlockDefinition, AeroError>(existing);
+        definition ??= await session.Query<DynamicBlockDefinition>()
+            .FirstOrDefaultAsync(d =>
+                d.ContentTypeId == null &&
+                d.Name == $"ct:{typeDef.Alias}" &&
+                d.BlockType == DynamicTemplateBlock.Discriminator &&
+                d.IsPublished, ct);
 
-        // Auto-generate a Scriban template from the field definitions
-        var template = string.IsNullOrWhiteSpace(typeDef.ScribanTemplate)
-            ? ContentTypeTemplateGenerator.GenerateTemplate(typeDef, snippets)
-            : typeDef.ScribanTemplate;
-
-        var definition = new DynamicBlockDefinition
+        if (definition is null)
         {
-            Id = Snowflake.NewId(),
-            Name = $"ct:{typeDef.Alias}",
-            BlockType = DynamicTemplateBlock.Discriminator,
-            ScribanTemplate = template,
-            DataSchema = null,
-            Version = 1,
-            IsPublished = true
-        };
+            return AeroError.CreateError(
+                $"Rendering definition for content type '{typeDef.Alias}' was not found. Save the content type to synchronize its template.");
+        }
 
-        session.Store(definition);
-        await session.SaveChangesAsync(ct);
         return Prelude.Ok<DynamicBlockDefinition, AeroError>(definition);
     }
 }

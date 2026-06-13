@@ -1,0 +1,8 @@
+<div class="pe-property-panel">
+    <p class="pe-property-note">Edit pricing plans in the editor canvas. Each plan supports name, description, price, CTA, and features with included/not-included status.</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Pricing2Block Block { get; set; } = default!;
+}

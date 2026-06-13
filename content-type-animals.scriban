@@ -1,0 +1,195 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  .aero-field-image img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .aero-field-image img + .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, transparent 100%);
+    pointer-events: none;
+  }
+  .aero-field-richtext img {
+    border-radius: 1rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    margin: 2.5rem auto;
+    width: 100%;
+    height: auto;
+  }
+  .aero-field-richtext h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #166534;
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+    letter-spacing: -0.02em;
+  }
+  .aero-field-richtext h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+  }
+  .aero-field-richtext p {
+    color: #475569;
+    line-height: 1.8;
+    margin-bottom: 1.25rem;
+    font-size: 1.125rem;
+  }
+  .aero-field-richtext a {
+    color: #059669;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 2px;
+    text-decoration-color: #a7f3d0;
+    transition: text-decoration-color 0.2s;
+  }
+  .aero-field-richtext a:hover {
+    text-decoration-color: #059669;
+  }
+  .aero-field-richtext blockquote {
+    border-left: 4px solid #10b981;
+    background: #f0fdf4;
+    padding: 1.5rem 2rem;
+    margin: 2rem 0;
+    border-radius: 0 1rem 1rem 0;
+    font-style: italic;
+    color: #374151;
+    font-size: 1.125rem;
+  }
+  .aero-field-richtext ul, .aero-field-richtext ol {
+    color: #475569;
+    line-height: 1.8;
+    margin-bottom: 1.25rem;
+    padding-left: 1.5rem;
+  }
+  .aero-field-richtext li {
+    margin-bottom: 0.5rem;
+  }
+  .aero-field-richtext strong {
+    color: #1e293b;
+    font-weight: 700;
+  }
+</style>
+
+<article class="content-type-animals">
+
+  {{## ============================================ ##}}
+  {{## HERO SECTION - Image background + title overlay ##}}
+  {{## ============================================ ##}}
+  <section class="aero-field aero-field-image relative h-[85vh] min-h-[600px] flex items-end overflow-hidden">
+    {{ block.image }}
+    <div class="hero-overlay"></div>
+    <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(circle at 25px 25px, #fff 1.5px, transparent 0); background-size: 50px 50px;"></div>
+
+    <div class="relative z-10 w-full px-6 sm:px-10 lg:px-16 pb-16 md:pb-24 max-w-7xl mx-auto">
+      {{## Breadcrumb ##}}
+      <nav class="flex items-center gap-2 text-white/50 text-xs font-semibold mb-6 tracking-[0.2em] uppercase" aria-label="Breadcrumb">
+        <span>Home</span>
+        <svg class="w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <span>Exhibits</span>
+        <svg class="w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <span class="text-amber-400">Animal Profile</span>
+      </nav>
+
+      {{## Title Field ##}}
+      <section class="aero-field aero-field-text max-w-4xl">
+        <h1 class="font-['Playfair_Display'] text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white leading-[0.95] tracking-tight mb-6">
+          {{ block.title }}
+        </h1>
+        <div class="flex items-center gap-4">
+          <div class="w-24 h-1.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"></div>
+          <div class="w-3 h-3 rounded-full bg-amber-400/50"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  {{## ============================================ ##}}
+  {{## QUICK STATS BAR - number | boolean | date     ##}}
+  {{## ============================================ ##}}
+  <div class="relative z-20 -mt-14 max-w-7xl mx-auto px-6 mb-20">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
+
+      {{## Number Field ##}}
+      <section class="aero-field aero-field-number group relative bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] p-6 lg:p-8 border-b-4 border-emerald-600 hover:shadow-[0_12px_40px_rgba(5,150,105,0.15)] transition-all duration-500">
+        <div class="flex items-center gap-5">
+          <div class="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-emerald-100 transition-all duration-300">
+            <svg class="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="text-5xl font-black text-emerald-800 block leading-none tracking-tight">{{ block.number }}</span>
+            <span class="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-semibold mt-1.5 block">Wild Population</span>
+          </div>
+        </div>
+        {{## Corner accent ##}}
+        <div class="absolute top-0 right-0 w-16 h-16 overflow-hidden rounded-tr-2xl pointer-events-none opacity-[0.06]">
+          <svg class="w-full h-full text-emerald-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+        </div>
+      </section>
+
+      {{## Boolean Field ##}}
+      <section class="aero-field aero-field-boolean group relative bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] p-6 lg:p-8 border-b-4 border-red-500 hover:shadow-[0_12px_40px_rgba(220,38,38,0.12)] transition-all duration-500">
+        <div class="flex items-center gap-5">
+          <div class="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-red-100 transition-all duration-300">
+            <svg class="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="inline-block bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg shadow-red-500/25 animate-[statusPulse_2s_ease-in-out_infinite]">{{ block.yesno }}</span>
+            <span class="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-semibold mt-1.5 block">Conservation Status</span>
+          </div>
+        </div>
+      </section>
+
+      {{## Date Field ##}}
+      <section class="aero-field aero-field-date group relative bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] p-6 lg:p-8 border-b-4 border-amber-500 hover:shadow-[0_12px_40px_rgba(217,119,6,0.12)] transition-all duration-500 sm:col-span-2 lg:col-span-1">
+        <div class="flex items-center gap-5">
+          <div class="w-14 h-14 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-amber-100 transition-all duration-300">
+            <svg class="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
+            </svg>
+          </div>
+          <div>
+            <span class="text-2xl font-bold text-amber-800 block leading-none">{{ block.date }}</span>
+            <span class="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-semibold mt-1.5 block">Record Updated</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  {{## ============================================ ##}}
+  {{## MAIN CONTENT - Rich text field + decoration   ##}}
+  {{## ============================================ ##}}
+  <div class="max-w-4xl mx-auto px-6 pb-8">
+    <section class="aero-field aero-field-richtext">
+      {{ block["rich-text"] }}
+    </section>
+
+    {{## Decorative End-of-Content Divider ##}}
+    <div class="flex items-center gap-4 my-16">
+      <div class="flex-1 h-px bg-gradient-to-r from-transparent via-emerald-200 to-transparent"></div>
+      <svg class="w-5 h-5 text-emerald-400 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/>
+      </svg>
+      <div class="flex-1 h-px bg-gradient-to-r from-transparent via-emerald-200 to-transparent"></div>
+    </div>
+  </div>
+
+</article>

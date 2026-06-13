@@ -1,0 +1,18 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+@if (Block != null)
+{
+    <figure class="my-8">
+        <video src="@Block.Src" poster="@Block.Poster" controls="@Block.Controls"
+               autoplay="@Block.Autoplay" loop="@Block.Loop" class="w-full rounded-lg">
+        </video>
+        @if (!string.IsNullOrEmpty(Block.Caption))
+        {
+            <figcaption class="mt-2 text-sm text-muted-foreground text-center">@Block.Caption</figcaption>
+        }
+    </figure>
+}
+
+@code {
+    [Parameter, EditorRequired] public VideoBlock? Block { get; set; }
+}

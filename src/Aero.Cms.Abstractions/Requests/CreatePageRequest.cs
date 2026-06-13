@@ -13,12 +13,18 @@ public record CreatePageRequest(
     string? SeoTitle,
     string? SeoDescription,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
+    long? ParentId = null,
     IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
-    IReadOnlyList<EditorBlock>? EditorBlocks = null
+    IReadOnlyList<EditorBlock>? EditorBlocks = null,
+    long SiteId = 0,
+    /// <summary>JSON-serialized EditorBlocks for Orleans-safe grain transport.</summary>
+    string? EditorBlocksJson = null,
+    /// <summary>JSON-serialized LayoutRegions for Orleans-safe grain transport.</summary>
+    string? LayoutRegionsJson = null
 ) : IRequest;
 
 [GenerateSerializer]
@@ -31,12 +37,18 @@ public record UpdatePageRequest(
     string? SeoTitle,
     string? SeoDescription,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
+    long? ParentId = null,
     IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
-    IReadOnlyList<EditorBlock>? EditorBlocks = null
+    IReadOnlyList<EditorBlock>? EditorBlocks = null,
+    /// <summary>JSON-serialized EditorBlocks for Orleans-safe grain transport.
+    /// null = omitted (preserve existing); non-null = apply (empty string = clear blocks).</summary>
+    string? EditorBlocksJson = null,
+    /// <summary>JSON-serialized LayoutRegions for Orleans-safe grain transport.</summary>
+    string? LayoutRegionsJson = null
 ) : IRequest;
 
 [GenerateSerializer]

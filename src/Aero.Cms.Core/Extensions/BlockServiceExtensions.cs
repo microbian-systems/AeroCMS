@@ -12,6 +12,11 @@ public static class BlockServiceExtensions
     public static IServiceCollection AddBlockSystemServices(this IServiceCollection services)
     {
         services.TryAddScoped<IBlockService, MartenBlockService>();
+        // Per-request block cache that eliminates N+1 DB round-trips during
+        // page rendering. DynamicPageModel preloads all block IDs in one
+        // batch query; BlockPlacementRenderer reads from this cache instead
+        // of calling IBlockService.GetByIdAsync individually.
+        services.TryAddScoped<BlockRenderCache>();
         services.TryAddSingleton<IHtmlSanitizer, HtmlSanitizer>();
         services.TryAddSingleton<SecureScribanTemplateOptions>();
         services.TryAddSingleton<DynamicTemplateValidator>();

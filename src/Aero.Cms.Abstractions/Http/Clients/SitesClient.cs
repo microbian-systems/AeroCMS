@@ -1,10 +1,5 @@
-using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
-using Aero.Cms.Abstractions.Http.Clients;
-using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Models;
-using Aero.Core;
-using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
@@ -79,7 +74,7 @@ public class SitesHttpClient(HttpClient httpClient, ILogger<SitesHttpClient> log
     }
 
     private static SiteInfo MapToSiteInfo(SiteViewModel vm) => new(
-        vm.Id, vm.Name, vm.PrimaryHost, vm.IsEnabled, vm.DefaultCulture, vm.TenantId);
+        vm.Id, vm.Name, vm.PrimaryHost, vm.IsEnabled, vm.DefaultCulture, vm.TenantId, vm.SupportedCultures);
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
     {

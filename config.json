@@ -1,0 +1,41 @@
+{
+  "agent": {
+    "orchestrator": {
+      "model": "opencode-go/deepseek-v4-pro",
+      "variant": "max",
+      "options": {},
+      "permission": {}
+    },
+    "oracle": {
+      "model": "opencode-go/deepseek-v4-pro",
+      "variant": "max",
+      "options": {},
+      "permission": {}
+    },
+    "librarian": {
+      "model": "opencode-go/deepseek-v4-flash",
+      "variant": "high",
+      "options": {},
+      "permission": {}
+    },
+    "explorer": {
+      "model": "opencode-go/deepseek-v4-flash",
+      "variant": "high",
+      "options": {},
+      "permission": {}
+    },
+    "designer": {
+      "model": "opencode-go/deepseek-v4-flash",
+      "variant": "high",
+      "options": {},
+      "permission": {}
+    },
+    "fixer": {
+      "model": "opencode-go/deepseek-v4-flash",
+      "variant": "high",
+      "options": {},
+      "permission": {}
+    }
+  },
+  "$schema": "https://opencode.ai/config.json"
+}

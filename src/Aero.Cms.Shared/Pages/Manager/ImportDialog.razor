@@ -1,10 +1,5 @@
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Core
-@using Aero.Core.Http
-@using Aero.Core.Railway
-@using Radzen
-@using Radzen.Blazor
-@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging
 @using Aero.Cms.Shared.Services
 @inject IBlogHttpClient BlogApi
@@ -12,15 +7,16 @@
 @inject NotificationService NotificationService
 @inject DialogService DialogService
 @inject ILogger<ImportDialog> Logger
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="import-dialog p-6 rounded-3xl" style="background: var(--pe-bg-secondary);">
     <div class="mb-6 flex items-center justify-between">
         <div class="flex flex-col">
-            <h3 class="text-xl font-black tracking-tight" style="color: var(--pe-text-primary);">Import Posts</h3>
-            <p class="text-xs font-medium mt-1" style="color: var(--pe-text-muted);">Upload blog posts from a file</p>
+            <h3 class="text-xl font-black tracking-tight" style="color: var(--pe-text-primary);">@L["Import Posts"]</h3>
+            <p class="text-xs font-medium mt-1" style="color: var(--pe-text-muted);">@L["Upload blog posts from a file"]</p>
         </div>
         <div style="background: color-mix(in srgb, var(--pe-warning) 12%, transparent); border: 1px solid color-mix(in srgb, var(--pe-warning) 25%, transparent);" class="px-3 py-1.5 rounded-full">
-            <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--pe-warning);">Max 50MB</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--pe-warning);">@L["Max 50MB"]</span>
         </div>
     </div>
 
@@ -35,8 +31,8 @@
                     <RadzenIcon Icon="@("file_upload")" class="w-6 h-6 text-amber-500" />
                 </div>
                 <div class="flex flex-col items-center">
-                    <span class="text-sm font-bold" style="color: var(--pe-text-secondary);">Click to select a file</span>
-                    <span class="text-[10px] font-medium mt-1 uppercase tracking-widest" style="color: var(--pe-text-muted);">.ZIP .JSON .MD</span>
+                    <span class="text-sm font-bold" style="color: var(--pe-text-secondary);">@L["Click to select a file"]</span>
+                    <span class="text-[10px] font-medium mt-1 uppercase tracking-widest" style="color: var(--pe-text-muted);">@L[".ZIP .JSON .MD"]</span>
                 </div>
             </div>
         </div>
@@ -68,21 +64,21 @@
         <label class="flex items-center gap-2.5 cursor-pointer select-none">
             <input type="checkbox" @bind="StoreLocalImages" class="w-4 h-4 rounded focus:ring-amber-500" style="border-color: var(--pe-border); color: var(--pe-warning);" />
             <div class="flex flex-col">
-                <span class="text-xs font-bold" style="color: var(--pe-text-primary);">Store images locally</span>
-                <span class="text-[10px]" style="color: var(--pe-text-muted);">Downloads Pexels photos to local storage instead of using CDN URLs</span>
+                <span class="text-xs font-bold" style="color: var(--pe-text-primary);">@L["Store images locally"]</span>
+                <span class="text-[10px]" style="color: var(--pe-text-muted);">@L["Downloads Pexels photos to local storage instead of using CDN URLs"]</span>
             </div>
         </label>
 
         <label class="flex items-center gap-2.5 cursor-pointer select-none">
             <input type="checkbox" @bind="PublishImported" class="w-4 h-4 rounded focus:ring-amber-500" style="border-color: var(--pe-border); color: var(--pe-warning);" />
             <div class="flex flex-col">
-                <span class="text-xs font-bold" style="color: var(--pe-text-primary);">Publish imported posts</span>
-                <span class="text-[10px]" style="color: var(--pe-text-muted);">If unchecked, posts will be imported as drafts with no publish date</span>
+                <span class="text-xs font-bold" style="color: var(--pe-text-primary);">@L["Publish imported posts"]</span>
+                <span class="text-[10px]" style="color: var(--pe-text-muted);">@L["If unchecked, posts will be imported as drafts with no publish date"]</span>
             </div>
         </label>
 
         <div class="flex items-center gap-3">
-            <label class="text-xs font-bold whitespace-nowrap" style="color: var(--pe-text-primary);">Duplicate slugs:</label>
+            <label class="text-xs font-bold whitespace-nowrap" style="color: var(--pe-text-primary);">@L["Duplicate slugs:"]</label>
             <RadzenDropDown @bind-Value="@DuplicateBehavior" 
                             Data="@duplicateOptions" 
                             TextProperty="Text" 
@@ -103,13 +99,13 @@
                 <RadzenIcon Icon="@iconName" 
                            class="@IconClass" />
                 <span class="text-sm font-bold" style="color: var(--pe-text-primary);">
-                    @importResult.TotalImported of @importResult.TotalProcessed imported
+                    @L["{0} of {1} imported", importResult.TotalImported, importResult.TotalProcessed]
                 </span>
             </div>
             @if (importResult.TotalSkipped > 0)
             {
                 <div class="ml-9 text-xs text-gray-500">
-                    <span class="font-medium">Skipped (@importResult.TotalSkipped):</span>
+                    <span class="font-medium">@L["Skipped ({0}):", importResult.TotalSkipped]</span>
                     @string.Join(", ", importResult.SkippedPosts.Select(s => s.Slug))
                 </div>
             }
@@ -127,11 +123,11 @@
 
     <!-- Actions -->
     <div class="mt-6 pt-5 flex justify-end gap-3" style="border-top: 1px solid var(--pe-border);">
-        <RadzenButton Text="@(importResult is not null ? "Close" : "Cancel")" 
+        <RadzenButton Text="@(importResult is not null ? L["Close"] : L["Cancel"])" 
                      ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" 
                      class="rounded-xl px-6 font-bold text-xs"
                      Click="@(() => DialogService.Close(importResult?.TotalImported > 0))" />
-        <RadzenButton Text="@(isUploading ? "Importing..." : "Import")" 
+        <RadzenButton Text="@(isUploading ? L["Importing..."] : L["Import"])" 
                      Icon="@("file_upload")" ButtonStyle="ButtonStyle.Primary" 
                      Variant="Variant.Filled" 
                      class="rounded-xl px-8 shadow-xl shadow-amber-500/20 font-bold text-xs py-2.5" 
@@ -148,11 +144,11 @@
     string DuplicateBehavior = "skip";
     ImportBlogResult? importResult;
 
-    List<DropdownOption> duplicateOptions =
+    List<DropdownOption> duplicateOptions =>
     [
-        new() { Value = "skip", Text = "Skip duplicates" },
-        new() { Value = "suffix", Text = "Append -2, -3..." },
-        new() { Value = "overwrite", Text = "Overwrite existing" }
+        new() { Value = "skip", Text = L["Skip duplicates"] },
+        new() { Value = "suffix", Text = L["Append -2, -3..."] },
+        new() { Value = "overwrite", Text = L["Overwrite existing"] }
     ];
 
     void OnFileSelected(InputFileChangeEventArgs args)
@@ -210,25 +206,25 @@
 
                 if (ok.Value.TotalImported > 0)
                 {
-                    NotificationService.Notify(NotificationSeverity.Success, "Import Complete",
-                        $"{ok.Value.TotalImported} post(s) imported successfully.");
+                    NotificationService.Notify(NotificationSeverity.Success, L["Import Complete"],
+                        string.Format(L["{0} post(s) imported successfully."], ok.Value.TotalImported));
                 }
                 else
                 {
-                    NotificationService.Notify(NotificationSeverity.Warning, "Import Partial",
-                        "No posts were imported. Check the results for details.");
+                    NotificationService.Notify(NotificationSeverity.Warning, L["Import Partial"],
+                        L["No posts were imported. Check the results for details."]);
                 }
             }
             else if (result is Result<ImportBlogResult, AeroError>.Failure fail)
             {
                 Logger.LogError("Import API returned error: {Error}", fail.Error);
-                NotificationService.Notify(NotificationSeverity.Error, "Import Failed", fail.Error.ToString());
+                NotificationService.Notify(NotificationSeverity.Error, L["Import Failed"], fail.Error.ToString());
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error during import");
-            NotificationService.Notify(NotificationSeverity.Error, "Import Error", ex.Message);
+            NotificationService.Notify(NotificationSeverity.Error, L["Import Error"], ex.Message);
         }
         finally
         {

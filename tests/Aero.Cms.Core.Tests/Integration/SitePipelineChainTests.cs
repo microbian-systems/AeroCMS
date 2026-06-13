@@ -1,18 +1,15 @@
-using System.Collections.Immutable;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Infrastructure;
 using Aero.Cms.Modules.Aliases;
 using Aero.Cms.Modules.Sites;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
-using TUnit.Core;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -44,7 +41,9 @@ public sealed class SitePipelineChainTests
         siteLookup.ResolveByHostAsync("testsite.com", Arg.Any<CancellationToken>())
             .Returns(siteVm);
 
-        using var host = await CreateHostAsync(siteLookup, Substitute.For<IAliasRuleCache>());
+        IAeroSiteSlice? capturedSlice = null;
+        using var host = await CreateHostWithCaptureAsync(siteLookup, Substitute.For<IAliasRuleCache>(),
+            context => { capturedSlice = context.Features.Get<IAeroSiteSlice>(); });
 
         var client = host.GetTestClient();
         var request = new HttpRequestMessage(HttpMethod.Get, "/")
@@ -55,18 +54,20 @@ public sealed class SitePipelineChainTests
         var response = await client.SendAsync(request);
 
         await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await Assert.That(capturedSlice).IsNotNull();
+        await Assert.That(capturedSlice!.SiteId).IsEqualTo(42);
         // Verify the site lookup was called with the normalized host
         await siteLookup.Received(1).ResolveByHostAsync("testsite.com", Arg.Any<CancellationToken>());
     }
 
     [Test]
-    public async Task SiteResolutionMiddleware_UnknownHost_Returns404()
+    public async Task SiteResolutionMiddleware_UnknownHost_RedirectsToNoSite()
     {
         var siteLookup = Substitute.For<ISiteLookupService>();
         siteLookup.ResolveByHostAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((SiteViewModel?)null);
 
-        using var host = await CreateHostAsync(siteLookup, Substitute.For<IAliasRuleCache>());
+        using var host = await CreateHostWithCaptureAsync(siteLookup, Substitute.For<IAliasRuleCache>(), _ => { });
 
         var client = host.GetTestClient();
         var request = new HttpRequestMessage(HttpMethod.Get, "/")
@@ -76,11 +77,12 @@ public sealed class SitePipelineChainTests
 
         var response = await client.SendAsync(request);
 
-        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.NotFound);
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.Found);
+        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/nosite");
     }
 
     [Test]
-    public async Task SiteResolutionMiddleware_DisabledSite_Returns404()
+    public async Task SiteResolutionMiddleware_DisabledSite_RedirectsToNoSite()
     {
         var siteLookup = Substitute.For<ISiteLookupService>();
         var siteVm = new SiteViewModel
@@ -95,7 +97,7 @@ public sealed class SitePipelineChainTests
         siteLookup.ResolveByHostAsync("disabled.com", Arg.Any<CancellationToken>())
             .Returns(siteVm);
 
-        using var host = await CreateHostAsync(siteLookup, Substitute.For<IAliasRuleCache>());
+        using var host = await CreateHostWithCaptureAsync(siteLookup, Substitute.For<IAliasRuleCache>(), _ => { });
 
         var client = host.GetTestClient();
         var request = new HttpRequestMessage(HttpMethod.Get, "/")
@@ -105,7 +107,8 @@ public sealed class SitePipelineChainTests
 
         var response = await client.SendAsync(request);
 
-        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.NotFound);
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.Found);
+        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/nosite");
     }
 
     [Test]
@@ -124,7 +127,7 @@ public sealed class SitePipelineChainTests
         siteLookup.ResolveByHostAsync("testsite.com", Arg.Any<CancellationToken>())
             .Returns(siteVm);
 
-        using var host = await CreateHostAsync(siteLookup, Substitute.For<IAliasRuleCache>());
+        using var host = await CreateHostWithCaptureAsync(siteLookup, Substitute.For<IAliasRuleCache>(), _ => { });
 
         var client = host.GetTestClient();
         // Port should be stripped, uppercase normalized
@@ -138,6 +141,60 @@ public sealed class SitePipelineChainTests
         await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
         // Verify it called with normalized host
         await siteLookup.Received(1).ResolveByHostAsync("testsite.com", Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SiteResolutionMiddleware_BrowserRefresh_BypassesSiteLookup()
+    {
+        var siteLookup = Substitute.For<ISiteLookupService>();
+        using var host = await CreateHostAsync(siteLookup, Substitute.For<IAliasRuleCache>());
+
+        var client = host.GetTestClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, "/aspnetcore-browser-refresh.js")
+        {
+            Headers = { { "Host", "unknown.com" } }
+        };
+
+        var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await siteLookup.DidNotReceive().ResolveByHostAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SiteResolutionMiddleware_BlazorFrameworkAssets_BypassSiteLookup()
+    {
+        var siteLookup = Substitute.For<ISiteLookupService>();
+        using var host = await CreateHostAsync(siteLookup, Substitute.For<IAliasRuleCache>());
+
+        var client = host.GetTestClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, "/_framework/blazor.web.js")
+        {
+            Headers = { { "Host", "unknown.com" } }
+        };
+
+        var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await siteLookup.DidNotReceive().ResolveByHostAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task SiteResolutionMiddleware_AdminApi_BypassesSiteLookup()
+    {
+        var siteLookup = Substitute.For<ISiteLookupService>();
+        using var host = await CreateHostAsync(siteLookup, Substitute.For<IAliasRuleCache>());
+
+        var client = host.GetTestClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/admin/docs")
+        {
+            Headers = { { "Host", "unknown.com" } }
+        };
+
+        var response = await client.SendAsync(request);
+
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.OK);
+        await siteLookup.DidNotReceive().ResolveByHostAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     // ──────────────────────────────────────────────────
@@ -255,7 +312,8 @@ public sealed class SitePipelineChainTests
 
         var response = await client.SendAsync(request);
 
-        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.NotFound);
+        await Assert.That(response.StatusCode).IsEqualTo(System.Net.HttpStatusCode.Found);
+        await Assert.That(response.Headers.Location?.ToString()).IsEqualTo("/nosite");
         // Alias cache should NOT have been queried — site resolution short-circuited
         aliasCache.DidNotReceive().Find(Arg.Any<long>(), Arg.Any<string>());
     }

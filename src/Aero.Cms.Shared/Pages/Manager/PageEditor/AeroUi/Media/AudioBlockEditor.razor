@@ -1,0 +1,28 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">@L["Audio URL"]</label>
+        <RadzenTextBox @bind-Value="Block.Src" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">@L["Caption"]</label>
+        <RadzenTextBox @bind-Value="Block.Caption" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <RadzenCheckBox @bind-Value="Block.Controls">
+            @L["Show Controls"]
+        </RadzenCheckBox>
+    </div>
+    <div class="pe-property-group">
+        <RadzenCheckBox @bind-Value="Block.Autoplay">
+            @L["Autoplay"]
+        </RadzenCheckBox>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public AudioBlock Block { get; set; } = default!;
+}

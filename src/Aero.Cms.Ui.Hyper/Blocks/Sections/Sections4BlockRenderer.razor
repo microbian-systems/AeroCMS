@@ -1,0 +1,31 @@
+@* Sections 4 — HyperUI marketing/sections/4 *@
+@* Source: hyperui/public/examples/marketing/sections/4.html (light-only, no dark variant) *@
+@if (Block is not null)
+{
+    <section>
+        <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div class="space-y-4 md:space-y-8">
+                <div class="max-w-prose">
+                    @if (!string.IsNullOrEmpty(Block.Title))
+                    {
+                        <h2 class="text-2xl font-semibold text-gray-900 sm:text-3xl">@Block.Title</h2>
+                    }
+                    @if (!string.IsNullOrEmpty(Block.Description))
+                    {
+                        <p class="mt-4 text-pretty text-gray-700">@Block.Description</p>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(Block.ImageUrl))
+                {
+                    <img src="@Block.ImageUrl" class="rounded" alt="" />
+                }
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Sections4Block? Block { get; set; }
+}

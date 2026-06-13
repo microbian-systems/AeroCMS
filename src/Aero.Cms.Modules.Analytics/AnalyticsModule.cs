@@ -1,8 +1,6 @@
 using Aero.Cms.Core;
-using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Core.Pipelines;
 using Aero.Modular;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,6 +20,7 @@ public class AnalyticsModule : AeroModuleBase
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddOptions<AnalyticsSettings>().BindConfiguration("AeroCms:Analytics");
+        services.AddScoped<ISeoScriptRenderer, SeoScriptRenderer>();
         services.AddScoped<IPageReadHook, AnalyticsInjectionHook>();
     }
 

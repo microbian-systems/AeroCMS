@@ -1,21 +1,20 @@
-﻿using Aero.Cms.Abstractions.Http.Clients;
-using Aero.Cms.Abstractions.Models;
+﻿using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
-using Aero.Cms.Shared.Services;
+using Aero.Cms.Abstractions.Validators;
 using Aero.Core;
 using Aero.Core.Railway;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Radzen;
 using Radzen.Blazor;
-using System;
-using System.Collections.Generic;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
 public partial class Aliases
 {
     [Inject] public ILogger<Aliases> log { get; set; } = default!;
+    [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private RadzenDataGrid<AliasViewModel>? _grid;
     private IReadOnlyList<AliasViewModel>? _aliases;
@@ -89,11 +88,32 @@ public partial class Aliases
             if (siteId is null) return;
         }
 
-        var request = new CreateAliasRequest(siteId.Value, _createOldPath, _createNewPath);
+        var oldPath = SanitizePath(_createOldPath);
+        var newPath = SanitizePath(_createNewPath);
+
+        if (string.IsNullOrWhiteSpace(oldPath) || string.IsNullOrWhiteSpace(newPath))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, L["Both Old URL and New URL are required."]);
+            return;
+        }
+
+        var request = new CreateAliasRequest(siteId.Value, oldPath, newPath);
+
+        // Client-side validation via FluentValidation
+        var validator = new CreateAliasRequestValidator();
+        var validationResult = await validator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            NotificationService.Notify(NotificationSeverity.Error,
+                string.Join("; ", errors), duration: 6000);
+            return;
+        }
+
         var result = await AliasClient.CreateAsync(request);
         if (result is Result<AliasViewModel, AeroError>.Ok ok)
         {
-            NotificationService.Notify(NotificationSeverity.Success, "Alias created");
+            NotificationService.Notify(NotificationSeverity.Success, L["Alias created"]);
             _showCreateForm = false;
             _createOldPath = _createNewPath = "";
             await _grid?.Reload();
@@ -107,20 +127,32 @@ public partial class Aliases
     private async Task DeleteAliasAsync(AliasViewModel alias)
     {
         var confirmed = await DialogService.Confirm(
-            $"Delete alias '{alias.OldPath}' \u2192 '{alias.NewPath}'?",
-            "Delete Alias",
-            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+            string.Format(L["Delete alias '{0}' \u2192 '{1}'?"], alias.OldPath, alias.NewPath),
+            L["Delete Alias"],
+            new ConfirmOptions { OkButtonText = L["Delete"], CancelButtonText = L["Cancel"] });
         if (confirmed != true) return;
 
         var result = await AliasClient.DeleteAsync(alias.Id);
         if (result is Result<bool, AeroError>.Ok)
         {
-            NotificationService.Notify(NotificationSeverity.Success, "Alias deleted");
+            NotificationService.Notify(NotificationSeverity.Success, L["Alias deleted"]);
             await _grid?.Reload();
         }
         else if (result is Result<bool, AeroError>.Failure fail)
         {
             NotificationService.Notify(NotificationSeverity.Error, fail.Error.ToString(), duration: 4000);
         }
+    }
+
+    /// <summary>
+    /// Normalizes a URL path by trimming whitespace, stripping leading/trailing slashes,
+    /// then prepending a single leading slash. Accepts "old-page", "/old-page/", etc.
+    /// </summary>
+    private static string SanitizePath(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return string.Empty;
+
+        return "/" + raw.Trim().TrimStart('/').TrimEnd('/');
     }
 }

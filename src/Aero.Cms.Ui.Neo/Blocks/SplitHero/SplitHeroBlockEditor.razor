@@ -1,0 +1,39 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Eyebrow</label>
+        <RadzenTextBox @bind-Value="Block.Eyebrow" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Title *</label>
+        <RadzenTextBox @bind-Value="Block.Title" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Description</label>
+        <RadzenTextArea @bind-Value="Block.Description" Class="w-full" Rows="3" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Primary Button Text</label>
+        <RadzenTextBox @bind-Value="Block.PrimaryText" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Primary Button URL</label>
+        <RadzenTextBox @bind-Value="Block.PrimaryUrl" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Secondary Button Text</label>
+        <RadzenTextBox @bind-Value="Block.SecondaryText" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Secondary Button URL</label>
+        <RadzenTextBox @bind-Value="Block.SecondaryUrl" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Footnote</label>
+        <RadzenTextBox @bind-Value="Block.Footnote" Class="w-full" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public SplitHeroBlock Block { get; set; } = default!;
+}

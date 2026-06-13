@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 
 namespace Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 
@@ -14,10 +16,16 @@ public partial class Setup : ComponentBase
     private ISetupBootstrapHandoffService SetupBootstrapHandoffService { get; set; } = default!;
 
     [Inject]
+    private IJSRuntime JSRuntime { get; set; } = default!;
+
+    [Inject]
     private ILogger<Setup> Logger { get; set; } = default!;
 
     [Inject]
     private NavigationManager NavigationManager { get; set; } = default!;
+
+    [Inject]
+    private IStringLocalizer<SetupResource> L { get; set; } = default!;
 
     [Parameter]
     public string? ReturnUrl { get; set; }
@@ -55,6 +63,27 @@ public partial class Setup : ComponentBase
     public string EffectiveCacheMode => NormalizeMode(Input.CacheMode, "Memory");
     public string EffectiveSecretProvider => NormalizeMode(Input.SecretProvider, "Local Certificate");
     public string EffectiveAuthenticationMode => NormalizeMode(Input.AuthenticationMode, "Local");
+    public IReadOnlyList<CultureOption> CommonCultureOptions { get; } =
+    [
+        new("en-US", "English (United States)"),
+        new("en-GB", "English (United Kingdom)"),
+        new("es-MX", "Spanish (Mexico)"),
+        new("es-ES", "Spanish (Spain)"),
+        new("fr-FR", "French (France)"),
+        new("de-DE", "German (Germany)"),
+        new("it-IT", "Italian (Italy)"),
+        new("pt-BR", "Portuguese (Brazil)"),
+        new("nl-NL", "Dutch (Netherlands)"),
+        new("pl-PL", "Polish (Poland)"),
+        new("ru-RU", "Russian (Russia)"),
+        new("zh-CN", "Chinese (Simplified)"),
+        new("ja-JP", "Japanese (Japan)"),
+        new("ko-KR", "Korean (Korea)"),
+        new("ar-SA", "Arabic (Saudi Arabia)"),
+        new("he-IL", "Hebrew (Israel)"),
+        new("hi-IN", "Hindi (India)"),
+        new("uk-UA", "Ukrainian (Ukraine)")
+    ];
 
     public bool HasValidationErrors { get; set; }
 
@@ -73,8 +102,11 @@ public partial class Setup : ComponentBase
             HomepageTitle = "Welcome to Aero CMS",
             BlogName = "Blog",
             Hostname = "localhost",
-            DefaultCulture = "en-US"
+            DefaultCulture = "en-US",
+            SupportedCultures = ["en-US"]
         };
+
+        EnsureSupportedCulturesContainDefault();
 
 #if DEBUG
         // In debug mode, prefill passwords
@@ -127,6 +159,43 @@ public partial class Setup : ComponentBase
         return "h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all";
     }
 
+    public bool IsCultureSelected(string culture)
+        => Input.SupportedCultures.Any(selected => string.Equals(selected, culture, StringComparison.OrdinalIgnoreCase));
+
+    public void ToggleCulture(string culture, ChangeEventArgs args)
+    {
+        var isChecked = args.Value is bool checkedValue && checkedValue;
+        var normalizedCulture = NormalizeCultureName(culture);
+
+        if (isChecked)
+        {
+            if (!IsCultureSelected(normalizedCulture))
+            {
+                Input.SupportedCultures.Add(normalizedCulture);
+            }
+        }
+        else
+        {
+            Input.SupportedCultures.RemoveAll(selected => string.Equals(selected, normalizedCulture, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (Input.SupportedCultures.Count == 0)
+        {
+            Input.SupportedCultures.Add(Input.DefaultCulture);
+        }
+
+        if (!IsCultureSelected(Input.DefaultCulture))
+        {
+            Input.DefaultCulture = Input.SupportedCultures[0];
+        }
+    }
+
+    public void OnDefaultCultureChanged(ChangeEventArgs args)
+    {
+        Input.DefaultCulture = NormalizeCultureName(args.Value?.ToString());
+        EnsureSupportedCulturesContainDefault();
+    }
+
     protected async Task HandleSubmit()
     {
         HasValidationErrors = false;
@@ -136,6 +205,8 @@ public partial class Setup : ComponentBase
         {
             return;
         }
+
+        EnsureSupportedCulturesContainDefault();
 
         var secretProvider = NormalizeMode(Input.SecretProvider, "Local Certificate");
         var databaseMode = NormalizeMode(Input.DatabaseMode, "Embedded");
@@ -164,6 +235,9 @@ public partial class Setup : ComponentBase
         // Force UI update to show the message before the async operation
         await InvokeAsync(StateHasChanged);
 
+        // Clear browser storage so the fresh app starts clean
+        await JSRuntime.InvokeVoidAsync("aero.setup.clearStorage");
+
         // Create the seed request with all setup configuration
         var seedRequest = new SeedDatabaseRequest(
             databaseMode,
@@ -181,7 +255,8 @@ public partial class Setup : ComponentBase
             Input.HomepageTitle,
             Input.BlogName,
             Input.Hostname,
-            Input.DefaultCulture);
+            Input.DefaultCulture,
+            Input.SupportedCultures);
 
         // Call the handoff service which will:
         // 1. Persist bootstrap configuration
@@ -206,6 +281,8 @@ public partial class Setup : ComponentBase
 
     private bool ValidateCurrentStep(bool showMessage)
     {
+        EnsureSupportedCulturesContainDefault();
+
         string? error = CurrentStep switch
         {
             1 when string.IsNullOrWhiteSpace(Input.SiteName) => "Site name is required.",
@@ -213,6 +290,8 @@ public partial class Setup : ComponentBase
             1 when string.IsNullOrWhiteSpace(Input.BlogName) => "Blog name is required.",
             1 when string.IsNullOrWhiteSpace(Input.Hostname) => "Hostname is required.",
             1 when string.IsNullOrWhiteSpace(Input.DefaultCulture) => "Default culture is required.",
+            1 when Input.SupportedCultures.Count == 0 => "Select at least one supported culture.",
+            1 when !IsCultureSelected(Input.DefaultCulture) => "Default culture must be selected as a supported culture.",
             2 when string.Equals(Input.DatabaseMode, "Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.ConnectionString)
                 => "A database connection string is required when Database is set to Server.",
             3 when string.Equals(Input.CacheMode, "Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.CacheConnectionString)
@@ -247,29 +326,62 @@ public partial class Setup : ComponentBase
 
     public string GetStepName(int step) => step switch
     {
-        1 => "CMS Info",
-        2 => "Database",
-        3 => "Cache",
-        4 => "Secrets",
-        5 => "Authentication",
-        6 => "Review",
-        _ => "Setup"
+        1 => L["CMS Info"],
+        2 => L["Database"],
+        3 => L["Cache"],
+        4 => L["Secrets"],
+        5 => L["Authentication"],
+        6 => L["Review"],
+        _ => L["Setup"]
     };
 
     public string GetStepSummary(int step) => step switch
     {
-        1 => "Site name, culture, homepage, and blog metadata.",
-        2 => "Embedded or server database connectivity.",
-        3 => "Memory, embedded, or server cache configuration.",
-        4 => "Local Certificate or Infisical secret handling.",
-        5 => "Choose the auth mode and create the initial CMS administrator account.",
-        6 => "Review your selections before initialization.",
+        1 => L["Site name, culture, homepage, and blog metadata."],
+        2 => L["Embedded or server database connectivity."],
+        3 => L["Memory, embedded, or server cache configuration."],
+        4 => L["Local Certificate or Infisical secret handling."],
+        5 => L["Choose the auth mode and create the initial CMS administrator account."],
+        6 => L["Review your selections before initialization."],
         _ => string.Empty
     };
 
     private string BuildReadinessMessage()
     {
-        return "Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app.";
+        return L["Readiness shown here is informational only. Embedded services will be started and validated after handoff to the main app."];
+    }
+
+    private void EnsureSupportedCulturesContainDefault()
+    {
+        Input.DefaultCulture = NormalizeCultureName(Input.DefaultCulture);
+
+        Input.SupportedCultures = Input.SupportedCultures
+            .Select(NormalizeCultureName)
+            .Where(culture => !string.IsNullOrWhiteSpace(culture))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!IsCultureSelected(Input.DefaultCulture))
+        {
+            Input.SupportedCultures.Insert(0, Input.DefaultCulture);
+        }
+    }
+
+    private static string NormalizeCultureName(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+        {
+            return "en-US";
+        }
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return "en-US";
+        }
     }
 
 }
@@ -340,4 +452,8 @@ public class SetupInput
     [Required]
     [StringLength(10)]
     public string DefaultCulture { get; set; } = "en-US";
+
+    public List<string> SupportedCultures { get; set; } = ["en-US"];
 }
+
+public sealed record CultureOption(string Name, string DisplayName);

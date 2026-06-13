@@ -1,0 +1,42 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">CTA Title</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.CtaTitle"
+               @oninput="e => Block.CtaTitle = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">CTA Description</label>
+        <textarea rows="3" class="w-full rounded-md shadow-sm sm:text-sm"
+                  style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                  value="@Block.CtaDescription"
+                  @oninput="e => Block.CtaDescription = e.Value?.ToString() ?? string.Empty"></textarea>
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Email Placeholder</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.EmailPlaceholder"
+               @oninput="e => Block.EmailPlaceholder = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Button Text</label>
+        <input class="w-full rounded-md shadow-sm sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.ButtonText"
+               @oninput="e => Block.ButtonText = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Copyright Text</label>
+        <textarea rows="2" class="w-full rounded-md shadow-sm sm:text-sm"
+                  style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                  value="@Block.CopyrightText"
+                  @oninput="e => Block.CopyrightText = e.Value?.ToString() ?? string.Empty"></textarea>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Footer6Block Block { get; set; } = default!;
+}

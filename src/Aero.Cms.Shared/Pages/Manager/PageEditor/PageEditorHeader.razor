@@ -1,0 +1,61 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor
+@using Aero.Cms.Abstractions.Enums
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+
+<div class="pe-page-header">
+    <input class="pe-page-title-input" type="text" placeholder="@L["Page Title"]"
+           value="@Title" @oninput="e => OnTitleChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty)"/>
+    <div class="pe-page-meta">
+        <div class="pe-meta-left">
+            <span class="pe-meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                @L["Last saved:"] <strong>@LastSaved</strong>
+            </span>
+            <span class="pe-meta-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                @Author
+            </span>
+        </div>
+        <div class="pe-meta-right">
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="OnTogglePreview">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                @L["Preview"]
+            </button>
+            <button type="button" class="pe-btn @(IsSaving ? "pe-btn-secondary" : "pe-btn-primary") pe-btn-sm" @onclick="OnSave" disabled="@IsSaving">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                @(IsSaving ? L["Saving..."] : L["Save"])
+            </button>
+            @if (PublicationState == ContentPublicationState.Published)
+            {
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm" @onclick="OnUnpublish">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    @L["Unpublish"]
+                </button>
+            }
+            else
+            {
+                <button type="button" class="pe-btn pe-btn-success pe-btn-sm" @onclick="OnPublish">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    @L["Publish"]
+                </button>
+            }
+        </div>
+    </div>
+</div>

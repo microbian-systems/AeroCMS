@@ -1,8 +1,8 @@
-using Aero.Cms.Abstractions.Ai;
+using Aero.Core.Ai;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 
-using DefaultAiProviderProfiles = Aero.Cms.Modules.Ai.Configuration.DefaultAiProviderProfiles;
+using DefaultAiProviderProfiles = Aero.Core.Ai.DefaultAiProviderProfiles;
 
 namespace Aero.Cms.Modules.Ai.Tests;
 
@@ -39,6 +39,6 @@ public sealed class DefaultAiProviderProfilesTests
         openAi.DisplayName.Should().Be("Site OpenAI");
         openAi.Model.Should().Be("gpt-4.1-mini");
         openAi.Enabled.Should().BeTrue();
-        await Assert.That(DefaultAiProviderProfiles.GetDefaultProviderId(config)).IsEqualTo("openai");
+        await Assert.That(DefaultAiProviderProfiles.GetDefaultProviderId(config)).IsEqualTo("opencode");
     }
 }

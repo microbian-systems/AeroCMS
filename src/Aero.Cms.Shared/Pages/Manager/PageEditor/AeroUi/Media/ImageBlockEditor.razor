@@ -1,0 +1,28 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">@L["Image URL"]</label>
+        <RadzenTextBox @bind-Value="Block.Src" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">@L["Alt Text"]</label>
+        <RadzenTextBox @bind-Value="Block.Alt" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">@L["Caption"]</label>
+        <RadzenTextBox @bind-Value="Block.Caption" Class="w-full" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">@L["Media ID"]</label>
+        <RadzenTextBox Value="@ImageMediaIdDisplay" Class="w-full" ReadOnly="true" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ImageBlock Block { get; set; } = default!;
+
+    private string ImageMediaIdDisplay => Block.ImageMediaId.ToString();
+}

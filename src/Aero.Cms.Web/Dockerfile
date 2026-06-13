@@ -89,6 +89,7 @@ RUN dotnet restore "./src/Aero.Cms.slnx" \
 #    EnableCompressionInSingleFile → trims metadata
 #    SelfContained=false          → framework-dependent (runtime image has .NET 10)
 #    If R2R causes musl issues, toggle PUBLISH_READY_TO_RUN=false at build time.
+#    dotnet publish -c Release -r win-x64 --self-contained false /p:PublishReadyToRun=true
 RUN dotnet publish "./src/Aero.Cms.Web/Aero.Cms.Web.csproj" \
     -c $BUILD_CONFIGURATION \
     -o /app/publish \

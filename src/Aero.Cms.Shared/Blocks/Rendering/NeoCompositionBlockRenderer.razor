@@ -1,0 +1,20 @@
+@using Aero.Cms.Abstractions.Blocks
+
+@* ── NeoCompositionBlock — SSR renderer for user-composed node trees ── *@
+@* V1: Renders a container with node count. Per-node rendering via
+   catalog dispatch is added as node types are enabled. *@
+
+@if (Block is not null && Block.Nodes.Count > 0)
+{
+    <div class="neo-composition">
+        @foreach (var node in Block.Nodes)
+        {
+            <NeoNodeRenderer Node="node" NestingDepth="0" MaxDepth="5" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public NeoCompositionBlock? Block { get; set; }
+}

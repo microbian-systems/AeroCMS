@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Aero.Core;
@@ -44,6 +43,51 @@ public sealed partial class DynamicTemplateValidator
         }
 
         return Prelude.Ok<NoneType, AeroError>(Prelude.None);
+    }
+
+    public Result<NoneType, AeroError> ValidateData(JsonDocument? data, JsonDocument? schema)
+    {
+        if (schema is null)
+            return Prelude.Ok<NoneType, AeroError>(Prelude.None);
+
+        if (data is null || data.RootElement.ValueKind != JsonValueKind.Object)
+            return AeroError.ValidationError(["Template data must be a JSON object."]);
+
+        var errors = new List<string>();
+        var schemaRoot = schema.RootElement;
+
+        if (schemaRoot.TryGetProperty("required", out var required))
+        {
+            foreach (var requiredField in required.EnumerateArray())
+            {
+                var fieldName = requiredField.GetString();
+                if (!string.IsNullOrWhiteSpace(fieldName) &&
+                    !data.RootElement.TryGetProperty(fieldName, out _))
+                {
+                    errors.Add($"Required field '{fieldName}' is missing.");
+                }
+            }
+        }
+
+        if (schemaRoot.TryGetProperty("properties", out var properties))
+        {
+            foreach (var property in data.RootElement.EnumerateObject())
+            {
+                if (!properties.TryGetProperty(property.Name, out var propertySchema))
+                {
+                    errors.Add($"Field '{property.Name}' is not defined by the content type.");
+                    continue;
+                }
+
+                var expectedType = propertySchema.GetProperty("type").GetString();
+                if (!MatchesType(property.Value, expectedType))
+                    errors.Add($"Field '{property.Name}' must be of type '{expectedType}'.");
+            }
+        }
+
+        return errors.Count == 0
+            ? Prelude.Ok<NoneType, AeroError>(Prelude.None)
+            : AeroError.ValidationError(errors);
     }
 
     internal IReadOnlyList<string> ValidateTemplateText(string template)
@@ -158,4 +202,15 @@ public sealed partial class DynamicTemplateValidator
                 : "<unknown>";
         }
     }
+
+    private static bool MatchesType(JsonElement value, string? expectedType) => expectedType switch
+    {
+        "string" => value.ValueKind is JsonValueKind.String or JsonValueKind.Null,
+        "number" => value.ValueKind is JsonValueKind.Number or JsonValueKind.Null,
+        "integer" => value.ValueKind is JsonValueKind.Number or JsonValueKind.Null,
+        "boolean" => value.ValueKind is JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null,
+        "array" => value.ValueKind is JsonValueKind.Array or JsonValueKind.Null,
+        "object" => value.ValueKind is JsonValueKind.Object or JsonValueKind.Null,
+        _ => true
+    };
 }

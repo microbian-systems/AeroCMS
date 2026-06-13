@@ -1,0 +1,37 @@
+@* Product Cards 7 — HyperUI marketing/product-cards/7 *@
+@* Source: hyperui/public/examples/marketing/product-cards/7.html *@
+@if (Block is not null)
+{
+    <a href="@Block.CtaUrl" class="relative block rounded-se-3xl border border-gray-100 dark:border-gray-700">
+        <span
+            class="absolute -top-px -right-px rounded-se-3xl rounded-es-3xl bg-rose-600 px-6 py-4 font-medium tracking-widest text-white uppercase"
+        >
+            @Block.BadgeText
+        </span>
+
+        <img
+            src="@Block.ImageUrl"
+            alt=""
+            class="h-80 w-full rounded-se-3xl object-cover"
+        />
+
+        <div class="p-4 text-center">
+            <strong class="text-xl font-medium text-gray-900 dark:text-white">@Block.Title</strong>
+
+            <p class="mt-2 text-pretty text-gray-700 dark:text-gray-200">
+                @Block.Description
+            </p>
+
+            <span
+                class="mt-4 block rounded-md border border-indigo-900 bg-indigo-900 px-5 py-3 text-sm font-medium tracking-widest text-white uppercase transition-colors hover:bg-white hover:text-indigo-900 dark:hover:bg-gray-900"
+            >
+                @Block.CtaText
+            </span>
+        </div>
+    </a>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ProductCard7Block? Block { get; set; }
+}

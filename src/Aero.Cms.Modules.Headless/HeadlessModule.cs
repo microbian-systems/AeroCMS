@@ -1,9 +1,6 @@
-using Aero.Cms.Abstractions.Audit;
 using Aero.Cms.Core;
-using Aero.Cms.Modules.Headless.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +11,9 @@ using Aero.Modular;
 namespace Aero.Cms.Modules.Headless;
 
 /// <summary>
-/// Aero CMS Admin module - provides admin functionality for publishing and previewing content.
+/// Aero CMS Headless module — manages OpenAPI/Scalar documentation.
+/// All API endpoints (21 groups) have been migrated to domain modules.
+/// PreviewBlockFragment moved to ManagerModule (Phase 4).
 /// </summary>
 [Module(nameof(HeadlessModule))]
 public sealed class HeadlessModule : AeroWebModule
@@ -29,60 +28,14 @@ public sealed class HeadlessModule : AeroWebModule
 
     public override IReadOnlyList<string> Category => ["admin", "management"];
 
-    public override IReadOnlyList<string> Tags => ["admin", "management", "cms", "publish", "preview"];
+    public override IReadOnlyList<string> Tags => ["admin", "management", "cms"];
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
-        // todo - check settings if openapi should be publicly available
-        //if(env.IsDevelopment())
-        services.AddOpenApi();
-
-        services.AddScoped<IAuditService, AuditService>();
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)
     {
-        var scope = builder.ServiceProvider.CreateAsyncScope();
-        var env = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
-
-        // PublishApi is deprecated — publish/unpublish is handled in PagesApi and BlogApi
-        // builder.MapPublishApi();
-        builder.MapPreviewApi();
-        builder.MapBlogApi();
-        builder.MapPagesApi();
-        builder.MapMediaApi();
-        builder.MapDashboardApi();
-        builder.MapNavigationsApi();
-        builder.MapModulesApi();
-        builder.MapDocsApi();
-        builder.MapCategoriesApi();
-        builder.MapTagsApi();
-        builder.MapFilesApi();
-        builder.MapUsersApi();
-        builder.MapThemesApi();
-        builder.MapSettingsApi();
-        builder.MapProfileApi();
-        builder.MapBlocksApi();
-        builder.MapContentTypesApi();
-        builder.MapContentItemsApi();
-        builder.MapJwtApi();
-        builder.MapAuthApi();
-        builder.MapAliasesApi();
-
-        // todo - put scalar behind a gated login (auth filter)
-        builder.MapOpenApi();
-        builder.MapScalarApiReference(opts =>
-        {
-            opts.WithTitle(AeroConstants.AppName)
-                .ForceDarkMode()
-                .HideSearch()
-                .ShowOperationId()
-                .ExpandAllTags()
-                .SortTagsAlphabetically()
-                .SortOperationsByMethod()
-                .PreserveSchemaPropertyOrder();
-        });
-
         return Task.CompletedTask;
     }
 }

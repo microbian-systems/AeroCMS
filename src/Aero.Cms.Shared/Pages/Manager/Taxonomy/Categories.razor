@@ -1,25 +1,9 @@
 @page "/manager/taxonomy/categories"
 @attribute [Authorize]
 
-<div class="pe-page-content space-y-6">
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold pe-heading">Categories</h1>
-            <p class="mt-1 text-sm pe-description">Organize your content into logical groupings.</p>
-        </div>
-        <RadzenButton Icon="add" Text="Create Category" ButtonStyle="ButtonStyle.Primary" />
-    </div>
-
-    <RadzenDataGrid Data="@(Enumerable.Empty<object>())" TItem="object" AllowPaging="true" PageSize="10" 
-                    EmptyText="No categories found. Let's organize things!">
-        <Columns>
-            <RadzenDataGridColumn TItem="object" Property="Name" Title="Name" />
-            <RadzenDataGridColumn TItem="object" Property="Slug" Title="Slug" />
-            <RadzenDataGridColumn TItem="object" Property="Count" Title="Items" Width="100px" />
-            <RadzenDataGridColumn TItem="object" Property="Status" Title="Status" />
-        </Columns>
-    </RadzenDataGrid>
-</div>
-
 @code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    protected override void OnInitialized()
+        => Navigation.NavigateTo("/manager/taxonomy?kind=categories", replace: true);
 }

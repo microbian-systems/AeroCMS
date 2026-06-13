@@ -1,26 +1,28 @@
 using Aero.Core.Logging;
 using Aero.AppServer.Startup;
 using Aero.Secrets;
-using Marten;
+using Aero.Marten.Extensions;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using TickerQ.Dashboard.DependencyInjection;
 using TickerQ.DependencyInjection;
 using Wolverine;
-using Microsoft.AspNetCore.Builder;
-using TickerQ.Dashboard.DependencyInjection;
 
 
 namespace Aero.AppServer;
 
-// todo - move the aero.appserver project to its own sln and git repo
+// todo - move the aero.appserver project to its own sln and git repo for max config options. it can also be used as standalone
+// library for hosting the core services (orleans, marten, etc.) without the web server if desired.  This will also allow
+// us to target netstandard for the library and net10 for the web server project, which is currently not possible with them
+// combined in one project.  Can be combined with Aero.Modular (like aero.cms uses)
 
 public static class AeroAppServerExtensions
 {
     /// <summary>
     /// Adds Aero application server services (Orleans, Marten, TickerQ, Wolverine).
-    /// Wolverine handler discovery is driven by the source-generated
-    /// <c>GeneratedWolverineHandlerCatalog.Register</c> callback.
-    /// No AppDomain assembly scanning is performed.
+    /// Wolverine handler and grain assembly discovery are driven by source-generated
+    /// catalogs passed as callbacks — no AppDomain assembly scanning is performed.
     /// </summary>
     /// <param name="builder">The host application builder.</param>
     /// <param name="configureWolverine">
@@ -30,12 +32,21 @@ public static class AeroAppServerExtensions
     /// handler types via explicit <c>IncludeType&lt;T&gt;()</c> calls.
     /// When null, conventional discovery is disabled and no handlers are registered.
     /// </param>
+    /// <param name="configureGrains">
+    /// Optional callback to configure the Orleans silo builder for grain assembly
+    /// registration. The host passes a callback that adds each module's grain
+    /// assembly via <c>ISiloBuilder.ConfigureApplicationParts()</c>.
+    /// Mirrors the Wolverine callback pattern. When null, only the application
+    /// base directory is scanned for grains.
+    /// </param>
     public static Task<IHostApplicationBuilder> AddAeroApplicationServer(
         this IHostApplicationBuilder builder,
-        Action<WolverineOptions>? configureWolverine = null)
+        Action<WolverineOptions>? configureWolverine = null,
+        Action<ISiloBuilder>? configureGrains = null)
     {
         var services = builder.Services;
         var config = builder.Configuration;
+        var env = builder.Environment;
 
         builder.AddAeroLogging();
 
@@ -68,6 +79,7 @@ public static class AeroAppServerExtensions
         services.AddOrleans(opts =>
         {
             opts.UseLocalhostClustering();
+            configureGrains?.Invoke(opts);
         });
 
         services.AddTickerQ(opts =>
@@ -75,16 +87,11 @@ public static class AeroAppServerExtensions
             opts.AddDashboard(dashboard =>
             {
                 dashboard.SetBasePath("/manager/jobs");
-                dashboard.WithBasicAuth("admin", "*strongPassword1"); // TODO: replace with secure credentials and configuration
+                dashboard.WithBasicAuth("admin", "*strongPassword1"); // TODO: replace tickerq creds with secure credentials and configuration
             });
         });
 
-        // Marten
-        services.AddMarten(opts =>
-        {
-            opts.Connection(connString);
-        })
-        .UseLightweightSessions();
+        services.ConfigureMartenDb(config, env, connString);
 
         // Wolverine — handler discovery is driven by the source-generated
         // GeneratedWolverineHandlerCatalog callback, which disables conventional

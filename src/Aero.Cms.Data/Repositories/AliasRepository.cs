@@ -1,11 +1,7 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries;
 using Aero.Cms.Data.Queries.Base;
-using Aero.Core.Entities;
-using JasperFx.Core;
 using Marten;
-using Marten.Linq;
-using static System.Collections.Specialized.BitVector32;
 
 namespace Aero.Cms.Data.Repositories;
 

@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Blocks;
+using System.Globalization;
 
 namespace Aero.Cms.Web.Core.Pipelines;
 
@@ -29,6 +30,7 @@ public class BlockRenderContext : PipelineContext
 {
     public required BlockBase Block { get; init; }
     public required ViewContext ViewContext { get; init; }
+    public CultureInfo Culture { get; init; } = CultureInfo.CurrentCulture;
     public IHtmlContent? Output { get; set; }
     public Dictionary<string, object> RenderData { get; } = new();
 }

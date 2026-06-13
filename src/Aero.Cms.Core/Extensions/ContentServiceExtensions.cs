@@ -4,7 +4,6 @@ using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Jobs;
 using Aero.Cms.Core.Content.Rendering;
 using Aero.Cms.Core.Content.Services;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Core.Extensions;
 
@@ -28,6 +27,7 @@ public static class ContentServiceExtensions
         services.AddScoped<ContentValidationService>();
         services.AddScoped<ContentCommandService>();
         services.AddScoped<ContentEmbedBlockRenderer>();
+        services.AddScoped<IContentItemRenderer, ContentItemRenderer>();
 
         // Rendering bridge (scoped — depends on IDocumentSession)
         services.AddScoped<IContentTypeRenderingBridge, ContentTypeDynamicBlockBridge>();

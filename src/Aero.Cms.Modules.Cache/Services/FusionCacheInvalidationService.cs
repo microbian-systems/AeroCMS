@@ -17,14 +17,24 @@ public sealed class FusionCacheInvalidationService(
         ["docs"] = new("docs-index")
     };
 
+    private static readonly CacheTagSet[] NavigationAffectedTags =
+    [
+        new("pages-list"),
+        new("blog-index"),
+        new("docs-index")
+    ];
+
+    private static readonly CacheTagSet[] FooterAffectedTags =
+    [
+        new("pages-list"),
+        new("blog-index"),
+        new("docs-index")
+    ];
+
     public async Task InvalidateContentAsync(ContentUpdatedEvent @event, CancellationToken cancellationToken = default)
     {
-        if (!CacheTags.TryGetValue(@event.ContentType, out var tags))
-        {
-            logger.LogDebug("Skipping cache invalidation for unknown content type {ContentType}", @event.ContentType);
-            return;
-        }
-
+        // ── Slug-based cache key eviction (always) ──────────────────────
+        // Works for any content type even if not in CacheTags
         await RemoveSlugKeyAsync(@event.ContentType, @event.SiteId, @event.NewSlug, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(@event.OldSlug) &&
@@ -33,14 +43,72 @@ public sealed class FusionCacheInvalidationService(
             await RemoveSlugKeyAsync(@event.ContentType, @event.SiteId, @event.OldSlug, cancellationToken);
         }
 
+        // ── Content ID-based cache key eviction (always) ────────────────
+        await RemovePageIdKeyAsync(@event.ContentType, @event.SiteId, @event.ContentId, cancellationToken);
+
+        // ── Coarse tag eviction (known content types only) ──────────────
+        if (!CacheTags.TryGetValue(@event.ContentType, out var tags))
+        {
+            logger.LogDebug("Invalidated slug & id keys for {ContentType}; no coarse tags registered", @event.ContentType);
+            return;
+        }
+
+        // ── Coarse tag eviction (all pages) ───────────────────────────
         await cache.RemoveByTagAsync(tags.FusionCacheTag, token: cancellationToken);
         await outputCacheStore.EvictByTagAsync(tags.OutputCacheTag, cancellationToken);
 
+        // ── Fine-grained per-page tag eviction (single page) ──────────
+        // FusionCache tags: page-slug-{siteId}:{slug} (set by PageCacheStoreHook)
+        // OutputCache tags: page-id-{id}, page-slug-{slug} (set by CmsOutputCachePolicy)
+        if (!string.IsNullOrWhiteSpace(@event.NewSlug))
+        {
+            await cache.RemoveByTagAsync($"page-slug-{@event.SiteId}:{@event.NewSlug.ToLowerInvariant()}", token: cancellationToken);
+            await outputCacheStore.EvictByTagAsync($"page-slug-{@event.NewSlug.ToLowerInvariant()}", cancellationToken);
+        }
+        if (!string.IsNullOrWhiteSpace(@event.OldSlug) &&
+            !string.Equals(@event.OldSlug, @event.NewSlug, StringComparison.OrdinalIgnoreCase))
+        {
+            await cache.RemoveByTagAsync($"page-slug-{@event.SiteId}:{@event.OldSlug.ToLowerInvariant()}", token: cancellationToken);
+            await outputCacheStore.EvictByTagAsync($"page-slug-{@event.OldSlug.ToLowerInvariant()}", cancellationToken);
+        }
+        await outputCacheStore.EvictByTagAsync($"page-id-{@event.ContentId}", cancellationToken);
+
         logger.LogDebug(
-            "Invalidated {ContentType} cache for site {SiteId} using tag {CacheTag}",
+            "Invalidated {ContentType} cache for site {SiteId} content {ContentId} using coarse tag {CacheTag} + fine-grained page tags",
             @event.ContentType,
             @event.SiteId,
+            @event.ContentId,
             tags.FusionCacheTag);
+    }
+
+    public async Task InvalidateNavigationAsync(NavigationMenuChangedEvent @event, CancellationToken cancellationToken = default)
+    {
+        foreach (var tags in NavigationAffectedTags)
+        {
+            await cache.RemoveByTagAsync(tags.FusionCacheTag, token: cancellationToken);
+            await outputCacheStore.EvictByTagAsync(tags.OutputCacheTag, cancellationToken);
+        }
+
+        logger.LogDebug(
+            "Invalidated navigation-dependent cache for site {SiteId} after nav menu {NavMenuId} was {ChangeKind}",
+            @event.SiteId,
+            @event.NavMenuId,
+            @event.ChangeKind);
+    }
+
+    public async Task InvalidateFooterAsync(FooterChangedEvent @event, CancellationToken cancellationToken = default)
+    {
+        foreach (var tags in FooterAffectedTags)
+        {
+            await cache.RemoveByTagAsync(tags.FusionCacheTag, token: cancellationToken);
+            await outputCacheStore.EvictByTagAsync(tags.OutputCacheTag, cancellationToken);
+        }
+
+        logger.LogDebug(
+            "Invalidated footer-dependent cache for site {SiteId} after footer {FooterId} was {ChangeKind}",
+            @event.SiteId,
+            @event.FooterId,
+            @event.ChangeKind);
     }
 
     private async Task RemoveSlugKeyAsync(string contentType, long siteId, string? slug, CancellationToken cancellationToken)
@@ -51,6 +119,18 @@ public sealed class FusionCacheInvalidationService(
         }
 
         var cacheKey = $"cms:{contentType}:{siteId}:slug:{NormalizeCachePart(slug)}";
+        await cache.RemoveAsync(cacheKey, token: cancellationToken);
+    }
+
+    /// <summary>
+    /// Removes the FusionCache key for a specific page ID.
+    /// Key pattern: <c>cms:{contentType}:{siteId}:id:{contentId}</c>
+    /// Complements <see cref="RemoveSlugKeyAsync"/> for pages accessed by ID
+    /// (e.g., draft previews, admin lookups).
+    /// </summary>
+    private async Task RemovePageIdKeyAsync(string contentType, long siteId, long contentId, CancellationToken cancellationToken)
+    {
+        var cacheKey = $"cms:{contentType}:{siteId}:id:{contentId}";
         await cache.RemoveAsync(cacheKey, token: cancellationToken);
     }
 

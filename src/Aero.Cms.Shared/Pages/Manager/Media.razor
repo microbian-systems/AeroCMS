@@ -3,12 +3,12 @@
 @attribute [Authorize]
 @using Aero.Cms.Abstractions.Http.Clients
 @using Aero.Core
-@using Aero.Core.Railway
 @inject IMediaHttpClient MediaClient
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @using Microsoft.Extensions.Logging
 @inject ILogger<Media> Logger
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="media-container h-full flex flex-col overflow-hidden" style="background: var(--pe-bg-primary);">
     <!-- Media Header -->
@@ -16,7 +16,7 @@
         <div class="flex items-center space-x-4">
             <h1 class="text-2xl font-bold flex items-center gap-2" style="color: var(--pe-text-primary);">
                 <RadzenIcon Icon="@("photo_library")" class="text-indigo-500" />
-                Media Library
+                @L["Media Library"]
             </h1>
             
             <div class="h-6 w-px mx-2" style="background: var(--pe-border);"></div>
@@ -37,7 +37,7 @@
         </div>
 
         <div class="flex items-center space-x-3">
-             <RadzenTextBox Placeholder="@("Search all media...")" 
+             <RadzenTextBox Placeholder="@L["Search all media..."]" 
                             Value="@searchText" 
                             ValueChanged="@(args => OnSearch(args))" 
                             class="w-72 border-none rounded-full px-4 text-sm" style="background: var(--pe-bg-secondary);" />
@@ -46,7 +46,7 @@
                           Variant="Variant.Flat" Size="ButtonSize.Medium" class="rounded-full" 
                           Click="@OnCreateFolder" />
                           
-            <RadzenButton Icon="@("file_upload")" Text="Upload" ButtonStyle="ButtonStyle.Primary" 
+            <RadzenButton Icon="@("file_upload")" Text="@L["Upload"]" ButtonStyle="ButtonStyle.Primary" 
                           Variant="Variant.Filled" Size="ButtonSize.Medium" class="rounded-full shadow-lg shadow-indigo-500/20 px-6 font-bold" 
                           Click="@OnUploadClick" />
         </div>
@@ -57,25 +57,25 @@
         <aside class="w-80 border-r backdrop-blur-md p-6 overflow-y-auto" style="border-color: var(--pe-border); background: color-mix(in srgb, var(--pe-bg-secondary) 50%, transparent);">
             <div class="space-y-8">
                 <div>
-                    <h3 class="text-[10px] font-black uppercase tracking-widest mb-4" style="color: var(--pe-text-muted);">View Modes</h3>
+                    <h3 class="text-[10px] font-black uppercase tracking-widest mb-4" style="color: var(--pe-text-muted);">@L["View Modes"]</h3>
                     <div class="grid grid-cols-2 gap-2">
-                        <RadzenButton Text="Grid" Icon="@("grid_view")" Variant="@(viewType == ViewType.Grid ? Variant.Filled : Variant.Text)" 
+                        <RadzenButton Text="@L["Grid"]" Icon="@("grid_view")" Variant="@(viewType == ViewType.Grid ? Variant.Filled : Variant.Text)" 
                                      ButtonStyle="@(viewType == ViewType.Grid ? ButtonStyle.Primary : ButtonStyle.Light)"
                                      Size="ButtonSize.Small" Click="@(() => SetView(ViewType.Grid))" class="w-full font-bold" />
-                        <RadzenButton Text="List" Icon="@("view_list")" Variant="@(viewType == ViewType.List ? Variant.Filled : Variant.Text)" 
+                        <RadzenButton Text="@L["List"]" Icon="@("view_list")" Variant="@(viewType == ViewType.List ? Variant.Filled : Variant.Text)" 
                                      ButtonStyle="@(viewType == ViewType.List ? ButtonStyle.Primary : ButtonStyle.Light)"
                                      Size="ButtonSize.Small" Click="@(() => SetView(ViewType.List))" class="w-full font-bold" />
                     </div>
                 </div>
 
                 <div>
-                    <h3 class="text-[10px] font-black uppercase tracking-widest mb-4" style="color: var(--pe-text-muted);">Library Folders</h3>
+                    <h3 class="text-[10px] font-black uppercase tracking-widest mb-4" style="color: var(--pe-text-muted);">@L["Library Folders"]</h3>
                     <div class="flex flex-col space-y-1">
 <div class="flex items-center p-2 rounded-lg cursor-pointer transition-colors @(currentFolderId == null ? "font-bold" : "hover:bg-gray-100")"
      style="@(currentFolderId == null ? "background: color-mix(in srgb, var(--pe-primary) 15%, transparent); color: var(--pe-primary);" : "color: var(--pe-text-secondary);")"
      @onclick="@(() => NavigateToFolder(null))">
                             <RadzenIcon Icon="@("folder")" class="mr-3 w-5 h-5 opacity-70" />
-                            <span class="text-sm">Root Content</span>
+                            <span class="text-sm">@L["Root Content"]</span>
                         </div>
                         
                         @foreach (var folder in availableFolders)
@@ -94,10 +94,10 @@
                 </div>
 
                 <div>
-                    <h3 class="text-[10px] font-black uppercase tracking-widest mb-4" style="color: var(--pe-text-muted);">Quick Insights</h3>
+                    <h3 class="text-[10px] font-black uppercase tracking-widest mb-4" style="color: var(--pe-text-muted);">@L["Quick Insights"]</h3>
                     <div class="rounded-2xl p-4 border" style="background: color-mix(in srgb, var(--pe-primary) 15%, transparent); border-color: color-mix(in srgb, var(--pe-primary) 25%, transparent);">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-bold uppercase tracking-wider" style="color: var(--pe-primary);">Storage Usage</span>
+                            <span class="text-xs font-bold uppercase tracking-wider" style="color: var(--pe-primary);">@L["Storage Usage"]</span>
                             <span class="text-[10px] font-medium" style="color: color-mix(in srgb, var(--pe-primary) 60%, transparent);">62%</span>
                         </div>
                         <RadzenProgressBar Value="62" ShowValue="false" class="h-1.5 rounded-full overflow-hidden" Style="@("--rz-progressbar-value-background: var(--rz-primary)")" />
@@ -124,8 +124,8 @@
                     <div class="w-32 h-32 rounded-full flex items-center justify-center mb-6" style="background: var(--pe-bg-secondary);">
                         <RadzenIcon Icon="@("cloud_upload")" class="w-16 h-16 text-gray-400" />
                     </div>
-                    <h2 class="text-xl font-bold" style="color: var(--pe-text-secondary);">No media found here</h2>
-                    <p class="mt-2 text-gray-500 max-w-xs mx-auto">Upload your first asset to start organizing your digital content.</p>
+                    <h2 class="text-xl font-bold" style="color: var(--pe-text-secondary);">@L["No media found here"]</h2>
+                    <p class="mt-2 text-gray-500 max-w-xs mx-auto">@L["Upload your first asset to start organizing your digital content."]</p>
                 </div>
             }
             else
@@ -167,7 +167,7 @@
                                 <div class="px-1 overflow-hidden">
                                     <div class="truncate text-xs font-bold mb-1" style="color: var(--pe-text-primary);" title="@item.FileName">@item.FileName</div>
                                     <div class="flex items-center justify-between text-[10px] font-medium font-mono" style="color: var(--pe-text-muted);">
-                                        <span>@(item.IsFolder ? "Folder" : FormatSize(item.FileSize))</span>
+                                        <span>@(item.IsFolder ? L["Folder"] : FormatSize(item.FileSize))</span>
                                         <span>@item.CreatedAt.ToString("MMM dd")</span>
                                     </div>
                                 </div>
@@ -179,7 +179,7 @@
                 {
                     <RadzenDataGrid Data="@mediaItems" TItem="MediaSummary" class="bg-transparent" AllowAlternatingRows="false">
                         <Columns>
-                            <RadzenDataGridColumn TItem="MediaSummary" Property="FileName" Title="Name">
+                            <RadzenDataGridColumn TItem="MediaSummary" Property="FileName" Title="@L["Name"]">
                                 <Template Context="item">
                                     <div class="flex items-center py-1 cursor-pointer" @onclick="@(() => OnMediaClick(item))">
                                         <RadzenIcon Icon="@(item.IsFolder ? "folder" : "insert_drive_file")" 
@@ -188,13 +188,13 @@
                                     </div>
                                 </Template>
                             </RadzenDataGridColumn>
-                            <RadzenDataGridColumn TItem="MediaSummary" Property="MimeType" Title="Type" Width="@("150px")" />
-                            <RadzenDataGridColumn TItem="MediaSummary" Property="FileSize" Title="Size" Width="@("100px")">
+                            <RadzenDataGridColumn TItem="MediaSummary" Property="MimeType" Title="@L["Type"]" Width="@("150px")" />
+                            <RadzenDataGridColumn TItem="MediaSummary" Property="FileSize" Title="@L["Size"]" Width="@("100px")">
                                 <Template Context="item">
                                     @(item.IsFolder ? "--" : FormatSize(item.FileSize))
                                 </Template>
                             </RadzenDataGridColumn>
-                            <RadzenDataGridColumn TItem="MediaSummary" Property="CreatedAt" Title="Date" Width="@("150px")">
+                            <RadzenDataGridColumn TItem="MediaSummary" Property="CreatedAt" Title="@L["Date"]" Width="@("150px")">
                                 <Template Context="item">
                                     @item.CreatedAt.ToShortDateString()
                                 </Template>
@@ -333,14 +333,14 @@
             return;
         }
 
-        await DialogService.OpenAsync<MediaDetailDialog>("Media Details", 
+        await DialogService.OpenAsync<MediaDetailDialog>(L["Media Details"], 
             new Dictionary<string, object> { { "MediaId", item.Id } },
             new DialogOptions { Width = "700px", Resizable = true, Draggable = true });
     }
 
     async Task OnCreateFolder()
     {
-        var result = await DialogService.OpenAsync<CreateFolderDialog>("New Folder", 
+        var result = await DialogService.OpenAsync<CreateFolderDialog>(L["New Folder"], 
             new Dictionary<string, object> { { "ParentId", currentFolderId } },
             new DialogOptions { Width = "400px" });
 
@@ -350,7 +350,7 @@
     async Task OnUploadClick()
     {
         Logger.LogDebug("Opening UploadDialog...");
-        var result = await DialogService.OpenAsync<UploadDialog>("Upload Media", 
+        var result = await DialogService.OpenAsync<UploadDialog>(L["Upload Media"], 
             new Dictionary<string, object> { { "ParentId", currentFolderId } },
             new DialogOptions { Width = "500px" });
 
@@ -363,15 +363,17 @@
 
     async Task OnDeleteMedia(MediaSummary item)
     {
-        var confirm = await DialogService.Confirm($"Are you sure you want to delete {item.FileName}?", "Delete Media", 
-            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+        var confirm = await DialogService.Confirm(
+            string.Format(L["Are you sure you want to delete {0}?"], item.FileName), 
+            L["Delete Media"], 
+            new ConfirmOptions { OkButtonText = L["Delete"], CancelButtonText = L["Cancel"] });
 
         if (confirm == true)
         {
             var res = await MediaClient.DeleteAsync(item.Id);
             if (res is Result<bool, AeroError>.Ok)
             {
-                NotificationService.Notify(NotificationSeverity.Success, "Deleted", "Media asset removed successfully");
+                NotificationService.Notify(NotificationSeverity.Success, L["Deleted"], L["Media asset removed successfully"]);
                 await LoadMedia();
             }
         }

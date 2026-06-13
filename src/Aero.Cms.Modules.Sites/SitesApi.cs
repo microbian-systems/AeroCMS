@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
@@ -6,8 +5,6 @@ using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
-using Aero.Cms.Abstractions.Services;
-using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Infrastructure;
 using Aero.Cms.Modules.Sites.Events;
@@ -19,6 +16,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 using System.Security.Claims;
 using Wolverine;
 
@@ -140,7 +138,8 @@ public static class SitesApi
             TenantId = Snowflake.NewId(),
             Name = "Default Site",
             IsEnabled = true,
-            DefaultCulture = "en-US",
+            DefaultCulture = SitesModel.DefaultCultureName,
+            SupportedCultures = [SitesModel.DefaultCultureName],
             Description = "Auto-created default site"
         };
 
@@ -178,6 +177,7 @@ public static class SitesApi
             Hosts = hostList,
             IsEnabled = some.Value.IsEnabled,
             DefaultCulture = some.Value.DefaultCulture,
+            SupportedCultures = NormalizeCultureSettings(some.Value.DefaultCulture, some.Value.SupportedCultures).SupportedCultures,
             CreatedOn = some.Value.CreatedOn,
             ModifiedOn = some.Value.ModifiedOn,
             CreatedBy = some.Value.CreatedBy,
@@ -207,6 +207,7 @@ public static class SitesApi
                 tenantId = someSite.Value.TenantId;
         }
 
+        var cultureSettings = NormalizeCultureSettings(request.DefaultCulture, request.SupportedCultures);
         var site = new SitesModel
         {
             Id = Snowflake.NewId(),
@@ -214,7 +215,8 @@ public static class SitesApi
             Name = request.Name,
             Description = request.Description,
             IsEnabled = true,
-            DefaultCulture = "en-US"
+            DefaultCulture = cultureSettings.DefaultCulture,
+            SupportedCultures = cultureSettings.SupportedCultures
         };
 
         var createResult = await siteService.CreateSiteAsync(site).ConfigureAwait(false);
@@ -263,6 +265,9 @@ public static class SitesApi
         var site = some.Value;
         site.Name = request.Name ?? site.Name;
         site.Description = request.Description ?? site.Description;
+        var cultureSettings = NormalizeCultureSettings(request.DefaultCulture ?? site.DefaultCulture, request.SupportedCultures ?? site.SupportedCultures);
+        site.DefaultCulture = cultureSettings.DefaultCulture;
+        site.SupportedCultures = cultureSettings.SupportedCultures;
 
         var updateResult = await siteService.UpdateSiteAsync(site).ConfigureAwait(false);
         if (updateResult is Result<SitesModel, AeroError>.Failure uf)
@@ -345,6 +350,7 @@ public static class SitesApi
             Title = site.Name ?? "Home",
             Summary = $"Welcome to {site.Name}",
             SiteId = site.Id,
+            Culture = site.DefaultCulture ?? SitesModel.DefaultCultureName,
             PublicationState = ContentPublicationState.Published,
             PublishedOn = now,
             CreatedOn = now,
@@ -353,6 +359,7 @@ public static class SitesApi
             ModifiedBy = createdBy
         };
 
+        page.TranslationGroupId = page.Id;
         session.Store(page);
         await session.SaveChangesAsync();
     }
@@ -380,6 +387,7 @@ public static class SitesApi
             Title = "Oops",
             Summary = "Page not found",
             SiteId = site.Id,
+            Culture = site.DefaultCulture ?? SitesModel.DefaultCultureName,
             PublicationState = ContentPublicationState.Published,
             PublishedOn = now,
             CreatedOn = now,
@@ -412,8 +420,44 @@ public static class SitesApi
             ]
         };
 
+        page.TranslationGroupId = page.Id;
         session.Store(page);
         await session.SaveChangesAsync();
+    }
+
+    private static (string DefaultCulture, List<string> SupportedCultures) NormalizeCultureSettings(
+        string? defaultCulture,
+        IEnumerable<string>? supportedCultures)
+    {
+        var cultures = (supportedCultures ?? [])
+            .Select(NormalizeCultureNameOrNull)
+            .Where(static x => x is not null)
+            .Select(static x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var normalizedDefault = NormalizeCultureNameOrNull(defaultCulture) ?? SitesModel.DefaultCultureName;
+        if (!cultures.Contains(normalizedDefault, StringComparer.OrdinalIgnoreCase))
+        {
+            cultures.Insert(0, normalizedDefault);
+        }
+
+        return (normalizedDefault, cultures.Count == 0 ? [SitesModel.DefaultCultureName] : cultures);
+    }
+
+    private static string? NormalizeCultureNameOrNull(string? culture)
+    {
+        if (string.IsNullOrWhiteSpace(culture))
+            return null;
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+        }
+        catch (CultureNotFoundException)
+        {
+            return null;
+        }
     }
 
     private static string ResolveAuditUser(ClaimsPrincipal user)

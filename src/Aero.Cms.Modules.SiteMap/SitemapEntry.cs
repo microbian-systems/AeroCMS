@@ -6,7 +6,10 @@ public sealed record SitemapEntry
     public DateTimeOffset? LastMod { get; init; }
     public ChangeFrequency ChangeFreq { get; init; } = ChangeFrequency.Weekly;
     public double Priority { get; init; } = 0.5;
+    public IReadOnlyList<SitemapAlternateLink> Alternates { get; init; } = [];
 }
+
+public sealed record SitemapAlternateLink(string Hreflang, string Href);
 
 public enum ChangeFrequency
 {

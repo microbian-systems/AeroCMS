@@ -268,35 +268,6 @@ public sealed class BlockRendererBaselineTests
         GeneratedBlockJsonRegistration.CollectionTypes.Should().Contain(typeof(List<MarkdownBlock>));
     }
 
-    [Test]
-    public async Task CmsBlockSliceRenderer_DelegatesLegacyVisitorPathToGeneratedBlazorRenderer()
-    {
-        var block = new MarkdownBlock
-        {
-            Content = "# Legacy Slice Bridge"
-        };
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddRadzenComponents();
-        services.AddBlockSystemServices();
-        services.AddSingleton<IJSRuntime, NoOpJSRuntime>();
-        services.AddSingleton<IErrorBoundaryLogger, NoOpErrorBoundaryLogger>();
-
-        await using var serviceProvider = services.BuildServiceProvider();
-        var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
-
-        await using var htmlRenderer = new HtmlRenderer(serviceProvider, loggerFactory);
-        var blockHtmlRenderer = new CmsBlockHtmlRenderer(htmlRenderer);
-        var registry = new BlockSliceRegistry();
-        registry.Register(new CmsBlockSliceRenderer(blockHtmlRenderer));
-
-        var html = RenderHtmlContent(registry.Visit(block));
-
-        html.Should().Contain("markdown-block-content");
-        html.Should().Contain("Legacy Slice Bridge");
-    }
-
     private static async Task<string> RenderComponentAsync<TComponent>(
         IDictionary<string, object?> parameters)
         where TComponent : IComponent

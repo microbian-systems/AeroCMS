@@ -2,7 +2,6 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Polly;
 
 namespace Aero.Cms.Abstractions.Http;
 
@@ -61,9 +60,11 @@ public static class AeroHttpClientExtensions
         services.AddHttpClient<IMediaHttpClient, MediaHttpClient>();
         services.AddHttpClient<IModulesHttpClient, ModulesHttpClient>();
         services.AddHttpClient<INavigationsHttpClient, NavigationsHttpClient>();
+        services.AddHttpClient<IFootersHttpClient, FootersHttpClient>();
         services.AddHttpClient<IPagesHttpClient, PagesHttpClient>();
         services.AddHttpClient<IProfileHttpClient, ProfileHttpClient>();
         services.AddHttpClient<ISettingsHttpClient, SettingsHttpClient>();
+        services.AddHttpClient<ISeriesHttpClient, SeriesHttpClient>();
         services.AddHttpClient<ITagsHttpClient, TagsHttpClient>();
         services.AddHttpClient<IThemesHttpClient, ThemesHttpClient>();
         services.AddHttpClient<IUsersHttpClient, UsersHttpClient>();

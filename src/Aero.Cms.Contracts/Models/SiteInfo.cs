@@ -11,4 +11,5 @@ public record SiteInfo(
     string? PrimaryHost,
     bool IsEnabled,
     string? DefaultCulture,
-    long TenantId);
+    long TenantId,
+    IReadOnlyList<string>? SupportedCultures = null);

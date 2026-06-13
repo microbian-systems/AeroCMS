@@ -1,0 +1,10 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+@if (Block != null)
+{
+    @((MarkupString)Block.Html)
+}
+
+@code {
+    [Parameter, EditorRequired] public NeoRawHtmlBlock? Block { get; set; }
+}

@@ -1,0 +1,21 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Title</label>
+        <input class="w-full rounded-md shadow-xs sm:text-sm"
+               style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+               value="@Block.Title"
+               @oninput="e => Block.Title = e.Value?.ToString() ?? string.Empty" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Description</label>
+        <textarea rows="3" class="w-full rounded-md shadow-xs sm:text-sm"
+                  style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                  value="@Block.Description"
+                  @oninput="e => Block.Description = e.Value?.ToString() ?? string.Empty"></textarea>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Card9Block Block { get; set; } = default!;
+}
