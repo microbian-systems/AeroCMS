@@ -1,4 +1,5 @@
 @using Aero.Cms.Abstractions.Blocks.Neo
+@using Aero.Cms.Abstractions.Blocks.Neo.Styles
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog
 
 @* ── NeoNodeRenderer — renders a single NeoPageNode ── *@
@@ -14,16 +15,99 @@
 {
     var catalogId = Node.CatalogId;
     var isContainer = Node.Kind is NeoPageNodeKind.Container or NeoPageNodeKind.Section;
-    var tag = isContainer ? "section" : "div";
     Catalog.TryGet(catalogId, out var catalogItem);
 
-    @* Wrap in a section/div with catalog-id data attribute for debugging *@
-    <@tag class="neo-node neo-@(catalogId.Replace(".", "-")) neo-kind-@Node.Kind.ToString().ToLowerInvariant()"
-          data-catalog-id="@catalogId"
-          data-node-id="@Node.NodeId">
+    @* A stable element is required for static SSR. Razor variable-tag syntax
+       renders literal <> wrappers and drops attributes in HtmlRenderer output. *@
+    <div class="neo-node neo-@(catalogId.Replace(".", "-")) neo-kind-@Node.Kind.ToString().ToLowerInvariant()"
+         style="@NodeStyleCssRenderer.Render(Node.Style, Breakpoint)"
+         data-catalog-id="@catalogId"
+         data-node-id="@Node.NodeId">
 
         @switch (catalogId)
         {
+            case "primitive.text":
+            {
+                <p class="neo-primitive-text">@GetStringProperty("text")</p>
+                break;
+            }
+
+            case "primitive.container":
+            {
+                <div class="neo-primitive-container">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
+                break;
+            }
+
+            case "primitive.button":
+            {
+                <a class="neo-primitive-button"
+                   href="@GetSafeLinkProperty("url")">
+                    @GetStringProperty("text")
+                </a>
+                break;
+            }
+
+            case "primitive.image":
+            {
+                var imageUrl = GetSafeMediaProperty("url");
+                <figure class="neo-primitive-image">
+                    @if (!string.IsNullOrWhiteSpace(imageUrl))
+                    {
+                        <img src="@imageUrl"
+                             alt="@GetStringProperty("alt")"
+                             loading="lazy" />
+                    }
+                    @if (!string.IsNullOrWhiteSpace(GetStringProperty("caption")))
+                    {
+                        <figcaption>@GetStringProperty("caption")</figcaption>
+                    }
+                </figure>
+                break;
+            }
+
+            case "primitive.pill":
+            {
+                <span class="neo-primitive-pill">@GetStringProperty("text")</span>
+                break;
+            }
+
+            case "primitive.icon":
+            {
+                <span class="neo-primitive-icon"
+                      data-icon-name="@GetStringProperty("name")"
+                      role="img"
+                      aria-label="@GetStringProperty("label")"></span>
+                break;
+            }
+
+            case "primitive.separator":
+            {
+                <hr class="neo-primitive-separator" />
+                break;
+            }
+
+            case "preset.card":
+            {
+                <article class="neo-primitive-card">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </article>
+                break;
+            }
+
             @* Typed block references — render via catalog metadata *@
             case var _ when Node.Kind == NeoPageNodeKind.Block:
             {
@@ -62,7 +146,8 @@
                 {
                     <NeoNodeRenderer Node="child"
                                      NestingDepth="NestingDepth + 1"
-                                     MaxDepth="MaxDepth" />
+                                     MaxDepth="MaxDepth"
+                                     Breakpoint="Breakpoint" />
                 }
                 break;
             }
@@ -86,7 +171,7 @@
                 break;
             }
         }
-    </@tag>
+    </div>
 }
 
 @code {
@@ -98,4 +183,40 @@
 
     [Parameter]
     public int MaxDepth { get; set; } = 5;
+
+    [Parameter]
+    public EditorBreakpoint Breakpoint { get; set; } = EditorBreakpoint.Desktop;
+
+    private string GetStringProperty(string name) =>
+        Node.Properties.TryGetValue(name, out var value) &&
+        value.ValueKind == System.Text.Json.JsonValueKind.String
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+
+    private string GetSafeLinkProperty(string name)
+    {
+        var value = GetStringProperty(name).Trim();
+        if (value.StartsWith('#') ||
+            value.StartsWith('/') ||
+            Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            uri.Scheme is "http" or "https" or "mailto" or "tel")
+        {
+            return value;
+        }
+
+        return "#";
+    }
+
+    private string GetSafeMediaProperty(string name)
+    {
+        var value = GetStringProperty(name).Trim();
+        if (value.StartsWith('/') ||
+            Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            uri.Scheme is "http" or "https")
+        {
+            return value;
+        }
+
+        return string.Empty;
+    }
 }

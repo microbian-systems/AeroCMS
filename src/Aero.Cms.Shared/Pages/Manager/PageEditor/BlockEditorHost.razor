@@ -69,8 +69,9 @@ else
     private bool TryGetRegisteredEditor(out Type editorType, out Dictionary<string, object?> parameters)
     {
         if (Block is not null &&
-            PageEditorBlockRegistry.TryGet(Block.BlockType, out var definition) &&
-            definition.PropertyEditorComponentType is { } propertyEditorType)
+            PageEditorBlockRegistry.TryGetDescriptor(Block.BlockType, out var definition) &&
+            definition.LegacyDefinition is not null &&
+            definition.Catalog.PropertyEditorComponentType is { } propertyEditorType)
         {
             editorType = propertyEditorType;
             parameters = new Dictionary<string, object?>

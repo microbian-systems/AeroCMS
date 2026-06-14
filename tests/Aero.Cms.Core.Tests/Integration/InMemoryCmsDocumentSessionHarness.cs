@@ -3,6 +3,7 @@ using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
 using Marten;
 using NSubstitute;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -101,22 +102,19 @@ internal sealed class InMemoryCmsDocumentSessionHarness
     public IReadOnlyDictionary<string, PostDocument> BlogPosts => _blogPostDocuments;
     public IReadOnlyDictionary<string, SetupStateDocument> SetupStates => _setupStateDocuments;
 
+    public void StorePage(PageDocument page)
+    {
+        Session.Store(page);
+    }
+
+    public Task<PageDocument?> LoadPageAsync(
+        long pageId,
+        CancellationToken cancellationToken = default) =>
+        Session.LoadAsync<PageDocument>(pageId.ToString(), cancellationToken);
+
     private static PageDocument Clone(PageDocument page)
-        => new()
-        {
-            Id = page.Id,
-            Kind = page.Kind,
-            Slug = page.Slug,
-            Title = page.Title,
-            Summary = page.Summary,
-            SeoTitle = page.SeoTitle,
-            SeoDescription = page.SeoDescription,
-            //Body = page.Body,
-            PublicationState = page.PublicationState,
-            CreatedOn = page.CreatedOn,
-            ModifiedOn = page.ModifiedOn,
-            PublishedOn = page.PublishedOn
-        };
+        => JsonSerializer.Deserialize<PageDocument>(
+            JsonSerializer.Serialize(page))!;
 
     private static PostDocument Clone(PostDocument post)
         => new()

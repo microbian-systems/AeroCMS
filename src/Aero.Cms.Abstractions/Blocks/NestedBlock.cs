@@ -3,6 +3,7 @@ namespace Aero.Cms.Abstractions.Blocks;
 /// <summary>A simplified nested block (text / image / video / button) inside a column.</summary>
 public class NestedBlock
 {
+    public string Id      { get; set; } = Guid.NewGuid().ToString("N");
     public string Type    { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public string Src     { get; set; } = string.Empty;
@@ -11,5 +12,10 @@ public class NestedBlock
     public string Text    { get; set; } = string.Empty;
     public string Style   { get; set; } = "primary";
 
-    public NestedBlock Clone() => (NestedBlock)MemberwiseClone();
+    public NestedBlock Clone()
+    {
+        var clone = (NestedBlock)MemberwiseClone();
+        clone.Id = Guid.NewGuid().ToString("N");
+        return clone;
+    }
 }

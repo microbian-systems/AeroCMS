@@ -1,0 +1,16 @@
+<span title="@Label" aria-label="@Label">
+    <LucideIcon Name="@Name" Size="24" />
+</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private string Name => GetString("name", "sparkles");
+    private string Label => GetString("label", "Sparkles");
+
+    private string GetString(string name, string fallback) =>
+        Node.Properties.TryGetValue(name, out var value)
+            ? value.GetString() ?? fallback
+            : fallback;
+}

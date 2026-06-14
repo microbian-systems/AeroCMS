@@ -151,7 +151,7 @@ public static class PagesApi
     private static async Task<IResult> GetPageBySlug(
         string slug,
         [FromServices] IAeroPageActor pagesActor,
-        ISiteContext siteContext,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
         var result = await pagesActor.GetBySlugAsync(siteContext.SiteId, slug, ct);
@@ -172,7 +172,7 @@ public static class PagesApi
         [FromBody] Aero.Cms.Abstractions.Http.Clients.CreatePageRequest request,
         [FromServices] IAeroPageActor pagesActor,
         [FromServices] ILoggerFactory loggerFactory,
-        ISiteContext siteContext,
+        [FromServices] ISiteContext siteContext,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
@@ -587,7 +587,8 @@ public static class PagesApi
     // ── Draft handlers (lightweight, stay on session) ─────────────────
 
     private static async Task<IResult> GetPageDraft(
-        long id, IQuerySession querySession)
+        long id,
+        [FromServices] IQuerySession querySession)
     {
         var draft = await querySession.Query<PageDraft>()
             .FirstOrDefaultAsync(d => d.PageId == id);
@@ -596,9 +597,9 @@ public static class PagesApi
 
     private static async Task<IResult> SavePageDraft(
         long id,
-        PageDraftRequest request,
-        IDocumentSession session,
-        IQuerySession querySession)
+        [FromBody] PageDraftRequest request,
+        [FromServices] IDocumentSession session,
+        [FromServices] IQuerySession querySession)
     {
         var page = await querySession.LoadAsync<PageDocument>(id);
         if (page is null) return TypedResults.NotFound();
@@ -637,8 +638,8 @@ public static class PagesApi
 
     private static async Task<IResult> DeletePageDraft(
         long id,
-        IDocumentSession session,
-        IQuerySession querySession)
+        [FromServices] IDocumentSession session,
+        [FromServices] IQuerySession querySession)
     {
         var existing = await querySession.Query<PageDraft>()
             .FirstOrDefaultAsync(d => d.PageId == id);
@@ -1102,8 +1103,8 @@ public static class PagesApi
 
     private static async Task<IResult> PreviewPage(
         long id,
-        IPageContentService pageService,
-        ILoggerFactory loggerFactory,
+        [FromServices] IPageContentService pageService,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
@@ -1124,8 +1125,8 @@ public static class PagesApi
 
     private static async Task<IResult> PreviewPageFragment(
         [FromBody] PreviewPageFragmentRequest request,
-        CmsBlockHtmlRenderer blockRenderer,
-        ILoggerFactory loggerFactory,
+        [FromServices] CmsBlockHtmlRenderer blockRenderer,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));

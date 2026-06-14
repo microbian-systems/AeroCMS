@@ -4,20 +4,44 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 
 public static class PageEditorBlockRegistry
 {
-    private static IReadOnlyDictionary<string, IPageEditorBlockDefinition> _definitions =
-        new Dictionary<string, IPageEditorBlockDefinition>(StringComparer.OrdinalIgnoreCase);
+    private static IReadOnlyDictionary<string, PageEditorDefinitionDescriptor> _definitions =
+        new Dictionary<string, PageEditorDefinitionDescriptor>(StringComparer.OrdinalIgnoreCase);
 
-    public static void RegisterProviders(IEnumerable<IPageEditorBlockProvider> providers)
+    public static void RegisterProviders(
+        IEnumerable<IPageEditorBlockProvider> providers,
+        IEnumerable<IPageEditorDefinitionProvider>? nativeProviders = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
 
+        var legacyDefinitions = providers
+            .SelectMany(provider => provider.GetDefinitions())
+            .Select(definition => new LegacyPageEditorDefinitionAdapter(definition).ToDescriptor());
+        var nativeDefinitions = nativeProviders?
+            .SelectMany(provider => provider.GetEditorDefinitions()) ?? [];
+
         _definitions = _definitions.Values
-            .Concat(providers.SelectMany(provider => provider.GetDefinitions()))
+            .Concat(legacyDefinitions)
+            .Concat(nativeDefinitions)
             .GroupBy(definition => definition.CatalogId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
     }
 
     public static bool TryGet(string? catalogId, out IPageEditorBlockDefinition definition)
+    {
+        if (TryGetDescriptor(catalogId, out var descriptor) &&
+            descriptor.LegacyDefinition is { } legacyDefinition)
+        {
+            definition = legacyDefinition;
+            return true;
+        }
+
+        definition = default!;
+        return false;
+    }
+
+    public static bool TryGetDescriptor(
+        string? catalogId,
+        out PageEditorDefinitionDescriptor definition)
     {
         if (string.IsNullOrWhiteSpace(catalogId))
         {
@@ -28,5 +52,12 @@ public static class PageEditorBlockRegistry
         return _definitions.TryGetValue(catalogId, out definition!);
     }
 
-    public static IReadOnlyCollection<IPageEditorBlockDefinition> All => _definitions.Values.ToList();
+    public static IReadOnlyCollection<IPageEditorBlockDefinition> All =>
+        _definitions.Values
+            .Select(definition => definition.LegacyDefinition)
+            .OfType<IPageEditorBlockDefinition>()
+            .ToList();
+
+    public static IReadOnlyCollection<PageEditorDefinitionDescriptor> AllDescriptors =>
+        _definitions.Values.ToList();
 }

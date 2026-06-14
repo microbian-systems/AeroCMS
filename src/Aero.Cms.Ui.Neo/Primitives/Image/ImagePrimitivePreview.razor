@@ -1,0 +1,30 @@
+<figure class="m-0 overflow-hidden rounded-lg border bg-muted">
+    @if (string.IsNullOrWhiteSpace(Url))
+    {
+        <div class="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
+            Select an image
+        </div>
+    }
+    else
+    {
+        <img src="@Url" alt="@Alt" class="block h-auto w-full object-cover" />
+    }
+    @if (!string.IsNullOrWhiteSpace(Caption))
+    {
+        <figcaption class="px-3 py-2 text-sm text-muted-foreground">@Caption</figcaption>
+    }
+</figure>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private string Url => GetString("url");
+    private string Alt => GetString("alt");
+    private string Caption => GetString("caption");
+
+    private string GetString(string name) =>
+        Node.Properties.TryGetValue(name, out var value)
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+}

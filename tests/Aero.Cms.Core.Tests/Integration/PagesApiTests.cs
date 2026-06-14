@@ -1,8 +1,25 @@
 using System.Reflection;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Modules.Pages.Grains;
 using Aero.Cms.Modules.Pages.Areas.Api.v1;
+using Aero.Core.Http;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
+using GrainUpdatePageRequest = Aero.Cms.Abstractions.Requests.UpdatePageRequest;
+using HttpUpdatePageRequest = Aero.Cms.Abstractions.Http.Clients.UpdatePageRequest;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -23,7 +40,10 @@ public sealed class PagesApiTests
             PublicationState = ContentPublicationState.Published
         };
 
-        var mapper = typeof(PagesApi).GetMethod("MapToDetail", BindingFlags.NonPublic | BindingFlags.Static);
+        var mapper = typeof(PagesApi).GetMethod(
+            "MapToDetail",
+            BindingFlags.NonPublic | BindingFlags.Static,
+            [typeof(PageDocument)]);
 
         await Assert.That(mapper).IsNotNull();
 
@@ -31,4 +51,123 @@ public sealed class PagesApiTests
 
         await Assert.That(detail.UpdatedAt).IsEqualTo(createdOn.DateTime);
     }
+
+    [Test]
+    public async Task UpdateRoutePreservesNestedCompositionThroughOrleansTransport()
+    {
+        const long pageId = 601;
+        GrainUpdatePageRequest? captured = null;
+        var actor = Substitute.For<IAeroPageActor>();
+        actor.UpdateAsync(
+                Arg.Any<GrainUpdatePageRequest>(),
+                Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                captured = call.Arg<GrainUpdatePageRequest>();
+                return new AeroRequestResponse<PageViewModel>(
+                    new PageViewModel
+                    {
+                        Id = pageId,
+                        SiteId = 42,
+                        Title = captured.Title,
+                        Slug = captured.Slug,
+                        PublicationState = captured.PublicationState,
+                        EditorBlocksJson = captured.EditorBlocksJson
+                    },
+                    new PageErrorViewModel());
+            });
+
+        await using var app = await CreateAppAsync(actor);
+        using var client = app.GetTestClient();
+        var request = new HttpUpdatePageRequest(
+            "RTL composition",
+            "rtl-composition",
+            null,
+            null,
+            null,
+            ContentPublicationState.Draft,
+            EditorBlocks:
+            [
+                new EditorBlock
+                {
+                    EditorId = "composition",
+                    Type = "neo_composition",
+                    CompositionNodes = [CreateCompositionRoot()]
+                }
+            ]);
+
+        using var response = await client.PutAsJsonAsync(
+            $"/{HttpConstants.ApiPrefix}admin/pages/{pageId}",
+            request);
+
+        await Assert.That(response.IsSuccessStatusCode).IsTrue();
+        await Assert.That(captured).IsNotNull();
+        await Assert.That(captured!.EditorBlocks).IsNull();
+        await Assert.That(captured.EditorBlocksJson).IsNotNull();
+
+        var rehydrated = Rehydrate(captured);
+        var root = rehydrated.EditorBlocks!
+            .Single()
+            .CompositionNodes
+            .Single();
+
+        await Assert.That(root.Style.Base.Direction)
+            .IsEqualTo(ContentDirection.RightToLeft);
+        await Assert.That(root.Style.Mobile!.Hidden).IsTrue();
+        await Assert.That(root.Children.Single().Properties["text"].GetString())
+            .IsEqualTo("مرحبا");
+    }
+
+    private static async Task<WebApplication> CreateAppAsync(IAeroPageActor actor)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddLogging();
+        builder.Services.AddSingleton(actor);
+        builder.Services.AddSingleton(Substitute.For<ISiteContext>());
+
+        var app = builder.Build();
+        app.MapPagesApi();
+        await app.StartAsync();
+        return app;
+    }
+
+    private static GrainUpdatePageRequest Rehydrate(GrainUpdatePageRequest request)
+    {
+        var method = typeof(AeroPageGrain).GetMethod(
+            "RehydrateTransportPayload",
+            BindingFlags.NonPublic | BindingFlags.Static,
+            [typeof(GrainUpdatePageRequest)]);
+
+        return (GrainUpdatePageRequest)method!.Invoke(null, [request])!;
+    }
+
+    private static NeoPageNode CreateCompositionRoot() =>
+        new()
+        {
+            NodeId = "root",
+            CatalogId = "primitive.container",
+            Kind = NeoPageNodeKind.Container,
+            Style = new ResponsiveNodeStyle
+            {
+                Base = new NodeStyle
+                {
+                    Direction = ContentDirection.RightToLeft
+                },
+                Mobile = new NodeStyleOverride { Hidden = true }
+            },
+            Children =
+            [
+                new NeoPageNode
+                {
+                    NodeId = "text",
+                    CatalogId = "primitive.text",
+                    Kind = NeoPageNodeKind.Primitive,
+                    Properties = new Dictionary<string, JsonElement>
+                    {
+                        ["text"] = JsonSerializer.SerializeToElement("مرحبا")
+                    }
+                }
+            ]
+        };
 }

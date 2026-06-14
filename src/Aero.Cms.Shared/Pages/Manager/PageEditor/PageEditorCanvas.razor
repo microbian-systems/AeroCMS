@@ -1,5 +1,6 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor
 @using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Blocks.Neo.Styles
 @using NeoUI.Blazor
 @using NeoUI.Blazor.Primitives
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
@@ -47,7 +48,39 @@
                                   OnMoveDown="(i) => OnMoveBlockDown.InvokeAsync(i)"
                                   OnDuplicate="(i) => OnDuplicateBlock.InvokeAsync(i)"
                                   OnDelete="(i) => OnDeleteBlock.InvokeAsync(i)">
-                    <BlockEditorPreviewHost Block="@block" IsSelected="@isSelected" />
+                    <ToolbarActions>
+                        @if (SupportsBackgroundImage(block))
+                        {
+                            <button class="pe-toolbar-btn"
+                                    title="@(string.IsNullOrWhiteSpace(block.BackgroundImage) ? L["Add background image"] : L["Change background image"])"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => SelectBackground(block)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                                    <path d="m21 15-5-5L5 21"/>
+                                </svg>
+                            </button>
+                            @if (!string.IsNullOrWhiteSpace(block.BackgroundImage))
+                            {
+                                <button class="pe-toolbar-btn delete"
+                                        title="@L["Remove background image"]"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => RemoveBackground(block)">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18"/>
+                                        <path d="M8 6V4h8v2"/>
+                                        <path d="m19 6-1 14H6L5 6"/>
+                                    </svg>
+                                </button>
+                            }
+                        }
+                    </ToolbarActions>
+                    <ChildContent>
+                        <div style="@EditorStyle(block)">
+                            <BlockEditorPreviewHost Block="@block" IsSelected="@isSelected" />
+                        </div>
+                    </ChildContent>
                 </EditorBlockFrame>
             </SortableItemPrimitive>
         }
@@ -68,6 +101,22 @@
     [Parameter] public EventCallback<int> OnDeleteBlock { get; set; }
     [Parameter] public EventCallback<IList<EditorBlock>> OnCanvasReordered { get; set; }
     [Parameter] public EventCallback<SortableTransferArgs> OnCatalogItemTransferred { get; set; }
+    [CascadingParameter] public IBlockEditorCallbacks Editor { get; set; } = default!;
 
     private string CanvasClass => $"pe-blocks-container {(PreviewMode ? "pe-hidden" : "")}";
+
+    private static string EditorStyle(EditorBlock block) =>
+        NodeStyleCssRenderer.Render(block.Style, EditorBreakpoint.Desktop);
+
+    private static bool SupportsBackgroundImage(EditorBlock block) =>
+        block.Type is "boring_hero" or "hero" or "aero.hero.basic";
+
+    private void RemoveBackground(EditorBlock block)
+    {
+        block.BackgroundImage = string.Empty;
+        Editor.BlockChanged(block);
+    }
+
+    private void SelectBackground(EditorBlock block) =>
+        Editor.OpenMediaSelector(block, false, "background");
 }

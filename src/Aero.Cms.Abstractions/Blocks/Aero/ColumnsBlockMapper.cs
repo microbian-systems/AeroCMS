@@ -8,6 +8,7 @@ public static class NeoColumnsBlockMapper
         Properties = new Dictionary<string, JsonElement>
         {
             ["gap"] = JsonSerializer.SerializeToElement(block.Gap),
+            ["columnsPerRow"] = JsonSerializer.SerializeToElement(block.ColumnsPerRow),
             ["equalHeight"] = JsonSerializer.SerializeToElement(block.EqualHeight)
         },
         Children = block.Items.Select((item, i) => new NeoPageNode
@@ -26,6 +27,7 @@ public static class NeoColumnsBlockMapper
     public static NeoColumnsBlock FromNode(NeoPageNode node) => new()
     {
         Gap = GetInt(node, "gap", 4),
+        ColumnsPerRow = GetInt(node, "columnsPerRow", 2),
         EqualHeight = GetBool(node, "equalHeight", true),
         Items = node.Children.Select(c => new ColumnItem
         {

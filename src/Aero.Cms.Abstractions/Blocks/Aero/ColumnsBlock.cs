@@ -7,6 +7,7 @@ public sealed class NeoColumnsBlock : BlockBase
 {
     public override string BlockType => "neo.layout.columns";
     public List<ColumnItem> Items { get; set; } = [new(), new()];
+    public int ColumnsPerRow { get; set; } = 2;
     public int Gap { get; set; } = 4;
     public bool EqualHeight { get; set; } = true;
 

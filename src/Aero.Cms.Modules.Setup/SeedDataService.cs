@@ -1096,7 +1096,15 @@ public sealed class SeedDatabaseService(
                 Blocks = new List<EditorBlock>
                 {
                     new() { Type = "boring_hero", MainText = Normalize(request.HomepageTitle), SubText = homepageSummary, BackgroundImage = "/assets/hero-01.svg", FullWidth = true },
-                    new() { Type = "content", Content = bodyBlock.Content }
+                    new() { Type = "content", Content = bodyBlock.Content },
+                    new()
+                    {
+                        Type = "neo_composition",
+                        CompositionNodes =
+                        [
+                            SeededPageCompositionFactory.CreateBidirectionalFeature()
+                        ]
+                    }
                 },
                 LayoutRegions =
                 [

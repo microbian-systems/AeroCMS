@@ -1,8 +1,10 @@
 using Aero.Cms.Abstractions.Blocks.Editing;
+using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Pages.Areas.Api.v1;
 using Aero.Cms.Modules.Pages.Admin;
 using Aero.Cms.Modules.Pages.Validators;
+using Aero.Cms.Modules.Pages.CustomComponents;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
@@ -83,6 +85,10 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
 
         // FluentValidation
         services.AddScoped<IValidator<PageDocument>, PageDocumentValidator>();
+        services.AddScoped<
+            IValidator<SavePageCustomComponentRequest>,
+            SavePageCustomComponentRequestValidator>();
+        services.AddScoped<IPageCustomComponentService, PageCustomComponentService>();
 
         // HTTP context for audit/user tracking
         services.AddHttpContextAccessor();
@@ -158,6 +164,14 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         opts.Schema.For<PageDraft>().Index(x => x.SiteId);
         opts.Schema.For<PageDraft>().Index(x => x.DraftedAt);
         Configure<PageDraft>(services, opts);
+
+        // ── PageCustomComponent ────────────────────────────────────────────
+        opts.Schema.For<PageCustomComponent>().Index(x => x.SiteId);
+        opts.Schema.For<PageCustomComponent>().Index(x => x.Name);
+        opts.Schema.For<PageCustomComponent>().Index(x => x.UpdatedAt);
+        opts.Schema.For<PageCustomComponent>()
+            .UniqueIndex(x => x.SiteId, x => x.Name);
+        Configure<PageCustomComponent>(services, opts);
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)
@@ -165,6 +179,7 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         using var scope = builder.ServiceProvider.CreateScope();
         builder.MapPagesApi();
         builder.MapPagesTreeApi();
+        builder.MapPageCustomComponentsApi();
         return Task.CompletedTask;
     }
 }

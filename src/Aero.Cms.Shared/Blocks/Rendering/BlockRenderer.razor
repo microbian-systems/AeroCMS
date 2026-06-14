@@ -5,16 +5,18 @@
 {
     if (TryResolveAdapter(Block.BlockType, out var adapter))
     {
-        <ErrorBoundary @key="Block">
-            <ChildContent>
-                @adapter.Render(Block, new BlockRenderContext(Navigation: Navigation))
-            </ChildContent>
-            <ErrorContent>
-                <div class="p-4 border border-red-200 bg-red-50 rounded text-red-700">
-                    Block content is temporarily unavailable.
-                </div>
-            </ErrorContent>
-        </ErrorBoundary>
+        <ResponsiveBlockStyleWrapper Style="@GetStyle(Block)">
+            <ErrorBoundary @key="Block">
+                <ChildContent>
+                    @adapter.Render(Block, new BlockRenderContext(Navigation: Navigation))
+                </ChildContent>
+                <ErrorContent>
+                    <div class="p-4 border border-red-200 bg-red-50 rounded text-red-700">
+                        Block content is temporarily unavailable.
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
+        </ResponsiveBlockStyleWrapper>
     }
     else
     {
@@ -46,4 +48,9 @@
 
         return CmsBlockRenderRegistry.TryGet(blockType, out adapter!);
     }
+
+    private static Aero.Cms.Abstractions.Blocks.Neo.Styles.ResponsiveNodeStyle GetStyle(IBlock block) =>
+        block is BlockBase persistedBlock
+            ? persistedBlock.ResponsiveStyle
+            : new();
 }

@@ -1,0 +1,369 @@
+@inject IEnumerable<IPageEditorDefinitionProvider> DefinitionProviders
+
+<Sortable TItem="NeoPageNode"
+          Items="Node.Children"
+          GetItemId="child => child.NodeId"
+          Group="page-editor"
+          OnItemsReordered="OnReordered"
+          OnItemTransferredIn="OnTransferredIn"
+          OnItemTransferredOut="OnTransferredOut"
+          Class="@CssClass">
+    <SortableContentPrimitive class="@ContentCssClass">
+        @if (Node.Children.Count == 0)
+        {
+            <div class="text-sm text-muted-foreground">@EmptyText</div>
+        }
+        @foreach (var child in Node.Children)
+        {
+            <SortableItemPrimitive Value="@child.NodeId">
+                <div class="relative @(SelectedNodeId == child.NodeId ? "ring-2 ring-primary rounded-md" : "")"
+                     style="@NodeStyleCssRenderer.Render(child.Style, Breakpoint)"
+                     @onclick:stopPropagation="true"
+                     @onclick="() => SelectNode(child.NodeId)"
+                     @ondblclick:stopPropagation="true"
+                     @ondblclick="() => RequestEdit(child.NodeId)"
+                     @oncontextmenu:preventDefault="true"
+                     @oncontextmenu:stopPropagation="true"
+                     @oncontextmenu="() => SelectNode(child.NodeId)">
+                    @if (SelectedNodeId == child.NodeId)
+                    {
+                        <div class="absolute right-1 top-1 z-20 flex gap-1 rounded-md border bg-background p-1 shadow">
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => RequestEdit(child.NodeId)">Edit</button>
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => DuplicateNode(child.NodeId)">Duplicate</button>
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => CopyNode(child.NodeId)">Copy</button>
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    disabled="@(_nodeClipboard is null)"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => PasteNodeAfter(child.NodeId)">Paste</button>
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => DeleteNode(child.NodeId)">Delete</button>
+                        </div>
+                    }
+                    @if (TryGetDefinition(child.CatalogId, out var definition) &&
+                        definition.Catalog.PreviewComponentType is { } previewType)
+                    {
+                        <DynamicComponent Type="previewType"
+                                          Parameters="NodeParameters(child, definition)" />
+                    }
+                </div>
+            </SortableItemPrimitive>
+        }
+    </SortableContentPrimitive>
+</Sortable>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    [Parameter]
+    public NeoPageNode? RootNode { get; set; }
+
+    [Parameter]
+    public EventCallback<CompositionMutation> NodeChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<string> NodeEditRequested { get; set; }
+
+    [Parameter]
+    public EventCallback<string> DropRejected { get; set; }
+
+    [Parameter, EditorRequired]
+    public string DropZoneId { get; set; } = string.Empty;
+
+    [Parameter]
+    public string CssClass { get; set; } = string.Empty;
+
+    [Parameter]
+    public string ContentCssClass { get; set; } = string.Empty;
+
+    [Parameter]
+    public string EmptyText { get; set; } = "Drop primitives here";
+
+    [Parameter]
+    public EditorBreakpoint Breakpoint { get; set; } = EditorBreakpoint.Desktop;
+
+    private string? SelectedNodeId { get; set; }
+    private NeoPageNode? _nodeClipboard;
+
+    private IDictionary<string, object> NodeParameters(
+        NeoPageNode node,
+        PageEditorDefinitionDescriptor definition)
+    {
+        var parameters = new Dictionary<string, object> { ["Node"] = node };
+        if (definition.Catalog.Composition.CanContainChildren)
+        {
+            parameters["RootNode"] = RootNode ?? Node;
+            parameters["NodeChanged"] =
+                EventCallback.Factory.Create<CompositionMutation>(
+                    this,
+                    ForwardMutation);
+            parameters["NodeEditRequested"] =
+                EventCallback.Factory.Create<string>(
+                    this,
+                    RequestEdit);
+            parameters["DropRejected"] =
+                EventCallback.Factory.Create<string>(
+                    this,
+                    message => DropRejected.InvokeAsync(message));
+        }
+
+        return parameters;
+    }
+
+    private async Task OnReordered(IList<NeoPageNode> children)
+    {
+        var root = RootNode ?? Node;
+        var before = EditorNodeMemento.Capture(root).Restore();
+        if (children.Count == 0)
+        {
+            Node.Children = [];
+            await NotifyRootChanged(before, root);
+            return;
+        }
+
+        var transferredNode = children.FirstOrDefault(child =>
+            Node.Children.All(existing => existing.NodeId != child.NodeId));
+        if (transferredNode is null)
+        {
+            Node.Children = children.ToList();
+            await NotifyRootChanged(before, root);
+        }
+    }
+
+    private async Task OnTransferredIn(SortableTransferArgs args)
+    {
+        var root = RootNode ?? Node;
+        var before = EditorNodeMemento.Capture(root).Restore();
+        var node = Find(root, args.ActiveId);
+
+        if (node is null && TryGetDefinition(args.ActiveId, out var definition))
+        {
+            node = definition.NodeFactory.CreateDefaultNode();
+        }
+
+        if (node is null)
+        {
+            return;
+        }
+
+        var editor = CreateTreeEditor();
+        var result = editor.Drop(
+            [root],
+            new CompositionDropRequest(
+                node,
+                Node.NodeId,
+                DropZoneId,
+                args.Index));
+
+        if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
+        {
+            CopyInto(root, ok.Value[0]);
+            await NotifyRootChanged(before, root);
+        }
+        else if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
+        {
+            await DropRejected.InvokeAsync(failure.Error.ToString());
+        }
+    }
+
+    private Task OnTransferredOut(SortableTransferArgs _) => Task.CompletedTask;
+
+    private Task NotifyRootChanged(NeoPageNode before, NeoPageNode after) =>
+        NodeChanged.InvokeAsync(
+            new CompositionMutation(
+                before,
+                EditorNodeMemento.Capture(after).Restore()));
+
+    private Task ForwardMutation(CompositionMutation mutation) =>
+        NodeChanged.InvokeAsync(mutation);
+
+    private void SelectNode(string nodeId) => SelectedNodeId = nodeId;
+
+    private Task RequestEdit(string nodeId)
+    {
+        SelectedNodeId = nodeId;
+        return NodeEditRequested.InvokeAsync(nodeId);
+    }
+
+    private async Task DeleteNode(string nodeId)
+    {
+        var root = RootNode ?? Node;
+        var before = EditorNodeMemento.Capture(root).Restore();
+        var result = CreateTreeEditor().Remove([root], nodeId);
+
+        if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
+        {
+            CopyInto(root, ok.Value[0]);
+            SelectedNodeId = null;
+            await NotifyRootChanged(before, root);
+        }
+        else if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
+        {
+            await DropRejected.InvokeAsync(failure.Error.ToString());
+        }
+    }
+
+    private async Task DuplicateNode(string nodeId)
+    {
+        var root = RootNode ?? Node;
+        var source = Find(root, nodeId);
+        if (source is null)
+        {
+            return;
+        }
+
+        var before = EditorNodeMemento.Capture(root).Restore();
+        var duplicate = CloneWithFreshIds(source);
+        var sourceIndex = Node.Children.FindIndex(child => child.NodeId == nodeId);
+        var result = CreateTreeEditor().Drop(
+            [root],
+            new CompositionDropRequest(
+                duplicate,
+                Node.NodeId,
+                DropZoneId,
+                sourceIndex < 0 ? Node.Children.Count : sourceIndex + 1));
+
+        if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
+        {
+            CopyInto(root, ok.Value[0]);
+            SelectedNodeId = duplicate.NodeId;
+            await NotifyRootChanged(before, root);
+        }
+    }
+
+    private void CopyNode(string nodeId)
+    {
+        var root = RootNode ?? Node;
+        var source = Find(root, nodeId);
+        if (source is not null)
+        {
+            _nodeClipboard = CustomComponentTemplate.Capture(source);
+        }
+    }
+
+    private async Task PasteNodeAfter(string nodeId)
+    {
+        if (_nodeClipboard is null)
+        {
+            return;
+        }
+
+        var root = RootNode ?? Node;
+        var targetIndex = Node.Children.FindIndex(child => child.NodeId == nodeId);
+        if (targetIndex < 0)
+        {
+            await DropRejected.InvokeAsync("The selected paste target is no longer available.");
+            return;
+        }
+
+        var before = EditorNodeMemento.Capture(root).Restore();
+        var pasted = CustomComponentTemplate.CreateInstance(_nodeClipboard);
+        var result = CreateTreeEditor().Drop(
+            [root],
+            new CompositionDropRequest(
+                pasted,
+                Node.NodeId,
+                DropZoneId,
+                targetIndex + 1));
+
+        if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
+        {
+            CopyInto(root, ok.Value[0]);
+            SelectedNodeId = pasted.NodeId;
+            await NotifyRootChanged(before, root);
+        }
+        else if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
+        {
+            await DropRejected.InvokeAsync(failure.Error.ToString());
+        }
+    }
+
+    private CompositionTreeEditor CreateTreeEditor() =>
+        new(
+            new CompositionPolicy(
+                new ProviderCapabilityResolver(DefinitionProviders)));
+
+    private bool TryGetDefinition(
+        string catalogId,
+        out PageEditorDefinitionDescriptor definition)
+    {
+        definition = DefinitionProviders
+            .SelectMany(provider => provider.GetEditorDefinitions())
+            .LastOrDefault(item => string.Equals(
+                item.CatalogId,
+                catalogId,
+                StringComparison.OrdinalIgnoreCase))!;
+        return definition is not null;
+    }
+
+    private static NeoPageNode? Find(NeoPageNode node, string nodeId)
+    {
+        if (string.Equals(node.NodeId, nodeId, StringComparison.Ordinal))
+        {
+            return node;
+        }
+
+        foreach (var child in node.Children)
+        {
+            var match = Find(child, nodeId);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static void CopyInto(NeoPageNode target, NeoPageNode source)
+    {
+        target.NodeId = source.NodeId;
+        target.CatalogId = source.CatalogId;
+        target.Kind = source.Kind;
+        target.Properties = source.Properties;
+        target.Style = source.Style;
+        target.Children = source.Children;
+    }
+
+    private static NeoPageNode CloneWithFreshIds(NeoPageNode node)
+    {
+        var clone = EditorNodeMemento.Capture(node).Restore();
+        AssignFreshIds(clone);
+        return clone;
+    }
+
+    private static void AssignFreshIds(NeoPageNode node)
+    {
+        node.NodeId = Guid.NewGuid().ToString("N");
+        foreach (var child in node.Children)
+        {
+            AssignFreshIds(child);
+        }
+    }
+
+    private sealed class ProviderCapabilityResolver(
+        IEnumerable<IPageEditorDefinitionProvider> providers)
+        : ICompositionCapabilityResolver
+    {
+        private readonly IReadOnlyDictionary<string, ICompositionCapabilities> _capabilities =
+            providers
+                .SelectMany(provider => provider.GetEditorDefinitions())
+                .GroupBy(definition => definition.CatalogId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Last().Catalog.Composition,
+                    StringComparer.OrdinalIgnoreCase);
+
+        public bool TryGet(
+            string catalogId,
+            out ICompositionCapabilities capabilities) =>
+            _capabilities.TryGetValue(catalogId, out capabilities!);
+    }
+}

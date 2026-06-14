@@ -919,7 +919,9 @@ public sealed class MartenPageContentService(
         target.SeoTitle = source.SeoTitle;
         target.SeoDescription = source.SeoDescription;
         target.LayoutRegions = source.LayoutRegions;
-        target.Blocks = source.Blocks;
+        target.Blocks = source.Blocks
+            .Select(block => block.DeepClone())
+            .ToList();
         target.BlockIdMap = source.BlockIdMap;
         target.PublicationState = source.PublicationState;
         target.ShowInNavMenu = source.ShowInNavMenu;

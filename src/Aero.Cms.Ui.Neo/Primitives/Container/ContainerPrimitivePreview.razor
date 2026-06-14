@@ -1,0 +1,26 @@
+<SortableCompositionSurface Node="Node"
+                            RootNode="RootNode"
+                            NodeChanged="NodeChanged"
+                            NodeEditRequested="NodeEditRequested"
+                            DropRejected="DropRejected"
+                            DropZoneId="@ContainerPrimitiveDefinition.ContentDropZone"
+                            CssClass="neo-primitive-container"
+                            ContentCssClass="min-h-[72px] p-4 border border-dashed rounded-lg"
+                            EmptyText="Drop primitives here" />
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    [Parameter]
+    public NeoPageNode? RootNode { get; set; }
+
+    [Parameter]
+    public EventCallback<CompositionMutation> NodeChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<string> NodeEditRequested { get; set; }
+
+    [Parameter]
+    public EventCallback<string> DropRejected { get; set; }
+}

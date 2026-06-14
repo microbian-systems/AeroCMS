@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 
 namespace Aero.Cms.Abstractions.Blocks.Serialization;
 
@@ -29,6 +30,23 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
 [JsonSerializable(typeof(LayoutRegion))]
 [JsonSerializable(typeof(List<LayoutRegion>))]
 [JsonSerializable(typeof(IReadOnlyList<LayoutRegion>))]
+[JsonSerializable(typeof(Aero.Cms.Abstractions.Blocks.Neo.NeoPageNode))]
+[JsonSerializable(typeof(List<Aero.Cms.Abstractions.Blocks.Neo.NeoPageNode>))]
+[JsonSerializable(typeof(ResponsiveNodeStyle))]
+[JsonSerializable(typeof(NodeStyle))]
+[JsonSerializable(typeof(NodeStyleOverride))]
+[JsonSerializable(typeof(LogicalSpacing))]
+[JsonSerializable(typeof(LogicalSpacingOverride))]
+[JsonSerializable(typeof(CssLength))]
+[JsonSerializable(typeof(CssColor))]
+[JsonSerializable(typeof(LinearGradient))]
+[JsonSerializable(typeof(BoxShadow))]
+[JsonSerializable(typeof(BackgroundImageStyle))]
+[JsonSerializable(typeof(BackgroundImageSize))]
+[JsonSerializable(typeof(BackgroundImageRepeat))]
+[JsonSerializable(typeof(BackgroundImagePosition))]
+[JsonSerializable(typeof(TextAlignment))]
+[JsonSerializable(typeof(FontWeight))]
 
 // Supporting Models
 [JsonSerializable(typeof(ColumnItem))]

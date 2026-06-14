@@ -8,6 +8,7 @@ using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -29,7 +30,7 @@ using PageEditorCatalog = Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
-public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallbacks
+public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorCallbacks
 {
     // ──────────────────────────────────────────────────────────
     // Parameters
@@ -40,6 +41,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     [Inject] protected IDocsHttpClient DocsClient { get; set; } = default!;
     [Inject] protected IPagesHttpClient PagesClient { get; set; } = default!;
+    [Inject] protected IPageCustomComponentsHttpClient CustomComponentsClient { get; set; } = default!;
     [Inject] protected IMediaHttpClient MediaClient { get; set; } = default!;
     [Inject] protected IBlogHttpClient BlogClient { get; set; } = default!;
     [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
@@ -49,11 +51,13 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     [Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
     [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
     [Inject] protected AdminStateContainer AdminState { get; set; } = default!;
+    [Inject] protected Aero.Cms.Contracts.Abstractions.IAdminStorage AdminStorage { get; set; } = default!;
     [Inject] protected NavigationManager NavManager { get; set; } = default!;
     [Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
     [Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
     [Inject] protected IEnumerable<IPageEditorBlockProvider> PageEditorBlockProviders { get; set; } = [];
+    [Inject] protected IEnumerable<IPageEditorDefinitionProvider> PageEditorDefinitionProviders { get; set; } = [];
     [Inject] protected DialogService DialogService { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
@@ -98,6 +102,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected bool CategorySettings   { get; set; } = true;
     protected bool CategoryHyper      { get; set; } = true;
     protected bool CategoryNeo        { get; set; } = true;
+    protected bool CategoryPrimitives { get; set; } = true;
+    protected bool CategoryCustom { get; set; } = true;
+    protected string PaletteSearch { get; set; } = string.Empty;
+    protected string? CompositionDropError { get; set; }
+    private const string PaletteStateStorageKey = "aero.page-editor.palette-state.v1";
 
     // Page Settings
     protected string PageSlug { get; set; } = string.Empty;
@@ -159,14 +168,26 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected bool         IsGalleryMode    { get; set; }
     protected string?      MediaContext     { get; set; }   // "background" | "nested"
     protected NestedBlock? NestedMediaTarget { get; set; }
+    private string? NativeMediaNodeId { get; set; }
+    private string? NativeMediaField { get; set; }
+    private EditorBreakpoint NativeMediaBreakpoint { get; set; }
 
     // Block edit modal
     protected bool BlockEditorModalOpen { get; set; }
     protected string? EditingBlockId { get; set; }
+    protected string? EditingNodeId { get; set; }
+    protected string BlockEditorTab { get; set; } = "design";
     protected EditorBlock? CurrentEditBlock =>
         string.IsNullOrEmpty(EditingBlockId)
             ? null
             : Blocks.FirstOrDefault(block => block.EditorId == EditingBlockId);
+
+    protected IReadOnlyList<PageCustomComponentDetail> CustomComponents { get; set; } = [];
+    protected bool SaveCustomComponentModalOpen { get; set; }
+    protected bool IsSavingCustomComponent { get; set; }
+    protected long? EditingCustomComponentId { get; set; }
+    protected string CustomComponentName { get; set; } = string.Empty;
+    protected string CustomComponentDescription { get; set; } = string.Empty;
 
     private Dictionary<string, List<ReferenceItem>> _referenceData = new();
     protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
@@ -180,6 +201,11 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     private CancellationTokenSource? _previewDebounceCts;
     private string? _previewBaseUri;
     private long _previewRefreshVersion;	
+    private readonly Dictionary<string, CompositionHistory> _compositionHistory =
+        new(StringComparer.Ordinal);
+    private PageCanvasHistory? _canvasHistory;
+    private DotNetObjectReference<PageEditor>? _shortcutReference;
+    private EditorBlockListMemento? _blockClipboard;
 
     /// <summary>Tracks whether unsaved changes exist. Auto-save only fires when Dirty.</summary>
     private enum PageState { Clean, Dirty }
@@ -207,10 +233,15 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     protected override async Task OnInitializedAsync()
     {
-        PageEditorBlockRegistry.RegisterProviders(PageEditorBlockProviders);
+        RestorePaletteState();
+
+        PageEditorBlockRegistry.RegisterProviders(
+            PageEditorBlockProviders,
+            PageEditorDefinitionProviders);
 
         await ResolvePreviewBaseUriAsync();
         CurrentSite = await ResolveCurrentSiteAsync();
+        await LoadCustomComponentsAsync();
 
         if (Id.HasValue)
         {
@@ -276,6 +307,8 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
                     Blocks = draft.Blocks.ToList();
             }
 
+            _compositionHistory.Clear();
+            _canvasHistory = null;
             UpdateLastSaved();
             _pageState = PageState.Clean;
             await LoadPageTranslationsAsync();
@@ -353,15 +386,35 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             _referenceData["authors"] = usersOk.Value.Items.Select(u => new ReferenceItem(u.Id.ToString(), Name: u.DisplayName)).ToList();
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _autoSaveTimer?.Dispose();
         _previewDebounceCts?.Cancel();
         _previewDebounceCts?.Dispose();
+        if (_shortcutReference is not null)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("PageEditorShortcuts.unregister");
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+
+            _shortcutReference.Dispose();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            _shortcutReference = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync(
+                "PageEditorShortcuts.register",
+                _shortcutReference);
+        }
+
         await JSRuntime.InvokeVoidAsync("PeNavTooltip.refresh");
     }
 
@@ -381,8 +434,85 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             case "settings":   CategorySettings   = !CategorySettings;   break;
             case "hyper":      CategoryHyper      = !CategoryHyper;      break;
             case "neo":        CategoryNeo        = !CategoryNeo;        break;
+            case "primitives": CategoryPrimitives = !CategoryPrimitives; break;
+            case "custom":     CategoryCustom = !CategoryCustom; break;
         }
+
+        PersistPaletteState();
     }
+
+    protected Task OnRightSidebarCollapsedChanged(bool isCollapsed)
+    {
+        RightSidebarCollapsed = isCollapsed;
+        PersistPaletteState();
+        return Task.CompletedTask;
+    }
+
+    private void RestorePaletteState()
+    {
+        var state = AdminStorage.GetItem<PaletteState>(PaletteStateStorageKey);
+        if (state is null)
+        {
+            return;
+        }
+
+        RightSidebarCollapsed = state.RightSidebarCollapsed;
+        CategoryAeroUi = state.CategoryAeroUi;
+        CategoryLegacyUi = state.CategoryLegacyUi;
+        CategoryAeroUx = state.CategoryAeroUx;
+        CategoryMedia = state.CategoryMedia;
+        CategoryReferences = state.CategoryReferences;
+        CategorySettings = state.CategorySettings;
+        CategoryHyper = state.CategoryHyper;
+        CategoryNeo = state.CategoryNeo;
+        CategoryPrimitives = state.CategoryPrimitives;
+        CategoryCustom = state.CategoryCustom;
+    }
+
+    private void PersistPaletteState() =>
+        AdminStorage.SetItem(
+            PaletteStateStorageKey,
+            new PaletteState(
+                RightSidebarCollapsed,
+                CategoryAeroUi,
+                CategoryLegacyUi,
+                CategoryAeroUx,
+                CategoryMedia,
+                CategoryReferences,
+                CategorySettings,
+                CategoryHyper,
+                CategoryNeo,
+                CategoryPrimitives,
+                CategoryCustom));
+
+    private sealed record PaletteState(
+        bool RightSidebarCollapsed,
+        bool CategoryAeroUi,
+        bool CategoryLegacyUi,
+        bool CategoryAeroUx,
+        bool CategoryMedia,
+        bool CategoryReferences,
+        bool CategorySettings,
+        bool CategoryHyper,
+        bool CategoryNeo,
+        bool CategoryPrimitives,
+        bool CategoryCustom);
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> CustomCatalogItems =>
+        CustomComponents
+            .Select((component, index) => new PageEditorCatalog.NeoEditorCatalogItem
+            {
+                CatalogId = $"custom:{component.Id}",
+                DisplayName = component.Name,
+                Description = component.Description,
+                Section = PageEditorCatalog.NeoEditorCatalogSection.Components,
+                Kind = PageEditorCatalog.NeoEditorCatalogKind.Component,
+                SortOrder = index,
+                IconName = "box",
+                AllowChildren = component.Root.Children.Count > 0,
+                PublicStaticSsrSafe = true
+            })
+            .ToList();
 
     protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoAeroCatalogItems =>
         Catalog.GetCatalogItems()
@@ -449,11 +579,86 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             .ToList();
 
     protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoNeoCatalogItems =>
-        PageEditorBlockRegistry.All
+        PageEditorBlockRegistry.AllDescriptors
             .Select(ToCatalogItem)
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Neo)
             .OrderBy(i => i.SortOrder)
             .ToList();
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> PrimitiveCatalogItems =>
+        PageEditorBlockRegistry.AllDescriptors
+            .Select(ToCatalogItem)
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Primitives)
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> FilterPaletteItems(
+        IEnumerable<PageEditorCatalog.NeoEditorCatalogItem> items)
+    {
+        return items
+            .Where(item => PaletteSearchMatcher.Matches(
+                CreatePaletteSearchDocument(item),
+                PaletteSearch))
+            .ToList();
+    }
+
+    protected bool HasPaletteSearchResults =>
+        string.IsNullOrWhiteSpace(PaletteSearch) ||
+        new IEnumerable<PageEditorCatalog.NeoEditorCatalogItem>[]
+        {
+            CustomCatalogItems,
+            NeoAeroCatalogItems,
+            PrimitiveCatalogItems,
+            LegacyUiCatalogItems,
+            AeroUxCatalogItems,
+            MediaCatalogItems,
+            ReferenceCatalogItems,
+            NeoHyperCatalogItems,
+            NeoNeoCatalogItems
+        }.Any(items => FilterPaletteItems(items).Count > 0);
+
+    private PaletteSearchDocument CreatePaletteSearchDocument(
+        PageEditorCatalog.NeoEditorCatalogItem item)
+    {
+        IReadOnlyCollection<string>? keywords = null;
+        if (TryGetCustomComponentId(item.CatalogId, out var componentId))
+        {
+            var component = CustomComponents.FirstOrDefault(candidate =>
+                candidate.Id == componentId);
+            if (component is not null)
+            {
+                keywords = component.Tags
+                    .Prepend(component.Category)
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .ToList();
+            }
+        }
+
+        return new PaletteSearchDocument(
+            item.DisplayName,
+            item.Description,
+            item.CatalogId,
+            item.Kind.ToString(),
+            item.Section.ToString(),
+            keywords);
+    }
+
+    private static PageEditorCatalog.NeoEditorCatalogItem ToCatalogItem(
+        PageEditorDefinitionDescriptor definition) =>
+        new()
+        {
+            CatalogId = definition.CatalogId,
+            DisplayName = definition.Catalog.DisplayName,
+            Description = definition.Catalog.Description,
+            Section = ToCatalogSection(definition.Catalog.Category),
+            Kind = ToCatalogKind(definition.Catalog.Kind),
+            SortOrder = definition.Catalog.SortOrder,
+            IconName = definition.Catalog.IconName,
+            AllowChildren = definition.Catalog.Composition.CanContainChildren,
+            PublicStaticSsrSafe = definition.Catalog.PublicStaticSsrSafe,
+            EditorPreviewComponentType = definition.Catalog.PreviewComponentType,
+            PropertyEditorComponentType = definition.Catalog.PropertyEditorComponentType
+        };
 
     private static PageEditorCatalog.NeoEditorCatalogItem ToCatalogItem(IPageEditorBlockDefinition definition) =>
         new()
@@ -489,6 +694,15 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             _ => PageEditorCatalog.NeoEditorCatalogKind.Block
         };
 
+    private static PageEditorCatalog.NeoEditorCatalogKind ToCatalogKind(NeoPageNodeKind kind) =>
+        kind switch
+        {
+            NeoPageNodeKind.Primitive => PageEditorCatalog.NeoEditorCatalogKind.Primitive,
+            NeoPageNodeKind.Component or NeoPageNodeKind.Container or NeoPageNodeKind.Section =>
+                PageEditorCatalog.NeoEditorCatalogKind.Component,
+            _ => PageEditorCatalog.NeoEditorCatalogKind.Block
+        };
+
     private static PageEditorCatalog.NeoEditorCatalogItem CatalogItem(string id, string name, int sortOrder) =>
         new()
         {
@@ -507,8 +721,10 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     protected void AddBlock(string type)
     {
+        EnsureCanvasHistory();
         var block = CreateBlock(type);
         Blocks.Add(block);
+        RecordCanvasMutation();
         SelectBlock(block.EditorId);
         MarkDirty();
         ShowToast(L["Block added"], "success");
@@ -526,6 +742,8 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     {
         SelectedBlockId = editorId;
         EditingBlockId = editorId;
+        EditingNodeId = null;
+        BlockEditorTab = "design";
         BlockEditorModalOpen = true;
     }
 
@@ -538,6 +756,198 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     {
         BlockEditorModalOpen = false;
         EditingBlockId = null;
+        EditingNodeId = null;
+    }
+
+    protected void OpenSaveCustomComponentModal()
+    {
+        if (CurrentEditBlock is null)
+        {
+            return;
+        }
+
+        CustomComponentName = GetBlockDisplayName(CurrentEditBlock);
+        CustomComponentDescription = string.Empty;
+        EditingCustomComponentId = null;
+        SaveCustomComponentModalOpen = true;
+    }
+
+    protected void OpenEditCustomComponentModal(
+        PageEditorCatalog.NeoEditorCatalogItem item)
+    {
+        if (!TryGetCustomComponentId(item.CatalogId, out var componentId))
+        {
+            return;
+        }
+
+        var component = CustomComponents.FirstOrDefault(candidate =>
+            candidate.Id == componentId);
+        if (component is null)
+        {
+            return;
+        }
+
+        EditingCustomComponentId = component.Id;
+        CustomComponentName = component.Name;
+        CustomComponentDescription = component.Description ?? string.Empty;
+        SaveCustomComponentModalOpen = true;
+    }
+
+    protected void CloseSaveCustomComponentModal()
+    {
+        if (IsSavingCustomComponent)
+        {
+            return;
+        }
+
+        SaveCustomComponentModalOpen = false;
+        EditingCustomComponentId = null;
+    }
+
+    protected async Task SaveCurrentBlockAsCustomAsync()
+    {
+        if ((!EditingCustomComponentId.HasValue && CurrentEditBlock is null) ||
+            string.IsNullOrWhiteSpace(CustomComponentName))
+        {
+            ShowToast(L["A component name is required."], "error");
+            return;
+        }
+
+        IsSavingCustomComponent = true;
+        try
+        {
+            var existing = EditingCustomComponentId.HasValue
+                ? CustomComponents.FirstOrDefault(component =>
+                    component.Id == EditingCustomComponentId.Value)
+                : null;
+            var root = existing is not null
+                ? CustomComponentTemplate.Capture(existing.Root)
+                : CreateCustomComponentRoot(CurrentEditBlock!);
+            var request = new SavePageCustomComponentRequest(
+                CustomComponentName.Trim(),
+                root,
+                string.IsNullOrWhiteSpace(CustomComponentDescription)
+                    ? null
+                    : CustomComponentDescription.Trim());
+            var result = EditingCustomComponentId.HasValue
+                ? await CustomComponentsClient.UpdateAsync(
+                    EditingCustomComponentId.Value,
+                    request)
+                : await CustomComponentsClient.CreateAsync(request);
+            if (result is Result<PageCustomComponentDetail, AeroError>.Ok ok)
+            {
+                CustomComponents = CustomComponents
+                    .Where(component => component.Id != ok.Value.Id)
+                    .Append(ok.Value)
+                    .OrderBy(component => component.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                SaveCustomComponentModalOpen = false;
+                EditingCustomComponentId = null;
+                CategoryCustom = true;
+                ShowToast(L["Custom component saved"], "success");
+            }
+            else if (result is Result<PageCustomComponentDetail, AeroError>.Failure failure)
+            {
+                ShowToast(L["Could not save custom component: {0}", failure.Error], "error");
+            }
+        }
+        finally
+        {
+            IsSavingCustomComponent = false;
+        }
+    }
+
+    protected async Task DeleteCustomComponentAsync(
+        PageEditorCatalog.NeoEditorCatalogItem item)
+    {
+        if (!TryGetCustomComponentId(item.CatalogId, out var componentId))
+        {
+            return;
+        }
+
+        var component = CustomComponents.FirstOrDefault(candidate =>
+            candidate.Id == componentId);
+        if (component is null)
+        {
+            return;
+        }
+
+        var confirmed = await DialogService.Confirm(
+            L["Delete custom component '{0}'? Existing page instances will not be changed.", component.Name],
+            L["Delete Custom Component"],
+            new ConfirmOptions
+            {
+                OkButtonText = L["Delete"],
+                CancelButtonText = L["Cancel"]
+            });
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        var result = await CustomComponentsClient.DeleteAsync(component.Id);
+        if (result is Result<bool, AeroError>.Ok)
+        {
+            CustomComponents = CustomComponents
+                .Where(candidate => candidate.Id != component.Id)
+                .ToList();
+            ShowToast(L["Custom component deleted"], "success");
+        }
+        else if (result is Result<bool, AeroError>.Failure failure)
+        {
+            ShowToast(L["Could not delete custom component: {0}", failure.Error], "error");
+        }
+    }
+
+    private static bool TryGetCustomComponentId(
+        string catalogId,
+        out long componentId)
+    {
+        componentId = default;
+        return catalogId.StartsWith("custom:", StringComparison.OrdinalIgnoreCase) &&
+               long.TryParse(
+                   catalogId.AsSpan("custom:".Length),
+                   out componentId);
+    }
+
+    private async Task LoadCustomComponentsAsync()
+    {
+        var result = await CustomComponentsClient.GetAllAsync();
+        if (result is Result<IReadOnlyList<PageCustomComponentDetail>, AeroError>.Ok ok)
+        {
+            CustomComponents = ok.Value
+                .OrderBy(component => component.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+    }
+
+    private static NeoPageNode CreateCustomComponentRoot(EditorBlock block)
+    {
+        if (block.CompositionNodes.Count == 1)
+        {
+            return CustomComponentTemplate.Capture(block.CompositionNodes[0]);
+        }
+
+        if (block.CompositionNodes.Count > 1)
+        {
+            return new NeoPageNode
+            {
+                NodeId = Guid.NewGuid().ToString("N"),
+                CatalogId = "ui.container",
+                Kind = NeoPageNodeKind.Container,
+                Children = block.CompositionNodes
+                    .Select(CustomComponentTemplate.Capture)
+                    .ToList()
+            };
+        }
+
+        var node = MapEditorBlockToNeoNode(block);
+        if (string.IsNullOrWhiteSpace(node.NodeId))
+        {
+            node.NodeId = Guid.NewGuid().ToString("N");
+        }
+
+        return node;
     }
 
     protected string GetBlockDisplayName(EditorBlock block)
@@ -558,6 +968,15 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         if (PageEditorBlockRegistry.TryGet(type, out var definition))
         {
             return definition.CreateDefaultEditorBlock();
+        }
+
+        if (PageEditorBlockRegistry.TryGetDescriptor(type, out var descriptor))
+        {
+            return new EditorBlock
+            {
+                Type = descriptor.CatalogId,
+                CompositionNodes = [descriptor.NodeFactory.CreateDefaultNode()]
+            };
         }
 
         var block = new EditorBlock { Type = type };
@@ -629,6 +1048,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             case "columns":
             case "neo.layout.columns":
                 block.ColumnCount = 2;
+                block.RowCount = 1;
                 block.Gap = 16;
                 block.EditorColumns =
                 [
@@ -825,7 +1245,9 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     protected void DeleteBlock(int index)
     {
+        EnsureCanvasHistory();
         Blocks.RemoveAt(index);
+        RecordCanvasMutation();
         SelectedBlockId = null;
         MarkDirty();
         ShowToast(L["Block deleted"]);
@@ -834,6 +1256,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
 
     protected void DuplicateBlock(int index)
     {
+        EnsureCanvasHistory();
         var original = Blocks[index];
         var copy     = original.DeepClone();
         copy.EditorId = Guid.NewGuid().ToString();
@@ -843,6 +1266,7 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
             col.ColId = Guid.NewGuid().ToString();
 
         Blocks.Insert(index + 1, copy);
+        RecordCanvasMutation();
         MarkDirty();
         ShowToast(L["Block duplicated"], "success");
         QueuePreviewRefresh();
@@ -851,7 +1275,9 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected void MoveBlockUp(int index)
     {
         if (index <= 0) return;
+        EnsureCanvasHistory();
         (Blocks[index], Blocks[index - 1]) = (Blocks[index - 1], Blocks[index]);
+        RecordCanvasMutation();
         MarkDirty();
         QueuePreviewRefresh();
     }
@@ -859,7 +1285,9 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     protected void MoveBlockDown(int index)
     {
         if (index >= Blocks.Count - 1) return;
+        EnsureCanvasHistory();
         (Blocks[index], Blocks[index + 1]) = (Blocks[index + 1], Blocks[index]);
+        RecordCanvasMutation();
         MarkDirty();
         QueuePreviewRefresh();
     }
@@ -877,15 +1305,43 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
     /// <summary>Handle canvas reorder from Sortable.</summary>
     protected void OnCanvasReordered(IList<EditorBlock> reordered)
     {
+        EnsureCanvasHistory();
         Blocks = reordered.ToList();
+        RecordCanvasMutation();
         MarkDirty();
         QueuePreviewRefresh();
     }
 
     /// <summary>Handle catalog item dropped onto canvas from Sortable palette.</summary>
-    protected void OnCatalogItemTransferred(SortableTransferArgs args)
+    protected async Task OnCatalogItemTransferred(SortableTransferArgs args)
     {
         var catalogId = args.ActiveId;
+        if (TryGetCustomComponentId(catalogId, out var componentId))
+        {
+            var result = await CustomComponentsClient.CreateInstanceAsync(componentId);
+            if (result is Result<NeoPageNode, AeroError>.Ok ok)
+            {
+                EnsureCanvasHistory();
+                var block = new EditorBlock
+                {
+                    Type = ok.Value.CatalogId,
+                    CompositionNodes = [ok.Value]
+                };
+                Blocks.Add(block);
+                RecordCanvasMutation();
+                SelectBlock(block.EditorId);
+                MarkDirty();
+                QueuePreviewRefresh();
+                ShowToast(L["Custom component added"], "success");
+            }
+            else if (result is Result<NeoPageNode, AeroError>.Failure failure)
+            {
+                ShowToast(L["Could not add custom component: {0}", failure.Error], "error");
+            }
+
+            return;
+        }
+
         if (!string.IsNullOrEmpty(catalogId))
         {
             AddBlock(catalogId);
@@ -988,6 +1444,8 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         IsGalleryMode     = isGallery;
         MediaContext      = context;
         NestedMediaTarget = null;
+        NativeMediaNodeId = null;
+        NativeMediaField = null;
         MediaModalOpen    = true;
         InvokeAsync(StateHasChanged);
     }
@@ -999,6 +1457,23 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         MediaContext      = "nested";
         NestedMediaTarget = nb;
         MediaModalOpen    = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected void OpenNodeMediaSelector(
+        EditorBlock block,
+        string nodeId,
+        string field,
+        EditorBreakpoint breakpoint)
+    {
+        CurrentMediaBlock = block;
+        IsGalleryMode = false;
+        MediaContext = "native";
+        NestedMediaTarget = null;
+        NativeMediaNodeId = nodeId;
+        NativeMediaField = field;
+        NativeMediaBreakpoint = breakpoint;
+        MediaModalOpen = true;
         InvokeAsync(StateHasChanged);
     }
 
@@ -1014,7 +1489,70 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         await AutoSaveAsync();
         if (!items.Any()) return;
 
-        if (MediaContext == "background" && CurrentMediaBlock != null)
+        if (MediaContext == "native" &&
+            CurrentMediaBlock is not null &&
+            NativeMediaField == "background-image")
+        {
+            var selected = items.First();
+            var image = new BackgroundImageStyle
+            {
+                MediaId = selected.Id,
+                Url = selected.Src,
+                Size = BackgroundImageSize.Cover
+            };
+
+            var style = FindCompositionNode(
+                    CurrentMediaBlock.CompositionNodes,
+                    NativeMediaNodeId)
+                ?.Style;
+            if (style is null &&
+                string.Equals(
+                    CurrentMediaBlock.EditorId,
+                    NativeMediaNodeId,
+                    StringComparison.Ordinal))
+            {
+                style = CurrentMediaBlock.Style;
+            }
+
+            if (style is null)
+            {
+                return;
+            }
+
+            switch (NativeMediaBreakpoint)
+            {
+                case EditorBreakpoint.Desktop:
+                    style.Base = style.Base with { BackgroundImage = image };
+                    break;
+                case EditorBreakpoint.Tablet:
+                    style.Tablet = (style.Tablet ?? new()) with
+                    {
+                        BackgroundImage = image
+                    };
+                    break;
+                case EditorBreakpoint.Mobile:
+                    style.Mobile = (style.Mobile ?? new()) with
+                    {
+                        BackgroundImage = image
+                    };
+                    break;
+            }
+        }
+        else if (MediaContext == "native" &&
+                 CurrentMediaBlock is not null &&
+                 NativeMediaField?.StartsWith(
+                     "property:",
+                     StringComparison.Ordinal) == true &&
+                 FindCompositionNode(
+                     CurrentMediaBlock.CompositionNodes,
+                     NativeMediaNodeId) is { } propertyNode)
+        {
+            var propertyName = NativeMediaField["property:".Length..];
+            propertyNode.Properties[propertyName] =
+                System.Text.Json.JsonSerializer.SerializeToElement(
+                    items.First().Src);
+        }
+        else if (MediaContext == "background" && CurrentMediaBlock != null)
         {
             CurrentMediaBlock.BackgroundImage = items.First().Src;
         }
@@ -1047,6 +1585,31 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         MarkDirty();
         QueuePreviewRefresh();
         ShowToast(L["Media added"], "success");
+    }
+
+    private static NeoPageNode? FindCompositionNode(
+        IEnumerable<NeoPageNode> nodes,
+        string? nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId))
+        {
+            return null;
+        }
+
+        foreach (var node in nodes)
+        {
+            if (string.Equals(node.NodeId, nodeId, StringComparison.Ordinal))
+            {
+                return node;
+            }
+
+            if (FindCompositionNode(node.Children, nodeId) is { } child)
+            {
+                return child;
+            }
+        }
+
+        return null;
     }
 
     protected void RemoveImage(EditorBlock block)
@@ -1996,10 +2559,259 @@ public partial class PageEditor : ComponentBase, IDisposable, IBlockEditorCallba
         QueuePreviewRefresh();
     }
 
+    protected async Task AddPaletteItemAsync(
+        PageEditorCatalog.NeoEditorCatalogItem item)
+    {
+        if (!TryGetCustomComponentId(item.CatalogId, out var componentId))
+        {
+            AddBlock(item.CatalogId);
+            return;
+        }
+
+        var result = await CustomComponentsClient.CreateInstanceAsync(componentId);
+        if (result is Result<NeoPageNode, AeroError>.Ok ok)
+        {
+            EnsureCanvasHistory();
+            var block = new EditorBlock
+            {
+                Type = ok.Value.CatalogId,
+                CompositionNodes = [ok.Value]
+            };
+            Blocks.Add(block);
+            RecordCanvasMutation();
+            SelectBlock(block.EditorId);
+            MarkDirty();
+            QueuePreviewRefresh();
+            ShowToast(L["Custom component added"], "success");
+        }
+        else if (result is Result<NeoPageNode, AeroError>.Failure failure)
+        {
+            ShowToast(L["Could not add custom component: {0}", failure.Error], "error");
+        }
+    }
+
+    protected void CopySelectedBlock()
+    {
+        var block = GetSelectedBlock();
+        if (block is null)
+        {
+            return;
+        }
+
+        _blockClipboard = EditorBlockListMemento.Capture([block]);
+        ShowToast(L["Block copied"], "success");
+    }
+
+    protected void CutSelectedBlock()
+    {
+        var index = GetSelectedBlockIndex();
+        if (index < 0)
+        {
+            return;
+        }
+
+        CopySelectedBlock();
+        DeleteBlock(index);
+    }
+
+    protected void PasteBlock()
+    {
+        var clipboardBlock = _blockClipboard?.Restore().SingleOrDefault();
+        if (clipboardBlock is null)
+        {
+            return;
+        }
+
+        var copy = clipboardBlock.CreateClipboardClone();
+        var selectedIndex = GetSelectedBlockIndex();
+        var insertIndex = selectedIndex >= 0 ? selectedIndex + 1 : Blocks.Count;
+        EnsureCanvasHistory();
+        Blocks.Insert(insertIndex, copy);
+        RecordCanvasMutation();
+        SelectBlock(copy.EditorId);
+        MarkDirty();
+        QueuePreviewRefresh();
+        ShowToast(L["Block pasted"], "success");
+    }
+
+    [JSInvokable]
+    public Task HandleEditorShortcut(string command)
+    {
+        switch (command)
+        {
+            case "undo":
+                UndoComposition();
+                break;
+            case "redo":
+                RedoComposition();
+                break;
+            case "copy":
+                CopySelectedBlock();
+                break;
+            case "cut":
+                CutSelectedBlock();
+                break;
+            case "paste":
+                PasteBlock();
+                break;
+            case "duplicate":
+                var duplicateIndex = GetSelectedBlockIndex();
+                if (duplicateIndex >= 0)
+                {
+                    DuplicateBlock(duplicateIndex);
+                }
+                break;
+            case "delete":
+                var deleteIndex = GetSelectedBlockIndex();
+                if (deleteIndex >= 0)
+                {
+                    DeleteBlock(deleteIndex);
+                }
+                break;
+        }
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private EditorBlock? GetSelectedBlock() =>
+        Blocks.FirstOrDefault(block => block.EditorId == SelectedBlockId);
+
+    private int GetSelectedBlockIndex() =>
+        string.IsNullOrWhiteSpace(SelectedBlockId)
+            ? -1
+            : Blocks.FindIndex(block => block.EditorId == SelectedBlockId);
+
+    void IBlockEditorCallbacks.CompositionChanged(
+        EditorBlock block,
+        CompositionMutation mutation)
+    {
+        if (!_compositionHistory.TryGetValue(block.EditorId, out var history))
+        {
+            history = new CompositionHistory(mutation.Before);
+            _compositionHistory[block.EditorId] = history;
+        }
+
+        history.Record(mutation.After, mutation.CoalescingKey);
+        block.CompositionNodes = [history.Current];
+        MarkDirty();
+        QueuePreviewRefresh();
+    }
+
+    void IBlockEditorCallbacks.CompositionDropRejected(string message)
+    {
+        CompositionDropError = message;
+        ShowToast(L["Cannot place item here: {0}", message], "error");
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    protected void ClearCompositionDropError()
+    {
+        CompositionDropError = null;
+    }
+
+    void IBlockEditorCallbacks.OpenNodeEditor(EditorBlock block, string nodeId)
+    {
+        SelectedBlockId = block.EditorId;
+        EditingBlockId = block.EditorId;
+        EditingNodeId = nodeId;
+        BlockEditorTab = "content";
+        BlockEditorModalOpen = true;
+    }
+
+    protected bool CanUndoComposition =>
+        CurrentCompositionHistory?.CanUndo == true ||
+        _canvasHistory?.CanUndo == true;
+
+    protected bool CanRedoComposition =>
+        CurrentCompositionHistory?.CanRedo == true ||
+        _canvasHistory?.CanRedo == true;
+
+    private CompositionHistory? CurrentCompositionHistory =>
+        !string.IsNullOrWhiteSpace(SelectedBlockId) &&
+        _compositionHistory.TryGetValue(SelectedBlockId, out var history)
+            ? history
+            : null;
+
+    protected void UndoComposition()
+    {
+        if (CurrentCompositionHistory?.CanUndo == true)
+        {
+            ApplyCompositionHistory(CurrentCompositionHistory.Undo());
+            return;
+        }
+
+        ApplyCanvasHistory(_canvasHistory?.Undo());
+    }
+
+    protected void RedoComposition()
+    {
+        if (CurrentCompositionHistory?.CanRedo == true)
+        {
+            ApplyCompositionHistory(CurrentCompositionHistory.Redo());
+            return;
+        }
+
+        ApplyCanvasHistory(_canvasHistory?.Redo());
+    }
+
+    private void ApplyCanvasHistory(List<EditorBlock>? blocks)
+    {
+        if (blocks is null)
+        {
+            return;
+        }
+
+        Blocks = blocks;
+        _compositionHistory.Clear();
+        if (!string.IsNullOrWhiteSpace(SelectedBlockId) &&
+            Blocks.All(block => block.EditorId != SelectedBlockId))
+        {
+            SelectedBlockId = Blocks.LastOrDefault()?.EditorId;
+        }
+
+        MarkDirty();
+        QueuePreviewRefresh();
+    }
+
+    private void EnsureCanvasHistory()
+    {
+        _canvasHistory ??= new PageCanvasHistory(Blocks);
+    }
+
+    private void RecordCanvasMutation()
+    {
+        _canvasHistory?.Record(Blocks);
+    }
+
+    private void ApplyCompositionHistory(NeoPageNode? root)
+    {
+        if (root is null || string.IsNullOrWhiteSpace(SelectedBlockId))
+        {
+            return;
+        }
+
+        var block = Blocks.FirstOrDefault(item => item.EditorId == SelectedBlockId);
+        if (block is null)
+        {
+            return;
+        }
+
+        block.CompositionNodes = [root];
+        MarkDirty();
+        QueuePreviewRefresh();
+    }
+
     void IBlockEditorCallbacks.OpenBlockEditor(EditorBlock block) => OpenBlockEditor(block);
 
     void IBlockEditorCallbacks.OpenMediaSelector(EditorBlock block, bool multiSelect, string field)
         => OpenMediaSelector(block, multiSelect, field);
+
+    void IBlockEditorCallbacks.OpenNodeMediaSelector(
+        EditorBlock block,
+        string nodeId,
+        string field,
+        EditorBreakpoint breakpoint) =>
+        OpenNodeMediaSelector(block, nodeId, field, breakpoint);
     void IBlockEditorCallbacks.OpenAudioSelector(EditorBlock block) => OpenAudioSelector(block);
     void IBlockEditorCallbacks.RemoveImage(EditorBlock block) => RemoveImage(block);
     void IBlockEditorCallbacks.RemoveVideo(EditorBlock block) => RemoveVideo(block);

@@ -350,6 +350,114 @@
         Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}?tab=translations");
     }
 
+    private void AddTranslationAsync(PageTranslationGroupTreeItem node)
+    {
+        Navigation.NavigateTo($"/manager/page/editor/{node.DisplayPageId}?tab=translations");
+    }
+
+    private void OpenPublicVariantAsync(PageTranslationVariantItem variant)
+    {
+        Navigation.NavigateTo(variant.Path, forceLoad: true);
+    }
+
+    private void EditVariantAsync(PageTranslationVariantItem variant)
+    {
+        Navigation.NavigateTo($"/manager/page/editor/{variant.Id}");
+    }
+
+    private async Task PublishVariantAsync(PageTranslationVariantItem variant)
+    {
+        var result = await PagesApi.PublishAsync(variant.Id);
+        NotifyPublicationResult(result, variant, "publish", "published");
+        await LoadRootsAsync();
+    }
+
+    private async Task UnpublishVariantAsync(PageTranslationVariantItem variant)
+    {
+        var result = await PagesApi.UnpublishAsync(variant.Id);
+        NotifyPublicationResult(result, variant, "unpublish", "unpublished");
+        await LoadRootsAsync();
+    }
+
+    private async Task ConfirmDeleteVariantAsync(
+        PageTranslationGroupTreeItem node,
+        PageTranslationVariantItem variant)
+    {
+        var deletesGroup = variant.IsDefaultCulture;
+        var message = deletesGroup
+            ? $"Delete the default '{variant.Culture}' version and all {node.Variants.Count} localized version(s)?"
+            : $"Delete the '{variant.Culture}' translation of '{node.Title}'?";
+        var confirmed = await DialogService.Confirm(
+            message,
+            "Delete translation",
+            new ConfirmOptions
+            {
+                OkButtonText = deletesGroup ? "Delete All Locales" : "Delete",
+                CancelButtonText = "Cancel"
+            });
+
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        bool deleted;
+        if (deletesGroup)
+        {
+            var result = await PagesApi.DeleteTranslationGroupAsync(node.TranslationGroupId);
+            deleted = result is Result<int, AeroError>.Ok { Value: > 0 };
+        }
+        else
+        {
+            deleted = await DeleteVariantAsync(variant.Id);
+        }
+
+        if (deleted)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Success,
+                "Deleted",
+                deletesGroup
+                    ? $"All localized versions of '{node.Title}' were removed."
+                    : $"The '{variant.Culture}' translation was removed.");
+            await LoadRootsAsync();
+        }
+        else
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                "Error",
+                "Failed to delete the translation.");
+        }
+    }
+
+    private async Task<bool> DeleteVariantAsync(long pageId)
+    {
+        var result = await PagesApi.DeleteAsync(pageId);
+        return result is Result<bool, AeroError>.Ok { Value: true };
+    }
+
+    private void NotifyPublicationResult(
+        Result<PageDetail, AeroError> result,
+        PageTranslationVariantItem variant,
+        string action,
+        string completedAction)
+    {
+        if (result is Result<PageDetail, AeroError>.Ok)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Success,
+                "Updated",
+                $"The '{variant.Culture}' translation was {completedAction}.");
+            return;
+        }
+
+        NotificationService.Notify(
+            NotificationSeverity.Error,
+            "Error",
+            $"Failed to {action} the '{variant.Culture}' translation.");
+    }
+
     // ── Delete (with cascade support) ─────────────────────────────
 
     private async Task ConfirmDeleteAsync(PageTranslationGroupTreeItem node)

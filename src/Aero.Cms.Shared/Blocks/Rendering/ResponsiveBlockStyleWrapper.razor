@@ -1,0 +1,31 @@
+@using Aero.Cms.Abstractions.Blocks.Neo.Styles
+
+<div class="@CssClass"
+     style="@NodeStyleCssRenderer.Render(Style, EditorBreakpoint.Desktop)">
+    @ChildContent
+</div>
+
+@if (Style.Tablet is not null || Style.Mobile is not null)
+{
+    <style>
+        @if (Style.Tablet is not null)
+        {
+            <text>@@media (max-width: 1023px) { .@CssClass { @NodeStyleCssRenderer.Render(Style, EditorBreakpoint.Tablet) } }</text>
+        }
+        @if (Style.Mobile is not null)
+        {
+            <text>@@media (max-width: 639px) { .@CssClass { @NodeStyleCssRenderer.Render(Style, EditorBreakpoint.Mobile) } }</text>
+        }
+    </style>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ResponsiveNodeStyle Style { get; set; } = new();
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string CssClass { get; } =
+        $"cms-block-style-{Guid.NewGuid():N}";
+}

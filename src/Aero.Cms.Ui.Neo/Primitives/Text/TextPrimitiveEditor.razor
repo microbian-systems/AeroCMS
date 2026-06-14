@@ -1,0 +1,25 @@
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Text</label>
+        <RadzenTextArea Value="@Text" Change="OnTextChanged" Class="w-full" Rows="5" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback Changed { get; set; }
+
+    private string Text =>
+        Node.Properties.TryGetValue("text", out var value)
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+
+    private async Task OnTextChanged(string value)
+    {
+        Node.Properties["text"] = JsonSerializer.SerializeToElement(value);
+        await Changed.InvokeAsync();
+    }
+}

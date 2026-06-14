@@ -6,10 +6,21 @@ using Aero.Cms.Ui.Neo.Blocks.Hero;
 using Aero.Cms.Ui.Neo.Blocks.Newsletter;
 using Aero.Cms.Ui.Neo.Blocks.SplitHero;
 using Aero.Cms.Ui.Neo.Blocks.StatsRow;
+using Aero.Cms.Ui.Neo.Primitives.Button;
+using Aero.Cms.Ui.Neo.Primitives.Card;
+using Aero.Cms.Ui.Neo.Primitives.Icon;
+using Aero.Cms.Ui.Neo.Primitives.Image;
+using Aero.Cms.Ui.Neo.Primitives.Pill;
+using Aero.Cms.Ui.Neo.Primitives.Separator;
+using Aero.Cms.Ui.Neo.Primitives.Text;
+using Aero.Cms.Ui.Neo.Primitives.Container;
 
 namespace Aero.Cms.Ui.Neo;
 
-public sealed class NeoPageEditorBlockProvider : IPageEditorBlockProvider, ICmsBlockModelProvider
+public sealed class NeoPageEditorBlockProvider :
+    IPageEditorBlockProvider,
+    IPageEditorDefinitionProvider,
+    ICmsBlockModelProvider
 {
     private static readonly IReadOnlyCollection<IPageEditorBlockDefinition> Definitions =
     [
@@ -32,6 +43,19 @@ public sealed class NeoPageEditorBlockProvider : IPageEditorBlockProvider, ICmsB
         new(StatsRowBlock.BlockTypeId,        typeof(StatsRowBlock))
     ];
 
+    private static readonly IReadOnlyCollection<PageEditorDefinitionDescriptor> EditorDefinitions =
+    [
+        ContainerPrimitiveDefinition.Descriptor,
+        TextPrimitiveDefinition.Descriptor,
+        ButtonPrimitiveDefinition.Descriptor,
+        ImagePrimitiveDefinition.Descriptor,
+        PillPrimitiveDefinition.Descriptor,
+        IconPrimitiveDefinition.Descriptor,
+        SeparatorPrimitiveDefinition.Descriptor,
+        CardPrimitiveDefinition.Descriptor
+    ];
+
     public IReadOnlyCollection<IPageEditorBlockDefinition> GetDefinitions() => Definitions;
+    public IReadOnlyCollection<PageEditorDefinitionDescriptor> GetEditorDefinitions() => EditorDefinitions;
     public IReadOnlyCollection<CmsBlockModelRegistration> GetBlockModels() => BlockModels;
 }

@@ -5,15 +5,18 @@
     var gapClass = Block.Gap switch { 0 => "gap-0", 2 => "gap-2", 6 => "gap-6", 8 => "gap-8", _ => "gap-4" };
     var heightClass = Block.EqualHeight ? "items-stretch" : "items-start";
 
-    <div class="grid grid-cols-12 @gapClass @heightClass my-8">
-        @foreach (var item in Block.Items)
+    @for (var rowStart = 0; rowStart < Block.Items.Count; rowStart += Math.Max(1, Block.ColumnsPerRow))
+    {
+        <div class="grid grid-cols-12 @gapClass @heightClass my-8">
+        @foreach (var item in Block.Items.Skip(rowStart).Take(Math.Max(1, Block.ColumnsPerRow)))
         {
             var span = Math.Clamp(item.Span, 1, 12);
             <div class="col-span-@span">
                 @((MarkupString)item.Content)
             </div>
         }
-    </div>
+        </div>
+    }
 }
 
 @code {

@@ -1,10 +1,13 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor
+@using NeoUI.Blazor.Primitives
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-block-wrapper @(IsSelected ? "selected" : "") @(Dragging ? "dragging" : "") @(IsDragOver ? "drag-over" : "")"
      @onclick="() => OnSelect.InvokeAsync()"
      @ondblclick="() => OnOpenEditor.InvokeAsync()"
-    @ondragstart='() => OnDragStart.InvokeAsync(new DragStartEventArgs { EditorId = BlockEditorId, Index = Index })'
+     @oncontextmenu="OpenContextMenu"
+     @oncontextmenu:preventDefault
+     @ondragstart='() => OnDragStart.InvokeAsync(new DragStartEventArgs { EditorId = BlockEditorId, Index = Index })'
     @ondragover='() => OnDragOver.InvokeAsync(Index)'
     @ondragover:preventDefault
     @ondrop='() => OnDrop.InvokeAsync(Index)'
@@ -14,6 +17,26 @@
     @if (IsSelected)
     {
         <div class="pe-block-toolbar">
+            <SortableItemHandlePrimitive class="pe-toolbar-btn pe-drag-handle" title="@L["Drag to reorder"]">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="9" cy="6" r="1"/>
+                    <circle cx="15" cy="6" r="1"/>
+                    <circle cx="9" cy="12" r="1"/>
+                    <circle cx="15" cy="12" r="1"/>
+                    <circle cx="9" cy="18" r="1"/>
+                    <circle cx="15" cy="18" r="1"/>
+                </svg>
+            </SortableItemHandlePrimitive>
+            @ToolbarActions
+            <button class="pe-toolbar-btn" title="@L["Edit block"]"
+                    aria-label="@L["Edit block"]"
+                    @onclick:stopPropagation="true"
+                    @onclick="() => OnOpenEditor.InvokeAsync()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                </svg>
+            </button>
             <button class="pe-toolbar-btn" title="@L["Move up"]"
                     disabled="@(Index == 0)"
                     @onclick:stopPropagation="true"
@@ -52,4 +75,40 @@
     <div class="pe-block-content">
         @ChildContent
     </div>
+
+    @if (ContextMenuOpen)
+    {
+        <div class="pe-block-context-menu"
+             style="left: @(ContextMenuX)px; top: @(ContextMenuY)px;"
+             role="menu"
+             @onclick:stopPropagation
+             @oncontextmenu:preventDefault>
+            <button type="button"
+                    role="menuitem"
+                    @onclick="OpenEditorFromContextMenu">
+                @L["Edit"]
+            </button>
+        </div>
+    }
 </div>
+
+@code {
+    [Parameter] public RenderFragment? ToolbarActions { get; set; }
+    private bool ContextMenuOpen { get; set; }
+    private double ContextMenuX { get; set; }
+    private double ContextMenuY { get; set; }
+
+    private async Task OpenContextMenu(MouseEventArgs args)
+    {
+        ContextMenuX = args.ClientX;
+        ContextMenuY = args.ClientY;
+        ContextMenuOpen = true;
+        await OnSelect.InvokeAsync();
+    }
+
+    private async Task OpenEditorFromContextMenu()
+    {
+        ContextMenuOpen = false;
+        await OnOpenEditor.InvokeAsync();
+    }
+}

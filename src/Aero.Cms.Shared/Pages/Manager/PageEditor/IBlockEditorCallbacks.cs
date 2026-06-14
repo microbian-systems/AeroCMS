@@ -1,5 +1,7 @@
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -13,8 +15,16 @@ public interface IBlockEditorCallbacks
 
     void SelectBlock(string editorId);
     void BlockChanged(EditorBlock block);
+    void CompositionChanged(EditorBlock block, CompositionMutation mutation);
+    void CompositionDropRejected(string message);
+    void OpenNodeEditor(EditorBlock block, string nodeId);
     void OpenBlockEditor(EditorBlock block);
     void OpenMediaSelector(EditorBlock block, bool multiSelect = false, string field = "src");
+    void OpenNodeMediaSelector(
+        EditorBlock block,
+        string nodeId,
+        string field,
+        EditorBreakpoint breakpoint);
     void OpenAudioSelector(EditorBlock block);
     void RemoveImage(EditorBlock block);
     void RemoveVideo(EditorBlock block);

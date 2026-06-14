@@ -13,6 +13,10 @@
         @foreach (var item in Items)
         {
             <SortableItem Value="@item.CatalogId" AsHandle="true" Class="pe-block-item">
+                <div class="pe-palette-item-content"
+                     title="Double-click to add @item.DisplayName"
+                     @ondblclick:stopPropagation="true"
+                     @ondblclick="() => OnAdd.InvokeAsync(item)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
                     <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                     <path d="M2 17l10 5 10-5"/>
@@ -20,8 +24,37 @@
                 </svg>
                 @if (!IsCollapsed)
                 {
-                    <span>@item.DisplayName</span>
+                    <span class="flex-1">@item.DisplayName</span>
+                    @if (OnEdit.HasDelegate)
+                    {
+                        <button type="button"
+                                class="pe-toolbar-btn"
+                                title="Edit"
+                                @onclick:stopPropagation="true"
+                                @onpointerdown:stopPropagation="true"
+                                @onclick="() => OnEdit.InvokeAsync(item)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 20h9"/>
+                                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                            </svg>
+                        </button>
+                    }
+                    @if (OnDelete.HasDelegate)
+                    {
+                        <button type="button"
+                                class="pe-toolbar-btn delete"
+                                title="Delete"
+                                @onclick:stopPropagation="true"
+                                @onpointerdown:stopPropagation="true"
+                                @onclick="() => OnDelete.InvokeAsync(item)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6l-1 14H6L5 6m3 0V4h8v2"/>
+                            </svg>
+                        </button>
+                    }
                 }
+                </div>
             </SortableItem>
         }
     </SortableContent>
@@ -30,6 +63,9 @@
 @code {
     [Parameter, EditorRequired] public IList<NeoEditorCatalogItem> Items { get; set; } = [];
     [Parameter] public bool IsCollapsed { get; set; }
+    [Parameter] public EventCallback<NeoEditorCatalogItem> OnEdit { get; set; }
+    [Parameter] public EventCallback<NeoEditorCatalogItem> OnDelete { get; set; }
+    [Parameter] public EventCallback<NeoEditorCatalogItem> OnAdd { get; set; }
 
     private Task OnTransferOut(SortableTransferArgs args)
     {

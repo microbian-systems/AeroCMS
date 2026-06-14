@@ -1,16 +1,26 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor
 @using System.Text.Json
 @using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Blocks.Editor
+@using Aero.Cms.Abstractions.Blocks.Neo.Styles
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 @using Aero.Cms.Abstractions.Blocks.Common
 @using Aero.Cms.Abstractions.Blocks.Neo
 @using Aero.Cms.Shared.Blocks.Rendering
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Hero01
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions
+@using NeoUI.Blazor
+@using NeoUI.Blazor.Primitives
 
-@if (TryGetRegisteredPreview(out var registeredPreviewType, out var registeredPreviewParameters))
+@if (Block.Type == "aero.hero.basic")
 {
-    <DynamicComponent Type="@registeredPreviewType" Parameters="@registeredPreviewParameters" />
+    @InlineBasicHero()
+}
+else if (TryGetRegisteredPreview(out var registeredPreviewType, out var registeredPreviewParameters))
+{
+    <div style="@RegisteredPreviewStyle">
+        <DynamicComponent Type="@registeredPreviewType" Parameters="@registeredPreviewParameters" />
+    </div>
 }
 else
 {
@@ -45,38 +55,7 @@ else
         <div class="pe-block-placeholder">@L["Scriban Template"]</div>
         break;
     case "boring_hero":
-        <div class="pe-hero-block-wrapper">
-            <BoringHeroRenderer Block="new BoringHeroBlock { FullWidth = false, Title = Block.MainText, Summary = Block.SubText, BackgroundImageUrl = Block.BackgroundImage }" />
-            @if (IsSelected && !Editor.PreviewMode)
-            {
-                <div class="pe-hero-bg-controls">
-                    <input class="pe-hero-title" type="text" placeholder="@L["Page title"]"
-                           value="@Block.MainText"
-                           @oninput="e => Update(value => Block.MainText = value, e.Value?.ToString() ?? string.Empty)"
-                           @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
-                    <input class="pe-hero-subtitle" type="text" placeholder="@L["Summary"]"
-                           value="@Block.SubText"
-                           @oninput="e => Update(value => Block.SubText = value, e.Value?.ToString() ?? string.Empty)"
-                           @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
-                    @if (string.IsNullOrEmpty(Block.BackgroundImage))
-                    {
-                        <button class="pe-btn pe-btn-secondary pe-btn-sm"
-                                @onclick:stopPropagation="true"
-                                @onclick='() => Editor.OpenMediaSelector(Block, false, "background")'>
-                            @L["Add Background Image"]
-                        </button>
-                    }
-                    else
-                    {
-                        <button class="pe-btn pe-btn-ghost pe-btn-sm"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => Update(value => Block.BackgroundImage = value, string.Empty)">
-                            @L["Remove Background"]
-                        </button>
-                    }
-                </div>
-            }
-        </div>
+        @InlineBasicHero()
         break;
     case "hero":
         var heroHeightStyle = Block.FullScreen ? "min-height: 100vh;" : $"min-height: {Math.Max(240, Block.Height)}px;";
@@ -90,24 +69,28 @@ else
                 @if (IsSelected && !Editor.PreviewMode)
                 {
                     <input class="pe-hero-title" type="text" placeholder="@L["Main Headline"]"
+                           @onkeydown:stopPropagation="true"
                            value="@Block.MainText"
                            @oninput="e => Update(value => Block.MainText = value, e.Value?.ToString() ?? string.Empty)"
                            @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
                     <input class="pe-hero-subtitle" type="text" placeholder="@L["Sub headline or description"]"
+                           @onkeydown:stopPropagation="true"
                            value="@Block.SubText"
                            @oninput="e => Update(value => Block.SubText = value, e.Value?.ToString() ?? string.Empty)"
                            @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
                     <div class="pe-hero-cta-row">
                         <input class="pe-hero-cta-text" type="text" placeholder="@L["Button text"]"
+                               @onkeydown:stopPropagation="true"
                                value="@Block.CtaText"
                                @oninput="e => Update(value => Block.CtaText = value, e.Value?.ToString() ?? string.Empty)"
                                @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
                         <input class="pe-hero-cta-url" type="text" placeholder="@L["Button URL"]"
+                               @onkeydown:stopPropagation="true"
                                value="@Block.CtaUrl"
                                @oninput="e => Update(value => Block.CtaUrl = value, e.Value?.ToString() ?? string.Empty)"
                                @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
                     </div>
-                    <div class="pe-hero-bg-controls">
+                    <div class="pe-hero-layout-controls">
                         <label class="pe-field-label">
                             <input type="checkbox"
                                    checked="@Block.FullScreen"
@@ -120,22 +103,6 @@ else
                                    value="@Block.Height"
                                    @oninput="e => Update(value => Block.Height = value, int.TryParse(e.Value?.ToString(), out var height) ? height : 512)"
                                    @onfocus="() => Editor.SelectBlock(Block.EditorId)" />
-                        }
-                        @if (string.IsNullOrEmpty(Block.BackgroundImage))
-                        {
-                            <button class="pe-btn pe-btn-secondary pe-btn-sm"
-                                    @onclick:stopPropagation="true"
-                                    @onclick='() => Editor.OpenMediaSelector(Block, false, "background")'>
-                                @L["Add Background Image"]
-                            </button>
-                        }
-                        else
-                        {
-                            <button class="pe-btn pe-btn-ghost pe-btn-sm"
-                                    @onclick:stopPropagation="true"
-                                    @onclick="() => Update(value => Block.BackgroundImage = value, string.Empty)">
-                                @L["Remove Background"]
-                            </button>
                         }
                     </div>
                 }
@@ -257,11 +224,24 @@ else
                                value="@Block.Gap"
                                @oninput="e => Update(value => Block.Gap = value, int.TryParse(e.Value?.ToString(), out var gap) ? gap : 16)" />
                     </div>
+                    <button type="button"
+                            class="pe-btn pe-btn-secondary pe-btn-sm"
+                            @onclick:stopPropagation="true"
+                            @onclick="AddColumnsRow">
+                        @L["Add row"]
+                    </button>
                 </div>
             }
-            <div class="pe-columns-block" style="gap:@(Block.Gap)px">
-                @for (var ci = 0; ci < Block.EditorColumns.Count; ci++)
+            @for (var row = 0; row < Math.Max(1, Block.RowCount); row++)
+            {
+                <div class="pe-columns-block" style="gap:@(Block.Gap)px">
+                @for (var offset = 0; offset < Block.ColumnCount; offset++)
                 {
+                    var ci = (row * Block.ColumnCount) + offset;
+                    if (ci >= Block.EditorColumns.Count)
+                    {
+                        continue;
+                    }
                     var col = Block.EditorColumns[ci];
                     var colIndex = ci;
                     <div class="pe-column"
@@ -280,11 +260,20 @@ else
                                 </button>
                             </div>
                         }
-                        <div class="pe-column-content">
+                        <Sortable TItem="NestedBlock"
+                                  Items="col.Blocks"
+                                  GetItemId="item => item.Id"
+                                  Group="page-editor"
+                                  OnItemsReordered="items => OnColumnReordered(colIndex, items)"
+                                  OnItemTransferredIn="args => OnColumnTransferredIn(colIndex, args)"
+                                  OnItemTransferredOut="_ => Task.CompletedTask"
+                                  Class="pe-column-content">
+                            <SortableContentPrimitive>
                             @for (var ni = 0; ni < col.Blocks.Count; ni++)
                             {
                                 var nb = col.Blocks[ni];
                                 var nestedIndex = ni;
+                                <SortableItemPrimitive Value="@nb.Id">
                                 <div class="pe-nested-block">
                                     @RenderNestedBlock(nb, colIndex)
                                     @if (IsSelected && !Editor.PreviewMode)
@@ -299,6 +288,7 @@ else
                                         </button>
                                     }
                                 </div>
+                                </SortableItemPrimitive>
                             }
                             @if (col.Blocks.Count == 0 && IsSelected && !Editor.PreviewMode)
                             {
@@ -306,10 +296,12 @@ else
                                     <span>@L["Drag blocks here or click + to add"]</span>
                                 </div>
                             }
-                        </div>
+                            </SortableContentPrimitive>
+                        </Sortable>
                     </div>
                 }
-            </div>
+                </div>
+            }
         </div>
         break;
     case "image":
@@ -470,22 +462,93 @@ else
     [Parameter] public bool IsSelected { get; set; }
     [CascadingParameter] public IBlockEditorCallbacks Editor { get; set; } = default!;
 
+    private string RegisteredPreviewStyle =>
+        Block.CompositionNodes.FirstOrDefault() is { } node
+            ? NodeStyleCssRenderer.Render(node.Style, EditorBreakpoint.Desktop)
+            : string.Empty;
+
+    private RenderFragment InlineBasicHero() => @<section class="pe-inline-hero"
+        style="@(!string.IsNullOrWhiteSpace(Block.BackgroundImage) ? $"background-image:url('{Block.BackgroundImage}')" : null)">
+        <div class="pe-inline-hero-content">
+            @if (IsSelected && !Editor.PreviewMode)
+            {
+                <input class="pe-inline-hero-title"
+                       aria-label="@L["Hero title"]"
+                       placeholder="@L["Hero title"]"
+                       value="@Block.MainText"
+                       @onclick:stopPropagation="true"
+                       @ondblclick:stopPropagation="true"
+                       @onkeydown:stopPropagation="true"
+                       @onfocus="() => Editor.SelectBlock(Block.EditorId)"
+                       @oninput="e => Update(value => Block.MainText = value, e.Value?.ToString() ?? string.Empty)" />
+                <textarea class="pe-inline-hero-summary"
+                          aria-label="@L["Hero summary"]"
+                          placeholder="@L["Hero summary"]"
+                          rows="2"
+                          value="@Block.SubText"
+                          @onclick:stopPropagation="true"
+                          @ondblclick:stopPropagation="true"
+                          @onkeydown:stopPropagation="true"
+                          @onfocus="() => Editor.SelectBlock(Block.EditorId)"
+                          @oninput="e => Update(value => Block.SubText = value, e.Value?.ToString() ?? string.Empty)"></textarea>
+            }
+            else
+            {
+                <h2 class="pe-inline-hero-title">@FirstNonEmpty(Block.MainText, "Hero title")</h2>
+                <p class="pe-inline-hero-summary">@FirstNonEmpty(Block.SubText, "Hero summary")</p>
+            }
+        </div>
+    </section>;
+
     private bool TryGetRegisteredPreview(out Type previewType, out Dictionary<string, object?> parameters)
     {
-        if (PageEditorBlockRegistry.TryGet(Block.Type, out var definition) &&
-            definition.PreviewComponentType is { } registeredPreviewType)
+        if (PageEditorBlockRegistry.TryGetDescriptor(Block.Type, out var definition) &&
+            definition.Catalog.PreviewComponentType is { } registeredPreviewType)
         {
             previewType = registeredPreviewType;
+            var node = definition.LegacyDefinition is { } legacyDefinition
+                ? legacyDefinition.ToNeoPageNode(Block)
+                : GetOrCreateCompositionRoot(definition);
             parameters = new Dictionary<string, object?>
             {
-                ["Node"] = definition.ToNeoPageNode(Block)
+                ["Node"] = node
             };
+            if (definition.Catalog.Composition.CanContainChildren)
+            {
+                parameters["NodeChanged"] =
+                    EventCallback.Factory.Create<CompositionMutation>(
+                        this,
+                        mutation => Editor.CompositionChanged(Block, mutation));
+                parameters["RootNode"] = node;
+                parameters["NodeEditRequested"] =
+                    EventCallback.Factory.Create<string>(
+                        this,
+                        nodeId => Editor.OpenNodeEditor(Block, nodeId));
+                parameters["DropRejected"] =
+                    EventCallback.Factory.Create<string>(
+                        this,
+                        Editor.CompositionDropRejected);
+            }
             return true;
         }
 
         previewType = default!;
         parameters = [];
         return false;
+    }
+
+    private NeoPageNode GetOrCreateCompositionRoot(
+        PageEditorDefinitionDescriptor definition)
+    {
+        var node = Block.CompositionNodes.FirstOrDefault();
+        if (node is not null)
+        {
+            return node;
+        }
+
+        node = definition.NodeFactory.CreateDefaultNode();
+        Block.CompositionNodes = [node];
+        return node;
     }
 
     private void Update<T>(Action<T> setValue, T value)
@@ -498,19 +561,97 @@ else
     {
         var next = Math.Clamp(count, 1, 12);
         Block.ColumnCount = next;
+        Block.RowCount = Math.Max(1, Block.RowCount);
+        var requiredColumns = next * Block.RowCount;
 
-        while (Block.EditorColumns.Count < next)
+        while (Block.EditorColumns.Count < requiredColumns)
         {
             Block.EditorColumns.Add(new EditorColumn());
         }
 
-        while (Block.EditorColumns.Count > next)
+        while (Block.EditorColumns.Count > requiredColumns)
         {
             Block.EditorColumns.RemoveAt(Block.EditorColumns.Count - 1);
         }
 
         Editor.BlockChanged(Block);
     }
+
+    private void AddColumnsRow()
+    {
+        Block.RowCount = Math.Max(1, Block.RowCount) + 1;
+        for (var index = 0; index < Math.Max(1, Block.ColumnCount); index++)
+        {
+            Block.EditorColumns.Add(new EditorColumn());
+        }
+
+        Editor.BlockChanged(Block);
+    }
+
+    private Task OnColumnReordered(int columnIndex, IList<NestedBlock> items)
+    {
+        if (columnIndex >= 0 && columnIndex < Block.EditorColumns.Count)
+        {
+            Block.EditorColumns[columnIndex].Blocks = items.ToList();
+            Editor.BlockChanged(Block);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnColumnTransferredIn(int columnIndex, SortableTransferArgs args)
+    {
+        if (columnIndex < 0 || columnIndex >= Block.EditorColumns.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        var existing = Block.EditorColumns
+            .SelectMany(column => column.Blocks)
+            .FirstOrDefault(item => item.Id == args.ActiveId);
+        var item = existing ?? CreateNestedPrimitive(args.ActiveId);
+        if (item is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        foreach (var column in Block.EditorColumns)
+        {
+            column.Blocks.RemoveAll(candidate => candidate.Id == item.Id);
+        }
+
+        var target = Block.EditorColumns[columnIndex].Blocks;
+        target.Insert(Math.Clamp(args.Index, 0, target.Count), item);
+        Editor.BlockChanged(Block);
+        return Task.CompletedTask;
+    }
+
+    private static NestedBlock? CreateNestedPrimitive(string catalogId) =>
+        catalogId switch
+        {
+            "primitive.text" => new NestedBlock
+            {
+                Type = "text",
+                Content = "Enter your text here..."
+            },
+            "primitive.image" => new NestedBlock { Type = "image" },
+            "primitive.button" => new NestedBlock
+            {
+                Type = "text",
+                Content = "Button"
+            },
+            "primitive.pill" => new NestedBlock
+            {
+                Type = "text",
+                Content = "Pill"
+            },
+            "primitive.icon" => new NestedBlock
+            {
+                Type = "text",
+                Content = "Icon"
+            },
+            _ => null
+        };
 
     private void AddBlockToColumn(int columnIndex, string type)
     {

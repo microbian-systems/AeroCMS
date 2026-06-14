@@ -13,6 +13,7 @@ public static class NeoUiServiceCollectionExtensions
         var provider = new NeoPageEditorBlockProvider();
         PageEditorBlockRegistry.RegisterProviders([provider]);
         services.AddSingleton<IPageEditorBlockProvider>(provider);
+        services.AddSingleton<IPageEditorDefinitionProvider>(provider);
         services.AddSingleton<ICmsBlockModelProvider>(provider);
         services.AddSingleton<ICmsBlockRenderRegistry, GeneratedCmsBlockRenderRegistry>();
         return services;

@@ -1,0 +1,11 @@
+<p class="m-0">@Text</p>
+
+@code {
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    private string Text =>
+        Node.Properties.TryGetValue("text", out var value)
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+}

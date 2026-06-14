@@ -38,6 +38,21 @@
 
     @if (!PreviewMode)
     {
+        <div class="absolute top-3 left-14 z-10 flex gap-1">
+            <button class="pe-btn pe-btn-ghost pe-btn-sm"
+                    disabled="@(!CanUndoComposition)"
+                    @onclick="UndoComposition"
+                    title="@L["Undo composition change"]">
+                @L["Undo"]
+            </button>
+            <button class="pe-btn pe-btn-ghost pe-btn-sm"
+                    disabled="@(!CanRedoComposition)"
+                    @onclick="RedoComposition"
+                    title="@L["Redo composition change"]">
+                @L["Redo"]
+            </button>
+        </div>
+
         <PageEditorHeader Title="@PageTitle"
                           LastSaved="@LastSaved"
                           Author="@Author"
@@ -48,6 +63,17 @@
                           OnSave="SavePage"
                           OnPublish="PublishPage"
                           OnUnpublish="UnpublishPage" />
+
+        @if (!string.IsNullOrWhiteSpace(CompositionDropError))
+        {
+            <div class="pe-drop-error" role="alert">
+                <span>@L["Cannot place item here: {0}", CompositionDropError]</span>
+                <button type="button"
+                        class="pe-drop-error-dismiss"
+                        @onclick="ClearCompositionDropError"
+                        aria-label="@L["Dismiss"]">×</button>
+            </div>
+        }
     }
 
     <PageEditorCanvas Blocks="@Blocks"
@@ -404,8 +430,57 @@ else if (ActiveTab == "translations")
 
 @* Right sidebar content *@
 <SectionContent SectionName="RightSidebar">
-    <AeroSidebar Title="@L["Blocks"]" Side="SidebarSide.Right" @bind-IsCollapsed="RightSidebarCollapsed">
+    <AeroSidebar Title="@L["Blocks"]"
+                 Side="SidebarSide.Right"
+                 IsCollapsed="RightSidebarCollapsed"
+                 IsCollapsedChanged="OnRightSidebarCollapsedChanged">
         <div class="pe-blocks-sidebar">
+            @if (!RightSidebarCollapsed)
+            {
+                <PageEditorPaletteSearch Query="@PaletteSearch"
+                                         QueryChanged="value => PaletteSearch = value"
+                                         HasResults="@HasPaletteSearchResults"
+                                         Placeholder="@L["Search blocks..."]"
+                                         AriaLabel="@L["Search blocks"]"
+                                         ClearLabel="@L["Clear search"]"
+                                         NoResultsText="@L["No blocks match your search."]" />
+            }
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("custom")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Custom"] : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M8 12h8M12 8v8"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @L["Custom"]
+                        <svg class="pe-chevron @(CategoryCustom ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (!RightSidebarCollapsed && CategoryCustom)
+                {
+                    @if (FilterPaletteItems(CustomCatalogItems).Count > 0)
+                    {
+                        <PageEditorPaletteSection Items="FilterPaletteItems(CustomCatalogItems).ToList()"
+                                                  IsCollapsed="RightSidebarCollapsed"
+                                                  OnAdd="AddPaletteItemAsync"
+                                                  OnEdit="OpenEditCustomComponentModal"
+                                                  OnDelete="DeleteCustomComponentAsync" />
+                    }
+                    else if (!RightSidebarCollapsed && string.IsNullOrWhiteSpace(PaletteSearch))
+                    {
+                        <p class="px-3 py-2 text-xs" style="color: var(--pe-text-muted);">
+                            @L["Edit a block and choose Save as Custom to add it here."]
+                        </p>
+                    }
+                }
+            </div>
+
             @* ── Catalog-driven Aero UI section ── *@
             <div class="pe-category">
                 <button class="pe-category-header" @onclick='() => ToggleCategory("aeroui")'
@@ -425,10 +500,35 @@ else if (ActiveTab == "translations")
                         </svg>
                     }
                 </button>
-                @if (CategoryAeroUi)
+                @if (!RightSidebarCollapsed && CategoryAeroUi)
                 {
-                    <PageEditorPaletteSection Items="NeoAeroCatalogItems.ToList()"
-                                              IsCollapsed="RightSidebarCollapsed" />
+                    <PageEditorPaletteSection Items="FilterPaletteItems(NeoAeroCatalogItems).ToList()"
+                                              IsCollapsed="RightSidebarCollapsed"
+                                              OnAdd="AddPaletteItemAsync" />
+                }
+            </div>
+
+            <div class="pe-category">
+                <button class="pe-category-header" @onclick='() => ToggleCategory("primitives")'
+                        data-pe-tooltip-target
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Primitives"] : null)"
+                        data-pe-tooltip-placement="left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 6h16M8 12h8M10 18h4"/>
+                    </svg>
+                    @if (!RightSidebarCollapsed)
+                    {
+                        @L["Primitives"]
+                        <svg class="pe-chevron @(CategoryPrimitives ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    }
+                </button>
+                @if (!RightSidebarCollapsed && CategoryPrimitives)
+                {
+                    <PageEditorPaletteSection Items="FilterPaletteItems(PrimitiveCatalogItems).ToList()"
+                                              IsCollapsed="RightSidebarCollapsed"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -449,10 +549,11 @@ else if (ActiveTab == "translations")
                         </svg>
                     }
                 </button>
-                @if (CategoryLegacyUi)
+                @if (!RightSidebarCollapsed && CategoryLegacyUi)
                 {
-                    <PageEditorPaletteSection Items="LegacyUiCatalogItems.ToList()"
-                                              IsCollapsed="RightSidebarCollapsed" />
+                    <PageEditorPaletteSection Items="FilterPaletteItems(LegacyUiCatalogItems).ToList()"
+                                              IsCollapsed="RightSidebarCollapsed"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -473,10 +574,11 @@ else if (ActiveTab == "translations")
                         </svg>
                     }
                 </button>
-                @if (CategoryAeroUx)
+                @if (!RightSidebarCollapsed && CategoryAeroUx)
                 {
-                    <PageEditorPaletteSection Items="AeroUxCatalogItems.ToList()"
-                                              IsCollapsed="RightSidebarCollapsed" />
+                    <PageEditorPaletteSection Items="FilterPaletteItems(AeroUxCatalogItems).ToList()"
+                                              IsCollapsed="RightSidebarCollapsed"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -498,10 +600,11 @@ else if (ActiveTab == "translations")
                         </svg>
                     }
                 </button>
-                @if (CategoryMedia)
+                @if (!RightSidebarCollapsed && CategoryMedia)
                 {
-                    <PageEditorPaletteSection Items="MediaCatalogItems.ToList()"
-                                              IsCollapsed="RightSidebarCollapsed" />
+                    <PageEditorPaletteSection Items="FilterPaletteItems(MediaCatalogItems).ToList()"
+                                              IsCollapsed="RightSidebarCollapsed"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -522,10 +625,11 @@ else if (ActiveTab == "translations")
                         </svg>
                     }
                 </button>
-                @if (CategoryReferences)
+                @if (!RightSidebarCollapsed && CategoryReferences)
                 {
-                    <PageEditorPaletteSection Items="ReferenceCatalogItems.ToList()"
-                                              IsCollapsed="RightSidebarCollapsed" />
+                    <PageEditorPaletteSection Items="FilterPaletteItems(ReferenceCatalogItems).ToList()"
+                                              IsCollapsed="RightSidebarCollapsed"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -548,10 +652,11 @@ else if (ActiveTab == "translations")
                         </svg>
                     }
                 </button>
-                @if (CategoryHyper)
+                @if (!RightSidebarCollapsed && CategoryHyper)
                 {
-                    <PageEditorPaletteSection Items="NeoHyperCatalogItems.ToList()"
-                                              IsCollapsed="RightSidebarCollapsed" />
+                    <PageEditorPaletteSection Items="FilterPaletteItems(NeoHyperCatalogItems).ToList()"
+                                              IsCollapsed="RightSidebarCollapsed"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -574,10 +679,11 @@ else if (ActiveTab == "translations")
                         </svg>
                     }
                 </button>
-                @if (CategoryNeo)
+                @if (!RightSidebarCollapsed && CategoryNeo)
                 {
-                    <PageEditorPaletteSection Items="NeoNeoCatalogItems.ToList()"
-                                              IsCollapsed="RightSidebarCollapsed" />
+                    <PageEditorPaletteSection Items="FilterPaletteItems(NeoNeoCatalogItems).ToList()"
+                                              IsCollapsed="RightSidebarCollapsed"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -609,13 +715,89 @@ else if (ActiveTab == "translations")
                     </svg>
                 </button>
             </div>
+            <div class="pe-modal-tabs">
+                <button class="pe-tab-btn @(BlockEditorTab == "design" ? "active" : "")"
+                        @onclick='() => BlockEditorTab = "design"'>
+                    @L["Design"]
+                </button>
+                <button class="pe-tab-btn @(BlockEditorTab == "content" ? "active" : "")"
+                        @onclick='() => BlockEditorTab = "content"'>
+                    @L["Content"]
+                </button>
+                <button class="pe-tab-btn @(BlockEditorTab == "advanced" ? "active" : "")"
+                        @onclick='() => BlockEditorTab = "advanced"'>
+                    @L["Advanced"]
+                </button>
+            </div>
             <div class="pe-modal-body">
                 <EditorBlockPropertyPanel Block="CurrentEditBlock"
                                           ShowHeader="false"
+                                          ActiveTab="@BlockEditorTab"
+                                          TargetNodeId="@EditingNodeId"
                                           OnChanged="OnEditorBlockChanged" />
             </div>
             <div class="pe-modal-footer">
+                <button class="pe-btn pe-btn-ghost pe-btn-sm"
+                        @onclick="OpenSaveCustomComponentModal">
+                    @L["Save as Custom"]
+                </button>
                 <button class="pe-btn pe-btn-primary pe-btn-sm" @onclick="CloseBlockEditor">@L["Done"]</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (SaveCustomComponentModalOpen)
+{
+    <div class="pe-modal-overlay" @onclick="CloseSaveCustomComponentModal">
+        <div class="pe-modal" style="max-width: 480px;" @onclick:stopPropagation="true">
+            <div class="pe-modal-header">
+                <div>
+                    <div class="pe-modal-kicker">@L["Reusable component"]</div>
+                    <h3>@(EditingCustomComponentId.HasValue ? L["Edit Custom Component"] : L["Save as Custom"])</h3>
+                </div>
+                <button class="pe-toolbar-btn" title="@L["Close"]" @onclick="CloseSaveCustomComponentModal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="pe-modal-body space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">@L["Name"]</label>
+                    <input class="w-full rounded-md px-3 py-2"
+                           style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                           maxlength="120"
+                           @bind="CustomComponentName" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">@L["Description"]</label>
+                    <textarea class="w-full rounded-md px-3 py-2"
+                              style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border);"
+                              rows="3"
+                              maxlength="500"
+                              @bind="CustomComponentDescription"></textarea>
+                </div>
+                <p class="text-xs" style="color: var(--pe-text-muted);">
+                    @L["The saved template is site-owned. Each insertion creates an independent copy."]
+                </p>
+            </div>
+            <div class="pe-modal-footer">
+                <button class="pe-btn pe-btn-ghost pe-btn-sm"
+                        disabled="@IsSavingCustomComponent"
+                        @onclick="CloseSaveCustomComponentModal">
+                    @L["Cancel"]
+                </button>
+                <button class="pe-btn pe-btn-primary pe-btn-sm"
+                        disabled="@(IsSavingCustomComponent || string.IsNullOrWhiteSpace(CustomComponentName))"
+                        @onclick="SaveCurrentBlockAsCustomAsync">
+                    @(IsSavingCustomComponent
+                        ? L["Saving..."]
+                        : EditingCustomComponentId.HasValue
+                            ? L["Update Component"]
+                            : L["Save Component"])
+                </button>
             </div>
         </div>
     </div>

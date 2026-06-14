@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 using System.Text.Json;
 
@@ -21,12 +22,42 @@ public static class EditorBlockMapper
     {
         ArgumentNullException.ThrowIfNull(editorBlock);
 
-        if (PageEditorBlockRegistry.TryGet(editorBlock.Type, out var definition))
+        if (editorBlock.CompositionNodes.Count > 0)
         {
-            return definition.ToBlockBase(editorBlock);
+            return new NeoCompositionBlock
+            {
+                ResponsiveStyle = editorBlock.Style.DeepClone(),
+                Nodes = editorBlock.CompositionNodes
+                    .Select(node => EditorNodeMemento.Capture(node).Restore())
+                    .ToList()
+            };
         }
 
-        return editorBlock.Type switch
+        if (PageEditorBlockRegistry.TryGet(editorBlock.Type, out var definition))
+        {
+            var registeredBlock = definition.ToBlockBase(editorBlock);
+            if (registeredBlock is null)
+            {
+                return null;
+            }
+
+            registeredBlock.ResponsiveStyle = editorBlock.Style.DeepClone();
+            return registeredBlock;
+        }
+
+        if (PageEditorBlockRegistry.TryGetDescriptor(editorBlock.Type, out var descriptor) &&
+            descriptor.LegacyDefinition is null)
+        {
+            return new NeoCompositionBlock
+            {
+                ResponsiveStyle = editorBlock.Style.DeepClone(),
+                Nodes = editorBlock.CompositionNodes
+                    .Select(node => EditorNodeMemento.Capture(node).Restore())
+                    .ToList()
+            };
+        }
+
+        BlockBase? block = editorBlock.Type switch
         {
             "aero.hero.basic" => new Aero.Cms.Abstractions.Blocks.Neo.BasicHeroBlock
             {
@@ -66,6 +97,7 @@ public static class EditorBlockMapper
             "neo.layout.columns" => new Aero.Cms.Abstractions.Blocks.Neo.NeoColumnsBlock
             {
                 Gap = editorBlock.Gap,
+                ColumnsPerRow = Math.Max(1, editorBlock.ColumnCount),
                 Items = editorBlock.EditorColumns.Count > 0
                     ? editorBlock.EditorColumns.Select(column => new Aero.Cms.Abstractions.Blocks.Neo.ColumnItem
                     {
@@ -316,6 +348,13 @@ public static class EditorBlockMapper
             "columns" => MapColumnsBlock(editorBlock),
             _ => null
         };
+
+        if (block is not null)
+        {
+            block.ResponsiveStyle = editorBlock.Style.DeepClone();
+        }
+
+        return block;
     }
 
     private static ColumnsBlock MapColumnsBlock(EditorBlock editorBlock)

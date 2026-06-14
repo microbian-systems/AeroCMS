@@ -1,5 +1,10 @@
 @using Aero.Cms.Abstractions.Blocks
 @using Aero.Cms.Abstractions.Blocks.Common
+@using Aero.Cms.Abstractions.Blocks.Editor
+@using Aero.Cms.Abstractions.Blocks.Neo
+@using Aero.Cms.Abstractions.Blocks.Neo.Styles
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions
+@using NeoUI.Blazor
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
 <div class="pe-property-panel-shell">
@@ -18,9 +23,43 @@
         }
         else
         {
-            <div class="pe-property-panel">
+            @if (TryGetNativeDefinition(out var nativeDefinition, out var nativeNode))
+            {
+                @if (ActiveTab == "content")
+                {
+                    <div class="pe-property-panel">
+                        @if (nativeDefinition.Catalog.PropertyEditorComponentType is { } editorType)
+                        {
+                            <DynamicComponent Type="editorType"
+                                              Parameters="NativeEditorParameters(nativeNode)" />
+                        }
+                        else
+                        {
+                            @CompositeContentPanel(nativeNode)
+                        }
+                    </div>
+                }
+                else if (ActiveTab == "design")
+                {
+                    @NativeDesignPanel(nativeDefinition.Catalog.EditorCapabilities, nativeNode)
+                }
+                else
+                {
+                    @NativeAdvancedPanel(nativeDefinition.Catalog.EditorCapabilities, nativeNode)
+                }
+            }
+            else if (ActiveTab == "content")
+            {
+                <div class="pe-property-panel">
                 @switch (Block.Type)
                 {
+                    case "primitive.text":
+                        @TextAreaField(
+                            "Text",
+                            GetCompositionString("text"),
+                            value => SetCompositionString("text", value),
+                            5)
+                        break;
                     case "neo.hero.centered":
                         @TextField("Eyebrow", Block.Eyebrow, value => Block.Eyebrow = value)
                         @TextField("Title", Block.MainText, value => Block.MainText = value)
@@ -147,7 +186,16 @@
                         @TextField("Button URL", Block.CtaUrl, value => Block.CtaUrl = value)
                         break;
                 }
-            </div>
+                </div>
+            }
+            else if (ActiveTab == "design")
+            {
+                @NativeDesignPanel(CannedBlockCapabilities, CannedStyleNode())
+            }
+            else
+            {
+                @NativeAdvancedPanel(CannedBlockCapabilities, CannedStyleNode())
+            }
         }
     </div>
 </div>
@@ -156,6 +204,8 @@
     [Parameter] public EditorBlock? Block { get; set; }
     [Parameter] public EventCallback<EditorBlock> OnChanged { get; set; }
     [Parameter] public bool ShowHeader { get; set; } = true;
+    [Parameter] public string ActiveTab { get; set; } = "content";
+    [Parameter] public string? TargetNodeId { get; set; }
     [CascadingParameter] public IBlockEditorCallbacks? Editor { get; set; }
 
     private RenderFragment TextField(string label, string? value, Action<string> setValue) => @<div class="pe-property-group">
@@ -337,4 +387,1182 @@
 
     private static string FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+
+    private bool TryGetNativeDefinition(
+        out PageEditorDefinitionDescriptor definition,
+        out NeoPageNode node)
+    {
+        if (Block is not null &&
+            PageEditorBlockRegistry.TryGetDescriptor(Block.Type, out definition!) &&
+            definition.LegacyDefinition is null &&
+            FindTargetNode(Block.CompositionNodes) is { } compositionNode)
+        {
+            node = compositionNode;
+            return true;
+        }
+
+        definition = default!;
+        node = default!;
+        return false;
+    }
+
+    private NeoPageNode? FindTargetNode(IEnumerable<NeoPageNode> roots)
+    {
+        if (string.IsNullOrWhiteSpace(TargetNodeId))
+        {
+            return roots.FirstOrDefault();
+        }
+
+        foreach (var root in roots)
+        {
+            var match = FindNode(root, TargetNodeId);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static NeoPageNode? FindNode(NeoPageNode node, string nodeId)
+    {
+        if (string.Equals(node.NodeId, nodeId, StringComparison.Ordinal))
+        {
+            return node;
+        }
+
+        foreach (var child in node.Children)
+        {
+            var match = FindNode(child, nodeId);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private Dictionary<string, object?> NativeEditorParameters(NeoPageNode node)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            ["Node"] = node,
+            ["Changed"] = EventCallback.Factory.Create(this, NotifyChanged)
+        };
+
+        if (string.Equals(
+                node.CatalogId,
+                "primitive.image",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            parameters["SelectMedia"] = EventCallback.Factory.Create(
+                this,
+                () => OpenNativePropertyMediaSelector(node, "url"));
+        }
+
+        return parameters;
+    }
+
+    private RenderFragment CompositeContentPanel(NeoPageNode node) => @<div class="pe-composite-content">
+        <div class="pe-property-intro">
+            <strong>@L["Card content"]</strong>
+            <span>@L["Edit the elements inside this component. You can also double-click an element directly on the canvas."]</span>
+        </div>
+        @if (node.Children.Count == 0)
+        {
+            <div class="pe-property-empty">@L["This component has no editable child content."]</div>
+        }
+        @foreach (var child in node.Children)
+        {
+            if (PageEditorBlockRegistry.TryGetDescriptor(child.CatalogId, out var childDefinition) &&
+                childDefinition.Catalog.PropertyEditorComponentType is { } childEditorType)
+            {
+                <section class="pe-property-section">
+                    <div class="pe-property-section-heading">
+                        <span>@childDefinition.Catalog.DisplayName</span>
+                        <code>@child.CatalogId</code>
+                    </div>
+                    <DynamicComponent Type="childEditorType"
+                                      Parameters="NativeEditorParameters(child)" />
+                </section>
+            }
+        }
+    </div>;
+
+    private void OpenNativePropertyMediaSelector(
+        NeoPageNode node,
+        string propertyName)
+    {
+        if (Block is not null)
+        {
+            Editor?.OpenNodeMediaSelector(
+                Block,
+                node.NodeId,
+                $"property:{propertyName}",
+                _styleBreakpoint);
+        }
+    }
+
+    private RenderFragment NativeDesignPanel(
+        EditorCapabilitySet capabilities,
+        NeoPageNode node) => @<div class="pe-property-panel pe-design-panel">
+        <section class="pe-property-section pe-breakpoint-section">
+        <div class="pe-property-group">
+            <label class="pe-property-label">@L["Breakpoint"]</label>
+            <div class="flex gap-1">
+                @foreach (var breakpoint in Enum.GetValues<EditorBreakpoint>())
+                {
+                    <button type="button"
+                            class="pe-btn pe-btn-sm @(_styleBreakpoint == breakpoint ? "pe-btn-primary" : "pe-btn-ghost")"
+                            @onclick="() => _styleBreakpoint = breakpoint">
+                        @L[breakpoint.ToString()]
+                    </button>
+                }
+            </div>
+            @if (_styleBreakpoint != EditorBreakpoint.Desktop)
+            {
+                <div class="mt-2 flex items-center justify-between gap-2">
+                    <span class="text-xs text-muted-foreground">
+                        @(HasOverride(node, _styleBreakpoint)
+                            ? L["Override active"]
+                            : L["Inheriting from larger breakpoint"])
+                    </span>
+                    <button type="button"
+                            class="pe-btn pe-btn-ghost pe-btn-sm"
+                            disabled="@(!HasOverride(node, _styleBreakpoint))"
+                            @onclick="() => ResetBreakpoint(node)">
+                        @L["Reset"]
+                    </button>
+                </div>
+            }
+        </div>
+        </section>
+        <section class="pe-property-section">
+        <div class="pe-property-section-heading"><span>@L["Size and spacing"]</span></div>
+        <div class="pe-property-grid">
+        <div class="pe-property-group">
+            <label class="pe-property-label">@L["Width"]</label>
+            <input type="number" min="0" class="w-full rounded-md"
+                   value="@GetPixels(CurrentStyle(node).Width)"
+                   @oninput="e => SetWidth(node, e.Value?.ToString())" />
+        </div>
+        <div class="pe-property-group">
+            <label class="pe-property-label">@L["Height"]</label>
+            <input type="number" min="0" class="w-full rounded-md"
+                   value="@GetPixels(CurrentStyle(node).Height)"
+                   @oninput="e => SetHeight(node, e.Value?.ToString())" />
+        </div>
+        <div class="pe-property-group">
+            <label class="pe-property-label">@L["Padding"]</label>
+            <input type="number" min="0" class="w-full rounded-md"
+                   value="@GetPixels(CurrentStyle(node).Padding.BlockStart)"
+                   @oninput="e => SetUniformPadding(node, e.Value?.ToString())" />
+        </div>
+        <div class="pe-property-group">
+            <label class="pe-property-label">@L["Margin"]</label>
+            <input type="number" min="0" class="w-full rounded-md"
+                   value="@GetPixels(CurrentStyle(node).Margin.BlockStart)"
+                   @oninput="e => SetUniformMargin(node, e.Value?.ToString())" />
+        </div>
+        <div class="pe-property-group">
+            <div class="pe-property-heading-row">
+                <label class="pe-property-label">@L["Opacity"]</label>
+                <span class="text-xs text-muted-foreground">
+                    @($"{(CurrentStyle(node).Opacity ?? 1m) * 100m:0}%")
+                </span>
+            </div>
+            <input type="range" min="0" max="1" step="0.05" class="w-full"
+                   value="@(CurrentStyle(node).Opacity ?? 1m)"
+                   @oninput="e => SetOpacity(node, e.Value?.ToString())" />
+        </div>
+        </div>
+        </section>
+        <section class="pe-property-section">
+        <div class="pe-property-section-heading"><span>@L["Appearance"]</span></div>
+        @if (Supports(capabilities, EditorCapabilitySet.Foreground))
+        {
+            @ColorField("Text color", CurrentStyle(node).ForegroundColor, value => SetForegroundColor(node, value))
+        }
+        @if (Supports(capabilities, EditorCapabilitySet.Background))
+        {
+            <div class="pe-property-heading-row">
+                <span class="pe-property-label">@L["Background color"]</span>
+                <label class="pe-gradient-toggle">
+                    <input type="checkbox"
+                           checked="@(CurrentStyle(node).BackgroundGradient is { Enabled: true })"
+                           @onchange="e => ToggleBackgroundGradient(node, e.Value is true)" />
+                    <span>@L["Gradient"]</span>
+                </label>
+            </div>
+            @ColorField(null, CurrentStyle(node).BackgroundColor, value => SetBackgroundColor(node, value))
+            @ColorField(
+                "Background mask",
+                CurrentStyle(node).BackgroundOverlayColor,
+                value => SetBackgroundOverlayColor(node, value))
+            <p class="text-xs text-muted-foreground">
+                @L["Use the alpha channel to darken or tint the background without fading the content."]
+            </p>
+            @if (CurrentStyle(node).BackgroundImage is { Enabled: true } image)
+            {
+                <div class="pe-property-group">
+                    <label class="pe-property-label">@L["Background image"]</label>
+                    <input class="w-full rounded-md font-mono"
+                           value="@image.Url"
+                           readonly />
+                </div>
+                <div class="pe-property-group">
+                    <label class="pe-property-label">@L["Background size"]</label>
+                    <select class="w-full rounded-md"
+                            value="@image.Size"
+                            @onchange="e => SetBackgroundImageSize(node, e.Value?.ToString())">
+                        @foreach (var size in Enum.GetValues<BackgroundImageSize>())
+                        {
+                            <option value="@size">@L[size.ToString()]</option>
+                        }
+                    </select>
+                </div>
+                <div class="pe-property-group">
+                    <label class="pe-property-label">@L["Background position"]</label>
+                    <select class="w-full rounded-md"
+                            value="@image.Position"
+                            @onchange="e => SetBackgroundImagePosition(node, e.Value?.ToString())">
+                        @foreach (var position in Enum.GetValues<BackgroundImagePosition>())
+                        {
+                            <option value="@position">@L[BackgroundPositionLabel(position)]</option>
+                        }
+                    </select>
+                </div>
+                <div class="pe-property-group">
+                    <label class="pe-property-label">@L["Background repeat"]</label>
+                    <select class="w-full rounded-md"
+                            value="@image.Repeat"
+                            @onchange="e => SetBackgroundImageRepeat(node, e.Value?.ToString())">
+                        @foreach (var repeat in Enum.GetValues<BackgroundImageRepeat>())
+                        {
+                            <option value="@repeat">@L[BackgroundRepeatLabel(repeat)]</option>
+                        }
+                    </select>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline"
+                        @onclick="() => OpenBackgroundImageSelector(node)">
+                    @L["Change background image"]
+                </button>
+                <button type="button" class="btn btn-sm btn-outline"
+                        @onclick="() => RemoveBackgroundImage(node)">
+                    @L["Remove background image"]
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-outline"
+                        @onclick="() => OpenBackgroundImageSelector(node)">
+                    @L["Choose background image"]
+                </button>
+            }
+            @if (CurrentStyle(node).BackgroundGradient is { Enabled: true } gradient)
+            {
+                <div class="pe-gradient-editor">
+                <div class="pe-property-grid">
+                <div class="pe-property-group">
+                    <label class="pe-property-label">@L["Gradient type"]</label>
+                    <select class="w-full rounded-md"
+                            value="@gradient.Type"
+                            @onchange="e => SetGradientType(node, e.Value?.ToString())">
+                        @foreach (var type in Enum.GetValues<GradientType>())
+                        {
+                            <option value="@type">@L[type.ToString()]</option>
+                        }
+                    </select>
+                </div>
+                @if (gradient.Type == GradientType.Linear)
+                {
+                    <div class="pe-property-group">
+                        <label class="pe-property-label">@L["Direction"]</label>
+                        <select class="w-full rounded-md"
+                                value="@gradient.Angle"
+                                @onchange="e => SetGradientAngle(node, e.Value?.ToString())">
+                            @foreach (var direction in GradientDirections)
+                            {
+                                <option value="@direction.Angle">@L[direction.Label]</option>
+                            }
+                        </select>
+                    </div>
+                }
+                else
+                {
+                    <div class="pe-property-group">
+                        <label class="pe-property-label">@L["Shape"]</label>
+                        <select class="w-full rounded-md"
+                                value="@gradient.RadialShape"
+                                @onchange="e => SetGradientShape(node, e.Value?.ToString())">
+                            @foreach (var shape in Enum.GetValues<RadialGradientShape>())
+                            {
+                                <option value="@shape">@L[shape.ToString()]</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="pe-property-group">
+                        <label class="pe-property-label">@L["Origin"]</label>
+                        <select class="w-full rounded-md"
+                                value="@gradient.RadialPosition"
+                                @onchange="e => SetGradientPosition(node, e.Value?.ToString())">
+                            @foreach (var position in Enum.GetValues<RadialGradientPosition>())
+                            {
+                                <option value="@position">@L[GradientPositionLabel(position)]</option>
+                            }
+                        </select>
+                    </div>
+                }
+                </div>
+                @ColorField("Gradient start", gradient.StartColor, value => SetGradientStart(node, value))
+                @ColorField("Gradient end", gradient.EndColor, value => SetGradientEnd(node, value))
+                <div class="pe-property-grid">
+                    @RangeField("Start position", gradient.StartPosition, value => SetGradientStartPosition(node, value))
+                    @RangeField("End position", gradient.EndPosition, value => SetGradientEndPosition(node, value))
+                </div>
+                </div>
+            }
+        }
+        @if (Supports(capabilities, EditorCapabilitySet.Border))
+        {
+            @ColorField("Border color", CurrentStyle(node).BorderColor, value => SetBorderColor(node, value))
+            @PixelField("Border width", CurrentStyle(node).BorderWidth, value => SetBorderWidth(node, value))
+            @PixelField("Border radius", CurrentStyle(node).BorderRadius, value => SetBorderRadius(node, value))
+        }
+        @if (Supports(capabilities, EditorCapabilitySet.Typography))
+        {
+            @PixelField("Font size", CurrentStyle(node).FontSize, value => SetFontSize(node, value))
+            <div class="pe-property-group">
+                <label class="pe-property-label">@L["Font weight"]</label>
+                <select class="w-full rounded-md"
+                        value="@CurrentStyle(node).FontWeight"
+                        @onchange="e => SetFontWeight(node, e.Value?.ToString())">
+                    @foreach (var weight in Enum.GetValues<FontWeight>())
+                    {
+                        <option value="@weight">@L[weight.ToString()]</option>
+                    }
+                </select>
+            </div>
+            <div class="pe-property-group">
+                <label class="pe-property-label">@L["Line height"]</label>
+                <input type="number" min="0.5" max="5" step="0.1"
+                       class="w-full rounded-md"
+                       value="@CurrentStyle(node).LineHeight"
+                       @oninput="e => SetLineHeight(node, e.Value?.ToString())" />
+            </div>
+            @PixelField("Letter spacing", CurrentStyle(node).LetterSpacing, value => SetLetterSpacing(node, value))
+        }
+        @if (Supports(capabilities, EditorCapabilitySet.Alignment))
+        {
+            <div class="pe-property-group">
+                <label class="pe-property-label">@L["Text alignment"]</label>
+                <select class="w-full rounded-md"
+                        value="@CurrentStyle(node).TextAlignment"
+                        @onchange="e => SetTextAlignment(node, e.Value?.ToString())">
+                    @foreach (var alignment in Enum.GetValues<TextAlignment>())
+                    {
+                        <option value="@alignment">@L[alignment.ToString()]</option>
+                    }
+                </select>
+            </div>
+        }
+        @if (Supports(capabilities, EditorCapabilitySet.Effects))
+        {
+            @if (CurrentStyle(node).Shadow is { Enabled: true } shadow)
+            {
+                @NumberField("Shadow horizontal offset", shadow.OffsetX, -200m, 200m, value => SetShadowNumber(node, value, ShadowValue.OffsetX))
+                @NumberField("Shadow vertical offset", shadow.OffsetY, -200m, 200m, value => SetShadowNumber(node, value, ShadowValue.OffsetY))
+                @NumberField("Shadow blur", shadow.Blur, 0m, 200m, value => SetShadowNumber(node, value, ShadowValue.Blur))
+                @NumberField("Shadow spread", shadow.Spread, -100m, 100m, value => SetShadowNumber(node, value, ShadowValue.Spread))
+                @ColorField("Shadow color", shadow.Color, value => SetShadowColor(node, value))
+                <button type="button" class="btn btn-sm btn-outline"
+                        @onclick="() => RemoveShadow(node)">
+                    @L["Remove shadow"]
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-outline"
+                        @onclick="() => SetShadow(node, new BoxShadow())">
+                    @L["Add shadow"]
+                </button>
+            }
+        }
+        </section>
+    </div>;
+
+    private RenderFragment NativeAdvancedPanel(
+        EditorCapabilitySet capabilities,
+        NeoPageNode node) => @<div class="pe-property-panel pe-advanced-panel">
+        <div class="pe-property-intro">
+            <strong>@L["Advanced behavior"]</strong>
+            <span>@L["Control direction and responsive visibility. Technical identifiers are available below when needed."]</span>
+        </div>
+        <section class="pe-property-section">
+        <div class="pe-property-group">
+            <label class="pe-property-label">@L["Direction"]</label>
+            <select class="w-full rounded-md"
+                    value="@CurrentStyle(node).Direction"
+                    @onchange="e => SetDirection(node, e.Value?.ToString())">
+                <option value="@ContentDirection.Inherit">@L["Inherit"]</option>
+                <option value="@ContentDirection.LeftToRight">@L["Left to right"]</option>
+                <option value="@ContentDirection.RightToLeft">@L["Right to left"]</option>
+            </select>
+        </div>
+        @if (Supports(capabilities, EditorCapabilitySet.Visibility))
+        {
+            <div class="pe-property-group">
+                <label class="pe-field-label" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox"
+                           checked="@CurrentStyle(node).Hidden"
+                           @onchange="e => SetHidden(node, e.Value is true)" />
+                    @L["Hide at this breakpoint"]
+                </label>
+            </div>
+        }
+        <p class="text-xs text-muted-foreground">
+            @L["Responsive tablet and mobile overrides will inherit from desktop until explicitly set."]
+        </p>
+        </section>
+        <details class="pe-technical-details">
+            <summary>@L["Technical details"]</summary>
+            <div class="pe-property-group">
+                <label class="pe-property-label">@L["Catalog ID"]</label>
+                <input class="w-full rounded-md font-mono" value="@node.CatalogId" readonly />
+            </div>
+            <div class="pe-property-group">
+                <label class="pe-property-label">@L["Node ID"]</label>
+                <input class="w-full rounded-md font-mono" value="@node.NodeId" readonly />
+            </div>
+        </details>
+    </div>;
+
+    private static decimal? GetPixels(CssLength? length) =>
+        length is { Unit: CssLengthUnit.Pixels } ? length.Value.Value : null;
+
+    private RenderFragment ColorField(
+        string? label,
+        CssColor? value,
+        Action<string?> setValue) => @<div class="pe-property-group">
+        @if (!string.IsNullOrWhiteSpace(label))
+        {
+            <label class="pe-property-label">@L[label]</label>
+        }
+        <ColorPicker Color="@ToRgba(value)"
+                     ColorChanged="value => setValue(value)"
+                     Format="ColorFormat.RGB"
+                     ShowAlpha="true"
+                     ShowInputs="true"
+                     ShowPresets="true"
+                     Class="pe-color-picker" />
+    </div>;
+
+    private RenderFragment RangeField(
+        string label,
+        decimal value,
+        Action<string?> setValue) => @<div class="pe-property-group">
+        <div class="pe-property-heading-row">
+            <label class="pe-property-label">@L[label]</label>
+            <span class="pe-property-value">@value.ToString("0")%</span>
+        </div>
+        <input type="range" min="0" max="100" step="1" class="w-full"
+               value="@value"
+               @oninput="e => setValue(e.Value?.ToString())" />
+    </div>;
+
+    private RenderFragment PixelField(
+        string label,
+        CssLength? value,
+        Action<string?> setValue) => @<div class="pe-property-group">
+        <label class="pe-property-label">@L[label]</label>
+        <input type="number"
+               min="0"
+               class="w-full rounded-md"
+               value="@GetPixels(value)"
+               @oninput="e => setValue(e.Value?.ToString())" />
+    </div>;
+
+    private RenderFragment NumberField(
+        string label,
+        decimal value,
+        decimal minimum,
+        decimal maximum,
+        Action<string?> setValue) => @<div class="pe-property-group">
+        <label class="pe-property-label">@L[label]</label>
+        <input type="number"
+               min="@minimum"
+               max="@maximum"
+               step="1"
+               class="w-full rounded-md"
+               value="@value"
+               @oninput="e => setValue(e.Value?.ToString())" />
+    </div>;
+
+    private EditorBreakpoint _styleBreakpoint = EditorBreakpoint.Desktop;
+
+    private NodeStyle CurrentStyle(NeoPageNode node) =>
+        node.Style.Resolve(_styleBreakpoint);
+
+    private static bool HasOverride(
+        NeoPageNode node,
+        EditorBreakpoint breakpoint) =>
+        breakpoint switch
+        {
+            EditorBreakpoint.Tablet => node.Style.Tablet is not null,
+            EditorBreakpoint.Mobile => node.Style.Mobile is not null,
+            _ => true
+        };
+
+    private void ResetBreakpoint(NeoPageNode node)
+    {
+        switch (_styleBreakpoint)
+        {
+            case EditorBreakpoint.Tablet:
+                node.Style.Tablet = null;
+                break;
+            case EditorBreakpoint.Mobile:
+                node.Style.Mobile = null;
+                break;
+        }
+
+        NotifyChanged();
+    }
+
+    private void SetWidth(NeoPageNode node, string? value)
+    {
+        SetStyleValue(
+            node,
+            style => style with { Width = ParsePixels(value) },
+            style => style with { Width = ParsePixels(value) });
+        NotifyChanged();
+    }
+
+    private void SetHeight(NeoPageNode node, string? value)
+    {
+        SetStyleValue(
+            node,
+            style => style with { Height = ParsePixels(value) },
+            style => style with { Height = ParsePixels(value) });
+        NotifyChanged();
+    }
+
+    private void SetUniformPadding(NeoPageNode node, string? value)
+    {
+        var length = ParsePixels(value);
+        SetStyleValue(
+            node,
+            style => style with
+            {
+                Padding = UniformSpacing(length)
+            },
+            style => style with
+            {
+                Padding = UniformSpacingOverride(length)
+            });
+        NotifyChanged();
+    }
+
+    private void SetUniformMargin(NeoPageNode node, string? value)
+    {
+        var length = ParsePixels(value);
+        SetStyleValue(
+            node,
+            style => style with
+            {
+                Margin = UniformSpacing(length)
+            },
+            style => style with
+            {
+                Margin = UniformSpacingOverride(length)
+            });
+        NotifyChanged();
+    }
+
+    private void SetOpacity(NeoPageNode node, string? value)
+    {
+        if (decimal.TryParse(
+                value,
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var opacity))
+        {
+            var next = Math.Clamp(opacity, 0m, 1m);
+            SetStyleValue(
+                node,
+                style => style with { Opacity = next },
+                style => style with { Opacity = next });
+            NotifyChanged();
+        }
+    }
+
+    private void SetDirection(NeoPageNode node, string? value)
+    {
+        if (Enum.TryParse<ContentDirection>(value, out var direction))
+        {
+            SetStyleValue(
+                node,
+                style => style with { Direction = direction },
+                style => style with { Direction = direction });
+            NotifyChanged();
+        }
+    }
+
+    private void SetForegroundColor(NeoPageNode node, string? value) =>
+        SetColor(
+            node,
+            value,
+            (style, color) => style with { ForegroundColor = color },
+            (style, color) => style with { ForegroundColor = color });
+
+    private void SetBackgroundColor(NeoPageNode node, string? value) =>
+        SetColor(
+            node,
+            value,
+            (style, color) => style with { BackgroundColor = color },
+            (style, color) => style with { BackgroundColor = color });
+
+    private void SetBackgroundOverlayColor(NeoPageNode node, string? value) =>
+        SetColor(
+            node,
+            value,
+            (style, color) => style with { BackgroundOverlayColor = color },
+            (style, color) => style with { BackgroundOverlayColor = color });
+
+    private void RemoveBackgroundImage(NeoPageNode node) =>
+        SetBackgroundImage(
+            node,
+            new BackgroundImageStyle { Enabled = false });
+
+    private void OpenBackgroundImageSelector(NeoPageNode node)
+    {
+        if (Block is not null)
+        {
+            Editor?.OpenNodeMediaSelector(
+                Block,
+                node.NodeId,
+                "background-image",
+                _styleBreakpoint);
+        }
+    }
+
+    private void SetBackgroundImageSize(NeoPageNode node, string? value)
+    {
+        var image = CurrentStyle(node).BackgroundImage;
+        if (image is not null &&
+            Enum.TryParse<BackgroundImageSize>(value, out var size))
+        {
+            SetBackgroundImage(node, image with { Size = size });
+        }
+    }
+
+    private void SetBackgroundImagePosition(NeoPageNode node, string? value)
+    {
+        var image = CurrentStyle(node).BackgroundImage;
+        if (image is not null &&
+            Enum.TryParse<BackgroundImagePosition>(value, out var position))
+        {
+            SetBackgroundImage(node, image with { Position = position });
+        }
+    }
+
+    private void SetBackgroundImageRepeat(NeoPageNode node, string? value)
+    {
+        var image = CurrentStyle(node).BackgroundImage;
+        if (image is not null &&
+            Enum.TryParse<BackgroundImageRepeat>(value, out var repeat))
+        {
+            SetBackgroundImage(node, image with { Repeat = repeat });
+        }
+    }
+
+    private static string BackgroundRepeatLabel(BackgroundImageRepeat repeat) =>
+        repeat switch
+        {
+            BackgroundImageRepeat.NoRepeat => "No repeat",
+            BackgroundImageRepeat.Repeat => "Repeat",
+            BackgroundImageRepeat.RepeatX => "Repeat horizontally",
+            BackgroundImageRepeat.RepeatY => "Repeat vertically",
+            _ => repeat.ToString()
+        };
+
+    private static string BackgroundPositionLabel(
+        BackgroundImagePosition position) =>
+        position switch
+        {
+            BackgroundImagePosition.BlockStartInlineStart => "Top start",
+            BackgroundImagePosition.BlockStartCenter => "Top center",
+            BackgroundImagePosition.BlockStartInlineEnd => "Top end",
+            BackgroundImagePosition.CenterInlineStart => "Center start",
+            BackgroundImagePosition.Center => "Center",
+            BackgroundImagePosition.CenterInlineEnd => "Center end",
+            BackgroundImagePosition.BlockEndInlineStart => "Bottom start",
+            BackgroundImagePosition.BlockEndCenter => "Bottom center",
+            BackgroundImagePosition.BlockEndInlineEnd => "Bottom end",
+            _ => "Center"
+        };
+
+    private void SetBackgroundImage(
+        NeoPageNode node,
+        BackgroundImageStyle image)
+    {
+        SetStyleValue(
+            node,
+            style => style with { BackgroundImage = image },
+            style => style with { BackgroundImage = image });
+        NotifyChanged();
+    }
+
+    private void AddBackgroundGradient(NeoPageNode node) =>
+        SetBackgroundGradient(
+            node,
+            new LinearGradient
+            {
+                Angle = 135m,
+                StartColor = CurrentStyle(node).BackgroundColor ?? new CssColor("#ffffff"),
+                EndColor = new CssColor("#000000")
+            });
+
+    private void RemoveBackgroundGradient(NeoPageNode node) =>
+        SetBackgroundGradient(node, new LinearGradient { Enabled = false });
+
+    private void ToggleBackgroundGradient(NeoPageNode node, bool enabled)
+    {
+        if (enabled)
+        {
+            AddBackgroundGradient(node);
+        }
+        else
+        {
+            RemoveBackgroundGradient(node);
+        }
+    }
+
+    private void SetGradientType(NeoPageNode node, string? value)
+    {
+        var gradient = CurrentStyle(node).BackgroundGradient;
+        if (gradient is not null &&
+            Enum.TryParse<GradientType>(value, out var type))
+        {
+            SetBackgroundGradient(node, gradient with { Type = type });
+        }
+    }
+
+    private void SetGradientShape(NeoPageNode node, string? value)
+    {
+        var gradient = CurrentStyle(node).BackgroundGradient;
+        if (gradient is not null &&
+            Enum.TryParse<RadialGradientShape>(value, out var shape))
+        {
+            SetBackgroundGradient(node, gradient with { RadialShape = shape });
+        }
+    }
+
+    private void SetGradientPosition(NeoPageNode node, string? value)
+    {
+        var gradient = CurrentStyle(node).BackgroundGradient;
+        if (gradient is not null &&
+            Enum.TryParse<RadialGradientPosition>(value, out var position))
+        {
+            SetBackgroundGradient(node, gradient with { RadialPosition = position });
+        }
+    }
+
+    private void SetGradientStart(NeoPageNode node, string? value)
+    {
+        var gradient = CurrentStyle(node).BackgroundGradient;
+        var color = ParseColor(value);
+        if (gradient is not null && color is not null)
+        {
+            SetBackgroundGradient(node, gradient with { StartColor = color.Value });
+        }
+    }
+
+    private void SetGradientEnd(NeoPageNode node, string? value)
+    {
+        var gradient = CurrentStyle(node).BackgroundGradient;
+        var color = ParseColor(value);
+        if (gradient is not null && color is not null)
+        {
+            SetBackgroundGradient(node, gradient with { EndColor = color.Value });
+        }
+    }
+
+    private void SetGradientAngle(NeoPageNode node, string? value)
+    {
+        var gradient = CurrentStyle(node).BackgroundGradient;
+        if (gradient is not null &&
+            decimal.TryParse(
+                value,
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var angle))
+        {
+            SetBackgroundGradient(
+                node,
+                gradient with { Angle = Math.Clamp(angle, 0m, 360m) });
+        }
+    }
+
+    private void SetGradientStartPosition(NeoPageNode node, string? value) =>
+        SetGradientStopPosition(node, value, true);
+
+    private void SetGradientEndPosition(NeoPageNode node, string? value) =>
+        SetGradientStopPosition(node, value, false);
+
+    private void SetGradientStopPosition(
+        NeoPageNode node,
+        string? value,
+        bool isStart)
+    {
+        var gradient = CurrentStyle(node).BackgroundGradient;
+        if (gradient is null ||
+            !decimal.TryParse(
+                value,
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var position))
+        {
+            return;
+        }
+
+        position = Math.Clamp(position, 0m, 100m);
+        SetBackgroundGradient(
+            node,
+            isStart
+                ? gradient with
+                {
+                    StartPosition = Math.Min(position, gradient.EndPosition)
+                }
+                : gradient with
+                {
+                    EndPosition = Math.Max(position, gradient.StartPosition)
+                });
+    }
+
+    private void SetBackgroundGradient(
+        NeoPageNode node,
+        LinearGradient? gradient)
+    {
+        SetStyleValue(
+            node,
+            style => style with { BackgroundGradient = gradient },
+            style => style with { BackgroundGradient = gradient });
+        NotifyChanged();
+    }
+
+    private void SetBorderColor(NeoPageNode node, string? value) =>
+        SetColor(
+            node,
+            value,
+            (style, color) => style with { BorderColor = color },
+            (style, color) => style with { BorderColor = color });
+
+    private void RemoveShadow(NeoPageNode node) =>
+        SetShadow(node, new BoxShadow { Enabled = false });
+
+    private void SetShadowColor(NeoPageNode node, string? value)
+    {
+        var shadow = CurrentStyle(node).Shadow;
+        var color = ParseColor(value);
+        if (shadow is not null && color is not null)
+        {
+            SetShadow(node, shadow with { Color = color.Value });
+        }
+    }
+
+    private void SetShadowNumber(
+        NeoPageNode node,
+        string? value,
+        ShadowValue property)
+    {
+        var shadow = CurrentStyle(node).Shadow;
+        if (shadow is null ||
+            !decimal.TryParse(
+                value,
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var number))
+        {
+            return;
+        }
+
+        var updated = property switch
+        {
+            ShadowValue.OffsetX => shadow with
+            {
+                OffsetX = Math.Clamp(number, -200m, 200m)
+            },
+            ShadowValue.OffsetY => shadow with
+            {
+                OffsetY = Math.Clamp(number, -200m, 200m)
+            },
+            ShadowValue.Blur => shadow with
+            {
+                Blur = Math.Clamp(number, 0m, 200m)
+            },
+            ShadowValue.Spread => shadow with
+            {
+                Spread = Math.Clamp(number, -100m, 100m)
+            },
+            _ => shadow
+        };
+
+        SetShadow(node, updated);
+    }
+
+    private void SetShadow(NeoPageNode node, BoxShadow shadow)
+    {
+        SetStyleValue(
+            node,
+            style => style with { Shadow = shadow },
+            style => style with { Shadow = shadow });
+        NotifyChanged();
+    }
+
+    private enum ShadowValue
+    {
+        OffsetX,
+        OffsetY,
+        Blur,
+        Spread
+    }
+
+    private void SetBorderWidth(NeoPageNode node, string? value) =>
+        SetLength(
+            node,
+            value,
+            (style, length) => style with { BorderWidth = length },
+            (style, length) => style with { BorderWidth = length });
+
+    private void SetBorderRadius(NeoPageNode node, string? value) =>
+        SetLength(
+            node,
+            value,
+            (style, length) => style with { BorderRadius = length },
+            (style, length) => style with { BorderRadius = length });
+
+    private void SetFontSize(NeoPageNode node, string? value) =>
+        SetLength(
+            node,
+            value,
+            (style, length) => style with { FontSize = length },
+            (style, length) => style with { FontSize = length });
+
+    private void SetLetterSpacing(NeoPageNode node, string? value) =>
+        SetLength(
+            node,
+            value,
+            (style, length) => style with { LetterSpacing = length },
+            (style, length) => style with { LetterSpacing = length });
+
+    private void SetFontWeight(NeoPageNode node, string? value)
+    {
+        if (Enum.TryParse<FontWeight>(value, out var weight))
+        {
+            SetStyleValue(
+                node,
+                style => style with { FontWeight = weight },
+                style => style with { FontWeight = weight });
+            NotifyChanged();
+        }
+    }
+
+    private void SetLineHeight(NeoPageNode node, string? value)
+    {
+        if (decimal.TryParse(
+                value,
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var lineHeight))
+        {
+            var next = Math.Clamp(lineHeight, 0.5m, 5m);
+            SetStyleValue(
+                node,
+                style => style with { LineHeight = next },
+                style => style with { LineHeight = next });
+            NotifyChanged();
+        }
+    }
+
+    private void SetTextAlignment(NeoPageNode node, string? value)
+    {
+        if (Enum.TryParse<TextAlignment>(value, out var alignment))
+        {
+            SetStyleValue(
+                node,
+                style => style with { TextAlignment = alignment },
+                style => style with { TextAlignment = alignment });
+            NotifyChanged();
+        }
+    }
+
+    private void SetHidden(NeoPageNode node, bool hidden)
+    {
+        SetStyleValue(
+            node,
+            style => style with { Hidden = hidden },
+            style => style with { Hidden = hidden });
+        NotifyChanged();
+    }
+
+    private void SetColor(
+        NeoPageNode node,
+        string? value,
+        Func<NodeStyle, CssColor?, NodeStyle> updateBase,
+        Func<NodeStyleOverride, CssColor?, NodeStyleOverride> updateOverride)
+    {
+        var color = ParseColor(value);
+        SetStyleValue(
+            node,
+            style => updateBase(style, color),
+            style => updateOverride(style, color));
+        NotifyChanged();
+    }
+
+    private void SetLength(
+        NeoPageNode node,
+        string? value,
+        Func<NodeStyle, CssLength?, NodeStyle> updateBase,
+        Func<NodeStyleOverride, CssLength?, NodeStyleOverride> updateOverride)
+    {
+        var length = ParsePixels(value);
+        SetStyleValue(
+            node,
+            style => updateBase(style, length),
+            style => updateOverride(style, length));
+        NotifyChanged();
+    }
+
+    private void SetStyleValue(
+        NeoPageNode node,
+        Func<NodeStyle, NodeStyle> updateBase,
+        Func<NodeStyleOverride, NodeStyleOverride> updateOverride)
+    {
+        switch (_styleBreakpoint)
+        {
+            case EditorBreakpoint.Desktop:
+                node.Style.Base = updateBase(node.Style.Base);
+                break;
+            case EditorBreakpoint.Tablet:
+                node.Style.Tablet = updateOverride(node.Style.Tablet ?? new());
+                break;
+            case EditorBreakpoint.Mobile:
+                node.Style.Mobile = updateOverride(node.Style.Mobile ?? new());
+                break;
+        }
+    }
+
+    private static LogicalSpacing UniformSpacing(CssLength? length) =>
+        new()
+        {
+            BlockStart = length,
+            BlockEnd = length,
+            InlineStart = length,
+            InlineEnd = length
+        };
+
+    private static LogicalSpacingOverride UniformSpacingOverride(CssLength? length) =>
+        new()
+        {
+            BlockStart = length,
+            BlockEnd = length,
+            InlineStart = length,
+            InlineEnd = length
+        };
+
+    private static CssLength? ParsePixels(string? value) =>
+        decimal.TryParse(
+            value,
+            System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var pixels)
+            ? new CssLength(Math.Max(0, pixels), CssLengthUnit.Pixels)
+            : null;
+
+    private static CssColor? ParseColor(string? value)
+    {
+        var normalized = value?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        var color = new CssColor(normalized);
+        return CssColorValidator.IsValid(color) ? color : null;
+    }
+
+    private static string ToRgba(CssColor? color) =>
+        color?.Value ?? "rgba(0, 0, 0, 1.00)";
+
+    private static string GradientPositionLabel(RadialGradientPosition position) =>
+        position switch
+        {
+            RadialGradientPosition.TopRight => "Top right",
+            RadialGradientPosition.BottomRight => "Bottom right",
+            RadialGradientPosition.BottomLeft => "Bottom left",
+            RadialGradientPosition.TopLeft => "Top left",
+            _ => position.ToString()
+        };
+
+    private static readonly (decimal Angle, string Label)[] GradientDirections =
+    [
+        (0m, "Bottom to top"),
+        (45m, "Bottom left to top right"),
+        (90m, "Left to right"),
+        (135m, "Top left to bottom right"),
+        (180m, "Top to bottom"),
+        (225m, "Top right to bottom left"),
+        (270m, "Right to left"),
+        (315m, "Bottom right to top left")
+    ];
+
+    private static bool Supports(
+        EditorCapabilitySet capabilities,
+        EditorCapabilitySet capability) =>
+        capabilities.HasFlag(capability);
+
+    private static readonly EditorCapabilitySet CannedBlockCapabilities =
+        EditorCapabilitySet.Typography |
+        EditorCapabilitySet.Spacing |
+        EditorCapabilitySet.Dimensions |
+        EditorCapabilitySet.Alignment |
+        EditorCapabilitySet.Foreground |
+        EditorCapabilitySet.Background |
+        EditorCapabilitySet.Border |
+        EditorCapabilitySet.Effects |
+        EditorCapabilitySet.Visibility |
+        EditorCapabilitySet.Direction;
+
+    private NeoPageNode CannedStyleNode() =>
+        new()
+        {
+            NodeId = Block?.EditorId ?? string.Empty,
+            CatalogId = Block?.Type ?? string.Empty,
+            Kind = NeoPageNodeKind.Block,
+            Style = Block?.Style ?? new()
+        };
+
+    private string GetCompositionString(string propertyName)
+    {
+        var node = Block?.CompositionNodes.FirstOrDefault();
+        return node is not null &&
+               node.Properties.TryGetValue(propertyName, out var value) &&
+               value.ValueKind == System.Text.Json.JsonValueKind.String
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+    }
+
+    private void SetCompositionString(string propertyName, string value)
+    {
+        var node = Block?.CompositionNodes.FirstOrDefault();
+        if (node is null)
+        {
+            return;
+        }
+
+        node.Properties[propertyName] =
+            System.Text.Json.JsonSerializer.SerializeToElement(value);
+    }
 }

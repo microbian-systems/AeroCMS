@@ -1,4 +1,7 @@
 using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Editor;
+using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 
 namespace Aero.Cms.Abstractions.Blocks;
 
@@ -13,6 +16,7 @@ public class EditorBlock
     // Guid is sufficient here — avoids AOT issues with Process.GetCurrentProcess() in Snowflake.
     public string EditorId { get; set; } = Guid.NewGuid().ToString();
     public string Type     { get; set; } = string.Empty;
+    public ResponsiveNodeStyle Style { get; set; } = new();
 
     // Hero / Aero Hero
     public string Title           { get; set; } = string.Empty;
@@ -51,6 +55,7 @@ public class EditorBlock
 
     // Columns
     public int                ColumnCount   { get; set; } = 2;
+    public int                RowCount      { get; set; } = 1;
     public int                Gap           { get; set; } = 16;
     public List<EditorColumn> EditorColumns { get; set; } = [];
 
@@ -84,10 +89,17 @@ public class EditorBlock
     // Reference blocks
     public string SelectedReferenceId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Node-native composition content transported by the legacy top-level canvas.
+    /// Remove this bridge when the canvas stores NeoPageNode trees directly.
+    /// </summary>
+    public List<NeoPageNode> CompositionNodes { get; set; } = [];
+
     public EditorBlock DeepClone()
     {
         var copy = (EditorBlock)MemberwiseClone();
         copy.EditorId = Guid.NewGuid().ToString();
+        copy.Style = Style.DeepClone();
         copy.Title = Title;
         copy.TrustMarkers = TrustMarkers.ToList();
         copy.AlternativeLinkText = AlternativeLinkText;
@@ -110,6 +122,18 @@ public class EditorBlock
         copy.ContactDetails = ContactDetails.Select(c => new AeroContactDetail { Label = c.Label, Value = c.Value, Icon = c.Icon }).ToList();
         copy.TableHeaders = TableHeaders.Select(h => new AeroTableHeader { Label = h.Label }).ToList();
         copy.TableRows = TableRows.Select(r => new AeroTableRow { Cells = r.Cells.ToList() }).ToList();
+        copy.CompositionNodes = CompositionNodes
+            .Select(node => EditorNodeMemento.Capture(node).Restore())
+            .ToList();
+        return copy;
+    }
+
+    public EditorBlock CreateClipboardClone()
+    {
+        var copy = DeepClone();
+        copy.CompositionNodes = CompositionNodes
+            .Select(CustomComponentTemplate.CreateInstance)
+            .ToList();
         return copy;
     }
 }

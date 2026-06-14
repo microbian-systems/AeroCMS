@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
@@ -25,6 +26,9 @@ public abstract partial class BlockBase : Entity, IBlock
     /// </summary>
     [JsonPropertyName("order")]
     public int Order { get; set; }
+
+    [JsonPropertyName("responsiveStyle")]
+    public ResponsiveNodeStyle ResponsiveStyle { get; set; } = new();
 
     /// <summary>
     /// Accepts a visitor for rendering the block.

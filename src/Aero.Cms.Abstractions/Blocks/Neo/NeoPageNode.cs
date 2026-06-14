@@ -1,5 +1,7 @@
 namespace Aero.Cms.Abstractions.Blocks.Neo;
 
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
+
 /// <summary>
 /// A node in the Neo editor composition tree.
 /// Persisted inside <see cref="NeoCompositionBlock"/>.
@@ -29,6 +31,11 @@ public sealed class NeoPageNode
     /// Uses <c>Dictionary&lt;string, JsonElement&gt;</c> for reliable serialization.
     /// </summary>
     public Dictionary<string, JsonElement> Properties { get; set; } = [];
+
+    /// <summary>
+    /// Typed responsive styles shared by all node definitions.
+    /// </summary>
+    public ResponsiveNodeStyle Style { get; set; } = new();
 
     /// <summary>
     /// Child nodes for composition-capable nodes (Container, Component, Primitive).
