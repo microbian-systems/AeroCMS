@@ -12,7 +12,7 @@
         {
             var span = Math.Clamp(item.Span, 1, 12);
             <div class="col-span-@span">
-                @((MarkupString)item.Content)
+                @((MarkupString)item.Content.Replace("\r\n", "<br>").Replace("\n", "<br>").Replace("\r", "<br>"))
             </div>
         }
         </div>

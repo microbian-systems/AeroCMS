@@ -1,14 +1,33 @@
 window.PageEditorShortcuts = (() => {
     let handler;
+    let editableGuard;
+    const guardedEditableTargets = new WeakSet();
 
     function isEditableTarget(target) {
-        return target instanceof HTMLElement &&
-            (target.isContentEditable ||
-                target.matches("input, textarea, select, [role='textbox']"));
+        if (!(target instanceof HTMLElement)) {
+            return false;
+        }
+
+        return Boolean(target.closest(
+            "input, textarea, select, [contenteditable='true'], [role='textbox'], [data-editor-text-input='true']"));
     }
 
     function register(dotNetRef) {
         unregister();
+        editableGuard = event => {
+            const target = event.target instanceof HTMLElement
+                ? event.target.closest(
+                    "input, textarea, select, [contenteditable='true'], [role='textbox'], [data-editor-text-input='true']")
+                : undefined;
+
+            if (target instanceof HTMLElement && !guardedEditableTargets.has(target)) {
+                target.addEventListener("keydown", keyEvent => keyEvent.stopPropagation());
+                guardedEditableTargets.add(target);
+            }
+        };
+
+        document.addEventListener("focusin", editableGuard, true);
+
         handler = event => {
             if (isEditableTarget(event.target)) {
                 return;
@@ -38,6 +57,11 @@ window.PageEditorShortcuts = (() => {
     }
 
     function unregister() {
+        if (editableGuard) {
+            document.removeEventListener("focusin", editableGuard, true);
+            editableGuard = undefined;
+        }
+
         if (handler) {
             document.removeEventListener("keydown", handler, true);
             handler = undefined;

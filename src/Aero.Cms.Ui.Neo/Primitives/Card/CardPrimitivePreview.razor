@@ -1,6 +1,7 @@
 <article class="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
     <SortableCompositionSurface Node="Node"
                                 RootNode="RootNode"
+                                OwnerBlock="OwnerBlock"
                                 NodeChanged="NodeChanged"
                                 NodeEditRequested="NodeEditRequested"
                                 DropRejected="DropRejected"
@@ -16,6 +17,9 @@
 
     [Parameter]
     public NeoPageNode? RootNode { get; set; }
+
+    [Parameter]
+    public EditorBlock? OwnerBlock { get; set; }
 
     [Parameter]
     public EventCallback<CompositionMutation> NodeChanged { get; set; }

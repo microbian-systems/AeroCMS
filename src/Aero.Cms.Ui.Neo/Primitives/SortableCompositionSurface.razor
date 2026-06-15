@@ -1,4 +1,6 @@
 @inject IEnumerable<IPageEditorDefinitionProvider> DefinitionProviders
+@namespace Aero.Cms.Ui.Neo.Primitives
+@using Aero.Cms.Shared.Pages.Manager.PageEditor
 
 <Sortable TItem="NeoPageNode"
           Items="Node.Children"
@@ -16,7 +18,7 @@
         @foreach (var child in Node.Children)
         {
             <SortableItemPrimitive Value="@child.NodeId">
-                <div class="relative @(SelectedNodeId == child.NodeId ? "ring-2 ring-primary rounded-md" : "")"
+                <div class="neo-composition-child relative @(SelectedNodeId == child.NodeId ? "is-selected ring-2 ring-primary rounded-md" : "")"
                      style="@NodeStyleCssRenderer.Render(child.Style, Breakpoint)"
                      @onclick:stopPropagation="true"
                      @onclick="() => SelectNode(child.NodeId)"
@@ -25,32 +27,75 @@
                      @oncontextmenu:preventDefault="true"
                      @oncontextmenu:stopPropagation="true"
                      @oncontextmenu="() => SelectNode(child.NodeId)">
-                    @if (SelectedNodeId == child.NodeId)
+                    @if (IsTextPrimitive(child))
                     {
-                        <div class="absolute right-1 top-1 z-20 flex gap-1 rounded-md border bg-background p-1 shadow">
-                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
-                                    @onclick:stopPropagation="true"
-                                    @onclick="() => RequestEdit(child.NodeId)">Edit</button>
-                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
-                                    @onclick:stopPropagation="true"
-                                    @onclick="() => DuplicateNode(child.NodeId)">Duplicate</button>
-                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
-                                    @onclick:stopPropagation="true"
-                                    @onclick="() => CopyNode(child.NodeId)">Copy</button>
-                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
-                                    disabled="@(_nodeClipboard is null)"
-                                    @onclick:stopPropagation="true"
-                                    @onclick="() => PasteNodeAfter(child.NodeId)">Paste</button>
-                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
-                                    @onclick:stopPropagation="true"
-                                    @onclick="() => DeleteNode(child.NodeId)">Delete</button>
-                        </div>
+                        <input class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+                               value="@GetPropertyString(child, "text")"
+                               aria-label="Text primitive content"
+                               @onclick:stopPropagation="true"
+                               @ondblclick:stopPropagation="true"
+                               @onpointerdown:stopPropagation="true"
+                               @onmousedown:stopPropagation="true"
+                               @onkeydown:stopPropagation="true"
+                               @oninput="e => UpdateTextNode(child, e.Value?.ToString() ?? string.Empty)" />
                     }
-                    @if (TryGetDefinition(child.CatalogId, out var definition) &&
+                    else if (TryGetDefinition(child.CatalogId, out var definition) &&
                         definition.Catalog.PreviewComponentType is { } previewType)
                     {
                         <DynamicComponent Type="previewType"
                                           Parameters="NodeParameters(child, definition)" />
+                    }
+                    @if (SelectedNodeId == child.NodeId)
+                    {
+                        <div class="absolute right-2 top-2 z-50 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 p-1 text-white shadow-xl"
+                             @onclick:stopPropagation="true"
+                             @ondblclick:stopPropagation="true"
+                             @onpointerdown:stopPropagation="true"
+                             @onmousedown:stopPropagation="true"
+                             @oncontextmenu:preventDefault="true"
+                             @oncontextmenu:stopPropagation="true">
+                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none"
+                                    title="Edit"
+                                    aria-label="Edit primitive"
+                                    @onclick:stopPropagation="true"
+                                    @onclick:preventDefault="true"
+                                    @onpointerdown:stopPropagation="true"
+                                    @onmousedown:stopPropagation="true"
+                                    @onclick="() => RequestEdit(child.NodeId)">Edit</button>
+                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none"
+                                    title="Duplicate"
+                                    aria-label="Duplicate primitive"
+                                    @onclick:stopPropagation="true"
+                                    @onclick:preventDefault="true"
+                                    @onpointerdown:stopPropagation="true"
+                                    @onmousedown:stopPropagation="true"
+                                    @onclick="() => DuplicateNode(child.NodeId)">Duplicate</button>
+                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none"
+                                    title="Copy"
+                                    aria-label="Copy primitive"
+                                    @onclick:stopPropagation="true"
+                                    @onclick:preventDefault="true"
+                                    @onpointerdown:stopPropagation="true"
+                                    @onmousedown:stopPropagation="true"
+                                    @onclick="() => CopyNode(child.NodeId)">Copy</button>
+                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+                                    title="Paste"
+                                    aria-label="Paste primitive after this item"
+                                    disabled="@(_nodeClipboard is null)"
+                                    @onclick:stopPropagation="true"
+                                    @onclick:preventDefault="true"
+                                    @onpointerdown:stopPropagation="true"
+                                    @onmousedown:stopPropagation="true"
+                                    @onclick="() => PasteNodeAfter(child.NodeId)">Paste</button>
+                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600 focus:bg-red-600 focus:outline-none"
+                                    title="Delete"
+                                    aria-label="Delete primitive"
+                                    @onclick:stopPropagation="true"
+                                    @onclick:preventDefault="true"
+                                    @onpointerdown:stopPropagation="true"
+                                    @onmousedown:stopPropagation="true"
+                                    @onclick="() => DeleteNode(child.NodeId)">Delete</button>
+                        </div>
                     }
                 </div>
             </SortableItemPrimitive>
@@ -64,6 +109,9 @@
 
     [Parameter]
     public NeoPageNode? RootNode { get; set; }
+
+    [Parameter]
+    public EditorBlock? OwnerBlock { get; set; }
 
     [Parameter]
     public EventCallback<CompositionMutation> NodeChanged { get; set; }
@@ -89,6 +137,9 @@
     [Parameter]
     public EditorBreakpoint Breakpoint { get; set; } = EditorBreakpoint.Desktop;
 
+    [CascadingParameter]
+    public IBlockEditorCallbacks? Editor { get; set; }
+
     private string? SelectedNodeId { get; set; }
     private NeoPageNode? _nodeClipboard;
 
@@ -100,6 +151,10 @@
         if (definition.Catalog.Composition.CanContainChildren)
         {
             parameters["RootNode"] = RootNode ?? Node;
+            if (OwnerBlock is not null)
+            {
+                parameters["OwnerBlock"] = OwnerBlock;
+            }
             parameters["NodeChanged"] =
                 EventCallback.Factory.Create<CompositionMutation>(
                     this,
@@ -112,6 +167,17 @@
                 EventCallback.Factory.Create<string>(
                     this,
                     message => DropRejected.InvokeAsync(message));
+        }
+        else if (IsImagePrimitive(node) && OwnerBlock is not null && Editor is not null)
+        {
+            parameters["SelectMedia"] =
+                EventCallback.Factory.Create(
+                    this,
+                    () => Editor.OpenNodeMediaSelector(
+                        OwnerBlock,
+                        node.NodeId,
+                        "property:url",
+                        Breakpoint));
         }
 
         return parameters;
@@ -186,10 +252,50 @@
 
     private void SelectNode(string nodeId) => SelectedNodeId = nodeId;
 
+    private static bool IsTextPrimitive(NeoPageNode node) =>
+        string.Equals(
+            node.CatalogId,
+            "primitive.text",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsImagePrimitive(NeoPageNode node) =>
+        string.Equals(
+            node.CatalogId,
+            "primitive.image",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string GetPropertyString(NeoPageNode node, string propertyName) =>
+        node.Properties.TryGetValue(propertyName, out var value)
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+
+    private async Task UpdateTextNode(NeoPageNode node, string value)
+    {
+        var root = RootNode ?? Node;
+        var before = EditorNodeMemento.Capture(root).Restore();
+        node.Properties["text"] = JsonSerializer.SerializeToElement(value);
+        await NodeChanged.InvokeAsync(
+            new CompositionMutation(
+                before,
+                EditorNodeMemento.Capture(root).Restore(),
+                $"text:{node.NodeId}"));
+    }
+
     private Task RequestEdit(string nodeId)
     {
         SelectedNodeId = nodeId;
-        return NodeEditRequested.InvokeAsync(nodeId);
+        if (OwnerBlock is not null && Editor is not null)
+        {
+            Editor.OpenNodeEditor(OwnerBlock, nodeId);
+            return Task.CompletedTask;
+        }
+
+        if (NodeEditRequested.HasDelegate)
+        {
+            return NodeEditRequested.InvokeAsync(nodeId);
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task DeleteNode(string nodeId)

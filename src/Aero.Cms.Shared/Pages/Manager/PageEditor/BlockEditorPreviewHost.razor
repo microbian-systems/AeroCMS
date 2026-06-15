@@ -160,6 +160,7 @@ else
         {
             <textarea class="w-full rounded-md"
                       style="min-height: 140px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
+                      @onkeydown:stopPropagation="true"
                       value="@Block.Content"
                        placeholder="@L["Start writing..."]"
                       @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
@@ -174,6 +175,7 @@ else
         {
             <textarea class="w-full rounded-md font-mono"
                       style="min-height: 180px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
+                      @onkeydown:stopPropagation="true"
                       value="@Block.Content"
                        placeholder="@L["# Heading"]"
                       @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
@@ -189,11 +191,13 @@ else
             <div class="pe-property-panel">
                 <textarea class="w-full rounded-md"
                           style="min-height: 120px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
+                          @onkeydown:stopPropagation="true"
                           value="@Block.Content"
                            placeholder="@L["Quote..."]"
                            @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
                 <input class="w-full rounded-md mt-2"
                        style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 8px 12px;"
+                       @onkeydown:stopPropagation="true"
                        value="@Block.Author"
                        placeholder="@L["Author"]"
                        @oninput="e => Update(value => Block.Author = value, e.Value?.ToString() ?? string.Empty)" />
@@ -234,7 +238,22 @@ else
             }
             @for (var row = 0; row < Math.Max(1, Block.RowCount); row++)
             {
-                <div class="pe-columns-block" style="gap:@(Block.Gap)px">
+                <div class="pe-columns-row">
+                    @if (IsSelected && !Editor.PreviewMode)
+                    {
+                        <div class="pe-columns-row-toolbar">
+                            <span>@L["Row"] @(row + 1)</span>
+                            <button type="button"
+                                    class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    disabled="@(Math.Max(1, Block.RowCount) <= 1)"
+                                    title="@L["Delete row"]"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => RemoveColumnsRow(row)">
+                                @L["Delete row"]
+                            </button>
+                        </div>
+                    }
+                    <div class="pe-columns-block" style="gap:@(Block.Gap)px">
                 @for (var offset = 0; offset < Block.ColumnCount; offset++)
                 {
                     var ci = (row * Block.ColumnCount) + offset;
@@ -300,6 +319,7 @@ else
                         </Sortable>
                     </div>
                 }
+                    </div>
                 </div>
             }
         </div>
@@ -339,6 +359,7 @@ else
                 {
                     <input class="w-full rounded-md mt-2"
                            style="background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 8px 12px;"
+                           @onkeydown:stopPropagation="true"
                            value="@Block.Alt"
                             placeholder="@L["Alt text"]"
                            @oninput="e => Update(value => Block.Alt = value, e.Value?.ToString() ?? string.Empty)" />
@@ -352,9 +373,10 @@ else
             {
                 <div class="pe-video-input">
                     <input type="text" placeholder="@L["Paste YouTube, Vimeo, or video URL"]"
+                           @onkeydown:stopPropagation="true"
+                           @onkeydown="e => HandleVideoKeyDown(e)"
                            value="@Block.Url"
-                           @oninput="e => Update(value => Block.Url = value, e.Value?.ToString() ?? string.Empty)"
-                           @onkeydown="e => HandleVideoKeyDown(e)" />
+                           @oninput="e => Update(value => Block.Url = value, e.Value?.ToString() ?? string.Empty)" />
                     <button class="pe-btn pe-btn-secondary pe-btn-sm"
                             @onclick:stopPropagation="true"
                             @onclick='() => Editor.OpenMediaSelector(Block, false, "video")'>
@@ -437,11 +459,12 @@ else
     case "raw_html":
         @if (IsSelected && !Editor.PreviewMode)
         {
-            <textarea class="w-full rounded-md font-mono"
-                      style="min-height: 180px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
-                      value="@Block.Content"
-                      placeholder="@L["<section>...</section>"]"
-                      @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
+                <textarea class="w-full rounded-md font-mono"
+                          style="min-height: 180px; background: var(--pe-bg-primary); color: var(--pe-text-primary); border: 1px solid var(--pe-border); padding: 12px;"
+                          @onkeydown:stopPropagation="true"
+                          value="@Block.Content"
+                          placeholder="@L["<section>...</section>"]"
+                          @oninput="e => Update(value => Block.Content = value, e.Value?.ToString() ?? string.Empty)"></textarea>
         }
         else
         {
@@ -511,7 +534,8 @@ else
                 : GetOrCreateCompositionRoot(definition);
             parameters = new Dictionary<string, object?>
             {
-                ["Node"] = node
+                ["Node"] = node,
+                ["OwnerBlock"] = Block
             };
             if (definition.Catalog.Composition.CanContainChildren)
             {
@@ -585,6 +609,26 @@ else
             Block.EditorColumns.Add(new EditorColumn());
         }
 
+        Editor.BlockChanged(Block);
+    }
+
+    private void RemoveColumnsRow(int rowIndex)
+    {
+        var rowCount = Math.Max(1, Block.RowCount);
+        var columnCount = Math.Max(1, Block.ColumnCount);
+        if (rowCount <= 1 || rowIndex < 0 || rowIndex >= rowCount)
+        {
+            return;
+        }
+
+        var startIndex = rowIndex * columnCount;
+        var removeCount = Math.Min(columnCount, Math.Max(0, Block.EditorColumns.Count - startIndex));
+        if (removeCount > 0)
+        {
+            Block.EditorColumns.RemoveRange(startIndex, removeCount);
+        }
+
+        Block.RowCount = Math.Max(1, rowCount - 1);
         Editor.BlockChanged(Block);
     }
 
@@ -742,9 +786,10 @@ else
                     @if (string.IsNullOrEmpty(nb.Src))
                     {
                         <input type="text" placeholder="@L["Video URL"]"
+                               @onkeydown:stopPropagation="true"
+                               @onkeydown="e => HandleNestedVideoKeyDown(e, nb)"
                                value="@nb.Url"
-                               @oninput="e => { nb.Url = e.Value?.ToString() ?? string.Empty; Editor.BlockChanged(Block); }"
-                               @onkeydown="e => HandleNestedVideoKeyDown(e, nb)" />
+                               @oninput="e => { nb.Url = e.Value?.ToString() ?? string.Empty; Editor.BlockChanged(Block); }" />
                     }
                     else
                     {
@@ -756,6 +801,7 @@ else
                 <textarea value="@nb.Content"
                           placeholder="@L["Text..."]"
                           rows="3"
+                          @onkeydown:stopPropagation="true"
                           @oninput="e => { nb.Content = e.Value?.ToString() ?? string.Empty; Editor.BlockChanged(Block); }"></textarea>
                 break;
         }

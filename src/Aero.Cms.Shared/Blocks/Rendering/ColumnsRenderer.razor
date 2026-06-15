@@ -2,18 +2,45 @@
 
 @if (Block != null)
 {
-    var gapValue = Block.Gap is not null && int.TryParse(Block.Gap, out var g) ? g : 12;
+    var gapValue = ParseGap(Block.Gap);
+    var inferredColumnsPerRow = Block.Columns.Count > 0
+        ? Block.Columns.Max(static column => column.Span > 0 && column.Span <= 12 ? Math.Max(1, 12 / column.Span) : 0)
+        : 1;
+    var columnsPerRow = Block.ColumnCount > 1
+        ? Block.ColumnCount
+        : inferredColumnsPerRow > 1
+            ? inferredColumnsPerRow
+            : Math.Max(1, Block.ColumnCount);
+    if (columnsPerRow <= 0)
+    {
+        columnsPerRow = 1;
+    }
+    var rowCount = Math.Max(
+        Math.Max(1, Block.RowCount),
+        (int)Math.Ceiling(Block.Columns.Count / (double)columnsPerRow));
 
-    <div class="grid grid-cols-1 md:grid-cols-@(Block.Columns.Count > 0 ? Block.Columns.Count : 1) gap-@(gapValue / 4) @Block.RowClasses">
-        @foreach (var column in Block.Columns)
+    <div class="@Block.RowClasses" style="display:flex;flex-direction:column;gap:@(gapValue)px;">
+        @for (var row = 0; row < rowCount; row++)
         {
-            <div class="@(column.ColumnClasses ?? "")">
-                @if (column.Blocks is { Count: > 0 })
+            <div class="grid grid-cols-1 gap-@(Math.Max(1, gapValue / 4))"
+                 style="grid-template-columns: repeat(auto-fit, minmax(min(100%, @(100.0 / columnsPerRow)%), 1fr));">
+                @for (var offset = 0; offset < columnsPerRow; offset++)
                 {
-                    @foreach (var nestedBlock in column.Blocks)
+                    var columnIndex = (row * columnsPerRow) + offset;
+                    if (columnIndex >= Block.Columns.Count)
                     {
-                        <BlockRenderer Block="nestedBlock" />
+                        continue;
                     }
+                    var column = Block.Columns[columnIndex];
+                    <div class="@(column.ColumnClasses ?? "")">
+                        @if (column.Blocks is { Count: > 0 })
+                        {
+                            @foreach (var nestedBlock in column.Blocks)
+                            {
+                                <BlockRenderer Block="nestedBlock" />
+                            }
+                        }
+                    </div>
                 }
             </div>
         }
@@ -23,4 +50,22 @@
 @code {
     [Parameter]
     public ColumnsBlock? Block { get; set; }
+
+    private static int ParseGap(string? gap)
+    {
+        if (string.IsNullOrWhiteSpace(gap))
+        {
+            return 12;
+        }
+
+        var normalized = gap.Trim();
+        if (normalized.EndsWith("px", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized[..^2];
+        }
+
+        return int.TryParse(normalized, out var value)
+            ? Math.Max(0, value)
+            : 12;
+    }
 }

@@ -1,20 +1,23 @@
 # WYSIWYG Page Editor UX Refactor
 
 **Status:** In progress  
-**Last modified:** 2026-06-14 (policy note added)  
+**Last modified:** 2026-06-15 (catalog consolidation plan added)  
 **Author:** AI-assisted planning session
 
 ---
 
 ## Implementation Progress
 
-**Last updated:** June 14, 2026
+**Last updated:** June 15, 2026
 
-**Estimated core-refactor completion:** 96%
+**Estimated core-refactor completion:** 86%
 
-This estimate covers the required core refactor through mixed persistence,
-site-owned Custom components, and browser verification. Later named slots,
-advanced WYSIWYG polish, and component portability are not included.
+This estimate now accounts for the discovered transition debt between the old
+`EditorBlock` property-bag canvas and the catalog/capability-driven Neo node
+composition model. The feature work is substantially present, but the
+interaction architecture still needs consolidation before the editor should be
+called complete. The next architecture slice should be additive catalog
+consolidation, not an immediate wholesale editor-state replacement.
 
 ### Completed
 
@@ -119,6 +122,7 @@ advanced WYSIWYG polish, and component portability are not included.
 - Background images now support nine typed focal positions using logical
   inline start/end labels that render direction-aware physical positions for
   LTR and RTL pages.
+
 - The native Image primitive now opens the shared media library from its
   content editor and writes the selected URL into its existing persisted
   `url` property while retaining manual external-URL entry.
@@ -138,6 +142,44 @@ advanced WYSIWYG polish, and component portability are not included.
   render through a sanitized responsive public wrapper.
 - Focused canned-block coverage proves responsive style mapping is isolated by
   deep clone and public rendering emits Desktop, Tablet, and Mobile styles.
+
+### Architecture Transition In Progress
+
+- Native primitive definitions use catalog/capability contracts.
+- Composition policy exists and is used by nested mutation paths.
+- Universal context-menu behavior is documented but not yet centralized.
+- Root blocks, nested primitives, Columns rows, and custom components still
+  have separate UI action paths.
+- `EditorBlock` is still the dominant page-editor storage and transport bridge.
+- `SeedDataService.cs` still needs a direct Neo node-tree seed model.
+
+### Architecture Cleanup Remaining
+
+- [ ] Add XML/doc comments to the catalog, composition, command, memento,
+  adapter, and interaction contracts that explain their responsibility and
+  where they sit in the composition pipeline.
+- [ ] Make each catalog family traceable from interface -> abstract base class
+  -> concrete implementation. Existing contracts should be reused where they
+  already express the role; do not introduce a parallel hierarchy just to
+  rename working abstractions.
+- [ ] Add `EditorInteractionCapabilities` as a separate interaction contract,
+  not mixed into `EditorCapabilitySet`, which currently describes property
+  editor groups.
+- [ ] Add `IEditorInteractionProvider` that exposes
+  `EditorInteractionCapabilities Interaction { get; }` for a given node
+  definition. `PageEditorCatalogDefinitionBase` implements this by default.
+- [ ] Add centralized `IEditorNodeActionProvider` that consumes `Interaction`
+  flags plus editor session state (selection, clipboard, undo stack) and
+  returns the currently available context menu actions.
+- [ ] Move root blocks, primitives, rows/columns, containers, and custom
+  components to one canvas node rendering path.
+- [ ] Route all node mutations through commands plus `ICompositionPolicy`.
+- [ ] Port existing canned blocks into node definitions.
+- [ ] Remove legacy switch-based preview/editor/action paths after parity.
+- [ ] Replace legacy flat `EditorBlock` storage with direct node-tree editor
+  state only after catalog definitions and `CompositionNodes` migration make
+  the flat block property bag dead-code-eligible.
+- [ ] Update `SeedDataService.cs` to seed the new node-tree architecture.
 
 ### In Progress
 
@@ -321,7 +363,7 @@ EditorBlock -> ToNeoPageNode() -> NeoCompositionBlock -> Neo composition rendere
 - Columns and nested sorting are incomplete.
 - The editor uses multiple type switches and two property-editor paths.
 - Many Aero UX and Hyper blocks expose only generic title/description/button fields.
-- The palette has no global search.
+- Palette search exists with multi-term matching but only on the new palette path.
 - Shared color, spacing, gradient, icon, media, border, and responsive controls are missing.
 - `EditorBlock` is a large property bag.
 - `PageEditor.razor.cs` owns too many responsibilities.
@@ -329,11 +371,452 @@ EditorBlock -> ToNeoPageNode() -> NeoCompositionBlock -> Neo composition rendere
 
 ---
 
+## SOLID Composition Architecture
+
+### Architectural Goal
+
+The editor should use a modern composable-GUI architecture: every selectable
+thing on the canvas is an editor node with declared capabilities. Primitives,
+containers, layout rows/columns, custom components, and slot-enabled canned
+blocks should not each require special interaction code.
+
+The intended model is:
+
+```text
+Catalog definition -> capabilities -> node instance -> renderer/editor/action services
+```
+
+In other words, behavior is discovered from definitions and capabilities, not
+from `switch` statements scattered through the editor.
+
+### Current Transition Problem
+
+The current implementation is in a transition state:
+
+- New primitives already use `IPageEditorCatalogDefinition`,
+  `INeoNodeFactory`, `ICompositionCapabilities`, `ICompositionPolicy`, and
+  `IEmbeddable`.
+- Legacy/canned blocks still mostly flow through `EditorBlock` and
+  `IPageEditorBlockDefinition`.
+- Root canvas actions, nested primitive actions, Columns rows, media actions,
+  and modal editing still contain bridge code in Razor components.
+- This makes simple UX requests feel harder than they should be because the
+  editor has multiple interaction paths for concepts that should be one
+  abstraction.
+
+This is expected during an incremental refactor, but it should not become the
+final architecture. AeroCMS is not in production, so the refactor does **not**
+need to preserve the old database/editor storage model forever. However, an
+immediate replacement of `List<EditorBlock>` with a root `NeoPageNode` tree is
+too risky while root canvas state, undo/redo, clipboard, media selection,
+preview, custom components, auto-save, and tests still depend on the flat
+editor shape.
+
+The safer path is Phase 0.5 catalog consolidation:
+
+1. Register every remaining legacy switch-case block in the catalog.
+2. Add separate interaction capabilities for menu/action behavior.
+3. Migrate blocks one at a time to populate `CompositionNodes`.
+4. Delete switch fallbacks as each block reaches parity.
+5. Replace flat editor state only after the flat property bag is proven dead.
+
+### SOLID Principles Applied
+
+- **Single Responsibility:** catalog definitions describe nodes; policy
+  validates composition; action services build menus; renderers render; editors
+  edit. `PageEditor.razor.cs` should orchestrate, not own all behavior.
+- **Open/Closed:** adding a new primitive or block should add a concrete
+  definition and renderer/editor, not modify central switch statements.
+- **Liskov Substitution:** all embeddable node definitions should be usable
+  through the same catalog/capability contracts. A text primitive, container,
+  custom component, and slot-enabled canned block should all be valid canvas
+  participants where their capabilities allow.
+- **Interface Segregation:** definitions should implement small contracts such
+  as catalog metadata, node factory, renderer/editor metadata, persistence
+  mapper, composition capabilities, and interaction capabilities. Do not force
+  every block to implement persistence or children if it does not need them.
+- **Dependency Inversion:** UI components depend on abstractions such as
+  `IEditorNodeActionProvider`, `ICompositionPolicy`, and
+  `IPageEditorDefinitionRegistry`, not concrete primitive/block classes.
+
+### Interface -> Base Class -> Concrete Class
+
+Use interfaces for contracts, abstract base classes for shared behavior, and
+concrete classes for actual catalog items.
+
+The current contracts are already close to the desired interface layer:
+
+- `IPageEditorCatalogDefinition` describes catalog metadata, component types,
+  editor capability groups, and composition capability.
+- `INeoNodeFactory` creates default node instances.
+- `INeoNodeBlockMapper` maps between node trees and public block models when a
+  block needs persistence/rendering translation.
+- `IPageEditorBlockDefinition` is the transitional legacy adapter target.
+- `ICompositionCapabilities` and `ICompositionPolicy` own nesting rules.
+
+Do **not** introduce a parallel `IEditorNodeDefinition` hierarchy just to rename
+these contracts. If a new name is still desirable, treat it as a later
+consolidating rename after catalog parity. For Phase 0.5, add thin base classes
+under the existing contracts so the trail is obvious and searchable.
+
+```csharp
+/// <summary>
+/// Catalog metadata and editor behavior shared by blocks, primitives, and components.
+/// Implementations declare identity, categorization, Kind, composition rules, and
+/// property editor capabilities. They do not perform rendering or mutate editor state.
+/// </summary>
+public interface IPageEditorCatalogDefinition
+{
+    string CatalogId { get; }
+    string DisplayName { get; }
+    string? Description { get; }
+    string Category { get; }
+    NeoPageNodeKind Kind { get; }
+    string IconName { get; }
+    int SortOrder { get; }
+    bool PublicStaticSsrSafe { get; }
+    Type? PreviewComponentType { get; }
+    Type? PropertyEditorComponentType { get; }
+    ICompositionCapabilities Composition { get; }
+    EditorCapabilitySet EditorCapabilities { get; }
+}
+
+/// <summary>
+/// Creates a default persisted node for a catalog item. Factories must produce
+/// fresh node IDs and safe default properties.
+/// </summary>
+public interface INeoNodeFactory
+{
+    NeoPageNode CreateDefaultNode();
+}
+
+/// <summary>
+/// Declares which canvas interactions are available for a node definition.
+/// This is intentionally separate from EditorCapabilitySet, which describes
+/// property editor groups such as Typography, Background, Media, and Direction.
+/// </summary>
+[Flags]
+public enum EditorInteractionCapabilities
+{
+    None = 0,
+    Selectable = 1 << 0,
+    Editable = 1 << 1,
+    Draggable = 1 << 2,
+    Duplicatable = 1 << 3,
+    Deletable = 1 << 4,
+    Copyable = 1 << 5,
+    PasteTarget = 1 << 6,
+    SaveAsCustom = 1 << 7,
+    MediaSelectable = 1 << 8
+}
+
+/// <summary>
+/// Base class for catalog definitions that removes repeated metadata defaults
+/// while keeping behavior in policies, commands, renderers, and editors.
+/// Members with virtual defaults (Description, IconName, SortOrder, etc.) should
+/// be overridden only when the concrete definition has a meaningful value.
+/// Composition, EditorCapabilities, and Interaction are abstract — every
+/// concrete definition must explicitly declare them.
+/// </summary>
+public abstract class PageEditorCatalogDefinitionBase :
+    IPageEditorCatalogDefinition,
+    INeoNodeFactory
+{
+    public abstract string CatalogId { get; }
+    public abstract string DisplayName { get; }
+    public virtual string? Description => null;
+    public abstract string Category { get; }
+    public abstract NeoPageNodeKind Kind { get; }
+    public virtual string IconName => "unknown";
+    public virtual int SortOrder => 0;
+    public virtual bool PublicStaticSsrSafe => true;
+    public virtual Type? PreviewComponentType => null;
+    public virtual Type? PropertyEditorComponentType => null;
+    public abstract ICompositionCapabilities Composition { get; }
+    public abstract EditorCapabilitySet EditorCapabilities { get; }
+
+    /// <summary>
+    /// Declares which canvas interactions are available.
+    /// Abstract — each concrete definition must explicitly declare its
+    /// capabilities. This prevents accidental grants from inherited defaults.
+    /// </summary>
+    public abstract EditorInteractionCapabilities Interaction { get; }
+
+    public abstract NeoPageNode CreateDefaultNode();
+}
+
+/// <summary>
+/// Base class for embeddable leaf items such as Text, Button, Pill, Icon, and
+/// Image primitives. Kind is fixed to Primitive. Interaction is deliberately
+/// left abstract so each concrete leaf definition declares its own capabilities.
+/// </summary>
+public abstract class PrimitiveDefinitionBase : PageEditorCatalogDefinitionBase, IEmbeddable
+{
+    public override NeoPageNodeKind Kind => NeoPageNodeKind.Primitive;
+}
+
+/// <summary>
+/// Base class for nodes that may contain child nodes through declared drop
+/// zones and policy validation. Extends PrimitiveDefinitionBase — containers
+/// are still embeddable — with additional editor capabilities such as layout,
+/// alignment, borders, and backgrounds. Interaction is abstract: concrete
+/// container definitions must declare PasteTarget alongside other flags.
+/// </summary>
+public abstract class ContainerDefinitionBase : PrimitiveDefinitionBase
+{
+}
+
+/// <summary>
+/// Concrete text primitive definition. Every member is explicitly declared.
+/// This class contains only Text-specific defaults and capability declarations;
+/// domain behavior (rendering, editing, validation) resides in policies,
+/// commands, renderers, and editors.
+/// </summary>
+public sealed class TextPrimitiveDefinition : PrimitiveDefinitionBase
+{
+    public override string CatalogId => "primitive.text";
+    public override string DisplayName => "Text";
+    public override string? Description => "Responsive body text.";
+    public override string Category => "Primitives";
+    public override string IconName => "type";
+    public override int SortOrder => 10;
+    public override bool PublicStaticSsrSafe => true;
+    public override Type? PreviewComponentType => typeof(TextPrimitivePreview);
+    public override Type? PropertyEditorComponentType => typeof(TextPrimitiveEditor);
+    public override ICompositionCapabilities Composition =>
+        CompositionCapabilities.Leaf(
+            NeoPageNodeKind.Section,
+            NeoPageNodeKind.Container,
+            NeoPageNodeKind.Component);
+    public override EditorCapabilitySet EditorCapabilities =>
+        EditorCapabilitySet.Content |
+        EditorCapabilitySet.Typography |
+        EditorCapabilitySet.Spacing |
+        EditorCapabilitySet.Dimensions |
+        EditorCapabilitySet.Foreground |
+        EditorCapabilitySet.Background |
+        EditorCapabilitySet.Direction |
+        EditorCapabilitySet.Visibility;
+    public override EditorInteractionCapabilities Interaction =>
+        EditorInteractionCapabilities.Selectable |
+        EditorInteractionCapabilities.Editable |
+        EditorInteractionCapabilities.Draggable |
+        EditorInteractionCapabilities.Duplicatable |
+        EditorInteractionCapabilities.Deletable |
+        EditorInteractionCapabilities.Copyable;
+    public override NeoPageNode CreateDefaultNode() =>
+        new()
+        {
+            NodeId = Guid.NewGuid().ToString("N"),
+            CatalogId = CatalogId,
+            Kind = Kind,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["text"] = JsonSerializer.SerializeToElement("Enter your text here...")
+            }
+        };
+}
+```
+
+The base classes should stay thin. They remove repeated defaults but must not
+become a second property bag. Domain-specific behavior still belongs to
+capability objects, policies, commands, renderers, and editors.
+
+#### Context Menu Actions: Not on the Definition
+
+Do **not** add a static `ContexMenuItems` or `Actions` property to
+`IPageEditorCatalogDefinition` or its base classes. Context menu items depend
+on runtime state (selection context, clipboard content, tree position),
+which a static definition cannot model.
+
+Instead, use a three-layer separation:
+
+1. **`EditorInteractionCapabilities`** (flags enum, on the definition) —
+   declares what interactions are *possible* for this node type:
+   Selectable, Editable, Draggable, Duplicatable, Deletable, Copyable,
+   PasteTarget, SaveAsCustom, MediaSelectable.
+2. **`IEditorNodeActionProvider`** (DI service) — consumes the definition's
+   `Interaction` flags plus the current editor session state (selected node,
+   clipboard, undo stack, active breakpoint) and returns the set of
+   *currently available* actions.
+3. **Razor component** — renders the action list returned by the provider
+   with no business logic.
+
+This mirrors how `EditorCapabilitySet` already works: the definition says
+which property editor groups a node supports, and the `BlockEditorModal`
+service resolves which controls to show at runtime.
+
+Every interface and base class added for this refactor must include comments
+that explain:
+
+- The one responsibility of the contract/class.
+- Whether it is final architecture or a transitional adapter.
+- Which GoF pattern it participates in when applicable.
+- Which concrete classes are expected to inherit from it.
+- Which service owns mutation, rendering, editing, or persistence behavior.
+
+### GoF Patterns To Use
+
+- **Composite:** `NeoPageNode` trees model GUI composition. Containers,
+  sections, rows, columns, custom components, and primitives are all nodes in a
+  tree.
+- **Command:** every user mutation is a typed command: add, move, re-parent,
+  delete, duplicate, paste, edit property, resize, change breakpoint value.
+- **Memento:** command history stores bounded snapshots for undo/redo.
+- **Strategy:** renderers, property editors, validators, and action builders
+  are selected by catalog definition/capability.
+- **Factory Method / Abstract Factory:** node definitions create default nodes,
+  templates, and custom component instances.
+- **Visitor:** optional traversal for validation, rendering preparation,
+  localization extraction, dependency collection, and seed verification.
+- **Adapter:** temporary bridge from legacy canned blocks into the new
+  definition model. Because this is pre-production, adapters are transitional
+  only and should be removed when parity is reached.
+
+### Common Modern UI Composition Design
+
+```text
+IPageEditorCatalogDefinition + INeoNodeFactory
+  -> PageEditorCatalogDefinitionBase
+    -> PrimitiveDefinitionBase
+      -> TextPrimitiveDefinition
+      -> ImagePrimitiveDefinition
+      -> ButtonPrimitiveDefinition
+    -> ContainerDefinitionBase
+      -> ContainerPrimitiveDefinition
+      -> ColumnsDefinition
+      -> GridDefinition
+    -> ComponentDefinitionBase (deferred — Card and CustomComponent
+       currently implement the contracts directly without a shared base)
+      -> CardDefinition
+      -> CustomComponentDefinition
+    -> CannedBlockDefinitionBase
+      -> HeroBlockDefinition
+      -> PricingBlockDefinition
+
+NeoPageNode
+  -> primitive node
+  -> container node
+  -> component node
+  -> block node
+
+Editor services
+  -> Definition registry
+  -> Composition policy
+  -> Context menu/action provider
+  -> Command dispatcher
+  -> History service
+  -> Clipboard service
+  -> Property editor resolver
+  -> Renderer resolver
+```
+
+The UI should ask services questions:
+
+- What actions are available for this selected node?
+- Can this node be dropped into this drop zone?
+- Which property editor should open?
+- Which renderer should render this node?
+- Which shared design controls are supported?
+
+The UI should not ask:
+
+- Is this exact catalog ID `primitive.text`?
+- Is this exact block type `columns`?
+- Which component branch am I in?
+
+Catalog IDs are still useful for lookup and persistence, but not for
+hardcoding behavior in canvas components.
+
+#### CanvasNode and CanvasContainer
+
+`CanvasNode` and `CanvasContainer` are the unified rendering primitives that
+replace the current separate paths for root blocks, nested primitives,
+columns/rows, containers, and custom components:
+
+- **CanvasTree** — renders the full canvas tree from the editor session's root
+  `NeoPageNode`. Handles tree-level concerns: selection tracking, drop-zone
+  registration, and undoable command dispatch.
+- **CanvasNode** — renders any single node. Receives a `NeoPageNode`, resolves
+  its preview/renderer component from the catalog definition, and delegates
+  rendering. Owns the node's selection highlight, click/double-click handlers,
+  and drag handle.
+- **CanvasContainer** — renders a node that `CanContainChildren`. Wraps
+  `CanvasNode` for the parent frame, then iterates `node.Children` and renders
+  `CanvasNode` for each child, separated by drop-zone indicators. The
+  `CanvasTree` renders the root as a `CanvasContainer`.
+
+All three use the registry (`IPageEditorDefinitionRegistry`) to resolve
+catalog definitions, interaction capabilities, and property editors. The
+rendering code never checks concrete catalog IDs.
+
+### New Architecture Migration Plan
+
+Because the product is not in production, we should move intentionally toward
+the new architecture rather than preserving the legacy storage shape forever.
+The migration should still be staged so that already-working editor behavior is
+not destabilized by a ground-up state rewrite.
+
+1. **Consolidate the catalog contracts.** Reuse
+   `IPageEditorCatalogDefinition`, `INeoNodeFactory`,
+   `ICompositionCapabilities`, and `INeoNodeBlockMapper` as the current
+   interface layer. Add comments and thin base classes so each concrete
+   primitive/container/block has a traceable interface -> base -> concrete
+   path.
+2. **Register remaining legacy blocks.** Each switch fallback in
+   `CreateBlock`, `MapEditorBlockToNeoNode`, `EditorBlockMapper`, or preview
+   selection should become a catalog definition or transitional adapter entry.
+3. **Add interaction capabilities.** Introduce
+   `EditorInteractionCapabilities` for selectable/editable/draggable/delete
+   menu behavior without mixing action flags into `EditorCapabilitySet`.
+4. **Create a single canvas node renderer.** Root blocks, primitives,
+   containers, rows, columns, and custom components should all render through
+   one `CanvasNode`/`CanvasContainer` path.
+5. **Centralize context menus and actions.** Add an
+   `IEditorNodeActionProvider` that returns capability-aware actions for any
+   selected node. Double-click Edit and context-menu Edit must call the same
+   command/modal path.
+6. **Route mutations through commands and policy.** Add/move/delete/duplicate,
+   row/column changes, custom insertion, media selection, and property changes
+   should dispatch commands validated by `ICompositionPolicy`.
+7. **Migrate to `CompositionNodes` incrementally.** Port one canned block at a
+   time so it uses a node tree internally while the outer editor can still
+   carry an `EditorBlock` shell.
+8. **Remove the legacy bridge last.** Replace flat `EditorBlock` page storage
+   with direct node-tree editor state only after catalog registration,
+   composition migration, preview rendering, save/load, undo/redo, clipboard,
+   media selection, custom components, and browser tests are green.
+
+### Seed Data Impact
+
+`src/Aero.Cms.Modules.Setup/SeedDataService.cs` must be updated as part of the
+new architecture move:
+
+- Seed pages should create `NeoPageNode` trees directly instead of relying on
+  flat `EditorBlock` property bags.
+- Seeded examples should include a representative custom composition, a
+  Columns/Grid layout, a Container with nested primitives, and at least one
+  canned block with named slots when slots are introduced.
+- Seeded examples must include LTR and RTL culture variants.
+- Seed reset should produce deterministic node IDs only where tests need stable
+  fixtures; runtime-created page content should still use fresh IDs.
+
+---
+
 ## Composition Rules
 
 ### `IEmbeddable`
 
-`IEmbeddable` may be introduced as a small semantic marker for elements that can participate in a composition. It must not contain the complete nesting policy and must not be the only validation mechanism.
+`IEmbeddable` is a small semantic marker for elements that can participate in a composition. It must not contain the complete nesting policy and must not be the only validation mechanism.
+
+Every embeddable canvas participant shares the same interaction contract, whether it is a primitive, container, layout block, composed card, custom component, or a canned block with named slots:
+
+- It can be selected as a first-class node.
+- It exposes the same right-click context-menu entry point.
+- Context-menu actions are capability-aware, not type-hardcoded.
+- Edit, duplicate, copy, paste, delete, save-as-custom, and media actions appear only when the node definition supports them.
+- Double-click Edit and context-menu Edit open the same modal for the same target node.
+- Parent containers and child nodes both remain individually addressable; selecting a child must not require editing the parent first.
 
 Placement rules belong to catalog definition metadata:
 
@@ -393,32 +876,26 @@ Use Aero.Core railway-oriented results and FluentValidation for persisted models
 
 ## Editor Definition Proposal
 
-The existing interface mixes catalog metadata, `EditorBlock` creation, node conversion, and persistence conversion. Move toward small purpose-specific contracts:
+The existing interface layer already uses small purpose-specific contracts. The
+canonical versions are in the SOLID Composition Architecture section above:
 
-```csharp
-public interface IPageEditorCatalogDefinition
-{
-    string CatalogId { get; }
-    string DisplayName { get; }
-    string Category { get; }
-    NeoPageNodeKind Kind { get; }
-    Type? PreviewComponentType { get; }
-    Type? PropertyEditorComponentType { get; }
-    ICompositionCapabilities Composition { get; }
-    EditorCapabilitySet EditorCapabilities { get; }
-}
-
-public interface INeoNodeFactory
-{
-    NeoPageNode CreateDefaultNode();
-}
-
-public interface INeoNodeBlockMapper
-{
-    BlockBase ToBlock(NeoPageNode node);
-    NeoPageNode ToNode(BlockBase block);
-}
-```
+- **`IPageEditorCatalogDefinition`** — catalog metadata, composition rules, and
+  property editor capability groups. See the 12-member canonical version in the
+  ["Interface -> Base Class -> Concrete Class"](#interface---base-class---concrete-class)
+  section above. Do not add `EditorInteractionCapabilities` or action-related
+  members to this interface — keep them in the separate interaction contract.
+- **`INeoNodeFactory`** — creates default node instances.
+- **`INeoNodeBlockMapper`** — maps between node trees and public block models
+  when a block needs persistence/rendering translation.
+- **`IPageEditorBlockDefinition`** — transitional legacy adapter target for
+  existing canned blocks. New primitives and custom compositions should not
+  require round-tripping through the `EditorBlock` property bag.
+- **`ICompositionCapabilities`** and **`ICompositionPolicy`** — nesting rules
+  and central validation.
+- **`IEditorInteractionProvider`** (new, Phase 0.5) — exposes
+  `EditorInteractionCapabilities Interaction { get; }` for canvas-level
+  interaction behavior. `PageEditorCatalogDefinitionBase` implements this by
+  default; legacy adapters can wrap it independently.
 
 Mapper invariant:
 
@@ -679,6 +1156,16 @@ Every block and primitive uses one modal shell with:
 
 Double-click opens this modal. Right-click shows a context menu with Edit plus the relevant canvas actions.
 
+The right-click context menu is part of the embeddable-node contract, not a legacy block-only feature. It must work consistently for:
+
+- Root canvas blocks.
+- Nested primitives.
+- Containers, rows, columns, grids, and named slots.
+- Custom component instances.
+- Canned blocks that opt into composition through named slots.
+
+The menu contents are computed from catalog capabilities and current selection state. Invalid actions are hidden or disabled with clear feedback, rather than silently doing nothing.
+
 The Design tab does not show every possible field for every node. Definitions declare supported capabilities. For example:
 
 - Text supports typography but not media playback.
@@ -791,6 +1278,47 @@ Export/import is deferred to the final portability phase.
 ---
 
 ## Implementation Phases
+
+### Phase 0.5 - Catalog Consolidation Before State Replacement
+
+This phase is required before adding more WYSIWYG surface area. AeroCMS is not
+in production, so the editor can still move to the final node-tree architecture,
+but the next step should be additive and test-friendly. Replacing
+`List<EditorBlock>` with a root `NeoPageNode` tree immediately would break too
+many save/load, undo/redo, clipboard, custom component, media, preview, and
+browser-test paths at once.
+
+1. Document the existing contracts with XML comments:
+   `IPageEditorCatalogDefinition`, `INeoNodeFactory`,
+   `INeoNodeBlockMapper`, `ICompositionCapabilities`, `ICompositionPolicy`,
+   `CompositionMutation`, `EditorNodeMemento`,
+   `LegacyPageEditorDefinitionAdapter`, and the registry/descriptor types.
+2. Add thin abstract bases that make each family traceable:
+   interface -> base class -> concrete implementation. Start with primitives
+   and containers, then port canned blocks.
+3. Register every remaining legacy switch-case block in the catalog. Each
+   fallback in `CreateBlock`, `MapEditorBlockToNeoNode`,
+   `EditorBlockMapper`, and preview/editor selection is a migration target.
+4. Add `EditorInteractionCapabilities` and a centralized action-provider
+   contract. Keep it separate from `EditorCapabilitySet`, which remains about
+   property editor groups.
+5. Replace separate root/nested/row/custom context-menu code with one
+   capability-aware action pipeline.
+6. Move root blocks, primitives, containers, rows/columns, and custom
+   components toward one `CanvasNode`/`CanvasContainer` renderer path.
+7. Migrate legacy/canned blocks to populate `CompositionNodes` one block at a
+   time. When a block is fully migrated and tested, remove its switch fallback.
+8. Replace flat `EditorBlock` page editor state with direct `NeoPageNode`
+   trees only after the catalog path, composition path, and automated tests
+   prove the old property bag is dead-code-eligible.
+9. Update `SeedDataService.cs` after the state model is settled so seeded pages
+   are authored in the same architecture as the editor.
+
+**Bridge note:** Phases A through G were defined before Phase 0.5 was inserted.
+Many Phase A items (composition policy, responsive styles, direction, editor
+session, undo/redo, history) have been substantially implemented during the
+earlier phases. Phase 0.5 completes the catalog consolidation; Phases A–G
+should be re-assessed against the current codebase after Phase 0.5 stabilizes.
 
 ### Phase A - Contracts, Styles, and History
 
@@ -951,13 +1479,24 @@ Keep block-specific editors, previews, renderers, and definitions in the package
 ### Architecture
 
 - [ ] Registry is the single definition lookup path.
+- [ ] Definitions follow the interface -> base class -> concrete class model.
+- [ ] `IEmbeddable`, container/component definitions, and canned
+  block definitions share the same interaction contract.
+- [ ] Context-menu actions are produced by one capability-aware action provider.
+- [ ] Root blocks, nested primitives, rows/columns, containers, and custom
+  components render through one canvas-node path.
 - [ ] New primitives do not require properties added to `EditorBlock`.
+- [ ] Flat `EditorBlock` storage is removed after the new node-tree editor
+  state is in place.
 - [ ] Invalid nesting and cycles are rejected centrally.
 - [ ] All composition mappings are bidirectional.
 - [ ] Responsive styles are typed and validated.
 - [ ] Spacing and alignment use logical block/inline concepts.
 - [ ] Direction and active culture are explicit editor state.
 - [ ] Renderers sanitize generated style output.
+- [ ] Every interface and base class has XML doc comments explaining
+  responsibility, final-or-transitional status, GoF pattern, expected
+  concrete classes, and owning service.
 
 ### Vertical Slice
 
@@ -986,6 +1525,8 @@ Keep block-specific editors, previews, renderers, and definitions in the package
 - [ ] Inserting a custom item deep-clones it with new IDs.
 - [ ] One site's custom items are not visible to another site.
 - [ ] Saving/inserting a custom item does not overwrite another culture's page content.
+- [ ] Every embeddable node has a right-click context menu with capability-aware actions.
+- [ ] Nested primitive, container, row/column, custom component, and root block context-menu Edit all open the same modal path.
 
 ### Seed and Persistence
 
@@ -1041,8 +1582,9 @@ Playwright tests require deterministic setup:
 | Localized editor UI falls back to embedded English | `IStringLocalizer` for shared and package-owned UI plus localization verification |
 | Culture-formatted strings corrupt persisted values | Persist normalized invariant values and format only at UI/render boundaries |
 | Style output permits unsafe values | FluentValidation, allowlists, sanitization, and no arbitrary class/script input |
-| 80+ property editors dominate development time | Prove one vertical slice, then group shared editor families |
+| Number of property editors grows with each new block | Prove one vertical slice, then group shared editor families. Delay definition-owned editors until catalog parity is reached. |
 | Collection drag events conflict with canvas drag events | Separate Sortable groups, dedicated handles, and event propagation tests |
+| Orleans grain state versioning during flat→tree migration | Add a version field to grain state; deserialize with fallback to the old flat `EditorBlock` shape during the transition window. Remove fallback after migration is certified. |
 | New persistence model breaks sample content | Update `SeedDataService.cs`, reset development data, and test seeded edit/publish flows |
 | Playwright editor tests become flaky | Deterministic test reset/seed APIs and fixed composition fixtures |
 | Large canvases become slow | Measure in MAUI WebView; lazy render and reduce unnecessary Blazor rerenders |

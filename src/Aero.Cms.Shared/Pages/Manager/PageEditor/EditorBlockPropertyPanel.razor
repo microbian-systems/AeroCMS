@@ -393,9 +393,11 @@
         out NeoPageNode node)
     {
         if (Block is not null &&
-            PageEditorBlockRegistry.TryGetDescriptor(Block.Type, out definition!) &&
-            definition.LegacyDefinition is null &&
-            FindTargetNode(Block.CompositionNodes) is { } compositionNode)
+            FindTargetNode(Block.CompositionNodes) is { } compositionNode &&
+            PageEditorBlockRegistry.TryGetDescriptor(
+                string.IsNullOrWhiteSpace(TargetNodeId) ? Block.Type : compositionNode.CatalogId,
+                out definition!) &&
+            definition.LegacyDefinition is null)
         {
             node = compositionNode;
             return true;

@@ -1,9 +1,14 @@
 <figure class="m-0 overflow-hidden rounded-lg border bg-muted">
     @if (string.IsNullOrWhiteSpace(Url))
     {
-        <div class="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
+        <button type="button"
+                class="flex min-h-40 w-full items-center justify-center rounded-lg border-0 bg-transparent text-sm text-muted-foreground transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                @onclick:stopPropagation="true"
+                @ondblclick:stopPropagation="true"
+                @onpointerdown:stopPropagation="true"
+                @onclick="SelectMedia">
             Select an image
-        </div>
+        </button>
     }
     else
     {
@@ -18,6 +23,9 @@
 @code {
     [Parameter, EditorRequired]
     public NeoPageNode Node { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback SelectMedia { get; set; }
 
     private string Url => GetString("url");
     private string Alt => GetString("alt");

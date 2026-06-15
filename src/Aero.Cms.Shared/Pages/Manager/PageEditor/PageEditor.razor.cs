@@ -2716,6 +2716,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         EditingNodeId = nodeId;
         BlockEditorTab = "content";
         BlockEditorModalOpen = true;
+        _ = InvokeAsync(StateHasChanged);
     }
 
     protected bool CanUndoComposition =>

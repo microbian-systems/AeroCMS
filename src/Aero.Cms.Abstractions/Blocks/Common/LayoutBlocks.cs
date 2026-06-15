@@ -17,6 +17,16 @@ public class ColumnsBlock : BlockBase
     public List<ColumnItem> Columns { get; set; } = new();
 
     /// <summary>
+    /// Number of columns per visual row.
+    /// </summary>
+    public int ColumnCount { get; set; } = 1;
+
+    /// <summary>
+    /// Number of visual rows represented by <see cref="Columns"/>.
+    /// </summary>
+    public int RowCount { get; set; } = 1;
+
+    /// <summary>
     /// Optional CSS classes for the row container.
     /// </summary>
     public string? RowClasses { get; set; }

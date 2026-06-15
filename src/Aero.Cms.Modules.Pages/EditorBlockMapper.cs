@@ -366,6 +366,8 @@ public static class EditorBlockMapper
         return new ColumnsBlock
         {
             Gap = editorBlock.Gap > 0 ? $"{editorBlock.Gap}px" : null,
+            ColumnCount = Math.Max(1, editorBlock.ColumnCount),
+            RowCount = Math.Max(1, editorBlock.RowCount),
             Columns = editorBlock.EditorColumns.Select(column => new ColumnItem
             {
                 Span = columnSpan,
