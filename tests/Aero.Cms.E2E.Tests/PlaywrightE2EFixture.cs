@@ -66,6 +66,8 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     public IBrowser? Browser { get; private set; }
     public IBrowserContext? BrowserContext { get; private set; }
     public IPlaywright? PlaywrightInstance { get; private set; }
+    public long HomePageId { get; private set; }
+    public long BlockPageId { get; private set; }
 
     public async Task InitializeAsync()
     {
@@ -118,8 +120,14 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 ["Aero:Embedded:Password"] = "",
                 ["Aero:Embedded:Database"] = dbName,
                 ["urls"] = BaseUrl,
+                ["ApiSettings:BaseUrl"] = BaseUrl,
                 ["Logging:LogLevel:Default"] = "Warning",
-                ["Logging:LogLevel:Microsoft.AspNetCore"] = "Warning"
+                ["Logging:LogLevel:Microsoft.AspNetCore"] = "Warning",
+
+                // Service discovery: typed HTTP clients resolve "localhost" to the
+                // default https://localhost:333. Override to point at our test port.
+                ["Services:localhost:Default:0"] = BaseUrl,
+                ["Services:localhost:Https:0"] = BaseUrl
             });
 
             // Configure Serilog for bootstrap logging
@@ -136,6 +144,8 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 options.ModuleDescriptors = descriptors;
                 options.ConfigureWolverine = configureWolverine;
                 options.ConfigureGrains = configureGrains;
+                options.ConfigureApplicationCookie = cookie =>
+                    cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             });
 
             // Remove the embedded DB background service (already have PG running externally)
@@ -143,10 +153,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 d.ImplementationType?.Name == "AeroEmbeddedDbService");
             if (embeddedDbDescriptor is not null)
                 builder.Services.Remove(embeddedDbDescriptor);
-
-            // Override auth cookie secure policy for HTTP testing
-            builder.Services.PostConfigureAll<CookieAuthenticationOptions>(o =>
-                o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest);
 
             _app = builder.Build();
 
@@ -427,18 +433,113 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     {
         if (_isLoggedIn || Page is null) return;
 
-        await Page.GotoAsync($"{BaseUrl}/manager/login");
-        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle, new() { Timeout = 120000 });
+        // Use standalone APIRequest context (independent of page state) to
+        // call the login API and capture cookies. Then inject them into the
+        // browser context so subsequent page navigations are authenticated.
+        var apiContext = await PlaywrightInstance!.APIRequest.NewContextAsync(new()
+        {
+            BaseURL = BaseUrl
+        });
 
-        await Page.WaitForSelectorAsync("form input",
-            new() { State = WaitForSelectorState.Visible, Timeout = 30000 });
+        var loginPayload = new Dictionary<string, object>
+        {
+            ["EmailOrUserName"] = "admin@aero.local",
+            ["Password"] = "Admin123!",
+            ["RememberMe"] = true
+        };
+        var response = await apiContext.PostAsync("/api/v1/admin/auth/local/login",
+            new() { DataObject = loginPayload });
 
-        await Page.FillAsync("form input", "admin@aero.local");
-        await Page.FillAsync("input[type='password']", "Admin123!");
-        await Page.ClickAsync("button[type='submit']");
+        if (!response.Ok)
+            throw new InvalidOperationException(
+                $"Login API returned {response.Status}: {await response.TextAsync()}");
 
-        await Page.WaitForURLAsync("**/manager/**", new() { Timeout = 30000 });
+        // Extract Set-Cookie headers from the response and add to browser context
+        var setCookieHeaders = response.Headers["set-cookie"].Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var cookies = new List<Cookie>();
+        foreach (var header in setCookieHeaders)
+        {
+            var cookie = ParseSetCookie(header);
+            if (cookie is not null) cookies.Add(cookie);
+        }
+
+        if (cookies.Count > 0)
+            await Page.Context.AddCookiesAsync(cookies);
+
+        await apiContext.DisposeAsync();
+
+        Console.WriteLine($"[Login] Added {cookies.Count} cookies. Auth={cookies.Any(c => c.Name.Contains("AeroCms"))}");
         _isLoggedIn = true;
+    }
+
+    /// <summary>
+    /// Navigates to the login page and waits for Blazor WASM to download/cache.
+    /// Call this once before any browser-based page navigation tests.
+    /// The first call takes ~15-20s (WASM download); subsequent navigations use the cache.
+    /// </summary>
+    private bool _warmedUp;
+
+    public async Task WarmUpBlazorAsync(int timeoutMs = 60000)
+    {
+        if (_warmedUp) return;
+        _warmedUp = true;
+
+        if (Page is null) throw new InvalidOperationException("Page not initialized. Call InitializeAsync first.");
+
+        // Navigate to the pages grid to establish the SignalR circuit
+        await Page.GotoAsync($"{BaseUrl}/manager/pages", new()
+        {
+            WaitUntil = WaitUntilState.NetworkIdle,
+            Timeout = timeoutMs
+        });
+
+        // Wait for a known page element to confirm circuit is active
+        try
+        {
+            await Page.WaitForSelectorAsync("a[href*='manager']", new() { Timeout = 30000, State = WaitForSelectorState.Attached });
+            Console.WriteLine("[Warmup] Blazor circuit warmup complete");
+        }
+        catch
+        {
+            // Fallback: wait fixed time and hope
+            Console.WriteLine("[Warmup] Blazor warmup fallback — waiting 10s");
+            await Task.Delay(10000);
+        }
+    }
+
+    private static Cookie? ParseSetCookie(string setCookie)
+    {
+        var parts = setCookie.Split(';', 2);
+        if (parts.Length == 0) return null;
+
+        var kv = parts[0].Trim().Split('=', 2);
+        if (kv.Length != 2) return null;
+
+        var cookie = new Cookie
+        {
+            Name = kv[0].Trim(),
+            Value = kv[1].Trim(),
+            Domain = "localhost",
+            Path = "/",
+            HttpOnly = false, // Override HttpOnly so Playwright can store it
+            Secure = false
+        };
+
+        // Parse attributes from the rest
+        if (parts.Length > 1)
+        {
+            var attrs = parts[1].ToLowerInvariant();
+            if (attrs.Contains("secure")) cookie.Secure = true;
+            if (attrs.Contains("httponly")) cookie.HttpOnly = true;
+            if (attrs.Contains("samesite=lax")) cookie.SameSite = SameSiteAttribute.Lax;
+            if (attrs.Contains("samesite=strict")) cookie.SameSite = SameSiteAttribute.Strict;
+            if (attrs.Contains("samesite=none")) cookie.SameSite = SameSiteAttribute.None;
+
+            var pathMatch = System.Text.RegularExpressions.Regex.Match(parts[1], @"path=([^;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (pathMatch.Success) cookie.Path = pathMatch.Groups[1].Value.Trim();
+        }
+
+        return cookie;
     }
 
     // ── Seed / DB helpers ────────────────────────────────────────────────
@@ -507,7 +608,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         // ── Site (tenant) ───────────────────────────────────────────────
         await using var session = documentStore.LightweightSession();
 
-        var site = (await session.Query<SitesModel>().FirstOrDefaultAsync(s => s.Name == "Aero CMS"))!;
+            var site = (await session.Query<SitesModel>().FirstOrDefaultAsync(s => s.Name == "Aero CMS"))!;
         if (site is null)
         {
             site = new SitesModel
@@ -517,7 +618,8 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 Description        = "Default E2E test site",
                 IsEnabled          = true,
                 DefaultCulture     = "en-US",
-                SupportedCultures  = ["en-US"]
+                SupportedCultures  = ["en-US", "ar-SA"],
+                TenantId           = Snowflake.NewId()
             };
             session.Store(site);
         }
@@ -555,7 +657,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             .FirstOrDefaultAsync(p => p.SiteId == site.Id && p.Slug == "/");
         if (homePage is null)
         {
-            session.Store(new PageDocument
+            var page = new PageDocument
             {
                 Id                = Snowflake.NewId(),
                 SiteId            = site.Id,
@@ -570,10 +672,92 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 PublishedOn       = DateTimeOffset.UtcNow,
                 ShowInNavMenu     = false,
                 ShowHeaderNavigation = true
-            });
+            };
+            session.Store(page);
+            homePage = page;
         }
+        HomePageId = homePage.Id;
+
+        // ── Test page with hero block ────────────────────────────────────
+        var blockPage = await session.Query<PageDocument>()
+            .FirstOrDefaultAsync(p => p.SiteId == site.Id && p.Slug == "test-blocks-page");
+        if (blockPage is null)
+        {
+            blockPage = new PageDocument
+            {
+                Id                = Snowflake.NewId(),
+                SiteId            = site.Id,
+                Slug              = "test-blocks-page",
+                Title             = "Test Blocks Page",
+                Summary           = "E2E page with seeded blocks",
+                Path              = "/test-blocks-page",
+                Depth             = 0,
+                Order             = 1,
+                Kind              = PageKind.Standard,
+                PublicationState  = ContentPublicationState.Published,
+                PublishedOn       = DateTimeOffset.UtcNow,
+                ShowInNavMenu     = false,
+                ShowHeaderNavigation = false,
+                Blocks =
+                [
+                    new Aero.Cms.Abstractions.Blocks.EditorBlock
+                    {
+                        EditorId = "hero-1",
+                        Type = "hero",
+                        MainText = "Seeded Hero Block",
+                        SubText = "This hero was seeded by the E2E test fixture",
+                        CtaText = "Learn More",
+                        CtaUrl = "/about"
+                    }
+                ]
+            };
+            session.Store(blockPage);
+        }
+        BlockPageId = blockPage.Id;
 
         await session.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Resets the seeded block page back to its original single "Seeded Hero Block".
+    /// Call before any mutating test (duplicate, delete, etc.) to ensure a known state.
+    /// </summary>
+    public async Task ResetBlockPageAsync()
+    {
+        await using var session = _store!.LightweightSession();
+        var page = await session.LoadAsync<PageDocument>(BlockPageId);
+        if (page is null) return;
+
+        page.Blocks =
+        [
+            new Aero.Cms.Abstractions.Blocks.EditorBlock
+            {
+                EditorId = "hero-1",
+                Type = "hero",
+                MainText = "Seeded Hero Block",
+                SubText = "This hero was seeded by the E2E test fixture",
+                CtaText = "Learn More",
+                CtaUrl = "/about"
+            }
+        ];
+
+        await session.SaveChangesAsync();
+        Console.WriteLine("[Fixture] Block page reset to original seeded state");
+    }
+
+    /// <summary>
+    /// Resets the home page back to an empty blocks list.
+    /// Call before tests that add blocks to the home page (e.g., media image tests).
+    /// </summary>
+    public async Task ResetHomePageAsync()
+    {
+        await using var session = _store!.LightweightSession();
+        var page = await session.LoadAsync<PageDocument>(HomePageId);
+        if (page is null) return;
+        page.Blocks = [];
+        session.Store(page);
+        await session.SaveChangesAsync();
+        Console.WriteLine("[Fixture] Home page reset to empty state");
     }
 
     private static async Task EnsureDatabaseAsync(string dbName, int port)
