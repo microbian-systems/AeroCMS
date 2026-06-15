@@ -7,7 +7,8 @@ namespace Aero.Cms.Ui.Neo.Primitives.Icon;
 
 public sealed class IconPrimitiveDefinition :
     IPageEditorCatalogDefinition,
-    INeoNodeFactory
+    INeoNodeFactory,
+    IEmbeddable
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new IconPrimitiveDefinition(), new IconPrimitiveDefinition());

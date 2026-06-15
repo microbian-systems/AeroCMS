@@ -7,7 +7,8 @@ namespace Aero.Cms.Ui.Neo.Primitives.Pill;
 
 public sealed class PillPrimitiveDefinition :
     IPageEditorCatalogDefinition,
-    INeoNodeFactory
+    INeoNodeFactory,
+    IEmbeddable
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new PillPrimitiveDefinition(), new PillPrimitiveDefinition());

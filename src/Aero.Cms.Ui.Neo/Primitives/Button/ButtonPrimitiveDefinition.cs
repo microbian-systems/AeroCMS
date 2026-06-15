@@ -7,7 +7,8 @@ namespace Aero.Cms.Ui.Neo.Primitives.Button;
 
 public sealed class ButtonPrimitiveDefinition :
     IPageEditorCatalogDefinition,
-    INeoNodeFactory
+    INeoNodeFactory,
+    IEmbeddable
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new ButtonPrimitiveDefinition(), new ButtonPrimitiveDefinition());

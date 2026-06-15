@@ -2,7 +2,7 @@
 
 @if (Block != null)
 {
-    var gapValue = Block.Gap is not null && int.TryParse(Block.Gap, out var g) ? g : 16;
+    var gapValue = Block.Gap is not null && int.TryParse(Block.Gap, out var g) ? g : 12;
 
     <div class="grid grid-cols-1 md:grid-cols-@(Block.Columns.Count > 0 ? Block.Columns.Count : 1) gap-@(gapValue / 4) @Block.RowClasses">
         @foreach (var column in Block.Columns)

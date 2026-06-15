@@ -1,0 +1,19 @@
+@using Aero.Cms.Abstractions.Blocks
+
+@if (Block != null)
+{
+    <figure class="my-8">
+        @if (!string.IsNullOrEmpty(Block.Url))
+        {
+            <img src="@Block.Url" alt="@(Block.AltText ?? "")" class="w-full rounded-lg" loading="lazy" />
+        }
+        @if (!string.IsNullOrEmpty(Block.Caption))
+        {
+            <figcaption class="mt-2 text-sm text-muted-foreground text-center">@Block.Caption</figcaption>
+        }
+    </figure>
+}
+
+@code {
+    [Parameter, EditorRequired] public ImageBlock? Block { get; set; }
+}

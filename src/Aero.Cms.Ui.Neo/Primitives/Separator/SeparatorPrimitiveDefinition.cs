@@ -6,7 +6,8 @@ namespace Aero.Cms.Ui.Neo.Primitives.Separator;
 
 public sealed class SeparatorPrimitiveDefinition :
     IPageEditorCatalogDefinition,
-    INeoNodeFactory
+    INeoNodeFactory,
+    IEmbeddable
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new SeparatorPrimitiveDefinition(), new SeparatorPrimitiveDefinition());

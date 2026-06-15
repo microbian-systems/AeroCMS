@@ -7,7 +7,8 @@ namespace Aero.Cms.Ui.Neo.Primitives.Image;
 
 public sealed class ImagePrimitiveDefinition :
     IPageEditorCatalogDefinition,
-    INeoNodeFactory
+    INeoNodeFactory,
+    IEmbeddable
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new ImagePrimitiveDefinition(), new ImagePrimitiveDefinition());

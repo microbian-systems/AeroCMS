@@ -34,7 +34,7 @@
 
             case "primitive.container":
             {
-                <div class="neo-primitive-container">
+                <div class="neo-primitive-container @NeoContainerLayoutCss.FromProperties(Node.Properties)">
                     @foreach (var child in Node.Children)
                     {
                         <NeoNodeRenderer Node="child"

@@ -1,3 +1,5 @@
+@using Aero.Cms.Abstractions.Blocks.Neo
+
 <SortableCompositionSurface Node="Node"
                             RootNode="RootNode"
                             NodeChanged="NodeChanged"
@@ -5,7 +7,7 @@
                             DropRejected="DropRejected"
                             DropZoneId="@ContainerPrimitiveDefinition.ContentDropZone"
                             CssClass="neo-primitive-container"
-                            ContentCssClass="min-h-[72px] p-4 border border-dashed rounded-lg"
+                            ContentCssClass="@($"min-h-[72px] p-4 border border-dashed rounded-lg {NeoContainerLayoutCss.FromProperties(Node.Properties)}")"
                             EmptyText="Drop primitives here" />
 
 @code {

@@ -1,12 +1,14 @@
 using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Neo.Composition;
+using System.Text.Json;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Container;
 
 public sealed class ContainerPrimitiveDefinition :
     IPageEditorCatalogDefinition,
-    INeoNodeFactory
+    INeoNodeFactory,
+    IEmbeddable
 {
     public const string ContentDropZone = "content";
 
@@ -59,6 +61,11 @@ public sealed class ContainerPrimitiveDefinition :
         {
             NodeId = Guid.NewGuid().ToString("N"),
             CatalogId = CatalogId,
-            Kind = Kind
+            Kind = Kind,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["layout"] = JsonSerializer.SerializeToElement("stack"),
+                ["gap"] = JsonSerializer.SerializeToElement(4)
+            }
         };
 }

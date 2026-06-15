@@ -7,7 +7,8 @@ namespace Aero.Cms.Ui.Neo.Primitives.Card;
 
 public sealed class CardPrimitiveDefinition :
     IPageEditorCatalogDefinition,
-    INeoNodeFactory
+    INeoNodeFactory,
+    IEmbeddable
 {
     public const string ContentDropZone = "content";
 

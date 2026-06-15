@@ -77,6 +77,9 @@ public partial class NeoCompositionBlockRenderer;
 [CmsBlockRenderer(typeof(Aero.Cms.Abstractions.Blocks.Neo.ImageBlock))]
 public partial class ImageBlockRenderer;
 
+[CmsBlockRenderer(typeof(Aero.Cms.Abstractions.Blocks.ImageBlock))]
+public partial class ConcreteImageBlockRenderer;
+
 [CmsBlockRenderer(typeof(VideoBlock))]
 public partial class VideoBlockRenderer;
 

@@ -382,7 +382,7 @@ public static class EditorBlockMapper
         return nestedBlock.Type switch
         {
             "text" => new RichTextBlock { Content = nestedBlock.Content },
-            "image" => new ImageBlock { Url = nestedBlock.Src, AltText = nestedBlock.Alt },
+            "image" => new Aero.Cms.Abstractions.Blocks.Neo.ImageBlock { Src = nestedBlock.Src, Alt = nestedBlock.Alt },
             "video" => new EmbedBlock
             {
                 SourceUrl = FirstNonEmpty(nestedBlock.Url, nestedBlock.Src),

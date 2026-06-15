@@ -7,7 +7,8 @@ namespace Aero.Cms.Ui.Neo.Primitives.Text;
 
 public sealed class TextPrimitiveDefinition :
     IPageEditorCatalogDefinition,
-    INeoNodeFactory
+    INeoNodeFactory,
+    IEmbeddable
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new TextPrimitiveDefinition(), new TextPrimitiveDefinition());

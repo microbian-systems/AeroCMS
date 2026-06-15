@@ -845,6 +845,16 @@ public sealed class BlockRendererGenerator : IIncrementalGenerator
             ? modelType.Name.Substring(0, modelType.Name.Length - "Block".Length)
             : modelType.Name;
 
+        // Include the containing namespace to avoid collisions when
+        // multiple types share the same short name (e.g. Neo.ImageBlock
+        // vs common ImageBlock).
+        var ns = modelType.ContainingNamespace?.ToDisplayString() ?? "";
+        if (!string.IsNullOrEmpty(ns) && ns != "<global namespace>")
+        {
+            var nsPart = ns.Replace(".", "_");
+            name = $"{nsPart}_{name}";
+        }
+
         return SanitizeIdentifier(name) + "BlockRenderAdapter";
     }
 
