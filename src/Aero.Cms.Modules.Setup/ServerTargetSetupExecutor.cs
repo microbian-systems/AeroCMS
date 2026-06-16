@@ -84,8 +84,10 @@ public sealed class ServerTargetSetupExecutor(
         var blockService = new MartenBlockService(session);
         var bus = rootServiceProvider.GetRequiredService<IMessageBus>();
         var noopSiteContext = new NoopSiteContext();
+        var editorBlockMapper = rootServiceProvider.GetRequiredService<IEditorBlockMapper>();
         var pageContentService = new MartenPageContentService(session, blockService, bus, noopSiteContext,
-            rootServiceProvider.GetRequiredService<ILogger<MartenPageContentService>>());
+            rootServiceProvider.GetRequiredService<ILogger<MartenPageContentService>>(),
+            editorBlockMapper);
         var blogPostContentService = new PostContentService(session, noopSiteContext);
         var userStore = CreateUserStore(session, rootServiceProvider);
         var userManager = CreateUserManager(userStore, rootServiceProvider);

@@ -1,8 +1,10 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Shared.Blocks.Rendering;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -14,6 +16,11 @@ namespace Aero.Cms.BlockRendering.Tests;
 
 public sealed class CannedBlockResponsiveStyleTests
 {
+    private readonly IEditorBlockMapper _mapper = new EditorBlockMapper(
+        new PageEditorDefinitionRegistry(
+            [new LegacyPageEditorBlockProvider()],
+            []));
+
     [Test]
     public void MapperPreservesResponsiveStyleOnCannedBlock()
     {
@@ -36,7 +43,7 @@ public sealed class CannedBlockResponsiveStyleTests
             }
         };
 
-        var mapped = EditorBlockMapper.MapBlock(editorBlock)
+        var mapped = _mapper.MapBlock(editorBlock)
             .Should().BeOfType<BoringHeroBlock>().Subject;
 
         mapped.ResponsiveStyle.Base.BackgroundColor.Should().Be(new CssColor("#112233"));

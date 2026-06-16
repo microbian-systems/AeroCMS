@@ -42,6 +42,7 @@ public sealed class MartenPageContentService(
     IMessageBus bus,
     ISiteContext siteContext,
     ILogger<MartenPageContentService> logger,
+    IEditorBlockMapper editorBlockMapper,
     string? actor = null,
     IFusionCache? cache = null,
     IPageTreeService? pageTreeService = null) : IPageContentService
@@ -838,7 +839,7 @@ public sealed class MartenPageContentService(
 
         foreach (var eb in editorBlocks)
         {
-            var block = EditorBlockMapper.MapBlock(eb);
+            var block = editorBlockMapper.MapBlock(eb);
             if (block is null)
                 continue;
 

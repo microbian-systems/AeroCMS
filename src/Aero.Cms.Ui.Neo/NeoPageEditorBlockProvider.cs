@@ -6,14 +6,15 @@ using Aero.Cms.Ui.Neo.Blocks.Hero;
 using Aero.Cms.Ui.Neo.Blocks.Newsletter;
 using Aero.Cms.Ui.Neo.Blocks.SplitHero;
 using Aero.Cms.Ui.Neo.Blocks.StatsRow;
+using Aero.Cms.Ui.Neo.Definitions;
 using Aero.Cms.Ui.Neo.Primitives.Button;
 using Aero.Cms.Ui.Neo.Primitives.Card;
+using Aero.Cms.Ui.Neo.Primitives.Container;
 using Aero.Cms.Ui.Neo.Primitives.Icon;
 using Aero.Cms.Ui.Neo.Primitives.Image;
 using Aero.Cms.Ui.Neo.Primitives.Pill;
 using Aero.Cms.Ui.Neo.Primitives.Separator;
 using Aero.Cms.Ui.Neo.Primitives.Text;
-using Aero.Cms.Ui.Neo.Primitives.Container;
 
 namespace Aero.Cms.Ui.Neo;
 
@@ -29,8 +30,16 @@ public sealed class NeoPageEditorBlockProvider :
         new SplitHeroEditorBlockDefinition(),
         new CtaBannerEditorBlockDefinition(),
         new NewsletterEditorBlockDefinition(),
-        new StatsRowEditorBlockDefinition()
-
+        new StatsRowEditorBlockDefinition(),
+        new BasicHeroEditorBlockDefinition(),
+        new ImageEditorBlockDefinition(),
+        new VideoEditorBlockDefinition(),
+        new AudioEditorBlockDefinition(),
+        new GalleryEditorBlockDefinition(),
+        new NeoRawHtmlEditorBlockDefinition(),
+        new SeparatorEditorBlockDefinition(),
+        new NeoColumnsEditorBlockDefinition(),
+        new ScribanEditorBlockDefinition()
     ];
 
     private static readonly IReadOnlyCollection<CmsBlockModelRegistration> BlockModels =

@@ -5,30 +5,26 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Image;
 
-public sealed class ImagePrimitiveDefinition :
-    IPageEditorCatalogDefinition,
-    INeoNodeFactory,
-    IEmbeddable
+public sealed class ImagePrimitiveDefinition : PrimitiveDefinitionBase
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new ImagePrimitiveDefinition(), new ImagePrimitiveDefinition());
 
-    public string CatalogId => "primitive.image";
-    public string DisplayName => "Image";
-    public string? Description => "A responsive image with alternative text and caption.";
-    public string Category => "Primitives";
-    public NeoPageNodeKind Kind => NeoPageNodeKind.Primitive;
-    public string IconName => "image";
-    public int SortOrder => 30;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(ImagePrimitivePreview);
-    public Type? PropertyEditorComponentType => typeof(ImagePrimitiveEditor);
-    public ICompositionCapabilities Composition { get; } =
+    public override string CatalogId => "primitive.image";
+    public override string DisplayName => "Image";
+    public override string? Description => "A responsive image with alternative text and caption.";
+    public override string Category => "Primitives";
+    public override string IconName => "image";
+    public override int SortOrder => 30;
+    public override bool PublicStaticSsrSafe => true;
+    public override Type? PreviewComponentType => typeof(ImagePrimitivePreview);
+    public override Type? PropertyEditorComponentType => typeof(ImagePrimitiveEditor);
+    public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Leaf(
             NeoPageNodeKind.Section,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component);
-    public EditorCapabilitySet EditorCapabilities =>
+    public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Content |
         EditorCapabilitySet.Media |
         EditorCapabilitySet.Spacing |
@@ -38,7 +34,16 @@ public sealed class ImagePrimitiveDefinition :
         EditorCapabilitySet.Visibility |
         EditorCapabilitySet.Direction;
 
-    public NeoPageNode CreateDefaultNode() =>
+    public override EditorInteractionCapabilities Interaction =>
+        EditorInteractionCapabilities.Selectable |
+        EditorInteractionCapabilities.Editable |
+        EditorInteractionCapabilities.Draggable |
+        EditorInteractionCapabilities.Duplicatable |
+        EditorInteractionCapabilities.Deletable |
+        EditorInteractionCapabilities.Copyable |
+        EditorInteractionCapabilities.MediaSelectable;
+
+    public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),

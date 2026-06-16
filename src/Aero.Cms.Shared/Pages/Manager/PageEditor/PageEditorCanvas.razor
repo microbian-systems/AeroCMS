@@ -1,9 +1,11 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor
 @using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Blocks.Editor
 @using Aero.Cms.Abstractions.Blocks.Neo.Styles
 @using NeoUI.Blazor
 @using NeoUI.Blazor.Primitives
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+@inject IPageEditorDefinitionRegistry DefinitionRegistry
 
 <Sortable TItem="EditorBlock"
           Items="Blocks"
@@ -37,6 +39,7 @@
 
             <SortableItemPrimitive Value="@block.EditorId">
                 <EditorBlockFrame BlockEditorId="@block.EditorId"
+                                  BlockType="@block.Type"
                                   Index="@index"
                                   TotalCount="@Blocks.Count"
                                   IsSelected="@isSelected"
@@ -108,8 +111,9 @@
     private static string EditorStyle(EditorBlock block) =>
         NodeStyleCssRenderer.Render(block.Style, EditorBreakpoint.Desktop);
 
-    private static bool SupportsBackgroundImage(EditorBlock block) =>
-        block.Type is "boring_hero" or "hero" or "aero.hero.basic";
+    private bool SupportsBackgroundImage(EditorBlock block) =>
+        DefinitionRegistry.TryGetDescriptor(block.Type, out var descriptor)
+        && descriptor.Catalog.EditorCapabilities.HasFlag(EditorCapabilitySet.Background);
 
     private void RemoveBackground(EditorBlock block)
     {

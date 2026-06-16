@@ -1,6 +1,9 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor
+@using Aero.Cms.Abstractions.Blocks.Editor
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions
 @using NeoUI.Blazor.Primitives
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+@inject IEditorNodeActionProvider ActionProvider
 
 <div class="pe-block-wrapper @(IsSelected ? "selected" : "") @(Dragging ? "dragging" : "") @(IsDragOver ? "drag-over" : "")"
      @onclick="() => OnSelect.InvokeAsync()"
@@ -83,32 +86,14 @@
              role="menu"
              @onclick:stopPropagation
              @oncontextmenu:preventDefault>
-            <button type="button"
-                    role="menuitem"
-                    @onclick="OpenEditorFromContextMenu">
-                @L["Edit"]
-            </button>
+            @foreach (var action in _contextMenuActions)
+            {
+                <button type="button"
+                        role="menuitem"
+                        @onclick="() => ExecuteContextMenuAction(action)">
+                    @GetActionDisplayText(action)
+                </button>
+            }
         </div>
     }
 </div>
-
-@code {
-    [Parameter] public RenderFragment? ToolbarActions { get; set; }
-    private bool ContextMenuOpen { get; set; }
-    private double ContextMenuX { get; set; }
-    private double ContextMenuY { get; set; }
-
-    private async Task OpenContextMenu(MouseEventArgs args)
-    {
-        ContextMenuX = args.ClientX;
-        ContextMenuY = args.ClientY;
-        ContextMenuOpen = true;
-        await OnSelect.InvokeAsync();
-    }
-
-    private async Task OpenEditorFromContextMenu()
-    {
-        ContextMenuOpen = false;
-        await OnOpenEditor.InvokeAsync();
-    }
-}

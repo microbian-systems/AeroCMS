@@ -5,30 +5,26 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Pill;
 
-public sealed class PillPrimitiveDefinition :
-    IPageEditorCatalogDefinition,
-    INeoNodeFactory,
-    IEmbeddable
+public sealed class PillPrimitiveDefinition : PrimitiveDefinitionBase
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new PillPrimitiveDefinition(), new PillPrimitiveDefinition());
 
-    public string CatalogId => "primitive.pill";
-    public string DisplayName => "Pill";
-    public string? Description => "A compact label or badge.";
-    public string Category => "Primitives";
-    public NeoPageNodeKind Kind => NeoPageNodeKind.Primitive;
-    public string IconName => "badge";
-    public int SortOrder => 40;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(PillPrimitivePreview);
-    public Type? PropertyEditorComponentType => typeof(PillPrimitiveEditor);
-    public ICompositionCapabilities Composition { get; } =
+    public override string CatalogId => "primitive.pill";
+    public override string DisplayName => "Pill";
+    public override string? Description => "A compact label or badge.";
+    public override string Category => "Primitives";
+    public override string IconName => "badge";
+    public override int SortOrder => 40;
+    public override bool PublicStaticSsrSafe => true;
+    public override Type? PreviewComponentType => typeof(PillPrimitivePreview);
+    public override Type? PropertyEditorComponentType => typeof(PillPrimitiveEditor);
+    public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Leaf(
             NeoPageNodeKind.Section,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component);
-    public EditorCapabilitySet EditorCapabilities =>
+    public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Content |
         EditorCapabilitySet.Typography |
         EditorCapabilitySet.Spacing |
@@ -38,7 +34,15 @@ public sealed class PillPrimitiveDefinition :
         EditorCapabilitySet.Direction |
         EditorCapabilitySet.Visibility;
 
-    public NeoPageNode CreateDefaultNode() =>
+    public override EditorInteractionCapabilities Interaction =>
+        EditorInteractionCapabilities.Selectable |
+        EditorInteractionCapabilities.Editable |
+        EditorInteractionCapabilities.Draggable |
+        EditorInteractionCapabilities.Duplicatable |
+        EditorInteractionCapabilities.Deletable |
+        EditorInteractionCapabilities.Copyable;
+
+    public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),

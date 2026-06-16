@@ -9,7 +9,8 @@ namespace Aero.Cms.Abstractions.Blocks.Editor;
 /// </summary>
 public sealed class LegacyPageEditorDefinitionAdapter :
     IPageEditorCatalogDefinition,
-    INeoNodeFactory
+    INeoNodeFactory,
+    IEditorInteractionProvider
 {
     private static readonly EditorCapabilitySet DefaultCapabilities =
         EditorCapabilitySet.Content |
@@ -48,6 +49,18 @@ public sealed class LegacyPageEditorDefinitionAdapter :
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component);
     public EditorCapabilitySet EditorCapabilities { get; }
+
+    /// <summary>
+    /// Legacy canned blocks support all canvas interaction capabilities
+    /// (select, edit, drag, duplicate, delete, copy).
+    /// </summary>
+    public EditorInteractionCapabilities Interaction =>
+        EditorInteractionCapabilities.Selectable |
+        EditorInteractionCapabilities.Editable |
+        EditorInteractionCapabilities.Draggable |
+        EditorInteractionCapabilities.Duplicatable |
+        EditorInteractionCapabilities.Deletable |
+        EditorInteractionCapabilities.Copyable;
 
     public NeoPageNode CreateDefaultNode()
     {

@@ -56,8 +56,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     [Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
     [Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
-    [Inject] protected IEnumerable<IPageEditorBlockProvider> PageEditorBlockProviders { get; set; } = [];
-    [Inject] protected IEnumerable<IPageEditorDefinitionProvider> PageEditorDefinitionProviders { get; set; } = [];
+    [Inject] protected IPageEditorDefinitionRegistry DefinitionRegistry { get; set; } = default!;
     [Inject] protected DialogService DialogService { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
@@ -234,10 +233,6 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     protected override async Task OnInitializedAsync()
     {
         RestorePaletteState();
-
-        PageEditorBlockRegistry.RegisterProviders(
-            PageEditorBlockProviders,
-            PageEditorDefinitionProviders);
 
         await ResolvePreviewBaseUriAsync();
         CurrentSite = await ResolveCurrentSiteAsync();
@@ -571,7 +566,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoHyperCatalogItems =>
         Catalog.GetCatalogItems()
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
-            .Concat(PageEditorBlockRegistry.All.Select(ToCatalogItem))
+            .Concat(DefinitionRegistry.LegacyDefinitions.Select(ToCatalogItem))
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
             .GroupBy(i => i.CatalogId, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
@@ -579,14 +574,14 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             .ToList();
 
     protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoNeoCatalogItems =>
-        PageEditorBlockRegistry.AllDescriptors
+        DefinitionRegistry.AllDescriptors
             .Select(ToCatalogItem)
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Neo)
             .OrderBy(i => i.SortOrder)
             .ToList();
 
     protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> PrimitiveCatalogItems =>
-        PageEditorBlockRegistry.AllDescriptors
+        DefinitionRegistry.AllDescriptors
             .Select(ToCatalogItem)
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Primitives)
             .OrderBy(i => i.SortOrder)
@@ -921,7 +916,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    private static NeoPageNode CreateCustomComponentRoot(EditorBlock block)
+    private NeoPageNode CreateCustomComponentRoot(EditorBlock block)
     {
         if (block.CompositionNodes.Count == 1)
         {
@@ -965,12 +960,17 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     private EditorBlock CreateBlock(string type)
     {
-        if (PageEditorBlockRegistry.TryGet(type, out var definition))
+        if (DefinitionRegistry.TryGetDescriptor(type, out var descriptor) &&
+            descriptor.LegacyDefinition is { } definition)
         {
-            return definition.CreateDefaultEditorBlock();
+            var defaultBlock = definition.CreateDefaultEditorBlock();
+            defaultBlock.Type = string.IsNullOrWhiteSpace(defaultBlock.Type)
+                ? descriptor.CatalogId
+                : defaultBlock.Type;
+            return defaultBlock;
         }
 
-        if (PageEditorBlockRegistry.TryGetDescriptor(type, out var descriptor))
+        if (DefinitionRegistry.TryGetDescriptor(type, out descriptor))
         {
             return new EditorBlock
             {
@@ -1129,9 +1129,9 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     {
         if (block == null) return null;
 
-        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        if (TryMapWithDefinition(block, out var mappedBlock, out _))
         {
-            return definition.ToBlockBase(block);
+            return mappedBlock;
         }
 
         var node = MapEditorBlockToNeoNode(block);
@@ -1149,11 +1149,11 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         };
     }
 
-    private static NeoPageNode MapEditorBlockToNeoNode(EditorBlock block)
+    private NeoPageNode MapEditorBlockToNeoNode(EditorBlock block)
     {
-        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        if (TryMapWithDefinition(block, out _, out var mappedNode))
         {
-            return definition.ToNeoPageNode(block);
+            return mappedNode;
         }
 
         return block.Type switch
@@ -1239,6 +1239,35 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         },
         _ => new NeoPageNode { CatalogId = block.Type, Kind = NeoPageNodeKind.Block, Properties = [] }
         };
+    }
+
+    private bool TryMapWithDefinition(
+        EditorBlock block,
+        out BlockBase? mappedBlock,
+        out NeoPageNode mappedNode)
+    {
+        mappedBlock = null;
+        mappedNode = new NeoPageNode { CatalogId = block.Type, Kind = NeoPageNodeKind.Block, Properties = [] };
+
+        if (!DefinitionRegistry.TryGetDescriptor(block.Type, out var descriptor) ||
+            descriptor.LegacyDefinition is not { } definition)
+        {
+            return false;
+        }
+
+        mappedBlock = definition.ToBlockBase(block);
+        mappedNode = definition.ToNeoPageNode(block);
+        if (string.IsNullOrWhiteSpace(mappedNode.CatalogId))
+        {
+            mappedNode.CatalogId = descriptor.CatalogId;
+        }
+
+        if (mappedNode.Kind == default)
+        {
+            mappedNode.Kind = NeoPageNodeKind.Block;
+        }
+
+        return true;
     }
 
     protected void SelectBlock(string id) => SelectedBlockId = id;

@@ -5,30 +5,25 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Icon;
 
-public sealed class IconPrimitiveDefinition :
-    IPageEditorCatalogDefinition,
-    INeoNodeFactory,
-    IEmbeddable
+public sealed class IconPrimitiveDefinition : PrimitiveDefinitionBase
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new IconPrimitiveDefinition(), new IconPrimitiveDefinition());
 
-    public string CatalogId => "primitive.icon";
-    public string DisplayName => "Icon";
-    public string? Description => "A Lucide icon with an accessible label.";
-    public string Category => "Primitives";
-    public NeoPageNodeKind Kind => NeoPageNodeKind.Primitive;
-    public string IconName => "circle";
-    public int SortOrder => 50;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(IconPrimitivePreview);
-    public Type? PropertyEditorComponentType => typeof(IconPrimitiveEditor);
-    public ICompositionCapabilities Composition { get; } =
+    public override string CatalogId => "primitive.icon";
+    public override string DisplayName => "Icon";
+    public override string? Description => "A Lucide icon with an accessible label.";
+    public override string Category => "Primitives";
+    public override string IconName => "circle";
+    public override int SortOrder => 50;
+    public override Type? PreviewComponentType => typeof(IconPrimitivePreview);
+    public override Type? PropertyEditorComponentType => typeof(IconPrimitiveEditor);
+    public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Leaf(
             NeoPageNodeKind.Section,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component);
-    public EditorCapabilitySet EditorCapabilities =>
+    public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Icon |
         EditorCapabilitySet.Spacing |
         EditorCapabilitySet.Dimensions |
@@ -37,7 +32,15 @@ public sealed class IconPrimitiveDefinition :
         EditorCapabilitySet.Direction |
         EditorCapabilitySet.Visibility;
 
-    public NeoPageNode CreateDefaultNode() =>
+    public override EditorInteractionCapabilities Interaction =>
+        EditorInteractionCapabilities.Selectable |
+        EditorInteractionCapabilities.Editable |
+        EditorInteractionCapabilities.Draggable |
+        EditorInteractionCapabilities.Duplicatable |
+        EditorInteractionCapabilities.Deletable |
+        EditorInteractionCapabilities.Copyable;
+
+    public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),

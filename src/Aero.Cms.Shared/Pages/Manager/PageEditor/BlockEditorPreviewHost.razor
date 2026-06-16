@@ -11,6 +11,7 @@
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions
 @using NeoUI.Blazor
 @using NeoUI.Blazor.Primitives
+@inject IPageEditorDefinitionRegistry DefinitionRegistry
 
 @if (Block.Type == "aero.hero.basic")
 {
@@ -525,7 +526,7 @@ else
 
     private bool TryGetRegisteredPreview(out Type previewType, out Dictionary<string, object?> parameters)
     {
-        if (PageEditorBlockRegistry.TryGetDescriptor(Block.Type, out var definition) &&
+        if (DefinitionRegistry.TryGetDescriptor(Block.Type, out var definition) &&
             definition.Catalog.PreviewComponentType is { } registeredPreviewType)
         {
             previewType = registeredPreviewType;
@@ -810,7 +811,8 @@ else
     // ── Neo node mapping ────────────────────────────────────────────
     private NeoPageNode MapToNeoNode(EditorBlock block)
     {
-        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        if (DefinitionRegistry.TryGetDescriptor(block.Type, out var descriptor) &&
+            descriptor.LegacyDefinition is { } definition)
         {
             return definition.ToNeoPageNode(block);
         }
@@ -970,7 +972,8 @@ else
     /// </summary>
     public BlockBase? GetBlockBase(EditorBlock block)
     {
-        if (PageEditorBlockRegistry.TryGet(block.Type, out var definition))
+        if (DefinitionRegistry.TryGetDescriptor(block.Type, out var descriptor) &&
+            descriptor.LegacyDefinition is { } definition)
         {
             return definition.ToBlockBase(block);
         }

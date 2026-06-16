@@ -1,16 +1,16 @@
 # WYSIWYG Page Editor UX Refactor
 
 **Status:** In progress  
-**Last modified:** 2026-06-15 (catalog consolidation plan added)  
+**Last modified:** 2026-06-16 (page editor registry-first mapper path verified)  
 **Author:** AI-assisted planning session
 
 ---
 
 ## Implementation Progress
 
-**Last updated:** June 15, 2026
+**Last updated:** June 16, 2026
 
-**Estimated core-refactor completion:** 86%
+**Estimated core-refactor completion:** 92%
 
 This estimate now accounts for the discovered transition debt between the old
 `EditorBlock` property-bag canvas and the catalog/capability-driven Neo node
@@ -142,14 +142,51 @@ consolidation, not an immediate wholesale editor-state replacement.
   render through a sanitized responsive public wrapper.
 - Focused canned-block coverage proves responsive style mapping is isolated by
   deep clone and public rendering emits Desktop, Tablet, and Mobile styles.
+- Phase 0.5 registry foundation is in place: `IPageEditorDefinitionRegistry`,
+  an immutable DI-backed `PageEditorDefinitionRegistry`, compatibility shim
+  wiring for the old static registry, and initial editor/palette lookups through
+  the injected registry.
+- Page editor canvas, root block frame actions, block preview host, property
+  panel, modal editor host, preview fragment rendering, publish/save block
+  mapping, and grain-backed page service construction now consume the injected
+  `IPageEditorDefinitionRegistry` path instead of direct static registry
+  lookups.
+- Built-in Neo and Hyper package extensions now register editor definitions
+  through DI providers only. They no longer create providers manually for
+  `PageEditorBlockRegistry`, leaving the static registry as a deprecated
+  compatibility bridge rather than the extensibility boundary.
+- `EditorBlockMapper` now has an `IEditorBlockMapper` service boundary so
+  page preview and publish paths depend on abstractions and can be tested with
+  registry substitutes.
+- Legacy alias block IDs that previously existed only inside the publish/save
+  mapper switch are now registered through `LegacyPageEditorBlockProvider`,
+  giving them the same `IPageEditorBlockProvider` -> `IPageEditorBlockDefinition`
+  traceability as package-provided blocks.
+- `EditorBlockMapper` no longer contains the legacy alias block switch. It now
+  relies on the injected registry for known block mappings and returns `null`
+  for truly unknown editor block types.
+- `PageEditor.CreateBlock`, `GetBlockBaseForEditor`, and
+  `MapEditorBlockToNeoNode` now resolve through the injected definition
+  registry first, with legacy UI switches retained only as parity bridges while
+  canned blocks move to native composition definitions.
+- Block-rendering test scaffolding now registers the same definition registry
+  and action-provider services as the app, and mapper tests cover legacy alias
+  mapping through `LegacyPageEditorBlockProvider`.
 
 ### Architecture Transition In Progress
 
 - Native primitive definitions use catalog/capability contracts.
+- Page-editor definition lookup now flows through a DI-backed registry for the
+  primary editor, preview, publish/save paths, and legacy alias block mapping.
+  The static compatibility shim remains only as a transitional bridge for older
+  external consumers and should be removed after registry parity tests cover all
+  canned blocks.
 - Composition policy exists and is used by nested mutation paths.
 - Universal context-menu behavior is documented but not yet centralized.
 - Root blocks, nested primitives, Columns rows, and custom components still
   have separate UI action paths.
+- Editor UI and preview switches still preserve existing legacy editors until
+  each canned block has registry-backed parity.
 - `EditorBlock` is still the dominant page-editor storage and transport bridge.
 - `SeedDataService.cs` still needs a direct Neo node-tree seed model.
 
@@ -174,8 +211,11 @@ consolidation, not an immediate wholesale editor-state replacement.
 - [ ] Move root blocks, primitives, rows/columns, containers, and custom
   components to one canvas node rendering path.
 - [ ] Route all node mutations through commands plus `ICompositionPolicy`.
-- [ ] Port existing canned blocks into node definitions.
-- [ ] Remove legacy switch-based preview/editor/action paths after parity.
+- [ ] Port existing canned blocks into full node/composition definitions.
+- [ ] Remove legacy switch-based preview/editor/action paths after parity. The
+  publish/save mapper switch has been removed for registered legacy aliases;
+  editor UI, preview selection, and action execution switches still need parity
+  work.
 - [ ] Replace legacy flat `EditorBlock` storage with direct node-tree editor
   state only after catalog definitions and `CompositionNodes` migration make
   the flat block property bag dead-code-eligible.
@@ -766,6 +806,8 @@ not destabilized by a ground-up state rewrite.
 2. **Register remaining legacy blocks.** Each switch fallback in
    `CreateBlock`, `MapEditorBlockToNeoNode`, `EditorBlockMapper`, or preview
    selection should become a catalog definition or transitional adapter entry.
+   The `EditorBlockMapper` alias cases are now covered by
+   `LegacyPageEditorBlockProvider`; UI/editor switches remain migration targets.
 3. **Add interaction capabilities.** Introduce
    `EditorInteractionCapabilities` for selectable/editable/draggable/delete
    menu behavior without mixing action flags into `EditorCapabilitySet`.
@@ -1299,6 +1341,8 @@ browser-test paths at once.
 3. Register every remaining legacy switch-case block in the catalog. Each
    fallback in `CreateBlock`, `MapEditorBlockToNeoNode`,
    `EditorBlockMapper`, and preview/editor selection is a migration target.
+   The save/publish mapper alias set is now registered through the transitional
+   `LegacyPageEditorBlockProvider`.
 4. Add `EditorInteractionCapabilities` and a centralized action-provider
    contract. Keep it separate from `EditorCapabilitySet`, which remains about
    property editor groups.

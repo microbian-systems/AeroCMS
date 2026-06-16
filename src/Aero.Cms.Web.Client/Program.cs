@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Shared.Localization;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Services;
 using Aero.Cms.Shared.Services;
 using Aero.Cms.Ui.Hyper;
 using Aero.Cms.Ui.Neo;
@@ -64,6 +67,8 @@ builder.Services.AddNeoUIComponents();
 builder.Services.Replace(ServiceDescriptor.Scoped<ILocalizer, NeoUiBridgeLocalizer>());
 builder.Services.AddAeroCmsHyperUiBlocks();
 builder.Services.AddAeroCmsNeoUiBlocks();
+builder.Services.AddSingleton<IPageEditorDefinitionRegistry, PageEditorDefinitionRegistry>();
+builder.Services.AddScoped<IEditorNodeActionProvider, EditorNodeActionProvider>();
 builder.Services.AddRadzenComponents();
 
 // Register cross-cutting services that run client-side

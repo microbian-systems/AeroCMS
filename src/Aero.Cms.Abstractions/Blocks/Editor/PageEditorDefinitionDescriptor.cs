@@ -10,4 +10,14 @@ public sealed record PageEditorDefinitionDescriptor(
     IPageEditorBlockDefinition? LegacyDefinition = null)
 {
     public string CatalogId => Catalog.CatalogId;
+
+    /// <summary>
+    /// Canvas interaction capabilities for this definition.
+    /// Derived from <see cref="IEditorInteractionProvider"/> on the
+    /// <see cref="Catalog"/> definition. Returns <see cref="EditorInteractionCapabilities.None"/>
+    /// when the catalog definition does not implement the interaction contract.
+    /// </summary>
+    public EditorInteractionCapabilities Interaction =>
+        (Catalog as IEditorInteractionProvider)?.Interaction
+        ?? EditorInteractionCapabilities.None;
 }

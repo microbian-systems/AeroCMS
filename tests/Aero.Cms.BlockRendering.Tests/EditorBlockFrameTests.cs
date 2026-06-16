@@ -1,4 +1,8 @@
+using Aero.Cms.Abstractions.Blocks.Editor;
+using Aero.Cms.Modules.Pages;
 using Aero.Cms.Shared.Pages.Manager.PageEditor;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -36,6 +40,9 @@ public sealed class EditorBlockFrameTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddRadzenComponents();
+        services.AddSingleton<IPageEditorBlockProvider, LegacyPageEditorBlockProvider>();
+        services.AddSingleton<IPageEditorDefinitionRegistry, PageEditorDefinitionRegistry>();
+        services.AddScoped<IEditorNodeActionProvider, EditorNodeActionProvider>();
         services.AddSingleton(Substitute.For<IStringLocalizer<Shared.Localization.ManagerResource>>());
 
         await using var serviceProvider = services.BuildServiceProvider();

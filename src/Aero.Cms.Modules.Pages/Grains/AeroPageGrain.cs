@@ -47,6 +47,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         var blockService = _services.GetRequiredService<IBlockService>();
         var bus = _services.GetRequiredService<IMessageBus>();
         var logger = _services.GetRequiredService<ILogger<MartenPageContentService>>();
+        var editorBlockMapper = _services.GetRequiredService<IEditorBlockMapper>();
         var cache = _services.GetService<IFusionCache>();
         var pageTreeService = _services.GetService<IPageTreeService>();
         return new MartenPageContentService(
@@ -55,6 +56,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
             bus,
             new FixedSiteContext(siteId),
             logger,
+            editorBlockMapper,
             actor: "system",
             cache,
             pageTreeService);

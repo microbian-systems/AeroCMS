@@ -1,4 +1,5 @@
 @inject IEnumerable<IPageEditorDefinitionProvider> DefinitionProviders
+@inject IEditorNodeActionProvider ActionProvider
 @namespace Aero.Cms.Ui.Neo.Primitives
 @using Aero.Cms.Shared.Pages.Manager.PageEditor
 
@@ -27,7 +28,7 @@
                      @oncontextmenu:preventDefault="true"
                      @oncontextmenu:stopPropagation="true"
                      @oncontextmenu="() => SelectNode(child.NodeId)">
-                    @if (IsTextPrimitive(child))
+                    @if (string.Equals(child.CatalogId, "primitive.text", StringComparison.OrdinalIgnoreCase))
                     {
                         <input class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
                                value="@GetPropertyString(child, "text")"
@@ -47,55 +48,32 @@
                     }
                     @if (SelectedNodeId == child.NodeId)
                     {
-                        <div class="absolute right-2 top-2 z-50 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 p-1 text-white shadow-xl"
-                             @onclick:stopPropagation="true"
-                             @ondblclick:stopPropagation="true"
-                             @onpointerdown:stopPropagation="true"
-                             @onmousedown:stopPropagation="true"
-                             @oncontextmenu:preventDefault="true"
-                             @oncontextmenu:stopPropagation="true">
-                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none"
-                                    title="Edit"
-                                    aria-label="Edit primitive"
-                                    @onclick:stopPropagation="true"
-                                    @onclick:preventDefault="true"
-                                    @onpointerdown:stopPropagation="true"
-                                    @onmousedown:stopPropagation="true"
-                                    @onclick="() => RequestEdit(child.NodeId)">Edit</button>
-                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none"
-                                    title="Duplicate"
-                                    aria-label="Duplicate primitive"
-                                    @onclick:stopPropagation="true"
-                                    @onclick:preventDefault="true"
-                                    @onpointerdown:stopPropagation="true"
-                                    @onmousedown:stopPropagation="true"
-                                    @onclick="() => DuplicateNode(child.NodeId)">Duplicate</button>
-                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none"
-                                    title="Copy"
-                                    aria-label="Copy primitive"
-                                    @onclick:stopPropagation="true"
-                                    @onclick:preventDefault="true"
-                                    @onpointerdown:stopPropagation="true"
-                                    @onmousedown:stopPropagation="true"
-                                    @onclick="() => CopyNode(child.NodeId)">Copy</button>
-                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
-                                    title="Paste"
-                                    aria-label="Paste primitive after this item"
-                                    disabled="@(_nodeClipboard is null)"
-                                    @onclick:stopPropagation="true"
-                                    @onclick:preventDefault="true"
-                                    @onpointerdown:stopPropagation="true"
-                                    @onmousedown:stopPropagation="true"
-                                    @onclick="() => PasteNodeAfter(child.NodeId)">Paste</button>
-                            <button type="button" class="rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600 focus:bg-red-600 focus:outline-none"
-                                    title="Delete"
-                                    aria-label="Delete primitive"
-                                    @onclick:stopPropagation="true"
-                                    @onclick:preventDefault="true"
-                                    @onpointerdown:stopPropagation="true"
-                                    @onmousedown:stopPropagation="true"
-                                    @onclick="() => DeleteNode(child.NodeId)">Delete</button>
-                        </div>
+                        var actions = GetAvailableActions(child);
+                        if (actions.Count > 0)
+                        {
+                            <div class="absolute right-2 top-2 z-50 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 p-1 text-white shadow-xl"
+                                 @onclick:stopPropagation="true"
+                                 @ondblclick:stopPropagation="true"
+                                 @onpointerdown:stopPropagation="true"
+                                 @onmousedown:stopPropagation="true"
+                                 @oncontextmenu:preventDefault="true"
+                                 @oncontextmenu:stopPropagation="true">
+                                @foreach (var action in actions)
+                                {
+                                    <button type="button" class="@GetActionButtonCss(action)"
+                                            title="@GetActionDisplayText(action)"
+                                            aria-label="@GetActionDisplayText(action)"
+                                            disabled="@(action == EditorNodeAction.Paste && _nodeClipboard is null)"
+                                            @onclick:stopPropagation="true"
+                                            @onclick:preventDefault="true"
+                                            @onpointerdown:stopPropagation="true"
+                                            @onmousedown:stopPropagation="true"
+                                            @onclick="() => ExecuteAction(action, child.NodeId)">
+                                        @GetActionDisplayText(action)
+                                    </button>
+                                }
+                            </div>
+                        }
                     }
                 </div>
             </SortableItemPrimitive>
@@ -168,7 +146,7 @@
                     this,
                     message => DropRejected.InvokeAsync(message));
         }
-        else if (IsImagePrimitive(node) && OwnerBlock is not null && Editor is not null)
+        else if (string.Equals(node.CatalogId, "primitive.image", StringComparison.OrdinalIgnoreCase) && OwnerBlock is not null && Editor is not null)
         {
             parameters["SelectMedia"] =
                 EventCallback.Factory.Create(
@@ -252,17 +230,79 @@
 
     private void SelectNode(string nodeId) => SelectedNodeId = nodeId;
 
-    private static bool IsTextPrimitive(NeoPageNode node) =>
-        string.Equals(
-            node.CatalogId,
-            "primitive.text",
-            StringComparison.OrdinalIgnoreCase);
+    private IReadOnlyList<EditorNodeAction> GetAvailableActions(NeoPageNode node)
+    {
+        var interaction = EditorInteractionCapabilities.None;
+        if (TryGetDefinition(node.CatalogId, out var descriptor))
+        {
+            interaction = descriptor.Interaction;
+        }
 
-    private static bool IsImagePrimitive(NeoPageNode node) =>
-        string.Equals(
-            node.CatalogId,
-            "primitive.image",
-            StringComparison.OrdinalIgnoreCase);
+        var nodeIndex = Node.Children.FindIndex(c => c.NodeId == node.NodeId);
+        var context = new EditorNodeActionContext(
+            HasClipboardContent: _nodeClipboard is not null,
+            CanMoveUp: nodeIndex > 0,
+            CanMoveDown: nodeIndex >= 0 && nodeIndex < Node.Children.Count - 1,
+            CanSaveAsCustom: interaction.HasFlag(EditorInteractionCapabilities.Editable));
+
+        return ActionProvider.GetAvailableActions(interaction, context);
+    }
+
+    private static string GetActionDisplayText(EditorNodeAction action) => action switch
+    {
+        EditorNodeAction.Edit => "Edit",
+        EditorNodeAction.Duplicate => "Duplicate",
+        EditorNodeAction.Delete => "Delete",
+        EditorNodeAction.Copy => "Copy",
+        EditorNodeAction.Paste => "Paste",
+        EditorNodeAction.MoveUp => "Move Up",
+        EditorNodeAction.MoveDown => "Move Down",
+        EditorNodeAction.SaveAsCustom => "Save as Custom",
+        EditorNodeAction.MediaSelect => "Select Media",
+        _ => action.ToString()
+    };
+
+    private static string GetActionButtonCss(EditorNodeAction action) =>
+        action == EditorNodeAction.Delete
+            ? "rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600 focus:bg-red-600 focus:outline-none"
+            : "rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none";
+
+    private async Task ExecuteAction(EditorNodeAction action, string nodeId)
+    {
+        switch (action)
+        {
+            case EditorNodeAction.Edit:
+                await RequestEdit(nodeId);
+                break;
+            case EditorNodeAction.Duplicate:
+                await DuplicateNode(nodeId);
+                break;
+            case EditorNodeAction.Delete:
+                await DeleteNode(nodeId);
+                break;
+            case EditorNodeAction.Copy:
+                CopyNode(nodeId);
+                break;
+            case EditorNodeAction.Paste:
+                await PasteNodeAfter(nodeId);
+                break;
+            case EditorNodeAction.MoveUp:
+            case EditorNodeAction.MoveDown:
+                // Move operations are not yet implemented as dedicated handlers;
+                // they are handled through sortable drag/drop. Skipping.
+                break;
+            case EditorNodeAction.SaveAsCustom:
+                // Save-as-custom is not yet implemented in this component.
+                break;
+            case EditorNodeAction.MediaSelect:
+                if (OwnerBlock is not null && Editor is not null)
+                {
+                    Editor.OpenNodeMediaSelector(
+                        OwnerBlock, nodeId, "property:url", Breakpoint);
+                }
+                break;
+        }
+    }
 
     private static string GetPropertyString(NeoPageNode node, string propertyName) =>
         node.Properties.TryGetValue(propertyName, out var value)

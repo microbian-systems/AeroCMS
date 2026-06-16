@@ -6,7 +6,20 @@ public static class PageEditorBlockRegistry
 {
     private static IReadOnlyDictionary<string, PageEditorDefinitionDescriptor> _definitions =
         new Dictionary<string, PageEditorDefinitionDescriptor>(StringComparer.OrdinalIgnoreCase);
+    private static IPageEditorDefinitionRegistry? _activeRegistry;
 
+    /// <summary>
+    /// Installs the DI-backed registry used by legacy static callers during
+    /// the Phase 0.5 migration. New code should inject
+    /// <see cref="IPageEditorDefinitionRegistry"/> directly.
+    /// </summary>
+    public static void UseRegistry(IPageEditorDefinitionRegistry registry)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+        _activeRegistry = registry;
+    }
+
+    [Obsolete("Use IPageEditorDefinitionRegistry from DI instead.")]
     public static void RegisterProviders(
         IEnumerable<IPageEditorBlockProvider> providers,
         IEnumerable<IPageEditorDefinitionProvider>? nativeProviders = null)
@@ -43,6 +56,11 @@ public static class PageEditorBlockRegistry
         string? catalogId,
         out PageEditorDefinitionDescriptor definition)
     {
+        if (_activeRegistry is not null)
+        {
+            return _activeRegistry.TryGetDescriptor(catalogId, out definition);
+        }
+
         if (string.IsNullOrWhiteSpace(catalogId))
         {
             definition = default!;
@@ -53,11 +71,12 @@ public static class PageEditorBlockRegistry
     }
 
     public static IReadOnlyCollection<IPageEditorBlockDefinition> All =>
+        _activeRegistry?.LegacyDefinitions ??
         _definitions.Values
             .Select(definition => definition.LegacyDefinition)
             .OfType<IPageEditorBlockDefinition>()
             .ToList();
 
     public static IReadOnlyCollection<PageEditorDefinitionDescriptor> AllDescriptors =>
-        _definitions.Values.ToList();
+        _activeRegistry?.AllDescriptors ?? _definitions.Values.ToList();
 }

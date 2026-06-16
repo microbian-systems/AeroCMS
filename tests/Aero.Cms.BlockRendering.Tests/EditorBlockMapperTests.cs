@@ -1,6 +1,8 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Modules.Pages;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 using FluentAssertions;
 using TUnit.Core;
 using NeoImageBlock = Aero.Cms.Abstractions.Blocks.Neo.ImageBlock;
@@ -9,6 +11,11 @@ namespace Aero.Cms.BlockRendering.Tests;
 
 public sealed class EditorBlockMapperTests
 {
+    private readonly IEditorBlockMapper _mapper = new EditorBlockMapper(
+        new PageEditorDefinitionRegistry(
+            [new LegacyPageEditorBlockProvider()],
+            []));
+
     [Test]
     public void MapBlocks_MapsUnsavedMarkdownAndHtmlBlocks()
     {
@@ -26,7 +33,7 @@ public sealed class EditorBlockMapperTests
             }
         ];
 
-        var blocks = EditorBlockMapper.MapBlocks(editorBlocks);
+        var blocks = _mapper.MapBlocks(editorBlocks);
 
         blocks.Should().HaveCount(2);
         blocks[0].Should().BeOfType<MarkdownBlock>()
@@ -72,7 +79,7 @@ public sealed class EditorBlockMapperTests
             ]
         };
 
-        var block = EditorBlockMapper.MapBlock(editorBlock);
+        var block = _mapper.MapBlock(editorBlock);
 
         var columns = block.Should().BeOfType<ColumnsBlock>().Subject;
         columns.Gap.Should().Be("24px");
@@ -108,12 +115,31 @@ public sealed class EditorBlockMapperTests
             ]
         };
 
-        var block = EditorBlockMapper.MapBlock(editorBlock);
+        var block = _mapper.MapBlock(editorBlock);
 
         var columns = block.Should().BeOfType<ColumnsBlock>().Subject;
         columns.Columns.Should().HaveCount(1);
         var nestedImage = columns.Columns[0].Blocks[0].Should().BeOfType<NeoImageBlock>().Subject;
         nestedImage.Src.Should().Be("https://example.com/photo.jpg");
         nestedImage.Alt.Should().Be("Example image");
+    }
+
+    [Test]
+    public void MapBlock_MapsLegacyAliasThroughRegisteredProvider()
+    {
+        var editorBlock = new EditorBlock
+        {
+            Type = "boring_hero",
+            MainText = "Catalog hero",
+            SubText = "Mapped without a mapper switch",
+            BackgroundImage = "/media/hero.jpg"
+        };
+
+        var block = _mapper.MapBlock(editorBlock);
+
+        var hero = block.Should().BeOfType<BoringHeroBlock>().Subject;
+        hero.Title.Should().Be("Catalog hero");
+        hero.Summary.Should().Be("Mapped without a mapper switch");
+        hero.BackgroundImageUrl.Should().Be("/media/hero.jpg");
     }
 }

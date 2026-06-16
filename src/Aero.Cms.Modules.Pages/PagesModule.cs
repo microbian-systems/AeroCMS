@@ -10,6 +10,7 @@ using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Core.Http;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
@@ -50,8 +51,11 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
             var cache = sp.GetService<IFusionCache>();
             var pageTreeService = sp.GetService<IPageTreeService>();
             var actor = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
-            return new MartenPageContentService(session, blockService, bus, siteContext, logger, actor, cache, pageTreeService);
+            var editorBlockMapper = sp.GetRequiredService<IEditorBlockMapper>();
+            return new MartenPageContentService(session, blockService, bus, siteContext, logger, editorBlockMapper, actor, cache, pageTreeService);
         });
+        services.AddScoped<IEditorBlockMapper, EditorBlockMapper>();
+        services.AddSingleton<IPageEditorBlockProvider, LegacyPageEditorBlockProvider>();
         services.AddSingleton<BlockEditingService>();
 
         // Grain-backed actor — direct injection for thin API controllers

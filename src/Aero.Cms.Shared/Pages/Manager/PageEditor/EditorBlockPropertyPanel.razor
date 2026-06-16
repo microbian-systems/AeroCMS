@@ -3,9 +3,9 @@
 @using Aero.Cms.Abstractions.Blocks.Editor
 @using Aero.Cms.Abstractions.Blocks.Neo
 @using Aero.Cms.Abstractions.Blocks.Neo.Styles
-@using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions
 @using NeoUI.Blazor
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+@inject IPageEditorDefinitionRegistry DefinitionRegistry
 
 <div class="pe-property-panel-shell">
     @if (ShowHeader)
@@ -394,7 +394,7 @@
     {
         if (Block is not null &&
             FindTargetNode(Block.CompositionNodes) is { } compositionNode &&
-            PageEditorBlockRegistry.TryGetDescriptor(
+            DefinitionRegistry.TryGetDescriptor(
                 string.IsNullOrWhiteSpace(TargetNodeId) ? Block.Type : compositionNode.CatalogId,
                 out definition!) &&
             definition.LegacyDefinition is null)
@@ -478,7 +478,7 @@
         }
         @foreach (var child in node.Children)
         {
-            if (PageEditorBlockRegistry.TryGetDescriptor(child.CatalogId, out var childDefinition) &&
+            if (DefinitionRegistry.TryGetDescriptor(child.CatalogId, out var childDefinition) &&
                 childDefinition.Catalog.PropertyEditorComponentType is { } childEditorType)
             {
                 <section class="pe-property-section">

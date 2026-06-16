@@ -5,30 +5,26 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Text;
 
-public sealed class TextPrimitiveDefinition :
-    IPageEditorCatalogDefinition,
-    INeoNodeFactory,
-    IEmbeddable
+public sealed class TextPrimitiveDefinition : PrimitiveDefinitionBase
 {
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new TextPrimitiveDefinition(), new TextPrimitiveDefinition());
 
-    public string CatalogId => "primitive.text";
-    public string DisplayName => "Text";
-    public string? Description => "Responsive body text.";
-    public string Category => "Primitives";
-    public NeoPageNodeKind Kind => NeoPageNodeKind.Primitive;
-    public string IconName => "type";
-    public int SortOrder => 10;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(TextPrimitivePreview);
-    public Type? PropertyEditorComponentType => typeof(TextPrimitiveEditor);
-    public ICompositionCapabilities Composition { get; } =
+    public override string CatalogId => "primitive.text";
+    public override string DisplayName => "Text";
+    public override string? Description => "Responsive body text.";
+    public override string Category => "Primitives";
+    public override string IconName => "type";
+    public override int SortOrder => 10;
+    public override bool PublicStaticSsrSafe => true;
+    public override Type? PreviewComponentType => typeof(TextPrimitivePreview);
+    public override Type? PropertyEditorComponentType => typeof(TextPrimitiveEditor);
+    public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Leaf(
             NeoPageNodeKind.Section,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component);
-    public EditorCapabilitySet EditorCapabilities =>
+    public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Content |
         EditorCapabilitySet.Typography |
         EditorCapabilitySet.Spacing |
@@ -38,7 +34,7 @@ public sealed class TextPrimitiveDefinition :
         EditorCapabilitySet.Direction |
         EditorCapabilitySet.Visibility;
 
-    public NeoPageNode CreateDefaultNode() =>
+    public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),
@@ -49,4 +45,12 @@ public sealed class TextPrimitiveDefinition :
                 ["text"] = JsonSerializer.SerializeToElement("Enter your text here...")
             }
         };
+
+    public override EditorInteractionCapabilities Interaction =>
+        EditorInteractionCapabilities.Selectable |
+        EditorInteractionCapabilities.Editable |
+        EditorInteractionCapabilities.Draggable |
+        EditorInteractionCapabilities.Duplicatable |
+        EditorInteractionCapabilities.Deletable |
+        EditorInteractionCapabilities.Copyable;
 }

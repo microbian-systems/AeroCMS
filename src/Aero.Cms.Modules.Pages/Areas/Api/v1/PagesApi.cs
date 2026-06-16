@@ -1126,6 +1126,7 @@ public static class PagesApi
     private static async Task<IResult> PreviewPageFragment(
         [FromBody] PreviewPageFragmentRequest request,
         [FromServices] CmsBlockHtmlRenderer blockRenderer,
+        [FromServices] IEditorBlockMapper editorBlockMapper,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -1137,7 +1138,7 @@ public static class PagesApi
                 return TypedResults.BadRequest(new { error = "Page blocks or layout regions are required." });
 
             var html = request.Blocks is { Count: > 0 }
-                ? await blockRenderer.RenderBlocksAsync(EditorBlockMapper.MapBlocks(request.Blocks), cancellationToken: ct)
+                ? await blockRenderer.RenderBlocksAsync(editorBlockMapper.MapBlocks(request.Blocks), cancellationToken: ct)
                 : await blockRenderer.RenderRegionsAsync(request.LayoutRegions ?? [], ct);
 
             return TypedResults.Ok(new PreviewPageFragmentResponse(RenderPreviewHtml(html)));
