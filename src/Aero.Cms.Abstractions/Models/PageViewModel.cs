@@ -63,6 +63,12 @@ public record PageViewModel : AeroEntityViewModel
     public ContentPublicationState PublicationState { get; init; } = ContentPublicationState.Draft;
     [Id(27)]
     public string? RootNodeJson { get; init; }
+    [Id(28)]
+    public long? DraftCompositionId { get; init; }
+    [Id(29)]
+    public long? PublishedCompositionId { get; init; }
+    [Id(30)]
+    public long ContentRevision { get; init; }
 }
 
 [GenerateSerializer]

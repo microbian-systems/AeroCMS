@@ -1,16 +1,16 @@
 # WYSIWYG Page Editor UX Refactor
 
-**Status:** In progress  
-**Last modified:** 2026-06-16 (page editor registry-first mapper path verified)  
+**Status:** In progress - page-tree persistence foundation implemented  
+**Last modified:** 2026-06-18 (page tree persistence and public tree render path verified)  
 **Author:** AI-assisted planning session
 
 ---
 
 ## Implementation Progress
 
-**Last updated:** June 16, 2026
+**Last updated:** June 18, 2026
 
-**Estimated core-refactor completion:** 92%
+**Estimated core-refactor completion:** 94%
 
 This estimate now accounts for the discovered transition debt between the old
 `EditorBlock` property-bag canvas and the catalog/capability-driven Neo node
@@ -188,7 +188,8 @@ consolidation, not an immediate wholesale editor-state replacement.
 - Editor UI and preview switches still preserve existing legacy editors until
   each canned block has registry-backed parity.
 - `EditorBlock` is still the dominant page-editor storage and transport bridge.
-- `SeedDataService.cs` still needs a direct Neo node-tree seed model.
+- `SeedDataService.cs` now seeds `RootNodes` directly and leaves generated
+  `LayoutRegions` to the transitional save/render bridge.
 
 ### Adopted Target: HTML-Adjacent Composition Model
 
@@ -277,6 +278,61 @@ according to the slot's declared constraints.
 - Required iframe title for accessibility.
 - Lazy loading and fixed aspect-ratio rendering.
 - Inert editor-mode placeholder instead of live third-party iframe execution.
+
+### Adopted Target: Page Tree Persistence and Marten Projections
+
+**Implementation checkpoint (2026-06-18):** The first page-tree persistence
+slice is implemented. `PageDocument` now carries `DraftCompositionId`,
+`PublishedCompositionId`, and `ContentRevision`; `PageCompositionDocument` owns
+the persisted tree snapshot; `PageNodeIndexDocument` provides a flattened node
+index; and `PageCompositionProjection` projects coarse composition save/publish
+events inline. Public pages now load the draft/published
+`PageCompositionDocument` by composition pointer, render the Neo page tree
+directly through the SSR node renderer, and fall back to serialized root/layout
+data only for transitional or older pages.
+
+AeroCMS already uses Marten event sourcing for pages through `PageCreated`,
+`PageContentUpdated`, `PagePublished`, and the inline `PageDocumentProjection`.
+The refactor does not introduce event sourcing from scratch; it changes the
+page-body event granularity and vocabulary.
+
+The target is coarse page-composition snapshot events:
+
+- `PageCompositionDraftSaved` for durable editor save milestones.
+- `PageCompositionPublished` for durable publish milestones.
+
+These events carry the page tree snapshot. They deliberately do not record
+every node-level edit operation. Canvas-level
+undo/redo remains an editor concern using Command and Memento state.
+
+Marten projections should build the read models:
+
+- `PageDocument` for metadata, routing, publication state, and current
+  composition state during the transition.
+- `PageCompositionDocument` as the first-class draft/published tree
+  snapshot.
+- `PageNodeIndexDocument` for flattened node lookup, component-impact analysis, and
+  catalog/schema migrations.
+- `PageSearchDocument` for full-text search across page body content.
+- `ComponentUsageIndex` for "where is this custom/catalog component used?"
+  workflows.
+
+Inline projections are appropriate for state the editor and public renderer
+must observe immediately after save/publish. Async projections are appropriate
+for secondary search and usage indexes where a short lag is acceptable.
+
+`LayoutRegions` is explicitly transition debt. New editor flows, seed data,
+and tree-backed save/publish paths model page bodies as `RootNodes` and should
+not synthesize `LayoutRegions`. The old layout manifest remains only for
+legacy block-manifest callers while those surfaces are retired or adapted.
+
+Current remaining transition work:
+
+- Finalize composition history retention, then add cleanup/rebuild semantics
+  for superseded `PageNodeIndexDocument` rows.
+- Add async `PageSearchDocument` and `ComponentUsageIndex` projections.
+- Move setup seeding to tree-only composition snapshots during bootstrap once
+  bootstrap can emit the first composition save/publish events.
 
 ### Architecture Cleanup Remaining
 

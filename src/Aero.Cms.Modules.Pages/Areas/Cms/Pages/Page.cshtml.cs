@@ -6,7 +6,11 @@ using Aero.Cms.Core.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Shared.Localization;
 using Aero.Cms.Shared.Components;
+using Aero.Cms.Core.Entities;
 using Aero.Core.Http;
+using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Serialization;
+using Marten;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +25,8 @@ public class DynamicPageModel(
     IAeroPageActor pageActor,
     IBlockService blockService,
     BlockRenderCache blockCache,
-    ISiteContext siteContext) : PageModel
+    ISiteContext siteContext,
+    IDocumentStore documentStore) : PageModel
 {
     [BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
@@ -35,6 +40,7 @@ public class DynamicPageModel(
     public bool HideFooter { get; private set; }
     public bool ShowChatAgent { get; private set; } = true;
     public List<LayoutRegion> LayoutRegions { get; private set; } = [];
+    public NeoPageNode? RootNode { get; private set; }
     public long? PageId { get; private set; }
     public string? PageSlug { get; private set; }
     public string RequestedCulture { get; private set; } = SitesModel.DefaultCultureName;
@@ -85,11 +91,7 @@ public class DynamicPageModel(
         IsCultureFallback = !string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase);
         CanonicalUrl = BuildCultureUrl(RenderedCulture, vm.Slug);
 
-        // Deserialize layout regions for block preloading and rendering
-        LayoutRegions = vm.LayoutRegionsJson is not null
-            ? System.Text.Json.JsonSerializer.Deserialize<List<LayoutRegion>>(
-                vm.LayoutRegionsJson, Aero.Cms.Abstractions.Blocks.Serialization.BlockJsonContext.Default.Options) ?? []
-            : [];
+        await LoadCompositionAsync(vm, cancellationToken);
 
         // Store page ID + slug for output cache tagging
         HttpContext.Items["AeroCms.PageId"] = vm.Id;
@@ -145,6 +147,52 @@ public class DynamicPageModel(
         }
 
         return links;
+    }
+
+    private async Task LoadCompositionAsync(PageViewModel page, CancellationToken cancellationToken)
+    {
+        var compositionId = DraftId is not null
+            ? page.DraftCompositionId ?? page.PublishedCompositionId
+            : page.PublishedCompositionId ?? page.DraftCompositionId;
+
+        if (compositionId is { } id)
+        {
+            await using var session = documentStore.QuerySession();
+            var composition = await session.LoadAsync<PageCompositionDocument>(id, cancellationToken);
+
+            if (composition is not null)
+            {
+                RootNode = BuildRootNode(composition.RootNodes);
+                LayoutRegions = composition.LayoutRegions;
+                return;
+            }
+        }
+
+        LayoutRegions = page.LayoutRegionsJson is not null
+            ? System.Text.Json.JsonSerializer.Deserialize<List<LayoutRegion>>(
+                page.LayoutRegionsJson, BlockJsonContext.Default.Options) ?? []
+            : [];
+
+        RootNode = page.RootNodeJson is not null
+            ? System.Text.Json.JsonSerializer.Deserialize<NeoPageNode>(
+                page.RootNodeJson, BlockJsonContext.Default.Options)
+            : null;
+    }
+
+    private static NeoPageNode? BuildRootNode(IReadOnlyList<NeoPageNode> rootNodes)
+    {
+        if (rootNodes.Count == 0)
+        {
+            return null;
+        }
+
+        return new NeoPageNode
+        {
+            NodeId = "page-root",
+            CatalogId = "page.root",
+            Kind = NeoPageNodeKind.Page,
+            Children = rootNodes.ToList()
+        };
     }
 
     private IReadOnlyList<CultureSwitcherLink> BuildCultureSwitcherLinks(IReadOnlyList<AlternatePageLink> alternateLinks)

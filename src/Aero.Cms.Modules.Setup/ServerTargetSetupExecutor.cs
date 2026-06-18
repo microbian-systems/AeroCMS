@@ -20,7 +20,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Wolverine;
-using Aero.Cms.Core.Blocks;
 using Aero.Cms.Generated;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Modular;
@@ -81,10 +80,9 @@ public sealed class ServerTargetSetupExecutor(
 
         logger.LogInformation("Step 3/6: Creating session and services...");
         await using var session = store.LightweightSession();
-        var blockService = new MartenBlockService(session);
         var bus = rootServiceProvider.GetRequiredService<IMessageBus>();
         var noopSiteContext = new NoopSiteContext();
-        var pageContentService = new MartenPageContentService(session, blockService, bus, noopSiteContext,
+        var pageContentService = new MartenPageContentService(session, bus, noopSiteContext,
             rootServiceProvider.GetRequiredService<ILogger<MartenPageContentService>>());
         var blogPostContentService = new PostContentService(session, noopSiteContext);
         var userStore = CreateUserStore(session, rootServiceProvider);

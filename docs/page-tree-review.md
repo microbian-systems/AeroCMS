@@ -20,23 +20,41 @@ So: the architectural direction is correct and matches industry practice, but I'
 
 Mostly agreed, and this is a real improvement over the first draft — the locale decision, the presentation split, and dropping the strangler migration are all the right calls given you're pre-production. There's one thing in here that's being treated as settled when it's actually a fork in the road, and a couple of smaller scoping questions worth nailing down before you write code.
 
-The fork: "Marten projections" implies event sourcing, and that's a bigger decision than it reads as in the bullet list. Marten's projection system (inline or async, with the projection daemon rebuilding `PageNodeIndex`, `PageSearchDocument`, etc.) is built on top of its event store — it works by replaying a stream of events for an aggregate. If `PageCompositionDocument` stays a plain document that you overwrite on save, you don't get projections for free; you'd just be writing ordinary code that updates several documents in the same session/transaction whenever a page saves. That's a perfectly fine and much simpler design, but it isn't what "Marten projections" usually means, and it doesn't give you the audit trail / rollback story that was missing from the original proposal.
+Clarification: AeroCMS already uses Marten event sourcing and an inline
+`PageDocumentProjection` for pages. The open decision is not "event sourcing
+or not"; it is the granularity of page-composition events. The current page
+stream uses coarse snapshot-style events such as `PageContentUpdated` and
+`PagePublished`, which is the right direction for editor persistence but still
+carries legacy `LayoutRegions` terminology.
 
-If instead you mean real event sourcing — every edit becomes an event like `NodeAdded`, `NodePropertyChanged`, `NodeMoved`, `PagePublished`, and Marten's async daemon derives the read models from that stream — you get the versioning/audit gap solved essentially for free, which is genuinely attractive. But it's a materially bigger lift: you need an explicit event schema, an upcasting strategy for when that schema changes, and you take on eventual consistency (an editor saves a change and the search index or usage index may lag behind by a beat, which has UX implications for an editor product where people expect to see their save reflected immediately).
-
-Worth deciding explicitly which of these two you mean, because "skip the long migration, just use projections" reads very differently depending on the answer:
+The target should keep coarse persisted events and avoid recording every tiny
+canvas operation as durable stream noise. The editor can keep local undo/redo
+with Command/Memento state, while Marten records meaningful composition save
+and publish milestones:
 
 ```
-// Document-CRUD version: simple, synchronous, no event log
-session.Store(updatedComposition);
-session.Store(updatedSearchDoc);
-session.Store(updatedUsageIndex);
-await session.SaveChangesAsync(); // all consistent immediately
+PageCompositionDraftSaved
+- PageId
+- CompositionId
+- Culture
+- ContentRevision
+- Root node snapshot
+- Presentation snapshot
 
-// Event-sourced version: rich history, async derived views
-session.Events.Append(pageId, new NodePropertyChanged(...));
-await session.SaveChangesAsync(); // projections catch up via the daemon
+PageCompositionPublished
+- PageId
+- PublishedCompositionId
+- PublishedVersion
+- Root node snapshot
+- Presentation snapshot
 ```
+
+Marten projections should then derive `PageDocument`, `PageCompositionDocument`,
+`PageNodeIndex`, `PageSearchDocument`, and `ComponentUsageIndex` from those
+coarse composition events. Inline projections are appropriate for the core
+editor/public-read state that must be visible immediately after save. Async
+projections are appropriate for search, usage analytics, and rebuildable
+secondary indexes where a short lag is acceptable.
 
 Two smaller things. `PublishedPageReadModel` is only worth having as a distinct document if it actually denormalizes something beyond what `PageCompositionDocument.Root` already gives you on a direct lookup by `PublishedCompositionId` — e.g., pre-resolved catalog metadata so the renderer doesn't need a second fetch per node type, or computed routing/sitemap fields. If it ends up being a structural copy of the composition document with no extra resolution, it's a moving part that earns its keep only if you can name what it's optimizing away.
 
@@ -44,4 +62,29 @@ And the locale call — one tree per culture with sync tooling — is the right 
 
 Last note in your favor: the typed-presentation-values stance isn't just architecturally cleaner, it also closes off a CSS-injection vector you'd otherwise have if arbitrary style strings ever flowed from editor input into rendered pages — worth keeping as a stated rationale, not just a preference.
 
-So: agreed on the page-tree-as-source-of-truth, the presentation split, the locale model, and dropping the strangler. The one thing I wouldn't let slide into the doc unresolved is which of "event-sourced" or "document CRUD with manual denormalization" you're actually committing to, since everything downstream — versioning, rollback, consistency guarantees for the editor UI — depends on that answer.
+So: agreed on the page-tree-as-source-of-truth, the presentation split, the
+locale model, and dropping the long strangler migration. The architectural
+commitment is: keep Marten event sourcing, move page-body persistence from
+legacy layout-region snapshots toward coarse page-composition snapshot events,
+and let projections build the flattened/indexed views the editor and renderer
+need.
+
+----- implementation checkpoint, 2026-06-18 -----
+
+The first implementation slice now matches the target direction:
+
+- `PageCompositionDraftSaved` and `PageCompositionPublished` exist as coarse
+  Marten events carrying page tree snapshots.
+- `PageDocument` remains the routing/publication shell and now stores
+  `DraftCompositionId`, `PublishedCompositionId`, and `ContentRevision`.
+- `PageCompositionDocument` stores first-class draft/published tree snapshots.
+- `PageNodeIndexDocument` provides the first flattened node index projection
+  for catalog/component lookup.
+- `PageCompositionProjection` is registered inline with the pages module.
+- The public page route now loads `PageCompositionDocument` by draft/published
+  composition pointer and renders that tree through the Neo SSR node renderer
+  before falling back to serialized root/layout data.
+
+Tree-backed save/publish paths no longer generate a synthetic
+`NeoCompositionBlock` or fake `LayoutRegions` bridge. `LayoutRegions` remains
+only for older block-manifest requests and transitional fallback rendering.

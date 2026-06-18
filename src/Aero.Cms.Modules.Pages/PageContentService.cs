@@ -3,7 +3,6 @@ using Aero.Cms.Modules.Pages.Validators;
 using Aero.Core.Extensions;
 using Wolverine;
 using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Blocks.Neo;
@@ -41,7 +40,6 @@ public interface IPageContentService
 
 public sealed class MartenPageContentService(
     IDocumentSession session,
-    IBlockService blockService,
     IMessageBus bus,
     ISiteContext siteContext,
     ILogger<MartenPageContentService> logger,
@@ -307,12 +305,7 @@ public sealed class MartenPageContentService(
             };
             page.TranslationGroupId = page.Id;
 
-            // Use RootNodes tree if available
-            if (page.RootNodes is { Count: > 0 })
-            {
-                (page.LayoutRegions, page.BlockIdMap) = await ProcessRootNodesAsync(page.RootNodes, [], cancellationToken);
-            }
-            else
+            if (page.RootNodes is not { Count: > 0 })
             {
                 page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
             }
@@ -366,24 +359,33 @@ public sealed class MartenPageContentService(
                 cancellationToken: cancellationToken);
 
             // Start an event stream for versioning (projection handles document persistence).
-            // PageCreated establishes the page; PageContentUpdated carries blocks + layout.
+            // PageCreated establishes metadata; composition pages use a coarse page-tree
+            // snapshot event, while older pages can still flow through PageContentUpdated.
             session.Events.StartStream($"page-{page.Id}",
                 new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind, page.Culture, page.TranslationGroupId));
-            session.Events.Append($"page-{page.Id}", new PageContentUpdated(
-                page.Title,
-                page.Slug,
-                page.Summary,
-                page.SeoTitle,
-                page.SeoDescription,
-                page.LayoutRegions,
-                page.RootNodes is { Count: > 0 } ? page.RootNodes : null,
-                Kind: page.Kind,
-                ShowHeaderNavigation: page.ShowHeaderNavigation,
-                HeaderImageUrl: page.HeaderImageUrl,
-                HideHeader: page.HideHeader,
-                HideFooter: page.HideFooter,
-                ShowChatAgent: page.ShowChatAgent,
-                BlockIdMap: page.BlockIdMap));
+
+            if (page.RootNodes is { Count: > 0 })
+            {
+                session.Events.Append($"page-{page.Id}", CreateCompositionDraftSaved(page));
+            }
+            else
+            {
+                session.Events.Append($"page-{page.Id}", new PageContentUpdated(
+                    page.Title,
+                    page.Slug,
+                    page.Summary,
+                    page.SeoTitle,
+                    page.SeoDescription,
+                    page.LayoutRegions,
+                    null,
+                    Kind: page.Kind,
+                    ShowHeaderNavigation: page.ShowHeaderNavigation,
+                    HeaderImageUrl: page.HeaderImageUrl,
+                    HideHeader: page.HideHeader,
+                    HideFooter: page.HideFooter,
+                    ShowChatAgent: page.ShowChatAgent,
+                    BlockIdMap: page.BlockIdMap));
+            }
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish events via Wolverine outbox
@@ -418,16 +420,7 @@ public sealed class MartenPageContentService(
             // Apply metadata update to the document
             ApplyUpdateRequest(page, request);
 
-            // Use RootNodes tree if available
-            if (page.RootNodes is { Count: > 0 })
-            {
-                (page.LayoutRegions, page.BlockIdMap) = await ProcessRootNodesAsync(
-                    page.RootNodes,
-                    page.BlockIdMap,
-                    cancellationToken);
-                logger.LogInformation("Processed {NodeCount} RootNodes for page {PageId}", page.RootNodes.Count, id);
-            }
-            else if (request.LayoutRegions is { Count: > 0 })
+            if (page.RootNodes is not { Count: > 0 } && request.LayoutRegions is { Count: > 0 })
             {
                 page.LayoutRegions = request.LayoutRegions.ToList();
             }
@@ -460,22 +453,30 @@ public sealed class MartenPageContentService(
                     cancellationToken);
             }
 
-            // Append update event for version history
-            session.Events.Append($"page-{id}", new PageContentUpdated(
-                Title: page.Title,
-                Slug: page.Slug,
-                Summary: page.Summary,
-                SeoTitle: page.SeoTitle,
-                SeoDescription: page.SeoDescription,
-                LayoutRegions: page.LayoutRegions,
-                page.RootNodes is { Count: > 0 } ? page.RootNodes : null,
-                Kind: page.Kind,
-                ShowHeaderNavigation: page.ShowHeaderNavigation,
-                HeaderImageUrl: page.HeaderImageUrl,
-                HideHeader: page.HideHeader,
-                HideFooter: page.HideFooter,
-                ShowChatAgent: page.ShowChatAgent,
-                BlockIdMap: page.BlockIdMap));
+            // Append update event for version history. Native composition pages use
+            // the page-tree snapshot event; legacy pages retain PageContentUpdated.
+            if (page.RootNodes is { Count: > 0 })
+            {
+                session.Events.Append($"page-{id}", CreateCompositionDraftSaved(page));
+            }
+            else
+            {
+                session.Events.Append($"page-{id}", new PageContentUpdated(
+                    Title: page.Title,
+                    Slug: page.Slug,
+                    Summary: page.Summary,
+                    SeoTitle: page.SeoTitle,
+                    SeoDescription: page.SeoDescription,
+                    LayoutRegions: page.LayoutRegions,
+                    null,
+                    Kind: page.Kind,
+                    ShowHeaderNavigation: page.ShowHeaderNavigation,
+                    HeaderImageUrl: page.HeaderImageUrl,
+                    HideHeader: page.HideHeader,
+                    HideFooter: page.HideFooter,
+                    ShowChatAgent: page.ShowChatAgent,
+                    BlockIdMap: page.BlockIdMap));
+            }
 
             await session.SaveChangesAsync(cancellationToken);
 
@@ -727,12 +728,12 @@ public sealed class MartenPageContentService(
             targetPage.Culture = ContentSlugDocument.NormalizeCulture(targetPage.Culture);
             targetPage.TranslationGroupId ??= targetPage.Id;
 
-            // Phase 2b: Use RootNodes tree if available (takes priority over Blocks)
-            if (targetPage.RootNodes is { Count: > 0 } && targetPage.LayoutRegions.Count == 0)
+            // Native composition is the source of truth when present. Do not
+            // generate synthetic LayoutRegions for tree-backed pages; the old
+            // layout manifest is only for legacy block pages.
+            if (targetPage.RootNodes is { Count: > 0 })
             {
-                (targetPage.LayoutRegions, targetPage.BlockIdMap) = await ProcessRootNodesAsync(
-                    targetPage.RootNodes, targetPage.BlockIdMap, cancellationToken);
-                logger.LogInformation("Generated layout regions from {NodeCount} RootNodes for page {PageId}", targetPage.RootNodes.Count, targetPage.Id);
+                targetPage.LayoutRegions = [];
             }
 
             var targetPublicSlug = targetPage.Path.TrimStart('/');
@@ -756,7 +757,7 @@ public sealed class MartenPageContentService(
                 : null;
 
             // Append events so the inline projection persists the page document.
-            // PageCreated for new pages; PageContentUpdated carries blocks + layout regions.
+            // Native composition pages use coarse page-tree snapshot events.
             if (existingPage is null)
             {
                 session.Events.StartStream($"page-{targetPage.Id}",
@@ -764,21 +765,29 @@ public sealed class MartenPageContentService(
                                     targetPage.ParentId, targetPage.Order, targetPage.Path, targetPage.Depth,
                                     targetPage.PublicationState, targetPage.Kind, targetPage.Culture, targetPage.TranslationGroupId));
             }
-            session.Events.Append($"page-{targetPage.Id}", new PageContentUpdated(
-                targetPage.Title,
-                targetPage.Slug,
-                targetPage.Summary,
-                targetPage.SeoTitle,
-                targetPage.SeoDescription,
-                targetPage.LayoutRegions,
-                targetPage.RootNodes is { Count: > 0 } ? targetPage.RootNodes : null,
-                Kind: targetPage.Kind,
-                ShowHeaderNavigation: targetPage.ShowHeaderNavigation,
-                HeaderImageUrl: targetPage.HeaderImageUrl,
-                HideHeader: targetPage.HideHeader,
-                HideFooter: targetPage.HideFooter,
-                ShowChatAgent: targetPage.ShowChatAgent,
-                BlockIdMap: targetPage.BlockIdMap));
+
+            if (targetPage.RootNodes is { Count: > 0 })
+            {
+                session.Events.Append($"page-{targetPage.Id}", CreateCompositionDraftSaved(targetPage));
+            }
+            else
+            {
+                session.Events.Append($"page-{targetPage.Id}", new PageContentUpdated(
+                    targetPage.Title,
+                    targetPage.Slug,
+                    targetPage.Summary,
+                    targetPage.SeoTitle,
+                    targetPage.SeoDescription,
+                    targetPage.LayoutRegions,
+                    null,
+                    Kind: targetPage.Kind,
+                    ShowHeaderNavigation: targetPage.ShowHeaderNavigation,
+                    HeaderImageUrl: targetPage.HeaderImageUrl,
+                    HideHeader: targetPage.HideHeader,
+                    HideFooter: targetPage.HideFooter,
+                    ShowChatAgent: targetPage.ShowChatAgent,
+                    BlockIdMap: targetPage.BlockIdMap));
+            }
 
             await session.SaveChangesAsync(cancellationToken);
 
@@ -812,55 +821,27 @@ public sealed class MartenPageContentService(
     /// Processes a NeoPageNode tree directly into a single NeoCompositionBlock for persistence.
     /// Replaces ProcessEditorBlocks in Phase 2b.
     /// </summary>
-    private async Task<(
-        List<LayoutRegion> LayoutRegions,
-        Dictionary<string, long> BlockIdMap
-    )> ProcessRootNodesAsync(
-        List<NeoPageNode> rootNodes,
-        Dictionary<string, long> existingMap,
-        CancellationToken ct)
-    {
-        // Create a single NeoCompositionBlock wrapping the entire page tree
-        var compositeBlock = new NeoCompositionBlock
-        {
-            Id = Snowflake.NewId(),
-            Nodes = rootNodes.Select(n => DeepCloneNode(n)).ToList()
-        };
-        await blockService.SaveAsync(compositeBlock, ct);
-
-        var newMap = new Dictionary<string, long>(existingMap)
-        {
-            ["page-root"] = compositeBlock.Id
-        };
-
-        var regions = new List<LayoutRegion>
-        {
-            new()
-            {
-                Name = "MainContent",
-                Order = 0,
-                Columns = new List<LayoutColumn>
-                {
-                    new()
-                    {
-                        Width = 12,
-                        Order = 0,
-                        Blocks = new List<BlockPlacement>
-                        {
-                            new()
-                            {
-                                BlockId = compositeBlock.Id,
-                                BlockType = "neo_composition",
-                                Order = 0
-                            }
-                        }
-                    }
-                }
-            }
-        };
-
-        return (regions, newMap);
-    }
+    private static PageCompositionDraftSaved CreateCompositionDraftSaved(PageDocument page)
+        => new(
+            PageId: page.Id,
+            SiteId: page.SiteId,
+            CompositionId: Snowflake.NewId(),
+            Culture: page.Culture,
+            ContentRevision: Snowflake.NewId(),
+            Title: page.Title,
+            Slug: page.Slug,
+            Summary: page.Summary,
+            SeoTitle: page.SeoTitle,
+            SeoDescription: page.SeoDescription,
+            RootNodes: page.RootNodes.Select(n => EditorNodeMemento.Capture(n).Restore()).ToList(),
+            LayoutRegions: [],
+            Kind: page.Kind,
+            ShowHeaderNavigation: page.ShowHeaderNavigation,
+            HeaderImageUrl: page.HeaderImageUrl,
+            HideHeader: page.HideHeader,
+            HideFooter: page.HideFooter,
+            ShowChatAgent: page.ShowChatAgent,
+            BlockIdMap: page.BlockIdMap);
 
     private static NeoPageNode DeepCloneNode(NeoPageNode source)
     {

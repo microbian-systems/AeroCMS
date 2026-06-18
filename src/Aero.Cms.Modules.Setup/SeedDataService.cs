@@ -848,23 +848,6 @@ public sealed class SeedDatabaseService(
             Summary = "The page you're looking for doesn't exist or has been moved.",
             SeoTitle = "Page Not Found",
             RootNodes = BuildOopsPageRootNodes(),
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published,
             Culture = defaultCulture,
             CreatedBy = "seed",
@@ -1008,23 +991,6 @@ public sealed class SeedDatabaseService(
             Summary = homepageSummary,
             SeoTitle = $"{Normalize(request.HomepageTitle)} | {Normalize(request.SiteName)}",
             SeoDescription = $"Welcome to {Normalize(request.SiteName)}. A modern CMS built on .NET 10, Marten, and Microsoft Orleans.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1095,23 +1061,6 @@ public sealed class SeedDatabaseService(
             Summary = $"Updates and field notes from {Normalize(request.SiteName)}.",
             SeoTitle = $"{Normalize(request.BlogName)} | {Normalize(request.SiteName)}",
             SeoDescription = $"Read the latest posts from {Normalize(request.SiteName)}.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1144,23 +1093,6 @@ public sealed class SeedDatabaseService(
             Summary = summary,
             SeoTitle = "About Us | Aero CMS",
             SeoDescription = "Discover our story, mission, and commitment to building great digital experiences.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1202,23 +1134,6 @@ public sealed class SeedDatabaseService(
             Summary = summary,
             SeoTitle = "Contact Us | Aero CMS",
             SeoDescription = "Have questions? We'd love to hear from you. Send us a message today.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1257,22 +1172,6 @@ public sealed class SeedDatabaseService(
             Summary = summary,
             SeoTitle = "Privacy Policy | Aero CMS",
             SeoDescription = "Learn how we collect, use, and protect your personal information.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12, Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1315,22 +1214,6 @@ public sealed class SeedDatabaseService(
             Summary = summary,
             SeoTitle = "Terms of Service | Aero CMS",
             SeoDescription = "Read the terms and conditions for using our site.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12, Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1373,22 +1256,6 @@ public sealed class SeedDatabaseService(
             Summary = summary,
             SeoTitle = "Cookie Policy | Aero CMS",
             SeoDescription = "Learn how we use cookies and how you can manage them.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12, Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1437,23 +1304,6 @@ public sealed class SeedDatabaseService(
             Summary = summary,
             SeoTitle = $"{title} | {Normalize(request.SiteName)}",
             SeoDescription = $"Bienvenido a {Normalize(request.SiteName)}.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1501,23 +1351,6 @@ public sealed class SeedDatabaseService(
             Summary = $"Novedades y notas de {Normalize(request.SiteName)}.",
             SeoTitle = $"Blog | {Normalize(request.SiteName)}",
             SeoDescription = $"Lee las publicaciones mas recientes de {Normalize(request.SiteName)}.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1550,23 +1383,6 @@ public sealed class SeedDatabaseService(
             Summary = summary,
             SeoTitle = "Acerca de | Aero CMS",
             SeoDescription = "Conoce nuestra historia y nuestra forma de construir experiencias digitales.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1609,23 +1425,6 @@ public sealed class SeedDatabaseService(
             Summary = summary,
             SeoTitle = "Contacto | Aero CMS",
             SeoDescription = "Tienes preguntas? Envia un mensaje al equipo.",
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "MainContent",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Order = 0,
-                            Blocks = []
-                        }
-                    ]
-                }
-            ],
             PublicationState = ContentPublicationState.Published
         };
     }

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
@@ -46,14 +45,12 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
     private MartenPageContentService CreatePageService(IDocumentSession session, long siteId)
     {
-        var blockService = _services.GetRequiredService<IBlockService>();
         var bus = _services.GetRequiredService<IMessageBus>();
         var logger = _services.GetRequiredService<ILogger<MartenPageContentService>>();
         var cache = _services.GetService<IFusionCache>();
         var pageTreeService = _services.GetService<IPageTreeService>();
         return new MartenPageContentService(
             session,
-            blockService,
             bus,
             new FixedSiteContext(siteId),
             logger,

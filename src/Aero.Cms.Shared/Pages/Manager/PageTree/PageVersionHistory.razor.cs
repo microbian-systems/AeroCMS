@@ -83,7 +83,9 @@ public partial class PageVersionHistory
     {
         nameof(PageCreated) => "add_circle",
         nameof(PageContentUpdated) => "edit",
+        nameof(PageCompositionDraftSaved) => "edit",
         nameof(PagePublished) => "publish",
+        nameof(PageCompositionPublished) => "publish",
         nameof(PageArchived) => "archive",
         nameof(PageDeleted) => "delete",
         nameof(PageRestored) => "restore_from_trash",
@@ -97,7 +99,9 @@ public partial class PageVersionHistory
     {
         "PageCreated" => L["Page Created"],
         "PageContentUpdated" => L["Content Updated"],
+        "PageCompositionDraftSaved" => L["Composition Saved"],
         "PagePublished" => L["Published"],
+        "PageCompositionPublished" => L["Composition Published"],
         "PageArchived" => L["Archived"],
         "PageDeleted" => L["Deleted"],
         "PageRestored" => L["Restored"],

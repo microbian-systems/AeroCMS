@@ -43,7 +43,6 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         services.AddScoped<IPageContentService>(sp =>
         {
             var session = sp.GetRequiredService<IDocumentSession>();
-            var blockService = sp.GetRequiredService<IBlockService>();
             var bus = sp.GetRequiredService<IMessageBus>();
             var siteContext = sp.GetRequiredService<ISiteContext>();
             var logger = sp.GetRequiredService<ILogger<MartenPageContentService>>();
@@ -51,9 +50,8 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
             var cache = sp.GetService<IFusionCache>();
             var pageTreeService = sp.GetService<IPageTreeService>();
             var actor = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
-            return new MartenPageContentService(session, blockService, bus, siteContext, logger, actor, cache, pageTreeService);
+            return new MartenPageContentService(session, bus, siteContext, logger, actor, cache, pageTreeService);
         });
-        services.AddSingleton<IPageEditorBlockProvider, LegacyPageEditorBlockProvider>();
         services.AddSingleton<BlockEditingService>();
 
         // Grain-backed actor — direct injection for thin API controllers
@@ -113,6 +111,7 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         // Custom IProjection registers inline. Uses MartenReal alias because
         // global using Marten resolves to Aero.Marten (shim), not real Marten NuGet.
         opts.Projections.Add(new PageDocumentProjection(), ProjectionLifecycle.Inline);
+        opts.Projections.Add(new PageCompositionProjection(), ProjectionLifecycle.Inline);
 
         // ── PageDocument ──────────────────────────────────────────────────
         opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
@@ -150,6 +149,24 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         opts.Schema.For<PageDocument>().Duplicate(x => x.PublishedOn);
 
         Configure<PageDocument>(services, opts);
+
+        // ── PageCompositionDocument ──────────────────────────────────────
+        opts.Schema.For<PageCompositionDocument>().Identity(x => x.Id);
+        opts.Schema.For<PageCompositionDocument>().Index(x => x.SiteId);
+        opts.Schema.For<PageCompositionDocument>().Index(x => x.PageId);
+        opts.Schema.For<PageCompositionDocument>().Index(x => x.Culture);
+        opts.Schema.For<PageCompositionDocument>().Index(x => x.State);
+        opts.Schema.For<PageCompositionDocument>().Index(x => new { x.PageId, x.State });
+        opts.Schema.For<PageCompositionDocument>().Index(x => new { x.SiteId, x.Culture });
+        Configure<PageCompositionDocument>(services, opts);
+
+        // ── PageNodeIndexDocument ────────────────────────────────────────
+        opts.Schema.For<PageNodeIndexDocument>().Identity(x => x.Id);
+        opts.Schema.For<PageNodeIndexDocument>().Index(x => x.SiteId);
+        opts.Schema.For<PageNodeIndexDocument>().Index(x => x.PageId);
+        opts.Schema.For<PageNodeIndexDocument>().Index(x => x.CompositionId);
+        opts.Schema.For<PageNodeIndexDocument>().Index(x => x.CatalogId);
+        opts.Schema.For<PageNodeIndexDocument>().Index(x => new { x.SiteId, x.CatalogId });
 
         // ── ContentSlugDocument ───────────────────────────────────────────
         opts.Schema.For<ContentSlugDocument>().DocumentAlias(Schemas.Tables.SlugRegistry);

@@ -35,9 +35,16 @@
 else
 {
     <article class="min-h-screen bg-white">
-        @* Layout Regions *@
         <div class="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-            @if (Model.LayoutRegions.Count > 0)
+            @if (Model.RootNode is not null)
+            {
+                <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.NeoNodeRenderer)"
+                           render-mode="Static"
+                           param-Node="@Model.RootNode"
+                           param-NestingDepth="0"
+                           param-MaxDepth="8" />
+            }
+            else if (Model.LayoutRegions.Count > 0)
             {
                 foreach (var region in Model.LayoutRegions.OrderBy(r => r.Order))
                 {

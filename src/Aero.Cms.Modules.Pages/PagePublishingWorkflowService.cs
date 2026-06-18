@@ -118,10 +118,14 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page is null)
                 return AeroError.NotFoundError($"Page {pageId} not found.");
 
-            // ── Build layout manifest from editor state ──────────────
+            var isCompositionPage = page.RootNodes is { Count: > 0 };
+
+            // ── Build legacy layout manifest from editor state ───────
             List<LayoutRegion>? layoutRegions = null;
-            var editorState = await _session.LoadAsync<PageEditorState>(pageId, ct);
-            if (editorState?.Blocks is { Count: > 0 })
+            var editorState = isCompositionPage
+                ? null
+                : await _session.LoadAsync<PageEditorState>(pageId, ct);
+            if (!isCompositionPage && editorState?.Blocks is { Count: > 0 })
             {
                 var blockIds = editorState.Blocks
                     .Where(p => p.BlockId.HasValue)
@@ -145,16 +149,57 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
 
             // ── Emit publish events ──────────────────────────────────
             var version = page.PublishedVersion + 1;
-            var published = new PagePublished(PageId: pageId, Version: version, LayoutRegions: layoutRegions);
             var stateChanged = new PageStateChanged(ContentPublicationState.Published);
 
-            _session.Events.Append($"page-{pageId}",
-                published);
+            PageCompositionPublished? compositionPublished = null;
+            PagePublished? legacyPublished = null;
+
+            if (isCompositionPage)
+            {
+                compositionPublished = new PageCompositionPublished(
+                    PageId: pageId,
+                    SiteId: page.SiteId,
+                    PublishedCompositionId: Snowflake.NewId(),
+                    PublishedVersion: version,
+                    Culture: page.Culture,
+                    Title: page.Title,
+                    Slug: page.Slug,
+                    Summary: page.Summary,
+                    SeoTitle: page.SeoTitle,
+                    SeoDescription: page.SeoDescription,
+                    RootNodes: page.RootNodes,
+                    LayoutRegions: null,
+                    Kind: page.Kind,
+                    ShowHeaderNavigation: page.ShowHeaderNavigation,
+                    HeaderImageUrl: page.HeaderImageUrl,
+                    HideHeader: page.HideHeader,
+                    HideFooter: page.HideFooter,
+                    ShowChatAgent: page.ShowChatAgent,
+                    BlockIdMap: page.BlockIdMap);
+
+                _session.Events.Append($"page-{pageId}",
+                    compositionPublished);
+            }
+            else
+            {
+                legacyPublished = new PagePublished(PageId: pageId, Version: version, LayoutRegions: layoutRegions);
+
+                _session.Events.Append($"page-{pageId}",
+                    legacyPublished);
+            }
+
             _session.Events.Append($"page-{pageId}",
                 stateChanged);
             await _session.SaveChangesAsync(ct);
 
-            page.Apply(published);
+            if (compositionPublished is not null)
+            {
+                page.Apply(compositionPublished);
+            }
+            else if (legacyPublished is not null)
+            {
+                page.Apply(legacyPublished);
+            }
             page.Apply(stateChanged);
 
             // Broadcast for cache eviction

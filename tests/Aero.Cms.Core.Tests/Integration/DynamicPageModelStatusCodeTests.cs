@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
+using Marten;
 using NSubstitute;
 
 namespace Aero.Cms.Core.Tests.Integration;
@@ -65,8 +66,9 @@ public class DynamicPageModelStatusCodeTests
 
         var blockService = Substitute.For<IBlockService>();
         var blockCache = new BlockRenderCache();
+        var documentStore = Substitute.For<IDocumentStore>();
 
-        return new DynamicPageModel(pageActor, blockService, blockCache, siteContext)
+        return new DynamicPageModel(pageActor, blockService, blockCache, siteContext, documentStore)
         {
             PageContext = new PageContext
             {

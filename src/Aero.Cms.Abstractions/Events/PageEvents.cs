@@ -42,6 +42,64 @@ public sealed record PageContentUpdated(
     Dictionary<string, long>? BlockIdMap = null);
 
 /// <summary>
+/// Appended when the editor saves a draft page composition. AeroCMS already
+/// uses Marten event sourcing for pages; this event is the page-tree successor
+/// to the legacy <see cref="PageContentUpdated"/> body snapshot.
+/// </summary>
+/// <remarks>
+/// The persisted event is intentionally coarse grained. Canvas-level undo/redo
+/// remains an editor concern, while Marten records durable save milestones that
+/// can project the page document, flattened node indexes, search documents, and
+/// component usage indexes.
+/// </remarks>
+public sealed record PageCompositionDraftSaved(
+    long PageId,
+    long SiteId,
+    long CompositionId,
+    string Culture,
+    long ContentRevision,
+    string Title,
+    string Slug,
+    string? Summary,
+    string? SeoTitle,
+    string? SeoDescription,
+    List<NeoPageNode> RootNodes,
+    List<LayoutRegion>? LayoutRegions = null,
+    PageKind Kind = PageKind.Standard,
+    bool ShowHeaderNavigation = true,
+    string? HeaderImageUrl = null,
+    bool HideHeader = false,
+    bool HideFooter = false,
+    bool ShowChatAgent = true,
+    Dictionary<string, long>? BlockIdMap = null);
+
+/// <summary>
+/// Appended when a page composition is published. This is the page-tree
+/// equivalent of the legacy <see cref="PagePublished"/> event and should be the
+/// durable source for published composition projections.
+/// </summary>
+public sealed record PageCompositionPublished(
+    long PageId,
+    long SiteId,
+    long PublishedCompositionId,
+    long PublishedVersion,
+    string Culture,
+    string Title,
+    string Slug,
+    string? Summary,
+    string? SeoTitle,
+    string? SeoDescription,
+    List<NeoPageNode> RootNodes,
+    List<LayoutRegion>? LayoutRegions = null,
+    PageKind Kind = PageKind.Standard,
+    bool ShowHeaderNavigation = true,
+    string? HeaderImageUrl = null,
+    bool HideHeader = false,
+    bool HideFooter = false,
+    bool ShowChatAgent = true,
+    Dictionary<string, long>? BlockIdMap = null);
+
+/// <summary>
 /// Appended when the page is published. Carries the computed version
 /// and the layout manifest built by <c>IPageLayoutManifestBuilder</c>.
 /// </summary>

@@ -69,8 +69,8 @@ public partial class AuditDashboard : ComponentBase
     private static string GetEventBadgeClass(string eventType) => eventType switch
     {
         "PageCreated" or "BlogPostCreated" => "text-green-600",
-        "PageContentUpdated" or "BlogPostContentUpdated" => "text-blue-600",
-        "PagePublished" or "BlogPostPublished" or "PageStateChanged" => "text-purple-600",
+        "PageContentUpdated" or "PageCompositionDraftSaved" or "BlogPostContentUpdated" => "text-blue-600",
+        "PagePublished" or "PageCompositionPublished" or "BlogPostPublished" or "PageStateChanged" => "text-purple-600",
         "PageDeleted" or "BlogPostDeleted" => "text-red-600",
         "PageMoved" => "text-orange-600",
         _ => "text-gray-600"
@@ -80,7 +80,9 @@ public partial class AuditDashboard : ComponentBase
     {
         "PageCreated" => L["Created"],
         "PageContentUpdated" => L["Updated"],
+        "PageCompositionDraftSaved" => L["Composition Saved"],
         "PagePublished" => L["Published"],
+        "PageCompositionPublished" => L["Composition Published"],
         "PageArchived" => L["Archived"],
         "PageDeleted" => L["Deleted"],
         "PageRestored" => L["Restored"],
