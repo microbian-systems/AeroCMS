@@ -133,7 +133,7 @@ internal static class SeededPageCompositionFactory
         {
             NodeId = Guid.NewGuid().ToString("N"),
             CatalogId = "boring_hero",
-            Kind = NeoPageNodeKind.Block,
+            Kind = NeoPageNodeKind.Primitive,
             Properties = props,
             Style = new ResponsiveNodeStyle
             {
@@ -149,7 +149,7 @@ internal static class SeededPageCompositionFactory
         {
             NodeId = Guid.NewGuid().ToString("N"),
             CatalogId = "content",
-            Kind = NeoPageNodeKind.Block,
+            Kind = NeoPageNodeKind.Primitive,
             Properties = new Dictionary<string, JsonElement>
             {
                 ["content"] = JsonSerializer.SerializeToElement(content)
@@ -167,11 +167,12 @@ internal static class SeededPageCompositionFactory
         return new NeoPageNode
         {
             NodeId = Guid.NewGuid().ToString("N"),
-            CatalogId = "text",
-            Kind = NeoPageNodeKind.Block,
+            CatalogId = "primitive.heading",
+            Kind = NeoPageNodeKind.Primitive,
             Properties = new Dictionary<string, JsonElement>
             {
-                ["content"] = JsonSerializer.SerializeToElement(text)
+                ["text"] = JsonSerializer.SerializeToElement(text),
+                ["level"] = JsonSerializer.SerializeToElement(2)
             },
             Style = new ResponsiveNodeStyle
             {
@@ -186,12 +187,12 @@ internal static class SeededPageCompositionFactory
         return new NeoPageNode
         {
             NodeId = Guid.NewGuid().ToString("N"),
-            CatalogId = "aero_cta",
-            Kind = NeoPageNodeKind.Block,
+            CatalogId = "primitive.button",
+            Kind = NeoPageNodeKind.Primitive,
             Properties = new Dictionary<string, JsonElement>
             {
-                ["ctaText"] = JsonSerializer.SerializeToElement(text),
-                ["ctaUrl"] = JsonSerializer.SerializeToElement(url)
+                ["text"] = JsonSerializer.SerializeToElement(text),
+                ["url"] = JsonSerializer.SerializeToElement(url)
             },
             Style = new ResponsiveNodeStyle
             {

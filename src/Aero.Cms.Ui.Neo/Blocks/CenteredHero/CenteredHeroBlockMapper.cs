@@ -9,7 +9,7 @@ public static class CenteredHeroBlockMapper
     {
         NodeId = string.Empty,
         CatalogId = CenteredHeroBlock.BlockTypeId,
-        Kind = NeoPageNodeKind.Block,
+        Kind = NeoPageNodeKind.Section,
         Properties = new Dictionary<string, JsonElement>
         {
             ["eyebrow"]        = JsonSerializer.SerializeToElement(block.Eyebrow),

@@ -19,6 +19,7 @@
     <WasmNativeStripSymbols>true</WasmNativeStripSymbols>
     <WasmEnableSIMD>true</WasmEnableSIMD>
     <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
+    <WasmDebugLevel Condition="'$(AeroCmsEnableWebAssemblyDebugging)' != 'true'">0</WasmDebugLevel>
   </PropertyGroup>
 
   <ItemGroup>

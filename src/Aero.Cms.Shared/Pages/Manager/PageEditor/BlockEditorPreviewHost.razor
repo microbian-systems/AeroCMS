@@ -415,7 +415,8 @@ else
         {
         _ => new NeoPageNode
         {
-            CatalogId = block.Type, Kind = NeoPageNodeKind.Block,
+            CatalogId = "primitive.section",
+            Kind = NeoPageNodeKind.Section,
             Properties = []
         }
         };
@@ -423,11 +424,11 @@ else
 
     private static NeoPageNode MapLegacyImageToNeoNode(EditorBlock block) => new()
     {
-        CatalogId = "media.image",
-        Kind = NeoPageNodeKind.Block,
+        CatalogId = "primitive.image",
+        Kind = NeoPageNodeKind.Primitive,
         Properties = new Dictionary<string, JsonElement>
         {
-            ["src"] = JsonSerializer.SerializeToElement(block.Src),
+            ["url"] = JsonSerializer.SerializeToElement(FirstNonEmpty(block.Src, block.Url)),
             ["alt"] = JsonSerializer.SerializeToElement(block.Alt),
             ["caption"] = JsonSerializer.SerializeToElement(block.Caption ?? string.Empty)
         }
@@ -435,11 +436,12 @@ else
 
     private static NeoPageNode MapLegacyVideoToNeoNode(EditorBlock block) => new()
     {
-        CatalogId = "media.video",
-        Kind = NeoPageNodeKind.Block,
+        CatalogId = "primitive.embed",
+        Kind = NeoPageNodeKind.Primitive,
         Properties = new Dictionary<string, JsonElement>
         {
-            ["src"] = JsonSerializer.SerializeToElement(FirstNonEmpty(block.Src, block.Url)),
+            ["url"] = JsonSerializer.SerializeToElement(FirstNonEmpty(block.Src, block.Url)),
+            ["title"] = JsonSerializer.SerializeToElement(block.Title ?? string.Empty),
             ["autoplay"] = JsonSerializer.SerializeToElement(block.AutoPlay),
             ["controls"] = JsonSerializer.SerializeToElement(true)
         }
@@ -447,19 +449,20 @@ else
 
     private static NeoPageNode MapLegacyAudioToNeoNode(EditorBlock block) => new()
     {
-        CatalogId = "media.audio",
-        Kind = NeoPageNodeKind.Block,
+        CatalogId = "primitive.embed",
+        Kind = NeoPageNodeKind.Primitive,
         Properties = new Dictionary<string, JsonElement>
         {
-            ["src"] = JsonSerializer.SerializeToElement(block.Src),
+            ["url"] = JsonSerializer.SerializeToElement(FirstNonEmpty(block.Src, block.Url)),
+            ["title"] = JsonSerializer.SerializeToElement(block.Title ?? string.Empty),
             ["controls"] = JsonSerializer.SerializeToElement(true)
         }
     };
 
     private static NeoPageNode MapLegacyGalleryToNeoNode(EditorBlock block) => new()
     {
-        CatalogId = "media.gallery",
-        Kind = NeoPageNodeKind.Block,
+        CatalogId = "primitive.section",
+        Kind = NeoPageNodeKind.Section,
         Properties = new Dictionary<string, JsonElement>
         {
             ["images"] = JsonSerializer.SerializeToElement(block.GalleryImages.Select(g => g.Src).ToList()),
@@ -469,11 +472,11 @@ else
 
     private static NeoPageNode MapLegacyRawHtmlToNeoNode(EditorBlock block) => new()
     {
-        CatalogId = "ui.raw-html",
-        Kind = NeoPageNodeKind.Block,
+        CatalogId = "raw_html",
+        Kind = NeoPageNodeKind.Primitive,
         Properties = new Dictionary<string, JsonElement>
         {
-            ["html"] = JsonSerializer.SerializeToElement(block.Content)
+            ["content"] = JsonSerializer.SerializeToElement(block.Content)
         }
     };
 

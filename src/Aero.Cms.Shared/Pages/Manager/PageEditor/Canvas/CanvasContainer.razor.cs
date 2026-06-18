@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
+using Aero.Cms.Shared.Blocks.Rendering;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 
@@ -23,6 +24,9 @@ public sealed partial class CanvasContainer : ComponentBase
     public NeoPageNode Node { get; set; } = default!;
 
     [Parameter]
+    public NeoPageNode? RootNode { get; set; }
+
+    [Parameter]
     public bool IsSelected { get; set; }
 
     [Parameter]
@@ -42,7 +46,13 @@ public sealed partial class CanvasContainer : ComponentBase
     public EventCallback<string> OnEdit { get; set; }
 
     [Parameter]
-    public EventCallback<NeoPageNode> OnNodeChanged { get; set; }
+    public EventCallback<CompositionMutation> OnNodeChanged { get; set; }
+
+    /// <summary>
+    /// Fired when a nested composition surface rejects a drag/drop operation.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnDropRejected { get; set; }
 
     /// <summary>
     /// Fired when an item is dropped into one of this container's drop zones.
@@ -117,18 +127,37 @@ public sealed partial class CanvasContainer : ComponentBase
 
     private Dictionary<string, object> PreviewParameters { get; set; } = [];
 
+    private string NodeDisplayName { get; set; } = string.Empty;
+
     private string CssClass
     {
         get
         {
             var css = "canvas-node canvas-node--container";
-            if (IsSelected) css += " canvas-node--selected";
+            if (!IsRootNode) css += " pe-block-wrapper";
+            if (IsRootNode) css += " canvas-node--root";
+            if (IsSelected)
+            {
+                css += " canvas-node--selected";
+                if (!IsRootNode) css += " selected";
+            }
             css += $" canvas-node--depth-{Depth}";
             return css;
         }
     }
 
-    private string IndentStyle => $"padding-left: {Depth * 16}px;";
+    private string IndentStyle => IsRootNode ? string.Empty : $"padding-left: {Math.Max(0, Depth - 1) * 16}px;";
+
+    private bool IsRootNode =>
+        string.Equals(Node.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase) ||
+        Node.Kind == NeoPageNodeKind.Page;
+
+    private bool ShouldShowFallbackLabel =>
+        Node.Children.Count == 0 &&
+        !string.Equals(Node.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase);
+
+    private bool ShouldRenderGenericChildren =>
+        IsRootNode || PreviewComponentType is null;
 
     protected override void OnParametersSet()
     {
@@ -139,6 +168,7 @@ public sealed partial class CanvasContainer : ComponentBase
     private void ResolvePreviewType()
     {
         PreviewComponentType = null;
+        NodeDisplayName = Node.CatalogId;
 
         if (DefinitionRegistry is null)
             return;
@@ -146,6 +176,7 @@ public sealed partial class CanvasContainer : ComponentBase
         if (DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor))
         {
             PreviewComponentType = descriptor.Catalog.PreviewComponentType;
+            NodeDisplayName = descriptor.Catalog.DisplayName;
         }
     }
 
@@ -154,8 +185,39 @@ public sealed partial class CanvasContainer : ComponentBase
         PreviewParameters = new Dictionary<string, object>
         {
             ["Node"] = Node,
-            ["Breakpoint"] = EditorBreakpoint.Desktop
+            ["RootNode"] = RootNode ?? Node,
+            ["Breakpoint"] = EditorBreakpoint.Desktop,
+            ["NodeChanged"] = EventCallback.Factory.Create<CompositionMutation>(
+                this,
+                mutation => OnNodeChanged.InvokeAsync(mutation)),
+            ["NodeEditRequested"] = EventCallback.Factory.Create<string>(
+                this,
+                nodeId => OnEdit.InvokeAsync(nodeId)),
+            ["DropRejected"] = EventCallback.Factory.Create<string>(
+                this,
+                message => OnDropRejected.InvokeAsync(message))
         };
+    }
+
+    private bool TryMapLegacyBlock(out Aero.Cms.Abstractions.Blocks.BlockBase block)
+    {
+        block = default!;
+
+        if (DefinitionRegistry is null ||
+            !DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor) ||
+            descriptor.LegacyDefinition is null)
+        {
+            return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
+        }
+
+        var editorBlock = NeoPageNodeEditorBlockMapper.ToEditorBlock(Node);
+        if (descriptor.LegacyDefinition.ToBlockBase(editorBlock) is not { } mapped)
+        {
+            return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
+        }
+
+        block = mapped;
+        return true;
     }
 
     /// <summary>
@@ -173,12 +235,18 @@ public sealed partial class CanvasContainer : ComponentBase
 
     private async Task HandleClickAsync()
     {
+        if (IsRootNode)
+            return;
+
         if (OnSelect.HasDelegate)
             await OnSelect.InvokeAsync(Node.NodeId);
     }
 
     private async Task HandleDoubleClickAsync()
     {
+        if (IsRootNode)
+            return;
+
         if (OnEdit.HasDelegate)
             await OnEdit.InvokeAsync(Node.NodeId);
     }
@@ -195,6 +263,9 @@ public sealed partial class CanvasContainer : ComponentBase
 
     private async Task OpenContextMenu(MouseEventArgs args)
     {
+        if (IsRootNode)
+            return;
+
         ContextMenuX = args.ClientX;
         ContextMenuY = args.ClientY;
         _contextMenuActions = ComputeAvailableActions();

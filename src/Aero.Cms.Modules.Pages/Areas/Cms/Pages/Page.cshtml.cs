@@ -10,6 +10,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Core.Http;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Serialization;
+using Aero.Cms.Shared.Blocks.Rendering;
 using Marten;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -103,8 +104,11 @@ public class DynamicPageModel(
         CultureSwitcherLinks = BuildCultureSwitcherLinks(AlternateLinks);
         ViewData["CultureSwitcherLinks"] = CultureSwitcherLinks;
 
-        // Preload block cache (N+1 fix)
-        await PreloadBlockCacheAsync(LayoutRegions, cancellationToken);
+        // Preload legacy block cache only when the page is still rendered from LayoutRegions.
+        if (RootNode is null)
+        {
+            await PreloadBlockCacheAsync(LayoutRegions, cancellationToken);
+        }
 
         PreserveReExecutedStatusCode();
         ApplyResponseCacheHeaders();
@@ -191,7 +195,9 @@ public class DynamicPageModel(
             NodeId = "page-root",
             CatalogId = "page.root",
             Kind = NeoPageNodeKind.Page,
-            Children = rootNodes.ToList()
+            Children = rootNodes
+                .Select(PageTreeLegacyBlockNormalizer.Normalize)
+                .ToList()
         };
     }
 

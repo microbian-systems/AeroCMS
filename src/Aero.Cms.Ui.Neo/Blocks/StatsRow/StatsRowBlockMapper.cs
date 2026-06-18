@@ -17,7 +17,7 @@ public static class StatsRowBlockMapper
     {
         NodeId = string.Empty,
         CatalogId = StatsRowBlock.BlockTypeId,
-        Kind = NeoPageNodeKind.Block,
+        Kind = NeoPageNodeKind.Section,
         Properties = new Dictionary<string, JsonElement>
         {
             ["stats"] = JsonSerializer.SerializeToElement(block.Stats),

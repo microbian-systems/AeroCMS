@@ -51,6 +51,20 @@ public sealed partial class CanvasTree : ComponentBase
     public EventCallback<CanvasDropArgs> OnDrop { get; set; }
 
     /// <summary>
+    /// Fired by nested composition preview surfaces when they mutate the page tree.
+    /// Carries an explicit before/after snapshot so the owning editor can preserve
+    /// undo/redo history without relying on component-local state.
+    /// </summary>
+    [Parameter]
+    public EventCallback<CompositionMutation> OnNodeChanged { get; set; }
+
+    /// <summary>
+    /// Fired when a nested composition surface rejects a drop.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnDropRejected { get; set; }
+
+    /// <summary>
     /// Fired when the user requests to copy a node in the tree.
     /// Receives the node ID.
     /// </summary>
@@ -100,9 +114,8 @@ public sealed partial class CanvasTree : ComponentBase
     public EventCallback<string> OnMoveDown { get; set; }
 
     /// <summary>
-    /// Optional cascading registry for resolving preview component types.
-    /// When not provided, nodes fall back to displaying their catalog ID.
+    /// Registry for resolving preview component types.
     /// </summary>
-    [CascadingParameter]
+    [Inject]
     public IPageEditorDefinitionRegistry? DefinitionRegistry { get; set; }
 }

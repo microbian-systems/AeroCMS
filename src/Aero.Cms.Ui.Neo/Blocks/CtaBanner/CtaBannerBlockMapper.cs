@@ -9,7 +9,7 @@ public static class CtaBannerBlockMapper
     {
         NodeId = string.Empty,
         CatalogId = CtaBannerBlock.BlockTypeId,
-        Kind = NeoPageNodeKind.Block,
+        Kind = NeoPageNodeKind.Section,
         Properties = new Dictionary<string, JsonElement>
         {
             ["title"]          = JsonSerializer.SerializeToElement(block.Title),

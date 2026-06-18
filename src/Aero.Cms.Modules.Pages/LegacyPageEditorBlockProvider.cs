@@ -15,20 +15,6 @@ public sealed class LegacyPageEditorBlockProvider : IPageEditorBlockProvider
 {
     private static readonly IReadOnlyCollection<IPageEditorBlockDefinition> Definitions =
     [
-        Define("aero_hero", "Aero Hero", "Aero", "layers", 100, editorBlock => new AeroHeroBlock
-        {
-            Title = editorBlock.MainText,
-            Description = editorBlock.SubText,
-            BackgroundImage = editorBlock.BackgroundImage,
-            Layout = Enum.TryParse<AeroHeroLayout>(editorBlock.AeroLayout, true, out var layout)
-                ? layout
-                : AeroHeroLayout.SideImage,
-            Buttons =
-            [
-                new AeroButton { Text = editorBlock.CtaText, Url = editorBlock.CtaUrl, Style = AeroButtonStyle.Primary },
-                new AeroButton { Text = editorBlock.CtaText2, Url = editorBlock.CtaUrl2, Style = AeroButtonStyle.Secondary }
-            ]
-        }),
         Define("aero_features", "Aero Features", "Aero", "layers", 110, editorBlock => new AeroFeaturesBlock
         {
             Title = editorBlock.MainText,
@@ -219,12 +205,6 @@ public sealed class LegacyPageEditorBlockProvider : IPageEditorBlockProvider
             Content = editorBlock.Content,
             Author = editorBlock.Author
         }),
-        Define("image", "Image", "Media", "photo", 500, editorBlock => new Aero.Cms.Abstractions.Blocks.Neo.ImageBlock
-        {
-            Src = editorBlock.Src,
-            Alt = editorBlock.Alt,
-            Caption = editorBlock.Caption
-        }),
         Define("video", "Video", "Media", "video-camera", 510, editorBlock => new Aero.Cms.Abstractions.Blocks.Neo.VideoBlock
         {
             Src = FirstNonEmpty(editorBlock.Url, editorBlock.Src),
@@ -375,7 +355,7 @@ public sealed class LegacyPageEditorBlockProvider : IPageEditorBlockProvider
             {
                 NodeId = Guid.NewGuid().ToString("N"),
                 CatalogId = CatalogId,
-                Kind = NeoPageNodeKind.Block,
+                Kind = NeoPageNodeKind.Section,
                 Style = editorBlock.Style.DeepClone(),
                 Properties = new Dictionary<string, JsonElement>
                 {

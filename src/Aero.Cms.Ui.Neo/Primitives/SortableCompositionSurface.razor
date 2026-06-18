@@ -11,73 +11,90 @@
           OnItemTransferredIn="OnTransferredIn"
           OnItemTransferredOut="OnTransferredOut"
           Class="@CssClass">
-    <SortableContentPrimitive class="@ContentCssClass">
-        @if (Node.Children.Count == 0)
-        {
-            <div class="text-sm text-muted-foreground">@EmptyText</div>
-        }
-        @foreach (var child in Node.Children)
-        {
-            <SortableItemPrimitive Value="@child.NodeId">
-                <div class="neo-composition-child relative @(SelectedNodeId == child.NodeId ? "is-selected ring-2 ring-primary rounded-md" : "")"
-                     style="@NodeStyleCssRenderer.Render(child.Style, Breakpoint)"
-                     @onclick:stopPropagation="true"
-                     @onclick="() => SelectNode(child.NodeId)"
-                     @ondblclick:stopPropagation="true"
-                     @ondblclick="() => RequestEdit(child.NodeId)"
-                     @oncontextmenu:preventDefault="true"
-                     @oncontextmenu:stopPropagation="true"
-                     @oncontextmenu="() => SelectNode(child.NodeId)">
-                    @if (string.Equals(child.CatalogId, "primitive.text", StringComparison.OrdinalIgnoreCase))
-                    {
-                        <input class="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
-                               value="@GetPropertyString(child, "text")"
-                               aria-label="Text primitive content"
-                               @onclick:stopPropagation="true"
-                               @ondblclick:stopPropagation="true"
-                               @onpointerdown:stopPropagation="true"
-                               @onmousedown:stopPropagation="true"
-                               @onkeydown:stopPropagation="true"
-                               @oninput="e => UpdateTextNode(child, e.Value?.ToString() ?? string.Empty)" />
-                    }
-                    else if (TryGetDefinition(child.CatalogId, out var definition) &&
-                        definition.Catalog.PreviewComponentType is { } previewType)
-                    {
-                        <DynamicComponent Type="previewType"
-                                          Parameters="NodeParameters(child, definition)" />
-                    }
-                    @if (SelectedNodeId == child.NodeId)
-                    {
-                        var actions = GetAvailableActions(child);
-                        if (actions.Count > 0)
+    <SortableContentPrimitive class="@($"{ContentCssClass} neo-composition-surface__content")">
+        <div class="neo-composition-surface__drop-target"
+             @ondragover:preventDefault="true"
+             @ondragover:stopPropagation="true"
+             @ondrop="HandlePaletteDropAsync"
+             @ondrop:stopPropagation="true">
+            <div class="neo-composition-surface__header"
+                 @onclick:stopPropagation="true"
+                 @ondblclick:stopPropagation="true">
+                <span class="neo-composition-surface__title">@SurfaceTitle</span>
+                <span class="neo-composition-surface__tag">@Node.CatalogId</span>
+                <span class="neo-composition-surface__count">@Node.Children.Count</span>
+            </div>
+            @if (Node.Children.Count == 0)
+            {
+                <div class="neo-composition-surface__empty">@EmptyText</div>
+            }
+            @foreach (var child in Node.Children)
+            {
+                <SortableItemPrimitive Value="@child.NodeId">
+                    <div class="neo-composition-child @(SelectedNodeId == child.NodeId ? "is-selected" : "")"
+                         style="@NodeStyleCssRenderer.Render(child.Style, Breakpoint)"
+                         @onclick:stopPropagation="true"
+                         @onclick="() => SelectNode(child.NodeId)"
+                         @ondblclick:stopPropagation="true"
+                         @ondblclick="() => RequestEdit(child.NodeId)"
+                         @oncontextmenu:preventDefault="true"
+                         @oncontextmenu:stopPropagation="true"
+                         @oncontextmenu="() => SelectNode(child.NodeId)">
+                        <SortableItemHandlePrimitive class="neo-composition-child__drag-handle"
+                                                     AriaLabel="Drag item"
+                                                     @onclick:stopPropagation="true"
+                                                     @ondblclick:stopPropagation="true" />
+                        @if (string.Equals(child.CatalogId, "primitive.text", StringComparison.OrdinalIgnoreCase))
                         {
-                            <div class="absolute right-2 top-2 z-50 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-lg border border-slate-700 bg-slate-950 p-1 text-white shadow-xl"
-                                 @onclick:stopPropagation="true"
-                                 @ondblclick:stopPropagation="true"
-                                 @onpointerdown:stopPropagation="true"
-                                 @onmousedown:stopPropagation="true"
-                                 @oncontextmenu:preventDefault="true"
-                                 @oncontextmenu:stopPropagation="true">
-                                @foreach (var action in actions)
-                                {
-                                    <button type="button" class="@GetActionButtonCss(action)"
-                                            title="@GetActionDisplayText(action)"
-                                            aria-label="@GetActionDisplayText(action)"
-                                            disabled="@(action == EditorNodeAction.Paste && _nodeClipboard is null)"
-                                            @onclick:stopPropagation="true"
-                                            @onclick:preventDefault="true"
-                                            @onpointerdown:stopPropagation="true"
-                                            @onmousedown:stopPropagation="true"
-                                            @onclick="() => ExecuteAction(action, child.NodeId)">
-                                        @GetActionDisplayText(action)
-                                    </button>
-                                }
-                            </div>
+                            <input class="neo-composition-text-input"
+                                   value="@GetPropertyString(child, "text")"
+                                   aria-label="Text primitive content"
+                                   @onclick:stopPropagation="true"
+                                   @ondblclick:stopPropagation="true"
+                                   @onpointerdown:stopPropagation="true"
+                                   @onmousedown:stopPropagation="true"
+                                   @onkeydown:stopPropagation="true"
+                                   @oninput="e => UpdateTextNode(child, e.Value?.ToString() ?? string.Empty)" />
                         }
-                    }
-                </div>
-            </SortableItemPrimitive>
-        }
+                        else if (TryGetDefinition(child.CatalogId, out var definition) &&
+                            definition.Catalog.PreviewComponentType is { } previewType)
+                        {
+                            <DynamicComponent Type="previewType"
+                                              Parameters="NodeParameters(child, definition)" />
+                        }
+                        @if (SelectedNodeId == child.NodeId)
+                        {
+                            var actions = GetAvailableActions(child);
+                            if (actions.Count > 0)
+                            {
+                                <div class="neo-composition-toolbar"
+                                     @onclick:stopPropagation="true"
+                                     @ondblclick:stopPropagation="true"
+                                     @onpointerdown:stopPropagation="true"
+                                     @onmousedown:stopPropagation="true"
+                                     @oncontextmenu:preventDefault="true"
+                                     @oncontextmenu:stopPropagation="true">
+                                    @foreach (var action in actions)
+                                    {
+                                        <button type="button" class="@GetActionButtonCss(action)"
+                                                title="@GetActionDisplayText(action)"
+                                                aria-label="@GetActionDisplayText(action)"
+                                                disabled="@(action == EditorNodeAction.Paste && _nodeClipboard is null)"
+                                                @onclick:stopPropagation="true"
+                                                @onclick:preventDefault="true"
+                                                @onpointerdown:stopPropagation="true"
+                                                @onmousedown:stopPropagation="true"
+                                                @onclick="() => ExecuteAction(action, child.NodeId)">
+                                            @GetActionDisplayText(action)
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </SortableItemPrimitive>
+            }
+        </div>
     </SortableContentPrimitive>
 </Sortable>
 
@@ -118,8 +135,16 @@
     [CascadingParameter]
     public IBlockEditorCallbacks? Editor { get; set; }
 
+    [CascadingParameter]
+    public EditorPaletteDragState? PaletteDragState { get; set; }
+
     private string? SelectedNodeId { get; set; }
     private NeoPageNode? _nodeClipboard;
+
+    private string SurfaceTitle =>
+        TryGetDefinition(Node.CatalogId, out var descriptor)
+            ? descriptor.Catalog.DisplayName
+            : Node.CatalogId;
 
     private IDictionary<string, object> NodeParameters(
         NeoPageNode node,
@@ -208,6 +233,11 @@
 
         if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
         {
+            if (string.Equals(PaletteDragState?.CatalogId, args.ActiveId, StringComparison.OrdinalIgnoreCase))
+            {
+                PaletteDragState.Clear();
+            }
+
             CopyInto(root, ok.Value[0]);
             await NotifyRootChanged(before, root);
         }
@@ -218,6 +248,46 @@
     }
 
     private Task OnTransferredOut(SortableTransferArgs _) => Task.CompletedTask;
+
+    private async Task HandlePaletteDropAsync(DragEventArgs _)
+    {
+        var catalogId = PaletteDragState?.CatalogId;
+        if (string.IsNullOrWhiteSpace(catalogId))
+        {
+            return;
+        }
+
+        if (!TryGetDefinition(catalogId, out var definition))
+        {
+            PaletteDragState?.Clear();
+            await DropRejected.InvokeAsync($"No catalog definition is registered for '{catalogId}'.");
+            return;
+        }
+
+        var root = RootNode ?? Node;
+        var before = EditorNodeMemento.Capture(root).Restore();
+        var node = definition.NodeFactory.CreateDefaultNode();
+        var result = CreateTreeEditor().Drop(
+            [root],
+            new CompositionDropRequest(
+                node,
+                Node.NodeId,
+                DropZoneId,
+                Node.Children.Count));
+
+        PaletteDragState?.Clear();
+
+        if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
+        {
+            CopyInto(root, ok.Value[0]);
+            SelectedNodeId = node.NodeId;
+            await NotifyRootChanged(before, root);
+        }
+        else if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
+        {
+            await DropRejected.InvokeAsync(failure.Error.ToString());
+        }
+    }
 
     private Task NotifyRootChanged(NeoPageNode before, NeoPageNode after) =>
         NodeChanged.InvokeAsync(
@@ -264,8 +334,8 @@
 
     private static string GetActionButtonCss(EditorNodeAction action) =>
         action == EditorNodeAction.Delete
-            ? "rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600 focus:bg-red-600 focus:outline-none"
-            : "rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none";
+            ? "neo-composition-toolbar-btn danger"
+            : "neo-composition-toolbar-btn";
 
     private async Task ExecuteAction(EditorNodeAction action, string nodeId)
     {

@@ -1,11 +1,11 @@
+using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Neo.Composition;
-using System.Text.Json;
 
-namespace Aero.Cms.Ui.Neo.Primitives.Container;
+namespace Aero.Cms.Ui.Neo.Primitives.CssGrid;
 
-public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlotted
+public sealed class CssGridPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 {
     public const string ContentDropZone = "content";
 
@@ -18,15 +18,17 @@ public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlo
         };
 
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
-        new(new ContainerPrimitiveDefinition(), new ContainerPrimitiveDefinition());
+        new(new CssGridPrimitiveDefinition(), new CssGridPrimitiveDefinition());
 
-    public override string CatalogId => "primitive.container";
-    public override string DisplayName => "Container";
-    public override string? Description => "A responsive container for primitives and components.";
+    public override string CatalogId => "primitive.css-grid";
+    public override string DisplayName => "CSS Grid";
+    public override string? Description => "A direct CSS grid container that accepts primitives, containers, and components.";
     public override string Category => "Primitives";
-    public override string IconName => "square-dashed";
-    public override int SortOrder => 1;
-    public override Type? PreviewComponentType => typeof(ContainerPrimitivePreview);
+    public override string IconName => "layout-grid";
+    public override int SortOrder => 4;
+    public override Type? PreviewComponentType => typeof(CssGridPrimitivePreview);
+    public override Type? PropertyEditorComponentType => null;
+
     public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             ChildKinds,
@@ -39,6 +41,7 @@ public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlo
             [
                 new NeoDropZoneDefinition(ContentDropZone, ChildKinds)
             ]);
+
     public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Spacing |
         EditorCapabilitySet.Dimensions |
@@ -67,25 +70,26 @@ public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlo
             Kind = Kind,
             Properties = new Dictionary<string, JsonElement>
             {
-                ["layout"] = JsonSerializer.SerializeToElement("stack"),
+                ["columns"] = JsonSerializer.SerializeToElement(3),
                 ["gap"] = JsonSerializer.SerializeToElement(4)
             }
         };
 
     IReadOnlyList<ISlotDefinition> ISlotted.Slots => _slots;
-    private static readonly IReadOnlyList<ISlotDefinition> _slots = new[]
-    {
+
+    private static readonly IReadOnlyList<ISlotDefinition> _slots =
+    [
         new SlotDefinition(
             Id: ContentDropZone,
-            DisplayName: "Container Content",
+            DisplayName: "Grid Items",
             AllowedChildKinds: new HashSet<NeoPageNodeKind>
             {
-                NeoPageNodeKind.Primitive, NeoPageNodeKind.Block,
-                NeoPageNodeKind.Container, NeoPageNodeKind.Component
-            },
-            MinChildren: 0),
-    };
+                NeoPageNodeKind.Primitive,
+                NeoPageNodeKind.Container,
+                NeoPageNodeKind.Component
+            })
+    ];
 
     public ISlotDefinition? GetSlot(string slotId) =>
-        _slots.FirstOrDefault(s => s.Id == slotId);
+        _slots.FirstOrDefault(slot => slot.Id == slotId);
 }

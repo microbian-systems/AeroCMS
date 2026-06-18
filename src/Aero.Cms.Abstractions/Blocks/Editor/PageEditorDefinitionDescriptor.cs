@@ -14,10 +14,31 @@ public sealed record PageEditorDefinitionDescriptor(
     /// <summary>
     /// Canvas interaction capabilities for this definition.
     /// Derived from <see cref="IEditorInteractionProvider"/> on the
-    /// <see cref="Catalog"/> definition. Returns <see cref="EditorInteractionCapabilities.None"/>
-    /// when the catalog definition does not implement the interaction contract.
+    /// <see cref="Catalog"/> definition when present. Otherwise applies the
+    /// default page-editor interaction contract expected by visual composition
+    /// nodes: selectable, editable, draggable, duplicatable, deletable, and
+    /// copyable; containers additionally become paste targets.
     /// </summary>
     public EditorInteractionCapabilities Interaction =>
         (Catalog as IEditorInteractionProvider)?.Interaction
-        ?? EditorInteractionCapabilities.None;
+        ?? DefaultInteraction(Catalog);
+
+    private static EditorInteractionCapabilities DefaultInteraction(
+        IPageEditorCatalogDefinition catalog)
+    {
+        var interaction =
+            EditorInteractionCapabilities.Selectable |
+            EditorInteractionCapabilities.Editable |
+            EditorInteractionCapabilities.Draggable |
+            EditorInteractionCapabilities.Duplicatable |
+            EditorInteractionCapabilities.Deletable |
+            EditorInteractionCapabilities.Copyable;
+
+        if (catalog.Composition.CanContainChildren)
+        {
+            interaction |= EditorInteractionCapabilities.PasteTarget;
+        }
+
+        return interaction;
+    }
 }

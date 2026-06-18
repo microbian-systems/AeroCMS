@@ -195,7 +195,9 @@ public static class AeroCmsExtensions
         app.UseExceptionHandler();
         app.MapDefaultEndpoints();
 
-        if (app.Environment.IsDevelopment())
+        if (app.Environment.IsDevelopment() &&
+            bool.TryParse(app.Configuration["AeroCms:EnableWebAssemblyDebugging"], out var enableWasmDebugging) &&
+            enableWasmDebugging)
         {
             app.UseWebAssemblyDebugging();
         }

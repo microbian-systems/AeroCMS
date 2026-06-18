@@ -7,12 +7,15 @@ using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
+using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Shared.Blocks.Rendering;
 using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
 using System.Globalization;
+using System.Text.Json;
 using ZiggyCreatures.Caching.Fusion;
 using static Aero.Core.Railway.Prelude;
 
@@ -304,6 +307,7 @@ public sealed class MartenPageContentService(
                 ShowChatAgent = request.ShowChatAgent
             };
             page.TranslationGroupId = page.Id;
+            page.RootNodes = DeserializeRootNodes(request.RootNodeJson);
 
             if (page.RootNodes is not { Count: > 0 })
             {
@@ -872,6 +876,30 @@ public sealed class MartenPageContentService(
         page.ShowHeaderNavigation = request.ShowHeaderNavigation;
         page.HideFooter = request.HideFooter;
         page.ShowChatAgent = request.ShowChatAgent;
+        page.RootNodes = DeserializeRootNodes(request.RootNodeJson);
+    }
+
+    private static List<NeoPageNode> DeserializeRootNodes(string? rootNodeJson)
+    {
+        if (string.IsNullOrWhiteSpace(rootNodeJson))
+        {
+            return [];
+        }
+
+        var root = JsonSerializer.Deserialize<NeoPageNode>(rootNodeJson, BlockJsonContext.Default.Options);
+        if (root is null)
+        {
+            return [];
+        }
+
+        var nodes = string.Equals(root.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase) ||
+                    root.Kind == NeoPageNodeKind.Page
+            ? root.Children
+            : [root];
+
+        return nodes
+            .Select(PageTreeLegacyBlockNormalizer.Normalize)
+            .ToList();
     }
 
     private static void ApplyPersistedValues(PageDocument source, PageDocument target)

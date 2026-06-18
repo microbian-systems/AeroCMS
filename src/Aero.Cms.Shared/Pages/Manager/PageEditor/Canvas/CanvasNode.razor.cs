@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
+using Aero.Cms.Shared.Blocks.Rendering;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 
@@ -12,12 +13,15 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Canvas;
 /// via the cascaded <see cref="IPageEditorDefinitionRegistry"/> and renders it as a
 /// <see cref="DynamicComponent"/> with <c>Node</c> and <c>Breakpoint</c> parameters.
 /// When no preview component is registered, falls back to displaying the raw
-/// <see cref="NeoPageNode.CatalogId"/>.
+/// <see cref="NeoPageNode.CatalogId"/> only for unknown leaf nodes.
 /// </summary>
 public sealed partial class CanvasNode : ComponentBase
 {
     [Parameter, EditorRequired]
     public NeoPageNode Node { get; set; } = default!;
+
+    [Parameter]
+    public NeoPageNode? RootNode { get; set; }
 
     [Parameter]
     public bool IsSelected { get; set; }
@@ -32,7 +36,13 @@ public sealed partial class CanvasNode : ComponentBase
     public EventCallback<string> OnEdit { get; set; }
 
     [Parameter]
-    public EventCallback<NeoPageNode> OnNodeChanged { get; set; }
+    public EventCallback<CompositionMutation> OnNodeChanged { get; set; }
+
+    /// <summary>
+    /// Fired when a nested composition preview surface rejects a drag/drop operation.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnDropRejected { get; set; }
 
     /// <summary>Fired when the user requests a copy of this node.</summary>
     [Parameter]
@@ -94,18 +104,24 @@ public sealed partial class CanvasNode : ComponentBase
 
     private Dictionary<string, object> PreviewParameters { get; set; } = [];
 
+    private string NodeDisplayName { get; set; } = string.Empty;
+
     private string CssClass
     {
         get
         {
-            var css = "canvas-node";
-            if (IsSelected) css += " canvas-node--selected";
+            var css = "canvas-node pe-block-wrapper";
+            if (IsSelected) css += " canvas-node--selected selected";
             css += $" canvas-node--depth-{Depth}";
             return css;
         }
     }
 
-    private string IndentStyle => $"padding-left: {Depth * 16}px;";
+    private string IndentStyle => $"padding-left: {Math.Max(0, Depth - 1) * 16}px;";
+
+    private bool ShouldShowFallbackLabel =>
+        Node.Children.Count == 0 &&
+        !string.Equals(Node.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase);
 
     protected override void OnParametersSet()
     {
@@ -116,6 +132,7 @@ public sealed partial class CanvasNode : ComponentBase
     private void ResolvePreviewType()
     {
         PreviewComponentType = null;
+        NodeDisplayName = Node.CatalogId;
 
         if (DefinitionRegistry is null)
             return;
@@ -123,6 +140,7 @@ public sealed partial class CanvasNode : ComponentBase
         if (DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor))
         {
             PreviewComponentType = descriptor.Catalog.PreviewComponentType;
+            NodeDisplayName = descriptor.Catalog.DisplayName;
         }
     }
 
@@ -131,8 +149,39 @@ public sealed partial class CanvasNode : ComponentBase
         PreviewParameters = new Dictionary<string, object>
         {
             ["Node"] = Node,
-            ["Breakpoint"] = EditorBreakpoint.Desktop
+            ["RootNode"] = RootNode ?? Node,
+            ["Breakpoint"] = EditorBreakpoint.Desktop,
+            ["NodeChanged"] = EventCallback.Factory.Create<CompositionMutation>(
+                this,
+                mutation => OnNodeChanged.InvokeAsync(mutation)),
+            ["NodeEditRequested"] = EventCallback.Factory.Create<string>(
+                this,
+                nodeId => OnEdit.InvokeAsync(nodeId)),
+            ["DropRejected"] = EventCallback.Factory.Create<string>(
+                this,
+                message => OnDropRejected.InvokeAsync(message))
         };
+    }
+
+    private bool TryMapLegacyBlock(out Aero.Cms.Abstractions.Blocks.BlockBase block)
+    {
+        block = default!;
+
+        if (DefinitionRegistry is null ||
+            !DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor) ||
+            descriptor.LegacyDefinition is null)
+        {
+            return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
+        }
+
+        var editorBlock = NeoPageNodeEditorBlockMapper.ToEditorBlock(Node);
+        if (descriptor.LegacyDefinition.ToBlockBase(editorBlock) is not { } mapped)
+        {
+            return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
+        }
+
+        block = mapped;
+        return true;
     }
 
     private async Task HandleClickAsync()

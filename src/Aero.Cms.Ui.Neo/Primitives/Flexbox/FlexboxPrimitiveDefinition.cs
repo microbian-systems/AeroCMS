@@ -1,11 +1,11 @@
+using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Neo.Composition;
-using System.Text.Json;
 
-namespace Aero.Cms.Ui.Neo.Primitives.Container;
+namespace Aero.Cms.Ui.Neo.Primitives.Flexbox;
 
-public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlotted
+public sealed class FlexboxPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 {
     public const string ContentDropZone = "content";
 
@@ -18,15 +18,17 @@ public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlo
         };
 
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
-        new(new ContainerPrimitiveDefinition(), new ContainerPrimitiveDefinition());
+        new(new FlexboxPrimitiveDefinition(), new FlexboxPrimitiveDefinition());
 
-    public override string CatalogId => "primitive.container";
-    public override string DisplayName => "Container";
-    public override string? Description => "A responsive container for primitives and components.";
+    public override string CatalogId => "primitive.flexbox";
+    public override string DisplayName => "Flexbox";
+    public override string? Description => "A flexible row or column container for composing responsive layouts.";
     public override string Category => "Primitives";
-    public override string IconName => "square-dashed";
-    public override int SortOrder => 1;
-    public override Type? PreviewComponentType => typeof(ContainerPrimitivePreview);
+    public override string IconName => "panel-top";
+    public override int SortOrder => 3;
+    public override Type? PreviewComponentType => typeof(FlexboxPrimitivePreview);
+    public override Type? PropertyEditorComponentType => null;
+
     public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             ChildKinds,
@@ -39,6 +41,7 @@ public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlo
             [
                 new NeoDropZoneDefinition(ContentDropZone, ChildKinds)
             ]);
+
     public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Spacing |
         EditorCapabilitySet.Dimensions |
@@ -67,25 +70,29 @@ public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlo
             Kind = Kind,
             Properties = new Dictionary<string, JsonElement>
             {
-                ["layout"] = JsonSerializer.SerializeToElement("stack"),
-                ["gap"] = JsonSerializer.SerializeToElement(4)
+                ["direction"] = JsonSerializer.SerializeToElement("row"),
+                ["wrap"] = JsonSerializer.SerializeToElement(true),
+                ["gap"] = JsonSerializer.SerializeToElement(4),
+                ["justify"] = JsonSerializer.SerializeToElement("start"),
+                ["align"] = JsonSerializer.SerializeToElement("stretch")
             }
         };
 
     IReadOnlyList<ISlotDefinition> ISlotted.Slots => _slots;
-    private static readonly IReadOnlyList<ISlotDefinition> _slots = new[]
-    {
+
+    private static readonly IReadOnlyList<ISlotDefinition> _slots =
+    [
         new SlotDefinition(
             Id: ContentDropZone,
-            DisplayName: "Container Content",
+            DisplayName: "Flex Items",
             AllowedChildKinds: new HashSet<NeoPageNodeKind>
             {
-                NeoPageNodeKind.Primitive, NeoPageNodeKind.Block,
-                NeoPageNodeKind.Container, NeoPageNodeKind.Component
-            },
-            MinChildren: 0),
-    };
+                NeoPageNodeKind.Primitive,
+                NeoPageNodeKind.Container,
+                NeoPageNodeKind.Component
+            })
+    ];
 
     public ISlotDefinition? GetSlot(string slotId) =>
-        _slots.FirstOrDefault(s => s.Id == slotId);
+        _slots.FirstOrDefault(slot => slot.Id == slotId);
 }

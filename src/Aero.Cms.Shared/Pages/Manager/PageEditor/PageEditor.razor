@@ -77,20 +77,24 @@
         }
     }
 
-    <PageEditorCanvas RootNode="@RootNode"
-                      SelectedNodeId="@SelectedBlockId"
-                      PreviewMode="@PreviewMode"
-                      OnToggleSidebar="ToggleSidebarPanels"
-                      OnNodeSelected="OnNodeSelected"
-                      OnNodeEditRequested="OnNodeEditRequested"
-                      OnCanvasDrop="OnCanvasDrop"
-                      OnNodeCopy="OnNodeCopy"
-                      OnNodePaste="OnNodePaste"
-                      OnNodeSaveAsCustom="OnNodeSaveAsCustom"
-                      OnNodeDuplicate="OnNodeDuplicate"
-                      OnNodeDelete="OnNodeDelete"
-                      OnNodeMoveUp="OnNodeMoveUp"
-                      OnNodeMoveDown="OnNodeMoveDown" />
+    <CascadingValue Value="PaletteDragState">
+        <PageEditorCanvas RootNode="@RootNode"
+                          SelectedNodeId="@SelectedBlockId"
+                          PreviewMode="@PreviewMode"
+                          OnToggleSidebar="ToggleSidebarPanels"
+                          OnNodeSelected="OnNodeSelected"
+                          OnNodeEditRequested="OnNodeEditRequested"
+                          OnCanvasDrop="OnCanvasDrop"
+                          OnNodeChanged="OnRootCompositionChanged"
+                          OnDropRejected="OnRootCompositionDropRejected"
+                          OnNodeCopy="OnNodeCopy"
+                          OnNodePaste="OnNodePaste"
+                          OnNodeSaveAsCustom="OnNodeSaveAsCustom"
+                          OnNodeDuplicate="OnNodeDuplicate"
+                          OnNodeDelete="OnNodeDelete"
+                          OnNodeMoveUp="OnNodeMoveUp"
+                          OnNodeMoveDown="OnNodeMoveDown" />
+    </CascadingValue>
 }
 else if (ActiveTab == "metadata")
 {

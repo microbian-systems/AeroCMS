@@ -1,10 +1,7 @@
 @page
 @model Aero.Cms.Modules.Pages.Areas.Cms.Pages.DynamicPageModel
 @section cssPartial {
-    <style type="text/tailwindcss" 
-           src="/_content/Aero.Cms.Modules.Pages/css/pages.css"></style>
-    <style type="text/css" 
-           src="/_content/Aero.Cms.Modules.Pages/css/aero-pages.css"></style>
+    <link rel="stylesheet" href="/_content/Aero.Cms.Modules.Pages/css/pages.css" />
 }
 @section headPartial {
     <link rel="canonical" href="@Model.CanonicalUrl" />
@@ -34,8 +31,8 @@
 }
 else
 {
-    <article class="min-h-screen bg-white">
-        <div class="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+    <article class="aero-page-shell">
+        <div class="aero-page-content">
             @if (Model.RootNode is not null)
             {
                 <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.NeoNodeRenderer)"

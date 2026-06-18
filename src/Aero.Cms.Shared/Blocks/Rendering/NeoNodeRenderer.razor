@@ -1,25 +1,21 @@
 @using Aero.Cms.Abstractions.Blocks.Neo
 @using Aero.Cms.Abstractions.Blocks.Neo.Styles
-@using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog
+@using Aero.Cms.Abstractions.Blocks.Editor
 
-@* ── NeoNodeRenderer — renders a single NeoPageNode ── *@
-@* V1: Renders a section wrapper with known catalog IDs.
-   Unknown catalog IDs render a placeholder comment.
-   Nesting beyond MaxDepth is silently truncated.
-   Uses INeoEditorCatalogProvider to resolve display names/icons
-   for catalog-driven labeling instead of raw [catalogId] text. *@
+@* Renders the canonical NeoPageNode tree for public pages.
+   Authoring diagnostics stay in the editor; public output should be semantic
+   HTML with no catalog labels leaking into the site. *@
 
-@inject INeoEditorCatalogProvider Catalog
+@inject IPageEditorDefinitionRegistry DefinitionRegistry
 
 @if (Node is not null && NestingDepth <= MaxDepth)
 {
     var catalogId = Node.CatalogId;
     var isContainer = Node.Kind is NeoPageNodeKind.Container or NeoPageNodeKind.Section;
-    Catalog.TryGet(catalogId, out var catalogItem);
 
     @* A stable element is required for static SSR. Razor variable-tag syntax
        renders literal <> wrappers and drops attributes in HtmlRenderer output. *@
-    <div class="neo-node neo-@(catalogId.Replace(".", "-")) neo-kind-@Node.Kind.ToString().ToLowerInvariant()"
+    <div class="@NodeCssClass"
          style="@NodeStyleCssRenderer.Render(Node.Style, Breakpoint)"
          data-catalog-id="@catalogId"
          data-node-id="@Node.NodeId">
@@ -32,9 +28,208 @@
                 break;
             }
 
+            case "primitive.heading":
+            {
+                var headingText = GetStringProperty("text");
+                @switch (GetIntProperty("level", 2))
+                {
+                    case 1:
+                        <h1 class="neo-primitive-heading">@headingText</h1>
+                        break;
+                    case 3:
+                        <h3 class="neo-primitive-heading">@headingText</h3>
+                        break;
+                    case 4:
+                        <h4 class="neo-primitive-heading">@headingText</h4>
+                        break;
+                    case 5:
+                        <h5 class="neo-primitive-heading">@headingText</h5>
+                        break;
+                    case 6:
+                        <h6 class="neo-primitive-heading">@headingText</h6>
+                        break;
+                    default:
+                        <h2 class="neo-primitive-heading">@headingText</h2>
+                        break;
+                }
+                break;
+            }
+
+            case "boring_hero":
+            {
+                var imageUrl = GetSafeMediaProperty("backgroundImageUrl");
+                var heroStyle = string.IsNullOrWhiteSpace(imageUrl)
+                    ? string.Empty
+                    : $"background-image:linear-gradient(rgba(15,23,42,.58),rgba(15,23,42,.58)),url('{imageUrl}');";
+                <section class="neo-boring-hero" style="@heroStyle">
+                    <div class="neo-boring-hero__content">
+                        <h1>@GetStringProperty("title")</h1>
+                        @if (!string.IsNullOrWhiteSpace(GetStringProperty("summary")))
+                        {
+                            <p>@GetStringProperty("summary")</p>
+                        }
+                    </div>
+                </section>
+                break;
+            }
+
             case "primitive.container":
             {
                 <div class="neo-primitive-container @NeoContainerLayoutCss.FromProperties(Node.Properties)">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
+                break;
+            }
+
+            case "primitive.flexbox":
+            {
+                <div class="neo-primitive-flexbox" style="@FlexboxStyle()">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
+                break;
+            }
+
+            case "primitive.css-grid":
+            {
+                <div class="neo-primitive-css-grid" style="@CssGridStyle()">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
+                break;
+            }
+
+            case "primitive.section":
+            {
+                <section class="neo-primitive-section">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </section>
+                break;
+            }
+
+            case "primitive.article":
+            {
+                <article class="neo-primitive-article">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </article>
+                break;
+            }
+
+            case "primitive.header":
+            {
+                <header class="neo-primitive-header">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </header>
+                break;
+            }
+
+            case "primitive.footer":
+            {
+                <footer class="neo-primitive-footer">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </footer>
+                break;
+            }
+
+            case "primitive.nav":
+            {
+                <nav class="neo-primitive-nav">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </nav>
+                break;
+            }
+
+            case "primitive.aside":
+            {
+                <aside class="neo-primitive-aside">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </aside>
+                break;
+            }
+
+            case "primitive.grid":
+            {
+                <div class="neo-primitive-grid" style="@GridStyle()">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
+                break;
+            }
+
+            case "primitive.grid-row":
+            {
+                <div class="neo-primitive-grid-row" style="@GridRowStyle()">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
+                break;
+            }
+
+            case "primitive.grid-cell":
+            {
+                <div class="neo-primitive-grid-cell" style="@GridCellStyle()">
                     @foreach (var child in Node.Children)
                     {
                         <NeoNodeRenderer Node="child"
@@ -88,6 +283,44 @@
                 break;
             }
 
+            case "primitive.blockquote":
+            {
+                <blockquote class="neo-primitive-blockquote">
+                    <p>@GetStringProperty("text")</p>
+                    @if (!string.IsNullOrWhiteSpace(GetStringProperty("citation")))
+                    {
+                        <cite>@GetStringProperty("citation")</cite>
+                    }
+                </blockquote>
+                break;
+            }
+
+            case "primitive.code":
+            {
+                <pre class="neo-primitive-code"><code>@GetStringProperty("code")</code></pre>
+                break;
+            }
+
+            case "primitive.embed":
+            {
+                var embedUrl = GetSafeMediaProperty("url");
+                @if (!string.IsNullOrWhiteSpace(embedUrl))
+                {
+                    <iframe class="neo-primitive-embed"
+                            src="@embedUrl"
+                            title="@GetStringProperty("title")"
+                            loading="lazy"
+                            referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                }
+                break;
+            }
+
+            case "raw_html" or "content":
+            {
+                <div class="neo-primitive-html">@((MarkupString)GetStringProperty("content", "html"))</div>
+                break;
+            }
+
             case "primitive.separator":
             {
                 <hr class="neo-primitive-separator" />
@@ -108,25 +341,20 @@
                 break;
             }
 
-            @* Typed block references — render via catalog metadata *@
+            @* Catalog-backed visual sections render through their registered block renderer.
+               This keeps storage semantic while preserving the polished public UI. *@
+            case var _ when TryMapLegacyBlock(out var catalogBlock):
+            {
+                <BlockRenderer Block="@catalogBlock" />
+                break;
+            }
+
+            @* Legacy block references are only a defensive transition fallback. *@
             case var _ when Node.Kind == NeoPageNodeKind.Block:
             {
-                @if (catalogItem is not null)
+                @if (TryMapLegacyBlock(out var block))
                 {
-                    @* Catalog entry found — show display name + icon *@
-                    <div class="neo-block" data-catalog-id="@catalogId"
-                         title="@catalogItem.DisplayName">
-                        <span class="neo-block-icon">@catalogItem.IconName</span>
-                        <span class="neo-block-label">@catalogItem.DisplayName</span>
-                    </div>
-                }
-                else
-                {
-                    @* Unknown block — render its catalog ID so content authors
-                       can identify nodes that lack catalog definitions *@
-                    <div class="neo-block-placeholder" data-catalog-id="@catalogId">
-                        [@catalogId]
-                    </div>
+                    <BlockRenderer Block="@block" />
                 }
                 break;
             }
@@ -134,14 +362,6 @@
             @* Container/section nodes render children recursively *@
             case var _ when isContainer || Node.Children.Count > 0:
             {
-                @if (catalogItem is not null)
-                {
-                    @* Section header with catalog display name *@
-                    <div class="neo-section-header">
-                        <span class="neo-section-icon">@catalogItem.IconName</span>
-                        <span class="neo-section-label">@catalogItem.DisplayName</span>
-                    </div>
-                }
                 @foreach (var child in Node.Children)
                 {
                     <NeoNodeRenderer Node="child"
@@ -152,22 +372,9 @@
                 break;
             }
 
-            @* Unknown catalog IDs render as placeholder in production *@
+            @* Unknown catalog IDs render nothing publicly. Authoring diagnostics belong in the editor. *@
             default:
             {
-                @if (catalogItem is not null)
-                {
-                    <div class="neo-node" data-catalog-id="@catalogId">
-                        <span class="neo-node-icon">@catalogItem.IconName</span>
-                        <span class="neo-node-label">@catalogItem.DisplayName</span>
-                    </div>
-                }
-                else
-                {
-                    <div class="neo-node-placeholder" data-catalog-id="@catalogId">
-                        @catalogId
-                    </div>
-                }
                 break;
             }
         }
@@ -187,11 +394,35 @@
     [Parameter]
     public EditorBreakpoint Breakpoint { get; set; } = EditorBreakpoint.Desktop;
 
-    private string GetStringProperty(string name) =>
-        Node.Properties.TryGetValue(name, out var value) &&
-        value.ValueKind == System.Text.Json.JsonValueKind.String
-            ? value.GetString() ?? string.Empty
-            : string.Empty;
+    private string NodeCssClass
+    {
+        get
+        {
+            var catalogClass = Node.CatalogId.Replace(".", "-");
+            var kindClass = Node.Kind.ToString().ToLowerInvariant();
+            var fullWidthClass = GetBoolProperty("fullWidth") ? " neo-node--full-width" : string.Empty;
+
+            return $"neo-node neo-{catalogClass} neo-kind-{kindClass}{fullWidthClass}";
+        }
+    }
+
+    private string GetStringProperty(params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (Node.Properties.TryGetValue(name, out var value) &&
+                value.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                var text = value.GetString();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    return text;
+                }
+            }
+        }
+
+        return string.Empty;
+    }
 
     private string GetSafeLinkProperty(string name)
     {
@@ -218,5 +449,109 @@
         }
 
         return string.Empty;
+    }
+
+    private int GetIntProperty(string name, int fallback)
+    {
+        if (!Node.Properties.TryGetValue(name, out var value))
+        {
+            return fallback;
+        }
+
+        return value.ValueKind switch
+        {
+            System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var number) => number,
+            System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), out var number) => number,
+            _ => fallback
+        };
+    }
+
+    private bool GetBoolProperty(string name)
+    {
+        if (!Node.Properties.TryGetValue(name, out var value))
+        {
+            return false;
+        }
+
+        return value.ValueKind switch
+        {
+            System.Text.Json.JsonValueKind.True => true,
+            System.Text.Json.JsonValueKind.False => false,
+            System.Text.Json.JsonValueKind.String when bool.TryParse(value.GetString(), out var parsed) => parsed,
+            _ => false
+        };
+    }
+
+    private string GridStyle()
+    {
+        var gap = Math.Max(0, GetIntProperty("gap", 4));
+        return $"display:flex;flex-direction:column;gap:{gap * 0.25}rem;";
+    }
+
+    private string GridRowStyle()
+    {
+        var gap = Math.Max(0, GetIntProperty("gap", 4));
+        return $"display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:{gap * 0.25}rem;";
+    }
+
+    private string GridCellStyle()
+    {
+        var span = Math.Clamp(GetIntProperty("span", 12), 1, 12);
+        return $"grid-column:span {span} / span {span};";
+    }
+
+    private string FlexboxStyle()
+    {
+        var direction = GetStringProperty("direction") is "column" ? "column" : "row";
+        var wrap = GetBoolProperty("wrap") ? "wrap" : "nowrap";
+        var justify = SafeJustify(GetStringProperty("justify"));
+        var align = SafeAlign(GetStringProperty("align"));
+        var gap = Math.Max(0, GetIntProperty("gap", 4));
+        return $"display:flex;flex-direction:{direction};flex-wrap:{wrap};justify-content:{justify};align-items:{align};gap:{gap * 0.25}rem;";
+    }
+
+    private string CssGridStyle()
+    {
+        var columns = Math.Clamp(GetIntProperty("columns", 3), 1, 12);
+        var gap = Math.Max(0, GetIntProperty("gap", 4));
+        return $"display:grid;grid-template-columns:repeat({columns},minmax(0,1fr));gap:{gap * 0.25}rem;";
+    }
+
+    private static string SafeJustify(string value) => value switch
+    {
+        "center" => "center",
+        "end" => "flex-end",
+        "between" => "space-between",
+        "around" => "space-around",
+        "evenly" => "space-evenly",
+        _ => "flex-start"
+    };
+
+    private static string SafeAlign(string value) => value switch
+    {
+        "start" => "flex-start",
+        "center" => "center",
+        "end" => "flex-end",
+        _ => "stretch"
+    };
+
+    private bool TryMapLegacyBlock(out Aero.Cms.Abstractions.Blocks.BlockBase block)
+    {
+        block = default!;
+
+        if (!DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor) ||
+            descriptor.LegacyDefinition is null)
+        {
+            return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
+        }
+
+        var editorBlock = NeoPageNodeEditorBlockMapper.ToEditorBlock(Node);
+        if (descriptor.LegacyDefinition.ToBlockBase(editorBlock) is not { } mapped)
+        {
+            return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
+        }
+
+        block = mapped;
+        return true;
     }
 }

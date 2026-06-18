@@ -1,4 +1,4 @@
-@namespace Aero.Cms.Ui.Neo.Primitives.Aside
+@namespace Aero.Cms.Ui.Neo.Primitives.Flexbox
 @using Aero.Cms.Abstractions.Blocks.Neo
 
 <SortableCompositionSurface Node="Node"
@@ -7,10 +7,10 @@
                             NodeChanged="NodeChanged"
                             NodeEditRequested="NodeEditRequested"
                             DropRejected="DropRejected"
-                            DropZoneId="@NeoDropZoneDefinition.DefaultId"
-                            CssClass="neo-primitive-aside"
-                            ContentCssClass="neo-composition-surface--aside"
-                            EmptyText="Drop aside content here" />
+                            DropZoneId="@FlexboxPrimitiveDefinition.ContentDropZone"
+                            CssClass="neo-primitive-flexbox"
+                            ContentCssClass="neo-composition-surface--flexbox"
+                            EmptyText="Drop flex items here" />
 
 @code {
     [Parameter, EditorRequired]
@@ -30,4 +30,5 @@
 
     [Parameter]
     public EventCallback<string> DropRejected { get; set; }
+
 }

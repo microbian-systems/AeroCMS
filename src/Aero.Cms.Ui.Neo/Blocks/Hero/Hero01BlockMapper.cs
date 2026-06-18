@@ -9,7 +9,7 @@ public static class Hero01BlockMapper
     {
         NodeId = string.Empty,
         CatalogId = "aero.hero.01",
-        Kind = NeoPageNodeKind.Block,
+        Kind = NeoPageNodeKind.Section,
         Properties = new Dictionary<string, JsonElement>
         {
             ["eyebrow"] = JsonSerializer.SerializeToElement(block.Eyebrow),

@@ -11,6 +11,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Core.Http;
+using Aero.Cms.Shared.Blocks.Rendering;
 using Aero.Cms.Web.Core.Blocks.Rendering;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Html;
@@ -928,7 +929,7 @@ public static class PagesApi
 
             var html = !string.IsNullOrEmpty(request.RootNodeJson)
                 ? await blockRenderer.RenderBlocksAsync(
-                    [System.Text.Json.JsonSerializer.Deserialize<NeoCompositionBlock>(request.RootNodeJson, BlockJsonContext.Default.Options)!],
+                    [BuildPreviewCompositionBlock(request.RootNodeJson)],
                     cancellationToken: ct)
                 : await blockRenderer.RenderRegionsAsync(request.LayoutRegions ?? [], ct);
 
@@ -948,6 +949,30 @@ public static class PagesApi
         using var writer = new StringWriter();
         content.WriteTo(writer, HtmlEncoder.Default);
         return writer.ToString();
+    }
+
+    private static NeoCompositionBlock BuildPreviewCompositionBlock(string rootNodeJson)
+    {
+        var root = System.Text.Json.JsonSerializer.Deserialize<NeoPageNode>(
+            rootNodeJson,
+            BlockJsonContext.Default.Options);
+
+        if (root is null)
+        {
+            return new NeoCompositionBlock();
+        }
+
+        var rootNodes = string.Equals(root.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase) ||
+                        root.Kind == NeoPageNodeKind.Page
+            ? root.Children
+            : [root];
+
+        return new NeoCompositionBlock
+        {
+            Nodes = rootNodes
+                .Select(PageTreeLegacyBlockNormalizer.Normalize)
+                .ToList()
+        };
     }
 
     private static string? SerializeLayoutRegions(IReadOnlyList<LayoutRegion>? regions)

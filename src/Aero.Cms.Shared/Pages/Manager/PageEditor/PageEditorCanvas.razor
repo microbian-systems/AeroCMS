@@ -9,7 +9,9 @@
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 @inject IPageEditorDefinitionRegistry DefinitionRegistry
 
-<div class="@CanvasClass">
+<div class="@CanvasClass"
+     @ondragover:preventDefault
+     @ondrop="HandleRootDropAsync">
     @* Empty state *@
     @if (RootNode.Children.Count == 0)
     {
@@ -31,6 +33,8 @@
                     OnNodeSelected="@OnNodeSelected"
                     OnNodeEditRequested="@OnNodeEditRequested"
                     OnDrop="@OnCanvasDrop"
+                    OnNodeChanged="@OnNodeChanged"
+                    OnDropRejected="@OnDropRejected"
                     OnCopy="@OnNodeCopy"
                     OnPaste="@OnNodePaste"
                     OnSaveAsCustom="@OnNodeSaveAsCustom"
@@ -52,6 +56,8 @@
     [Parameter] public EventCallback<string> OnNodeSelected { get; set; }
     [Parameter] public EventCallback<string> OnNodeEditRequested { get; set; }
     [Parameter] public EventCallback<CanvasDropArgs> OnCanvasDrop { get; set; }
+    [Parameter] public EventCallback<CompositionMutation> OnNodeChanged { get; set; }
+    [Parameter] public EventCallback<string> OnDropRejected { get; set; }
     [Parameter] public EventCallback<string> OnNodeCopy { get; set; }
     [Parameter] public EventCallback<string> OnNodePaste { get; set; }
     [Parameter] public EventCallback<string> OnNodeSaveAsCustom { get; set; }
@@ -63,4 +69,15 @@
     [CascadingParameter] public IBlockEditorCallbacks Editor { get; set; } = default!;
 
     private string CanvasClass => $"pe-blocks-container {(PreviewMode ? "pe-hidden" : "")}";
+
+    private Task HandleRootDropAsync()
+    {
+        if (!OnCanvasDrop.HasDelegate)
+            return Task.CompletedTask;
+
+        return OnCanvasDrop.InvokeAsync(new CanvasDropArgs(
+            RootNode.NodeId,
+            null,
+            RootNode.Children.Count));
+    }
 }

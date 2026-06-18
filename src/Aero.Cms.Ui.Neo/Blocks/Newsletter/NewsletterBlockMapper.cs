@@ -9,7 +9,7 @@ public static class NewsletterBlockMapper
     {
         NodeId = string.Empty,
         CatalogId = NewsletterBlock.BlockTypeId,
-        Kind = NeoPageNodeKind.Block,
+        Kind = NeoPageNodeKind.Section,
         Properties = new Dictionary<string, JsonElement>
         {
             ["title"]       = JsonSerializer.SerializeToElement(block.Title),

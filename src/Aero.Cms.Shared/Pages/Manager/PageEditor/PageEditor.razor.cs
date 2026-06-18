@@ -84,6 +84,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     protected string? SelectedBlockId  { get; set; }
     protected string? DraggedType      { get; set; }
     protected int?    DraggedIndex     { get; set; }
+    protected EditorPaletteDragState PaletteDragState { get; } = new();
 
     // UI state
     protected bool   SidebarCollapsed { get; set; }
@@ -245,6 +246,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     protected override async Task OnInitializedAsync()
     {
+        PaletteDragState.Cleared += ClearPaletteDragState;
         RestorePaletteState();
 
         await ResolvePreviewBaseUriAsync();
@@ -401,6 +403,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     public async ValueTask DisposeAsync()
     {
+        PaletteDragState.Cleared -= ClearPaletteDragState;
         _autoSaveTimer?.Dispose();
         _previewDebounceCts?.Cancel();
         _previewDebounceCts?.Dispose();
@@ -744,8 +747,8 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             : new NeoPageNode
             {
                 NodeId = block.EditorId ?? Guid.NewGuid().ToString("N"),
-                CatalogId = block.Type,
-                Kind = NeoPageNodeKind.Block,
+                CatalogId = "primitive.section",
+                Kind = NeoPageNodeKind.Section,
                 Style = block.Style?.DeepClone() ?? new ResponsiveNodeStyle(),
                 Children = []
             };
@@ -1072,7 +1075,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
         return block.Type switch
         {
-        _ => new NeoPageNode { CatalogId = block.Type, Kind = NeoPageNodeKind.Block, Properties = [] }
+        _ => new NeoPageNode { CatalogId = "primitive.section", Kind = NeoPageNodeKind.Section, Properties = [] }
         };
     }
 
@@ -1082,7 +1085,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         out NeoPageNode mappedNode)
     {
         mappedBlock = null;
-        mappedNode = new NeoPageNode { CatalogId = block.Type, Kind = NeoPageNodeKind.Block, Properties = [] };
+        mappedNode = new NeoPageNode { CatalogId = "primitive.section", Kind = NeoPageNodeKind.Section, Properties = [] };
 
         if (!DefinitionRegistry.TryGetDescriptor(block.Type, out var descriptor) ||
             descriptor.LegacyDefinition is not { } definition)
@@ -1099,7 +1102,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
         if (mappedNode.Kind == default)
         {
-            mappedNode.Kind = NeoPageNodeKind.Block;
+            mappedNode.Kind = NeoPageNodeKind.Section;
         }
 
         return true;
@@ -1177,18 +1180,42 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         OpenBlockEditor(nodeId);
     }
 
+    /// <summary>
+    /// Applies a mutation emitted by a nested composition surface in the page tree.
+    /// The child surface has already validated the mutation, so the editor owns
+    /// history, dirty state, and preview refresh from this point forward.
+    /// </summary>
+    protected Task OnRootCompositionChanged(CompositionMutation mutation)
+    {
+        _treeUndoStack.Add(EditorNodeMemento.Capture(mutation.Before));
+        if (_treeUndoStack.Count > MaxTreeHistory)
+            _treeUndoStack.RemoveRange(0, _treeUndoStack.Count - MaxTreeHistory);
+
+        _treeRedoStack.Clear();
+        SyncRootNodeFrom(mutation.After);
+        MarkDirty();
+        QueuePreviewRefresh();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    protected void OnRootCompositionDropRejected(string message)
+    {
+        CompositionDropError = message;
+        ShowToast(L["Cannot place item here: {0}", message], "error");
+        _ = InvokeAsync(StateHasChanged);
+    }
+
     /// <summary>Handle drop from palette or tree reorder.</summary>
     protected async Task OnCanvasDrop(CanvasDropArgs args)
     {
         // Palette drop: DraggedType is set by the palette DragStart
         // or passed via args.CatalogId (from future dataTransfer-based flows).
-        var paletteCatalogId = args.CatalogId ?? DraggedType;
+        var paletteCatalogId = args.CatalogId ?? PaletteDragState.CatalogId ?? DraggedType;
         if (!string.IsNullOrWhiteSpace(paletteCatalogId))
         {
             EnsureCanvasHistory();
             var catalogId = paletteCatalogId;
-            DraggedType = null;
-            DraggedIndex = null;
+            PaletteDragState.Clear();
 
             if (TryGetCustomComponentId(catalogId, out var componentId))
             {
@@ -1196,8 +1223,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
                 if (result is Result<NeoPageNode, AeroError>.Ok ok)
                 {
                     var node = ok.Value;
-                    var (insParent, _) = FindParentAndIndex(args.ParentNodeId);
-                    var container = insParent ?? RootNode;
+                    var container = FindNodeInTree(args.ParentNodeId) ?? RootNode;
                     var insIdx = Math.Clamp(args.InsertAtIndex, 0, container.Children.Count);
                     container.Children.Insert(insIdx, node);
                     RecordCanvasMutation();
@@ -1228,8 +1254,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             var targetNode = parent.Children[index];
             parent.Children.RemoveAt(index);
 
-            var (newParent, _) = FindParentAndIndex(args.ParentNodeId);
-            if (newParent is null) newParent = RootNode;
+            var newParent = FindNodeInTree(args.ParentNodeId) ?? RootNode;
 
             var insertAt = Math.Clamp(args.InsertAtIndex, 0, newParent.Children.Count);
             newParent.Children.Insert(insertAt, targetNode);
@@ -1252,14 +1277,13 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             node = new NeoPageNode
             {
                 NodeId = Guid.NewGuid().ToString("N"),
-                CatalogId = catalogId,
-                Kind = NeoPageNodeKind.Block,
+                CatalogId = "primitive.section",
+                Kind = NeoPageNodeKind.Section,
                 Children = []
             };
         }
 
-        var (parent, _) = FindParentAndIndex(parentNodeId);
-        if (parent is null) parent = RootNode;
+        var parent = FindNodeInTree(parentNodeId) ?? RootNode;
         var idx = Math.Clamp(insertAtIndex, 0, parent.Children.Count);
         parent.Children.Insert(idx, node);
 
@@ -1378,6 +1402,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     {
         DraggedType  = type;
         DraggedIndex   = null;
+        PaletteDragState.Start(type);
     }
 
     /// <summary>
@@ -1388,6 +1413,13 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     protected void OnPaletteItemDragStart(string catalogId)
     {
         DraggedType = catalogId;
+        DraggedIndex = null;
+        PaletteDragState.Start(catalogId);
+    }
+
+    private void ClearPaletteDragState()
+    {
+        DraggedType = null;
         DraggedIndex = null;
     }
 

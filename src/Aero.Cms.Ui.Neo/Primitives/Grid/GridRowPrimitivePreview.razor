@@ -1,20 +1,33 @@
 @namespace Aero.Cms.Ui.Neo.Primitives.Grid
 @using Aero.Cms.Abstractions.Blocks.Neo
 
-<div class="flex items-stretch gap-1 min-h-[60px] border border-gray-200 rounded bg-gray-50/30 p-1">
-    <div class="flex items-center px-2 border-r border-gray-200">
-        <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Row</span>
-    </div>
-    <div class="flex-1 flex items-stretch gap-1">
-        <div class="flex-1 border border-dashed border-gray-200 rounded flex items-center justify-center min-w-[60px]">
-            <span class="text-[10px] text-gray-300">Cell</span>
-        </div>
-        <div class="flex-1 border border-dashed border-gray-200 rounded flex items-center justify-center min-w-[60px]">
-            <span class="text-[10px] text-gray-300">Cell</span>
-        </div>
-    </div>
-</div>
+<SortableCompositionSurface Node="Node"
+                            RootNode="RootNode"
+                            OwnerBlock="OwnerBlock"
+                            NodeChanged="NodeChanged"
+                            NodeEditRequested="NodeEditRequested"
+                            DropRejected="DropRejected"
+                            DropZoneId="grid-cells"
+                            CssClass="neo-primitive-grid-row"
+                            ContentCssClass="neo-composition-surface--grid-row"
+                            EmptyText="Drop grid cells here" />
 
 @code {
-    [Parameter] public NeoPageNode? Node { get; set; }
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    [Parameter]
+    public NeoPageNode? RootNode { get; set; }
+
+    [Parameter]
+    public EditorBlock? OwnerBlock { get; set; }
+
+    [Parameter]
+    public EventCallback<CompositionMutation> NodeChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<string> NodeEditRequested { get; set; }
+
+    [Parameter]
+    public EventCallback<string> DropRejected { get; set; }
 }

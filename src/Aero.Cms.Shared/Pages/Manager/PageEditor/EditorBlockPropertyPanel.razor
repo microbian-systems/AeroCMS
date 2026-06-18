@@ -1477,8 +1477,8 @@
         new()
         {
             NodeId = Block?.EditorId ?? string.Empty,
-            CatalogId = Block?.Type ?? string.Empty,
-            Kind = NeoPageNodeKind.Block,
+            CatalogId = "primitive.section",
+            Kind = NeoPageNodeKind.Section,
             Style = Block?.Style ?? new()
         };
 

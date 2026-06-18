@@ -9,7 +9,7 @@ public static class SplitHeroBlockMapper
     {
         NodeId = string.Empty,
         CatalogId = SplitHeroBlock.BlockTypeId,
-        Kind = NeoPageNodeKind.Block,
+        Kind = NeoPageNodeKind.Section,
         Properties = new Dictionary<string, JsonElement>
         {
             ["eyebrow"]        = JsonSerializer.SerializeToElement(block.Eyebrow),

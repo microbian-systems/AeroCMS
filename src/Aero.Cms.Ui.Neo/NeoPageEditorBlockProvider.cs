@@ -46,7 +46,9 @@ using Aero.Cms.Ui.Neo.Primitives.Pill;
 using Aero.Cms.Ui.Neo.Primitives.Section;
 using Aero.Cms.Ui.Neo.Primitives.Columns;
 using Aero.Cms.Ui.Neo.Primitives.Content;
+using Aero.Cms.Ui.Neo.Primitives.CssGrid;
 using Aero.Cms.Ui.Neo.Primitives.DynamicTemplate;
+using Aero.Cms.Ui.Neo.Primitives.Flexbox;
 using Aero.Cms.Ui.Neo.Primitives.MarkdownBlock;
 using Aero.Cms.Ui.Neo.Primitives.Separator;
 using Aero.Cms.Ui.Neo.Primitives.Text;
@@ -91,6 +93,8 @@ public sealed class NeoPageEditorBlockProvider :
     private static readonly IReadOnlyCollection<PageEditorDefinitionDescriptor> EditorDefinitions =
     [
         ContainerPrimitiveDefinition.Descriptor,
+        FlexboxPrimitiveDefinition.Descriptor,
+        CssGridPrimitiveDefinition.Descriptor,
         TextPrimitiveDefinition.Descriptor,
         HeadingPrimitiveDefinition.Descriptor,
         ButtonPrimitiveDefinition.Descriptor,

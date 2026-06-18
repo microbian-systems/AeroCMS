@@ -54,16 +54,6 @@ public sealed class PageEditorDefinitionRegistry : IPageEditorDefinitionRegistry
         var definitions = new Dictionary<string, PageEditorDefinitionDescriptor>(
             StringComparer.OrdinalIgnoreCase);
 
-        foreach (var provider in blockProviders)
-        {
-            foreach (var definition in provider.GetDefinitions())
-            {
-                var descriptor = new LegacyPageEditorDefinitionAdapter(definition)
-                    .ToDescriptor();
-                AddDefinition(definitions, descriptor);
-            }
-        }
-
         if (nativeProviders is not null)
         {
             foreach (var provider in nativeProviders)
@@ -72,6 +62,26 @@ public sealed class PageEditorDefinitionRegistry : IPageEditorDefinitionRegistry
                 {
                     AddDefinition(definitions, descriptor);
                 }
+            }
+        }
+
+        foreach (var provider in blockProviders)
+        {
+            foreach (var definition in provider.GetDefinitions())
+            {
+                var descriptor = new LegacyPageEditorDefinitionAdapter(definition)
+                    .ToDescriptor();
+
+                // Some packages expose both legacy canned blocks and native
+                // composition descriptors during the migration. Native
+                // descriptors are the authoritative model; legacy adapters are
+                // only added when no native descriptor owns that catalog ID.
+                if (definitions.ContainsKey(descriptor.CatalogId))
+                {
+                    continue;
+                }
+
+                AddDefinition(definitions, descriptor);
             }
         }
 

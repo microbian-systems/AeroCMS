@@ -1,4 +1,4 @@
-@namespace Aero.Cms.Ui.Neo.Primitives.Aside
+@namespace Aero.Cms.Ui.Neo.Primitives.CssGrid
 @using Aero.Cms.Abstractions.Blocks.Neo
 
 <SortableCompositionSurface Node="Node"
@@ -7,10 +7,10 @@
                             NodeChanged="NodeChanged"
                             NodeEditRequested="NodeEditRequested"
                             DropRejected="DropRejected"
-                            DropZoneId="@NeoDropZoneDefinition.DefaultId"
-                            CssClass="neo-primitive-aside"
-                            ContentCssClass="neo-composition-surface--aside"
-                            EmptyText="Drop aside content here" />
+                            DropZoneId="@CssGridPrimitiveDefinition.ContentDropZone"
+                            CssClass="neo-primitive-css-grid"
+                            ContentCssClass="neo-composition-surface--css-grid"
+                            EmptyText="Drop grid items here" />
 
 @code {
     [Parameter, EditorRequired]

@@ -2,6 +2,7 @@
 @using Aero.Cms.Abstractions.Blocks.Editor
 @using Aero.Cms.Abstractions.Blocks.Neo
 @using Aero.Cms.Abstractions.Blocks.Neo.Styles
+@using Aero.Cms.Shared.Blocks.Rendering
 @using Microsoft.Extensions.Localization
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 
@@ -13,6 +14,64 @@
      @ondblclick:stopPropagation
      @oncontextmenu="OpenContextMenu"
      @oncontextmenu:preventDefault>
+
+    @if (IsSelected)
+    {
+        <div class="pe-block-toolbar">
+            <span class="pe-toolbar-btn pe-drag-handle" title="@L["Drag to reorder"]" @onclick:stopPropagation>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     aria-hidden="true">
+                    <circle cx="9" cy="6" r="1"/>
+                    <circle cx="15" cy="6" r="1"/>
+                    <circle cx="9" cy="12" r="1"/>
+                    <circle cx="15" cy="12" r="1"/>
+                    <circle cx="9" cy="18" r="1"/>
+                    <circle cx="15" cy="18" r="1"/>
+                </svg>
+            </span>
+            <button class="pe-toolbar-btn" title="@L["Edit block"]"
+                    aria-label="@L["Edit block"]"
+                    @onclick:stopPropagation="true"
+                    @onclick="HandleDoubleClickAsync">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                </svg>
+            </button>
+            <button class="pe-toolbar-btn" title="@L["Move up"]"
+                    disabled="@(Index == 0)"
+                    @onclick:stopPropagation="true"
+                    @onclick="() => OnMoveUp.InvokeAsync(Node.NodeId)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="18 15 12 9 6 15"/>
+                </svg>
+            </button>
+            <button class="pe-toolbar-btn" title="@L["Move down"]"
+                    disabled="@(Index == TotalSiblings - 1)"
+                    @onclick:stopPropagation="true"
+                    @onclick="() => OnMoveDown.InvokeAsync(Node.NodeId)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </button>
+            <button class="pe-toolbar-btn" title="@L["Duplicate"]"
+                    @onclick:stopPropagation="true"
+                    @onclick="() => OnDuplicate.InvokeAsync(Node.NodeId)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+            </button>
+            <button class="pe-toolbar-btn delete" title="@L["Delete"]"
+                    @onclick:stopPropagation="true"
+                    @onclick="() => OnDelete.InvokeAsync(Node.NodeId)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+            </button>
+        </div>
+    }
 
     @* Drag handle *@
     <span class="canvas-node__drag-handle" @onclick:stopPropagation>
@@ -27,13 +86,22 @@
         </svg>
     </span>
 
+    <div class="canvas-node__label" @onclick:stopPropagation>
+        <span class="canvas-node__label-title">@NodeDisplayName</span>
+        <span class="canvas-node__label-kind">@Node.CatalogId</span>
+    </div>
+
     @* Preview content *@
-    <div class="canvas-node__content">
+    <div class="canvas-node__content pe-block-content">
         @if (PreviewComponentType is not null)
         {
             <DynamicComponent Type="@PreviewComponentType" Parameters="@PreviewParameters" />
         }
-        else
+        else if (TryMapLegacyBlock(out var legacyBlock))
+        {
+            <BlockRenderer Block="@legacyBlock" />
+        }
+        else if (ShouldShowFallbackLabel)
         {
             <span class="canvas-node__fallback">@Node.CatalogId</span>
         }

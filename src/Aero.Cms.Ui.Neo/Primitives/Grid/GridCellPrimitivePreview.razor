@@ -10,16 +10,33 @@
         span = Math.Clamp(s.GetInt32(), 1, 12);
 }
 
-<div class="border-2 border-dashed border-emerald-200 rounded-lg p-3 min-h-[60px] bg-emerald-50/20">
-    <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Cell</span>
-        <span class="text-[10px] text-emerald-500 bg-emerald-100 px-1.5 py-0.5 rounded">span @span</span>
-    </div>
-    <div class="border border-dashed border-emerald-100 rounded p-2 text-center">
-        <span class="text-[10px] text-emerald-300">Drop content here</span>
-    </div>
-</div>
+<SortableCompositionSurface Node="Node"
+                            RootNode="RootNode"
+                            OwnerBlock="OwnerBlock"
+                            NodeChanged="NodeChanged"
+                            NodeEditRequested="NodeEditRequested"
+                            DropRejected="DropRejected"
+                            DropZoneId="cell-content"
+                            CssClass="@($"neo-primitive-grid-cell col-span-{span}")"
+                            ContentCssClass="neo-composition-surface--grid-cell"
+                            EmptyText="Drop content here" />
 
 @code {
-    [Parameter] public NeoPageNode? Node { get; set; }
+    [Parameter, EditorRequired]
+    public NeoPageNode Node { get; set; } = default!;
+
+    [Parameter]
+    public NeoPageNode? RootNode { get; set; }
+
+    [Parameter]
+    public EditorBlock? OwnerBlock { get; set; }
+
+    [Parameter]
+    public EventCallback<CompositionMutation> NodeChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<string> NodeEditRequested { get; set; }
+
+    [Parameter]
+    public EventCallback<string> DropRejected { get; set; }
 }
