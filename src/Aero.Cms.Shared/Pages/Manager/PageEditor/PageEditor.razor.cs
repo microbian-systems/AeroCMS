@@ -9,6 +9,7 @@ using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
+using Aero.Cms.Abstractions.Blocks.Serialization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -26,6 +27,7 @@ using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
 using NeoUI.Blazor.Primitives;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.Canvas;
 using PageEditorCatalog = Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
@@ -68,8 +70,15 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     protected string LastSaved    { get; set; } = "Never";
     protected string Author       { get; set; } = "Admin";
 
-    // Block list
-    protected List<EditorBlock> Blocks { get; set; } = [];
+    // NeoPageNode composition tree root
+    protected NeoPageNode RootNode { get; set; } = CreateDefaultRootNode();
+    private static NeoPageNode CreateDefaultRootNode() => new()
+    {
+        NodeId = "page-root",
+        CatalogId = "page.root",
+        Kind = NeoPageNodeKind.Page,
+        Children = []
+    };
 
     // Selection / drag state
     protected string? SelectedBlockId  { get; set; }
@@ -93,16 +102,14 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     protected string ActiveTab             { get; set; } = "editor";
 
     // Sidebar category toggles
-    protected bool CategoryAeroUi    { get; set; } = true;
-    protected bool CategoryLegacyUi  { get; set; } = true;
-    protected bool CategoryAeroUx    { get; set; } = true;
-    protected bool CategoryMedia     { get; set; } = true;
-    protected bool CategoryReferences { get; set; }
-    protected bool CategorySettings   { get; set; } = true;
-    protected bool CategoryHyper      { get; set; } = true;
-    protected bool CategoryNeo        { get; set; } = true;
-    protected bool CategoryPrimitives { get; set; } = true;
-    protected bool CategoryCustom { get; set; } = true;
+    protected bool CategoryAeroUi      { get; set; } = true;
+    protected bool CategoryComponents  { get; set; } = true;
+    protected bool CategoryReferences  { get; set; }
+    protected bool CategorySettings    { get; set; } = true;
+    protected bool CategoryHyper       { get; set; } = true;
+    protected bool CategoryNeo         { get; set; } = true;
+    protected bool CategoryPrimitives  { get; set; } = true;
+    protected bool CategoryCustom      { get; set; } = true;
     protected string PaletteSearch { get; set; } = string.Empty;
     protected string? CompositionDropError { get; set; }
     private const string PaletteStateStorageKey = "aero.page-editor.palette-state.v1";
@@ -176,10 +183,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     protected string? EditingBlockId { get; set; }
     protected string? EditingNodeId { get; set; }
     protected string BlockEditorTab { get; set; } = "design";
-    protected EditorBlock? CurrentEditBlock =>
+    protected NeoPageNode? CurrentEditNode =>
         string.IsNullOrEmpty(EditingBlockId)
             ? null
-            : Blocks.FirstOrDefault(block => block.EditorId == EditingBlockId);
+            : FindNodeInTree(EditingBlockId);
 
     protected IReadOnlyList<PageCustomComponentDetail> CustomComponents { get; set; } = [];
     protected bool SaveCustomComponentModalOpen { get; set; }
@@ -202,9 +209,15 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     private long _previewRefreshVersion;	
     private readonly Dictionary<string, CompositionHistory> _compositionHistory =
         new(StringComparer.Ordinal);
-    private PageCanvasHistory? _canvasHistory;
     private DotNetObjectReference<PageEditor>? _shortcutReference;
     private EditorBlockListMemento? _blockClipboard;
+    private EditorNodeMemento? _nodeClipboard;
+    private NeoPageNode? _pendingSaveNode;
+
+    // Node-tree undo/redo stacks
+    private readonly List<EditorNodeMemento> _treeUndoStack = [];
+    private readonly List<EditorNodeMemento> _treeRedoStack = [];
+    private const int MaxTreeHistory = 100;
 
     /// <summary>Tracks whether unsaved changes exist. Auto-save only fires when Dirty.</summary>
     private enum PageState { Clean, Dirty }
@@ -284,10 +297,11 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             ShowChatAgent = page.ShowChatAgent;
             ParentId = page.ParentId;
             
-            // Load blocks if available in API
-            if (page.Blocks != null)
+            // Load blocks from RootNodeJson
+            if (page.RootNodeJson is { Length: > 0 } rootJson)
             {
-                Blocks = page.Blocks.ToList();
+                RootNode = JsonSerializer.Deserialize<NeoPageNode>(rootJson, BlockJsonContext.Default.Options)
+                           ?? CreateDefaultRootNode();
             }
 
             // Check for a newer draft — if one exists, use it as the in-progress state
@@ -298,12 +312,16 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
                 PageTitle = draft.Title;
                 PageSlug = draft.Slug;
                 Summary = draft.Summary ?? string.Empty;
-                if (draft.Blocks is not null)
-                    Blocks = draft.Blocks.ToList();
+                if (draft.RootNodeJson is { Length: > 0 } draftRootJson)
+                {
+                    RootNode = JsonSerializer.Deserialize<NeoPageNode>(draftRootJson, BlockJsonContext.Default.Options)
+                               ?? CreateDefaultRootNode();
+                }
             }
 
             _compositionHistory.Clear();
-            _canvasHistory = null;
+            _treeUndoStack.Clear();
+            _treeRedoStack.Clear();
             UpdateLastSaved();
             _pageState = PageState.Clean;
             await LoadPageTranslationsAsync();
@@ -421,16 +439,14 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     {
         switch (category)
         {
-            case "aeroui":    CategoryAeroUi    = !CategoryAeroUi;    break;
-            case "legacyui":  CategoryLegacyUi  = !CategoryLegacyUi;  break;
-            case "aeroux":    CategoryAeroUx    = !CategoryAeroUx;    break;
-            case "media":     CategoryMedia     = !CategoryMedia;     break;
-            case "references": CategoryReferences = !CategoryReferences; break;
-            case "settings":   CategorySettings   = !CategorySettings;   break;
-            case "hyper":      CategoryHyper      = !CategoryHyper;      break;
-            case "neo":        CategoryNeo        = !CategoryNeo;        break;
-            case "primitives": CategoryPrimitives = !CategoryPrimitives; break;
-            case "custom":     CategoryCustom = !CategoryCustom; break;
+            case "aeroui":      CategoryAeroUi      = !CategoryAeroUi;      break;
+            case "components":  CategoryComponents  = !CategoryComponents;  break;
+            case "references":  CategoryReferences  = !CategoryReferences;  break;
+            case "settings":    CategorySettings    = !CategorySettings;    break;
+            case "hyper":       CategoryHyper       = !CategoryHyper;       break;
+            case "neo":         CategoryNeo         = !CategoryNeo;         break;
+            case "primitives":  CategoryPrimitives  = !CategoryPrimitives;  break;
+            case "custom":      CategoryCustom      = !CategoryCustom;      break;
         }
 
         PersistPaletteState();
@@ -453,9 +469,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
         RightSidebarCollapsed = state.RightSidebarCollapsed;
         CategoryAeroUi = state.CategoryAeroUi;
-        CategoryLegacyUi = state.CategoryLegacyUi;
-        CategoryAeroUx = state.CategoryAeroUx;
-        CategoryMedia = state.CategoryMedia;
+        CategoryComponents = state.CategoryComponents;
         CategoryReferences = state.CategoryReferences;
         CategorySettings = state.CategorySettings;
         CategoryHyper = state.CategoryHyper;
@@ -470,9 +484,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             new PaletteState(
                 RightSidebarCollapsed,
                 CategoryAeroUi,
-                CategoryLegacyUi,
-                CategoryAeroUx,
-                CategoryMedia,
+                CategoryComponents,
                 CategoryReferences,
                 CategorySettings,
                 CategoryHyper,
@@ -483,9 +495,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     private sealed record PaletteState(
         bool RightSidebarCollapsed,
         bool CategoryAeroUi,
-        bool CategoryLegacyUi,
-        bool CategoryAeroUx,
-        bool CategoryMedia,
+        bool CategoryComponents,
         bool CategoryReferences,
         bool CategorySettings,
         bool CategoryHyper,
@@ -515,45 +525,6 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             .OrderBy(i => i.SortOrder)
             .ToList();
 
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> LegacyUiCatalogItems { get; } =
-    [
-        CatalogItem("boring_hero", "Boring Hero", 10),
-        CatalogItem("hero", "Hero", 20),
-        CatalogItem("text", "Text", 30),
-        CatalogItem("columns", "Columns", 40),
-        CatalogItem("content", "Rich Text", 50),
-        CatalogItem("markdown", "Markdown", 60),
-        CatalogItem("raw_html", "Raw HTML", 70),
-        CatalogItem("dynamic_template", "Scriban", 80),
-        CatalogItem("quote", "Quote", 90),
-        CatalogItem("separator", "Separator", 100)
-    ];
-
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> AeroUxCatalogItems { get; } =
-    [
-        CatalogItem("aero_hero", "Aero Hero", 10),
-        CatalogItem("aero_features", "Features", 20),
-        CatalogItem("aero_cta", "CTA", 30),
-        CatalogItem("aero_blog", "Blog", 40),
-        CatalogItem("aero_pricing", "Pricing", 50),
-        CatalogItem("aero_teams", "Teams", 60),
-        CatalogItem("aero_testimonials", "Testimonials", 70),
-        CatalogItem("aero_faq", "FAQ", 80),
-        CatalogItem("aero_portfolio", "Portfolio", 90),
-        CatalogItem("aero_contact", "Contact", 100),
-        CatalogItem("aero_table", "Table", 110),
-        CatalogItem("aero_auth", "Auth", 120)
-    ];
-
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> MediaCatalogItems { get; } =
-    [
-        CatalogItem("image", "Image", 10),
-        CatalogItem("video", "Video", 20),
-        CatalogItem("gallery", "Gallery", 30),
-        CatalogItem("carousel", "Carousel", 40),
-        CatalogItem("audio", "Audio", 50)
-    ];
-
     protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ReferenceCatalogItems { get; } =
     [
         CatalogItem("pages", "Pages", 10),
@@ -566,10 +537,6 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoHyperCatalogItems =>
         Catalog.GetCatalogItems()
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
-            .Concat(DefinitionRegistry.LegacyDefinitions.Select(ToCatalogItem))
-            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
-            .GroupBy(i => i.CatalogId, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
             .OrderBy(i => i.SortOrder)
             .ToList();
 
@@ -584,6 +551,13 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         DefinitionRegistry.AllDescriptors
             .Select(ToCatalogItem)
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Primitives)
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ComponentsCatalogItems =>
+        DefinitionRegistry.AllDescriptors
+            .Select(ToCatalogItem)
+            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Components)
             .OrderBy(i => i.SortOrder)
             .ToList();
 
@@ -604,9 +578,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             CustomCatalogItems,
             NeoAeroCatalogItems,
             PrimitiveCatalogItems,
-            LegacyUiCatalogItems,
-            AeroUxCatalogItems,
-            MediaCatalogItems,
+            ComponentsCatalogItems,
             ReferenceCatalogItems,
             NeoHyperCatalogItems,
             NeoNeoCatalogItems
@@ -655,25 +627,13 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             PropertyEditorComponentType = definition.Catalog.PropertyEditorComponentType
         };
 
-    private static PageEditorCatalog.NeoEditorCatalogItem ToCatalogItem(IPageEditorBlockDefinition definition) =>
-        new()
-        {
-            CatalogId = definition.CatalogId,
-            DisplayName = definition.DisplayName,
-            Description = definition.Description,
-            Section = ToCatalogSection(definition.Category),
-            Kind = ToCatalogKind(definition.Kind),
-            SortOrder = definition.SortOrder,
-            IconName = definition.IconName,
-            PublicStaticSsrSafe = definition.PublicStaticSsrSafe,
-            EditorPreviewComponentType = definition.PreviewComponentType,
-            PropertyEditorComponentType = definition.PropertyEditorComponentType
-        };
-
     private static PageEditorCatalog.NeoEditorCatalogSection ToCatalogSection(string? category) =>
         category?.Trim().ToLowerInvariant() switch
         {
             "aero ui" or "aeroui" or "aero" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
+            "aero ux" or "aeroux" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
+            "legacy ui" or "legacy" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
+            "media" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
             "primitive" or "primitives" => PageEditorCatalog.NeoEditorCatalogSection.Primitives,
             "component" or "components" => PageEditorCatalog.NeoEditorCatalogSection.Components,
             "hyper" or "hyperui" or "hyper ui" => PageEditorCatalog.NeoEditorCatalogSection.Hyper,
@@ -711,16 +671,96 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         };
 
     // ──────────────────────────────────────────────────────────
+    // Node tree helpers
+    // ──────────────────────────────────────────────────────────
+
+    /// <summary>Finds a node by ID in root's direct children.</summary>
+    private NeoPageNode? FindRootChild(string nodeId) =>
+        RootNode.Children.FirstOrDefault(n => n.NodeId == nodeId);
+
+    /// <summary>Finds a node anywhere in the tree by ID.</summary>
+    private NeoPageNode? FindNodeInTree(string nodeId) =>
+        FindRootChild(nodeId) ?? FindNodeRecursive(RootNode.Children, nodeId);
+
+    private static NeoPageNode? FindNodeRecursive(List<NeoPageNode> parents, string nodeId)
+    {
+        foreach (var parent in parents)
+        {
+            var found = parent.Children.FirstOrDefault(n => n.NodeId == nodeId);
+            if (found is not null)
+                return found;
+            if (FindNodeRecursive(parent.Children, nodeId) is { } deep)
+                return deep;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the parent and index of the node with the given ID.
+    /// Returns null for the root node itself (no parent).
+    /// </summary>
+    private (NeoPageNode? Parent, int Index) FindParentAndIndex(string nodeId)
+    {
+        for (var i = 0; i < RootNode.Children.Count; i++)
+        {
+            if (RootNode.Children[i].NodeId == nodeId)
+                return (RootNode, i);
+        }
+        return FindParentRecursive(RootNode.Children, nodeId);
+    }
+
+    private static (NeoPageNode? Parent, int Index) FindParentRecursive(List<NeoPageNode> parents, string nodeId)
+    {
+        foreach (var parent in parents)
+        {
+            for (var i = 0; i < parent.Children.Count; i++)
+            {
+                if (parent.Children[i].NodeId == nodeId)
+                    return (parent, i);
+            }
+            var (foundParent, foundIndex) = FindParentRecursive(parent.Children, nodeId);
+            if (foundParent is not null)
+                return (foundParent, foundIndex);
+        }
+        return (null, -1);
+    }
+
+    // ──────────────────────────────────────────────────────────
     // Block management  (mirrors addBlock / deleteBlock / etc.)
     // ──────────────────────────────────────────────────────────
+
+    protected NeoPageNode CreateNode(string catalogId)
+    {
+        if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor) &&
+            descriptor.NodeFactory is { } factory)
+        {
+            return factory.CreateDefaultNode();
+        }
+
+        // Legacy path: create from EditorBlock definition and extract node
+        var block = CreateBlock(catalogId);
+        var node = block.CompositionNodes is { Count: > 0 } nodes
+            ? nodes[0]
+            : new NeoPageNode
+            {
+                NodeId = block.EditorId ?? Guid.NewGuid().ToString("N"),
+                CatalogId = block.Type,
+                Kind = NeoPageNodeKind.Block,
+                Style = block.Style?.DeepClone() ?? new ResponsiveNodeStyle(),
+                Children = []
+            };
+        if (string.IsNullOrWhiteSpace(node.NodeId))
+            node.NodeId = Guid.NewGuid().ToString("N");
+        return node;
+    }
 
     protected void AddBlock(string type)
     {
         EnsureCanvasHistory();
-        var block = CreateBlock(type);
-        Blocks.Add(block);
+        var node = CreateNode(type);
+        RootNode.Children.Add(node);
         RecordCanvasMutation();
-        SelectBlock(block.EditorId);
+        SelectBlock(node.NodeId);
         MarkDirty();
         ShowToast(L["Block added"], "success");
         QueuePreviewRefresh();
@@ -742,11 +782,6 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         BlockEditorModalOpen = true;
     }
 
-    private void OpenBlockEditor(EditorBlock block)
-    {
-        OpenBlockEditor(block.EditorId);
-    }
-
     protected void CloseBlockEditor()
     {
         BlockEditorModalOpen = false;
@@ -756,12 +791,15 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     protected void OpenSaveCustomComponentModal()
     {
-        if (CurrentEditBlock is null)
+        if (CurrentEditNode is null && _pendingSaveNode is null)
         {
             return;
         }
 
-        CustomComponentName = GetBlockDisplayName(CurrentEditBlock);
+        _pendingSaveNode = null;
+        CustomComponentName = CurrentEditNode is not null
+            ? GetBlockDisplayName(CurrentEditNode.CatalogId)
+            : string.Empty;
         CustomComponentDescription = string.Empty;
         EditingCustomComponentId = null;
         SaveCustomComponentModalOpen = true;
@@ -795,13 +833,14 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             return;
         }
 
+        _pendingSaveNode = null;
         SaveCustomComponentModalOpen = false;
         EditingCustomComponentId = null;
     }
 
     protected async Task SaveCurrentBlockAsCustomAsync()
     {
-        if ((!EditingCustomComponentId.HasValue && CurrentEditBlock is null) ||
+        if ((!EditingCustomComponentId.HasValue && CurrentEditNode is null && _pendingSaveNode is null) ||
             string.IsNullOrWhiteSpace(CustomComponentName))
         {
             ShowToast(L["A component name is required."], "error");
@@ -815,9 +854,11 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
                 ? CustomComponents.FirstOrDefault(component =>
                     component.Id == EditingCustomComponentId.Value)
                 : null;
-            var root = existing is not null
-                ? CustomComponentTemplate.Capture(existing.Root)
-                : CreateCustomComponentRoot(CurrentEditBlock!);
+            var root = _pendingSaveNode is not null
+                ? CustomComponentTemplate.Capture(_pendingSaveNode)
+                : existing is not null
+                    ? CustomComponentTemplate.Capture(existing.Root)
+                    : CustomComponentTemplate.Capture(CurrentEditNode!);
             var request = new SavePageCustomComponentRequest(
                 CustomComponentName.Trim(),
                 root,
@@ -848,6 +889,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
         finally
         {
+            _pendingSaveNode = null;
             IsSavingCustomComponent = false;
         }
     }
@@ -945,17 +987,16 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         return node;
     }
 
-    protected string GetBlockDisplayName(EditorBlock block)
+    protected string GetBlockDisplayName(string catalogId)
     {
         var allItems = NeoAeroCatalogItems
             .Concat(NeoHyperCatalogItems)
-            .Concat(LegacyUiCatalogItems)
-            .Concat(AeroUxCatalogItems)
-            .Concat(MediaCatalogItems)
+            .Concat(ComponentsCatalogItems)
+            .Concat(PrimitiveCatalogItems)
             .Concat(ReferenceCatalogItems);
 
-        return allItems.FirstOrDefault(item => item.CatalogId == block.Type)?.DisplayName
-            ?? block.Type;
+        return allItems.FirstOrDefault(item => item.CatalogId == catalogId)?.DisplayName
+            ?? catalogId;
     }
 
     private EditorBlock CreateBlock(string type)
@@ -983,139 +1024,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
         switch (type)
         {
-            // Neo catalog blocks
-            case "aero.hero.01":
-                block.Eyebrow         = "Introducing NeoUI v3";
-                block.MainText        = "Build beautiful Blazor apps";
-                block.Highlight       = "faster than ever";
-                block.SubText         = "100+ production-ready components for .NET Blazor. Accessible, customizable, and built for speed.";
-                block.CtaText         = "Get started for free";
-                block.CtaUrl          = "#";
-                block.CtaText2        = "View on GitHub";
-                block.CtaUrl2         = "#";
-                block.TrustMarkers    =
-                [
-                    "Free & open source",
-                    ".NET 8+ compatible",
-                    "Dark mode included",
-                    "100+ components"
-                ];
-                block.BackgroundImage = string.Empty;
-                break;
-            case "aero.hero.basic":
-                block.MainText        = "Welcome";
-                block.SubText         = "Your message goes here.";
-                block.CtaText         = "";
-                block.CtaUrl          = "";
-                block.BackgroundImage = string.Empty;
-                block.FullWidth       = true;
-                break;
-            case "boring_hero":
-                block.MainText = "Welcome";
-                block.SubText = "Your message goes here.";
-                block.FullWidth = true;
-                break;
-            case "hero":
-                block.MainText = "Main headline";
-                block.SubText = "Sub headline or description";
-                block.CtaText = "Learn more";
-                block.CtaUrl = "#";
-                block.Height = 512;
-                break;
-            case "text":
-                block.Content = "Enter your text here...";
-                break;
-            case "content":
-                block.Content = "<p>Start writing...</p>";
-                break;
-            case "markdown":
-                block.Content = "# Markdown content";
-                block.MarkdownView = "edit";
-                break;
-            case "raw_html":
-            case "ui.raw-html":
-                block.Content = "<p>Custom HTML</p>";
-                break;
-            case "dynamic_template":
-            case "neo.template.scriban":
-                block.ScribanTemplate = "{{ title }}";
-                block.ScribanDataJson = "{ \"title\": \"Hello\" }";
-                break;
-            case "quote":
-                block.Content = "Enter quote text...";
-                block.Author = "Author name";
-                break;
-            case "columns":
-            case "neo.layout.columns":
-                block.ColumnCount = 2;
-                block.RowCount = 1;
-                block.Gap = 16;
-                block.EditorColumns =
-                [
-                    new EditorColumn(),
-                    new EditorColumn()
-                ];
-                break;
-            case "aero_hero":
-                block.MainText = "Aero Hero";
-                block.SubText = "Build a polished page section.";
-                block.CtaText = "Get started";
-                block.CtaUrl = "#";
-                break;
-            case "aero_features":
-                block.MainText = "Features";
-                block.SubText = "Everything you need.";
-                block.FeatureItems =
-                [
-                    new AeroFeatureItem { Title = "Fast", Description = "Ship quickly.", Icon = "zap" },
-                    new AeroFeatureItem { Title = "Flexible", Description = "Compose freely.", Icon = "layout" }
-                ];
-                break;
-            case "aero_cta":
-                block.MainText = "Ready to start?";
-                block.SubText = "Take the next step.";
-                block.CtaText = "Contact us";
-                block.CtaUrl = "#";
-                break;
-            case "aero_blog":
-                block.MainText = "Latest posts";
-                block.Description = "Recent articles and updates.";
-                break;
-            case "aero_pricing":
-                block.MainText = "Pricing";
-                block.Description = "Simple plans for every team.";
-                break;
-            case "aero_teams":
-                block.MainText = "Our team";
-                block.Description = "Meet the people behind the work.";
-                break;
-            case "aero_testimonials":
-                block.MainText = "Testimonials";
-                block.Description = "What customers are saying.";
-                break;
-            case "aero_faq":
-                block.MainText = "FAQ";
-                block.Description = "Common questions.";
-                block.FaqItems = [new AeroFaqItem { Question = "Question?", Answer = "Answer." }];
-                break;
-            case "aero_portfolio":
-                block.MainText = "Portfolio";
-                block.Description = "Selected work.";
-                break;
-            case "aero_contact":
-                block.MainText = "Contact";
-                block.Description = "Get in touch.";
-                break;
-            case "aero_table":
-                block.MainText = "Table";
-                block.Description = "Structured information.";
-                break;
-            case "aero_auth":
-                block.MainText = "Sign in";
-                block.Description = "Access your account.";
-                block.CtaText = "Continue";
-                break;
+            // All block types are now registered in the definition registry.
+            // If a type is not found, fall through to unknown type handling.
             default:
+                // fall through silently - unknown type
                 break;
         }
 
@@ -1137,14 +1049,6 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         var node = MapEditorBlockToNeoNode(block);
         return block.Type switch
         {
-            "aero.hero.basic" => BasicHeroBlockMapper.FromNode(node),
-            "media.image" => ImageBlockMapper.FromNode(node),
-            "media.video" => VideoBlockMapper.FromNode(node),
-            "media.audio" => AudioBlockMapper.FromNode(node),
-            "media.gallery" => GalleryBlockMapper.FromNode(node),
-            "ui.raw-html" => NeoRawHtmlBlockMapper.FromNode(node),
-            "ui.separator" => SeparatorBlockMapper.FromNode(node),
-            "neo.layout.columns" => NeoColumnsBlockMapper.FromNode(node),
             _ => null
         };
     }
@@ -1156,87 +1060,18 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             return mappedNode;
         }
 
+        // Native definitions (no LegacyDefinition): preserve CompositionNodes
+        if (block.CompositionNodes is { Count: > 0 } compositionNodes)
+        {
+            var root = compositionNodes[0];
+            // Reparent any additional root nodes as children of the first
+            for (var i = 1; i < compositionNodes.Count; i++)
+                root.Children.Add(compositionNodes[i]);
+            return root;
+        }
+
         return block.Type switch
         {
-        "aero.hero.01" => new NeoPageNode
-        {
-            CatalogId = "aero.hero.01", Kind = NeoPageNodeKind.Block,
-            Properties = new Dictionary<string, JsonElement>
-            {
-                ["eyebrow"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Eyebrow),
-                ["title"] = System.Text.Json.JsonSerializer.SerializeToElement(block.MainText),
-                ["highlight"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Highlight),
-                ["description"] = System.Text.Json.JsonSerializer.SerializeToElement(block.SubText),
-                ["primaryText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText),
-                ["primaryUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl),
-                ["secondaryText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText2),
-                ["secondaryUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl2),
-                ["trustMarkers"] = System.Text.Json.JsonSerializer.SerializeToElement(block.TrustMarkers)
-            }
-        },
-        "aero.hero.basic" => new NeoPageNode
-        {
-            CatalogId = "aero.hero.basic", Kind = NeoPageNodeKind.Block,
-            Properties = new Dictionary<string, JsonElement>
-            {
-                ["title"] = System.Text.Json.JsonSerializer.SerializeToElement(block.MainText),
-                ["subtitle"] = System.Text.Json.JsonSerializer.SerializeToElement(block.SubText),
-                ["backgroundImageUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.BackgroundImage),
-                ["ctaText"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaText),
-                ["ctaUrl"] = System.Text.Json.JsonSerializer.SerializeToElement(block.CtaUrl)
-            }
-        },
-        "media.image" => new NeoPageNode
-        {
-            CatalogId = "media.image", Kind = NeoPageNodeKind.Block,
-            Properties = new Dictionary<string, JsonElement>
-            {
-                ["src"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Src),
-                ["alt"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Alt ?? string.Empty),
-                ["caption"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Caption ?? string.Empty)
-            }
-        },
-        "media.video" => new NeoPageNode
-        {
-            CatalogId = "media.video", Kind = NeoPageNodeKind.Block,
-            Properties = new Dictionary<string, JsonElement>
-            {
-                ["src"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Src),
-                ["autoplay"] = System.Text.Json.JsonSerializer.SerializeToElement(block.AutoPlay),
-                ["controls"] = System.Text.Json.JsonSerializer.SerializeToElement(true)
-            }
-        },
-        "media.audio" => new NeoPageNode
-        {
-            CatalogId = "media.audio", Kind = NeoPageNodeKind.Block,
-            Properties = new Dictionary<string, JsonElement>
-            {
-                ["src"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Src),
-                ["controls"] = System.Text.Json.JsonSerializer.SerializeToElement(true)
-            }
-        },
-        "media.gallery" => new NeoPageNode
-        {
-            CatalogId = "media.gallery", Kind = NeoPageNodeKind.Block,
-            Properties = new Dictionary<string, JsonElement>
-            {
-                ["images"] = System.Text.Json.JsonSerializer.SerializeToElement(block.GalleryImages.Select(g => g.Src).ToList()),
-                ["columns"] = System.Text.Json.JsonSerializer.SerializeToElement(3)
-            }
-        },
-        "ui.raw-html" => new NeoPageNode
-        {
-            CatalogId = "ui.raw-html", Kind = NeoPageNodeKind.Block,
-            Properties = new Dictionary<string, JsonElement>
-            {
-                ["html"] = System.Text.Json.JsonSerializer.SerializeToElement(block.Content)
-            }
-        },
-        "ui.separator" => new NeoPageNode
-        {
-            CatalogId = "ui.separator", Kind = NeoPageNodeKind.Block,
-            Properties = []
-        },
         _ => new NeoPageNode { CatalogId = block.Type, Kind = NeoPageNodeKind.Block, Properties = [] }
         };
     }
@@ -1275,26 +1110,28 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     protected void DeleteBlock(int index)
     {
         EnsureCanvasHistory();
-        Blocks.RemoveAt(index);
-        RecordCanvasMutation();
-        SelectedBlockId = null;
-        MarkDirty();
-        ShowToast(L["Block deleted"]);
-        QueuePreviewRefresh();
+        if (index >= 0 && index < RootNode.Children.Count)
+        {
+            var nodeId = RootNode.Children[index].NodeId;
+            RootNode.Children.RemoveAt(index);
+            RecordCanvasMutation();
+            if (SelectedBlockId == nodeId)
+                SelectedBlockId = null;
+            MarkDirty();
+            ShowToast(L["Block deleted"]);
+            QueuePreviewRefresh();
+        }
     }
 
     protected void DuplicateBlock(int index)
     {
+        if (index < 0 || index >= RootNode.Children.Count) return;
+
         EnsureCanvasHistory();
-        var original = Blocks[index];
-        var copy     = original.DeepClone();
-        copy.EditorId = Guid.NewGuid().ToString();
-
-        // Regenerate column IDs
-        foreach (var col in copy.EditorColumns)
-            col.ColId = Guid.NewGuid().ToString();
-
-        Blocks.Insert(index + 1, copy);
+        var original = RootNode.Children[index];
+        var clone = EditorNodeMemento.Capture(original).Restore();
+        clone.NodeId = Guid.NewGuid().ToString("N");
+        RootNode.Children.Insert(index + 1, clone);
         RecordCanvasMutation();
         MarkDirty();
         ShowToast(L["Block duplicated"], "success");
@@ -1303,9 +1140,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     protected void MoveBlockUp(int index)
     {
-        if (index <= 0) return;
+        if (index <= 0 || index >= RootNode.Children.Count) return;
         EnsureCanvasHistory();
-        (Blocks[index], Blocks[index - 1]) = (Blocks[index - 1], Blocks[index]);
+        (RootNode.Children[index], RootNode.Children[index - 1]) =
+            (RootNode.Children[index - 1], RootNode.Children[index]);
         RecordCanvasMutation();
         MarkDirty();
         QueuePreviewRefresh();
@@ -1313,9 +1151,220 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     protected void MoveBlockDown(int index)
     {
-        if (index >= Blocks.Count - 1) return;
+        if (index < 0 || index >= RootNode.Children.Count - 1) return;
         EnsureCanvasHistory();
-        (Blocks[index], Blocks[index + 1]) = (Blocks[index + 1], Blocks[index]);
+        (RootNode.Children[index], RootNode.Children[index + 1]) =
+            (RootNode.Children[index + 1], RootNode.Children[index]);
+        RecordCanvasMutation();
+        MarkDirty();
+        QueuePreviewRefresh();
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Node operation handlers  (called from CanvasTree)
+    // ──────────────────────────────────────────────────────────
+
+    protected void OnNodeSelected(string nodeId)
+    {
+        SelectedBlockId = nodeId;
+    }
+
+    protected void OnNodeEditRequested(string nodeId)
+    {
+        var node = FindNodeInTree(nodeId);
+        if (node is null) return;
+
+        OpenBlockEditor(nodeId);
+    }
+
+    /// <summary>Handle drop from palette or tree reorder.</summary>
+    protected async Task OnCanvasDrop(CanvasDropArgs args)
+    {
+        // Palette drop: DraggedType is set by the palette DragStart
+        // or passed via args.CatalogId (from future dataTransfer-based flows).
+        var paletteCatalogId = args.CatalogId ?? DraggedType;
+        if (!string.IsNullOrWhiteSpace(paletteCatalogId))
+        {
+            EnsureCanvasHistory();
+            var catalogId = paletteCatalogId;
+            DraggedType = null;
+            DraggedIndex = null;
+
+            if (TryGetCustomComponentId(catalogId, out var componentId))
+            {
+                var result = await CustomComponentsClient.CreateInstanceAsync(componentId);
+                if (result is Result<NeoPageNode, AeroError>.Ok ok)
+                {
+                    var node = ok.Value;
+                    var (insParent, _) = FindParentAndIndex(args.ParentNodeId);
+                    var container = insParent ?? RootNode;
+                    var insIdx = Math.Clamp(args.InsertAtIndex, 0, container.Children.Count);
+                    container.Children.Insert(insIdx, node);
+                    RecordCanvasMutation();
+                    SelectBlock(node.NodeId);
+                    MarkDirty();
+                    QueuePreviewRefresh();
+                    ShowToast(L["Custom component added"], "success");
+                    return;
+                }
+                if (result is Result<NeoPageNode, AeroError>.Failure failure)
+                {
+                    ShowToast(L["Could not add custom component: {0}", failure.Error], "error");
+                    return;
+                }
+            }
+
+            AddChildNodeAt(catalogId, args.ParentNodeId, args.InsertAtIndex);
+            return;
+        }
+
+        // Tree reorder: move the dropped node
+        if (!string.IsNullOrWhiteSpace(args.TargetSiblingNodeId))
+        {
+            var (parent, index) = FindParentAndIndex(args.TargetSiblingNodeId);
+            if (parent is null) return;
+
+            EnsureCanvasHistory();
+            var targetNode = parent.Children[index];
+            parent.Children.RemoveAt(index);
+
+            var (newParent, _) = FindParentAndIndex(args.ParentNodeId);
+            if (newParent is null) newParent = RootNode;
+
+            var insertAt = Math.Clamp(args.InsertAtIndex, 0, newParent.Children.Count);
+            newParent.Children.Insert(insertAt, targetNode);
+            RecordCanvasMutation();
+            MarkDirty();
+            QueuePreviewRefresh();
+        }
+    }
+
+    /// <summary>Add a child node at a specific position in the tree.</summary>
+    private void AddChildNodeAt(string catalogId, string parentNodeId, int insertAtIndex)
+    {
+        NeoPageNode node;
+        if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor))
+        {
+            node = descriptor.NodeFactory.CreateDefaultNode();
+        }
+        else
+        {
+            node = new NeoPageNode
+            {
+                NodeId = Guid.NewGuid().ToString("N"),
+                CatalogId = catalogId,
+                Kind = NeoPageNodeKind.Block,
+                Children = []
+            };
+        }
+
+        var (parent, _) = FindParentAndIndex(parentNodeId);
+        if (parent is null) parent = RootNode;
+        var idx = Math.Clamp(insertAtIndex, 0, parent.Children.Count);
+        parent.Children.Insert(idx, node);
+
+        SelectBlock(node.NodeId);
+        MarkDirty();
+        ShowToast(L["Block added"], "success");
+        QueuePreviewRefresh();
+    }
+
+    protected void OnNodeCopy(string nodeId)
+    {
+        var node = FindNodeInTree(nodeId);
+        if (node is null) return;
+        _nodeClipboard = EditorNodeMemento.Capture(node);
+        _blockClipboard = null;  // clear legacy clipboard
+        ShowToast(L["Node copied"], "success");
+    }
+
+    protected void OnNodePaste(string targetNodeId)
+    {
+        if (_nodeClipboard is null)
+        {
+            ShowToast(L["Nothing to paste"], "info");
+            return;
+        }
+
+        EnsureCanvasHistory();
+        var restored = _nodeClipboard.Restore();
+        var (parent, index) = FindParentAndIndex(targetNodeId);
+        var container = parent ?? RootNode;
+        container.Children.Insert(Math.Clamp(index + 1, 0, container.Children.Count), restored);
+        RecordCanvasMutation();
+        SelectBlock(restored.NodeId);
+        MarkDirty();
+        QueuePreviewRefresh();
+        ShowToast(L["Node pasted"], "success");
+    }
+
+    protected void OnNodeSaveAsCustom(string nodeId)
+    {
+        var node = FindNodeInTree(nodeId);
+        if (node is null) return;
+
+        _pendingSaveNode = node;
+        EditingCustomComponentId = null;
+        CustomComponentName = node.CatalogId;
+        CustomComponentDescription = string.Empty;
+        SaveCustomComponentModalOpen = true;
+    }
+
+    protected void OnNodeDuplicate(string nodeId)
+    {
+        var node = FindNodeInTree(nodeId);
+        if (node is null) return;
+
+        EnsureCanvasHistory();
+        var (parent, index) = FindParentAndIndex(nodeId);
+        if (parent is null) return;
+
+        var clone = EditorNodeMemento.Capture(node).Restore();
+        clone.NodeId = Guid.NewGuid().ToString("N");
+        parent.Children.Insert(index + 1, clone);
+        RecordCanvasMutation();
+        SelectBlock(clone.NodeId);
+        MarkDirty();
+        ShowToast(L["Block duplicated"], "success");
+        QueuePreviewRefresh();
+    }
+
+    protected void OnNodeDelete(string nodeId)
+    {
+        if (nodeId == RootNode.NodeId) return;  // can't delete root
+
+        EnsureCanvasHistory();
+        var (parent, index) = FindParentAndIndex(nodeId);
+        if (parent is null) return;
+
+        parent.Children.RemoveAt(index);
+        RecordCanvasMutation();
+        if (SelectedBlockId == nodeId)
+            SelectedBlockId = null;
+        MarkDirty();
+        ShowToast(L["Node deleted"]);
+        QueuePreviewRefresh();
+    }
+
+    protected void OnNodeMoveUp(string nodeId)
+    {
+        var (parent, index) = FindParentAndIndex(nodeId);
+        if (parent is null || index <= 0) return;
+
+        EnsureCanvasHistory();
+        (parent.Children[index], parent.Children[index - 1]) = (parent.Children[index - 1], parent.Children[index]);
+        RecordCanvasMutation();
+        MarkDirty();
+        QueuePreviewRefresh();
+    }
+
+    protected void OnNodeMoveDown(string nodeId)
+    {
+        var (parent, index) = FindParentAndIndex(nodeId);
+        if (parent is null || index >= parent.Children.Count - 1) return;
+
+        EnsureCanvasHistory();
+        (parent.Children[index], parent.Children[index + 1]) = (parent.Children[index + 1], parent.Children[index]);
         RecordCanvasMutation();
         MarkDirty();
         QueuePreviewRefresh();
@@ -1331,14 +1380,21 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         DraggedIndex   = null;
     }
 
-    /// <summary>Handle canvas reorder from Sortable.</summary>
+    /// <summary>
+    /// Called by <see cref="Palette.PageEditorPaletteSection.OnDragStart"/> when the user
+    /// starts dragging a palette item. Stores the catalog ID so that the subsequent
+    /// <c>@ondrop</c> on the canvas can read it via <see cref="DraggedType"/>.
+    /// </summary>
+    protected void OnPaletteItemDragStart(string catalogId)
+    {
+        DraggedType = catalogId;
+        DraggedIndex = null;
+    }
+
+    /// <summary>Handle canvas reorder (legacy — now handled by CanvasTree).</summary>
     protected void OnCanvasReordered(IList<EditorBlock> reordered)
     {
-        EnsureCanvasHistory();
-        Blocks = reordered.ToList();
-        RecordCanvasMutation();
-        MarkDirty();
-        QueuePreviewRefresh();
+        // No-op: CanvasTree handles reorder via OnNodeMoveUp/OnNodeMoveDown
     }
 
     /// <summary>Handle catalog item dropped onto canvas from Sortable palette.</summary>
@@ -1351,14 +1407,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             if (result is Result<NeoPageNode, AeroError>.Ok ok)
             {
                 EnsureCanvasHistory();
-                var block = new EditorBlock
-                {
-                    Type = ok.Value.CatalogId,
-                    CompositionNodes = [ok.Value]
-                };
-                Blocks.Add(block);
+                var node = ok.Value;
+                RootNode.Children.Add(node);
                 RecordCanvasMutation();
-                SelectBlock(block.EditorId);
+                SelectBlock(node.NodeId);
                 MarkDirty();
                 QueuePreviewRefresh();
                 ShowToast(L["Custom component added"], "success");
@@ -1772,7 +1824,8 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
         try
         {
-            var result = await PreviewClient.RenderPageFragmentAsync(blocks: Blocks, ct: cancellationToken);
+            var rootJson = JsonSerializer.Serialize(RootNode, BlockJsonContext.Default.Options);
+            var result = await PreviewClient.RenderPageFragmentAsync(rootNodeJson: rootJson, ct: cancellationToken);
             switch (result)
             {
                 case Result<string, AeroError>.Ok ok:
@@ -2329,7 +2382,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         if (Id == 0 || Id is null)
         {
             // New page: only auto-create if there's actual content
-            if (Blocks.Count == 0 && string.IsNullOrWhiteSpace(PageTitle))
+            if (RootNode.Children.Count == 0 && string.IsNullOrWhiteSpace(PageTitle))
                 return;
 
             await SavePage();  // creates the page via API, sets Id
@@ -2339,11 +2392,12 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         // Existing page: upsert draft (not PageDocument — that's for manual save/publish)
         try
         {
+            var rootJson = JsonSerializer.Serialize(RootNode, BlockJsonContext.Default.Options);
             var request = new PageDraftRequest(
                 PageTitle,
                 PageSlug,
                 Summary,
-                Blocks.ToList()
+                rootJson
             );
             var result = await PagesClient.SaveDraftAsync(Id.Value, request);
             if (result is Result<bool, AeroError>.Ok)
@@ -2372,6 +2426,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         {
             if (Id.HasValue)
             {
+                var rootJson = JsonSerializer.Serialize(RootNode, BlockJsonContext.Default.Options);
                 var request = new UpdatePageRequest(
                     PageTitle,
                     PageSlug,
@@ -2380,12 +2435,12 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
                     SeoDescription,
                     PublicationState,
                     ParentId,
-                    null, // LayoutRegions are mapped on backend from EditorBlocks
+                    null,
                     ShowInNavMenu,
                     ShowHeaderNavigation,
                     HideFooter,
                     ShowChatAgent,
-                    Blocks
+                    rootJson
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
@@ -2405,6 +2460,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             }
             else
             {
+                var rootJson = JsonSerializer.Serialize(RootNode, BlockJsonContext.Default.Options);
                 var request = new CreatePageRequest(
                     PageTitle,
                     PageSlug,
@@ -2418,7 +2474,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
                     ShowHeaderNavigation,
                     HideFooter,
                     ShowChatAgent,
-                    Blocks
+                    rootJson
                 );
 
                 var result = await PagesClient.CreateAsync(request);
@@ -2601,14 +2657,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         if (result is Result<NeoPageNode, AeroError>.Ok ok)
         {
             EnsureCanvasHistory();
-            var block = new EditorBlock
-            {
-                Type = ok.Value.CatalogId,
-                CompositionNodes = [ok.Value]
-            };
-            Blocks.Add(block);
+            var node = ok.Value;
+            RootNode.Children.Add(node);
             RecordCanvasMutation();
-            SelectBlock(block.EditorId);
+            SelectBlock(node.NodeId);
             MarkDirty();
             QueuePreviewRefresh();
             ShowToast(L["Custom component added"], "success");
@@ -2621,43 +2673,55 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     protected void CopySelectedBlock()
     {
-        var block = GetSelectedBlock();
-        if (block is null)
+        if (_nodeClipboard is not null)
         {
+            // Already has a node clipboard — re-use
+            ShowToast(L["Block copied"], "success");
             return;
         }
 
-        _blockClipboard = EditorBlockListMemento.Capture([block]);
+        var index = GetSelectedBlockIndex();
+        if (index < 0 || index >= RootNode.Children.Count) return;
+
+        var node = RootNode.Children[index];
+        _nodeClipboard = EditorNodeMemento.Capture(node);
         ShowToast(L["Block copied"], "success");
     }
 
     protected void CutSelectedBlock()
     {
         var index = GetSelectedBlockIndex();
-        if (index < 0)
+        if (index < 0 || index >= RootNode.Children.Count)
         {
             return;
         }
 
-        CopySelectedBlock();
-        DeleteBlock(index);
+        var node = RootNode.Children[index];
+        _nodeClipboard = EditorNodeMemento.Capture(node);
+        RootNode.Children.RemoveAt(index);
+        if (SelectedBlockId == node.NodeId)
+            SelectedBlockId = null;
+        MarkDirty();
+        ShowToast(L["Block cut"], "success");
+        QueuePreviewRefresh();
     }
 
     protected void PasteBlock()
     {
-        var clipboardBlock = _blockClipboard?.Restore().SingleOrDefault();
-        if (clipboardBlock is null)
+        if (_nodeClipboard is null)
         {
+            ShowToast(L["Nothing to paste"], "info");
             return;
         }
 
-        var copy = clipboardBlock.CreateClipboardClone();
+        var pasteNode = _nodeClipboard.Restore();
+        pasteNode.NodeId = Guid.NewGuid().ToString("N");
         var selectedIndex = GetSelectedBlockIndex();
-        var insertIndex = selectedIndex >= 0 ? selectedIndex + 1 : Blocks.Count;
+        var insertIndex = selectedIndex >= 0 ? selectedIndex + 1 : RootNode.Children.Count;
         EnsureCanvasHistory();
-        Blocks.Insert(insertIndex, copy);
+        RootNode.Children.Insert(insertIndex, pasteNode);
         RecordCanvasMutation();
-        SelectBlock(copy.EditorId);
+        SelectBlock(pasteNode.NodeId);
         MarkDirty();
         QueuePreviewRefresh();
         ShowToast(L["Block pasted"], "success");
@@ -2702,13 +2766,15 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         return InvokeAsync(StateHasChanged);
     }
 
-    private EditorBlock? GetSelectedBlock() =>
-        Blocks.FirstOrDefault(block => block.EditorId == SelectedBlockId);
+    private NeoPageNode? GetSelectedBlock() =>
+        string.IsNullOrWhiteSpace(SelectedBlockId)
+            ? null
+            : FindNodeInTree(SelectedBlockId);
 
     private int GetSelectedBlockIndex() =>
         string.IsNullOrWhiteSpace(SelectedBlockId)
             ? -1
-            : Blocks.FindIndex(block => block.EditorId == SelectedBlockId);
+            : RootNode.Children.FindIndex(node => node.NodeId == SelectedBlockId);
 
     void IBlockEditorCallbacks.CompositionChanged(
         EditorBlock block,
@@ -2750,11 +2816,11 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     protected bool CanUndoComposition =>
         CurrentCompositionHistory?.CanUndo == true ||
-        _canvasHistory?.CanUndo == true;
+        _treeUndoStack.Count > 0;
 
     protected bool CanRedoComposition =>
         CurrentCompositionHistory?.CanRedo == true ||
-        _canvasHistory?.CanRedo == true;
+        _treeRedoStack.Count > 0;
 
     private CompositionHistory? CurrentCompositionHistory =>
         !string.IsNullOrWhiteSpace(SelectedBlockId) &&
@@ -2770,7 +2836,20 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             return;
         }
 
-        ApplyCanvasHistory(_canvasHistory?.Undo());
+        if (_treeUndoStack.Count == 0) return;
+
+        // Push current state to redo stack
+        _treeRedoStack.Add(EditorNodeMemento.Capture(RootNode));
+
+        // Restore previous state
+        var previous = _treeUndoStack[^1];
+        _treeUndoStack.RemoveAt(_treeUndoStack.Count - 1);
+        var restored = previous.Restore();
+        SyncRootNodeFrom(restored);
+
+        _compositionHistory.Clear();
+        MarkDirty();
+        QueuePreviewRefresh();
     }
 
     protected void RedoComposition()
@@ -2781,36 +2860,52 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             return;
         }
 
-        ApplyCanvasHistory(_canvasHistory?.Redo());
-    }
+        if (_treeRedoStack.Count == 0) return;
 
-    private void ApplyCanvasHistory(List<EditorBlock>? blocks)
-    {
-        if (blocks is null)
-        {
-            return;
-        }
+        // Push current state to undo stack
+        _treeUndoStack.Add(EditorNodeMemento.Capture(RootNode));
+        if (_treeUndoStack.Count > MaxTreeHistory)
+            _treeUndoStack.RemoveRange(0, _treeUndoStack.Count - MaxTreeHistory);
 
-        Blocks = blocks;
+        // Restore next state
+        var next = _treeRedoStack[^1];
+        _treeRedoStack.RemoveAt(_treeRedoStack.Count - 1);
+        var restored = next.Restore();
+        SyncRootNodeFrom(restored);
+
         _compositionHistory.Clear();
-        if (!string.IsNullOrWhiteSpace(SelectedBlockId) &&
-            Blocks.All(block => block.EditorId != SelectedBlockId))
-        {
-            SelectedBlockId = Blocks.LastOrDefault()?.EditorId;
-        }
-
         MarkDirty();
         QueuePreviewRefresh();
     }
 
+    /// <summary>Replace RootNode's children with those from the restored tree.</summary>
+    private void SyncRootNodeFrom(NeoPageNode restored)
+    {
+        RootNode.Children.Clear();
+        foreach (var child in restored.Children)
+            RootNode.Children.Add(child);
+    }
+
     private void EnsureCanvasHistory()
     {
-        _canvasHistory ??= new PageCanvasHistory(Blocks);
+        if (_treeUndoStack.Count == 0 && _treeRedoStack.Count == 0)
+        {
+            _treeUndoStack.Add(EditorNodeMemento.Capture(RootNode));
+        }
     }
 
     private void RecordCanvasMutation()
     {
-        _canvasHistory?.Record(Blocks);
+        // Snapshot current state to undo stack
+        _treeUndoStack.Add(EditorNodeMemento.Capture(RootNode));
+        if (_treeUndoStack.Count > MaxTreeHistory)
+            _treeUndoStack.RemoveRange(0, _treeUndoStack.Count - MaxTreeHistory);
+        _treeRedoStack.Clear();
+    }
+
+    private void ApplyCanvasHistory(List<EditorBlock>? blocks)
+    {
+        // Legacy canvas history — no-op; tree history handles undo/redo
     }
 
     private void ApplyCompositionHistory(NeoPageNode? root)
@@ -2820,18 +2915,23 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             return;
         }
 
-        var block = Blocks.FirstOrDefault(item => item.EditorId == SelectedBlockId);
-        if (block is null)
+        var node = FindNodeInTree(SelectedBlockId);
+        if (node is null)
         {
             return;
         }
 
-        block.CompositionNodes = [root];
+        // Replace the node's children with the root's children
+        node.Children.Clear();
+        foreach (var child in root.Children)
+            node.Children.Add(child);
+        node.Properties = root.Properties;
+        node.Style = root.Style;
         MarkDirty();
         QueuePreviewRefresh();
     }
 
-    void IBlockEditorCallbacks.OpenBlockEditor(EditorBlock block) => OpenBlockEditor(block);
+    void IBlockEditorCallbacks.OpenBlockEditor(EditorBlock block) => OpenBlockEditor(block.EditorId);
 
     void IBlockEditorCallbacks.OpenMediaSelector(EditorBlock block, bool multiSelect, string field)
         => OpenMediaSelector(block, multiSelect, field);

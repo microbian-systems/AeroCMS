@@ -16,7 +16,10 @@
                 <div class="pe-palette-item-content"
                      title="Double-click to add @item.DisplayName"
                      @ondblclick:stopPropagation="true"
-                     @ondblclick="() => OnAdd.InvokeAsync(item)">
+                     @ondblclick="() => OnAdd.InvokeAsync(item)"
+                     draggable="true"
+                     @ondragstart:preventDefault="false"
+                     @ondragstart="async () => await OnDragStart.InvokeAsync(item.CatalogId)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
                     <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                     <path d="M2 17l10 5 10-5"/>
@@ -66,6 +69,7 @@
     [Parameter] public EventCallback<NeoEditorCatalogItem> OnEdit { get; set; }
     [Parameter] public EventCallback<NeoEditorCatalogItem> OnDelete { get; set; }
     [Parameter] public EventCallback<NeoEditorCatalogItem> OnAdd { get; set; }
+    [Parameter] public EventCallback<string> OnDragStart { get; set; }
 
     private Task OnTransferOut(SortableTransferArgs args)
     {

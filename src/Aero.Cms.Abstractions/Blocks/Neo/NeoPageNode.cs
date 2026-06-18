@@ -38,6 +38,12 @@ public sealed class NeoPageNode
     public ResponsiveNodeStyle Style { get; set; } = new();
 
     /// <summary>
+    /// When placed inside a slotted container, identifies which slot this node belongs to.
+    /// Null for nodes in non-slotted containers or root nodes.
+    /// </summary>
+    public string? SlotId { get; set; }
+
+    /// <summary>
     /// Child nodes for composition-capable nodes (Container, Component, Primitive).
     /// </summary>
     public List<NeoPageNode> Children { get; set; } = [];

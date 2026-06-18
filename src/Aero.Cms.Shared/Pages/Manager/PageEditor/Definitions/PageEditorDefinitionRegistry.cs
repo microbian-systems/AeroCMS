@@ -26,7 +26,6 @@ public sealed class PageEditorDefinitionRegistry : IPageEditorDefinitionRegistry
             .OfType<IPageEditorBlockDefinition>()
             .ToList();
 
-        PageEditorBlockRegistry.UseRegistry(this);
     }
 
     public IReadOnlyCollection<PageEditorDefinitionDescriptor> AllDescriptors => _allDescriptors;

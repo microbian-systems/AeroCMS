@@ -1,0 +1,57 @@
+@using Aero.Cms.Abstractions.Blocks
+@using Aero.Cms.Abstractions.Blocks.Editor
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
+
+@{
+    var block = OwnerBlock;
+}
+
+<section class="pe-inline-hero"
+    style="@(!string.IsNullOrWhiteSpace(block.BackgroundImage) ? $"background-image:url('{block.BackgroundImage}')" : null)">
+    <div class="pe-inline-hero-content">
+        @if (IsSelected && OnBlockChanged.HasDelegate)
+        {
+            <input class="pe-inline-hero-title"
+                   aria-label="@L["Hero title"]"
+                   placeholder="@L["Hero title"]"
+                   value="@block.MainText"
+                   @onclick:stopPropagation="true"
+                   @ondblclick:stopPropagation="true"
+                   @onkeydown:stopPropagation="true"
+                   @onfocus="() => OnSelectBlock.InvokeAsync(block.EditorId)"
+                   @oninput="e => Update(value => block.MainText = value, e.Value?.ToString() ?? string.Empty)" />
+            <textarea class="pe-inline-hero-summary"
+                      aria-label="@L["Hero summary"]"
+                      placeholder="@L["Hero summary"]"
+                      rows="2"
+                      value="@block.SubText"
+                      @onclick:stopPropagation="true"
+                      @ondblclick:stopPropagation="true"
+                      @onkeydown:stopPropagation="true"
+                      @onfocus="() => OnSelectBlock.InvokeAsync(block.EditorId)"
+                      @oninput="e => Update(value => block.SubText = value, e.Value?.ToString() ?? string.Empty)"></textarea>
+        }
+        else
+        {
+            <h2 class="pe-inline-hero-title">@FirstNonEmpty(block.MainText, "Hero title")</h2>
+            <p class="pe-inline-hero-summary">@FirstNonEmpty(block.SubText, "Hero summary")</p>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public EditorBlock OwnerBlock { get; set; } = default!;
+    [Parameter] public bool IsSelected { get; set; }
+    [Parameter] public EventCallback<EditorBlock> OnBlockChanged { get; set; }
+    [Parameter] public EventCallback<string> OnSelectBlock { get; set; }
+
+    private void Update<T>(Action<T> setValue, T value)
+    {
+        setValue(value);
+        _ = OnBlockChanged.InvokeAsync(OwnerBlock);
+    }
+
+    private static string FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+}

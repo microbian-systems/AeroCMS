@@ -1,7 +1,8 @@
-using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages;
+using System.Text.Json;
 
 namespace Aero.Cms.Core.Tests.Localization;
 
@@ -22,13 +23,16 @@ public sealed class PageCultureForkerTests
             PublicationState = ContentPublicationState.Published,
             PublishedOn = DateTimeOffset.UtcNow,
             PublishedVersion = 7,
-            Blocks =
+            RootNodes =
             [
-                new EditorBlock
+                new NeoPageNode
                 {
-                    EditorId = "hero-source",
-                    Type = "hero",
-                    Title = "Welcome"
+                    NodeId = "hero-source",
+                    CatalogId = "hero",
+                    Properties = new Dictionary<string, JsonElement>
+                    {
+                        ["title"] = JsonSerializer.SerializeToElement("Welcome")
+                    }
                 }
             ],
             BlockIdMap = new Dictionary<string, long> { ["hero-source"] = 1234 }
@@ -47,9 +51,9 @@ public sealed class PageCultureForkerTests
         await Assert.That(fork.PublishedVersion).IsEqualTo(0);
         await Assert.That(fork.BlockIdMap.Count).IsEqualTo(0);
         await Assert.That(fork.LayoutRegions.Count).IsEqualTo(0);
-        await Assert.That(fork.Blocks.Count).IsEqualTo(1);
-        await Assert.That(fork.Blocks[0].Title).IsEqualTo("Welcome");
-        await Assert.That(fork.Blocks[0].EditorId).IsNotEqualTo("hero-source");
+        await Assert.That(fork.RootNodes.Count).IsEqualTo(1);
+        await Assert.That(fork.RootNodes[0].Properties["title"].GetString()).IsEqualTo("Welcome");
+        await Assert.That(fork.RootNodes[0].NodeId).IsNotEqualTo("hero-source");
     }
 
     [Test]

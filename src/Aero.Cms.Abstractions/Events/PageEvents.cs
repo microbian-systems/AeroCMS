@@ -1,5 +1,5 @@
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Events;
@@ -32,7 +32,7 @@ public sealed record PageContentUpdated(
     string? SeoTitle,
     string? SeoDescription,
     List<LayoutRegion>? LayoutRegions,
-    List<EditorBlock>? Blocks,
+    List<NeoPageNode>? RootNodes = null,
     PageKind Kind = PageKind.Standard,
     bool ShowHeaderNavigation = true,
     string? HeaderImageUrl = null,

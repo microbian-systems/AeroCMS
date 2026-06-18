@@ -19,33 +19,6 @@
     {
         @switch (Block.BlockType)
         {
-        case "aero.hero.basic":
-            <BasicHeroBlockEditor Block="As<BasicHeroBlock>()" />
-            break;
-        case "media.image":
-            <ImageBlockEditor Block="As<Aero.Cms.Abstractions.Blocks.Neo.ImageBlock>()" />
-            break;
-        case "media.video":
-            <VideoBlockEditor Block="As<VideoBlock>()" />
-            break;
-        case "media.audio":
-            <AudioBlockEditor Block="As<AudioBlock>()" />
-            break;
-        case "media.gallery":
-            <GalleryBlockEditor Block="As<GalleryBlock>()" />
-            break;
-        case "ui.raw-html":
-            <NeoRawHtmlBlockEditor Block="As<NeoRawHtmlBlock>()" />
-            break;
-        case "ui.separator":
-            <SeparatorBlockEditor Block="As<SeparatorBlock>()" />
-            break;
-        case "neo.layout.columns":
-            <NeoColumnsBlockEditor Block="As<NeoColumnsBlock>()" />
-            break;
-        case "neo.template.scriban":
-            <ScribanBlockEditor Block="As<ScribanBlock>()" />
-            break;
         default:
             <div class="pe-property-panel p-4 text-muted-foreground text-sm">
                 <p>@L["Properties not available for this block type."]</p>

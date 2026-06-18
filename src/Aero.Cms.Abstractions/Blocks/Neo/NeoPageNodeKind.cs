@@ -22,4 +22,7 @@ public enum NeoPageNodeKind
 
     /// <summary>Represents a UI primitive (e.g., heading, paragraph, button).</summary>
     Primitive,
+
+    /// <summary>Represents the root page node in the composition tree.</summary>
+    Page,
 }

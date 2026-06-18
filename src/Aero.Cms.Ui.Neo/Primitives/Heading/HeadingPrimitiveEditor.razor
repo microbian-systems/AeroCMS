@@ -1,0 +1,43 @@
+@using System.Text.Json
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Heading Text</label>
+        <RadzenTextArea Value="@Text" Change="OnTextChanged" Class="w-full" Rows="3" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Level</label>
+        <select class="w-full border rounded px-2 py-1.5 text-sm" value="@Level" @onchange="OnLevelChanged">
+            <option value="1">H1 — Page Title</option>
+            <option value="2">H2 — Section Heading</option>
+            <option value="3">H3 — Subsection</option>
+            <option value="4">H4 — Minor Heading</option>
+            <option value="5">H5 — Small Heading</option>
+            <option value="6">H6 — Tiny Heading</option>
+        </select>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NeoPageNode Node { get; set; } = default!;
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private string Text =>
+        Node.Properties.TryGetValue("text", out var v) ? v.GetString() ?? "" : "";
+
+    private int Level =>
+        Node.Properties.TryGetValue("level", out var v) && v.ValueKind == JsonValueKind.Number
+            ? v.GetInt32() : 2;
+
+    private async Task OnTextChanged(string value) {
+        Node.Properties["text"] = JsonSerializer.SerializeToElement(value);
+        await Changed.InvokeAsync();
+    }
+
+    private async Task OnLevelChanged(ChangeEventArgs e) {
+        if (int.TryParse(e.Value?.ToString(), out var level)) {
+            Node.Properties["level"] = JsonSerializer.SerializeToElement(Math.Clamp(level, 1, 6));
+            await Changed.InvokeAsync();
+        }
+    }
+}

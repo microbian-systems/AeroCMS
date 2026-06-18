@@ -2,6 +2,7 @@ using Aero.Cms.Abstractions.Blocks.Editor;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 
+[Obsolete("Use IPageEditorDefinitionRegistry via DI instead. This class is a deprecated compatibility shim.")]
 public static class PageEditorBlockRegistry
 {
     private static IReadOnlyDictionary<string, PageEditorDefinitionDescriptor> _definitions =

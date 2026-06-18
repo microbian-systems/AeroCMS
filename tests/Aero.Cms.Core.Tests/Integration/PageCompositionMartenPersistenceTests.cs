@@ -60,10 +60,10 @@ public sealed class PageCompositionMartenPersistenceTests
         restored.Should().NotBeNull();
         restored!.Culture.Should().Be("ar-SA");
         restored.PublicationState.Should().Be(ContentPublicationState.Published);
-        restored.Blocks.Should().HaveCount(2);
-        restored.Blocks[0].Type.Should().Be("hero");
+        restored.RootNodes.Should().HaveCount(2);
+        restored.RootNodes[0].CatalogId.Should().Be("hero");
 
-        var root = restored.Blocks[1].CompositionNodes.Should()
+        var root = restored.RootNodes[1].Children.Should()
             .ContainSingle()
             .Subject;
         root.Style.Base.Direction.Should().Be(ContentDirection.RightToLeft);
@@ -93,7 +93,7 @@ public sealed class PageCompositionMartenPersistenceTests
         var block = new NeoCompositionBlock
         {
             Id = blockId,
-            Nodes = page.Blocks[1].CompositionNodes
+            Nodes = page.RootNodes[1].Children
         };
         var editor = new PageEditorState
         {
@@ -168,19 +168,22 @@ public sealed class PageCompositionMartenPersistenceTests
             Path = "/database-mixed-page",
             PublicationState = ContentPublicationState.Published,
             PublishedVersion = 4,
-            Blocks =
+            RootNodes =
             [
-                new EditorBlock
+                new NeoPageNode
                 {
-                    EditorId = "hero",
-                    Type = "hero",
-                    MainText = "Canned hero"
+                    NodeId = "hero",
+                    CatalogId = "hero",
+                    Properties = new Dictionary<string, JsonElement>
+                    {
+                        ["mainText"] = JsonSerializer.SerializeToElement("Canned hero")
+                    }
                 },
-                new EditorBlock
+                new NeoPageNode
                 {
-                    EditorId = "composition",
-                    Type = "neo.composition",
-                    CompositionNodes =
+                    NodeId = "composition",
+                    CatalogId = "neo.composition",
+                    Children =
                     [
                         new NeoPageNode
                         {

@@ -51,10 +51,8 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
             var cache = sp.GetService<IFusionCache>();
             var pageTreeService = sp.GetService<IPageTreeService>();
             var actor = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
-            var editorBlockMapper = sp.GetRequiredService<IEditorBlockMapper>();
-            return new MartenPageContentService(session, blockService, bus, siteContext, logger, editorBlockMapper, actor, cache, pageTreeService);
+            return new MartenPageContentService(session, blockService, bus, siteContext, logger, actor, cache, pageTreeService);
         });
-        services.AddScoped<IEditorBlockMapper, EditorBlockMapper>();
         services.AddSingleton<IPageEditorBlockProvider, LegacyPageEditorBlockProvider>();
         services.AddSingleton<BlockEditingService>();
 
@@ -80,9 +78,6 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
 
         // Preview pipeline (transient layout from draft state)
         services.AddScoped<IPagePreviewService, PagePreviewService>();
-
-        // One-time migration: PageDocument → PageEditorState
-        services.AddScoped<PageDocumentMigration>();
 
         // Neo editor catalog
         services.AddSingleton<INeoEditorCatalogProvider, NeoEditorCatalogProvider>();

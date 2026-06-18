@@ -7,8 +7,8 @@ namespace Aero.Cms.Abstractions.Http;
 /// Request payload for rendering an unsaved page preview fragment.
 /// </summary>
 public sealed record PreviewPageFragmentRequest(
-    IReadOnlyList<EditorBlock>? Blocks = null,
-    IReadOnlyList<LayoutRegion>? LayoutRegions = null);
+    IReadOnlyList<LayoutRegion>? LayoutRegions = null,
+    string? RootNodeJson = null);
 
 /// <summary>
 /// Response payload for a rendered page preview fragment.

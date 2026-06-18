@@ -9,7 +9,10 @@ public sealed record CompositionCapabilities(
     IReadOnlySet<NeoPageNodeKind> AllowedChildKinds,
     IReadOnlySet<NeoPageNodeKind> AllowedParentKinds,
     int? MaximumChildren,
-    IReadOnlyList<NeoDropZoneDefinition> SupportedDropZones) : ICompositionCapabilities
+    IReadOnlyList<NeoDropZoneDefinition> SupportedDropZones,
+    IReadOnlySet<string>? AllowedChildCatalogIds = null,
+    IReadOnlySet<string>? AllowedParentCatalogIds = null,
+    bool IsSlotted = false) : ICompositionCapabilities
 {
     public static CompositionCapabilities Leaf(params NeoPageNodeKind[] allowedParentKinds) =>
         new(
@@ -24,7 +27,10 @@ public sealed record CompositionCapabilities(
         IEnumerable<NeoPageNodeKind> allowedChildKinds,
         IEnumerable<NeoPageNodeKind> allowedParentKinds,
         int? maximumChildren = null,
-        IReadOnlyList<NeoDropZoneDefinition>? dropZones = null)
+        IReadOnlyList<NeoDropZoneDefinition>? dropZones = null,
+        IReadOnlySet<string>? allowedChildCatalogIds = null,
+        IReadOnlySet<string>? allowedParentCatalogIds = null,
+        bool isSlotted = false)
     {
         var childKinds = allowedChildKinds.ToHashSet();
 
@@ -40,7 +46,10 @@ public sealed record CompositionCapabilities(
                     NeoDropZoneDefinition.DefaultId,
                     childKinds,
                     maximumChildren)
-            ]);
+            ],
+            allowedChildCatalogIds,
+            allowedParentCatalogIds,
+            IsSlotted: isSlotted);
     }
 
     private static IReadOnlySet<NeoPageNodeKind> EmptyKinds { get; } =

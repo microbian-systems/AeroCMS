@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Container;
 
-public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase
+public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 {
     public const string ContentDropZone = "content";
 
@@ -71,4 +71,21 @@ public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase
                 ["gap"] = JsonSerializer.SerializeToElement(4)
             }
         };
+
+    IReadOnlyList<ISlotDefinition> ISlotted.Slots => _slots;
+    private static readonly IReadOnlyList<ISlotDefinition> _slots = new[]
+    {
+        new SlotDefinition(
+            Id: "default",
+            DisplayName: "Container Content",
+            AllowedChildKinds: new HashSet<NeoPageNodeKind>
+            {
+                NeoPageNodeKind.Primitive, NeoPageNodeKind.Block,
+                NeoPageNodeKind.Container, NeoPageNodeKind.Component
+            },
+            MinChildren: 0),
+    };
+
+    public ISlotDefinition? GetSlot(string slotId) =>
+        _slots.FirstOrDefault(s => s.Id == slotId);
 }

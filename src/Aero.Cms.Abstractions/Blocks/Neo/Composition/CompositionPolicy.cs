@@ -56,6 +56,21 @@ public sealed class CompositionPolicy(ICompositionCapabilityResolver capabilityR
             return Invalid($"'{child.CatalogId}' cannot be placed inside parent kind '{parent.Kind}'.");
         }
 
+        // --- Catalog-ID-level containment rules (optional, nil means not enforced) ---
+        if (parentCapabilities.AllowedChildCatalogIds is { Count: > 0 } childCatalogIds
+            && !childCatalogIds.Contains(child.CatalogId))
+        {
+            return Invalid($"Child '{child.CatalogId}' is not allowed inside parent '{parent.CatalogId}'. " +
+                           $"Allowed child catalog IDs: [{string.Join(", ", childCatalogIds)}].");
+        }
+
+        if (childCapabilities.AllowedParentCatalogIds is { Count: > 0 } parentCatalogIds
+            && !parentCatalogIds.Contains(parent.CatalogId))
+        {
+            return Invalid($"Child '{child.CatalogId}' cannot be placed inside parent '{parent.CatalogId}'. " +
+                           $"Allowed parent catalog IDs: [{string.Join(", ", parentCatalogIds)}].");
+        }
+
         var dropZone = parentCapabilities.SupportedDropZones.FirstOrDefault(
             zone => string.Equals(zone.Id, dropZoneId, StringComparison.Ordinal));
 

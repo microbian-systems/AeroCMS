@@ -3,6 +3,8 @@ using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
@@ -47,7 +49,6 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         var blockService = _services.GetRequiredService<IBlockService>();
         var bus = _services.GetRequiredService<IMessageBus>();
         var logger = _services.GetRequiredService<ILogger<MartenPageContentService>>();
-        var editorBlockMapper = _services.GetRequiredService<IEditorBlockMapper>();
         var cache = _services.GetService<IFusionCache>();
         var pageTreeService = _services.GetService<IPageTreeService>();
         return new MartenPageContentService(
@@ -56,8 +57,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
             bus,
             new FixedSiteContext(siteId),
             logger,
-            editorBlockMapper,
-            actor: "system",
+            "system",
             cache,
             pageTreeService);
     }
@@ -378,28 +378,22 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
     private static CreatePageRequest RehydrateTransportPayload(CreatePageRequest request)
     {
-        var editorBlocks = request.EditorBlocks
-            ?? DeserializeList<EditorBlock>(request.EditorBlocksJson);
         var layoutRegions = request.LayoutRegions
             ?? DeserializeList<LayoutRegion>(request.LayoutRegionsJson);
 
         return request with
         {
-            EditorBlocks = editorBlocks,
             LayoutRegions = layoutRegions
         };
     }
 
     private static UpdatePageRequest RehydrateTransportPayload(UpdatePageRequest request)
     {
-        var editorBlocks = request.EditorBlocks
-            ?? DeserializeList<EditorBlock>(request.EditorBlocksJson);
         var layoutRegions = request.LayoutRegions
             ?? DeserializeList<LayoutRegion>(request.LayoutRegionsJson);
 
         return request with
         {
-            EditorBlocks = editorBlocks,
             LayoutRegions = layoutRegions
         };
     }

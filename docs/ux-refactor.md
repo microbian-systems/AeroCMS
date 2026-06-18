@@ -190,6 +190,94 @@ consolidation, not an immediate wholesale editor-state replacement.
 - `EditorBlock` is still the dominant page-editor storage and transport bridge.
 - `SeedDataService.cs` still needs a direct Neo node-tree seed model.
 
+### Adopted Target: HTML-Adjacent Composition Model
+
+The proposal in `docs/proposed-cms-wysiwig-editor.md` is adopted as the target
+conceptual model for the final editor vocabulary, with several important
+AeroCMS-specific constraints.
+
+The editor should move toward a semantic, HTML-adjacent node tree rather than a
+large opaque block taxonomy. Authors should be able to reason in familiar page
+structures:
+
+- `SectionBlock` -> `<section>`
+- `ArticleBlock` -> `<article>`
+- `NavBlock` -> `<nav>`
+- `FormBlock` -> `<form>`
+- `GridBlock` -> layout container
+- `GridRow` -> row container
+- `GridCell` -> droppable cell container
+- `TextBlock` -> `<p>` or rich text
+- `HeadingBlock` -> `<h1>` through `<h6>`
+- `ImageBlock` -> `<figure>` / `<img>`
+- `ButtonBlock` -> `<button>` or link-button
+- `PillBlock` -> `<span>` badge
+- `DividerBlock` -> `<hr>`
+- `CodeBlock` -> `<pre>` / `<code>`
+- `EmbedBlock` -> safe `<iframe>` widget
+
+This model should improve SSR output, accessibility, SEO, author intuition, and
+the long-term ability to make AeroCMS feel like a real visual GUI composer
+rather than a list of unrelated content widgets.
+
+The adopted shape is:
+
+```text
+Persisted node tree
+  -> typed catalog definition
+    -> composition capabilities
+    -> editor capabilities
+    -> renderer strategy/component
+    -> property editor strategy/component
+```
+
+The proposed `IPageElement`, `IContainer`, `IEmbeddable`, `ISlotted`, and
+`IConfigurable` concepts are valid, but they should be expressed through the
+existing registry/definition system rather than as persisted Blazor rendering
+objects. Persisted/domain models must not directly expose
+`RenderFragment Render(...)`; rendering remains a separate strategy owned by
+registered renderers or Blazor components.
+
+Final storage should also avoid `Dictionary<string, object>` for arbitrary
+property bags. Use typed normalized values, typed descriptors, or controlled
+`JsonElement` payloads that can be validated, serialized with
+`System.Text.Json`, localized, diffed, and rendered safely.
+
+Discovery remains DI-provider based:
+
+```text
+Package/provider
+  -> IPageEditorBlockProvider / IPageEditorDefinitionProvider
+    -> IPageEditorDefinitionRegistry
+      -> palette / canvas / editor / preview / public renderer
+```
+
+Do not use Scrutor or reflection scanning as the block-discovery boundary.
+Source generators may emit first-party providers, renderer adapters, metadata,
+and serialization registrations, but external package extensibility flows
+through DI providers.
+
+`GridBlock -> GridRow -> GridCell` becomes the preferred replacement direction
+for the current Columns block. `GridCell` is the real droppable container, and
+row add/remove/delete operations should be first-class editor commands.
+
+`ISlotted` is the controlled composition answer for canned blocks. A slotted
+hero or card may expose named regions such as `media`, `content`, `actions`,
+`header`, `body`, and `footer`; users can compose inside those regions only
+according to the slot's declared constraints.
+
+`EmbedBlock` is accepted as a future primitive, but only with:
+
+- URL normalization through `IEmbedUrlResolver` implementations.
+- Provider-specific resolvers for YouTube, Vimeo, Google Maps, Calendly,
+  Typeform, Loom, and similar services.
+- A strict HTTPS fallback resolver.
+- Site/operator allow-list policy.
+- Safe sandbox and permissions-policy defaults.
+- Required iframe title for accessibility.
+- Lazy loading and fixed aspect-ratio rendering.
+- Inert editor-mode placeholder instead of live third-party iframe execution.
+
 ### Architecture Cleanup Remaining
 
 - [ ] Add XML/doc comments to the catalog, composition, command, memento,
@@ -210,6 +298,14 @@ consolidation, not an immediate wholesale editor-state replacement.
   returns the currently available context menu actions.
 - [ ] Move root blocks, primitives, rows/columns, containers, and custom
   components to one canvas node rendering path.
+- [ ] Reframe the native node catalog around the adopted HTML-adjacent element
+  vocabulary and map each supported element to semantic public HTML.
+- [ ] Replace the current Columns implementation with a typed
+  `GridBlock -> GridRow -> GridCell` model, including add/delete row commands.
+- [ ] Add controlled `ISlotted`-style named regions for selected canned blocks
+  after the base grid/container model is stable.
+- [ ] Add a secure `EmbedBlock` primitive with resolver pipeline, allow-list,
+  sandbox policy, and editor placeholder behavior.
 - [ ] Route all node mutations through commands plus `ICompositionPolicy`.
 - [ ] Port existing canned blocks into full node/composition definitions.
 - [ ] Remove legacy switch-based preview/editor/action paths after parity. The

@@ -29,8 +29,8 @@ public interface IPreviewHttpClient
     /// Renders an unsaved page document to an HTML fragment.
     /// </summary>
     Task<Result<string, AeroError>> RenderPageFragmentAsync(
-        IReadOnlyList<EditorBlock>? blocks = null,
         IReadOnlyList<LayoutRegion>? layoutRegions = null,
+        string? rootNodeJson = null,
         CancellationToken ct = default);
 
     /// <summary>
@@ -67,13 +67,13 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
 
     /// <inheritdoc />
     public async Task<Result<string, AeroError>> RenderPageFragmentAsync(
-        IReadOnlyList<EditorBlock>? blocks = null,
         IReadOnlyList<LayoutRegion>? layoutRegions = null,
+        string? rootNodeJson = null,
         CancellationToken ct = default)
     {
         var result = await PostAsync<PreviewPageFragmentRequest, PreviewPageFragmentResponse>(
             "pages/render-fragment",
-            new PreviewPageFragmentRequest(blocks, layoutRegions),
+            new PreviewPageFragmentRequest(layoutRegions, rootNodeJson),
             ct);
 
         if (result is Result<PreviewPageFragmentResponse, AeroError>.Ok ok)

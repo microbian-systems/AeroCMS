@@ -25,19 +25,22 @@ public sealed class PageCompositionPersistenceTests
             Path = "/mixed-editor-page",
             PublicationState = ContentPublicationState.Published,
             PublishedVersion = 3,
-            Blocks =
+            RootNodes =
             [
-                new EditorBlock
+                new NeoPageNode
                 {
-                    EditorId = "hero",
-                    Type = "hero",
-                    MainText = "Existing canned hero"
+                    NodeId = "hero",
+                    CatalogId = "hero",
+                    Properties = new Dictionary<string, JsonElement>
+                    {
+                        ["mainText"] = JsonSerializer.SerializeToElement("Existing canned hero")
+                    }
                 },
-                new EditorBlock
+                new NeoPageNode
                 {
-                    EditorId = "composition",
-                    Type = "neo.composition",
-                    CompositionNodes =
+                    NodeId = "composition",
+                    CatalogId = "neo.composition",
+                    Children =
                     [
                         new NeoPageNode
                         {
@@ -90,10 +93,10 @@ public sealed class PageCompositionPersistenceTests
         restored.Culture.Should().Be("ar-SA");
         restored.PublicationState.Should().Be(ContentPublicationState.Published);
         restored.PublishedVersion.Should().Be(3);
-        restored.Blocks.Should().HaveCount(2);
-        restored.Blocks[0].MainText.Should().Be("Existing canned hero");
+        restored.RootNodes.Should().HaveCount(2);
+        restored.RootNodes[0].Properties["mainText"].GetString().Should().Be("Existing canned hero");
 
-        var root = restored.Blocks[1].CompositionNodes.Should()
+        var root = restored.RootNodes[1].Children.Should()
             .ContainSingle()
             .Subject;
         root.Style.Base.Direction.Should().Be(ContentDirection.RightToLeft);
@@ -103,9 +106,9 @@ public sealed class PageCompositionPersistenceTests
         root.Children.Should().ContainSingle()
             .Which.Properties["text"].GetString().Should().Be("مرحبا");
 
-        restored.Blocks[1].CompositionNodes[0].Children[0]
+        restored.RootNodes[1].Children[0].Children[0]
             .Properties["text"] = JsonSerializer.SerializeToElement("changed");
-        page.Blocks[1].CompositionNodes[0].Children[0]
+        page.RootNodes[1].Children[0].Children[0]
             .Properties["text"].GetString().Should().Be("مرحبا");
     }
 }

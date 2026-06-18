@@ -1,0 +1,26 @@
+@using System.Text.Json
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Column Span</label>
+        <input type="number" class="w-full border rounded px-2 py-1.5 text-sm" min="1" max="12"
+               value="@Span" @onchange="OnSpanChanged" />
+        <span class="text-xs text-gray-400">Number of columns this cell occupies (1–12)</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NeoPageNode Node { get; set; } = default!;
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private int Span =>
+        Node.Properties.TryGetValue("span", out var v) && v.ValueKind == JsonValueKind.Number
+            ? v.GetInt32() : 6;
+
+    private async Task OnSpanChanged(ChangeEventArgs e) {
+        if (int.TryParse(e.Value?.ToString(), out var val)) {
+            Node.Properties["span"] = JsonSerializer.SerializeToElement(Math.Clamp(val, 1, 12));
+            await Changed.InvokeAsync();
+        }
+    }
+}

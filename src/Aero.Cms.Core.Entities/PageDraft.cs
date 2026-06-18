@@ -1,4 +1,4 @@
-using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Core.Entities;
@@ -17,7 +17,7 @@ public sealed class PageDraft : Entity, ISiteOwned
     public string Title { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public string? Summary { get; set; }
-    public List<EditorBlock> Blocks { get; set; } = [];
+    public string? RootNodeJson { get; set; }
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     public DateTimeOffset DraftedAt { get; set; }
 }

@@ -3,6 +3,7 @@
 @attribute [Authorize]
 
 @* @layout _PageEditorLayout *@
+@using Aero.Cms.Abstractions.Blocks
 @using Aero.Cms.Abstractions.Enums
 @using Aero.Cms.Shared.Pages.Manager.PageTree
 @using Microsoft.AspNetCore.Components.Sections
@@ -76,18 +77,20 @@
         }
     }
 
-    <PageEditorCanvas Blocks="@Blocks"
-                      SelectedBlockId="@SelectedBlockId"
+    <PageEditorCanvas RootNode="@RootNode"
+                      SelectedNodeId="@SelectedBlockId"
                       PreviewMode="@PreviewMode"
                       OnToggleSidebar="ToggleSidebarPanels"
-                      OnSelectBlock="SelectBlock"
-                      OnOpenBlockEditor="OpenBlockEditor"
-                      OnMoveBlockUp="MoveBlockUp"
-                      OnMoveBlockDown="MoveBlockDown"
-                      OnDuplicateBlock="DuplicateBlock"
-                      OnDeleteBlock="DeleteBlock"
-                      OnCanvasReordered="OnCanvasReordered"
-                      OnCatalogItemTransferred="OnCatalogItemTransferred" />
+                      OnNodeSelected="OnNodeSelected"
+                      OnNodeEditRequested="OnNodeEditRequested"
+                      OnCanvasDrop="OnCanvasDrop"
+                      OnNodeCopy="OnNodeCopy"
+                      OnNodePaste="OnNodePaste"
+                      OnNodeSaveAsCustom="OnNodeSaveAsCustom"
+                      OnNodeDuplicate="OnNodeDuplicate"
+                      OnNodeDelete="OnNodeDelete"
+                      OnNodeMoveUp="OnNodeMoveUp"
+                      OnNodeMoveDown="OnNodeMoveDown" />
 }
 else if (ActiveTab == "metadata")
 {
@@ -470,7 +473,8 @@ else if (ActiveTab == "translations")
                                                   IsCollapsed="RightSidebarCollapsed"
                                                   OnAdd="AddPaletteItemAsync"
                                                   OnEdit="OpenEditCustomComponentModal"
-                                                  OnDelete="DeleteCustomComponentAsync" />
+                                                  OnDelete="DeleteCustomComponentAsync"
+                                                  OnDragStart="OnPaletteItemDragStart" />
                     }
                     else if (!RightSidebarCollapsed && string.IsNullOrWhiteSpace(PaletteSearch))
                     {
@@ -502,9 +506,10 @@ else if (ActiveTab == "translations")
                 </button>
                 @if (!RightSidebarCollapsed && CategoryAeroUi)
                 {
-                    <PageEditorPaletteSection Items="FilterPaletteItems(NeoAeroCatalogItems).ToList()"
-                                              IsCollapsed="RightSidebarCollapsed"
-                                              OnAdd="AddPaletteItemAsync" />
+                        <PageEditorPaletteSection Items="FilterPaletteItems(NeoAeroCatalogItems).ToList()"
+                                                  IsCollapsed="RightSidebarCollapsed"
+                                                  OnAdd="AddPaletteItemAsync"
+                                                  OnDragStart="OnPaletteItemDragStart" />
                 }
             </div>
 
@@ -528,83 +533,34 @@ else if (ActiveTab == "translations")
                 {
                     <PageEditorPaletteSection Items="FilterPaletteItems(PrimitiveCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
-                                              OnAdd="AddPaletteItemAsync" />
+                                                  OnAdd="AddPaletteItemAsync"
+                                                  OnDragStart="OnPaletteItemDragStart" />
                 }
             </div>
 
             <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("legacyui")'
+                <button class="pe-category-header" @onclick='() => ToggleCategory("components")'
                         data-pe-tooltip-target
-                        data-pe-tooltip="@(RightSidebarCollapsed ? L["UI"] : null)"
+                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Components"] : null)"
                         data-pe-tooltip-placement="left">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <rect x="2" y="2" width="20" height="20" rx="2"/>
                         <path d="M7 8h10M7 12h6M7 16h8"/>
                     </svg>
                     @if (!RightSidebarCollapsed)
                     {
-                        @L["UI"]
-                        <svg class="pe-chevron @(CategoryLegacyUi ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        @L["Components"]
+                        <svg class="pe-chevron @(CategoryComponents ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     }
                 </button>
-                @if (!RightSidebarCollapsed && CategoryLegacyUi)
+                @if (!RightSidebarCollapsed && CategoryComponents)
                 {
-                    <PageEditorPaletteSection Items="FilterPaletteItems(LegacyUiCatalogItems).ToList()"
+                    <PageEditorPaletteSection Items="FilterPaletteItems(ComponentsCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
-                                              OnAdd="AddPaletteItemAsync" />
-                }
-            </div>
-
-            <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("aeroux")'
-                        data-pe-tooltip-target
-                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Aero UX"] : null)"
-                        data-pe-tooltip-placement="left">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 19V5"/>
-                        <path d="M4 5h16l-3 5 3 5H4"/>
-                    </svg>
-                    @if (!RightSidebarCollapsed)
-                    {
-                        @L["Aero UX"]
-                        <svg class="pe-chevron @(CategoryAeroUx ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    }
-                </button>
-                @if (!RightSidebarCollapsed && CategoryAeroUx)
-                {
-                    <PageEditorPaletteSection Items="FilterPaletteItems(AeroUxCatalogItems).ToList()"
-                                              IsCollapsed="RightSidebarCollapsed"
-                                              OnAdd="AddPaletteItemAsync" />
-                }
-            </div>
-
-            <div class="pe-category">
-                <button class="pe-category-header" @onclick='() => ToggleCategory("media")'
-                        data-pe-tooltip-target
-                        data-pe-tooltip="@(RightSidebarCollapsed ? L["Media"] : null)"
-                        data-pe-tooltip-placement="left">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <path d="M21 15l-5-5L5 21"/>
-                    </svg>
-                    @if (!RightSidebarCollapsed)
-                    {
-                        @L["Media"]
-                        <svg class="pe-chevron @(CategoryMedia ? "rotated" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    }
-                </button>
-                @if (!RightSidebarCollapsed && CategoryMedia)
-                {
-                    <PageEditorPaletteSection Items="FilterPaletteItems(MediaCatalogItems).ToList()"
-                                              IsCollapsed="RightSidebarCollapsed"
-                                              OnAdd="AddPaletteItemAsync" />
+                                              OnAdd="AddPaletteItemAsync"
+                                              OnDragStart="OnPaletteItemDragStart" />
                 }
             </div>
 
@@ -629,7 +585,8 @@ else if (ActiveTab == "translations")
                 {
                     <PageEditorPaletteSection Items="FilterPaletteItems(ReferenceCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
-                                              OnAdd="AddPaletteItemAsync" />
+                                               OnAdd="AddPaletteItemAsync"
+                                               OnDragStart="OnPaletteItemDragStart" />
                 }
             </div>
 
@@ -656,7 +613,8 @@ else if (ActiveTab == "translations")
                 {
                     <PageEditorPaletteSection Items="FilterPaletteItems(NeoHyperCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
-                                              OnAdd="AddPaletteItemAsync" />
+                                               OnAdd="AddPaletteItemAsync"
+                                               OnDragStart="OnPaletteItemDragStart" />
                 }
             </div>
 
@@ -683,7 +641,8 @@ else if (ActiveTab == "translations")
                 {
                     <PageEditorPaletteSection Items="FilterPaletteItems(NeoNeoCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
-                                              OnAdd="AddPaletteItemAsync" />
+                                               OnAdd="AddPaletteItemAsync"
+                                               OnDragStart="OnPaletteItemDragStart" />
                 }
             </div>
 
@@ -699,14 +658,15 @@ else if (ActiveTab == "translations")
     OnClose="() => MediaModalOpen = false"
     OnConfirm="OnConfirmMediaSelection"/>
 
-@if (BlockEditorModalOpen && CurrentEditBlock is not null)
+@if (BlockEditorModalOpen && CurrentEditNode is not null)
 {
+    var wrapperBlock = new EditorBlock { EditorId = CurrentEditNode.NodeId, Type = CurrentEditNode.CatalogId, CompositionNodes = [CurrentEditNode] };
     <div class="pe-modal-overlay" @onclick="CloseBlockEditor">
         <div class="pe-modal pe-block-edit-modal" @onclick:stopPropagation="true">
             <div class="pe-modal-header">
                 <div>
                     <div class="pe-modal-kicker">@L["Edit block"]</div>
-                    <h3>@GetBlockDisplayName(CurrentEditBlock)</h3>
+                    <h3>@GetBlockDisplayName(CurrentEditNode.CatalogId)</h3>
                 </div>
                 <button class="pe-toolbar-btn" title="@L["Close"]" @onclick="CloseBlockEditor">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -730,7 +690,7 @@ else if (ActiveTab == "translations")
                 </button>
             </div>
             <div class="pe-modal-body">
-                <EditorBlockPropertyPanel Block="CurrentEditBlock"
+                <EditorBlockPropertyPanel Block="wrapperBlock"
                                           ShowHeader="false"
                                           ActiveTab="@BlockEditorTab"
                                           TargetNodeId="@EditingNodeId"

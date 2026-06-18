@@ -4,7 +4,10 @@ using Aero.Core.Extensions;
 using Wolverine;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
@@ -42,7 +45,6 @@ public sealed class MartenPageContentService(
     IMessageBus bus,
     ISiteContext siteContext,
     ILogger<MartenPageContentService> logger,
-    IEditorBlockMapper editorBlockMapper,
     string? actor = null,
     IFusionCache? cache = null,
     IPageTreeService? pageTreeService = null) : IPageContentService
@@ -305,14 +307,13 @@ public sealed class MartenPageContentService(
             };
             page.TranslationGroupId = page.Id;
 
-            if (request.EditorBlocks is not null)
+            // Use RootNodes tree if available
+            if (page.RootNodes is { Count: > 0 })
             {
-                page.Blocks = request.EditorBlocks.ToList();
-                (page.LayoutRegions, page.BlockIdMap) = await ProcessEditorBlocks(request.EditorBlocks, [], cancellationToken);
+                (page.LayoutRegions, page.BlockIdMap) = await ProcessRootNodesAsync(page.RootNodes, [], cancellationToken);
             }
             else
             {
-                page.Blocks = new List<EditorBlock>();
                 page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
             }
 
@@ -375,7 +376,7 @@ public sealed class MartenPageContentService(
                 page.SeoTitle,
                 page.SeoDescription,
                 page.LayoutRegions,
-                page.Blocks,
+                page.RootNodes is { Count: > 0 } ? page.RootNodes : null,
                 Kind: page.Kind,
                 ShowHeaderNavigation: page.ShowHeaderNavigation,
                 HeaderImageUrl: page.HeaderImageUrl,
@@ -417,15 +418,14 @@ public sealed class MartenPageContentService(
             // Apply metadata update to the document
             ApplyUpdateRequest(page, request);
 
-            // Process editor blocks — map to layout regions and persist BlockBase entities
-            if (request.EditorBlocks is not null)
+            // Use RootNodes tree if available
+            if (page.RootNodes is { Count: > 0 })
             {
-                page.Blocks = request.EditorBlocks.ToList();
-                (page.LayoutRegions, page.BlockIdMap) = await ProcessEditorBlocks(
-                    request.EditorBlocks,
+                (page.LayoutRegions, page.BlockIdMap) = await ProcessRootNodesAsync(
+                    page.RootNodes,
                     page.BlockIdMap,
                     cancellationToken);
-                logger.LogInformation("Mapped {BlockCount} editor blocks to layout regions for page {PageId}", request.EditorBlocks.Count, id);
+                logger.LogInformation("Processed {NodeCount} RootNodes for page {PageId}", page.RootNodes.Count, id);
             }
             else if (request.LayoutRegions is { Count: > 0 })
             {
@@ -468,7 +468,7 @@ public sealed class MartenPageContentService(
                 SeoTitle: page.SeoTitle,
                 SeoDescription: page.SeoDescription,
                 LayoutRegions: page.LayoutRegions,
-                Blocks: page.Blocks,
+                page.RootNodes is { Count: > 0 } ? page.RootNodes : null,
                 Kind: page.Kind,
                 ShowHeaderNavigation: page.ShowHeaderNavigation,
                 HeaderImageUrl: page.HeaderImageUrl,
@@ -727,14 +727,12 @@ public sealed class MartenPageContentService(
             targetPage.Culture = ContentSlugDocument.NormalizeCulture(targetPage.Culture);
             targetPage.TranslationGroupId ??= targetPage.Id;
 
-            // If the caller provided editor blocks but no layout regions, map them now.
-            // This handles both new pages (no existing) and updates where blocks were
-            // added but not yet persisted as BlockBase entities.
-            if (targetPage.Blocks.Count > 0 && targetPage.LayoutRegions.Count == 0)
+            // Phase 2b: Use RootNodes tree if available (takes priority over Blocks)
+            if (targetPage.RootNodes is { Count: > 0 } && targetPage.LayoutRegions.Count == 0)
             {
-                (targetPage.LayoutRegions, targetPage.BlockIdMap) = await ProcessEditorBlocks(
-                    targetPage.Blocks, targetPage.BlockIdMap, cancellationToken);
-                logger.LogInformation("Generated layout regions from {BlockCount} blocks for page {PageId}", targetPage.Blocks.Count, targetPage.Id);
+                (targetPage.LayoutRegions, targetPage.BlockIdMap) = await ProcessRootNodesAsync(
+                    targetPage.RootNodes, targetPage.BlockIdMap, cancellationToken);
+                logger.LogInformation("Generated layout regions from {NodeCount} RootNodes for page {PageId}", targetPage.RootNodes.Count, targetPage.Id);
             }
 
             var targetPublicSlug = targetPage.Path.TrimStart('/');
@@ -773,7 +771,7 @@ public sealed class MartenPageContentService(
                 targetPage.SeoTitle,
                 targetPage.SeoDescription,
                 targetPage.LayoutRegions,
-                targetPage.Blocks,
+                targetPage.RootNodes is { Count: > 0 } ? targetPage.RootNodes : null,
                 Kind: targetPage.Kind,
                 ShowHeaderNavigation: targetPage.ShowHeaderNavigation,
                 HeaderImageUrl: targetPage.HeaderImageUrl,
@@ -811,79 +809,63 @@ public sealed class MartenPageContentService(
     }
 
     /// <summary>
-    /// Maps editor blocks to <see cref="BlockBase"/> entities, persists them via
-    /// <see cref="IBlockService"/>, and produces an ordered list of
-    /// <see cref="LayoutRegion"/>s.  Uses <paramref name="existingMap"/> to reuse
-    /// block IDs for blocks that have been saved before (keyed by
-    /// <see cref="EditorBlock.EditorId"/>), avoiding orphaned duplicate blocks on
-    /// every save.  Returns the updated map together with the layout regions.
+    /// Processes a NeoPageNode tree directly into a single NeoCompositionBlock for persistence.
+    /// Replaces ProcessEditorBlocks in Phase 2b.
     /// </summary>
-    /// <param name="editorBlocks">The current set of editor blocks from the client.</param>
-    /// <param name="existingMap">
-    /// The previous <c>EditorId → BlockId</c> map (may be empty on first save).
-    /// </param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>
-    /// A tuple containing the generated <see cref="LayoutRegion"/> list and the
-    /// updated <see cref="PageDocument.BlockIdMap"/>.
-    /// </returns>
-    private async Task<(List<LayoutRegion> LayoutRegions, Dictionary<string, long> BlockIdMap)>
-        ProcessEditorBlocks(
-            IReadOnlyList<EditorBlock> editorBlocks,
-            Dictionary<string, long> existingMap,
-            CancellationToken cancellationToken)
+    private async Task<(
+        List<LayoutRegion> LayoutRegions,
+        Dictionary<string, long> BlockIdMap
+    )> ProcessRootNodesAsync(
+        List<NeoPageNode> rootNodes,
+        Dictionary<string, long> existingMap,
+        CancellationToken ct)
     {
-        var newMap = new Dictionary<string, long>();
-        var placements = new List<BlockPlacement>();
-        int order = 0;
-
-        foreach (var eb in editorBlocks)
+        // Create a single NeoCompositionBlock wrapping the entire page tree
+        var compositeBlock = new NeoCompositionBlock
         {
-            var block = editorBlockMapper.MapBlock(eb);
-            if (block is null)
-                continue;
+            Id = Snowflake.NewId(),
+            Nodes = rootNodes.Select(n => DeepCloneNode(n)).ToList()
+        };
+        await blockService.SaveAsync(compositeBlock, ct);
 
-            if (!string.IsNullOrEmpty(eb.EditorId) && existingMap.TryGetValue(eb.EditorId, out var existingBlockId))
-            {
-                // Block already exists — update in-place (upsert via Marten)
-                block.Id = existingBlockId;
-                await blockService.SaveAsync(block, cancellationToken);
-                newMap[eb.EditorId] = existingBlockId;
-            }
-            else
-            {
-                // First-time save — get a fresh Snowflake ID
-                block.Id = Snowflake.NewId();
-                var saved = await blockService.SaveAsync(block, cancellationToken);
-                newMap[eb.EditorId] = saved.Id;
-            }
-
-            placements.Add(new BlockPlacement
-            {
-                BlockId = block.Id,
-                BlockType = block.BlockType,
-                Order = order++
-            });
-        }
-
-        // Put all editor blocks into a single full-width column in the "Main" region
-        var column = new LayoutColumn
+        var newMap = new Dictionary<string, long>(existingMap)
         {
-            Width = 12,
-            Blocks = placements
+            ["page-root"] = compositeBlock.Id
         };
 
         var regions = new List<LayoutRegion>
         {
             new()
             {
-                Name = "Main",
+                Name = "MainContent",
                 Order = 0,
-                Columns = [column]
+                Columns = new List<LayoutColumn>
+                {
+                    new()
+                    {
+                        Width = 12,
+                        Order = 0,
+                        Blocks = new List<BlockPlacement>
+                        {
+                            new()
+                            {
+                                BlockId = compositeBlock.Id,
+                                BlockType = "neo_composition",
+                                Order = 0
+                            }
+                        }
+                    }
+                }
             }
         };
 
         return (regions, newMap);
+    }
+
+    private static NeoPageNode DeepCloneNode(NeoPageNode source)
+    {
+        // Use EditorNodeMemento for deep cloning via public Capture/Restore API
+        return EditorNodeMemento.Capture(source).Restore();
     }
 
     private static async Task<Result<bool, AeroError>> ValidatePage(PageDocument page)
@@ -920,9 +902,9 @@ public sealed class MartenPageContentService(
         target.SeoTitle = source.SeoTitle;
         target.SeoDescription = source.SeoDescription;
         target.LayoutRegions = source.LayoutRegions;
-        target.Blocks = source.Blocks
-            .Select(block => block.DeepClone())
-            .ToList();
+        target.RootNodes = source.RootNodes?
+            .Select(n => DeepCloneNode(n))
+            .ToList() ?? [];
         target.BlockIdMap = source.BlockIdMap;
         target.PublicationState = source.PublicationState;
         target.ShowInNavMenu = source.ShowInNavMenu;

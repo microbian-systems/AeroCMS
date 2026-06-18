@@ -8,7 +8,8 @@ namespace Aero.Cms.Ui.Neo.Primitives.Card;
 public sealed class CardPrimitiveDefinition :
     IPageEditorCatalogDefinition,
     INeoNodeFactory,
-    IEmbeddable
+    IEmbeddable,
+    ISlotted
 {
     public const string ContentDropZone = "content";
 
@@ -103,4 +104,34 @@ public sealed class CardPrimitiveDefinition :
         };
 
     private static string NewId() => Guid.NewGuid().ToString("N");
+
+    IReadOnlyList<ISlotDefinition> ISlotted.Slots => _slots;
+    private static readonly IReadOnlyList<ISlotDefinition> _slots = new[]
+    {
+        new SlotDefinition(
+            Id: "media",
+            DisplayName: "Media",
+            AllowedChildKinds: new HashSet<NeoPageNodeKind> { NeoPageNodeKind.Primitive },
+            MaxChildren: 1
+        ),
+        new SlotDefinition(
+            Id: "content",
+            DisplayName: "Content",
+            AllowedChildKinds: new HashSet<NeoPageNodeKind>
+            {
+                NeoPageNodeKind.Primitive, NeoPageNodeKind.Block,
+                NeoPageNodeKind.Container, NeoPageNodeKind.Component
+            },
+            MinChildren: 1
+        ),
+        new SlotDefinition(
+            Id: "actions",
+            DisplayName: "Actions",
+            AllowedChildKinds: new HashSet<NeoPageNodeKind> { NeoPageNodeKind.Primitive },
+            MaxChildren: 3
+        ),
+    };
+
+    public ISlotDefinition? GetSlot(string slotId) =>
+        _slots.FirstOrDefault(s => s.Id == slotId);
 }

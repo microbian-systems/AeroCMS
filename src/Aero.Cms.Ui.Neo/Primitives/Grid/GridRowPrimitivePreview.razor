@@ -1,0 +1,20 @@
+@namespace Aero.Cms.Ui.Neo.Primitives.Grid
+@using Aero.Cms.Abstractions.Blocks.Neo
+
+<div class="flex items-stretch gap-1 min-h-[60px] border border-gray-200 rounded bg-gray-50/30 p-1">
+    <div class="flex items-center px-2 border-r border-gray-200">
+        <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Row</span>
+    </div>
+    <div class="flex-1 flex items-stretch gap-1">
+        <div class="flex-1 border border-dashed border-gray-200 rounded flex items-center justify-center min-w-[60px]">
+            <span class="text-[10px] text-gray-300">Cell</span>
+        </div>
+        <div class="flex-1 border border-dashed border-gray-200 rounded flex items-center justify-center min-w-[60px]">
+            <span class="text-[10px] text-gray-300">Cell</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public NeoPageNode? Node { get; set; }
+}

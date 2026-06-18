@@ -121,6 +121,8 @@ public static class AeroCmsExtensions
         services.AddAeroCmsHyperUiBlocks();
         services.AddAeroCmsNeoUiBlocks();
         services.AddSingleton<IPageEditorDefinitionRegistry, PageEditorDefinitionRegistry>();
+        services.AddSingleton<CannedBlockDefinitionProvider>();
+        services.AddSingleton<IPageEditorBlockProvider>(sp => sp.GetRequiredService<CannedBlockDefinitionProvider>());
 
         services.AddRazorPages()
             .AddApplicationPart(typeof(SetupModule).Assembly)

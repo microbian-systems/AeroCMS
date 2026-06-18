@@ -1,0 +1,33 @@
+@using System.Text.Json
+
+<div class="pe-property-panel">
+    <div class="pe-property-group">
+        <label class="pe-property-label">Quote Text</label>
+        <RadzenTextArea Value="@Text" Change="OnTextChanged" Class="w-full" Rows="4" />
+    </div>
+    <div class="pe-property-group">
+        <label class="pe-property-label">Citation</label>
+        <RadzenTextArea Value="@Citation" Change="OnCitationChanged" Class="w-full" Rows="1" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NeoPageNode Node { get; set; } = default!;
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private string Text =>
+        Node.Properties.TryGetValue("text", out var v) ? v.GetString() ?? "" : "";
+
+    private string Citation =>
+        Node.Properties.TryGetValue("citation", out var v) ? v.GetString() ?? "" : "";
+
+    private async Task OnTextChanged(string value) {
+        Node.Properties["text"] = JsonSerializer.SerializeToElement(value);
+        await Changed.InvokeAsync();
+    }
+
+    private async Task OnCitationChanged(string value) {
+        Node.Properties["citation"] = JsonSerializer.SerializeToElement(value);
+        await Changed.InvokeAsync();
+    }
+}

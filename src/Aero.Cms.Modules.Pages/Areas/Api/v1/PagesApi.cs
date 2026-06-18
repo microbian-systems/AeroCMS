@@ -3,6 +3,7 @@ using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http;
@@ -178,7 +179,6 @@ public static class PagesApi
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var blocksJson = SerializeEditorBlocks(request.EditorBlocks);
             var layoutsJson = SerializeLayoutRegions(request.LayoutRegions);
             var grainRequest = new GrainCreateRequest(
                 request.Title,
@@ -188,15 +188,14 @@ public static class PagesApi
                 request.SeoDescription,
                 request.PublicationState,
                 request.ParentId,
-                null, // LayoutRegions — stripped for Orleans (transported via JSON string)
+                null,
                 request.ShowInNavMenu,
                 request.ShowHeaderNavigation,
                 request.HideFooter,
                 request.ShowChatAgent,
-                null, // EditorBlocks — stripped for Orleans (transported via JSON string)
                 siteContext.SiteId,
-                EditorBlocksJson: blocksJson,
-                LayoutRegionsJson: layoutsJson);
+                LayoutRegionsJson: layoutsJson,
+                RootNodeJson: request.RootNodeJson);
 
             var result = await pagesActor.CreateAsync(grainRequest, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -225,7 +224,6 @@ public static class PagesApi
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var blocksJson = SerializeEditorBlocks(request.EditorBlocks);
             var layoutsJson = SerializeLayoutRegions(request.LayoutRegions);
             var grainRequest = new GrainUpdateRequest(
                 id,
@@ -236,14 +234,13 @@ public static class PagesApi
                 request.SeoDescription,
                 request.PublicationState,
                 request.ParentId,
-                null, // LayoutRegions — stripped for Orleans (transported via JSON string)
+                null,
                 request.ShowInNavMenu,
                 request.ShowHeaderNavigation,
                 request.HideFooter,
                 request.ShowChatAgent,
-                null, // EditorBlocks — stripped for Orleans (transported via JSON string)
-                EditorBlocksJson: blocksJson,
-                LayoutRegionsJson: layoutsJson);
+                LayoutRegionsJson: layoutsJson,
+                RootNodeJson: request.RootNodeJson);
 
             var result = await pagesActor.UpdateAsync(grainRequest, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -612,7 +609,7 @@ public static class PagesApi
             existing.Title = request.Title;
             existing.Slug = request.Slug;
             existing.Summary = request.Summary;
-            existing.Blocks = request.Blocks ?? [];
+            existing.RootNodeJson = request.RootNodeJson;
             existing.DraftedAt = DateTimeOffset.UtcNow;
             session.Store(existing);
         }
@@ -626,7 +623,7 @@ public static class PagesApi
                 Title = request.Title,
                 Slug = request.Slug,
                 Summary = request.Summary,
-                Blocks = request.Blocks ?? [],
+                RootNodeJson = request.RootNodeJson,
                 DraftedAt = DateTimeOffset.UtcNow
             };
             session.Store(draft);
@@ -679,8 +676,6 @@ public static class PagesApi
 
     private static PageDetail MapToDetail(PageViewModel vm)
     {
-        var blocks = DeserializeEditorBlockList(vm.EditorBlocksJson);
-
         return new PageDetail(
             vm.Id,
             vm.Title ?? "",
@@ -692,17 +687,17 @@ public static class PagesApi
             (vm.ModifiedOn ?? vm.CreatedOn).DateTime,
             vm.PublishedOn?.DateTime,
             vm.PublicationState,
-            blocks?.Count ?? 0,
+            0,
             vm.ShowInNavMenu,
             vm.ShowHeaderNavigation,
             vm.HideFooter,
             vm.ShowChatAgent,
-            blocks,
             vm.ParentId,
             vm.Path ?? "",
             vm.Depth,
             vm.Culture,
-            vm.TranslationGroupId
+            vm.TranslationGroupId,
+            vm.RootNodeJson
         );
     }
 
@@ -718,12 +713,11 @@ public static class PagesApi
             (document.ModifiedOn ?? document.CreatedOn).DateTime,
             document.PublishedOn?.DateTime,
             document.PublicationState,
-            document.Blocks?.Count ?? 0,
+            0,
             document.ShowInNavMenu,
             document.ShowHeaderNavigation,
             document.HideFooter,
             document.ShowChatAgent,
-            document.Blocks,
             document.ParentId,
             document.Path ?? "",
             document.Depth,
@@ -777,11 +771,6 @@ public static class PagesApi
         AddOptionalField(fields, "summary", ContentFieldHint.Excerpt, source.Summary);
         AddOptionalField(fields, "seoTitle", ContentFieldHint.SeoTitle, source.SeoTitle);
         AddOptionalField(fields, "seoDescription", ContentFieldHint.SeoDescription, source.SeoDescription);
-
-        for (var i = 0; i < source.Blocks.Count; i++)
-        {
-            AddBlockFields(fields, $"blocks.{i}", source.Blocks[i]);
-        }
 
         return fields;
     }
@@ -841,197 +830,7 @@ public static class PagesApi
         target.Summary = GetTranslated(response, "summary", target.Summary);
         target.SeoTitle = GetTranslated(response, "seoTitle", target.SeoTitle);
         target.SeoDescription = GetTranslated(response, "seoDescription", target.SeoDescription);
-
-        for (var i = 0; i < target.Blocks.Count; i++)
-        {
-            ApplyBlockFields(target.Blocks[i], $"blocks.{i}", response);
-        }
     }
-
-    private static void AddBlockFields(List<TranslateDocumentField> fields, string prefix, EditorBlock block)
-    {
-        AddOptionalField(fields, $"{prefix}.title", ContentFieldHint.Title, block.Title);
-        AddOptionalField(fields, $"{prefix}.mainText", ContentFieldHint.BlockText, block.MainText);
-        AddOptionalField(fields, $"{prefix}.subText", ContentFieldHint.BlockText, block.SubText);
-        AddOptionalField(fields, $"{prefix}.ctaText", ContentFieldHint.Label, block.CtaText);
-        AddOptionalField(fields, $"{prefix}.ctaText2", ContentFieldHint.Label, block.CtaText2);
-        AddOptionalField(fields, $"{prefix}.eyebrow", ContentFieldHint.BlockText, block.Eyebrow);
-        AddOptionalField(fields, $"{prefix}.highlight", ContentFieldHint.BlockText, block.Highlight);
-        AddOptionalField(fields, $"{prefix}.alternativeLinkText", ContentFieldHint.Label, block.AlternativeLinkText);
-        AddOptionalField(fields, $"{prefix}.sectionTitle", ContentFieldHint.Title, block.SectionTitle);
-        AddOptionalField(fields, $"{prefix}.pageTitle", ContentFieldHint.Title, block.PageTitle);
-        AddOptionalField(fields, $"{prefix}.description", ContentFieldHint.BlockText, block.Description);
-        AddOptionalField(fields, $"{prefix}.pageDescription", ContentFieldHint.BlockText, block.PageDescription);
-        AddOptionalField(fields, $"{prefix}.content", GetContentHint(block), block.Content);
-        AddOptionalField(fields, $"{prefix}.author", ContentFieldHint.BlockText, block.Author);
-        AddOptionalField(fields, $"{prefix}.alt", ContentFieldHint.AltText, block.Alt);
-        AddOptionalField(fields, $"{prefix}.caption", ContentFieldHint.BlockCaption, block.Caption);
-
-        for (var i = 0; i < block.TrustMarkers.Count; i++)
-        {
-            AddOptionalField(fields, $"{prefix}.trustMarkers.{i}", ContentFieldHint.BlockText, block.TrustMarkers[i]);
-        }
-
-        for (var i = 0; i < block.EditorColumns.Count; i++)
-        {
-            var column = block.EditorColumns[i];
-            for (var j = 0; j < column.Blocks.Count; j++)
-            {
-                AddOptionalField(fields, $"{prefix}.editorColumns.{i}.blocks.{j}.content", ContentFieldHint.BlockText, column.Blocks[j].Content);
-                AddOptionalField(fields, $"{prefix}.editorColumns.{i}.blocks.{j}.text", ContentFieldHint.BlockText, column.Blocks[j].Text);
-                AddOptionalField(fields, $"{prefix}.editorColumns.{i}.blocks.{j}.alt", ContentFieldHint.AltText, column.Blocks[j].Alt);
-            }
-        }
-
-        for (var i = 0; i < block.GalleryImages.Count; i++)
-        {
-            AddOptionalField(fields, $"{prefix}.galleryImages.{i}.alt", ContentFieldHint.AltText, block.GalleryImages[i].Alt);
-        }
-
-        for (var i = 0; i < block.FeatureItems.Count; i++)
-        {
-            AddOptionalField(fields, $"{prefix}.featureItems.{i}.title", ContentFieldHint.Title, block.FeatureItems[i].Title);
-            AddOptionalField(fields, $"{prefix}.featureItems.{i}.description", ContentFieldHint.BlockText, block.FeatureItems[i].Description);
-        }
-
-        for (var i = 0; i < block.PricingPlans.Count; i++)
-        {
-            AddOptionalField(fields, $"{prefix}.pricingPlans.{i}.name", ContentFieldHint.Title, block.PricingPlans[i].Name);
-            AddOptionalField(fields, $"{prefix}.pricingPlans.{i}.description", ContentFieldHint.BlockText, block.PricingPlans[i].Description);
-            AddOptionalField(fields, $"{prefix}.pricingPlans.{i}.ctaText", ContentFieldHint.Label, block.PricingPlans[i].CtaText);
-
-            for (var j = 0; j < block.PricingPlans[i].Features.Count; j++)
-            {
-                AddOptionalField(fields, $"{prefix}.pricingPlans.{i}.features.{j}", ContentFieldHint.BlockText, block.PricingPlans[i].Features[j]);
-            }
-        }
-
-        for (var i = 0; i < block.TeamMembers.Count; i++)
-        {
-            AddOptionalField(fields, $"{prefix}.teamMembers.{i}.role", ContentFieldHint.BlockText, block.TeamMembers[i].Role);
-            AddOptionalField(fields, $"{prefix}.teamMembers.{i}.description", ContentFieldHint.BlockText, block.TeamMembers[i].Description);
-        }
-
-        for (var i = 0; i < block.Testimonials.Count; i++)
-        {
-            AddOptionalField(fields, $"{prefix}.testimonials.{i}.authorRole", ContentFieldHint.BlockText, block.Testimonials[i].AuthorRole);
-            AddOptionalField(fields, $"{prefix}.testimonials.{i}.content", ContentFieldHint.BlockText, block.Testimonials[i].Content);
-        }
-
-        for (var i = 0; i < block.FaqItems.Count; i++)
-        {
-            AddOptionalField(fields, $"{prefix}.faqItems.{i}.question", ContentFieldHint.Title, block.FaqItems[i].Question);
-            AddOptionalField(fields, $"{prefix}.faqItems.{i}.answer", ContentFieldHint.BlockText, block.FaqItems[i].Answer);
-        }
-
-        for (var i = 0; i < block.PortfolioItems.Count; i++)
-        {
-            AddOptionalField(fields, $"{prefix}.portfolioItems.{i}.projectTitle", ContentFieldHint.Title, block.PortfolioItems[i].ProjectTitle);
-            AddOptionalField(fields, $"{prefix}.portfolioItems.{i}.projectCategory", ContentFieldHint.BlockText, block.PortfolioItems[i].ProjectCategory);
-            AddOptionalField(fields, $"{prefix}.portfolioItems.{i}.projectDescription", ContentFieldHint.BlockText, block.PortfolioItems[i].ProjectDescription);
-        }
-
-        for (var i = 0; i < block.ContactDetails.Count; i++)
-        {
-            AddOptionalField(fields, $"{prefix}.contactDetails.{i}.label", ContentFieldHint.BlockText, block.ContactDetails[i].Label);
-            AddOptionalField(fields, $"{prefix}.contactDetails.{i}.value", ContentFieldHint.BlockText, block.ContactDetails[i].Value);
-        }
-    }
-
-    private static void ApplyBlockFields(EditorBlock block, string prefix, TranslateDocumentResponse response)
-    {
-        block.Title = GetTranslated(response, $"{prefix}.title", block.Title);
-        block.MainText = GetTranslated(response, $"{prefix}.mainText", block.MainText);
-        block.SubText = GetTranslated(response, $"{prefix}.subText", block.SubText);
-        block.CtaText = GetTranslated(response, $"{prefix}.ctaText", block.CtaText);
-        block.CtaText2 = GetTranslated(response, $"{prefix}.ctaText2", block.CtaText2);
-        block.Eyebrow = GetTranslated(response, $"{prefix}.eyebrow", block.Eyebrow);
-        block.Highlight = GetTranslated(response, $"{prefix}.highlight", block.Highlight);
-        block.AlternativeLinkText = GetTranslated(response, $"{prefix}.alternativeLinkText", block.AlternativeLinkText);
-        block.SectionTitle = GetTranslated(response, $"{prefix}.sectionTitle", block.SectionTitle);
-        block.PageTitle = GetTranslated(response, $"{prefix}.pageTitle", block.PageTitle);
-        block.Description = GetTranslated(response, $"{prefix}.description", block.Description);
-        block.PageDescription = GetTranslated(response, $"{prefix}.pageDescription", block.PageDescription);
-        block.Content = GetTranslated(response, $"{prefix}.content", block.Content);
-        block.Author = GetTranslated(response, $"{prefix}.author", block.Author);
-        block.Alt = GetTranslated(response, $"{prefix}.alt", block.Alt);
-        block.Caption = GetTranslated(response, $"{prefix}.caption", block.Caption);
-
-        for (var i = 0; i < block.TrustMarkers.Count; i++)
-        {
-            block.TrustMarkers[i] = GetTranslated(response, $"{prefix}.trustMarkers.{i}", block.TrustMarkers[i]);
-        }
-
-        for (var i = 0; i < block.EditorColumns.Count; i++)
-        {
-            var column = block.EditorColumns[i];
-            for (var j = 0; j < column.Blocks.Count; j++)
-            {
-                column.Blocks[j].Content = GetTranslated(response, $"{prefix}.editorColumns.{i}.blocks.{j}.content", column.Blocks[j].Content);
-                column.Blocks[j].Text = GetTranslated(response, $"{prefix}.editorColumns.{i}.blocks.{j}.text", column.Blocks[j].Text);
-                column.Blocks[j].Alt = GetTranslated(response, $"{prefix}.editorColumns.{i}.blocks.{j}.alt", column.Blocks[j].Alt);
-            }
-        }
-
-        for (var i = 0; i < block.GalleryImages.Count; i++)
-        {
-            block.GalleryImages[i].Alt = GetTranslated(response, $"{prefix}.galleryImages.{i}.alt", block.GalleryImages[i].Alt);
-        }
-
-        for (var i = 0; i < block.FeatureItems.Count; i++)
-        {
-            block.FeatureItems[i].Title = GetTranslated(response, $"{prefix}.featureItems.{i}.title", block.FeatureItems[i].Title);
-            block.FeatureItems[i].Description = GetTranslated(response, $"{prefix}.featureItems.{i}.description", block.FeatureItems[i].Description);
-        }
-
-        for (var i = 0; i < block.PricingPlans.Count; i++)
-        {
-            block.PricingPlans[i].Name = GetTranslated(response, $"{prefix}.pricingPlans.{i}.name", block.PricingPlans[i].Name);
-            block.PricingPlans[i].Description = GetTranslated(response, $"{prefix}.pricingPlans.{i}.description", block.PricingPlans[i].Description);
-            block.PricingPlans[i].CtaText = GetTranslated(response, $"{prefix}.pricingPlans.{i}.ctaText", block.PricingPlans[i].CtaText);
-
-            for (var j = 0; j < block.PricingPlans[i].Features.Count; j++)
-            {
-                block.PricingPlans[i].Features[j] = GetTranslated(response, $"{prefix}.pricingPlans.{i}.features.{j}", block.PricingPlans[i].Features[j]);
-            }
-        }
-
-        for (var i = 0; i < block.TeamMembers.Count; i++)
-        {
-            block.TeamMembers[i].Role = GetTranslated(response, $"{prefix}.teamMembers.{i}.role", block.TeamMembers[i].Role);
-            block.TeamMembers[i].Description = GetTranslated(response, $"{prefix}.teamMembers.{i}.description", block.TeamMembers[i].Description);
-        }
-
-        for (var i = 0; i < block.Testimonials.Count; i++)
-        {
-            block.Testimonials[i].AuthorRole = GetTranslated(response, $"{prefix}.testimonials.{i}.authorRole", block.Testimonials[i].AuthorRole);
-            block.Testimonials[i].Content = GetTranslated(response, $"{prefix}.testimonials.{i}.content", block.Testimonials[i].Content);
-        }
-
-        for (var i = 0; i < block.FaqItems.Count; i++)
-        {
-            block.FaqItems[i].Question = GetTranslated(response, $"{prefix}.faqItems.{i}.question", block.FaqItems[i].Question);
-            block.FaqItems[i].Answer = GetTranslated(response, $"{prefix}.faqItems.{i}.answer", block.FaqItems[i].Answer);
-        }
-
-        for (var i = 0; i < block.PortfolioItems.Count; i++)
-        {
-            block.PortfolioItems[i].ProjectTitle = GetTranslated(response, $"{prefix}.portfolioItems.{i}.projectTitle", block.PortfolioItems[i].ProjectTitle);
-            block.PortfolioItems[i].ProjectCategory = GetTranslated(response, $"{prefix}.portfolioItems.{i}.projectCategory", block.PortfolioItems[i].ProjectCategory);
-            block.PortfolioItems[i].ProjectDescription = GetTranslated(response, $"{prefix}.portfolioItems.{i}.projectDescription", block.PortfolioItems[i].ProjectDescription);
-        }
-
-        for (var i = 0; i < block.ContactDetails.Count; i++)
-        {
-            block.ContactDetails[i].Label = GetTranslated(response, $"{prefix}.contactDetails.{i}.label", block.ContactDetails[i].Label);
-            block.ContactDetails[i].Value = GetTranslated(response, $"{prefix}.contactDetails.{i}.value", block.ContactDetails[i].Value);
-        }
-    }
-
-    private static ContentFieldHint GetContentHint(EditorBlock block)
-        => string.Equals(block.Type, "markdown", StringComparison.OrdinalIgnoreCase)
-            ? ContentFieldHint.MarkdownContent
-            : ContentFieldHint.BlockText;
 
     private static string GetTranslatedSlug(TranslateDocumentResponse response, string fallback)
     {
@@ -1090,15 +889,6 @@ public static class PagesApi
     private static bool CultureEquals(string left, string right)
         => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 
-    private static List<EditorBlock>? DeserializeEditorBlockList(string? json)
-    {
-        if (json is null)
-            return null;
-
-        return System.Text.Json.JsonSerializer.Deserialize<List<EditorBlock>>(
-            json, BlockJsonContext.Default.Options);
-    }
-
     // ── Preview handlers (moved from Headless PreviewApi) ──────────────
 
     private static async Task<IResult> PreviewPage(
@@ -1126,19 +916,20 @@ public static class PagesApi
     private static async Task<IResult> PreviewPageFragment(
         [FromBody] PreviewPageFragmentRequest request,
         [FromServices] CmsBlockHtmlRenderer blockRenderer,
-        [FromServices] IEditorBlockMapper editorBlockMapper,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            if ((request.Blocks is null || request.Blocks.Count == 0) &&
-                (request.LayoutRegions is null || request.LayoutRegions.Count == 0))
-                return TypedResults.BadRequest(new { error = "Page blocks or layout regions are required." });
+            if ((request.LayoutRegions is null || request.LayoutRegions.Count == 0) &&
+                string.IsNullOrEmpty(request.RootNodeJson))
+                return TypedResults.BadRequest(new { error = "Page layout regions or root node JSON are required." });
 
-            var html = request.Blocks is { Count: > 0 }
-                ? await blockRenderer.RenderBlocksAsync(editorBlockMapper.MapBlocks(request.Blocks), cancellationToken: ct)
+            var html = !string.IsNullOrEmpty(request.RootNodeJson)
+                ? await blockRenderer.RenderBlocksAsync(
+                    [System.Text.Json.JsonSerializer.Deserialize<NeoCompositionBlock>(request.RootNodeJson, BlockJsonContext.Default.Options)!],
+                    cancellationToken: ct)
                 : await blockRenderer.RenderRegionsAsync(request.LayoutRegions ?? [], ct);
 
             return TypedResults.Ok(new PreviewPageFragmentResponse(RenderPreviewHtml(html)));
@@ -1157,23 +948,6 @@ public static class PagesApi
         using var writer = new StringWriter();
         content.WriteTo(writer, HtmlEncoder.Default);
         return writer.ToString();
-    }
-
-    // ── Orleans transport helpers ───────────────────────────────────────
-
-    /// <summary>
-    /// Serializes <see cref="EditorBlock"/> list to JSON for Orleans-safe grain transport.
-    /// Returns null when blocks are omitted (preserve existing), string when blocks are provided.
-    /// Empty list serializes to "[]" (clear blocks).
-    /// </summary>
-    private static string? SerializeEditorBlocks(IReadOnlyList<EditorBlock>? blocks)
-    {
-        if (blocks is null)
-            return null;
-
-        return System.Text.Json.JsonSerializer.Serialize(
-            blocks,
-            BlockJsonContext.Default.Options);
     }
 
     private static string? SerializeLayoutRegions(IReadOnlyList<LayoutRegion>? regions)

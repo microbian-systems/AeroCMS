@@ -1,0 +1,27 @@
+@namespace Aero.Cms.Ui.Neo.Primitives.Blockquote
+@using Aero.Cms.Abstractions.Blocks.Neo
+@using System.Text.Json
+
+@{
+    var text = "Quote text here...";
+    var citation = "";
+    if (Node?.Properties is { } props)
+    {
+        if (props.TryGetValue("text", out var t))
+            text = t.GetString() ?? "Quote text here...";
+        if (props.TryGetValue("citation", out var c))
+            citation = c.GetString() ?? "";
+    }
+}
+
+<div class="border-l-4 border-gray-300 pl-4 py-2">
+    <p class="text-sm italic text-gray-700">@text</p>
+    @if (!string.IsNullOrWhiteSpace(citation))
+    {
+        <footer class="text-xs text-gray-400 mt-1">— @citation</footer>
+    }
+</div>
+
+@code {
+    [Parameter] public NeoPageNode? Node { get; set; }
+}

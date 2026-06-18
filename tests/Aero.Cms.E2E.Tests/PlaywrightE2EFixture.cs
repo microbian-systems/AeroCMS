@@ -423,53 +423,52 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
 
     // ── Login helper ─────────────────────────────────────────────────────
 
-    private bool _isLoggedIn;
-
     /// <summary>
-    /// Logs in via the browser login page. Uses an isLoggedIn flag so
-    /// subsequent calls on the same Page skip the login step.
+    /// Logs in via the browser login page using real form-fill interaction.
+    /// If already authenticated (redirected away from /manager/login), returns immediately.
     /// </summary>
     public async Task LoginAsync()
     {
-        if (_isLoggedIn || Page is null) return;
+        if (Page is null) throw new InvalidOperationException("Page not initialized");
 
-        // Use standalone APIRequest context (independent of page state) to
-        // call the login API and capture cookies. Then inject them into the
-        // browser context so subsequent page navigations are authenticated.
-        var apiContext = await PlaywrightInstance!.APIRequest.NewContextAsync(new()
+        // Navigate to login page
+        await Page.GotoAsync($"{BaseUrl}/manager/login", new()
         {
-            BaseURL = BaseUrl
+            WaitUntil = WaitUntilState.NetworkIdle,
+            Timeout = 30000
         });
 
-        var loginPayload = new Dictionary<string, object>
+        // Check if already logged in (redirected away from login page)
+        var currentUrl = Page.Url;
+        if (!currentUrl.Contains("/manager/login", StringComparison.OrdinalIgnoreCase))
         {
-            ["EmailOrUserName"] = "admin@aero.local",
-            ["Password"] = "Admin123!",
-            ["RememberMe"] = true
-        };
-        var response = await apiContext.PostAsync("/api/v1/admin/auth/local/login",
-            new() { DataObject = loginPayload });
-
-        if (!response.Ok)
-            throw new InvalidOperationException(
-                $"Login API returned {response.Status}: {await response.TextAsync()}");
-
-        // Extract Set-Cookie headers from the response and add to browser context
-        var setCookieHeaders = response.Headers["set-cookie"].Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var cookies = new List<Cookie>();
-        foreach (var header in setCookieHeaders)
-        {
-            var cookie = ParseSetCookie(header);
-            if (cookie is not null) cookies.Add(cookie);
+            Console.WriteLine("[Login] Already authenticated (redirected to {0})", currentUrl);
+            return;
         }
 
-        if (cookies.Count > 0)
-            await Page.Context.AddCookiesAsync(cookies);
+        // Wait for the login form to render
+        await Page.WaitForSelectorAsync("input[type='text'], input[type='email']", new() { Timeout = 10000 });
 
-        await apiContext.DisposeAsync();
+        // Fill credentials
+        await Page.FillAsync("input[type='text']:visible, input[type='email']:visible", "admin@aero.local");
+        await Page.FillAsync("input[type='password']:visible", "Admin123!");
 
-        Console.WriteLine($"[Login] Added {cookies.Count} cookies. Auth={cookies.Any(c => c.Name.Contains("AeroCms"))}");
-        _isLoggedIn = true;
+        // Submit the form
+        await Page.ClickAsync("button[type='submit']:visible");
+
+        // Wait for redirect to /manager (successful login navigates to /manager)
+        try
+        {
+            await Page.WaitForURLAsync("**/manager**", new() { Timeout = 15000 });
+            Console.WriteLine("[Login] Browser-based login complete");
+        }
+        catch (TimeoutException)
+        {
+            // Login might have failed - check for error messages
+            var errorElement = await Page.QuerySelectorAsync(".validation-message, .alert-danger, .text-danger");
+            var errorText = errorElement is not null ? await errorElement.TextContentAsync() : "no error found";
+            throw new InvalidOperationException($"Login failed. Error: {errorText}");
+        }
     }
 
     /// <summary>
@@ -485,6 +484,9 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         _warmedUp = true;
 
         if (Page is null) throw new InvalidOperationException("Page not initialized. Call InitializeAsync first.");
+
+        // Ensure authenticated before warming up Blazor
+        await LoginAsync();
 
         // Navigate to the pages grid to establish the SignalR circuit
         await Page.GotoAsync($"{BaseUrl}/manager/pages", new()

@@ -5,12 +5,12 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
+using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
-using Aero.Cms.Modules.Pages.Grains;
 using Aero.Cms.Modules.Pages.Areas.Api.v1;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Builder;
@@ -72,13 +72,24 @@ public sealed class PagesApiTests
                         Title = captured.Title,
                         Slug = captured.Slug,
                         PublicationState = captured.PublicationState,
-                        EditorBlocksJson = captured.EditorBlocksJson
+                        RootNodeJson = captured.RootNodeJson
                     },
                     new PageErrorViewModel());
             });
 
         await using var app = await CreateAppAsync(actor);
         using var client = app.GetTestClient();
+        var compositionRoot = CreateCompositionRoot();
+        var rootNodeJson = JsonSerializer.Serialize(
+            new NeoPageNode
+            {
+                NodeId = "page-root",
+                CatalogId = "page.root",
+                Kind = NeoPageNodeKind.Page,
+                Children = [compositionRoot]
+            },
+            BlockJsonContext.Default.Options);
+
         var request = new HttpUpdatePageRequest(
             "RTL composition",
             "rtl-composition",
@@ -86,15 +97,7 @@ public sealed class PagesApiTests
             null,
             null,
             ContentPublicationState.Draft,
-            EditorBlocks:
-            [
-                new EditorBlock
-                {
-                    EditorId = "composition",
-                    Type = "neo_composition",
-                    CompositionNodes = [CreateCompositionRoot()]
-                }
-            ]);
+            RootNodeJson: rootNodeJson);
 
         using var response = await client.PutAsJsonAsync(
             $"/{HttpConstants.ApiPrefix}admin/pages/{pageId}",
@@ -102,14 +105,13 @@ public sealed class PagesApiTests
 
         await Assert.That(response.IsSuccessStatusCode).IsTrue();
         await Assert.That(captured).IsNotNull();
-        await Assert.That(captured!.EditorBlocks).IsNull();
-        await Assert.That(captured.EditorBlocksJson).IsNotNull();
+        await Assert.That(captured!.RootNodeJson).IsNotNull();
 
-        var rehydrated = Rehydrate(captured);
-        var root = rehydrated.EditorBlocks!
-            .Single()
-            .CompositionNodes
-            .Single();
+        var deserialized = JsonSerializer.Deserialize<NeoPageNode>(
+            captured.RootNodeJson!,
+            BlockJsonContext.Default.Options);
+        await Assert.That(deserialized).IsNotNull();
+        var root = deserialized!.Children.Single();
 
         await Assert.That(root.Style.Base.Direction)
             .IsEqualTo(ContentDirection.RightToLeft);
@@ -130,16 +132,6 @@ public sealed class PagesApiTests
         app.MapPagesApi();
         await app.StartAsync();
         return app;
-    }
-
-    private static GrainUpdatePageRequest Rehydrate(GrainUpdatePageRequest request)
-    {
-        var method = typeof(AeroPageGrain).GetMethod(
-            "RehydrateTransportPayload",
-            BindingFlags.NonPublic | BindingFlags.Static,
-            [typeof(GrainUpdatePageRequest)]);
-
-        return (GrainUpdatePageRequest)method!.Invoke(null, [request])!;
     }
 
     private static NeoPageNode CreateCompositionRoot() =>

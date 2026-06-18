@@ -1,4 +1,6 @@
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Pages;
@@ -38,7 +40,7 @@ public static class PageCultureForker
             HideFooter = source.HideFooter,
             ShowChatAgent = source.ShowChatAgent,
             BlockSchemaVersion = source.BlockSchemaVersion,
-            Blocks = source.Blocks.Select(x => x.DeepClone()).ToList(),
+            RootNodes = source.RootNodes?.Select(n => EditorNodeMemento.Capture(n).Restore()).ToList() ?? [],
             LayoutRegions = [],
             BlockIdMap = []
         };

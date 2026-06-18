@@ -1,6 +1,9 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
@@ -60,10 +63,10 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
     public List<LayoutRegion> LayoutRegions { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets the original editor blocks used to construct this page.
-    /// Used natively by the page editor for state recovery.
+    /// Phase 2b: Direct NeoPageNode tree storage. Takes priority over Blocks when present.
+    /// Each entry is a root-level child node of the page tree.
     /// </summary>
-    public List<EditorBlock> Blocks { get; set; } = [];
+    public List<NeoPageNode> RootNodes { get; set; } = [];
 
     /// <summary>
     /// Maps each client-side <see cref="EditorBlock.EditorId"/> to the persisted
@@ -165,7 +168,7 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         SeoTitle = e.SeoTitle;
         SeoDescription = e.SeoDescription;
         if (e.LayoutRegions is not null) LayoutRegions = e.LayoutRegions.ToList();
-        if (e.Blocks is not null) Blocks = e.Blocks.ToList();
+        if (e.RootNodes is not null) RootNodes = e.RootNodes.Select(n => EditorNodeMemento.Capture(n).Restore()).ToList();
         Kind = e.Kind;
         ShowHeaderNavigation = e.ShowHeaderNavigation;
         HeaderImageUrl = e.HeaderImageUrl;
@@ -194,7 +197,7 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         HideFooter = e.HideFooter;
         ShowChatAgent = e.ShowChatAgent;
         ModifiedOn = DateTimeOffset.UtcNow;
-        // ── LayoutRegions, Blocks, BlockIdMap: intentionally absent ─────────
+        // ── LayoutRegions, BlockIdMap: intentionally absent ─────────
         // Publish path owns LayoutRegions. Block state lives in PageEditorState.
     }
 
@@ -280,8 +283,16 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         LayoutRegionsJson = LayoutRegions is { Count: > 0 }
             ? JsonSerializer.Serialize(LayoutRegions, BlockJsonContext.Default.Options)
             : null,
-        EditorBlocksJson = Blocks is { Count: > 0 }
-            ? JsonSerializer.Serialize(Blocks, BlockJsonContext.Default.Options)
+        RootNodeJson = RootNodes is { Count: > 0 }
+            ? JsonSerializer.Serialize(
+                new NeoPageNode
+                {
+                    NodeId = "page-root",
+                    CatalogId = "page.root",
+                    Kind = NeoPageNodeKind.Page,
+                    Children = RootNodes
+                },
+                BlockJsonContext.Default.Options)
             : null
     };
 }
