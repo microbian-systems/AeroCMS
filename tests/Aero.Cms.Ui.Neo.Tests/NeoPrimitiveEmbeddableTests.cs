@@ -242,6 +242,37 @@ public sealed class NeoPrimitiveEmbeddableTests
     }
 
     [Test]
+    [Arguments("primitive.container", "content")]
+    [Arguments("primitive.section", "default")]
+    [Arguments("primitive.article", "default")]
+    [Arguments("primitive.aside", "default")]
+    [Arguments("primitive.flexbox", "content")]
+    [Arguments("primitive.css-grid", "content")]
+    public void CompositionPolicy_AllowsButtonInsideGeneralPurposeContainer(
+        string parentCatalogId,
+        string dropZoneId)
+    {
+        var provider = new NeoPageEditorBlockProvider();
+        var descriptors = provider.GetEditorDefinitions();
+        var resolver = new DescriptorCompositionCapabilityResolver(provider);
+        var policy = new CompositionPolicy(resolver);
+        var parentDescriptor = descriptors.Single(d => d.CatalogId == parentCatalogId);
+        var buttonDescriptor = descriptors.Single(d => d.CatalogId == "primitive.button");
+
+        var parent = parentDescriptor.NodeFactory.CreateDefaultNode();
+        var button = buttonDescriptor.NodeFactory.CreateDefaultNode();
+        var context = new CompositionTreeContext(
+            ExistingChildrenInDropZone: 0,
+            MovingNodeAlreadyInTargetDropZone: false,
+            MovingNodeDescendantIds: new HashSet<string>());
+
+        var result = policy.ValidatePlacement(button, parent, dropZoneId, context);
+
+        result.IsSuccess.Should().BeTrue(
+            $"primitive.button should be embeddable in {parentCatalogId} through '{dropZoneId}'");
+    }
+
+    [Test]
     public void LeafPrimitives_DoNotSupportPasteTarget()
     {
         var provider = new NeoPageEditorBlockProvider();

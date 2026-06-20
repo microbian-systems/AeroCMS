@@ -12,11 +12,7 @@
           OnItemTransferredOut="OnTransferredOut"
           Class="@CssClass">
     <SortableContentPrimitive class="@($"{ContentCssClass} neo-composition-surface__content")">
-        <div class="neo-composition-surface__drop-target"
-             @ondragover:preventDefault="true"
-             @ondragover:stopPropagation="true"
-             @ondrop="HandlePaletteDropAsync"
-             @ondrop:stopPropagation="true">
+        <div class="neo-composition-surface__drop-target">
             <div class="neo-composition-surface__header"
                  @onclick:stopPropagation="true"
                  @ondblclick:stopPropagation="true">
@@ -248,46 +244,6 @@
     }
 
     private Task OnTransferredOut(SortableTransferArgs _) => Task.CompletedTask;
-
-    private async Task HandlePaletteDropAsync(DragEventArgs _)
-    {
-        var catalogId = PaletteDragState?.CatalogId;
-        if (string.IsNullOrWhiteSpace(catalogId))
-        {
-            return;
-        }
-
-        if (!TryGetDefinition(catalogId, out var definition))
-        {
-            PaletteDragState?.Clear();
-            await DropRejected.InvokeAsync($"No catalog definition is registered for '{catalogId}'.");
-            return;
-        }
-
-        var root = RootNode ?? Node;
-        var before = EditorNodeMemento.Capture(root).Restore();
-        var node = definition.NodeFactory.CreateDefaultNode();
-        var result = CreateTreeEditor().Drop(
-            [root],
-            new CompositionDropRequest(
-                node,
-                Node.NodeId,
-                DropZoneId,
-                Node.Children.Count));
-
-        PaletteDragState?.Clear();
-
-        if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
-        {
-            CopyInto(root, ok.Value[0]);
-            SelectedNodeId = node.NodeId;
-            await NotifyRootChanged(before, root);
-        }
-        else if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
-        {
-            await DropRejected.InvokeAsync(failure.Error.ToString());
-        }
-    }
 
     private Task NotifyRootChanged(NeoPageNode before, NeoPageNode after) =>
         NodeChanged.InvokeAsync(

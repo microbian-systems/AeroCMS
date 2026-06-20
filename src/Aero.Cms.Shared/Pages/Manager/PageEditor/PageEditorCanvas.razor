@@ -9,24 +9,34 @@
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 @inject IPageEditorDefinitionRegistry DefinitionRegistry
 
-<div class="@CanvasClass"
-     @ondragover:preventDefault
-     @ondrop="HandleRootDropAsync">
-    @* Empty state *@
-    @if (RootNode.Children.Count == 0)
-    {
-        <div class="pe-empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
-                 style="cursor: pointer" @onclick="() => OnToggleSidebar.InvokeAsync()">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <line x1="12" y1="8" x2="12" y2="16"/>
-                <line x1="8" y1="12" x2="16" y2="12"/>
-            </svg>
-            <h3>@L["Start building your page"]</h3>
-            <p>@L["Drag blocks from the sidebar or click to add them here"]</p>
-        </div>
-    }
-    else
+<div class="@CanvasClass">
+    <Sortable TItem="NeoPageNode"
+              Items="RootDropItems"
+              GetItemId="node => node.NodeId"
+              Group="page-editor"
+              OnItemTransferredIn="HandleRootTransferInAsync">
+        <SortableContentPrimitive class="@(RootNode.Children.Count == 0 ? "pe-root-drop-target pe-root-drop-target--empty" : "pe-root-drop-target")">
+            @if (RootNode.Children.Count == 0)
+            {
+                <div class="pe-empty-state">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                         style="cursor: pointer" @onclick="() => OnToggleSidebar.InvokeAsync()">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="12" y1="8" x2="12" y2="16"/>
+                        <line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                    <h3>@L["Start building your page"]</h3>
+                    <p>@L["Drag blocks from the sidebar or click to add them here"]</p>
+                </div>
+            }
+            else
+            {
+                <span>@L["Drop at page root"]</span>
+            }
+        </SortableContentPrimitive>
+    </Sortable>
+
+    @if (RootNode.Children.Count > 0)
     {
         <CanvasTree RootNode="@RootNode"
                     SelectedNodeId="@SelectedNodeId"
@@ -68,9 +78,11 @@
 
     [CascadingParameter] public IBlockEditorCallbacks Editor { get; set; } = default!;
 
+    private IList<NeoPageNode> RootDropItems { get; } = [];
+
     private string CanvasClass => $"pe-blocks-container {(PreviewMode ? "pe-hidden" : "")}";
 
-    private Task HandleRootDropAsync()
+    private Task HandleRootTransferInAsync(SortableTransferArgs args)
     {
         if (!OnCanvasDrop.HasDelegate)
             return Task.CompletedTask;
@@ -78,6 +90,7 @@
         return OnCanvasDrop.InvokeAsync(new CanvasDropArgs(
             RootNode.NodeId,
             null,
-            RootNode.Children.Count));
+            RootNode.Children.Count,
+            args.ActiveId));
     }
 }

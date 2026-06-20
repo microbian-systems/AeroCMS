@@ -233,6 +233,31 @@
 .pe-btn:disabled { opacity: .5; cursor: not-allowed; }
 .pe-btn svg { flex-shrink: 0; }
 
+.pe-root-drop-target {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    margin: 12px 20px;
+    border: 1px dashed transparent;
+    border-radius: 8px;
+    color: var(--pe-text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+.pe-root-drop-target[data-state="over"] {
+    border-color: var(--pe-primary);
+    background: color-mix(in srgb, var(--pe-primary) 10%, transparent);
+    color: var(--pe-primary);
+}
+
+.pe-root-drop-target--empty {
+    min-height: 280px;
+    margin: 0;
+}
+
 /* Make text selection visible inside the editor canvas and property modals. */
 .pe-main-content ::selection,
 .pe-blocks-container ::selection,
