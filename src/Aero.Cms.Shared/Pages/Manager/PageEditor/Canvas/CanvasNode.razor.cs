@@ -148,18 +148,7 @@ public sealed partial class CanvasNode : ComponentBase
     {
         PreviewParameters = new Dictionary<string, object>
         {
-            ["Node"] = Node,
-            ["RootNode"] = RootNode ?? Node,
-            ["Breakpoint"] = EditorBreakpoint.Desktop,
-            ["NodeChanged"] = EventCallback.Factory.Create<CompositionMutation>(
-                this,
-                mutation => OnNodeChanged.InvokeAsync(mutation)),
-            ["NodeEditRequested"] = EventCallback.Factory.Create<string>(
-                this,
-                nodeId => OnEdit.InvokeAsync(nodeId)),
-            ["DropRejected"] = EventCallback.Factory.Create<string>(
-                this,
-                message => OnDropRejected.InvokeAsync(message))
+            ["Node"] = Node
         };
     }
 

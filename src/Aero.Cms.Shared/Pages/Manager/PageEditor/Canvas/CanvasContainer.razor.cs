@@ -186,7 +186,6 @@ public sealed partial class CanvasContainer : ComponentBase
         {
             ["Node"] = Node,
             ["RootNode"] = RootNode ?? Node,
-            ["Breakpoint"] = EditorBreakpoint.Desktop,
             ["NodeChanged"] = EventCallback.Factory.Create<CompositionMutation>(
                 this,
                 mutation => OnNodeChanged.InvokeAsync(mutation)),

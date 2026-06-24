@@ -28,6 +28,7 @@ using Scalar.AspNetCore;
 using Serilog;
 using System.Globalization;
 using System.Reflection;
+using System.Text.Json;
 using Wolverine;
 using Orleans.Runtime;
 using Aero.Modular;
@@ -446,15 +447,18 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             return;
         }
 
-        // Wait for the login form to render
-        await Page.WaitForSelectorAsync("input[type='text'], input[type='email']", new() { Timeout = 10000 });
+        // InputText does not emit a type attribute for the username field. Scope
+        // selectors to the named form so hydration and unrelated inputs cannot
+        // change which controls the fixture targets.
+        var loginForm = Page.Locator("form[method='post'][formname='login'], form[name='login'], form").First;
+        await loginForm.WaitForAsync(new() { Timeout = 15000, State = WaitForSelectorState.Visible });
 
-        // Fill credentials
-        await Page.FillAsync("input[type='text']:visible, input[type='email']:visible", "admin@aero.local");
-        await Page.FillAsync("input[type='password']:visible", "Admin123!");
+        var loginInputs = loginForm.Locator("input");
+        await loginInputs.First.WaitForAsync(new() { Timeout = 10000, State = WaitForSelectorState.Visible });
 
-        // Submit the form
-        await Page.ClickAsync("button[type='submit']:visible");
+        await loginInputs.Nth(0).FillAsync("admin@aero.local");
+        await loginForm.Locator("input[type='password']").FillAsync("Admin123!");
+        await loginForm.Locator("button[type='submit']").ClickAsync();
 
         // Wait for redirect to /manager (successful login navigates to /manager)
         try
@@ -700,17 +704,11 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 PublishedOn       = DateTimeOffset.UtcNow,
                 ShowInNavMenu     = false,
                 ShowHeaderNavigation = false,
-                Blocks =
+                RootNodes =
                 [
-                    new Aero.Cms.Abstractions.Blocks.EditorBlock
-                    {
-                        EditorId = "hero-1",
-                        Type = "hero",
-                        MainText = "Seeded Hero Block",
-                        SubText = "This hero was seeded by the E2E test fixture",
-                        CtaText = "Learn More",
-                        CtaUrl = "/about"
-                    }
+                    CreateBoringHeroNode(
+                        "Seeded Hero Block",
+                        "This hero was seeded by the E2E test fixture")
                 ]
             };
             session.Store(blockPage);
@@ -730,19 +728,14 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         var page = await session.LoadAsync<PageDocument>(BlockPageId);
         if (page is null) return;
 
-        page.Blocks =
+        page.RootNodes =
         [
-            new Aero.Cms.Abstractions.Blocks.EditorBlock
-            {
-                EditorId = "hero-1",
-                Type = "hero",
-                MainText = "Seeded Hero Block",
-                SubText = "This hero was seeded by the E2E test fixture",
-                CtaText = "Learn More",
-                CtaUrl = "/about"
-            }
+            CreateBoringHeroNode(
+                "Seeded Hero Block",
+                "This hero was seeded by the E2E test fixture")
         ];
 
+        session.Store(page);
         await session.SaveChangesAsync();
         Console.WriteLine("[Fixture] Block page reset to original seeded state");
     }
@@ -756,11 +749,28 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         await using var session = _store!.LightweightSession();
         var page = await session.LoadAsync<PageDocument>(HomePageId);
         if (page is null) return;
-        page.Blocks = [];
+        page.RootNodes = [];
         session.Store(page);
         await session.SaveChangesAsync();
         Console.WriteLine("[Fixture] Home page reset to empty state");
     }
+
+    private static Aero.Cms.Abstractions.Blocks.Neo.NeoPageNode CreateBoringHeroNode(
+        string title,
+        string summary) =>
+        new()
+        {
+            NodeId = Guid.NewGuid().ToString("N"),
+            CatalogId = "boring_hero",
+            Kind = Aero.Cms.Abstractions.Blocks.Neo.NeoPageNodeKind.Primitive,
+            Properties = new Dictionary<string, JsonElement>
+            {
+                ["title"] = JsonSerializer.SerializeToElement(title),
+                ["summary"] = JsonSerializer.SerializeToElement(summary),
+                ["fullWidth"] = JsonSerializer.SerializeToElement(true)
+            },
+            Children = []
+        };
 
     private static async Task EnsureDatabaseAsync(string dbName, int port)
     {

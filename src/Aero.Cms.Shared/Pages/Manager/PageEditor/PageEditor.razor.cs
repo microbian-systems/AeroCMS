@@ -1405,18 +1405,6 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         PaletteDragState.Start(type);
     }
 
-    /// <summary>
-    /// Called by <see cref="Palette.PageEditorPaletteSection.OnDragStart"/> when the user
-    /// starts dragging a palette item. Stores the catalog ID so that the subsequent
-    /// <c>@ondrop</c> on the canvas can read it via <see cref="DraggedType"/>.
-    /// </summary>
-    protected void OnPaletteItemDragStart(string catalogId)
-    {
-        DraggedType = catalogId;
-        DraggedIndex = null;
-        PaletteDragState.Start(catalogId);
-    }
-
     private void ClearPaletteDragState()
     {
         DraggedType = null;

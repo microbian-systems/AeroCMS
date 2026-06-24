@@ -273,6 +273,51 @@ public sealed class NeoPrimitiveEmbeddableTests
     }
 
     [Test]
+    public void CompositionPolicy_AllowsEveryLeafPrimitiveInsideGeneralPurposeContainers()
+    {
+        var provider = new NeoPageEditorBlockProvider();
+        var descriptors = provider.GetEditorDefinitions();
+        var policy = new CompositionPolicy(new DescriptorCompositionCapabilityResolver(provider));
+        var containers = new Dictionary<string, string>
+        {
+            ["primitive.container"] = "content",
+            ["primitive.section"] = "default",
+            ["primitive.article"] = "default",
+            ["primitive.aside"] = "default",
+            ["primitive.flexbox"] = "content",
+            ["primitive.css-grid"] = "content"
+        };
+        var leafPrimitives = descriptors
+            .Where(descriptor =>
+                descriptor.Catalog.Kind == NeoPageNodeKind.Primitive &&
+                !descriptor.Catalog.Composition.CanContainChildren)
+            .ToArray();
+
+        leafPrimitives.Should().NotBeEmpty();
+
+        foreach (var (parentCatalogId, dropZoneId) in containers)
+        {
+            var parent = descriptors.Single(d => d.CatalogId == parentCatalogId)
+                .NodeFactory.CreateDefaultNode();
+
+            foreach (var leafDescriptor in leafPrimitives)
+            {
+                var leaf = leafDescriptor.NodeFactory.CreateDefaultNode();
+                var context = new CompositionTreeContext(
+                    ExistingChildrenInDropZone: 0,
+                    MovingNodeAlreadyInTargetDropZone: false,
+                    MovingNodeDescendantIds: new HashSet<string>());
+
+                var result = policy.ValidatePlacement(leaf, parent, dropZoneId, context);
+
+                result.IsSuccess.Should().BeTrue(
+                    $"{leafDescriptor.CatalogId} should be embeddable in " +
+                    $"{parentCatalogId} through '{dropZoneId}'");
+            }
+        }
+    }
+
+    [Test]
     public void LeafPrimitives_DoNotSupportPasteTarget()
     {
         var provider = new NeoPageEditorBlockProvider();

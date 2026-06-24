@@ -7,7 +7,6 @@
           Items="Items"
           GetItemId="item => item.CatalogId"
           Group="page-editor"
-          OnDragStart="OnDragStart"
           OnItemTransferredOut="OnTransferOut"
           Class="pe-category-items">
     <SortableContent>
@@ -67,8 +66,6 @@
     [Parameter] public EventCallback<NeoEditorCatalogItem> OnEdit { get; set; }
     [Parameter] public EventCallback<NeoEditorCatalogItem> OnDelete { get; set; }
     [Parameter] public EventCallback<NeoEditorCatalogItem> OnAdd { get; set; }
-    [Parameter] public EventCallback<string> OnDragStart { get; set; }
-
     private Task OnTransferOut(SortableTransferArgs args)
     {
         // No-op — palette is a copy source, items stay in place

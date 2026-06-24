@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages;
@@ -17,7 +16,6 @@ namespace Aero.Cms.Core.Tests.Services;
 public sealed class PageContentServiceTests
 {
     private IDocumentSession _session = null!;
-    private IBlockService _blockService = null!;
     private IMessageBus _bus = null!;
     private ISiteContext _siteContext = null!;
     private MartenPageContentService _service = null!;
@@ -28,7 +26,6 @@ public sealed class PageContentServiceTests
     public async Task Setup()
     {
         _session = Substitute.For<IDocumentSession>();
-        _blockService = Substitute.For<IBlockService>();
         _bus = Substitute.For<IMessageBus>();
         _siteContext = Substitute.For<ISiteContext>();
 
@@ -39,7 +36,6 @@ public sealed class PageContentServiceTests
 
         _service = new MartenPageContentService(
             _session,
-            _blockService,
             _bus,
             _siteContext,
             NullLogger
@@ -63,7 +59,7 @@ public sealed class PageContentServiceTests
             .Returns((PageDocument?)null);
 
         var page = new PageDocument { Id = Snowflake.NewId(), Title = "Test", Slug = "test" };
-        var service = new MartenPageContentService(session, Substitute.For<IBlockService>(), Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
+        var service = new MartenPageContentService(session, Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
 
         var result = await service.SaveAsync(page, CancellationToken.None);
 
@@ -96,7 +92,7 @@ public sealed class PageContentServiceTests
             SeoDescription: null
         );
 
-        var service = new MartenPageContentService(session, Substitute.For<IBlockService>(), Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
+        var service = new MartenPageContentService(session, Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
 
         var result = await service.CreateAsync(request, CancellationToken.None);
 

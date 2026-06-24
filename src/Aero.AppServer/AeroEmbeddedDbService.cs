@@ -32,7 +32,9 @@ public class AeroEmbeddedDbService(
         // todo - add pg_vector
         // todo - configure embedded sql server to only allow connections from localhost
         serverParams.Add("timezone", "UTC");
-        serverParams.Add("listen_addresses", "127.0.0.1");
+        // PgServer verifies readiness through "localhost". On Windows that commonly
+        // resolves to IPv6 first, so PostgreSQL must listen on the same host name.
+        serverParams.Add("listen_addresses", "localhost");
         server = new PgServer(
             pgVersion, 
             instanceId:Guid.Empty, 
@@ -50,11 +52,12 @@ public class AeroEmbeddedDbService(
                 {
                     try
                     {
-                        var masterConn = AeroAppServerConstants.EmbedConnString
-                            .Replace("Database=aero", "Database=postgres")
-                            ;
+                        var masterConnectionString = new NpgsqlConnectionStringBuilder(current.ConnectionString)
+                        {
+                            Database = "postgres"
+                        }.ConnectionString;
                         
-                        await using var db = new NpgsqlConnection(masterConn);
+                        await using var db = new NpgsqlConnection(masterConnectionString);
                         await db.OpenAsync(cancellationToken);
 
                         // 1. Ensure 'aero' user exists

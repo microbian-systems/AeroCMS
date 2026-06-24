@@ -2063,4 +2063,80 @@ public sealed class EditorSmokeTests
         undoVisibleAfter.Should().BeTrue("undo button should be visible after closing preview");
         Console.WriteLine("[PreviewToggle] Undo button visible after preview closed");
     }
+
+    [Test]
+    public async Task PaletteButtonCanBeDroppedInsideAsideContainer()
+    {
+        await Fixture.LoginAsync();
+        await Fixture.WarmUpBlazorAsync();
+        await Fixture.ResetBlockPageAsync();
+        var page = Fixture.Page!;
+
+        await page.GotoAsync(
+            $"{Fixture.BaseUrl}/manager/page/editor/{Fixture.BlockPageId}",
+            new() { WaitUntil = WaitUntilState.Load, Timeout = 30000 });
+
+        await page.Locator(".pe-block-wrapper").First.WaitForAsync(
+            new() { Timeout = 10000, State = WaitForSelectorState.Visible });
+
+        var rightSidebar = page.Locator(".pe-sidebar-right").First;
+        await rightSidebar.WaitForAsync(new() { Timeout = 10000, State = WaitForSelectorState.Visible });
+        if ((await rightSidebar.GetAttributeAsync("class"))?.Contains("collapsed", StringComparison.Ordinal) == true)
+        {
+            await rightSidebar.Locator(".pe-collapse-btn").First.ClickAsync();
+        }
+
+        var search = page.Locator("[data-testid='palette-search-input']").First;
+        await search.WaitForAsync(new() { Timeout = 5000, State = WaitForSelectorState.Visible });
+        await search.FillAsync("Aside");
+
+        var asidePaletteItem = page.Locator("[title*='Double-click to add Aside']").First;
+        await asidePaletteItem.WaitForAsync(new() { Timeout = 5000, State = WaitForSelectorState.Visible });
+        await asidePaletteItem.DblClickAsync();
+
+        var asideBlock = page.Locator(".pe-block-wrapper").Filter(new()
+        {
+            Has = page.Locator(".canvas-node__label-title", new() { HasText = "Aside" })
+        }).Last;
+        await asideBlock.WaitForAsync(new() { Timeout = 5000, State = WaitForSelectorState.Visible });
+
+        await search.FillAsync("Button");
+        var buttonPaletteItem = page.Locator("[title*='Double-click to add Button']").First;
+        await buttonPaletteItem.WaitForAsync(new() { Timeout = 5000, State = WaitForSelectorState.Visible });
+
+        var target = asideBlock.Locator(".neo-composition-surface__content").First;
+        await target.WaitForAsync(new() { Timeout = 5000, State = WaitForSelectorState.Visible });
+
+        var sourceBox = await buttonPaletteItem.BoundingBoxAsync();
+        var targetBox = await target.BoundingBoxAsync();
+        sourceBox.Should().NotBeNull();
+        targetBox.Should().NotBeNull();
+
+        await page.Mouse.MoveAsync(
+            sourceBox!.X + sourceBox.Width / 2,
+            sourceBox.Y + sourceBox.Height / 2);
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(
+            sourceBox.X + sourceBox.Width / 2,
+            sourceBox.Y + sourceBox.Height / 2 + 10,
+            new() { Steps = 3 });
+        await Task.Delay(750);
+        await page.Mouse.MoveAsync(
+            targetBox!.X + targetBox.Width / 2,
+            targetBox.Y + targetBox.Height / 2,
+            new() { Steps = 16 });
+        await Task.Delay(750);
+        await page.Mouse.UpAsync();
+
+        await target.Locator(".neo-composition-child").First.WaitForAsync(
+            new() { Timeout = 10000, State = WaitForSelectorState.Visible });
+
+        var embeddedButton = target.Locator(".neo-composition-child").Filter(new()
+        {
+            HasText = "Button"
+        });
+        (await embeddedButton.CountAsync()).Should().BeGreaterThan(0,
+            "dragging the Button palette item into Aside should create a nested child");
+        (await page.Locator(".pe-drop-error").CountAsync()).Should().Be(0);
+    }
 }
