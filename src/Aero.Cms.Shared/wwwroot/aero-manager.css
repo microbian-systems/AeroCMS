@@ -460,6 +460,10 @@
     grid-column: 1 / -1;
 }
 
+.neo-primitive-grid-row .neo-composition-surface--grid-row > .neo-composition-surface__drop-target > .neo-composition-sortable-item {
+    min-width: 0;
+}
+
 .neo-primitive-grid-row .neo-composition-surface--grid-row > .neo-composition-surface__drop-target .neo-composition-child {
     min-width: 0;
 }
@@ -476,9 +480,13 @@
     flex: 1 0 100%;
 }
 
-.neo-primitive-flexbox .neo-composition-surface--flexbox > .neo-composition-surface__drop-target .neo-composition-child {
+.neo-primitive-flexbox .neo-composition-surface--flexbox > .neo-composition-surface__drop-target > .neo-composition-sortable-item {
     flex: 0 1 auto;
     min-width: min(18rem, 100%);
+}
+
+.neo-primitive-flexbox .neo-composition-surface--flexbox > .neo-composition-surface__drop-target .neo-composition-child {
+    min-width: 0;
 }
 
 .neo-primitive-css-grid .neo-composition-surface--css-grid > .neo-composition-surface__drop-target {
@@ -491,6 +499,10 @@
 .neo-primitive-css-grid .neo-composition-surface--css-grid > .neo-composition-surface__drop-target > .neo-composition-surface__empty,
 .neo-primitive-css-grid .neo-composition-surface--css-grid > .neo-composition-surface__drop-target > .neo-composition-surface__append-zone {
     grid-column: 1 / -1;
+}
+
+.neo-primitive-css-grid .neo-composition-surface--css-grid > .neo-composition-surface__drop-target > .neo-composition-sortable-item {
+    min-width: 0;
 }
 
 [data-theme="dark"] .neo-composition-surface--flexbox,

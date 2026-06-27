@@ -30,7 +30,8 @@
             }
             @foreach (var child in Node.Children)
             {
-                <SortableItemPrimitive Value="@child.NodeId">
+                <SortableItemPrimitive Value="@child.NodeId"
+                                       class="@GetSortableItemCss(child)">
                     <div class="neo-composition-child @(SelectedNodeId == child.NodeId ? "is-selected" : "")"
                          style="@NodeStyleCssRenderer.Render(child.Style, Breakpoint)"
                          @onclick:stopPropagation="true"
@@ -329,6 +330,22 @@
         action == EditorNodeAction.Delete
             ? "neo-composition-toolbar-btn danger"
             : "neo-composition-toolbar-btn";
+
+    private static string GetSortableItemCss(NeoPageNode node) =>
+        $"neo-composition-sortable-item neo-composition-sortable-item--{CssSlug(node.CatalogId)}";
+
+    private static string CssSlug(string value)
+    {
+        var builder = new System.Text.StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            builder.Append(char.IsLetterOrDigit(character)
+                ? char.ToLowerInvariant(character)
+                : '-');
+        }
+
+        return builder.ToString().Trim('-');
+    }
 
     private async Task ExecuteAction(EditorNodeAction action, string nodeId)
     {

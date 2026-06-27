@@ -46,7 +46,17 @@ internal static class NeoPageNodeEditorBlockMapper
             Caption = GetString(node, "caption"),
             CtaText = GetString(node, "ctaText"),
             CtaUrl = GetString(node, "ctaUrl"),
-            FullWidth = GetBool(node, "fullWidth")
+            FullWidth = GetBool(node, "fullWidth"),
+            ScribanTemplate = FirstNonEmpty(
+                GetString(node, "template"),
+                GetString(node, "scribanTemplate"),
+                GetString(node, "inlineTemplate"),
+                GetString(node, "content")),
+            ScribanDataJson = FirstNonEmpty(
+                GetJsonOrString(node, "data"),
+                GetJsonOrString(node, "json"),
+                GetString(node, "scribanDataJson"),
+                "{}")
         };
     }
 
@@ -68,6 +78,18 @@ internal static class NeoPageNodeEditorBlockMapper
     private static bool GetBool(NeoPageNode node, string name) =>
         node.Properties.TryGetValue(name, out var value) &&
         value.ValueKind == JsonValueKind.True;
+
+    private static string GetJsonOrString(NeoPageNode node, string name)
+    {
+        if (!node.Properties.TryGetValue(name, out var value))
+        {
+            return string.Empty;
+        }
+
+        return value.ValueKind == JsonValueKind.String
+            ? value.GetString() ?? string.Empty
+            : value.GetRawText();
+    }
 
     private static string FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;

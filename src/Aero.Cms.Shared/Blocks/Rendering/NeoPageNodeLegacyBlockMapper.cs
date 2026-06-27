@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Neo;
+using System.Text.Json;
 
 namespace Aero.Cms.Shared.Blocks.Rendering;
 
@@ -48,6 +49,12 @@ internal static class NeoPageNodeLegacyBlockMapper
             {
                 Content = editorBlock.Content
             },
+            "dynamic_template" => new DynamicTemplateBlock
+            {
+                DefinitionVersion = 1,
+                InlineTemplate = editorBlock.ScribanTemplate,
+                Data = ParseJsonDocument(editorBlock.ScribanDataJson)
+            },
             "text" or "heading" => new HeadingBlock
             {
                 Text = FirstNonEmpty(editorBlock.Title, editorBlock.Content, editorBlock.MainText),
@@ -83,4 +90,21 @@ internal static class NeoPageNodeLegacyBlockMapper
 
     private static string FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+
+    private static JsonDocument ParseJsonDocument(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return JsonDocument.Parse("{}");
+        }
+
+        try
+        {
+            return JsonDocument.Parse(value);
+        }
+        catch (JsonException)
+        {
+            return JsonDocument.Parse("{}");
+        }
+    }
 }
