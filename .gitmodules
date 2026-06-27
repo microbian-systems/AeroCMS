@@ -7,3 +7,6 @@
 [submodule "hyperui"]
 	path = hyperui
 	url = git@github.com:markmead/hyperui.git
+[submodule "craft.js"]
+	path = craft.js
+	url = https://github.com/prevwong/craft.js.git
