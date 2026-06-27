@@ -12,7 +12,11 @@
           OnItemTransferredOut="OnTransferredOut"
           Class="@CssClass">
     <SortableContentPrimitive class="@($"{ContentCssClass} neo-composition-surface__content")">
-        <div class="neo-composition-surface__drop-target">
+        <div class="neo-composition-surface__drop-target"
+             @ondragover:preventDefault
+             @ondrop:preventDefault
+             @ondrop:stopPropagation
+             @ondrop="HandleNativePaletteDrop">
             <div class="neo-composition-surface__header"
                  @onclick:stopPropagation="true"
                  @ondblclick:stopPropagation="true">
@@ -229,7 +233,8 @@
 
         if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
         {
-            if (string.Equals(PaletteDragState?.CatalogId, args.ActiveId, StringComparison.OrdinalIgnoreCase))
+            if (PaletteDragState is not null &&
+                string.Equals(PaletteDragState.CatalogId, args.ActiveId, StringComparison.OrdinalIgnoreCase))
             {
                 PaletteDragState.Clear();
             }
@@ -244,6 +249,22 @@
     }
 
     private Task OnTransferredOut(SortableTransferArgs _) => Task.CompletedTask;
+
+    private async Task HandleNativePaletteDrop()
+    {
+        if (PaletteDragState is null ||
+            !PaletteDragState.TryConsume(out var catalogId))
+        {
+            return;
+        }
+
+        await OnTransferredIn(new SortableTransferArgs(
+            catalogId,
+            "__aero_native_append__",
+            Node.Children.Count,
+            "aero-palette",
+            DropZoneId));
+    }
 
     private Task NotifyRootChanged(NeoPageNode before, NeoPageNode after) =>
         NodeChanged.InvokeAsync(

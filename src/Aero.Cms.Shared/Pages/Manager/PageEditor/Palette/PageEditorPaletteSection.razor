@@ -14,7 +14,11 @@
         {
             <SortableItem Value="@item.CatalogId" AsHandle="true" Class="pe-block-item">
                 <div class="pe-palette-item-content"
+                     draggable="true"
                      title="Double-click to add @item.DisplayName"
+                     @onpointerdown="() => OnDragStarted.InvokeAsync(item.CatalogId)"
+                     @ondragstart="() => OnDragStarted.InvokeAsync(item.CatalogId)"
+                     @ondragend="() => OnDragEnded.InvokeAsync()"
                      @ondblclick:stopPropagation="true"
                      @ondblclick="() => OnAdd.InvokeAsync(item)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
@@ -66,6 +70,9 @@
     [Parameter] public EventCallback<NeoEditorCatalogItem> OnEdit { get; set; }
     [Parameter] public EventCallback<NeoEditorCatalogItem> OnDelete { get; set; }
     [Parameter] public EventCallback<NeoEditorCatalogItem> OnAdd { get; set; }
+    [Parameter] public EventCallback<string> OnDragStarted { get; set; }
+    [Parameter] public EventCallback OnDragEnded { get; set; }
+
     private Task OnTransferOut(SortableTransferArgs args)
     {
         // No-op — palette is a copy source, items stay in place

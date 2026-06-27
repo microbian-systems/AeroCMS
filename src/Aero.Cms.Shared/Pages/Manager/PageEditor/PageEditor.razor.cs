@@ -8,6 +8,7 @@ using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Blocks.Neo;
+using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Microsoft.AspNetCore.Components;
@@ -1213,7 +1214,6 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         var paletteCatalogId = args.CatalogId ?? PaletteDragState.CatalogId ?? DraggedType;
         if (!string.IsNullOrWhiteSpace(paletteCatalogId))
         {
-            EnsureCanvasHistory();
             var catalogId = paletteCatalogId;
             PaletteDragState.Clear();
 
@@ -1222,15 +1222,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
                 var result = await CustomComponentsClient.CreateInstanceAsync(componentId);
                 if (result is Result<NeoPageNode, AeroError>.Ok ok)
                 {
-                    var node = ok.Value;
-                    var container = FindNodeInTree(args.ParentNodeId) ?? RootNode;
-                    var insIdx = Math.Clamp(args.InsertAtIndex, 0, container.Children.Count);
-                    container.Children.Insert(insIdx, node);
-                    RecordCanvasMutation();
-                    SelectBlock(node.NodeId);
-                    MarkDirty();
-                    QueuePreviewRefresh();
-                    ShowToast(L["Custom component added"], "success");
+                    ApplyCanvasDrop(ok.Value, args, L["Custom component added"]);
                     return;
                 }
                 if (result is Result<NeoPageNode, AeroError>.Failure failure)
@@ -1240,7 +1232,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
                 }
             }
 
-            AddChildNodeAt(catalogId, args.ParentNodeId, args.InsertAtIndex);
+            AddChildNodeAt(catalogId, args);
             return;
         }
 
@@ -1250,22 +1242,13 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             var (parent, index) = FindParentAndIndex(args.TargetSiblingNodeId);
             if (parent is null) return;
 
-            EnsureCanvasHistory();
             var targetNode = parent.Children[index];
-            parent.Children.RemoveAt(index);
-
-            var newParent = FindNodeInTree(args.ParentNodeId) ?? RootNode;
-
-            var insertAt = Math.Clamp(args.InsertAtIndex, 0, newParent.Children.Count);
-            newParent.Children.Insert(insertAt, targetNode);
-            RecordCanvasMutation();
-            MarkDirty();
-            QueuePreviewRefresh();
+            ApplyCanvasDrop(targetNode, args, null);
         }
     }
 
     /// <summary>Add a child node at a specific position in the tree.</summary>
-    private void AddChildNodeAt(string catalogId, string parentNodeId, int insertAtIndex)
+    private void AddChildNodeAt(string catalogId, CanvasDropArgs args)
     {
         NeoPageNode node;
         if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor))
@@ -1283,14 +1266,83 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             };
         }
 
-        var parent = FindNodeInTree(parentNodeId) ?? RootNode;
-        var idx = Math.Clamp(insertAtIndex, 0, parent.Children.Count);
-        parent.Children.Insert(idx, node);
+        ApplyCanvasDrop(node, args, L["Block added"]);
+    }
 
+    /// <summary>
+    /// Applies a canvas insertion/move as a policy-checked composition command.
+    /// This is the command core used by the current NeoUI sortable bridge and by
+    /// the upcoming Aero-owned pointer/drop-zone interaction layer.
+    /// </summary>
+    private bool ApplyCanvasDrop(
+        NeoPageNode node,
+        CanvasDropArgs args,
+        string? successMessage)
+    {
+        var before = EditorNodeMemento.Capture(RootNode).Restore();
+        var isRootDrop = string.Equals(args.ParentNodeId, RootNode.NodeId, StringComparison.Ordinal) ||
+                         string.Equals(args.ParentNodeId, RootNode.CatalogId, StringComparison.OrdinalIgnoreCase);
+
+        var result = isRootDrop
+            ? CreateCompositionTreeEditor().Drop(
+                RootNode.Children,
+                new CompositionDropRequest(
+                    node,
+                    ParentNodeId: null,
+                    DropZoneId: args.DropZoneId,
+                    TargetIndex: args.InsertAtIndex))
+            : CreateCompositionTreeEditor().Drop(
+                [RootNode],
+                new CompositionDropRequest(
+                    node,
+                    args.ParentNodeId,
+                    args.DropZoneId,
+                    args.InsertAtIndex));
+
+        if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
+        {
+            OnRootCompositionDropRejected(failure.Error.ToString());
+            return false;
+        }
+
+        if (result is not Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
+        {
+            OnRootCompositionDropRejected("The drop operation did not return a valid composition tree.");
+            return false;
+        }
+
+        if (isRootDrop)
+        {
+            RootNode.Children = ok.Value.ToList();
+        }
+        else if (ok.Value.FirstOrDefault() is { } updatedRoot)
+        {
+            SyncRootNodeFrom(updatedRoot);
+        }
+
+        RecordCanvasMutationFromBefore(before);
         SelectBlock(node.NodeId);
         MarkDirty();
-        ShowToast(L["Block added"], "success");
         QueuePreviewRefresh();
+        if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            ShowToast(successMessage, "success");
+        }
+
+        return true;
+    }
+
+    private CompositionTreeEditor CreateCompositionTreeEditor() =>
+        new(
+            new CompositionPolicy(
+                new PageEditorRegistryCompositionCapabilityResolver(DefinitionRegistry)));
+
+    private void RecordCanvasMutationFromBefore(NeoPageNode before)
+    {
+        _treeUndoStack.Add(EditorNodeMemento.Capture(before));
+        if (_treeUndoStack.Count > MaxTreeHistory)
+            _treeUndoStack.RemoveRange(0, _treeUndoStack.Count - MaxTreeHistory);
+        _treeRedoStack.Clear();
     }
 
     protected void OnNodeCopy(string nodeId)
@@ -1403,6 +1455,23 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         DraggedType  = type;
         DraggedIndex   = null;
         PaletteDragState.Start(type);
+    }
+
+    protected void OnPaletteDragStarted(string catalogId)
+    {
+        if (string.IsNullOrWhiteSpace(catalogId))
+        {
+            return;
+        }
+
+        DraggedType = catalogId;
+        DraggedIndex = null;
+        PaletteDragState.Start(catalogId);
+    }
+
+    protected void OnPaletteDragEnded()
+    {
+        PaletteDragState.Clear();
     }
 
     private void ClearPaletteDragState()

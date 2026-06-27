@@ -10,6 +10,13 @@ Here's how I'd architect this. Let me break it down into layers: interface taxon
 > controlled JSON property values, separate renderer strategies/components, and
 > source-generated/DI provider registration. Do not use Scrutor/reflection as
 > the block-discovery boundary for third-party packages.
+>
+> **Interaction update (2026-06-27):** The editor should borrow Craft.js
+> concepts (connectors, draggable nodes, selectable nodes, creation/drop
+> operations, and resolver-backed node definitions) without embedding Craft.js
+> or React. NeoUI `Sortable` is only a bridge. The long-run implementation
+> should be an Aero-owned canvas interaction adapter that commits typed
+> operations into the Blazor composition policy and Marten-backed page tree.
 
 ![AeroCMS HTML-adjacent WYSIWYG editor architecture](architecture/assets/cms-wysiwyg-editor-architecture.svg)
 

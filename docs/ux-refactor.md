@@ -1329,6 +1329,14 @@ The session owns:
 
 Blazor owns durable editor state. TypeScript/Alpine.js owns transient DOM and pointer interaction.
 
+**Decision update (2026-06-27):** AeroCMS should own the page-editor
+interaction layer. NeoUI `Sortable` remains useful as a temporary bridge and
+for simple reorder surfaces, but it is not the final architecture for nested
+drop zones, resize handles, hit testing, auto-scroll, drag previews, or
+Craft.js-style canvas interactions. If NeoUI sortable continues to constrain
+nested composition, replace the bridge with an Aero-owned interaction module
+rather than patching the NeoUI submodule.
+
 Use an editor-local TypeScript module imported through `IJSObjectReference`. The boundary is operation-based:
 
 1. Blazor sends a serializable interaction snapshot containing node IDs, rectangles, direction, and compatible drop zones.
@@ -1532,6 +1540,19 @@ should be re-assessed against the current codebase after Phase 0.5 stabilizes.
 
 ### Phase B - Sortable Proof and Primitive Vertical Slice
 
+**Current status (2026-06-27):**
+
+- `CanvasDropArgs` now carries a drop-zone ID and optional palette catalog ID.
+- Root and nested canvas drops route through `CompositionTreeEditor` and
+  registry-backed `ICompositionPolicy` instead of directly mutating children.
+- Palette drag state is started from the palette item and consumed by root and
+  nested drop targets.
+- Root, `CanvasContainer`, and nested Neo composition surfaces have native
+  HTML drag/drop fallback hooks while NeoUI sortable remains the bridge.
+- General-purpose containers (`Container`, `Section`, `Article`, `Aside`,
+  `Flexbox`, `CSS Grid`) are expected to accept embeddable leaf primitives via
+  their registered drop zones.
+
 1. Audit NeoUI Sortable for root reorder, cross-container transfer, nested sorting, cancellation, and rapid pointer movement.
 2. Fix columns add/remove/resize and child drop zones.
 3. Add the Primitives palette.
@@ -1550,6 +1571,14 @@ should be re-assessed against the current codebase after Phase 0.5 stabilizes.
 8. Verify edit, nest, reorder, duplicate, delete, undo/redo, save, reload, preview, and public rendering.
 
 Discover the exact NeoUI primitive inventory during this phase. Wrap existing NeoUI components where suitable. Create thin Aero-owned primitive renderers where NeoUI has no appropriate component.
+
+If the native fallback plus NeoUI sortable bridge still fails manual nested
+drop testing, the next implementation step is `AeroCanvasInteraction`: a
+small editor-local TypeScript/Blazor adapter that measures canvas node
+rectangles, computes compatible drop zones from the registry snapshot, renders
+drop indicators, and commits typed operations back to Blazor. This should be
+modeled after Craft.js interaction concepts (`connect`, `drag`, `select`,
+`create`) without embedding Craft.js or React.
 
 ### Phase C - Property Editor System
 

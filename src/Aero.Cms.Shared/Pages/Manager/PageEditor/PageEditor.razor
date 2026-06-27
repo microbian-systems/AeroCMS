@@ -476,6 +476,8 @@ else if (ActiveTab == "translations")
                         <PageEditorPaletteSection Items="FilterPaletteItems(CustomCatalogItems).ToList()"
                                                   IsCollapsed="RightSidebarCollapsed"
                                                   OnAdd="AddPaletteItemAsync"
+                                                  OnDragStarted="OnPaletteDragStarted"
+                                                  OnDragEnded="OnPaletteDragEnded"
                                                   OnEdit="OpenEditCustomComponentModal"
                                                   OnDelete="DeleteCustomComponentAsync" />
                     }
@@ -511,6 +513,8 @@ else if (ActiveTab == "translations")
                 {
                         <PageEditorPaletteSection Items="FilterPaletteItems(NeoAeroCatalogItems).ToList()"
                                                   IsCollapsed="RightSidebarCollapsed"
+                                                  OnDragStarted="OnPaletteDragStarted"
+                                                  OnDragEnded="OnPaletteDragEnded"
                                                   OnAdd="AddPaletteItemAsync" />
                 }
             </div>
@@ -535,7 +539,9 @@ else if (ActiveTab == "translations")
                 {
                     <PageEditorPaletteSection Items="FilterPaletteItems(PrimitiveCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
-                                                  OnAdd="AddPaletteItemAsync" />
+                                              OnDragStarted="OnPaletteDragStarted"
+                                              OnDragEnded="OnPaletteDragEnded"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -560,6 +566,8 @@ else if (ActiveTab == "translations")
                 {
                     <PageEditorPaletteSection Items="FilterPaletteItems(ComponentsCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
+                                              OnDragStarted="OnPaletteDragStarted"
+                                              OnDragEnded="OnPaletteDragEnded"
                                               OnAdd="AddPaletteItemAsync" />
                 }
             </div>
@@ -585,7 +593,9 @@ else if (ActiveTab == "translations")
                 {
                     <PageEditorPaletteSection Items="FilterPaletteItems(ReferenceCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
-                                               OnAdd="AddPaletteItemAsync" />
+                                              OnDragStarted="OnPaletteDragStarted"
+                                              OnDragEnded="OnPaletteDragEnded"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -612,7 +622,9 @@ else if (ActiveTab == "translations")
                 {
                     <PageEditorPaletteSection Items="FilterPaletteItems(NeoHyperCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
-                                               OnAdd="AddPaletteItemAsync" />
+                                              OnDragStarted="OnPaletteDragStarted"
+                                              OnDragEnded="OnPaletteDragEnded"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 
@@ -639,7 +651,9 @@ else if (ActiveTab == "translations")
                 {
                     <PageEditorPaletteSection Items="FilterPaletteItems(NeoNeoCatalogItems).ToList()"
                                               IsCollapsed="RightSidebarCollapsed"
-                                               OnAdd="AddPaletteItemAsync" />
+                                              OnDragStarted="OnPaletteDragStarted"
+                                              OnDragEnded="OnPaletteDragEnded"
+                                              OnAdd="AddPaletteItemAsync" />
                 }
             </div>
 

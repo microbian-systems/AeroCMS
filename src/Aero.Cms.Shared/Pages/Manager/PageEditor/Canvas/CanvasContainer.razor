@@ -100,6 +100,7 @@
         <div class="canvas-node__content pe-block-content"
              @ondragover:preventDefault
              @ondragover:stopPropagation
+             @ondrop:preventDefault
              @ondrop:stopPropagation
              @ondrop="e => HandleDropWithArgsAsync(e, null, Node.Children.Count)">
             @if (PreviewComponentType is not null)
@@ -136,6 +137,7 @@
                     <div class="canvas-drop-zone"
                          @ondragover:preventDefault
                          @ondragover:stopPropagation
+                         @ondrop:preventDefault
                          @ondrop:stopPropagation
                          @ondrop="e => HandleDropWithArgsAsync(e, child, childIndex)">
                     </div>
@@ -189,6 +191,7 @@
                 <div class="canvas-drop-zone canvas-drop-zone--last"
                      @ondragover:preventDefault
                      @ondragover:stopPropagation
+                     @ondrop:preventDefault
                      @ondrop:stopPropagation
                      @ondrop="e => HandleDropWithArgsAsync(e, null, Node.Children.Count)">
                 </div>

@@ -108,6 +108,9 @@ public sealed partial class CanvasContainer : ComponentBase
     [CascadingParameter]
     public IBlockEditorCallbacks? Editor { get; set; }
 
+    [CascadingParameter]
+    public EditorPaletteDragState? PaletteDragState { get; set; }
+
     /// <summary>
     /// Optional composition policy for drop validation. When not cascaded,
     /// validation is deferred to the parent orchestrator.
@@ -158,6 +161,21 @@ public sealed partial class CanvasContainer : ComponentBase
 
     private bool ShouldRenderGenericChildren =>
         IsRootNode || PreviewComponentType is null;
+
+    private string DefaultDropZoneId
+    {
+        get
+        {
+            if (DefinitionRegistry is not null &&
+                DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor) &&
+                descriptor.Catalog.Composition.SupportedDropZones.FirstOrDefault() is { } dropZone)
+            {
+                return dropZone.Id;
+            }
+
+            return "default";
+        }
+    }
 
     protected override void OnParametersSet()
     {
@@ -257,7 +275,9 @@ public sealed partial class CanvasContainer : ComponentBase
         await OnDrop.InvokeAsync(new CanvasDropArgs(
             Node.NodeId,
             targetChild?.NodeId,
-            insertAtIndex));
+            insertAtIndex,
+            PaletteDragState?.CatalogId,
+            DropZoneId: DefaultDropZoneId));
     }
 
     private async Task OpenContextMenu(MouseEventArgs args)
