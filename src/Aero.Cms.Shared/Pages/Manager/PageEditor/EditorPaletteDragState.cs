@@ -32,6 +32,15 @@ public sealed class EditorPaletteDragState
     }
 
     /// <summary>
+    /// Returns the active catalog ID without clearing the drag operation.
+    /// </summary>
+    public bool TryPeek(out string catalogId)
+    {
+        catalogId = CatalogId ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(catalogId);
+    }
+
+    /// <summary>
     /// Returns and clears the active catalog ID in one operation.
     /// </summary>
     public bool TryConsume(out string catalogId)

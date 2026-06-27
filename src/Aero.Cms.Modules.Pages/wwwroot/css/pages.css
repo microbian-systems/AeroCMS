@@ -99,7 +99,8 @@
 
 .neo-primitive-grid-row {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  align-items: start;
 }
 
 .neo-primitive-grid-cell {

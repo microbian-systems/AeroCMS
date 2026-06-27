@@ -1,12 +1,13 @@
 @using Aero.Cms.Abstractions.Blocks.Neo
 @using Aero.Cms.Abstractions.Blocks.Neo.Styles
 @using Aero.Cms.Abstractions.Blocks.Editor
+@using Microsoft.Extensions.DependencyInjection
 
 @* Renders the canonical NeoPageNode tree for public pages.
    Authoring diagnostics stay in the editor; public output should be semantic
    HTML with no catalog labels leaking into the site. *@
 
-@inject IPageEditorDefinitionRegistry DefinitionRegistry
+@inject IServiceProvider Services
 
 @if (Node is not null && NestingDepth <= MaxDepth)
 {
@@ -23,8 +24,9 @@
         @switch (catalogId)
         {
             case "primitive.text":
+            case "text":
             {
-                <p class="neo-primitive-text">@GetStringProperty("text")</p>
+                <p class="neo-primitive-text">@GetStringProperty("text", "content", "title")</p>
                 break;
             }
 
@@ -268,6 +270,43 @@
                 break;
             }
 
+            case "video":
+            case "primitive.video":
+            {
+                var videoUrl = GetSafeMediaProperty("url", "src");
+                if (!string.IsNullOrWhiteSpace(videoUrl))
+                {
+                    <figure class="neo-primitive-video">
+                        <video src="@videoUrl"
+                               poster="@GetSafeMediaProperty("poster")"
+                               controls
+                               preload="metadata"></video>
+                        @if (!string.IsNullOrWhiteSpace(GetStringProperty("caption")))
+                        {
+                            <figcaption>@GetStringProperty("caption")</figcaption>
+                        }
+                    </figure>
+                }
+                break;
+            }
+
+            case "audio":
+            case "primitive.audio":
+            {
+                var audioUrl = GetSafeMediaProperty("url", "src");
+                if (!string.IsNullOrWhiteSpace(audioUrl))
+                {
+                    <figure class="neo-primitive-audio">
+                        <audio src="@audioUrl" controls preload="metadata"></audio>
+                        @if (!string.IsNullOrWhiteSpace(GetStringProperty("caption")))
+                        {
+                            <figcaption>@GetStringProperty("caption")</figcaption>
+                        }
+                    </figure>
+                }
+                break;
+            }
+
             case "primitive.pill":
             {
                 <span class="neo-primitive-pill">@GetStringProperty("text")</span>
@@ -284,9 +323,10 @@
             }
 
             case "primitive.blockquote":
+            case "quote":
             {
                 <blockquote class="neo-primitive-blockquote">
-                    <p>@GetStringProperty("text")</p>
+                    <p>@GetStringProperty("text", "content", "quote")</p>
                     @if (!string.IsNullOrWhiteSpace(GetStringProperty("citation")))
                     {
                         <cite>@GetStringProperty("citation")</cite>
@@ -303,7 +343,7 @@
 
             case "primitive.embed":
             {
-                var embedUrl = GetSafeMediaProperty("url");
+                var embedUrl = GetSafeMediaProperty("url", "src");
                 @if (!string.IsNullOrWhiteSpace(embedUrl))
                 {
                     <iframe class="neo-primitive-embed"
@@ -312,6 +352,64 @@
                             loading="lazy"
                             referrerpolicy="strict-origin-when-cross-origin"></iframe>
                 }
+                break;
+            }
+
+            case "gallery":
+            case "primitive.gallery":
+            {
+                <div class="neo-primitive-gallery">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
+                break;
+            }
+
+            case "carousel":
+            case "primitive.carousel":
+            {
+                <div class="neo-primitive-carousel" role="region" aria-label="@GetStringProperty("label", "title")">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
+                break;
+            }
+
+            case "columns":
+            {
+                <div class="neo-primitive-columns">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
+                break;
+            }
+
+            case "primitive.form":
+            {
+                <form class="neo-primitive-form">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </form>
                 break;
             }
 
@@ -389,7 +487,7 @@
     public int NestingDepth { get; set; }
 
     [Parameter]
-    public int MaxDepth { get; set; } = 5;
+    public int MaxDepth { get; set; } = 16;
 
     [Parameter]
     public EditorBreakpoint Breakpoint { get; set; } = EditorBreakpoint.Desktop;
@@ -438,9 +536,9 @@
         return "#";
     }
 
-    private string GetSafeMediaProperty(string name)
+    private string GetSafeMediaProperty(params string[] names)
     {
-        var value = GetStringProperty(name).Trim();
+        var value = GetStringProperty(names).Trim();
         if (value.StartsWith('/') ||
             Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
             uri.Scheme is "http" or "https")
@@ -491,13 +589,14 @@
     private string GridRowStyle()
     {
         var gap = Math.Max(0, GetIntProperty("gap", 4));
-        return $"display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:{gap * 0.25}rem;";
+        return "display:grid;" +
+               "grid-template-columns:repeat(auto-fit,minmax(min(16rem,100%),1fr));" +
+               $"gap:{gap * 0.25}rem;align-items:start;";
     }
 
     private string GridCellStyle()
     {
-        var span = Math.Clamp(GetIntProperty("span", 12), 1, 12);
-        return $"grid-column:span {span} / span {span};";
+        return "min-width:0;";
     }
 
     private string FlexboxStyle()
@@ -539,7 +638,9 @@
     {
         block = default!;
 
-        if (!DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor) ||
+        var definitionRegistry = Services.GetService<IPageEditorDefinitionRegistry>();
+        if (definitionRegistry is null ||
+            !definitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor) ||
             descriptor.LegacyDefinition is null)
         {
             return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);

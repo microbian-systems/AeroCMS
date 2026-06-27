@@ -364,6 +364,43 @@
         rgb(15 23 42 / 34%);
 }
 
+.neo-composition-surface__append-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px dashed rgb(99 102 241 / 28%);
+    border-radius: 12px;
+    background: rgb(99 102 241 / 4%);
+    color: var(--pe-text-muted);
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+    opacity: .78;
+    transition:
+        background .16s ease,
+        border-color .16s ease,
+        color .16s ease,
+        opacity .16s ease,
+        transform .16s ease;
+}
+
+.neo-composition-surface__append-zone:hover,
+.neo-composition-surface__append-zone:focus-visible {
+    border-color: rgb(99 102 241 / 62%);
+    background: rgb(99 102 241 / 9%);
+    color: var(--pe-primary);
+    opacity: 1;
+    outline: none;
+    transform: translateY(-1px);
+}
+
+[data-theme="dark"] .neo-composition-surface__append-zone {
+    background: rgb(129 140 248 / 10%);
+    border-color: rgb(129 140 248 / 30%);
+}
+
 .neo-composition-surface--container,
 .neo-composition-surface--section,
 .neo-composition-surface--article,
@@ -408,6 +445,52 @@
     background:
         linear-gradient(135deg, rgb(16 185 129 / 8%), transparent 56%),
         rgb(255 255 255 / 78%);
+}
+
+.neo-primitive-grid-row .neo-composition-surface--grid-row > .neo-composition-surface__drop-target {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    align-items: start;
+    gap: 12px;
+}
+
+.neo-primitive-grid-row .neo-composition-surface--grid-row > .neo-composition-surface__drop-target > .neo-composition-surface__header,
+.neo-primitive-grid-row .neo-composition-surface--grid-row > .neo-composition-surface__drop-target > .neo-composition-surface__empty,
+.neo-primitive-grid-row .neo-composition-surface--grid-row > .neo-composition-surface__drop-target > .neo-composition-surface__append-zone {
+    grid-column: 1 / -1;
+}
+
+.neo-primitive-grid-row .neo-composition-surface--grid-row > .neo-composition-surface__drop-target .neo-composition-child {
+    min-width: 0;
+}
+
+.neo-primitive-flexbox .neo-composition-surface--flexbox > .neo-composition-surface__drop-target {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.neo-primitive-flexbox .neo-composition-surface--flexbox > .neo-composition-surface__drop-target > .neo-composition-surface__header,
+.neo-primitive-flexbox .neo-composition-surface--flexbox > .neo-composition-surface__drop-target > .neo-composition-surface__empty,
+.neo-primitive-flexbox .neo-composition-surface--flexbox > .neo-composition-surface__drop-target > .neo-composition-surface__append-zone {
+    flex: 1 0 100%;
+}
+
+.neo-primitive-flexbox .neo-composition-surface--flexbox > .neo-composition-surface__drop-target .neo-composition-child {
+    flex: 0 1 auto;
+    min-width: min(18rem, 100%);
+}
+
+.neo-primitive-css-grid .neo-composition-surface--css-grid > .neo-composition-surface__drop-target {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    align-items: start;
+}
+
+.neo-primitive-css-grid .neo-composition-surface--css-grid > .neo-composition-surface__drop-target > .neo-composition-surface__header,
+.neo-primitive-css-grid .neo-composition-surface--css-grid > .neo-composition-surface__drop-target > .neo-composition-surface__empty,
+.neo-primitive-css-grid .neo-composition-surface--css-grid > .neo-composition-surface__drop-target > .neo-composition-surface__append-zone {
+    grid-column: 1 / -1;
 }
 
 [data-theme="dark"] .neo-composition-surface--flexbox,

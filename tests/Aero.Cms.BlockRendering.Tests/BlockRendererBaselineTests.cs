@@ -297,6 +297,98 @@ public sealed class BlockRendererBaselineTests
     }
 
     [Test]
+    public async Task NeoNodeRenderer_RendersPalettePrimitiveIds()
+    {
+        var root = new NeoPageNode
+        {
+            NodeId = "root-section",
+            CatalogId = "primitive.section",
+            Kind = NeoPageNodeKind.Section,
+            Children =
+            [
+                new NeoPageNode
+                {
+                    NodeId = "legacy-text",
+                    CatalogId = "text",
+                    Kind = NeoPageNodeKind.Primitive,
+                    Properties = new Dictionary<string, JsonElement>
+                    {
+                        ["content"] = JsonSerializer.SerializeToElement("Legacy text primitive")
+                    }
+                },
+                new NeoPageNode
+                {
+                    NodeId = "quote",
+                    CatalogId = "quote",
+                    Kind = NeoPageNodeKind.Primitive,
+                    Properties = new Dictionary<string, JsonElement>
+                    {
+                        ["content"] = JsonSerializer.SerializeToElement("Quote primitive"),
+                        ["citation"] = JsonSerializer.SerializeToElement("Aero")
+                    }
+                },
+                new NeoPageNode
+                {
+                    NodeId = "video",
+                    CatalogId = "video",
+                    Kind = NeoPageNodeKind.Primitive,
+                    Properties = new Dictionary<string, JsonElement>
+                    {
+                        ["src"] = JsonSerializer.SerializeToElement("/media/sample.mp4"),
+                        ["caption"] = JsonSerializer.SerializeToElement("Video caption")
+                    }
+                },
+                new NeoPageNode
+                {
+                    NodeId = "audio",
+                    CatalogId = "audio",
+                    Kind = NeoPageNodeKind.Primitive,
+                    Properties = new Dictionary<string, JsonElement>
+                    {
+                        ["url"] = JsonSerializer.SerializeToElement("/media/sample.mp3")
+                    }
+                },
+                new NeoPageNode
+                {
+                    NodeId = "columns",
+                    CatalogId = "columns",
+                    Kind = NeoPageNodeKind.Container,
+                    Children =
+                    [
+                        new NeoPageNode
+                        {
+                            NodeId = "columns-button",
+                            CatalogId = "primitive.button",
+                            Kind = NeoPageNodeKind.Primitive,
+                            Properties = new Dictionary<string, JsonElement>
+                            {
+                                ["text"] = JsonSerializer.SerializeToElement("Nested button"),
+                                ["url"] = JsonSerializer.SerializeToElement("#")
+                            }
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var html = await RenderComponentAsync<NeoNodeRenderer>(
+            new Dictionary<string, object?>
+            {
+                ["Node"] = root,
+                ["MaxDepth"] = 16
+            });
+
+        html.Should().Contain("Legacy text primitive");
+        html.Should().Contain("Quote primitive");
+        html.Should().Contain("<video");
+        html.Should().Contain("/media/sample.mp4");
+        html.Should().Contain("<audio");
+        html.Should().Contain("/media/sample.mp3");
+        html.Should().Contain("neo-primitive-columns");
+        html.Should().Contain("Nested button");
+    }
+
+    [Test]
     public void CmsBlockRenderRegistry_ResolvesCurrentSwitchSupportedBlocks()
     {
         string[] blockTypes =

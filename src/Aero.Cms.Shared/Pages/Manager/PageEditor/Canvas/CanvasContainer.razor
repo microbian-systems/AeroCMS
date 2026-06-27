@@ -124,7 +124,14 @@
         <div class="canvas-container__children">
             @if (Node.Children.Count == 0)
             {
-                <div class="canvas-container__empty">Drop items here</div>
+                <div class="canvas-container__empty"
+                     @ondragover:preventDefault
+                     @ondragover:stopPropagation
+                     @ondrop:preventDefault
+                     @ondrop:stopPropagation
+                     @ondrop="e => HandleDropWithArgsAsync(e, null, 0)">
+                    Drop items here
+                </div>
             }
             else
             {

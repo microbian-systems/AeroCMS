@@ -349,7 +349,12 @@ public sealed partial class CanvasContainer : ComponentBase
                 if (OnSaveAsCustom.HasDelegate)
                     await OnSaveAsCustom.InvokeAsync(Node.NodeId);
                 break;
-            // MediaSelect is intentionally skipped — no canvas-level handler yet
+            case EditorNodeAction.MediaSelect:
+                Editor?.OpenNodeMediaSelector(
+                    Node.NodeId,
+                    "property:url",
+                    EditorBreakpoint.Desktop);
+                break;
         }
     }
 

@@ -5,6 +5,8 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Services;
 using Aero.Cms.Ui.Neo;
 using Aero.Cms.Ui.Neo.Embed;
+using Aero.Core;
+using Aero.Core.Railway;
 using FluentAssertions;
 using TUnit.Core;
 
@@ -315,6 +317,100 @@ public sealed class NeoPrimitiveEmbeddableTests
                     $"{parentCatalogId} through '{dropZoneId}'");
             }
         }
+    }
+
+    [Test]
+    [Arguments("primitive.container", "content")]
+    [Arguments("primitive.flexbox", "content")]
+    [Arguments("primitive.css-grid", "content")]
+    [Arguments("primitive.grid-cell", "cell-content")]
+    public void CompositionTreeEditor_AllowsMultipleLeafPrimitivesInsideContainers(
+        string parentCatalogId,
+        string dropZoneId)
+    {
+        var provider = new NeoPageEditorBlockProvider();
+        var descriptors = provider.GetEditorDefinitions();
+        var editor = new CompositionTreeEditor(
+            new CompositionPolicy(new DescriptorCompositionCapabilityResolver(provider)));
+        var parent = descriptors.Single(d => d.CatalogId == parentCatalogId)
+            .NodeFactory.CreateDefaultNode();
+        var buttonDescriptor = descriptors.Single(d => d.CatalogId == "primitive.button");
+
+        for (var i = 0; i < 3; i++)
+        {
+            var button = buttonDescriptor.NodeFactory.CreateDefaultNode();
+            var result = editor.Drop(
+                [parent],
+                new CompositionDropRequest(
+                    button,
+                    parent.NodeId,
+                    dropZoneId,
+                    parent.Children.Count));
+
+            result.IsSuccess.Should().BeTrue(
+                $"{parentCatalogId} should accept multiple leaf primitives through '{dropZoneId}'");
+            parent = ((Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok)result).Value[0];
+        }
+
+        parent.Children.Should().HaveCount(3);
+        parent.Children.Should().OnlyContain(child => child.CatalogId == "primitive.button");
+    }
+
+    [Test]
+    public void CompositionTreeEditor_AllowsMultipleGridCellsInsideGridRow()
+    {
+        var provider = new NeoPageEditorBlockProvider();
+        var descriptors = provider.GetEditorDefinitions();
+        var editor = new CompositionTreeEditor(
+            new CompositionPolicy(new DescriptorCompositionCapabilityResolver(provider)));
+        var row = descriptors.Single(d => d.CatalogId == "primitive.grid-row")
+            .NodeFactory.CreateDefaultNode();
+        var cellDescriptor = descriptors.Single(d => d.CatalogId == "primitive.grid-cell");
+
+        for (var i = 0; i < 3; i++)
+        {
+            var cell = cellDescriptor.NodeFactory.CreateDefaultNode();
+            var result = editor.Drop(
+                [row],
+                new CompositionDropRequest(
+                    cell,
+                    row.NodeId,
+                    "grid-cells",
+                    row.Children.Count));
+
+            result.IsSuccess.Should().BeTrue(
+                "a grid row should accept multiple grid cells through the grid-cells drop zone");
+            row = ((Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok)result).Value[0];
+        }
+
+        row.Children.Should().HaveCount(3);
+        row.Children.Should().OnlyContain(child => child.CatalogId == "primitive.grid-cell");
+    }
+
+    [Test]
+    public void CompositionTreeEditor_AllowsTextInsideGridCell()
+    {
+        var provider = new NeoPageEditorBlockProvider();
+        var descriptors = provider.GetEditorDefinitions();
+        var editor = new CompositionTreeEditor(
+            new CompositionPolicy(new DescriptorCompositionCapabilityResolver(provider)));
+        var cell = descriptors.Single(d => d.CatalogId == "primitive.grid-cell")
+            .NodeFactory.CreateDefaultNode();
+        var text = descriptors.Single(d => d.CatalogId == "primitive.text")
+            .NodeFactory.CreateDefaultNode();
+
+        var result = editor.Drop(
+            [cell],
+            new CompositionDropRequest(
+                text,
+                cell.NodeId,
+                "cell-content",
+                cell.Children.Count));
+
+        result.IsSuccess.Should().BeTrue(
+            "text primitives should be embeddable inside grid cells");
+        var updatedCell = ((Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok)result).Value[0];
+        updatedCell.Children.Should().ContainSingle(child => child.CatalogId == "primitive.text");
     }
 
     [Test]

@@ -1301,7 +1301,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
         if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
         {
-            OnRootCompositionDropRejected(failure.Error.ToString());
+            OnRootCompositionDropRejected(FormatError(failure.Error));
             return false;
         }
 
@@ -1336,6 +1336,17 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         new(
             new CompositionPolicy(
                 new PageEditorRegistryCompositionCapabilityResolver(DefinitionRegistry)));
+
+    private static string FormatError(AeroError error) => error switch
+    {
+        AeroError.Validation validation => string.Join("; ", validation.Errors),
+        AeroError.NotAllowed notAllowed => notAllowed.msg,
+        AeroError.NotFound notFound => notFound.msg,
+        AeroError.Conflict conflict => conflict.msg,
+        AeroError.Timeout timeout => timeout.msg,
+        AeroError.Error general => general.msg,
+        _ => error.ToString()
+    };
 
     private void RecordCanvasMutationFromBefore(NeoPageNode before)
     {
@@ -1645,6 +1656,29 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         NativeMediaBreakpoint = breakpoint;
         MediaModalOpen = true;
         InvokeAsync(StateHasChanged);
+    }
+
+    protected void OpenNodeMediaSelector(
+        string nodeId,
+        string field,
+        EditorBreakpoint breakpoint)
+    {
+        var node = FindNodeInTree(nodeId);
+        if (node is null)
+        {
+            ShowToast(L["The selected element is no longer available."], "error");
+            return;
+        }
+
+        var block = new EditorBlock
+        {
+            EditorId = node.NodeId,
+            Type = node.CatalogId,
+            Style = node.Style,
+            CompositionNodes = [RootNode]
+        };
+
+        OpenNodeMediaSelector(block, nodeId, field, breakpoint);
     }
 
     protected void OpenAudioSelector(EditorBlock block)
@@ -3031,6 +3065,13 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         string field,
         EditorBreakpoint breakpoint) =>
         OpenNodeMediaSelector(block, nodeId, field, breakpoint);
+
+    void IBlockEditorCallbacks.OpenNodeMediaSelector(
+        string nodeId,
+        string field,
+        EditorBreakpoint breakpoint) =>
+        OpenNodeMediaSelector(nodeId, field, breakpoint);
+
     void IBlockEditorCallbacks.OpenAudioSelector(EditorBlock block) => OpenAudioSelector(block);
     void IBlockEditorCallbacks.RemoveImage(EditorBlock block) => RemoveImage(block);
     void IBlockEditorCallbacks.RemoveVideo(EditorBlock block) => RemoveVideo(block);

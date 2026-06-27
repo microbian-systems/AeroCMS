@@ -25,6 +25,10 @@ public interface IBlockEditorCallbacks
         string nodeId,
         string field,
         EditorBreakpoint breakpoint);
+    void OpenNodeMediaSelector(
+        string nodeId,
+        string field,
+        EditorBreakpoint breakpoint);
     void OpenAudioSelector(EditorBlock block);
     void RemoveImage(EditorBlock block);
     void RemoveVideo(EditorBlock block);

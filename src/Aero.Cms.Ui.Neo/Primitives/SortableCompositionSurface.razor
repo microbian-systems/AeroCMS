@@ -14,8 +14,8 @@
     <SortableContentPrimitive class="@($"{ContentCssClass} neo-composition-surface__content")">
         <div class="neo-composition-surface__drop-target"
              @ondragover:preventDefault
+             @ondragover:stopPropagation
              @ondrop:preventDefault
-             @ondrop:stopPropagation
              @ondrop="HandleNativePaletteDrop">
             <div class="neo-composition-surface__header"
                  @onclick:stopPropagation="true"
@@ -94,6 +94,19 @@
                     </div>
                 </SortableItemPrimitive>
             }
+            <div class="neo-composition-surface__append-zone"
+                 role="button"
+                 tabindex="0"
+                 title="@AppendZoneTitle"
+                 aria-label="@AppendZoneTitle"
+                 @onclick:stopPropagation="true"
+                 @ondragover:preventDefault
+                 @ondragover:stopPropagation
+                 @ondrop:preventDefault
+                 @ondrop:stopPropagation
+                 @ondrop="HandleNativePaletteDrop">
+                <span>@AppendZoneText</span>
+            </div>
         </div>
     </SortableContentPrimitive>
 </Sortable>
@@ -146,6 +159,13 @@
             ? descriptor.Catalog.DisplayName
             : Node.CatalogId;
 
+    private string AppendZoneTitle => $"Drop into {SurfaceTitle}";
+
+    private string AppendZoneText =>
+        Node.Children.Count == 0
+            ? EmptyText
+            : $"Drop here to add to {SurfaceTitle}";
+
     private IDictionary<string, object> NodeParameters(
         NeoPageNode node,
         PageEditorDefinitionDescriptor definition)
@@ -171,16 +191,12 @@
                     this,
                     message => DropRejected.InvokeAsync(message));
         }
-        else if (string.Equals(node.CatalogId, "primitive.image", StringComparison.OrdinalIgnoreCase) && OwnerBlock is not null && Editor is not null)
+        else if (string.Equals(node.CatalogId, "primitive.image", StringComparison.OrdinalIgnoreCase) && Editor is not null)
         {
             parameters["SelectMedia"] =
                 EventCallback.Factory.Create(
                     this,
-                    () => Editor.OpenNodeMediaSelector(
-                        OwnerBlock,
-                        node.NodeId,
-                        "property:url",
-                        Breakpoint));
+                    () => OpenNodeMediaSelector(node.NodeId));
         }
 
         return parameters;
@@ -244,7 +260,7 @@
         }
         else if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
         {
-            await DropRejected.InvokeAsync(failure.Error.ToString());
+            await DropRejected.InvokeAsync(FormatError(failure.Error));
         }
     }
 
@@ -253,7 +269,7 @@
     private async Task HandleNativePaletteDrop()
     {
         if (PaletteDragState is null ||
-            !PaletteDragState.TryConsume(out var catalogId))
+            !PaletteDragState.TryPeek(out var catalogId))
         {
             return;
         }
@@ -342,13 +358,25 @@
                 // Save-as-custom is not yet implemented in this component.
                 break;
             case EditorNodeAction.MediaSelect:
-                if (OwnerBlock is not null && Editor is not null)
-                {
-                    Editor.OpenNodeMediaSelector(
-                        OwnerBlock, nodeId, "property:url", Breakpoint);
-                }
+                OpenNodeMediaSelector(nodeId);
                 break;
         }
+    }
+
+    private void OpenNodeMediaSelector(string nodeId)
+    {
+        if (Editor is null)
+        {
+            return;
+        }
+
+        if (OwnerBlock is not null)
+        {
+            Editor.OpenNodeMediaSelector(OwnerBlock, nodeId, "property:url", Breakpoint);
+            return;
+        }
+
+        Editor.OpenNodeMediaSelector(nodeId, "property:url", Breakpoint);
     }
 
     private static string GetPropertyString(NeoPageNode node, string propertyName) =>
@@ -399,7 +427,7 @@
         }
         else if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
         {
-            await DropRejected.InvokeAsync(failure.Error.ToString());
+            await DropRejected.InvokeAsync(FormatError(failure.Error));
         }
     }
 
@@ -474,9 +502,20 @@
         }
         else if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
         {
-            await DropRejected.InvokeAsync(failure.Error.ToString());
+            await DropRejected.InvokeAsync(FormatError(failure.Error));
         }
     }
+
+    private static string FormatError(AeroError error) => error switch
+    {
+        AeroError.Validation validation => string.Join("; ", validation.Errors),
+        AeroError.NotAllowed notAllowed => notAllowed.msg,
+        AeroError.NotFound notFound => notFound.msg,
+        AeroError.Conflict conflict => conflict.msg,
+        AeroError.Timeout timeout => timeout.msg,
+        AeroError.Error general => general.msg,
+        _ => error.ToString()
+    };
 
     private CompositionTreeEditor CreateTreeEditor() =>
         new(

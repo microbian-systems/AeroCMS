@@ -150,6 +150,12 @@ public sealed partial class CanvasNode : ComponentBase
         {
             ["Node"] = Node
         };
+
+        if (IsMediaSelectableNode)
+        {
+            PreviewParameters["SelectMedia"] =
+                EventCallback.Factory.Create(this, OpenMediaSelector);
+        }
     }
 
     private bool TryMapLegacyBlock(out Aero.Cms.Abstractions.Blocks.BlockBase block)
@@ -251,8 +257,32 @@ public sealed partial class CanvasNode : ComponentBase
                 if (OnSaveAsCustom.HasDelegate)
                     await OnSaveAsCustom.InvokeAsync(Node.NodeId);
                 break;
-            // MediaSelect is intentionally skipped — no canvas-level handler yet
+            case EditorNodeAction.MediaSelect:
+                OpenMediaSelector();
+                break;
         }
+    }
+
+    private bool IsMediaSelectableNode
+    {
+        get
+        {
+            if (DefinitionRegistry is null ||
+                !DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor))
+            {
+                return false;
+            }
+
+            return descriptor.Interaction.HasFlag(EditorInteractionCapabilities.MediaSelectable);
+        }
+    }
+
+    private void OpenMediaSelector()
+    {
+        Editor?.OpenNodeMediaSelector(
+            Node.NodeId,
+            "property:url",
+            EditorBreakpoint.Desktop);
     }
 
     private string GetActionDisplayText(EditorNodeAction action) => action switch
