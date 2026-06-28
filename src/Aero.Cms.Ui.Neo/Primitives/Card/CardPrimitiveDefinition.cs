@@ -17,6 +17,7 @@ public sealed class CardPrimitiveDefinition :
         new HashSet<NeoPageNodeKind>
         {
             NeoPageNodeKind.Primitive,
+            NeoPageNodeKind.Block,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component
         };

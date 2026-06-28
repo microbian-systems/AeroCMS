@@ -12,6 +12,7 @@ public sealed class GridCellDefinition : ContainerDefinitionBase
         new HashSet<NeoPageNodeKind>
         {
             NeoPageNodeKind.Primitive,
+            NeoPageNodeKind.Block,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component
         };

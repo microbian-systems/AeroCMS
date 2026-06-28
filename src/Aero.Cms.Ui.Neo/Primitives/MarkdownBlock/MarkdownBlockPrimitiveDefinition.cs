@@ -40,6 +40,9 @@ public sealed class MarkdownBlockPrimitiveDefinition : PrimitiveDefinitionBase
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>()
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["content"] = JsonSerializer.SerializeToElement("### Markdown\n\nWrite markdown content here.")
+        }
     };
 }

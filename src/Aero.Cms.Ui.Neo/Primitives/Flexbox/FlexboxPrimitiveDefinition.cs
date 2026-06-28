@@ -13,6 +13,7 @@ public sealed class FlexboxPrimitiveDefinition : ContainerDefinitionBase, ISlott
         new HashSet<NeoPageNodeKind>
         {
             NeoPageNodeKind.Primitive,
+            NeoPageNodeKind.Block,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component
         };

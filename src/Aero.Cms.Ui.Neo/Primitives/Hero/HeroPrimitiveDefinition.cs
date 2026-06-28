@@ -50,6 +50,12 @@ public sealed class HeroPrimitiveDefinition : ContainerDefinitionBase, ISlotted
             AllowedChildKinds: new HashSet<NeoPageNodeKind> { NeoPageNodeKind.Primitive },
             MaxChildren: 2
         ),
+        new SlotDefinition(
+            Id: "content",
+            DisplayName: "Content",
+            AllowedChildKinds: ChildKinds,
+            MinChildren: 0
+        ),
     };
 
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
@@ -98,7 +104,11 @@ public sealed class HeroPrimitiveDefinition : ContainerDefinitionBase, ISlotted
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>(),
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["title"] = JsonSerializer.SerializeToElement(DisplayName),
+            ["description"] = JsonSerializer.SerializeToElement(Description ?? string.Empty)
+        },
         Children = new List<NeoPageNode>()
     };
 

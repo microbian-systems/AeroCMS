@@ -1,7 +1,8 @@
-@inject IEnumerable<IPageEditorDefinitionProvider> DefinitionProviders
+@inject IPageEditorDefinitionRegistry DefinitionRegistry
 @inject IEditorNodeActionProvider ActionProvider
 @namespace Aero.Cms.Ui.Neo.Primitives
 @using Aero.Cms.Shared.Pages.Manager.PageEditor
+@using Aero.Cms.Shared.Blocks.Rendering
 
 <Sortable TItem="NeoPageNode"
           Items="Node.Children"
@@ -62,6 +63,13 @@
                         {
                             <DynamicComponent Type="previewType"
                                               Parameters="NodeParameters(child, definition)" />
+                        }
+                        else
+                        {
+                            <div class="neo-composition-child__fallback-preview">
+                                <NeoNodeRenderer Node="child"
+                                                 Breakpoint="Breakpoint" />
+                            </div>
                         }
                         @if (SelectedNodeId == child.NodeId)
                         {
@@ -537,19 +545,13 @@
     private CompositionTreeEditor CreateTreeEditor() =>
         new(
             new CompositionPolicy(
-                new ProviderCapabilityResolver(DefinitionProviders)));
+                new RegistryCapabilityResolver(DefinitionRegistry)));
 
     private bool TryGetDefinition(
         string catalogId,
         out PageEditorDefinitionDescriptor definition)
     {
-        definition = DefinitionProviders
-            .SelectMany(provider => provider.GetEditorDefinitions())
-            .LastOrDefault(item => string.Equals(
-                item.CatalogId,
-                catalogId,
-                StringComparison.OrdinalIgnoreCase))!;
-        return definition is not null;
+        return DefinitionRegistry.TryGetDescriptor(catalogId, out definition!);
     }
 
     private static NeoPageNode? Find(NeoPageNode node, string nodeId)
@@ -597,22 +599,28 @@
         }
     }
 
-    private sealed class ProviderCapabilityResolver(
-        IEnumerable<IPageEditorDefinitionProvider> providers)
+    private sealed class RegistryCapabilityResolver(
+        IPageEditorDefinitionRegistry registry)
         : ICompositionCapabilityResolver
     {
-        private readonly IReadOnlyDictionary<string, ICompositionCapabilities> _capabilities =
-            providers
-                .SelectMany(provider => provider.GetEditorDefinitions())
-                .GroupBy(definition => definition.CatalogId, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    group => group.Key,
-                    group => group.Last().Catalog.Composition,
-                    StringComparer.OrdinalIgnoreCase);
-
         public bool TryGet(
             string catalogId,
             out ICompositionCapabilities capabilities) =>
-            _capabilities.TryGetValue(catalogId, out capabilities!);
+            TryGetComposition(registry, catalogId, out capabilities);
+
+        private static bool TryGetComposition(
+            IPageEditorDefinitionRegistry registry,
+            string catalogId,
+            out ICompositionCapabilities capabilities)
+        {
+            if (registry.TryGetDescriptor(catalogId, out var descriptor))
+            {
+                capabilities = descriptor.Catalog.Composition;
+                return true;
+            }
+
+            capabilities = default!;
+            return false;
+        }
     }
 }

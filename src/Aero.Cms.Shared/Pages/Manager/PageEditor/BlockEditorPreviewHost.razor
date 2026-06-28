@@ -413,14 +413,21 @@ else
 
         return block.Type switch
         {
-        _ => new NeoPageNode
-        {
-            CatalogId = "primitive.section",
-            Kind = NeoPageNodeKind.Section,
-            Properties = []
-        }
+            _ => new NeoPageNode
+            {
+                NodeId = block.EditorId,
+                CatalogId = block.Type,
+                Kind = ResolveNodeKind(block.Type),
+                Style = block.Style.DeepClone(),
+                Properties = []
+            }
         };
     }
+
+    private NeoPageNodeKind ResolveNodeKind(string catalogId) =>
+        DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor)
+            ? descriptor.Catalog.Kind
+            : NeoPageNodeKind.Block;
 
     private static NeoPageNode MapLegacyImageToNeoNode(EditorBlock block) => new()
     {

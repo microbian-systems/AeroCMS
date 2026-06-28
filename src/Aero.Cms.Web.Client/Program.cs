@@ -67,6 +67,8 @@ builder.Services.AddNeoUIComponents();
 builder.Services.Replace(ServiceDescriptor.Scoped<ILocalizer, NeoUiBridgeLocalizer>());
 builder.Services.AddAeroCmsHyperUiBlocks();
 builder.Services.AddAeroCmsNeoUiBlocks();
+builder.Services.AddSingleton<CannedBlockDefinitionProvider>();
+builder.Services.AddSingleton<IPageEditorBlockProvider>(sp => sp.GetRequiredService<CannedBlockDefinitionProvider>());
 builder.Services.AddSingleton<IPageEditorDefinitionRegistry, PageEditorDefinitionRegistry>();
 builder.Services.AddScoped<IEditorNodeActionProvider, EditorNodeActionProvider>();
 builder.Services.AddRadzenComponents();

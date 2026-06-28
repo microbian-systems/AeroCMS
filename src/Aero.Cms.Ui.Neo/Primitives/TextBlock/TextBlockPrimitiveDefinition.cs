@@ -40,6 +40,9 @@ public sealed class TextBlockPrimitiveDefinition : PrimitiveDefinitionBase
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>()
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["text"] = JsonSerializer.SerializeToElement("Enter your text here...")
+        }
     };
 }

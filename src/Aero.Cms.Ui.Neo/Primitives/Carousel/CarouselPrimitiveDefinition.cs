@@ -5,8 +5,19 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Carousel;
 
-public sealed class CarouselPrimitiveDefinition : PrimitiveDefinitionBase
+public sealed class CarouselPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 {
+    public const string ContentDropZone = "content";
+
+    private static readonly IReadOnlySet<NeoPageNodeKind> ChildKinds =
+        new HashSet<NeoPageNodeKind>
+        {
+            NeoPageNodeKind.Primitive,
+            NeoPageNodeKind.Block,
+            NeoPageNodeKind.Container,
+            NeoPageNodeKind.Component
+        };
+
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new CarouselPrimitiveDefinition(), new CarouselPrimitiveDefinition());
 
@@ -20,10 +31,17 @@ public sealed class CarouselPrimitiveDefinition : PrimitiveDefinitionBase
     public override Type? PropertyEditorComponentType => null;
 
     public override ICompositionCapabilities Composition { get; } =
-        CompositionCapabilities.Leaf(
-            NeoPageNodeKind.Section,
-            NeoPageNodeKind.Container,
-            NeoPageNodeKind.Component);
+        CompositionCapabilities.Container(
+            ChildKinds,
+            [
+                NeoPageNodeKind.Section,
+                NeoPageNodeKind.Container,
+                NeoPageNodeKind.Component
+            ],
+            dropZones:
+            [
+                new NeoDropZoneDefinition(ContentDropZone, ChildKinds)
+            ]);
 
     public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable
@@ -31,7 +49,8 @@ public sealed class CarouselPrimitiveDefinition : PrimitiveDefinitionBase
         | EditorInteractionCapabilities.Draggable
         | EditorInteractionCapabilities.Duplicatable
         | EditorInteractionCapabilities.Deletable
-        | EditorInteractionCapabilities.Copyable;
+        | EditorInteractionCapabilities.Copyable
+        | EditorInteractionCapabilities.PasteTarget;
 
     public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Content
@@ -47,6 +66,24 @@ public sealed class CarouselPrimitiveDefinition : PrimitiveDefinitionBase
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>()
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["label"] = JsonSerializer.SerializeToElement("Carousel")
+        },
+        Children = new List<NeoPageNode>()
     };
+
+    IReadOnlyList<ISlotDefinition> ISlotted.Slots => _slots;
+
+    private static readonly IReadOnlyList<ISlotDefinition> _slots =
+    [
+        new SlotDefinition(
+            Id: ContentDropZone,
+            DisplayName: "Carousel Content",
+            AllowedChildKinds: ChildKinds,
+            MinChildren: 0)
+    ];
+
+    public ISlotDefinition? GetSlot(string slotId) =>
+        _slots.FirstOrDefault(s => s.Id == slotId);
 }

@@ -40,6 +40,9 @@ public sealed class ContentPrimitiveDefinition : PrimitiveDefinitionBase
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>()
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["content"] = JsonSerializer.SerializeToElement("<p>Rich text content...</p>")
+        }
     };
 }

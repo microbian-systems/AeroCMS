@@ -45,6 +45,9 @@ public sealed class RawHtmlPrimitiveDefinition : PrimitiveDefinitionBase
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>()
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["content"] = JsonSerializer.SerializeToElement("<section><p>Custom HTML...</p></section>")
+        }
     };
 }

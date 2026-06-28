@@ -31,7 +31,8 @@ public sealed class AudioPrimitiveDefinition : PrimitiveDefinitionBase
         | EditorInteractionCapabilities.Draggable
         | EditorInteractionCapabilities.Duplicatable
         | EditorInteractionCapabilities.Deletable
-        | EditorInteractionCapabilities.Copyable;
+        | EditorInteractionCapabilities.Copyable
+        | EditorInteractionCapabilities.MediaSelectable;
 
     public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Content
@@ -45,6 +46,10 @@ public sealed class AudioPrimitiveDefinition : PrimitiveDefinitionBase
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>()
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["url"] = JsonSerializer.SerializeToElement(string.Empty),
+            ["caption"] = JsonSerializer.SerializeToElement("Select an audio file")
+        }
     };
 }

@@ -55,6 +55,12 @@ public sealed class ContactPrimitiveDefinition : ContainerDefinitionBase, ISlott
             MinChildren: 1,
             MaxChildren: 20
         ),
+        new SlotDefinition(
+            Id: "content",
+            DisplayName: "Content",
+            AllowedChildKinds: ChildKinds,
+            MinChildren: 0
+        ),
     };
 
     public static PageEditorDefinitionDescriptor Descriptor { get; } =
@@ -103,7 +109,11 @@ public sealed class ContactPrimitiveDefinition : ContainerDefinitionBase, ISlott
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>(),
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["title"] = JsonSerializer.SerializeToElement(DisplayName),
+            ["description"] = JsonSerializer.SerializeToElement(Description ?? string.Empty)
+        },
         Children = new List<NeoPageNode>()
     };
 

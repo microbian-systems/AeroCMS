@@ -35,7 +35,7 @@
                         }
                         else
                         {
-                            @CompositeContentPanel(nativeNode)
+                            @NativeContentPanel(nativeDefinition, nativeNode)
                         }
                     </div>
                 }
@@ -390,10 +390,7 @@
             ["Changed"] = EventCallback.Factory.Create(this, NotifyChanged)
         };
 
-        if (string.Equals(
-                node.CatalogId,
-                "primitive.image",
-                StringComparison.OrdinalIgnoreCase))
+        if (IsNativeMediaSelectable(node))
         {
             parameters["SelectMedia"] = EventCallback.Factory.Create(
                 this,
@@ -402,6 +399,141 @@
 
         return parameters;
     }
+
+    private RenderFragment NativeContentPanel(
+        PageEditorDefinitionDescriptor definition,
+        NeoPageNode node) => @<div class="pe-composite-content">
+        <div class="pe-property-intro">
+            <strong>@definition.Catalog.DisplayName</strong>
+            <span>@(definition.Catalog.Description ?? L["Edit this element's content and media properties."])</span>
+        </div>
+
+        @if (IsNativeMediaSelectable(node))
+        {
+            @MediaButtonField("Select Media", () => OpenNativePropertyMediaSelector(node, "url"))
+        }
+
+        @switch (node.CatalogId)
+        {
+            case "primitive.text":
+            case "text":
+                @NativeStringField(node, "Text", "text", multiline: true)
+                break;
+            case "primitive.heading":
+                @NativeStringField(node, "Text", "text")
+                @NativeIntField(node, "Level", "level", 1, 6)
+                break;
+            case "primitive.button":
+                @NativeStringField(node, "Text", "text")
+                @NativeStringField(node, "URL", "url")
+                break;
+            case "primitive.pill":
+                @NativeStringField(node, "Text", "text")
+                break;
+            case "primitive.icon":
+                @NativeStringField(node, "Icon", "name")
+                @NativeStringField(node, "Label", "label")
+                break;
+            case "primitive.image":
+                @NativeStringField(node, "URL", "url")
+                @NativeStringField(node, "Alt text", "alt")
+                @NativeStringField(node, "Caption", "caption")
+                break;
+            case "audio":
+            case "primitive.audio":
+                @NativeStringField(node, "Audio URL", "url")
+                @NativeStringField(node, "Caption", "caption")
+                break;
+            case "video":
+            case "primitive.video":
+                @NativeStringField(node, "Video URL", "url")
+                @NativeStringField(node, "Poster", "poster")
+                @NativeStringField(node, "Caption", "caption")
+                break;
+            case "primitive.embed":
+                @NativeStringField(node, "Embed URL", "url")
+                @NativeStringField(node, "Title", "title")
+                break;
+            case "primitive.blockquote":
+            case "quote":
+                @NativeStringField(node, "Quote", "text", multiline: true)
+                @NativeStringField(node, "Citation", "citation")
+                break;
+            case "primitive.code":
+                @NativeStringField(node, "Language", "language")
+                @NativeStringField(node, "Code", "code", multiline: true, rows: 8)
+                break;
+            case "markdown":
+                @NativeStringField(node, "Markdown", "content", multiline: true, rows: 8)
+                break;
+            case "raw_html":
+            case "content":
+                @NativeStringField(node, "Content", "content", multiline: true, rows: 8)
+                break;
+            case "dynamic_template":
+                @NativeStringField(node, "Template", "template", multiline: true, rows: 8)
+                break;
+            case "boring_hero":
+                @NativeStringField(node, "Title", "title")
+                @NativeStringField(node, "Summary", "summary", multiline: true)
+                @NativeStringField(node, "Background image", "backgroundImageUrl")
+                break;
+            case "gallery":
+            case "primitive.gallery":
+            case "carousel":
+            case "primitive.carousel":
+                @NativeStringField(node, "Label", "label")
+                @CompositeContentPanel(node)
+                break;
+            default:
+                @NativeGenericStringFields(node)
+                @if (definition.Catalog.Composition.CanContainChildren)
+                {
+                    @CompositeContentPanel(node)
+                }
+                break;
+        }
+    </div>;
+
+    private RenderFragment NativeStringField(
+        NeoPageNode node,
+        string label,
+        string propertyName,
+        bool multiline = false,
+        int rows = 3) =>
+        multiline
+            ? TextAreaField(label, GetNativeString(node, propertyName), value => SetNativeString(node, propertyName, value), rows)
+            : TextField(label, GetNativeString(node, propertyName), value => SetNativeString(node, propertyName, value));
+
+    private RenderFragment NativeIntField(
+        NeoPageNode node,
+        string label,
+        string propertyName,
+        int min,
+        int max) =>
+        NumberField(label, GetNativeInt(node, propertyName, min), value => SetNativeInt(node, propertyName, value), min, max);
+
+    private RenderFragment NativeGenericStringFields(NeoPageNode node) => @<div>
+        @{
+            var stringProperties = node.Properties
+                .Where(property => property.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                .Select(property => property.Key)
+                .OrderBy(PropertyDisplayOrder)
+                .ThenBy(propertyName => propertyName, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        @if (stringProperties.Length == 0)
+        {
+            <div class="pe-property-empty">@L["This component has no content-specific properties yet."]</div>
+        }
+        else
+        {
+            @foreach (var propertyName in stringProperties)
+            {
+                @NativeStringField(node, HumanizePropertyName(propertyName), propertyName, IsLongFormProperty(propertyName), IsLongFormProperty(propertyName) ? 6 : 3)
+            }
+        }
+    </div>;
 
     private RenderFragment CompositeContentPanel(NeoPageNode node) => @<div class="pe-composite-content">
         <div class="pe-property-intro">
@@ -441,6 +573,87 @@
                 $"property:{propertyName}",
                 _styleBreakpoint);
         }
+    }
+
+    private bool IsNativeMediaSelectable(NeoPageNode node) =>
+        DefinitionRegistry.TryGetDescriptor(node.CatalogId, out var descriptor) &&
+        descriptor.Interaction.HasFlag(EditorInteractionCapabilities.MediaSelectable);
+
+    private static string GetNativeString(NeoPageNode node, string propertyName) =>
+        node.Properties.TryGetValue(propertyName, out var value) &&
+        value.ValueKind == System.Text.Json.JsonValueKind.String
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+
+    private void SetNativeString(NeoPageNode node, string propertyName, string value)
+    {
+        node.Properties[propertyName] =
+            System.Text.Json.JsonSerializer.SerializeToElement(value);
+    }
+
+    private static int GetNativeInt(NeoPageNode node, string propertyName, int fallback) =>
+        node.Properties.TryGetValue(propertyName, out var value)
+            ? value.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.Number when value.TryGetInt32(out var number) => number,
+                System.Text.Json.JsonValueKind.String when int.TryParse(value.GetString(), out var number) => number,
+                _ => fallback
+            }
+            : fallback;
+
+    private void SetNativeInt(NeoPageNode node, string propertyName, int value)
+    {
+        node.Properties[propertyName] =
+            System.Text.Json.JsonSerializer.SerializeToElement(value);
+    }
+
+    private static bool IsLongFormProperty(string propertyName) =>
+        propertyName.Contains("html", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.Contains("markdown", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.Contains("content", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.Contains("template", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.Contains("code", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.Contains("description", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.Contains("summary", StringComparison.OrdinalIgnoreCase);
+
+    private static int PropertyDisplayOrder(string propertyName) =>
+        propertyName.ToLowerInvariant() switch
+        {
+            "title" => 0,
+            "heading" => 1,
+            "text" => 2,
+            "description" => 3,
+            "summary" => 4,
+            "content" => 5,
+            "url" => 6,
+            _ => 100
+        };
+
+    private static string HumanizePropertyName(string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return "Property";
+        }
+
+        var chars = new List<char>(propertyName.Length + 8) { char.ToUpperInvariant(propertyName[0]) };
+        for (var i = 1; i < propertyName.Length; i++)
+        {
+            var current = propertyName[i];
+            if ((current == '-' || current == '_') ||
+                (char.IsUpper(current) && !char.IsWhiteSpace(propertyName[i - 1])))
+            {
+                chars.Add(' ');
+                if (current == '-' || current == '_')
+                {
+                    continue;
+                }
+            }
+
+            chars.Add(current);
+        }
+
+        return new string(chars.ToArray());
     }
 
     private RenderFragment NativeDesignPanel(

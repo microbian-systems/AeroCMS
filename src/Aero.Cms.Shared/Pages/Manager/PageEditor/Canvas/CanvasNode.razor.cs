@@ -105,6 +105,7 @@ public sealed partial class CanvasNode : ComponentBase
     private Dictionary<string, object> PreviewParameters { get; set; } = [];
 
     private string NodeDisplayName { get; set; } = string.Empty;
+    private string? NodeDescription { get; set; }
 
     private string CssClass
     {
@@ -123,6 +124,57 @@ public sealed partial class CanvasNode : ComponentBase
         Node.Children.Count == 0 &&
         !string.Equals(Node.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase);
 
+    private bool ShouldRenderPublicPreviewFallback =>
+        PreviewComponentType is null &&
+        IsKnownRenderableLeaf &&
+        HasRenderableContent;
+
+    private bool ShouldShowGenericPreviewShell =>
+        PreviewComponentType is null &&
+        DefinitionRegistry is not null &&
+        DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out _);
+
+    private bool IsKnownRenderableLeaf =>
+        Node.CatalogId is
+            "primitive.text" or
+            "text" or
+            "primitive.heading" or
+            "primitive.button" or
+            "primitive.image" or
+            "primitive.pill" or
+            "primitive.icon" or
+            "primitive.blockquote" or
+            "quote" or
+            "primitive.code" or
+            "primitive.embed" or
+            "primitive.separator" or
+            "raw_html" or
+            "content" or
+            "markdown" or
+            "dynamic_template" or
+            "audio" or
+            "primitive.audio" or
+            "video" or
+            "primitive.video";
+
+    private bool HasRenderableContent =>
+        Node.CatalogId switch
+        {
+            "primitive.separator" => true,
+            "audio" or "primitive.audio" or "video" or "primitive.video" or "primitive.embed" =>
+                HasNonEmptyStringProperty("url", "src"),
+            "dynamic_template" => false,
+            "gallery" or "primitive.gallery" or "carousel" or "primitive.carousel" =>
+                Node.Children.Count > 0,
+            "raw_html" or "content" =>
+                HasNonEmptyStringProperty("content", "html"),
+            "markdown" =>
+                HasNonEmptyStringProperty("content", "markdown", "text"),
+            _ =>
+                Node.Children.Count > 0 ||
+                HasNonEmptyStringProperty("text", "content", "title", "code", "html", "markdown", "name", "quote")
+        };
+
     protected override void OnParametersSet()
     {
         ResolvePreviewType();
@@ -133,6 +185,7 @@ public sealed partial class CanvasNode : ComponentBase
     {
         PreviewComponentType = null;
         NodeDisplayName = Node.CatalogId;
+        NodeDescription = null;
 
         if (DefinitionRegistry is null)
             return;
@@ -141,6 +194,7 @@ public sealed partial class CanvasNode : ComponentBase
         {
             PreviewComponentType = descriptor.Catalog.PreviewComponentType;
             NodeDisplayName = descriptor.Catalog.DisplayName;
+            NodeDescription = descriptor.Catalog.Description;
         }
     }
 
@@ -283,6 +337,21 @@ public sealed partial class CanvasNode : ComponentBase
             Node.NodeId,
             "property:url",
             EditorBreakpoint.Desktop);
+    }
+
+    private bool HasNonEmptyStringProperty(params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (Node.Properties.TryGetValue(name, out var value) &&
+                value.ValueKind == System.Text.Json.JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(value.GetString()))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private string GetActionDisplayText(EditorNodeAction action) => action switch

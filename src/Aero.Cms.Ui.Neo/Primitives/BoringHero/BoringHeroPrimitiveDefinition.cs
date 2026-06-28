@@ -48,6 +48,11 @@ public sealed class BoringHeroPrimitiveDefinition : PrimitiveDefinitionBase
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>()
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["title"] = JsonSerializer.SerializeToElement("Welcome"),
+            ["summary"] = JsonSerializer.SerializeToElement("Build a polished page with Aero CMS."),
+            ["backgroundImageUrl"] = JsonSerializer.SerializeToElement(string.Empty)
+        }
     };
 }

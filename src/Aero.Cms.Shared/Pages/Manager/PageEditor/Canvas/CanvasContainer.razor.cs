@@ -131,6 +131,7 @@ public sealed partial class CanvasContainer : ComponentBase
     private Dictionary<string, object> PreviewParameters { get; set; } = [];
 
     private string NodeDisplayName { get; set; } = string.Empty;
+    private string? NodeDescription { get; set; }
 
     private string CssClass
     {
@@ -159,23 +160,16 @@ public sealed partial class CanvasContainer : ComponentBase
         Node.Children.Count == 0 &&
         !string.Equals(Node.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase);
 
+    private bool ShouldShowGenericPreviewShell =>
+        PreviewComponentType is null &&
+        !IsRootNode &&
+        DefinitionRegistry is not null &&
+        DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out _);
+
     private bool ShouldRenderGenericChildren =>
         IsRootNode || PreviewComponentType is null;
 
-    private string DefaultDropZoneId
-    {
-        get
-        {
-            if (DefinitionRegistry is not null &&
-                DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor) &&
-                descriptor.Catalog.Composition.SupportedDropZones.FirstOrDefault() is { } dropZone)
-            {
-                return dropZone.Id;
-            }
-
-            return "default";
-        }
-    }
+    private string DefaultDropZoneId => ResolveDropZoneId(PaletteDragState?.CatalogId);
 
     protected override void OnParametersSet()
     {
@@ -187,6 +181,7 @@ public sealed partial class CanvasContainer : ComponentBase
     {
         PreviewComponentType = null;
         NodeDisplayName = Node.CatalogId;
+        NodeDescription = null;
 
         if (DefinitionRegistry is null)
             return;
@@ -195,6 +190,7 @@ public sealed partial class CanvasContainer : ComponentBase
         {
             PreviewComponentType = descriptor.Catalog.PreviewComponentType;
             NodeDisplayName = descriptor.Catalog.DisplayName;
+            NodeDescription = descriptor.Catalog.Description;
         }
     }
 
@@ -277,7 +273,45 @@ public sealed partial class CanvasContainer : ComponentBase
             targetChild?.NodeId,
             insertAtIndex,
             PaletteDragState?.CatalogId,
-            DropZoneId: DefaultDropZoneId));
+            DropZoneId: ResolveDropZoneId(PaletteDragState?.CatalogId)));
+    }
+
+    private string ResolveDropZoneId(string? draggedCatalogId)
+    {
+        if (DefinitionRegistry is null ||
+            !DefinitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor))
+        {
+            return "default";
+        }
+
+        var dropZones = descriptor.Catalog.Composition.SupportedDropZones;
+        if (dropZones.Count == 0)
+        {
+            return "default";
+        }
+
+        if (!string.IsNullOrWhiteSpace(draggedCatalogId) &&
+            DefinitionRegistry.TryGetDescriptor(draggedCatalogId, out var draggedDescriptor))
+        {
+            var childKind = draggedDescriptor.Catalog.Kind;
+            var compatible = dropZones
+                .Where(zone => zone.AllowedChildKinds.Contains(childKind))
+                .OrderBy(zone => zone.MaximumChildren.HasValue)
+                .ThenByDescending(zone => zone.MaximumChildren ?? int.MaxValue)
+                .ThenBy(zone => Node.Children.Count >= (zone.MaximumChildren ?? int.MaxValue))
+                .FirstOrDefault();
+
+            if (compatible is not null)
+            {
+                return compatible.Id;
+            }
+        }
+
+        return dropZones
+            .OrderBy(zone => zone.MaximumChildren.HasValue)
+            .ThenByDescending(zone => zone.MaximumChildren ?? int.MaxValue)
+            .First()
+            .Id;
     }
 
     private async Task OpenContextMenu(MouseEventArgs args)

@@ -735,28 +735,92 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     protected NeoPageNode CreateNode(string catalogId)
     {
-        if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor) &&
-            descriptor.NodeFactory is { } factory)
+        if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor))
         {
-            return factory.CreateDefaultNode();
+            return CreateNodeFromDescriptor(descriptor);
         }
 
         // Legacy path: create from EditorBlock definition and extract node
         var block = CreateBlock(catalogId);
         var node = block.CompositionNodes is { Count: > 0 } nodes
             ? nodes[0]
-            : new NeoPageNode
-            {
-                NodeId = block.EditorId ?? Guid.NewGuid().ToString("N"),
-                CatalogId = "primitive.section",
-                Kind = NeoPageNodeKind.Section,
-                Style = block.Style?.DeepClone() ?? new ResponsiveNodeStyle(),
-                Children = []
-            };
+            : CreateCatalogFallbackNode(catalogId);
+
+        return NormalizeCreatedNode(node, catalogId, ResolveCatalogKind(catalogId));
+    }
+
+    private NeoPageNode CreateNodeFromDescriptor(PageEditorDefinitionDescriptor descriptor)
+    {
+        var node = descriptor.NodeFactory.CreateDefaultNode();
+        return NormalizeCreatedNode(node, descriptor.CatalogId, descriptor.Catalog.Kind);
+    }
+
+    private NeoPageNode CreateCatalogFallbackNode(string catalogId)
+    {
+        var properties = new Dictionary<string, JsonElement>();
+        if (Catalog.TryGet(catalogId, out var item))
+        {
+            properties["displayName"] = JsonSerializer.SerializeToElement(item.DisplayName);
+        }
+
+        return new NeoPageNode
+        {
+            NodeId = Guid.NewGuid().ToString("N"),
+            CatalogId = catalogId,
+            Kind = ResolveCatalogKind(catalogId),
+            Style = new ResponsiveNodeStyle(),
+            Properties = properties,
+            Children = []
+        };
+    }
+
+    private NeoPageNode NormalizeCreatedNode(
+        NeoPageNode node,
+        string catalogId,
+        NeoPageNodeKind fallbackKind)
+    {
         if (string.IsNullOrWhiteSpace(node.NodeId))
+        {
             node.NodeId = Guid.NewGuid().ToString("N");
+        }
+
+        if (string.IsNullOrWhiteSpace(node.CatalogId))
+        {
+            node.CatalogId = catalogId;
+        }
+
+        if (string.Equals(node.CatalogId, "primitive.section", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(catalogId, "primitive.section", StringComparison.OrdinalIgnoreCase))
+        {
+            node.CatalogId = catalogId;
+            node.Kind = fallbackKind;
+        }
+
+        node.Properties ??= [];
+        node.Style ??= new ResponsiveNodeStyle();
+        node.Children ??= [];
         return node;
     }
+
+    private NeoPageNodeKind ResolveCatalogKind(string catalogId)
+    {
+        if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor))
+        {
+            return descriptor.Catalog.Kind;
+        }
+
+        return Catalog.TryGet(catalogId, out var item)
+            ? ToNodeKind(item.Kind)
+            : NeoPageNodeKind.Block;
+    }
+
+    private static NeoPageNodeKind ToNodeKind(PageEditorCatalog.NeoEditorCatalogKind kind) =>
+        kind switch
+        {
+            PageEditorCatalog.NeoEditorCatalogKind.Primitive => NeoPageNodeKind.Primitive,
+            PageEditorCatalog.NeoEditorCatalogKind.Component => NeoPageNodeKind.Component,
+            _ => NeoPageNodeKind.Block
+        };
 
     protected void AddBlock(string type)
     {
@@ -1020,7 +1084,7 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             return new EditorBlock
             {
                 Type = descriptor.CatalogId,
-                CompositionNodes = [descriptor.NodeFactory.CreateDefaultNode()]
+                CompositionNodes = [CreateNodeFromDescriptor(descriptor)]
             };
         }
 
@@ -1076,7 +1140,17 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
         return block.Type switch
         {
-        _ => new NeoPageNode { CatalogId = "primitive.section", Kind = NeoPageNodeKind.Section, Properties = [] }
+            _ => NormalizeCreatedNode(
+                new NeoPageNode
+                {
+                    CatalogId = block.Type,
+                    Kind = ResolveCatalogKind(block.Type),
+                    Properties = [],
+                    Style = block.Style.DeepClone(),
+                    Children = []
+                },
+                block.Type,
+                ResolveCatalogKind(block.Type))
         };
     }
 
@@ -1086,7 +1160,17 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         out NeoPageNode mappedNode)
     {
         mappedBlock = null;
-        mappedNode = new NeoPageNode { CatalogId = "primitive.section", Kind = NeoPageNodeKind.Section, Properties = [] };
+        mappedNode = NormalizeCreatedNode(
+            new NeoPageNode
+            {
+                CatalogId = block.Type,
+                Kind = ResolveCatalogKind(block.Type),
+                Properties = [],
+                Style = block.Style.DeepClone(),
+                Children = []
+            },
+            block.Type,
+            ResolveCatalogKind(block.Type));
 
         if (!DefinitionRegistry.TryGetDescriptor(block.Type, out var descriptor) ||
             descriptor.LegacyDefinition is not { } definition)
@@ -1103,9 +1187,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
         if (mappedNode.Kind == default)
         {
-            mappedNode.Kind = NeoPageNodeKind.Section;
+            mappedNode.Kind = descriptor.Catalog.Kind;
         }
 
+        NormalizeCreatedNode(mappedNode, descriptor.CatalogId, descriptor.Catalog.Kind);
         return true;
     }
 
@@ -1131,15 +1216,17 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     {
         if (index < 0 || index >= RootNode.Children.Count) return;
 
-        EnsureCanvasHistory();
         var original = RootNode.Children[index];
         var clone = EditorNodeMemento.Capture(original).Restore();
-        clone.NodeId = Guid.NewGuid().ToString("N");
-        RootNode.Children.Insert(index + 1, clone);
-        RecordCanvasMutation();
-        MarkDirty();
-        ShowToast(L["Block duplicated"], "success");
-        QueuePreviewRefresh();
+        AssignFreshNodeIds(clone);
+        ApplyCanvasDrop(
+            clone,
+            new CanvasDropArgs(
+                RootNode.NodeId,
+                null,
+                index + 1,
+                DropZoneId: ResolveDropZoneId(RootNode, clone)),
+            L["Block duplicated"]);
     }
 
     protected void MoveBlockUp(int index)
@@ -1253,17 +1340,11 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         NeoPageNode node;
         if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor))
         {
-            node = descriptor.NodeFactory.CreateDefaultNode();
+            node = CreateNodeFromDescriptor(descriptor);
         }
         else
         {
-            node = new NeoPageNode
-            {
-                NodeId = Guid.NewGuid().ToString("N"),
-                CatalogId = "primitive.section",
-                Kind = NeoPageNodeKind.Section,
-                Children = []
-            };
+            node = CreateCatalogFallbackNode(catalogId);
         }
 
         ApplyCanvasDrop(node, args, L["Block added"]);
@@ -1332,6 +1413,41 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         return true;
     }
 
+    private bool CanContainChildren(NeoPageNode node) =>
+        DefinitionRegistry.TryGetDescriptor(node.CatalogId, out var descriptor) &&
+        descriptor.Catalog.Composition.CanContainChildren;
+
+    private string ResolveDropZoneId(NeoPageNode parent, NeoPageNode child)
+    {
+        if (!DefinitionRegistry.TryGetDescriptor(parent.CatalogId, out var parentDescriptor))
+        {
+            return NeoDropZoneDefinition.DefaultId;
+        }
+
+        var dropZones = parentDescriptor.Catalog.Composition.SupportedDropZones;
+        if (dropZones.Count == 0)
+        {
+            return NeoDropZoneDefinition.DefaultId;
+        }
+
+        var compatible = dropZones
+            .Where(zone => zone.AllowedChildKinds.Contains(child.Kind))
+            .OrderBy(zone => zone.MaximumChildren.HasValue)
+            .ThenByDescending(zone => zone.MaximumChildren ?? int.MaxValue)
+            .FirstOrDefault();
+
+        return compatible?.Id ?? dropZones[0].Id;
+    }
+
+    private static void AssignFreshNodeIds(NeoPageNode node)
+    {
+        node.NodeId = Guid.NewGuid().ToString("N");
+        foreach (var child in node.Children)
+        {
+            AssignFreshNodeIds(child);
+        }
+    }
+
     private CompositionTreeEditor CreateCompositionTreeEditor() =>
         new(
             new CompositionPolicy(
@@ -1373,16 +1489,33 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             return;
         }
 
-        EnsureCanvasHistory();
         var restored = _nodeClipboard.Restore();
+        AssignFreshNodeIds(restored);
+
+        var target = FindNodeInTree(targetNodeId);
+        if (target is not null && CanContainChildren(target))
+        {
+            ApplyCanvasDrop(
+                restored,
+                new CanvasDropArgs(
+                    target.NodeId,
+                    null,
+                    target.Children.Count,
+                    DropZoneId: ResolveDropZoneId(target, restored)),
+                L["Node pasted"]);
+            return;
+        }
+
         var (parent, index) = FindParentAndIndex(targetNodeId);
         var container = parent ?? RootNode;
-        container.Children.Insert(Math.Clamp(index + 1, 0, container.Children.Count), restored);
-        RecordCanvasMutation();
-        SelectBlock(restored.NodeId);
-        MarkDirty();
-        QueuePreviewRefresh();
-        ShowToast(L["Node pasted"], "success");
+        ApplyCanvasDrop(
+            restored,
+            new CanvasDropArgs(
+                container.NodeId,
+                null,
+                Math.Clamp(index + 1, 0, container.Children.Count),
+                DropZoneId: ResolveDropZoneId(container, restored)),
+            L["Node pasted"]);
     }
 
     protected void OnNodeSaveAsCustom(string nodeId)
@@ -1402,18 +1535,19 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         var node = FindNodeInTree(nodeId);
         if (node is null) return;
 
-        EnsureCanvasHistory();
         var (parent, index) = FindParentAndIndex(nodeId);
         if (parent is null) return;
 
         var clone = EditorNodeMemento.Capture(node).Restore();
-        clone.NodeId = Guid.NewGuid().ToString("N");
-        parent.Children.Insert(index + 1, clone);
-        RecordCanvasMutation();
-        SelectBlock(clone.NodeId);
-        MarkDirty();
-        ShowToast(L["Block duplicated"], "success");
-        QueuePreviewRefresh();
+        AssignFreshNodeIds(clone);
+        ApplyCanvasDrop(
+            clone,
+            new CanvasDropArgs(
+                parent.NodeId,
+                null,
+                index + 1,
+                DropZoneId: ResolveDropZoneId(parent, clone)),
+            L["Block duplicated"]);
     }
 
     protected void OnNodeDelete(string nodeId)
@@ -2838,16 +2972,17 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
 
         var pasteNode = _nodeClipboard.Restore();
-        pasteNode.NodeId = Guid.NewGuid().ToString("N");
+        AssignFreshNodeIds(pasteNode);
         var selectedIndex = GetSelectedBlockIndex();
         var insertIndex = selectedIndex >= 0 ? selectedIndex + 1 : RootNode.Children.Count;
-        EnsureCanvasHistory();
-        RootNode.Children.Insert(insertIndex, pasteNode);
-        RecordCanvasMutation();
-        SelectBlock(pasteNode.NodeId);
-        MarkDirty();
-        QueuePreviewRefresh();
-        ShowToast(L["Block pasted"], "success");
+        ApplyCanvasDrop(
+            pasteNode,
+            new CanvasDropArgs(
+                RootNode.NodeId,
+                null,
+                insertIndex,
+                DropZoneId: ResolveDropZoneId(RootNode, pasteNode)),
+            L["Block pasted"]);
     }
 
     [JSInvokable]

@@ -11,6 +11,7 @@ public sealed class NavPrimitiveDefinition : ContainerDefinitionBase, ISlotted
         new HashSet<NeoPageNodeKind>
         {
             NeoPageNodeKind.Primitive,
+            NeoPageNodeKind.Block,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component
         };

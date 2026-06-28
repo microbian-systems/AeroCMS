@@ -101,6 +101,23 @@
         {
             <BlockRenderer Block="@legacyBlock" />
         }
+        else if (ShouldRenderPublicPreviewFallback)
+        {
+            <NeoNodeRenderer Node="Node" />
+        }
+        else if (ShouldShowGenericPreviewShell)
+        {
+            <div class="canvas-node__generic-preview canvas-node__generic-preview--leaf">
+                <div>
+                    <span class="canvas-node__generic-kicker">@Node.Kind</span>
+                    <strong>@NodeDisplayName</strong>
+                    @if (!string.IsNullOrWhiteSpace(NodeDescription))
+                    {
+                        <p>@NodeDescription</p>
+                    }
+                </div>
+            </div>
+        }
         else if (ShouldShowFallbackLabel)
         {
             <span class="canvas-node__fallback">@Node.CatalogId</span>

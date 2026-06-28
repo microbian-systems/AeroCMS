@@ -13,6 +13,7 @@ public sealed class ContainerPrimitiveDefinition : ContainerDefinitionBase, ISlo
         new HashSet<NeoPageNodeKind>
         {
             NeoPageNodeKind.Primitive,
+            NeoPageNodeKind.Block,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component
         };

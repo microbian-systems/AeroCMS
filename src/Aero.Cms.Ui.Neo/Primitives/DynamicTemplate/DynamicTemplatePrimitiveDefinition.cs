@@ -40,6 +40,9 @@ public sealed class DynamicTemplatePrimitiveDefinition : PrimitiveDefinitionBase
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
         Kind = Kind,
-        Properties = new Dictionary<string, JsonElement>()
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["template"] = JsonSerializer.SerializeToElement("{{ page.title }}")
+        }
     };
 }

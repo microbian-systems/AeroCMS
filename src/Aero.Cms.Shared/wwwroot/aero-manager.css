@@ -570,6 +570,17 @@
     padding-top: 38px;
 }
 
+.neo-composition-child__fallback-preview {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.neo-composition-child__fallback-preview > * {
+    max-width: 100%;
+}
+
 .neo-composition-text-input {
     display: block;
     width: 100%;
@@ -1277,6 +1288,59 @@
     font-size: 13px;
     font-weight: 700;
     letter-spacing: .02em;
+}
+
+.canvas-node__generic-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 84px;
+    padding: 18px 20px;
+    border: 1px dashed color-mix(in srgb, var(--pe-primary) 38%, var(--pe-border));
+    border-radius: var(--pe-radius-lg);
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--pe-primary) 6%, transparent), transparent 55%),
+        var(--pe-bg-secondary);
+    color: var(--pe-text-primary);
+}
+
+.canvas-node__generic-preview strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.canvas-node__generic-preview p {
+    max-width: 56rem;
+    margin: 6px 0 0;
+    color: var(--pe-text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.canvas-node__generic-kicker {
+    color: var(--pe-primary);
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.canvas-node__generic-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding-inline: 8px;
+    border: 1px solid var(--pe-border);
+    border-radius: 999px;
+    background: var(--pe-bg-primary);
+    color: var(--pe-text-muted);
+    font-size: 12px;
+    font-weight: 800;
 }
 
 /* ── Block wrapper ─────────────────────────────────────── */

@@ -287,6 +287,12 @@
                         }
                     </figure>
                 }
+                else if (!string.IsNullOrWhiteSpace(GetStringProperty("caption")))
+                {
+                    <div class="neo-primitive-media-placeholder">
+                        @GetStringProperty("caption")
+                    </div>
+                }
                 break;
             }
 
@@ -304,6 +310,12 @@
                         }
                     </figure>
                 }
+                else if (!string.IsNullOrWhiteSpace(GetStringProperty("caption")))
+                {
+                    <div class="neo-primitive-media-placeholder">
+                        @GetStringProperty("caption")
+                    </div>
+                }
                 break;
             }
 
@@ -318,7 +330,9 @@
                 <span class="neo-primitive-icon"
                       data-icon-name="@GetStringProperty("name")"
                       role="img"
-                      aria-label="@GetStringProperty("label")"></span>
+                      aria-label="@GetStringProperty("label")">
+                    @IconGlyph
+                </span>
                 break;
             }
 
@@ -341,6 +355,33 @@
                 break;
             }
 
+            case "markdown":
+            {
+                <div class="neo-primitive-html">@((MarkupString)MarkdownToHtml(GetStringProperty("content", "markdown", "text")))</div>
+                break;
+            }
+
+            case "dynamic_template":
+            {
+                <div class="neo-primitive-template">
+                    @if (Node.Children.Count == 0)
+                    {
+                        @GetStringProperty("template", "content")
+                    }
+                    else
+                    {
+                        @foreach (var child in Node.Children)
+                        {
+                            <NeoNodeRenderer Node="child"
+                                             NestingDepth="NestingDepth + 1"
+                                             MaxDepth="MaxDepth"
+                                             Breakpoint="Breakpoint" />
+                        }
+                    }
+                </div>
+                break;
+            }
+
             case "primitive.embed":
             {
                 var embedUrl = GetSafeMediaProperty("url", "src");
@@ -358,13 +399,22 @@
             case "gallery":
             case "primitive.gallery":
             {
-                <div class="neo-primitive-gallery">
-                    @foreach (var child in Node.Children)
+                <div class="neo-primitive-gallery" role="list" aria-label="@GetStringProperty("label", "title")">
+                    @if (Node.Children.Count == 0)
                     {
-                        <NeoNodeRenderer Node="child"
-                                         NestingDepth="NestingDepth + 1"
-                                         MaxDepth="MaxDepth"
-                                         Breakpoint="Breakpoint" />
+                        <div class="neo-primitive-media-placeholder">
+                            @GetStringProperty("label", "title")
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var child in Node.Children)
+                        {
+                            <NeoNodeRenderer Node="child"
+                                             NestingDepth="NestingDepth + 1"
+                                             MaxDepth="MaxDepth"
+                                             Breakpoint="Breakpoint" />
+                        }
                     }
                 </div>
                 break;
@@ -374,12 +424,21 @@
             case "primitive.carousel":
             {
                 <div class="neo-primitive-carousel" role="region" aria-label="@GetStringProperty("label", "title")">
-                    @foreach (var child in Node.Children)
+                    @if (Node.Children.Count == 0)
                     {
-                        <NeoNodeRenderer Node="child"
-                                         NestingDepth="NestingDepth + 1"
-                                         MaxDepth="MaxDepth"
-                                         Breakpoint="Breakpoint" />
+                        <div class="neo-primitive-media-placeholder">
+                            @GetStringProperty("label", "title")
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var child in Node.Children)
+                        {
+                            <NeoNodeRenderer Node="child"
+                                             NestingDepth="NestingDepth + 1"
+                                             MaxDepth="MaxDepth"
+                                             Breakpoint="Breakpoint" />
+                        }
                     }
                 </div>
                 break;
@@ -439,6 +498,42 @@
                 break;
             }
 
+            case "hero":
+            case "aero_features":
+            case "aero_pricing":
+            case "aero_cta":
+            case "aero_faq":
+            case "aero_testimonials":
+            case "aero_blog":
+            case "aero_teams":
+            case "aero_contact":
+            case "aero_portfolio":
+            case "aero_table":
+            case "aero_auth":
+            {
+                <section class="@GenericComponentClass">
+                    @if (Node.Children.Count == 0)
+                    {
+                        <div class="neo-component__placeholder">
+                            <p class="neo-component__kicker">Component</p>
+                            <h2>@ComponentTitle</h2>
+                            <p>@ComponentDescription</p>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var child in Node.Children)
+                        {
+                            <NeoNodeRenderer Node="child"
+                                             NestingDepth="NestingDepth + 1"
+                                             MaxDepth="MaxDepth"
+                                             Breakpoint="Breakpoint" />
+                        }
+                    }
+                </section>
+                break;
+            }
+
             @* Catalog-backed visual sections render through their registered block renderer.
                This keeps storage semantic while preserving the polished public UI. *@
             case var _ when TryMapLegacyBlock(out var catalogBlock):
@@ -460,13 +555,15 @@
             @* Container/section nodes render children recursively *@
             case var _ when isContainer || Node.Children.Count > 0:
             {
-                @foreach (var child in Node.Children)
-                {
-                    <NeoNodeRenderer Node="child"
-                                     NestingDepth="NestingDepth + 1"
-                                     MaxDepth="MaxDepth"
-                                     Breakpoint="Breakpoint" />
-                }
+                <div class="@GenericComponentClass">
+                    @foreach (var child in Node.Children)
+                    {
+                        <NeoNodeRenderer Node="child"
+                                         NestingDepth="NestingDepth + 1"
+                                         MaxDepth="MaxDepth"
+                                         Breakpoint="Breakpoint" />
+                    }
+                </div>
                 break;
             }
 
@@ -503,6 +600,61 @@
             return $"neo-node neo-{catalogClass} neo-kind-{kindClass}{fullWidthClass}";
         }
     }
+
+    private string GenericComponentClass =>
+        $"neo-component neo-component-{Node.CatalogId.Replace(".", "-").Replace("_", "-")}";
+
+    private string ComponentTitle => FirstNonEmpty(
+        GetStringProperty("title"),
+        Node.CatalogId switch
+        {
+            "hero" => "Hero",
+            "aero_features" => "Features",
+            "aero_pricing" => "Pricing",
+            "aero_cta" => "Call to action",
+            "aero_faq" => "Frequently asked questions",
+            "aero_testimonials" => "Testimonials",
+            "aero_blog" => "Blog",
+            "aero_teams" => "Team",
+            "aero_contact" => "Contact",
+            "aero_portfolio" => "Portfolio",
+            "aero_table" => "Table",
+            "aero_auth" => "Authentication",
+            _ => "Component"
+        });
+
+    private string ComponentDescription => FirstNonEmpty(
+        GetStringProperty("description", "summary", "content"),
+        Node.CatalogId switch
+        {
+            "hero" => "Add background media, headline text, supporting copy, and calls to action.",
+            "aero_features" => "Drop feature cards, icons, headings, and supporting copy into this section.",
+            "aero_pricing" => "Compose pricing tiers, feature lists, and purchase actions.",
+            "aero_cta" => "Build a focused conversion section with copy and buttons.",
+            "aero_faq" => "Add questions and answers for common customer concerns.",
+            "aero_testimonials" => "Collect quotes, names, roles, and images into a proof section.",
+            "aero_blog" => "Arrange article cards or dynamic post summaries.",
+            "aero_teams" => "Create team member cards with names, roles, bios, and photos.",
+            "aero_contact" => "Add contact details, maps, or forms.",
+            "aero_portfolio" => "Compose project cards and portfolio details.",
+            "aero_table" => "Add rows, cells, and structured comparison content.",
+            "aero_auth" => "Compose sign-in, sign-up, or account access content.",
+            _ => "Drop child elements into this component to build the final layout."
+        });
+
+    private static string FirstNonEmpty(params string[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+
+    private string IconGlyph => GetStringProperty("name") switch
+    {
+        "check" => "✓",
+        "x" or "x-circle" => "×",
+        "heart" => "♡",
+        "star" => "★",
+        "sparkles" => "✦",
+        "circle" => "●",
+        _ => "•"
+    };
 
     private string GetStringProperty(params string[] names)
     {
@@ -579,6 +731,11 @@
             _ => false
         };
     }
+
+    private static string MarkdownToHtml(string value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : Markdig.Markdown.ToHtml(value);
 
     private string GridStyle()
     {
