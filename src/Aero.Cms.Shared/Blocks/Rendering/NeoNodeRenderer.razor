@@ -803,7 +803,9 @@
             return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
         }
 
-        var editorBlock = NeoPageNodeEditorBlockMapper.ToEditorBlock(Node);
+        var editorBlock = NeoPageNodeEditorBlockMapper.ToEditorBlock(
+            Node,
+            descriptor.LegacyDefinition.CreateDefaultEditorBlock());
         if (descriptor.LegacyDefinition.ToBlockBase(editorBlock) is not { } mapped)
         {
             return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);

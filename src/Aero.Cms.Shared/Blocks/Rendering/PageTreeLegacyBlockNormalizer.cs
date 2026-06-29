@@ -5,27 +5,70 @@ using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 namespace Aero.Cms.Shared.Blocks.Rendering;
 
 /// <summary>
-/// Converts transitional legacy block nodes into the semantic, HTML-adjacent
-/// composition tree used by the current public renderer.
+/// Migrates known pre-tree block nodes into the semantic, HTML-adjacent
+/// composition tree. Modern catalog IDs are preserved and rendered by the
+/// registry-based node renderer.
 /// </summary>
-public static class PageTreeLegacyBlockNormalizer
+public static class PageTreeLegacyNodeMigrator
 {
-    public static NeoPageNode Normalize(NeoPageNode node)
+    private static readonly HashSet<string> LegacyBlockCatalogIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "hero",
+        "boring_hero",
+        "content",
+        "rich_text",
+        "raw_html",
+        "ui.raw-html",
+        "markdown",
+        "text",
+        "heading",
+        "quote",
+        "image",
+        "media.image",
+        "video",
+        "media.video"
+    };
+
+    public static bool ContainsLegacyNodes(IEnumerable<NeoPageNode> nodes) =>
+        nodes.Any(ContainsLegacyNode);
+
+    public static List<NeoPageNode> CloneTree(IEnumerable<NeoPageNode> nodes) =>
+        nodes.Select(Clone).ToList();
+
+    public static List<NeoPageNode> MigrateKnownLegacyNodes(IEnumerable<NeoPageNode> nodes) =>
+        nodes.Select(MigrateKnownLegacyNode).ToList();
+
+    public static List<NeoPageNode> MigrateIfNeeded(IEnumerable<NeoPageNode> nodes)
+    {
+        var materialized = nodes.ToList();
+        return ContainsLegacyNodes(materialized)
+            ? MigrateKnownLegacyNodes(materialized)
+            : CloneTree(materialized);
+    }
+
+    public static NeoPageNode MigrateKnownLegacyNode(NeoPageNode node)
     {
         ArgumentNullException.ThrowIfNull(node);
 
-        var normalized = node.Kind == NeoPageNodeKind.Block
-            ? NormalizeLegacyBlock(node)
+        var migrated = IsLegacyBlockNode(node)
+            ? MigrateLegacyBlock(node)
             : Clone(node);
 
-        normalized.Children = normalized.Children
-            .Select(Normalize)
+        migrated.Children = migrated.Children
+            .Select(MigrateKnownLegacyNode)
             .ToList();
 
-        return normalized;
+        return migrated;
     }
 
-    private static NeoPageNode NormalizeLegacyBlock(NeoPageNode node)
+    private static bool ContainsLegacyNode(NeoPageNode node) =>
+        IsLegacyBlockNode(node) || node.Children.Any(ContainsLegacyNode);
+
+    private static bool IsLegacyBlockNode(NeoPageNode node) =>
+        node.Kind == NeoPageNodeKind.Block &&
+        LegacyBlockCatalogIds.Contains(node.CatalogId.Trim());
+
+    private static NeoPageNode MigrateLegacyBlock(NeoPageNode node)
     {
         var catalogId = node.CatalogId.Trim();
         return catalogId switch
@@ -102,11 +145,7 @@ public static class PageTreeLegacyBlockNormalizer
                         FirstNonEmpty(GetString(node, "url"), GetString(node, "src"))),
                     ["title"] = JsonSerializer.SerializeToElement(GetString(node, "title"))
                 }),
-            _ => CloneAs(
-                node,
-                catalogId: "primitive.section",
-                kind: NeoPageNodeKind.Section,
-                properties: CloneProperties(node.Properties))
+            _ => Clone(node)
         };
     }
 
@@ -204,4 +243,15 @@ public static class PageTreeLegacyBlockNormalizer
 
     private static string FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+}
+
+/// <summary>
+/// Compatibility facade for old callers. New code should call
+/// <see cref="PageTreeLegacyNodeMigrator"/> explicitly and only on legacy input.
+/// </summary>
+[Obsolete("Use PageTreeLegacyNodeMigrator for explicit legacy migration.")]
+public static class PageTreeLegacyBlockNormalizer
+{
+    public static NeoPageNode Normalize(NeoPageNode node) =>
+        PageTreeLegacyNodeMigrator.MigrateKnownLegacyNode(node);
 }

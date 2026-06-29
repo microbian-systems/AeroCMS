@@ -5,9 +5,19 @@
 Allow Aero CMS to support multiple document database providers selected
 by the user at installation time:
 
--   Marten
--   Polecat
--   Dali
+-   SurrealDB *(default)*
+-   PostgreSQL
+-   MSSQL
+
+Internally, each provider uses a document DB abstraction layer that
+sits on top of its database SDK:
+
+- PostgreSQL → **Marten** (document DB layer on Npgsql)
+- MSSQL → **Polecat** (document DB layer on SQL Server)
+- SurrealDB → **Dali** (document DB layer on SurrealDB.Net)
+
+The doc uses these internal names to reference the provider implementation
+packages, while the Setup wizard and config use the database names.
 
 The remainder of the application (modules, middleware, services,
 manager, APIs, etc.) should remain provider-agnostic.
@@ -25,10 +35,25 @@ manager, APIs, etc.) should remain provider-agnostic.
 
 ------------------------------------------------------------------------
 
+# Provider Mapping
+
+| Setup dropdown | Config value | Internal codename | Database engine | Document DB layer |
+|---------------|--------------|-------------------|-----------------|-------------------|
+| SurrealDB *(default)* | `"SurrealDB"` | Dali | SurrealDB | Dali (on SurrealDB.Net) |
+| PostgreSQL | `"PostgreSQL"` | Marten | PostgreSQL | Marten (on Npgsql) |
+| MSSQL | `"MSSQL"` | Polecat | SQL Server | Polecat (on Microsoft.Data.SqlClient) |
+
+Config values match the user-facing database names because the config
+file is user-editable. Internal codenames are used in project packages
+and class names.
+
+------------------------------------------------------------------------
+
 # High-Level Flow
 
-Installation: 1. User selects Marten, Polecat, or Dali. 2. Selection is
-persisted to configuration.
+Installation: 1. User selects SurrealDB, PostgreSQL, or MSSQL. 2.
+Selects embedded or server mode. 3. Selection is persisted to
+configuration.
 
 Every application startup: 1. Read configured provider. 2. Register
 provider infrastructure. 3. Create provider-specific
@@ -36,6 +61,79 @@ provider infrastructure. 3. Create provider-specific
 `IAeroDataModule`. 5. Call `ConfigurePersistence(builder)` on every
 module. 6. Register provider-specific service implementations. 7.
 Runtime resolves only interfaces through DI.
+
+-----------------------------------------------------------------------
+
+# Setup Wizard UI
+
+The Setup wizard (`Setup.cshtml`) exposes two separate controls for
+provider selection:
+
+- **Provider dropdown**: SurrealDB (default/selected), PostgreSQL,
+  MSSQL
+- **Embedded checkbox**: whether the database runs embedded (in-process)
+  or connects to an external server
+
+These are two orthogonal concerns — the user picks the engine, then
+decides how to run it. Both are persisted to `appsettings.{environment}.json`
+during installation.
+
+## Config Persistence
+
+Following the existing Setup wizard pattern (`DatabaseBootstrapService.PersistAsync`),
+the selection is written under a new config section distinct from the
+`AeroCms:Bootstrap` state tracking section:
+
+``` json
+{
+  "AeroCms": {
+    "Bootstrap": {
+      "DatabaseMode": "Embedded",
+      "State": "Running"
+    },
+    "Persistence": {
+      "Provider": "SurrealDB",
+      "Embedded": true
+    }
+  }
+}
+```
+
+| Key | Type | Values | Purpose |
+|-----|------|--------|---------|
+| `AeroCms:Persistence:Provider` | string | `"SurrealDB"`, `"PostgreSQL"`, `"MSSQL"` | Which database engine |
+| `AeroCms:Persistence:Embedded` | bool | `true`, `false` | Whether the DB runs embedded |
+
+The `AeroCms:Bootstrap` section continues to track operational mode and
+setup state. The `AeroCms:Persistence` section tracks technology choices.
+They are written in the same `DatabaseBootstrapService.PersistAsync` call
+but serve different concerns.
+
+## Relationship Between Embedded Flag and DatabaseMode
+
+The existing `AeroCms:Bootstrap:DatabaseMode` (`"Embedded"` / `"Server"`)
+and the new `AeroCms:Persistence:Embedded` (`true` / `false`) carry the
+same information but for different consumers:
+
+- `DatabaseMode` is consumed by the existing `InfrastructureConnectionStringResolver`
+  during the bootstrapping pipeline to decide connection strings and
+  infrastructure provisioning (e.g., spin up an embedded PostgreSQL or
+  connect to a remote SurrealDB Cloud instance).
+- `Embedded` is consumed during the DI registration phase to select the
+  correct service implementations (e.g., embedded vs. server
+  `IAeroDocumentStore`).
+
+During the Setup wizard, the checkbox state is written to both keys to
+keep them in sync. The two values should never conflict.
+
+## Startup Read
+
+At startup, the provider is read from config (see the Startup section):
+
+``` csharp
+var provider = config.GetValue<string>("AeroCms:Persistence:Provider") ?? "SurrealDB";
+var embedded = config.GetValue<bool>("AeroCms:Persistence:Embedded");
+```
 
 ------------------------------------------------------------------------
 
@@ -63,7 +161,7 @@ public sealed class PagesModule : AeroWebModule, IAeroDataModule
 }
 ```
 
-The module never references Marten, Polecat, or Dali APIs.
+The module never references provider-specific APIs.
 
 ------------------------------------------------------------------------
 
@@ -90,10 +188,11 @@ configuration operations:
 -   SoftDeleted()
 -   UseOptimisticConcurrency()
 
-Provider-specific operations (e.g. Marten's NgramIndex, FullTextIndex,
-Duplicate) are implemented as **extension methods** in the provider
-project, not on the abstraction. Modules that use them opt in to that
-provider's extensions, but the core interface remains provider-agnostic.
+Provider-specific operations (e.g. Marten/PostgreSQL's NgramIndex,
+FullTextIndex, Duplicate) are implemented as **extension methods** in
+the provider project, not on the abstraction. Modules that use them opt
+in to that provider's extensions, but the core interface remains
+provider-agnostic.
 
 These represent intent only.
 
@@ -104,13 +203,13 @@ These represent intent only.
 Each provider translates the intent.
 
 ``` text
-MartenPersistenceBuilder
+MartenPersistenceBuilder (PostgreSQL)
     -> opts.Schema.For<T>()
 
-PolecatPersistenceBuilder
+PolecatPersistenceBuilder (MSSQL)
     -> Polecat mapping API
 
-DaliPersistenceBuilder
+DaliPersistenceBuilder (SurrealDB)
     -> Dali mapping API
 ```
 
@@ -284,11 +383,11 @@ Example:
 ``` text
 IPageContentService
 
-    MartenPageContentService
+    MartenPageContentService (PostgreSQL)
 
-    PolecatPageContentService
+    PolecatPageContentService (MSSQL)
 
-    DaliPageContentService
+    DaliPageContentService (SurrealDB)
 ```
 
 **Module services** (used by most code) depend only on `IAeroDocumentStore`:
@@ -346,24 +445,25 @@ IAeroDocumentStore
 
 # DI Registration
 
-Startup chooses one provider.
+Startup chooses one provider. Config values use the user-facing database
+names. Internally, each maps to a provider package:
 
 ``` csharp
 switch (provider)
 {
-    case Marten:
-        Register Marten infrastructure (IDocumentStore, etc.)
+    case "SurrealDB":
+        Register Dali (SurrealDB) infrastructure
+        services.AddAeroCmsDaliDb();
+        break;
+
+    case "PostgreSQL":
+        Register Marten (PostgreSQL) infrastructure
         services.AddAeroCmsMartenDb();
         break;
 
-    case Polecat:
-        Register Polecat infrastructure
+    case "MSSQL":
+        Register Polecat (MSSQL) infrastructure
         services.AddAeroCmsPolecatDb();
-        break;
-
-    case Dali:
-        Register Dali infrastructure
-        services.AddAeroCmsDaliDb();
         break;
 }
 ```
@@ -379,7 +479,7 @@ The factory is registered via a delegate to avoid unnecessary
 abstraction:
 
 ``` csharp
-// Marten provider registration:
+// PostgreSQL / Marten provider registration:
 services.AddSingleton<IAeroDocumentStoreFactory>(sp =>
     new MartenDocumentStoreFactory(sp.GetRequiredService<IDocumentStore>()));
 ```
@@ -390,24 +490,32 @@ services.AddSingleton<IAeroDocumentStoreFactory>(sp =>
 
 ``` csharp
 // 1. Read configured provider
-var provider = config.GetValue<string>("AeroCms:Persistence:Provider") ?? "Marten";
+var provider = config.GetValue<string>("AeroCms:Persistence:Provider") ?? "SurrealDB";
+var embedded = config.GetValue<bool>("AeroCms:Persistence:Embedded");
 
 // 2. Register provider infrastructure + DI
 switch (provider)
 {
-    case "Marten":
-        services.ConfigureMartenDb(config, env, connString);
+    case "SurrealDB":
+        services.ConfigureDaliDb(config, env, connString);
+        services.AddAeroCmsDaliDb();
+        break;
+    case "PostgreSQL":
+        services.ConfigureMartenDb(config, env, connString, embedded);
         services.AddAeroCmsMartenDb();
         break;
-    // Polecat, Dali ...
+    case "MSSQL":
+        services.ConfigurePolecatDb(config, env, connString);
+        services.AddAeroCmsPolecatDb();
+        break;
 }
 
 // 3. Create provider-specific persistence builder
 IAeroPersistenceBuilder builder = provider switch
 {
-    "Marten" => new MartenPersistenceBuilder(storeOptions),
-    "Polecat" => new PolecatPersistenceBuilder(...),
-    "Dali" => new DaliPersistenceBuilder(...),
+    "SurrealDB" => new DaliPersistenceBuilder(...),
+    "PostgreSQL" => new MartenPersistenceBuilder(storeOptions),
+    "MSSQL" => new PolecatPersistenceBuilder(...),
 };
 
 // 4. Let all IAeroDataModule modules configure their schema
@@ -416,7 +524,7 @@ foreach (var module in modules.OfType<IAeroDataModule>())
     module.ConfigurePersistence(builder);
 }
 
-// 5. Apply the built configuration (Marten: storeOptions → document store)
+// 5. Apply the built configuration
 //    Done by the provider infrastructure registration step.
 ```
 
@@ -440,7 +548,15 @@ Aero.Cms.Core                               (legacy — to be deprecated)
     [Obsolete] IAeroCmsDb
     [Obsolete] AeroCmsDB
 
-Aero.Cms.Db.Marten                          (Marten implementation)
+Aero.Cms.Db.Dali                            (SurrealDB document DB)
+    DaliDocumentStore : IAeroDocumentStore
+    DaliDocumentStoreFactory : IAeroDocumentStoreFactory
+    DaliPersistenceBuilder : IAeroPersistenceBuilder
+    DaliDocumentBuilder<T> : IAeroDocumentBuilder<T>
+    Dali LINQ provider (Expression → SurrealQL)
+    ServiceCollectionExtensions (AddAeroCmsDaliDb)
+
+Aero.Cms.Db.Marten                          (PostgreSQL document DB)
     MartenDocumentStore : IAeroDocumentStore
     MartenDocumentStoreFactory : IAeroDocumentStoreFactory
     MartenPersistenceBuilder : IAeroPersistenceBuilder
@@ -448,17 +564,11 @@ Aero.Cms.Db.Marten                          (Marten implementation)
     Marten-specific extensions (NgramIndex, FullTextIndex, etc.)
     ServiceCollectionExtensions (AddAeroCmsMartenDb)
 
-Aero.Cms.Db.Polecat                         (Polecat implementation)
+Aero.Cms.Db.Polecat                         (MSSQL document DB)
     PolecatDocumentStore : IAeroDocumentStore
     PolecatDocumentStoreFactory : IAeroDocumentStoreFactory
     PolecatPersistenceBuilder : IAeroPersistenceBuilder
     ServiceCollectionExtensions (AddAeroCmsPolecatDb)
-
-Aero.Cms.Db.Dali                            (Dali implementation)
-    DaliDocumentStore : IAeroDocumentStore
-    DaliDocumentStoreFactory : IAeroDocumentStoreFactory
-    DaliPersistenceBuilder : IAeroPersistenceBuilder
-    ServiceCollectionExtensions (AddAeroCmsDaliDb)
 
 Aero.Cms.Modules.Pages
     PagesModule : AeroWebModule, IAeroDataModule
@@ -486,10 +596,15 @@ Aero.Cms.Modules.Navigation
   `IAeroDocumentBuilder<T>` in `Aero.Cms.Core.Abstractions`
 - No existing code changes needed
 
-### Phase 2: Marten Provider (zero impact)
-- Implement `MartenDocumentStore`, `MartenDocumentStoreFactory`,
-  `MartenPersistenceBuilder`, `MartenDocumentBuilder<T>`
-- Register `AddAeroCmsMartenDb()` in startup
+### Phase 2: Provider Implementations (backward-compatible)
+- Implement `SurrealDocumentStore`, `SurrealPersistenceBuilder`,
+  `SurrealDocumentBuilder<T>` for the SurrealDB provider
+- Implement `MartenDocumentStore`, `MartenPersistenceBuilder`,
+  `MartenDocumentBuilder<T>` for the PostgreSQL provider
+- Implement `PolecatDocumentStore`, `PolecatPersistenceBuilder` for the
+  MSSQL provider
+- Register `AddAeroCmsSurrealDb()`, `AddAeroCmsMartenDb()`,
+  `AddAeroCmsPolecatDb()` in startup
 - Old `IAeroCmsDb`/`AeroCmsDB` still works alongside new abstractions
 
 ### Phase 3: One Module Migration (prove the pattern)
@@ -533,6 +648,185 @@ old path without interference.
 | `IAsyncUnitOfWork` | Superseded by `IAeroDocumentStore` + `ISupportsTransactions`. |
 
 ------------------------------------------------------------------------
+
+# Implementation Plan
+
+SurrealDB is the first new provider to implement (Marten/PostgreSQL is
+already implemented; Polecat/MSSQL is last).
+
+## Provider Implementation Order
+
+```
+Dali (SurrealDB) →  Phase 1-2 (first — new provider, proves abstractions)
+Marten (PostgreSQL) → Already implemented (refactored to new abstractions)
+Polecat (MSSQL)  →  Phase 7 (last — only after abstractions are stable)
+```
+
+## Technical Equivalents: SurrealDB vs PostgreSQL/Marten
+
+| Feature | PostgreSQL / Marten | SurrealDB / Dali |
+|---------|-------------------|-------------------|
+| **Embedded mode** | MysticMind.PostgresEmbed (spawns PG subprocess) | Spawn `surreal start` subprocess; file-backed via `surrealkv://` or ephemeral via `memory` |
+| **Provisioning** | `NpgsqlCommand`: `CREATE DATABASE`, `CREATE ROLE` | `SurrealDbClient.QueryAsync()`: `DEFINE NAMESPACE`, `DEFINE DATABASE`, `DEFINE LOGIN` |
+| **Connection URL** | PostgreSQL conn string (`Host=localhost;Port=5433`) | WebSocket URL (`ws://localhost:8000/rpc`) |
+| **Schema DDL** | Marten `StoreOptions` → PostgreSQL DDL | Dali mapping API → SurrealQL DDL |
+| **Test cleanup** | Marten `Advanced.Clean.CompletelyRemoveAllAsync()` | SurrealQL `REMOVE TABLE` or restart with `memory` |
+| **Identity** | Marten `UserStore<AeroUser>` wrapping `IDocumentSession` | Provider-agnostic `UserStore` backed by `IAeroDocumentStore` |
+| **IQueryable<T>** | Marten's built-in LINQ provider (Expression → PostgreSQL) | Dali LINQ provider (Expression → SurrealQL) |
+| **Cluster mgmt** | Citus: `master_add_node` via `NpgsqlCommand` | SurrealDB clustering via `--cluster` mode (separate code path) |
+
+## Raw SQL Patterns Needing Change
+
+The following files use raw PostgreSQL-specific SQL and need provider-aware
+branching or provider-agnostic rewrites:
+
+| File | Current Pattern | Dali/SurrealDB Equivalent |
+|------|----------------|--------------------------|
+| `AeroEmbeddedDbService.cs` | `NpgsqlCommand` for embedded PG provisioning | `AeroEmbeddedDbService.cs`: spawn `surreal start` subprocess, health-check via SDK |
+| `manager/app.cs` | `master_add_node` / `master_remove_node` for Citus | SurrealDB clustering API (separate); gate behind PostgreSQL check |
+| `PlaywrightE2EFixture.cs` | `NpgsqlCommand` for test DB reset | SDK: `REMOVE TABLE` or restart embedded with `memory` |
+| Test files with `PgServer` | `NpgsqlCommand.ExecuteNonQueryAsync` for test DB setup | `AeroDocumentStoreFixture` that creates provider-agnostic stores |
+
+## Key Risks
+
+### 1. Identity UserStore for Dali/SurrealDB
+
+ASP.NET Core Identity requires `IUserStore<TUser>` and `IRoleStore<TRole>`.
+The current `UserStore<AeroUser, AeroRole>` from `Aero.Marten.Identity`
+wraps `IDocumentSession`.
+
+**Mitigation**: Build a provider-agnostic `DocumentStoreUserStore` backed
+by `IAeroDocumentStore` methods (`LoadAsync`, `StoreAsync`, `Query<T>`).
+This works for any provider and avoids Dali-specific Identity code.
+
+## Implementation Phases
+
+### Phase 0: Core Abstractions (zero impact, ~1 week)
+
+- Create `IAeroDocumentStore`, `IAeroDocumentStoreFactory`,
+  `ISupportsTransactions`, `PagedResult<T>` in
+  `Aero.Cms.Core.Abstractions`
+- Create `IAeroDataModule`, `IAeroPersistenceBuilder`,
+  `IAeroDocumentBuilder<T>`, `IAeroProjectionBuilder` in
+  `Aero.Cms.Core.Abstractions`
+- No existing code changes needed
+
+### Phase 1: Dali (SurrealDB) Infrastructure (~2-3 weeks)
+
+1. **DaliOptions** — options class with SurrealDB endpoint, Namespace,
+   Database, credentials; connection URL builder (`ws://{Host}:{Port}/rpc`)
+2. **AeroEmbeddedDbService branching** — when provider is SurrealDB,
+   spawn `surreal start` subprocess instead of PG; perform health checks,
+   provision namespace/database via `SurrealDbClient`
+3. **InfrastructureConnectionStringResolver branching** — reads
+   `AeroCms:Persistence:Provider`, branches on SurrealDB to return
+   WebSocket URL instead of PG connection string
+4. **DI registration** — `AeroAppServerExtensions` switches on provider;
+   SurrealDB case calls `services.ConfigureDaliDb(config, env, url)`
+   and `services.AddAeroCmsDaliDb()`
+5. **ServiceCollectionExtensions** — registers `IAeroDocumentStore`
+   (scoped) and `IAeroDocumentStoreFactory` (singleton)
+
+### Phase 2: DaliDocumentStore (~2-3 weeks)
+
+Dali provides a LINQ provider and document session API on top of
+`SurrealDB.Net`, analogous to Marten on Npgsql. The `DaliDocumentStore`
+wraps a Dali session and translates `IAeroDocumentStore` calls to Dali's API:
+
+| `IAeroDocumentStore` method | Dali implementation |
+|-----------------------------|---------------------|
+| `StoreAsync<T>(T)` | `_session.Store(entity)` + `_session.SaveChangesAsync()` |
+| `StoreAsync<T>(IEnumerable<T>)` | Loop `_session.Store()` + single `SaveChangesAsync()` |
+| `LoadAsync<T>(long id)` | `_session.LoadAsync<T>(id)` → `Option<T>` |
+| `LoadManyAsync<T>(IEnumerable<long>)` | `_session.LoadManyAsync<T>(ids)` |
+| `DeleteAsync<T>(entity)` / `DeleteAsync<T>(id)` | `_session.Delete(entity/id)` + `SaveChangesAsync()` |
+| `DeleteWhereAsync<T>(predicate)` | Dali LINQ: `_session.Query<T>().Where(predicate).Delete()` |
+| `CountAsync<T>(predicate)` | Dali LINQ: `_session.Query<T>().CountAsync()` |
+| `AnyAsync<T>(predicate)` | Dali LINQ: `_session.Query<T>().AnyAsync()` |
+| `Query<T>()` | `_session.Query<T>()` (Dali LINQ provider → SurrealQL) |
+| `QueryPagedAsync<T>(...)` | Dali LINQ: `Skip()` + `Take()` + `ToListAsync()` |
+| `SaveChangesAsync()` | `_session.SaveChangesAsync()` |
+
+**DaliPersistenceBuilder**: Accepts schema state from
+`IAeroDataModule` modules, configures Dali document mappings (indexes,
+identity, soft delete, optimistic concurrency).
+
+**DaliDocumentBuilder**: Maps provider-neutral operations to Dali
+configuration API:
+
+| Operation | Dali Configuration |
+|-----------|-------------------|
+| `Identity(x => x.Id)` | Dali identity mapping on `Id` property |
+| `Index(x => field)` | Dali index definition on field |
+| `UniqueIndex(a, b, c)` | Dali unique composite index |
+| `SoftDeleted()` | Dali soft-delete filter configuration |
+| `UseOptimisticConcurrency()` | Dali version field configuration |
+
+### Phase 3: Module Migration (Pages first, ~3 weeks)
+
+Migrate one module at a time. Each module:
+
+1. Adds `IAeroDataModule` alongside existing `IConfigureMarten`
+2. Implements `ConfigurePersistence(IAeroPersistenceBuilder)`
+3. Migrates services from `IDocumentSession` → `IAeroDocumentStore`
+4. Migrates grains from `IDocumentStore` → `IAeroDocumentStoreFactory`
+
+**Module order**: Pages → Navigation → Media → Footer → Tenant →
+Sites → Modules → Commerce → Docs → Blocks → Content
+
+### Phase 4: Setup & Bootstrap Changes (~1 week)
+
+1. **Setup wizard** — provider dropdown includes SurrealDB (default),
+   PostgreSQL, MSSQL
+2. **DatabaseBootstrapModel** — add `string Provider` field
+3. **DatabaseBootstrapService** — write `AeroCms:Persistence:Provider`
+   during setup persistence
+4. **ServerTargetSetupExecutor** — branch on provider: SurrealDB path
+   configures schema via `DaliPersistenceBuilder` instead of
+   `DocumentStore.For(...)`
+
+### Phase 5: Test Infrastructure (~1 week)
+
+1. **Dali test fixture** — manages embedded `surreal start` subprocess
+   lifecycle for tests; creates `DaliDocumentStore`
+2. **AeroDocumentStoreFixture** — provider-agnostic test fixture
+   (creates either Marten or Dali store)
+3. **Migrate test files** — rename Marten-prefixed tests to
+   provider-agnostic names; replace `IDocumentSession` mocks with
+   `IAeroDocumentStore` substitutes
+
+### Phase 6: Manager App (low effort)
+
+- Citus cluster management logic (`master_add_node`) remains
+  PostgreSQL-specific; gated behind provider check
+- SurrealDB clustering via `--cluster` mode added separately if needed
+
+### Phase 7: Aero Submodule & Source Generators (~1 week)
+
+1. **Source generator** — detect `IAeroDataModule` (add
+   `IsAeroDataModule` to `ModuleDescriptor`)
+2. **AeroModuleBase** — add `IAeroDataModule` implementation
+   (default empty)
+3. **ModuleDescriptor** — thread `IsAeroDataModule` through to
+   runtime discovery
+
+## Parallelism
+
+Phases 4, 5, 6, and 7 can overlap with Phase 3 (module migration).
+The critical path is: Phase 0 → Phase 1 → Phase 2 → Phase 3.
+
+```
+Phase 0: Core Abstractions         ████████
+Phase 1: SurrealDB Infrastructure  ████████████████
+Phase 2: SurrealDocumentStore      ████████████████
+Phase 3: Module Migration          ████████████████████
+Phase 4: Setup & Bootstrap         ████████████        (overlaps P3)
+Phase 5: Test Infrastructure       ████████████        (overlaps P3)
+Phase 6: Manager App               ██████              (overlaps P3)
+Phase 7: Aero Submodule            ████████████        (overlaps P3)
+```
+
+-----------------------------------------------------------------------
 
 # Guiding Principles
 

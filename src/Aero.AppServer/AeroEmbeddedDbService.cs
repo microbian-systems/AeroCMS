@@ -113,7 +113,7 @@ public class AeroEmbeddedDbService(
 
     public override Task StopAsync(CancellationToken cancellationToken)
     {
-        log.LogInformation("AeroEmbedDbService: Stopping Aero embedded PostgreSQL server...");
+         log.LogInformation("AeroEmbedDbService: Stopping Aero embedded PostgreSQL server...");
         server?.Stop();
         return base.StopAsync(cancellationToken);
     }

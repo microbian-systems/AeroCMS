@@ -969,9 +969,7 @@ public static class PagesApi
 
         return new NeoCompositionBlock
         {
-            Nodes = rootNodes
-                .Select(PageTreeLegacyBlockNormalizer.Normalize)
-                .ToList()
+            Nodes = PageTreeLegacyNodeMigrator.CloneTree(rootNodes)
         };
     }
 

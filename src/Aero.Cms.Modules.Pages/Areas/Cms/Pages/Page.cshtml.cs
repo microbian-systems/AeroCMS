@@ -195,9 +195,7 @@ public class DynamicPageModel(
             NodeId = "page-root",
             CatalogId = "page.root",
             Kind = NeoPageNodeKind.Page,
-            Children = rootNodes
-                .Select(PageTreeLegacyBlockNormalizer.Normalize)
-                .ToList()
+            Children = PageTreeLegacyNodeMigrator.MigrateIfNeeded(rootNodes)
         };
     }
 

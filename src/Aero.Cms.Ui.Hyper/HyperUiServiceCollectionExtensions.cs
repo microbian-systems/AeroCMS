@@ -12,6 +12,7 @@ public static class HyperUiServiceCollectionExtensions
         var provider = new HyperPageEditorBlockProvider();
         services.AddSingleton<IPageEditorBlockProvider>(provider);
         services.AddSingleton<ICmsBlockModelProvider>(provider);
+        services.AddSingleton<ICmsBlockRenderRegistry, HyperCmsBlockRenderRegistry>();
         services.AddSingleton<ICmsBlockRenderRegistry, GeneratedCmsBlockRenderRegistry>();
         return services;
     }

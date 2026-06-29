@@ -897,9 +897,7 @@ public sealed class MartenPageContentService(
             ? root.Children
             : [root];
 
-        return nodes
-            .Select(PageTreeLegacyBlockNormalizer.Normalize)
-            .ToList();
+        return PageTreeLegacyNodeMigrator.CloneTree(nodes);
     }
 
     private static void ApplyPersistedValues(PageDocument source, PageDocument target)

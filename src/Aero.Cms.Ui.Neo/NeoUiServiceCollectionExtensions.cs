@@ -15,6 +15,7 @@ public static class NeoUiServiceCollectionExtensions
         services.AddSingleton<IPageEditorBlockProvider>(provider);
         services.AddSingleton<IPageEditorDefinitionProvider>(provider);
         services.AddSingleton<ICmsBlockModelProvider>(provider);
+        services.AddSingleton<ICmsBlockRenderRegistry, NeoCmsBlockRenderRegistry>();
         services.AddSingleton<ICmsBlockRenderRegistry, GeneratedCmsBlockRenderRegistry>();
 
         // Embed resolver pipeline — strategies tried in registration order
