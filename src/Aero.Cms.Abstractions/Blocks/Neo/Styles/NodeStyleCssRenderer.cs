@@ -28,6 +28,11 @@ public static class NodeStyleCssRenderer
         AddLength(declarations, "max-width", style.MaximumWidth);
         AddLength(declarations, "min-height", style.MinimumHeight);
         AddLength(declarations, "max-height", style.MaximumHeight);
+        if (style.MaximumHeight is { } maximumHeight && IsValid(maximumHeight))
+        {
+            declarations.Add("overflow:auto");
+        }
+
         AddColor(declarations, "color", style.ForegroundColor);
         AddColor(declarations, "background-color", style.BackgroundColor);
         AddBackgroundLayers(
@@ -81,6 +86,9 @@ public static class NodeStyleCssRenderer
                 break;
         }
 
+        AddHorizontalContentAlignment(declarations, style.HorizontalContentAlignment);
+        AddVerticalContentAlignment(declarations, style.VerticalContentAlignment);
+
         switch (style.Direction)
         {
             case ContentDirection.LeftToRight:
@@ -97,6 +105,68 @@ public static class NodeStyleCssRenderer
         }
 
         return string.Join(';', declarations);
+    }
+
+    private static void AddHorizontalContentAlignment(
+        ICollection<string> declarations,
+        HorizontalContentAlignment alignment)
+    {
+        var flexValue = alignment switch
+        {
+            HorizontalContentAlignment.Start => "flex-start",
+            HorizontalContentAlignment.Center => "center",
+            HorizontalContentAlignment.End => "flex-end",
+            HorizontalContentAlignment.Stretch => "stretch",
+            _ => null
+        };
+
+        var itemValue = alignment switch
+        {
+            HorizontalContentAlignment.Start => "start",
+            HorizontalContentAlignment.Center => "center",
+            HorizontalContentAlignment.End => "end",
+            HorizontalContentAlignment.Stretch => "stretch",
+            _ => null
+        };
+
+        if (flexValue is null || itemValue is null)
+        {
+            return;
+        }
+
+        declarations.Add($"justify-content:{flexValue}");
+        declarations.Add($"justify-items:{itemValue}");
+    }
+
+    private static void AddVerticalContentAlignment(
+        ICollection<string> declarations,
+        VerticalContentAlignment alignment)
+    {
+        var flexValue = alignment switch
+        {
+            VerticalContentAlignment.Top => "flex-start",
+            VerticalContentAlignment.Middle => "center",
+            VerticalContentAlignment.Bottom => "flex-end",
+            VerticalContentAlignment.Stretch => "stretch",
+            _ => null
+        };
+
+        var itemValue = alignment switch
+        {
+            VerticalContentAlignment.Top => "start",
+            VerticalContentAlignment.Middle => "center",
+            VerticalContentAlignment.Bottom => "end",
+            VerticalContentAlignment.Stretch => "stretch",
+            _ => null
+        };
+
+        if (flexValue is null || itemValue is null)
+        {
+            return;
+        }
+
+        declarations.Add($"align-content:{flexValue}");
+        declarations.Add($"align-items:{itemValue}");
     }
 
     private static void AddColor(

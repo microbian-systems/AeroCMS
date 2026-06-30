@@ -55,6 +55,8 @@ public sealed class NodeStyleValidator : AbstractValidator<NodeStyle>
             .When(style => style.LineHeight is not null);
         RuleFor(style => style.FontWeight).IsInEnum();
         RuleFor(style => style.TextAlignment).IsInEnum();
+        RuleFor(style => style.HorizontalContentAlignment).IsInEnum();
+        RuleFor(style => style.VerticalContentAlignment).IsInEnum();
         AddLengthRules();
     }
 
@@ -104,6 +106,10 @@ public sealed class NodeStyleOverrideValidator : AbstractValidator<NodeStyleOver
             .When(style => style.FontWeight is not null);
         RuleFor(style => style.TextAlignment).IsInEnum()
             .When(style => style.TextAlignment is not null);
+        RuleFor(style => style.HorizontalContentAlignment).IsInEnum()
+            .When(style => style.HorizontalContentAlignment is not null);
+        RuleFor(style => style.VerticalContentAlignment).IsInEnum()
+            .When(style => style.VerticalContentAlignment is not null);
         RuleFor(style => style.Width).SetValidator(new NullableCssLengthValidator());
         RuleFor(style => style.Height).SetValidator(new NullableCssLengthValidator());
         RuleFor(style => style.MinimumWidth).SetValidator(new NullableCssLengthValidator());

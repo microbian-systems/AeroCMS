@@ -837,18 +837,18 @@
                         }
                     </select>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline"
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm"
                         @onclick="() => OpenBackgroundImageSelector(node)">
                     @L["Change background image"]
                 </button>
-                <button type="button" class="btn btn-sm btn-outline"
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm"
                         @onclick="() => RemoveBackgroundImage(node)">
                     @L["Remove background image"]
                 </button>
             }
             else
             {
-                <button type="button" class="btn btn-sm btn-outline"
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm"
                         @onclick="() => OpenBackgroundImageSelector(node)">
                     @L["Choose background image"]
                 </button>
@@ -890,18 +890,18 @@
                         <span>@L["Plays inline"]</span>
                     </label>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline"
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm"
                         @onclick="() => OpenBackgroundVideoSelector(node)">
                     @L["Change background video"]
                 </button>
-                <button type="button" class="btn btn-sm btn-outline"
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm"
                         @onclick="() => RemoveBackgroundVideo(node)">
                     @L["Remove background video"]
                 </button>
             }
             else
             {
-                <button type="button" class="btn btn-sm btn-outline"
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm"
                         @onclick="() => OpenBackgroundVideoSelector(node)">
                     @L["Choose background video"]
                 </button>
@@ -1001,6 +1001,30 @@
         }
         @if (Supports(capabilities, EditorCapabilitySet.Alignment))
         {
+            <div class="pe-property-grid">
+            <div class="pe-property-group">
+                <label class="pe-property-label">@L["Horizontal content"]</label>
+                <select class="w-full rounded-md"
+                        value="@CurrentStyle(node).HorizontalContentAlignment"
+                        @onchange="e => SetHorizontalContentAlignment(node, e.Value?.ToString())">
+                    @foreach (var alignment in Enum.GetValues<HorizontalContentAlignment>())
+                    {
+                        <option value="@alignment">@L[ContentHorizontalAlignmentLabel(alignment)]</option>
+                    }
+                </select>
+            </div>
+            <div class="pe-property-group">
+                <label class="pe-property-label">@L["Vertical content"]</label>
+                <select class="w-full rounded-md"
+                        value="@CurrentStyle(node).VerticalContentAlignment"
+                        @onchange="e => SetVerticalContentAlignment(node, e.Value?.ToString())">
+                    @foreach (var alignment in Enum.GetValues<VerticalContentAlignment>())
+                    {
+                        <option value="@alignment">@L[ContentVerticalAlignmentLabel(alignment)]</option>
+                    }
+                </select>
+            </div>
+            </div>
             <div class="pe-property-group">
                 <label class="pe-property-label">@L["Text alignment"]</label>
                 <select class="w-full rounded-md"
@@ -1022,14 +1046,14 @@
                 @NumberField("Shadow blur", shadow.Blur, 0m, 200m, value => SetShadowNumber(node, value, ShadowValue.Blur))
                 @NumberField("Shadow spread", shadow.Spread, -100m, 100m, value => SetShadowNumber(node, value, ShadowValue.Spread))
                 @ColorField("Shadow color", shadow.Color, value => SetShadowColor(node, value))
-                <button type="button" class="btn btn-sm btn-outline"
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm"
                         @onclick="() => RemoveShadow(node)">
                     @L["Remove shadow"]
                 </button>
             }
             else
             {
-                <button type="button" class="btn btn-sm btn-outline"
+                <button type="button" class="pe-btn pe-btn-secondary pe-btn-sm"
                         @onclick="() => SetShadow(node, new BoxShadow())">
                     @L["Add shadow"]
                 </button>
@@ -1222,15 +1246,17 @@
             node,
             style => style with
             {
-                Width = enabled
-                    ? new CssLength(100m, CssLengthUnit.Percent)
-                    : ClearFullWidth(style.Width)
+                Width = ClearFullWidth(style.Width),
+                MaximumWidth = enabled
+                    ? null
+                    : style.MaximumWidth
             },
             style => style with
             {
-                Width = enabled
-                    ? new CssLength(100m, CssLengthUnit.Percent)
-                    : ClearFullWidth(style.Width)
+                Width = ClearFullWidth(style.Width),
+                MaximumWidth = enabled
+                    ? null
+                    : style.MaximumWidth
             });
         NotifyChanged();
     }
@@ -1760,6 +1786,30 @@
         }
     }
 
+    private void SetHorizontalContentAlignment(NeoPageNode node, string? value)
+    {
+        if (Enum.TryParse<HorizontalContentAlignment>(value, out var alignment))
+        {
+            SetStyleValue(
+                node,
+                style => style with { HorizontalContentAlignment = alignment },
+                style => style with { HorizontalContentAlignment = alignment });
+            NotifyChanged();
+        }
+    }
+
+    private void SetVerticalContentAlignment(NeoPageNode node, string? value)
+    {
+        if (Enum.TryParse<VerticalContentAlignment>(value, out var alignment))
+        {
+            SetStyleValue(
+                node,
+                style => style with { VerticalContentAlignment = alignment },
+                style => style with { VerticalContentAlignment = alignment });
+            NotifyChanged();
+        }
+    }
+
     private void SetHidden(NeoPageNode node, bool hidden)
     {
         SetStyleValue(
@@ -1865,6 +1915,28 @@
             _ => position.ToString()
         };
 
+    private static string ContentHorizontalAlignmentLabel(
+        HorizontalContentAlignment alignment) =>
+        alignment switch
+        {
+            HorizontalContentAlignment.Start => "Left / start",
+            HorizontalContentAlignment.Center => "Center",
+            HorizontalContentAlignment.End => "Right / end",
+            HorizontalContentAlignment.Stretch => "Stretch",
+            _ => "Inherit"
+        };
+
+    private static string ContentVerticalAlignmentLabel(
+        VerticalContentAlignment alignment) =>
+        alignment switch
+        {
+            VerticalContentAlignment.Top => "Top",
+            VerticalContentAlignment.Middle => "Middle",
+            VerticalContentAlignment.Bottom => "Bottom",
+            VerticalContentAlignment.Stretch => "Stretch",
+            _ => "Inherit"
+        };
+
     private static readonly (decimal Angle, string Label)[] GradientDirections =
     [
         (0m, "Bottom to top"),
@@ -1925,11 +1997,18 @@
             "primitive.section",
             "primitive.article",
             "primitive.container",
+            "primitive.header",
+            "primitive.footer",
+            "primitive.nav",
+            "primitive.aside",
+            "primitive.form",
             "primitive.grid",
             "primitive.grid-row",
             "primitive.grid-cell",
             "primitive.flexbox",
             "primitive.css-grid",
+            "primitive.columns",
+            "preset.card",
             "neo.layout.columns",
             "columns"
         };

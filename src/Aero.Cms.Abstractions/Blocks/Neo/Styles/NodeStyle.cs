@@ -55,6 +55,12 @@ public sealed record NodeStyle
 
     public TextAlignment TextAlignment { get; init; } = TextAlignment.Inherit;
 
+    public HorizontalContentAlignment HorizontalContentAlignment { get; init; } =
+        HorizontalContentAlignment.Inherit;
+
+    public VerticalContentAlignment VerticalContentAlignment { get; init; } =
+        VerticalContentAlignment.Inherit;
+
     public ContentDirection Direction { get; init; } = ContentDirection.Inherit;
 
     internal NodeStyle Apply(NodeStyleOverride? value)
@@ -91,6 +97,10 @@ public sealed record NodeStyle
             LineHeight = value.LineHeight ?? LineHeight,
             LetterSpacing = value.LetterSpacing ?? LetterSpacing,
             TextAlignment = value.TextAlignment ?? TextAlignment,
+            HorizontalContentAlignment =
+                value.HorizontalContentAlignment ?? HorizontalContentAlignment,
+            VerticalContentAlignment =
+                value.VerticalContentAlignment ?? VerticalContentAlignment,
             Direction = value.Direction ?? Direction
         };
     }
@@ -150,6 +160,10 @@ public sealed record NodeStyleOverride
     public CssLength? LetterSpacing { get; init; }
 
     public TextAlignment? TextAlignment { get; init; }
+
+    public HorizontalContentAlignment? HorizontalContentAlignment { get; init; }
+
+    public VerticalContentAlignment? VerticalContentAlignment { get; init; }
 
     public ContentDirection? Direction { get; init; }
 }

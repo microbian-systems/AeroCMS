@@ -14,12 +14,14 @@
     var catalogId = Node.CatalogId;
     var isContainer = Node.Kind is NeoPageNodeKind.Container or NeoPageNodeKind.Section;
     var resolvedStyle = Node.Style.Resolve(Breakpoint);
+    var isFullWidth = GetBoolProperty("fullWidth");
+    var renderedStyle = RenderPublicStyle(resolvedStyle, isFullWidth);
     var backgroundVideo = ResolveBackgroundVideo(resolvedStyle);
 
     @* A stable element is required for static SSR. Razor variable-tag syntax
        renders literal <> wrappers and drops attributes in HtmlRenderer output. *@
-    <div class="@NodeCssClass(resolvedStyle)"
-         style="@NodeStyleCssRenderer.Render(resolvedStyle)"
+    <div class="@NodeCssClass(resolvedStyle, isFullWidth)"
+         style="@renderedStyle"
          data-catalog-id="@catalogId"
          data-node-id="@Node.NodeId">
         @if (backgroundVideo is not null)
@@ -467,6 +469,8 @@
             }
 
             case "columns":
+            case "neo.layout.columns":
+            case "primitive.columns":
             {
                 <div class="neo-primitive-columns">
                     @foreach (var child in Node.Children)
@@ -611,16 +615,41 @@
     [Parameter]
     public EditorBreakpoint Breakpoint { get; set; } = EditorBreakpoint.Desktop;
 
-    private string NodeCssClass(NodeStyle resolvedStyle)
+    private string NodeCssClass(NodeStyle resolvedStyle, bool isFullWidth)
     {
         var catalogClass = Node.CatalogId.Replace(".", "-");
         var kindClass = Node.Kind.ToString().ToLowerInvariant();
-        var fullWidthClass = GetBoolProperty("fullWidth") ? " neo-node--full-width" : string.Empty;
+        var fullWidthClass = isFullWidth ? " neo-node--full-width" : string.Empty;
         var videoClass = ResolveBackgroundVideo(resolvedStyle) is not null
             ? " neo-node--has-background-video"
             : string.Empty;
 
         return $"neo-node neo-{catalogClass} neo-kind-{kindClass}{fullWidthClass}{videoClass}";
+    }
+
+    private static NodeStyle StyleForPublicRendering(NodeStyle style, bool isFullWidth) =>
+        isFullWidth
+            ? style with
+            {
+                Width = null,
+                MaximumWidth = null
+            }
+            : style;
+
+    private static string RenderPublicStyle(NodeStyle style, bool isFullWidth)
+    {
+        var css = NodeStyleCssRenderer.Render(StyleForPublicRendering(style, isFullWidth));
+        if (!isFullWidth)
+        {
+            return css;
+        }
+
+        const string fullWidthCss =
+            "position:relative;left:50%;width:100vw;max-width:none;margin-left:-50vw;margin-right:-50vw;";
+
+        return string.IsNullOrWhiteSpace(css)
+            ? fullWidthCss
+            : $"{css.TrimEnd(';')};{fullWidthCss}";
     }
 
     private string GenericComponentClass =>

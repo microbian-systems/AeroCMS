@@ -7,6 +7,7 @@
 .aero-page-shell {
   min-height: 100vh;
   background: #fff;
+  overflow-x: clip;
 }
 
 .aero-page-content {
@@ -20,15 +21,30 @@
 }
 
 .neo-node--full-width {
-  width: 100vw;
-  max-width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
+  position: relative;
+  left: 50%;
+  width: 100vw !important;
+  max-width: none !important;
+  margin-left: -50vw !important;
+  margin-right: -50vw !important;
 }
 
-.neo-node:has(> .neo-primitive-grid-cell),
-.neo-node:has(> .neo-primitive-grid-row) {
+@supports (width: 100dvw) {
+  .neo-node--full-width {
+    width: 100dvw !important;
+    margin-left: -50dvw !important;
+    margin-right: -50dvw !important;
+  }
+}
+
+.neo-node:not(.neo-node--full-width):has(> .neo-primitive-grid-cell),
+.neo-node:not(.neo-node--full-width):has(> .neo-primitive-grid-row) {
   display: contents;
+}
+
+.neo-node--full-width > * {
+  width: 100%;
+  max-width: none;
 }
 
 .neo-boring-hero {
@@ -77,13 +93,24 @@
 .neo-primitive-aside,
 .neo-primitive-grid,
 .neo-primitive-grid-row,
-.neo-primitive-grid-cell {
+.neo-primitive-grid-cell,
+.neo-primitive-flexbox,
+.neo-primitive-css-grid,
+.neo-primitive-columns,
+.neo-primitive-form,
+.neo-primitive-card,
+.neo-component {
   width: 100%;
+  min-width: 0;
 }
 
 .neo-primitive-container,
 .neo-primitive-section,
-.neo-primitive-article {
+.neo-primitive-article,
+.neo-primitive-header,
+.neo-primitive-footer,
+.neo-primitive-nav,
+.neo-primitive-aside {
   min-width: 0;
 }
 
@@ -105,6 +132,13 @@
 
 .neo-primitive-grid-cell {
   min-width: 0;
+}
+
+.neo-primitive-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: 1rem;
+  align-items: start;
 }
 
 .neo-primitive-heading {
@@ -158,7 +192,7 @@ h3.neo-primitive-heading {
 .neo-primitive-image img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   border-radius: 1rem;
   object-fit: cover;
   box-shadow: 0 20px 35px rgba(15, 23, 42, .16);
@@ -168,6 +202,8 @@ h3.neo-primitive-heading {
 .neo-primitive-audio,
 .neo-primitive-image {
   margin: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .neo-primitive-video video,
