@@ -46,6 +46,8 @@ public sealed class NodeStyleValidator : AbstractValidator<NodeStyle>
             .SetValidator(new LinearGradientValidator()!);
         RuleFor(style => style.BackgroundImage)
             .SetValidator(new BackgroundImageStyleValidator()!);
+        RuleFor(style => style.BackgroundVideo)
+            .SetValidator(new BackgroundVideoStyleValidator()!);
         RuleFor(style => style.BorderColor).Must(BeValidColor);
         RuleFor(style => style.Shadow).SetValidator(new BoxShadowValidator()!);
         RuleFor(style => style.LineHeight)
@@ -91,6 +93,8 @@ public sealed class NodeStyleOverrideValidator : AbstractValidator<NodeStyleOver
             .SetValidator(new LinearGradientValidator()!);
         RuleFor(style => style.BackgroundImage)
             .SetValidator(new BackgroundImageStyleValidator()!);
+        RuleFor(style => style.BackgroundVideo)
+            .SetValidator(new BackgroundVideoStyleValidator()!);
         RuleFor(style => style.BorderColor).Must(BeValidColor);
         RuleFor(style => style.Shadow).SetValidator(new BoxShadowValidator()!);
         RuleFor(style => style.LineHeight)
@@ -191,6 +195,22 @@ internal sealed class BackgroundImageStyleValidator :
         RuleFor(image => image.Size).IsInEnum();
         RuleFor(image => image.Repeat).IsInEnum();
         RuleFor(image => image.Position).IsInEnum();
+    }
+}
+
+internal sealed class BackgroundVideoStyleValidator :
+    AbstractValidator<BackgroundVideoStyle>
+{
+    public BackgroundVideoStyleValidator()
+    {
+        RuleFor(video => video.MediaId).GreaterThanOrEqualTo(0);
+        RuleFor(video => video.Url)
+            .MaximumLength(2048)
+            .NotEmpty()
+            .When(video => video.Enabled);
+        RuleFor(video => video.PosterUrl)
+            .MaximumLength(2048)
+            .When(video => !string.IsNullOrWhiteSpace(video.PosterUrl));
     }
 }
 

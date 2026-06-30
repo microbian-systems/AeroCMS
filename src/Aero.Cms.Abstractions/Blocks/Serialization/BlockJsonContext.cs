@@ -42,6 +42,7 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
 [JsonSerializable(typeof(LinearGradient))]
 [JsonSerializable(typeof(BoxShadow))]
 [JsonSerializable(typeof(BackgroundImageStyle))]
+[JsonSerializable(typeof(BackgroundVideoStyle))]
 [JsonSerializable(typeof(BackgroundImageSize))]
 [JsonSerializable(typeof(BackgroundImageRepeat))]
 [JsonSerializable(typeof(BackgroundImagePosition))]

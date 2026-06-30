@@ -673,7 +673,15 @@ else if (ActiveTab == "translations")
 {
     var wrapperBlock = new EditorBlock { EditorId = CurrentEditNode.NodeId, Type = CurrentEditNode.CatalogId, CompositionNodes = [CurrentEditNode] };
     <div class="pe-modal-overlay" @onclick="CloseBlockEditor">
-        <div class="pe-modal pe-block-edit-modal" @onclick:stopPropagation="true">
+        <div class="pe-modal pe-block-edit-modal"
+             data-editor-modal="true"
+             @onclick:stopPropagation="true"
+             @onmousedown:stopPropagation="true"
+             @onmouseup:stopPropagation="true"
+             @onpointerdown:stopPropagation="true"
+             @onkeydown:stopPropagation="true"
+             @onkeyup:stopPropagation="true"
+             @onkeypress:stopPropagation="true">
             <div class="pe-modal-header">
                 <div>
                     <div class="pe-modal-kicker">@L["Edit block"]</div>
@@ -721,7 +729,16 @@ else if (ActiveTab == "translations")
 @if (SaveCustomComponentModalOpen)
 {
     <div class="pe-modal-overlay" @onclick="CloseSaveCustomComponentModal">
-        <div class="pe-modal" style="max-width: 480px;" @onclick:stopPropagation="true">
+        <div class="pe-modal"
+             style="max-width: 480px;"
+             data-editor-modal="true"
+             @onclick:stopPropagation="true"
+             @onmousedown:stopPropagation="true"
+             @onmouseup:stopPropagation="true"
+             @onpointerdown:stopPropagation="true"
+             @onkeydown:stopPropagation="true"
+             @onkeyup:stopPropagation="true"
+             @onkeypress:stopPropagation="true">
             <div class="pe-modal-header">
                 <div>
                     <div class="pe-modal-kicker">@L["Reusable component"]</div>

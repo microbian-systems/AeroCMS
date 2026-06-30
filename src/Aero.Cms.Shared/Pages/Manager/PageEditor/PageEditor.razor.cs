@@ -1878,6 +1878,54 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
         else if (MediaContext == "native" &&
                  CurrentMediaBlock is not null &&
+                 NativeMediaField == "background-video")
+        {
+            var selected = items.First();
+            var video = new BackgroundVideoStyle
+            {
+                MediaId = selected.Id,
+                Url = selected.Src
+            };
+
+            var style = FindCompositionNode(
+                    CurrentMediaBlock.CompositionNodes,
+                    NativeMediaNodeId)
+                ?.Style;
+            if (style is null &&
+                string.Equals(
+                    CurrentMediaBlock.EditorId,
+                    NativeMediaNodeId,
+                    StringComparison.Ordinal))
+            {
+                style = CurrentMediaBlock.Style;
+            }
+
+            if (style is null)
+            {
+                return;
+            }
+
+            switch (NativeMediaBreakpoint)
+            {
+                case EditorBreakpoint.Desktop:
+                    style.Base = style.Base with { BackgroundVideo = video };
+                    break;
+                case EditorBreakpoint.Tablet:
+                    style.Tablet = (style.Tablet ?? new()) with
+                    {
+                        BackgroundVideo = video
+                    };
+                    break;
+                case EditorBreakpoint.Mobile:
+                    style.Mobile = (style.Mobile ?? new()) with
+                    {
+                        BackgroundVideo = video
+                    };
+                    break;
+            }
+        }
+        else if (MediaContext == "native" &&
+                 CurrentMediaBlock is not null &&
                  NativeMediaField?.StartsWith(
                      "property:",
                      StringComparison.Ordinal) == true &&

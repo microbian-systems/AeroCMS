@@ -7,7 +7,15 @@
 @inject IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L
 @inject IPageEditorDefinitionRegistry DefinitionRegistry
 
-<div class="pe-property-panel-shell">
+<div class="pe-property-panel-shell"
+     data-editor-property-panel="true"
+     @onclick:stopPropagation="true"
+     @onmousedown:stopPropagation="true"
+     @onmouseup:stopPropagation="true"
+     @onpointerdown:stopPropagation="true"
+     @onkeydown:stopPropagation="true"
+     @onkeyup:stopPropagation="true"
+     @onkeypress:stopPropagation="true">
     @if (ShowHeader)
     {
         <div class="pe-property-panel-header">
@@ -41,11 +49,11 @@
                 }
                 else if (ActiveTab == "design")
                 {
-                    @NativeDesignPanel(nativeDefinition.Catalog.EditorCapabilities, nativeNode)
+                    @NativeDesignPanel(DesignCapabilities(nativeDefinition.Catalog.EditorCapabilities, nativeNode), nativeNode)
                 }
                 else
                 {
-                    @NativeAdvancedPanel(nativeDefinition.Catalog.EditorCapabilities, nativeNode)
+                    @NativeAdvancedPanel(DesignCapabilities(nativeDefinition.Catalog.EditorCapabilities, nativeNode), nativeNode)
                 }
             }
             else if (ActiveTab == "content")
@@ -692,6 +700,15 @@
         </section>
         <section class="pe-property-section">
         <div class="pe-property-section-heading"><span>@L["Size and spacing"]</span></div>
+        <label class="pe-property-check">
+            <input type="checkbox"
+                   checked="@IsFullWidth(node)"
+                   @onchange="e => SetFullWidth(node, e.Value is true)" />
+            <span>@L["Full width"]</span>
+        </label>
+        <p class="text-xs text-muted-foreground mb-3">
+            @L["Use full width for edge-to-edge sections. Leave unchecked to inherit the site or theme container width."]
+        </p>
         <div class="pe-property-grid">
         <div class="pe-property-group">
             <label class="pe-property-label">@L["Width"]</label>
@@ -700,10 +717,34 @@
                    @oninput="e => SetWidth(node, e.Value?.ToString())" />
         </div>
         <div class="pe-property-group">
+            <label class="pe-property-label">@L["Max width"]</label>
+            <input type="number" min="0" class="w-full rounded-md"
+                   value="@GetPixels(CurrentStyle(node).MaximumWidth)"
+                   @oninput="e => SetMaximumWidth(node, e.Value?.ToString())" />
+        </div>
+        <div class="pe-property-group">
+            <label class="pe-property-label">@L["Min width"]</label>
+            <input type="number" min="0" class="w-full rounded-md"
+                   value="@GetPixels(CurrentStyle(node).MinimumWidth)"
+                   @oninput="e => SetMinimumWidth(node, e.Value?.ToString())" />
+        </div>
+        <div class="pe-property-group">
             <label class="pe-property-label">@L["Height"]</label>
             <input type="number" min="0" class="w-full rounded-md"
                    value="@GetPixels(CurrentStyle(node).Height)"
                    @oninput="e => SetHeight(node, e.Value?.ToString())" />
+        </div>
+        <div class="pe-property-group">
+            <label class="pe-property-label">@L["Max height"]</label>
+            <input type="number" min="0" class="w-full rounded-md"
+                   value="@GetPixels(CurrentStyle(node).MaximumHeight)"
+                   @oninput="e => SetMaximumHeight(node, e.Value?.ToString())" />
+        </div>
+        <div class="pe-property-group">
+            <label class="pe-property-label">@L["Min height"]</label>
+            <input type="number" min="0" class="w-full rounded-md"
+                   value="@GetPixels(CurrentStyle(node).MinimumHeight)"
+                   @oninput="e => SetMinimumHeight(node, e.Value?.ToString())" />
         </div>
         <div class="pe-property-group">
             <label class="pe-property-label">@L["Padding"]</label>
@@ -810,6 +851,59 @@
                 <button type="button" class="btn btn-sm btn-outline"
                         @onclick="() => OpenBackgroundImageSelector(node)">
                     @L["Choose background image"]
+                </button>
+            }
+            @if (CurrentStyle(node).BackgroundVideo is { Enabled: true } video)
+            {
+                <div class="pe-property-group">
+                    <label class="pe-property-label">@L["Background video"]</label>
+                    <input class="w-full rounded-md font-mono"
+                           value="@video.Url"
+                           readonly />
+                    <p class="text-xs text-muted-foreground">
+                        @L["Rendered as a decorative, muted, looping background layer behind this element."]
+                    </p>
+                </div>
+                <div class="pe-property-grid">
+                    <label class="pe-property-check">
+                        <input type="checkbox"
+                               checked="@video.Autoplay"
+                               @onchange="e => SetBackgroundVideoAutoplay(node, e.Value is true)" />
+                        <span>@L["Autoplay"]</span>
+                    </label>
+                    <label class="pe-property-check">
+                        <input type="checkbox"
+                               checked="@video.Loop"
+                               @onchange="e => SetBackgroundVideoLoop(node, e.Value is true)" />
+                        <span>@L["Loop"]</span>
+                    </label>
+                    <label class="pe-property-check">
+                        <input type="checkbox"
+                               checked="@video.Muted"
+                               @onchange="e => SetBackgroundVideoMuted(node, e.Value is true)" />
+                        <span>@L["Muted"]</span>
+                    </label>
+                    <label class="pe-property-check">
+                        <input type="checkbox"
+                               checked="@video.PlaysInline"
+                               @onchange="e => SetBackgroundVideoPlaysInline(node, e.Value is true)" />
+                        <span>@L["Plays inline"]</span>
+                    </label>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline"
+                        @onclick="() => OpenBackgroundVideoSelector(node)">
+                    @L["Change background video"]
+                </button>
+                <button type="button" class="btn btn-sm btn-outline"
+                        @onclick="() => RemoveBackgroundVideo(node)">
+                    @L["Remove background video"]
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-outline"
+                        @onclick="() => OpenBackgroundVideoSelector(node)">
+                    @L["Choose background video"]
                 </button>
             }
             @if (CurrentStyle(node).BackgroundGradient is { Enabled: true } gradient)
@@ -997,17 +1091,9 @@
         string? label,
         CssColor? value,
         Action<string?> setValue) => @<div class="pe-property-group">
-        @if (!string.IsNullOrWhiteSpace(label))
-        {
-            <label class="pe-property-label">@L[label]</label>
-        }
-        <ColorPicker Color="@ToRgba(value)"
-                     ColorChanged="value => setValue(value)"
-                     Format="ColorFormat.RGB"
-                     ShowAlpha="true"
-                     ShowInputs="true"
-                     ShowPresets="true"
-                     Class="pe-color-picker" />
+        <EditorColorPicker Label="@(string.IsNullOrWhiteSpace(label) ? null : L[label].Value)"
+                           Value="@value"
+                           ValueChanged="@(EventCallback.Factory.Create<string?>(this, setValue))" />
     </div>;
 
     private RenderFragment RangeField(
@@ -1099,6 +1185,81 @@
         NotifyChanged();
     }
 
+    private void SetMinimumWidth(NeoPageNode node, string? value) =>
+        SetLength(
+            node,
+            value,
+            (style, length) => style with { MinimumWidth = length },
+            (style, length) => style with { MinimumWidth = length });
+
+    private void SetMaximumWidth(NeoPageNode node, string? value) =>
+        SetLength(
+            node,
+            value,
+            (style, length) => style with { MaximumWidth = length },
+            (style, length) => style with { MaximumWidth = length });
+
+    private void SetMinimumHeight(NeoPageNode node, string? value) =>
+        SetLength(
+            node,
+            value,
+            (style, length) => style with { MinimumHeight = length },
+            (style, length) => style with { MinimumHeight = length });
+
+    private void SetMaximumHeight(NeoPageNode node, string? value) =>
+        SetLength(
+            node,
+            value,
+            (style, length) => style with { MaximumHeight = length },
+            (style, length) => style with { MaximumHeight = length });
+
+    private void SetFullWidth(NeoPageNode node, bool enabled)
+    {
+        node.Properties["fullWidth"] =
+            System.Text.Json.JsonSerializer.SerializeToElement(enabled);
+
+        SetStyleValue(
+            node,
+            style => style with
+            {
+                Width = enabled
+                    ? new CssLength(100m, CssLengthUnit.Percent)
+                    : ClearFullWidth(style.Width)
+            },
+            style => style with
+            {
+                Width = enabled
+                    ? new CssLength(100m, CssLengthUnit.Percent)
+                    : ClearFullWidth(style.Width)
+            });
+        NotifyChanged();
+    }
+
+    private static CssLength? ClearFullWidth(CssLength? current) =>
+        current is { Unit: CssLengthUnit.Percent, Value: 100m }
+            ? null
+            : current;
+
+    private static bool IsFullWidth(NeoPageNode node)
+    {
+        if (!node.Properties.TryGetValue("fullWidth", out var value))
+        {
+            return CurrentStyleIsFullWidth(node);
+        }
+
+        return value.ValueKind switch
+        {
+            System.Text.Json.JsonValueKind.True => true,
+            System.Text.Json.JsonValueKind.False => false,
+            System.Text.Json.JsonValueKind.String =>
+                bool.TryParse(value.GetString(), out var parsed) && parsed,
+            _ => false
+        };
+    }
+
+    private static bool CurrentStyleIsFullWidth(NeoPageNode node) =>
+        node.Style.Base.Width is { Unit: CssLengthUnit.Percent, Value: 100m };
+
     private void SetUniformPadding(NeoPageNode node, string? value)
     {
         var length = ParsePixels(value);
@@ -1186,6 +1347,11 @@
             node,
             new BackgroundImageStyle { Enabled = false });
 
+    private void RemoveBackgroundVideo(NeoPageNode node) =>
+        SetBackgroundVideo(
+            node,
+            new BackgroundVideoStyle { Enabled = false });
+
     private void OpenBackgroundImageSelector(NeoPageNode node)
     {
         if (Block is not null)
@@ -1194,6 +1360,18 @@
                 Block,
                 node.NodeId,
                 "background-image",
+                _styleBreakpoint);
+        }
+    }
+
+    private void OpenBackgroundVideoSelector(NeoPageNode node)
+    {
+        if (Block is not null)
+        {
+            Editor?.OpenNodeMediaSelector(
+                Block,
+                node.NodeId,
+                "background-video",
                 _styleBreakpoint);
         }
     }
@@ -1263,6 +1441,39 @@
             style => style with { BackgroundImage = image },
             style => style with { BackgroundImage = image });
         NotifyChanged();
+    }
+
+    private void SetBackgroundVideo(
+        NeoPageNode node,
+        BackgroundVideoStyle video)
+    {
+        SetStyleValue(
+            node,
+            style => style with { BackgroundVideo = video },
+            style => style with { BackgroundVideo = video });
+        NotifyChanged();
+    }
+
+    private void SetBackgroundVideoAutoplay(NeoPageNode node, bool enabled) =>
+        UpdateBackgroundVideo(node, video => video with { Autoplay = enabled });
+
+    private void SetBackgroundVideoLoop(NeoPageNode node, bool enabled) =>
+        UpdateBackgroundVideo(node, video => video with { Loop = enabled });
+
+    private void SetBackgroundVideoMuted(NeoPageNode node, bool enabled) =>
+        UpdateBackgroundVideo(node, video => video with { Muted = enabled });
+
+    private void SetBackgroundVideoPlaysInline(NeoPageNode node, bool enabled) =>
+        UpdateBackgroundVideo(node, video => video with { PlaysInline = enabled });
+
+    private void UpdateBackgroundVideo(
+        NeoPageNode node,
+        Func<BackgroundVideoStyle, BackgroundVideoStyle> update)
+    {
+        if (CurrentStyle(node).BackgroundVideo is { } video)
+        {
+            SetBackgroundVideo(node, update(video));
+        }
     }
 
     private void AddBackgroundGradient(NeoPageNode node) =>
@@ -1644,9 +1855,6 @@
         return CssColorValidator.IsValid(color) ? color : null;
     }
 
-    private static string ToRgba(CssColor? color) =>
-        color?.Value ?? "rgba(0, 0, 0, 1.00)";
-
     private static string GradientPositionLabel(RadialGradientPosition position) =>
         position switch
         {
@@ -1685,6 +1893,46 @@
         EditorCapabilitySet.Effects |
         EditorCapabilitySet.Visibility |
         EditorCapabilitySet.Direction;
+
+    private static EditorCapabilitySet DesignCapabilities(
+        EditorCapabilitySet capabilities,
+        NeoPageNode node)
+    {
+        if (node.Kind is not (NeoPageNodeKind.Container
+            or NeoPageNodeKind.Section
+            or NeoPageNodeKind.Component) &&
+            !DesignableContainerCatalogIds.Contains(node.CatalogId))
+        {
+            return capabilities;
+        }
+
+        return capabilities |
+               EditorCapabilitySet.Typography |
+               EditorCapabilitySet.Spacing |
+               EditorCapabilitySet.Dimensions |
+               EditorCapabilitySet.Alignment |
+               EditorCapabilitySet.Foreground |
+               EditorCapabilitySet.Background |
+               EditorCapabilitySet.Border |
+               EditorCapabilitySet.Effects |
+               EditorCapabilitySet.Visibility |
+               EditorCapabilitySet.Direction;
+    }
+
+    private static readonly IReadOnlySet<string> DesignableContainerCatalogIds =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "primitive.section",
+            "primitive.article",
+            "primitive.container",
+            "primitive.grid",
+            "primitive.grid-row",
+            "primitive.grid-cell",
+            "primitive.flexbox",
+            "primitive.css-grid",
+            "neo.layout.columns",
+            "columns"
+        };
 
     private NeoPageNode CannedStyleNode() =>
         new()

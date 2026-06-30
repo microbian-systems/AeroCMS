@@ -30,8 +30,11 @@ public static class NodeStyleCssRenderer
         AddLength(declarations, "max-height", style.MaximumHeight);
         AddColor(declarations, "color", style.ForegroundColor);
         AddColor(declarations, "background-color", style.BackgroundColor);
-        AddGradient(declarations, style.BackgroundGradient);
-        AddBackgroundImage(declarations, style.BackgroundImage, style.Direction);
+        AddBackgroundLayers(
+            declarations,
+            style.BackgroundGradient,
+            style.BackgroundImage,
+            style.Direction);
         AddColor(declarations, "border-color", style.BorderColor);
         AddLength(declarations, "border-width", style.BorderWidth);
         AddLength(declarations, "border-radius", style.BorderRadius);
@@ -107,10 +110,39 @@ public static class NodeStyleCssRenderer
         }
     }
 
-    private static void AddGradient(
+    private static void AddBackgroundLayers(
         ICollection<string> declarations,
-        LinearGradient? gradient)
+        LinearGradient? gradient,
+        BackgroundImageStyle? image,
+        ContentDirection direction)
     {
+        var layers = new List<string>();
+        if (TryRenderGradient(gradient, out var gradientCss))
+        {
+            layers.Add(gradientCss);
+        }
+
+        if (TryRenderBackgroundImage(image, out var imageUrl) &&
+            image is { } value)
+        {
+            layers.Add($"url(\"{imageUrl}\")");
+            declarations.Add($"background-size:{value.Size.ToString().ToLowerInvariant()}");
+            declarations.Add(
+                $"background-position:{RenderPosition(value.Position, direction)}");
+            declarations.Add($"background-repeat:{RenderRepeat(value.Repeat)}");
+        }
+
+        if (layers.Count > 0)
+        {
+            declarations.Add($"background-image:{string.Join(',', layers)}");
+        }
+    }
+
+    private static bool TryRenderGradient(
+        LinearGradient? gradient,
+        out string css)
+    {
+        css = string.Empty;
         if (gradient is not { Enabled: true } value ||
             value.Angle is < 0m or > 360m ||
             value.StartPosition is < 0m or > 100m ||
@@ -122,12 +154,12 @@ public static class NodeStyleCssRenderer
             !IsValid(value.StartColor) ||
             !IsValid(value.EndColor))
         {
-            return;
+            return false;
         }
 
         var start = $"{value.StartColor} {FormatPercent(value.StartPosition)}";
         var end = $"{value.EndColor} {FormatPercent(value.EndPosition)}";
-        var css = value.Type switch
+        css = value.Type switch
         {
             GradientType.Radial =>
                 $"radial-gradient({RenderRadialShape(value.RadialShape)} at {RenderRadialPosition(value.RadialPosition)},{start},{end})",
@@ -135,7 +167,7 @@ public static class NodeStyleCssRenderer
                 $"linear-gradient({value.Angle.ToString(CultureInfo.InvariantCulture)}deg,{start},{end})"
         };
 
-        declarations.Add($"background-image:{css}");
+        return true;
     }
 
     private static string RenderRadialShape(RadialGradientShape shape) =>
@@ -183,25 +215,21 @@ public static class NodeStyleCssRenderer
         }
     }
 
-    private static void AddBackgroundImage(
-        ICollection<string> declarations,
+    private static bool TryRenderBackgroundImage(
         BackgroundImageStyle? image,
-        ContentDirection direction)
+        out string url)
     {
+        url = string.Empty;
         if (image is not { Enabled: true } value ||
-            !TryNormalizeImageUrl(value.Url, out var url) ||
+            !TryNormalizeImageUrl(value.Url, out url) ||
             !Enum.IsDefined(value.Size) ||
             !Enum.IsDefined(value.Repeat) ||
             !Enum.IsDefined(value.Position))
         {
-            return;
+            return false;
         }
 
-        declarations.Add($"background-image:url(\"{url}\")");
-        declarations.Add($"background-size:{value.Size.ToString().ToLowerInvariant()}");
-        declarations.Add(
-            $"background-position:{RenderPosition(value.Position, direction)}");
-        declarations.Add($"background-repeat:{RenderRepeat(value.Repeat)}");
+        return true;
     }
 
     private static string RenderRepeat(BackgroundImageRepeat repeat) =>

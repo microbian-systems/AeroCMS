@@ -1,0 +1,32 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor
+@using Aero.Cms.Abstractions.Blocks.Neo.Styles
+@using NeoUI.Blazor
+
+<div class="pe-color-field">
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        <label class="pe-property-label" for="@PickerId">@Label</label>
+    }
+    <div class="pe-color-picker-row">
+        <ColorPicker Id="@PickerId"
+                     Color="@ColorValue"
+                     ColorChanged="OnColorChanged"
+                     Format="ColorFormat.RGB"
+                     ShowAlpha="true"
+                     ShowInputs="true"
+                     ShowPresets="true"
+                     Class="pe-color-picker-trigger" />
+        @if (Value is null)
+        {
+            <span class="pe-color-inherited">Inherited</span>
+        }
+        else
+        {
+            <button type="button"
+                    class="pe-color-reset"
+                    @onclick="ClearColor">
+                Clear
+            </button>
+        }
+    </div>
+</div>

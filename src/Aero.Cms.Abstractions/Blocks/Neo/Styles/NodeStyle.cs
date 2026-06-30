@@ -33,6 +33,8 @@ public sealed record NodeStyle
 
     public BackgroundImageStyle? BackgroundImage { get; init; }
 
+    public BackgroundVideoStyle? BackgroundVideo { get; init; }
+
     public CssColor? BorderColor { get; init; }
 
     public CssLength? BorderWidth { get; init; }
@@ -78,6 +80,7 @@ public sealed record NodeStyle
             BackgroundOverlayColor = value.BackgroundOverlayColor ?? BackgroundOverlayColor,
             BackgroundGradient = value.BackgroundGradient ?? BackgroundGradient,
             BackgroundImage = value.BackgroundImage ?? BackgroundImage,
+            BackgroundVideo = value.BackgroundVideo ?? BackgroundVideo,
             BorderColor = value.BorderColor ?? BorderColor,
             BorderWidth = value.BorderWidth ?? BorderWidth,
             BorderRadius = value.BorderRadius ?? BorderRadius,
@@ -125,6 +128,8 @@ public sealed record NodeStyleOverride
     public LinearGradient? BackgroundGradient { get; init; }
 
     public BackgroundImageStyle? BackgroundImage { get; init; }
+
+    public BackgroundVideoStyle? BackgroundVideo { get; init; }
 
     public CssColor? BorderColor { get; init; }
 

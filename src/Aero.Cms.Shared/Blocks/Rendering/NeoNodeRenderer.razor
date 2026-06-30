@@ -13,13 +13,35 @@
 {
     var catalogId = Node.CatalogId;
     var isContainer = Node.Kind is NeoPageNodeKind.Container or NeoPageNodeKind.Section;
+    var resolvedStyle = Node.Style.Resolve(Breakpoint);
+    var backgroundVideo = ResolveBackgroundVideo(resolvedStyle);
 
     @* A stable element is required for static SSR. Razor variable-tag syntax
        renders literal <> wrappers and drops attributes in HtmlRenderer output. *@
-    <div class="@NodeCssClass"
-         style="@NodeStyleCssRenderer.Render(Node.Style, Breakpoint)"
+    <div class="@NodeCssClass(resolvedStyle)"
+         style="@NodeStyleCssRenderer.Render(resolvedStyle)"
          data-catalog-id="@catalogId"
          data-node-id="@Node.NodeId">
+        @if (backgroundVideo is not null)
+        {
+            <video class="neo-node-background-video"
+                   autoplay="@backgroundVideo.Autoplay"
+                   muted="@backgroundVideo.Muted"
+                   loop="@backgroundVideo.Loop"
+                   playsinline="@backgroundVideo.PlaysInline"
+                   poster="@NormalizeOptionalMediaUrl(backgroundVideo.PosterUrl)"
+                   aria-hidden="true"
+                   tabindex="-1">
+                <source src="@backgroundVideo.Url" type="@VideoContentType(backgroundVideo.Url)" />
+            </video>
+            @if (resolvedStyle.BackgroundOverlayColor is { } overlayColor &&
+                 CssColorValidator.IsValid(overlayColor))
+            {
+                <div class="neo-node-background-video-overlay"
+                     style="@($"background-color:{overlayColor}")"
+                     aria-hidden="true"></div>
+            }
+        }
 
         @switch (catalogId)
         {
@@ -589,16 +611,16 @@
     [Parameter]
     public EditorBreakpoint Breakpoint { get; set; } = EditorBreakpoint.Desktop;
 
-    private string NodeCssClass
+    private string NodeCssClass(NodeStyle resolvedStyle)
     {
-        get
-        {
-            var catalogClass = Node.CatalogId.Replace(".", "-");
-            var kindClass = Node.Kind.ToString().ToLowerInvariant();
-            var fullWidthClass = GetBoolProperty("fullWidth") ? " neo-node--full-width" : string.Empty;
+        var catalogClass = Node.CatalogId.Replace(".", "-");
+        var kindClass = Node.Kind.ToString().ToLowerInvariant();
+        var fullWidthClass = GetBoolProperty("fullWidth") ? " neo-node--full-width" : string.Empty;
+        var videoClass = ResolveBackgroundVideo(resolvedStyle) is not null
+            ? " neo-node--has-background-video"
+            : string.Empty;
 
-            return $"neo-node neo-{catalogClass} neo-kind-{kindClass}{fullWidthClass}";
-        }
+        return $"neo-node neo-{catalogClass} neo-kind-{kindClass}{fullWidthClass}{videoClass}";
     }
 
     private string GenericComponentClass =>
@@ -699,6 +721,63 @@
         }
 
         return string.Empty;
+    }
+
+    private static BackgroundVideoStyle? ResolveBackgroundVideo(NodeStyle style)
+    {
+        if (style.BackgroundVideo is not { Enabled: true } video ||
+            !TryNormalizeMediaUrl(video.Url, out var url))
+        {
+            return null;
+        }
+
+        return video with { Url = url };
+    }
+
+    private static string? NormalizeOptionalMediaUrl(string? value) =>
+        TryNormalizeMediaUrl(value, out var normalized) ? normalized : null;
+
+    private static bool TryNormalizeMediaUrl(string? value, out string normalized)
+    {
+        normalized = value?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return false;
+        }
+
+        if (normalized.StartsWith('/') &&
+            !normalized.Contains('"') &&
+            !normalized.Contains('\'') &&
+            !normalized.Contains('(') &&
+            !normalized.Contains(')'))
+        {
+            return true;
+        }
+
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var uri) ||
+            uri.Scheme is not ("http" or "https"))
+        {
+            normalized = string.Empty;
+            return false;
+        }
+
+        normalized = uri.AbsoluteUri;
+        return !normalized.Contains('"') && !normalized.Contains('\'');
+    }
+
+    private static string VideoContentType(string url)
+    {
+        var path = Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            ? uri.AbsolutePath
+            : url;
+
+        return Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".webm" => "video/webm",
+            ".ogg" or ".ogv" => "video/ogg",
+            ".mov" => "video/quicktime",
+            _ => "video/mp4"
+        };
     }
 
     private int GetIntProperty(string name, int fallback)

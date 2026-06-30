@@ -3,21 +3,32 @@ window.PageEditorShortcuts = (() => {
     let editableGuard;
     const guardedEditableTargets = new WeakSet();
 
+    const editorInputSelector = [
+        "input",
+        "textarea",
+        "select",
+        "[contenteditable='true']",
+        "[role='textbox']",
+        "[data-editor-text-input='true']",
+        "[data-editor-property-panel='true']",
+        "[data-editor-modal='true']",
+        ".pe-modal",
+        ".pe-property-panel-shell"
+    ].join(", ");
+
     function isEditableTarget(target) {
         if (!(target instanceof HTMLElement)) {
             return false;
         }
 
-        return Boolean(target.closest(
-            "input, textarea, select, [contenteditable='true'], [role='textbox'], [data-editor-text-input='true']"));
+        return Boolean(target.closest(editorInputSelector));
     }
 
     function register(dotNetRef) {
         unregister();
         editableGuard = event => {
             const target = event.target instanceof HTMLElement
-                ? event.target.closest(
-                    "input, textarea, select, [contenteditable='true'], [role='textbox'], [data-editor-text-input='true']")
+                ? event.target.closest(editorInputSelector)
                 : undefined;
 
             if (target instanceof HTMLElement && !guardedEditableTargets.has(target)) {
