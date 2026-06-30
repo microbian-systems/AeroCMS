@@ -61,7 +61,8 @@ public sealed class NodeStyleCssRendererTests
         await Assert.That(css).Contains("background-color:#f8fafc");
         await Assert.That(css)
             .Contains("background-image:linear-gradient(135deg,#112233 0%,#abcdef 100%)");
-        await Assert.That(css).Contains("background-image:url(\"/api/media/42\")");
+        await Assert.That(css)
+            .Contains("background-image:linear-gradient(135deg,#112233 0%,#abcdef 100%),url(\"/api/media/42\")");
         await Assert.That(css).Contains("background-size:cover");
         await Assert.That(css).Contains("background-position:top left");
         await Assert.That(css).Contains("border-color:#334155");
@@ -99,6 +100,18 @@ public sealed class NodeStyleCssRendererTests
 
         await Assert.That(css).Contains(
             "background-image:radial-gradient(circle at top right,rgba(255, 0, 0, 0.75) 15%,rgba(0, 0, 255, 0.25) 85%)");
+    }
+
+    [Test]
+    public async Task RendersRgbColorsEmittedByPicker()
+    {
+        var style = new NodeStyle
+        {
+            BackgroundColor = new CssColor("rgb(208, 2, 2)")
+        };
+
+        await Assert.That(NodeStyleCssRenderer.Render(style))
+            .Contains("background-color:rgb(208, 2, 2)");
     }
 
     [Test]

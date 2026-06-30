@@ -124,6 +124,10 @@ public sealed class NodeStyleOverrideValidator : AbstractValidator<NodeStyleOver
 
 public static class CssColorValidator
 {
+    private static readonly Regex RgbPattern = new(
+        @"^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
     private static readonly Regex RgbaPattern = new(
         @"^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(0(?:\.\d+)?|1(?:\.0+)?)\s*\)$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -139,18 +143,27 @@ public static class CssColorValidator
             return true;
         }
 
-        var match = RgbaPattern.Match(value);
-        return match.Success &&
-               int.TryParse(match.Groups[1].Value, out var red) && red <= 255 &&
-               int.TryParse(match.Groups[2].Value, out var green) && green <= 255 &&
-               int.TryParse(match.Groups[3].Value, out var blue) && blue <= 255 &&
+        var rgbMatch = RgbPattern.Match(value);
+        if (rgbMatch.Success)
+        {
+            return HasValidRgbChannels(rgbMatch);
+        }
+
+        var rgbaMatch = RgbaPattern.Match(value);
+        return rgbaMatch.Success &&
+               HasValidRgbChannels(rgbaMatch) &&
                decimal.TryParse(
-                   match.Groups[4].Value,
+                   rgbaMatch.Groups[4].Value,
                    NumberStyles.Number,
                    CultureInfo.InvariantCulture,
                    out var alpha) &&
                alpha is >= 0m and <= 1m;
     }
+
+    private static bool HasValidRgbChannels(Match match) =>
+        int.TryParse(match.Groups[1].Value, out var red) && red <= 255 &&
+        int.TryParse(match.Groups[2].Value, out var green) && green <= 255 &&
+        int.TryParse(match.Groups[3].Value, out var blue) && blue <= 255;
 }
 
 internal sealed class LinearGradientValidator : AbstractValidator<LinearGradient>

@@ -120,6 +120,9 @@ public sealed partial class CanvasNode : ComponentBase
 
     private string IndentStyle => $"padding-left: {Math.Max(0, Depth - 1) * 16}px;";
 
+    private string AuthoredSurfaceStyle =>
+        NodeStyleCssRenderer.Render(Node.Style, EditorBreakpoint.Desktop);
+
     private bool ShouldShowFallbackLabel =>
         Node.Children.Count == 0 &&
         !string.Equals(Node.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase);

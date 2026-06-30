@@ -152,6 +152,11 @@ public sealed partial class CanvasContainer : ComponentBase
 
     private string IndentStyle => IsRootNode ? string.Empty : $"padding-left: {Math.Max(0, Depth - 1) * 16}px;";
 
+    private string AuthoredSurfaceStyle =>
+        IsRootNode
+            ? string.Empty
+            : NodeStyleCssRenderer.Render(Node.Style, EditorBreakpoint.Desktop);
+
     private bool IsRootNode =>
         string.Equals(Node.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase) ||
         Node.Kind == NeoPageNodeKind.Page;

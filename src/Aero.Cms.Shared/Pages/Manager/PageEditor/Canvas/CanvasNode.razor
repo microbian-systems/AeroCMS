@@ -92,7 +92,8 @@
     </div>
 
     @* Preview content *@
-    <div class="canvas-node__content pe-block-content">
+    <div class="canvas-node__content pe-block-content"
+         style="@AuthoredSurfaceStyle">
         @if (PreviewComponentType is not null)
         {
             <DynamicComponent Type="@PreviewComponentType" Parameters="@PreviewParameters" />

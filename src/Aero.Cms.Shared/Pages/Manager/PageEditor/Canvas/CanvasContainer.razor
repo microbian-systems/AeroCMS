@@ -98,6 +98,7 @@
     {
         @* Preview content *@
         <div class="canvas-node__content pe-block-content"
+             style="@AuthoredSurfaceStyle"
              @ondragover:preventDefault
              @ondragover:stopPropagation
              @ondrop:preventDefault
@@ -135,7 +136,8 @@
     @if (ShouldRenderGenericChildren)
     {
         @* Children area *@
-        <div class="canvas-container__children">
+        <div class="canvas-container__children"
+             style="@AuthoredSurfaceStyle">
             @if (Node.Children.Count == 0)
             {
                 <div class="canvas-container__empty"
