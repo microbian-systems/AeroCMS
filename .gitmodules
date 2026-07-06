@@ -10,3 +10,6 @@
 [submodule "craft.js"]
 	path = craft.js
 	url = https://github.com/prevwong/craft.js.git
+[submodule "AeroDB"]
+	path = AeroDB
+	url = git@github.com:microbian-systems/AeroDB.git
