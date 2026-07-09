@@ -143,11 +143,13 @@ if ($metaCsproj) {
         Write-Host "  FAILED (restore): Meta-package" -ForegroundColor Red
         $failed += $metaProjDir
     } else {
-        $output = dotnet pack $metaCsproj -c $Configuration -o $OutputDir --no-restore --no-build --include-symbols -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg @versionArgs 2>&1
+        $output = dotnet pack $metaCsproj -c $Configuration -o $OutputDir --no-restore --no-build -p:IncludeSymbols=false @versionArgs 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  FAILED (pack): Meta-package" -ForegroundColor Red
             $failed += $metaProjDir
             $output | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkRed }
+        } else {
+            Get-ChildItem "$OutputDir/Aero.Cms.Modules.Meta.*.snupkg" -ErrorAction SilentlyContinue | Remove-Item -Force
         }
     }
 } else {

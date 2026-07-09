@@ -1,16 +1,14 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Pushes all .nupkg and .snupkg files from build/nupkgs/ to nuget.org.
+    Pushes all .nupkg files from build/nupkgs/ to nuget.org.
 .DESCRIPTION
     Pushes packages to the NuGet.org gallery. Requires a NuGet API key.
     The key can be provided via the -ApiKey parameter, or via the
-    GITHUB_API_KEY_AeroCMS or NUGET_API_KEY environment variable (for local publishing).
+    NUGET_API_KEY_AeroCMS or NUGET_API_KEY environment variable (for local publishing).
 .PARAMETER ApiKey
     NuGet API key to use for publishing.
     If not provided, falls back to GITHUB_API_KEY_AeroCMS, then NUGET_API_KEY.
-.PARAMETER SkipSnupkg
-    Skip pushing symbol packages (.snupkg). Default: false.
 .EXAMPLE
     # Local: uses $env:GITHUB_API_KEY_AeroCMS or $env:NUGET_API_KEY
     ./build/nuget-publish.ps1
@@ -20,8 +18,7 @@
 #>
 
 param(
-    [string]$ApiKey,
-    [switch]$SkipSnupkg
+    [string]$ApiKey
 )
 
 $RepoRoot = Resolve-Path "$PSScriptRoot/.."
@@ -29,14 +26,14 @@ $RepoRoot = Resolve-Path "$PSScriptRoot/.."
 # --- Resolve API key: explicit param takes priority, then env var ---
 if ($ApiKey) {
     Write-Host "Using provided -ApiKey parameter." -ForegroundColor Gray
-} elseif (-not [string]::IsNullOrWhiteSpace($env:GITHUB_API_KEY_AeroCMS)) {
-    $ApiKey = $env:GITHUB_API_KEY_AeroCMS
-    Write-Host "Using GITHUB_API_KEY_AeroCMS environment variable." -ForegroundColor Gray
+} elseif (-not [string]::IsNullOrWhiteSpace($env:NUGET_API_KEY_AeroCMS)) {
+    $ApiKey = $env:NUGET_API_KEY_AeroCMS
+    Write-Host "Using NUGET_API_KEY_AeroCMS environment variable." -ForegroundColor Gray
 } elseif (-not [string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
     $ApiKey = $env:NUGET_API_KEY
     Write-Host "Using NUGET_API_KEY environment variable." -ForegroundColor Gray
 } else {
-    Write-Host "No API key provided. Set GITHUB_API_KEY_AeroCMS or NUGET_API_KEY, or pass -ApiKey." -ForegroundColor Red
+    Write-Host "No API key provided. Set NUGET_API_KEY_AeroCMS or NUGET_API_KEY, or pass -ApiKey." -ForegroundColor Red
     exit 1
 }
 
@@ -55,22 +52,6 @@ foreach ($nupkg in $nupkgs) {
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  FAILED: $($nupkg.Name)" -ForegroundColor Red
         $failed++
-    }
-}
-
-# --- Push symbol packages ---
-if (-not $SkipSnupkg) {
-    $snupkgs = Get-ChildItem "$RepoRoot/build/nupkgs/*.snupkg" -ErrorAction SilentlyContinue
-    if ($snupkgs) {
-        Write-Host "Pushing $($snupkgs.Count) symbol packages..." -ForegroundColor Cyan
-        foreach ($snupkg in $snupkgs) {
-            Write-Host "  $($snupkg.Name)..." -ForegroundColor Gray
-            dotnet nuget push $snupkg.FullName --source https://api.nuget.org/v3/index.json --api-key "$ApiKey" --skip-duplicate
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "  FAILED: $($snupkg.Name)" -ForegroundColor Red
-                $failed++
-            }
-        }
     }
 }
 

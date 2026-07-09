@@ -7,12 +7,7 @@
     <PackageId>Aero.Cms.AspNetCore</PackageId>
     <Title>Aero CMS ASP.NET Core Integration</Title>
     <Description>Package-first ASP.NET Core integration facade for adding Aero CMS to new or existing web applications.</Description>
-    <PackageIcon>favicon.png</PackageIcon>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Include="..\..\assets\favicon.png" Pack="true" PackagePath="" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Hydro" />

@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Local pack + push to NuGet (uses $env:NUGET_API_KEY).
+     Local pack + push to NuGet (uses $env:NUGET_API_KEY_AeroCMS).
 .DESCRIPTION
     Packs all Aero CMS libraries and pushes them to nuget.org.
     Defaults to preview (alpha suffix). Use -Stable for release.
@@ -23,10 +23,10 @@ param(
     [switch]$Stable
 )
 
-$apiKey = $env:GITHUB_API_KEY_AeroCMS ?? $env:NUGET_API_KEY
+$apiKey = $env:NUGET_API_KEY_AeroCMS ?? $env:NUGET_API_KEY
 if ([string]::IsNullOrWhiteSpace($apiKey)) {
     Write-Host "No NuGet API key found." -ForegroundColor Red
-    Write-Host "Set: `$env:GITHUB_API_KEY_AeroCMS = 'your-AeroCMS-key'" -ForegroundColor Yellow
+    Write-Host "Set: `$env:NUGET_API_KEY_AeroCMS = 'your-key-here'" -ForegroundColor Yellow
     Write-Host "Or:  `$env:NUGET_API_KEY = 'your-key-here'" -ForegroundColor Yellow
     exit 1
 }
