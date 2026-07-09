@@ -127,7 +127,10 @@ if ($metaCsproj) {
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <packageSources>
-    <add key="local-packages" value="$OutputDir" />
+    <clear />
+    <add key="local-aero" value="$RepoRoot/Aero/build/nupkgs" />
+    <add key="local-cms" value="$OutputDir" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
   </packageSources>
 </configuration>
 "@

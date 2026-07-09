@@ -21,12 +21,13 @@
 		<Copyright>Copyright (c) 2025 Microbians</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageTags>cms mvc razorpages aspnetcore</PackageTags>
-		<!-- PackageIcon disabled: ../Aero.png is >2MB, exceeds NuGet 1MB limit. Resize the icon first. -->
-		<!-- <PackageIcon>Aero.png</PackageIcon> -->
+		<PackageIcon>aero-logo-new.png</PackageIcon>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<None Include="../../assets/Aero.png" Pack="false" />
+		<None Include="$(MSBuildThisFileDirectory)../assets/aero-logo-new.png" Pack="true" PackagePath="\" />
+		<None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 	<PropertyGroup>
