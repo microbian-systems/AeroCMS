@@ -1,8 +1,22 @@
 # SurrealDB → Marten Port Plan
 
-**Status:** Draft  
+**Status:** Active  
 **Last updated:** 2026-07-09  
 **Goal:** Replace Marten/PostgreSQL with AeroDB/SurrealDB ("Sable") across the entire AeroCMS. Marten code is preserved in `Aero.Cms.Db.Marten` as non-buildable reference.
+
+---
+
+## Progress
+
+- [x] **Phase 1** — Marten code archived in `Aero.Cms.Db.Marten/Legacy/`
+- [ ] **Phase 2a** — DI registration swap (`ConfigureMartenDb` → `AddAeroDB`)
+- [ ] **Phase 2b** — Namespace swap (`using Marten;` → `using AeroDB;`)
+- [ ] **Phase 2c** — Module system interface swap (`IConfigureMarten` → `IConfigureAeroDB`)
+- [ ] **Phase 2d** — Repository refactoring (`GenericMartenRepository` → direct session)
+- [ ] **Phase 3a** — Wire up `AeroDB.WolverineFx`
+- [ ] **Phase 3b** — Wire up `AeroDB.AspNetIdentity`
+- [ ] **Phase 3c** — Update seed/setup logic
+- [ ] **Phase 4** — Strip Marten package/project references
 
 ---
 
@@ -52,34 +66,42 @@ After:  services.AddAeroDB(connString, opts => { ... });
 
 ---
 
-## Phase 1 — `Aero.Cms.Db.Marten` (Marten Dormancy)
+## Phase 1 — `Aero.Cms.Db.Marten` (Marten Dormancy) ✅
 
-Move ALL Marten-specific code into this project. Files are preserved as reference — either set to non-buildable or stored inline.
+**Done.** All Marten-specific code archived to `src/Aero.Cms.Db.Marten/Legacy/` as non-buildable reference.
 
-### Files to move (from src/)
+### Archive structure
 
-| Source | Destination in Db.Marten |
-|--------|--------------------------|
-| `src/Aero.AppServer/AeroEmbeddedDbService.cs` | `Services/EmbeddedDbService.cs` |
-| `src/Aero.AppServer/AeroDbOptions.cs` | `Configuration/AeroDbOptions.cs` |
-| `src/Aero.AppServer/Startup/` (PG readiness) | `Infrastructure/` |
-| `src/Aero.AppServer/InfrastructureConnectionStringResolver.cs` | `Configuration/` |
-| `src/Aero.Cms.Core/Data/AeroCmsDB.cs` | `Legacy/AeroCmsDB.cs` |
-| `src/Aero.Cms.Core/Blocks/MartenBlockService.cs` | `Legacy/` |
-| `src/Aero.Cms.Core/Blocks/Dynamic/MartenDynamicBlockDefinitionService.cs` | `Legacy/` |
-| `src/Aero.Cms.Core/Content/Services/MartenContentService.cs` | `Legacy/` |
-| `src/Aero.Cms.Core/Content/Services/MartenContentQueryService.cs` | `Legacy/` |
-| `src/Aero.Cms.Core/Content/Services/MartenContentTypeService.cs` | `Legacy/` |
-| `src/Aero.Cms.Core/Content/Services/ContentCommandService.cs` | `Legacy/` |
-| `src/Aero.Cms.Core/Content/Jobs/ScheduledPublishHandler.cs` | `Legacy/` |
-| `src/Aero.Cms.Core/Extensions/BlockServiceExtensions.cs` | `Legacy/` |
-| `src/Aero.Cms.Core/Extensions/ContentServiceExtensions.cs` | `Legacy/` |
-| `src/Aero.Cms.Data/Repositories/*.cs` (6 files) | `Legacy/Repositories/` |
-| `src/Aero.Cms.Data/Queries/*.cs` (7 files) | `Legacy/Queries/` |
-| `src/Aero.Cms.Marten.Identity/*` | `Legacy/Identity/` |
-| `src/Aero.Cms.Modules.Setup/SetupStateStore.cs` | `Legacy/SetupStateStore.cs` |
-
-Files in `Legacy/` directories should have their `Build Action` set to `None` (or be excluded from compilation) and include a header comment noting the Marten dependency.
+```
+Legacy/
+├── Aero.Marten/                  # Full shim library (28 files)
+│   ├── GenericMartenRepository.cs, AeroDb.cs, MartenDbExtensions.cs
+│   ├── Identity/ (UserStore, RoleStore, AeroDbIdentityOptions)
+│   ├── Query/, Services/, Extensions/
+├── AppServer/                    # Startup code (3 files)
+│   ├── AeroEmbeddedDbService.cs, AeroDbOptions.cs, AeroAppServerExtensions.cs
+├── Startup/                      # Infrastructure (6 files)
+│   ├── InfrastructureConnectionStringResolver.cs
+│   ├── ReadinessSnapshot, Coordinator, MultiStartupSignal, ServiceNames
+├── Core/                         # Core Marten services (15 files)
+│   ├── Blocks/ (MartenBlockService, BlockMartenConfiguration, +2)
+│   ├── Content/ (MartenContentService, MartenContentQueryService, +3)
+│   ├── Data/ (AeroCmsDB.cs)
+│   └── Extensions/ (BlockServiceExtensions, ContentServiceExtensions)
+├── Data/                         # Repositories & queries (16 files)
+│   ├── Repositories/ (Alias, Category, Compiled, Site, Tag, Tenant, UserProfile)
+│   └── Queries/ (Alias, Category, Docs, Pages, Posts, Settings, Sites, Tag, Tenant)
+├── MartenIdentity/               # Aero.Cms.Marten.Identity (5 files)
+├── Generated/                    # GeneratedMartenConfiguration.cs
+├── Setup/                        # Marten-dependent setup (3 files)
+│   ├── ServerTargetSetupExecutor.cs, SeedDataService.cs, SetupStateStore.cs
+├── Modules/                      # Module-level Marten code (17 files)
+│   ├── Banner/Commerce/Media/ (GenericMartenRepository usage)
+│   └── IConfigureMartenImplementations/ (9 modules)
+├── GlobalUsings/                 # 14 global using Marten; files preserved
+├── ModuleCsprojReferences/       # 22 csproj files showing Marten refs
+└── Directory.Packages.props      # Marten version pins
+```
 
 ### csproj
 
@@ -90,14 +112,27 @@ Files in `Legacy/` directories should have their `Build Action` set to `None` (o
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <!-- Marten packages (kept for reference/buildability of legacy files) -->
   <ItemGroup>
-    <PackageReference Include="Marten" Version="8.37.1" />
-    <PackageReference Include="WolverineFx.Marten" Version="5.39.3" />
+    <PackageReference Include="Marten" VersionOverride="8.37.1" />
+    <PackageReference Include="Marten.AspNetCore" VersionOverride="8.37.1" />
+    <PackageReference Include="WolverineFx.Marten" VersionOverride="5.39.3" />
+    <PackageReference Include="Weasel.Postgresql" VersionOverride="8.15.2" />
+    <PackageReference Include="MysticMind.PostgresEmbed" VersionOverride="4.0.0" />
+    <PackageReference Include="Npgsql" VersionOverride="9.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.AppServer\Aero.AppServer.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Legacy/**/*.cs" />
     <None Include="Legacy/**/*.cs" />
+    <None Include="Legacy/**/*.csproj" />
+    <None Include="Legacy/**/*.props" />
   </ItemGroup>
 </Project>
 ```
@@ -251,15 +286,15 @@ Once all modules compile against AeroDB:
 ## Execution Order
 
 ```
-Phase 1: Move Marten code into Aero.Cms.Db.Marten (Legacy/)
-Phase 2a: Replace DI registration (ConfigureMartenDb → AddAeroDB)
-Phase 2b: Namespace swap across all active code
-Phase 2c: Module system interface swap (IConfigureMarten → IConfigureAeroDB)
-Phase 2d: Repository refactoring (GenericMartenRepository → direct session)
-Phase 3a: Wire up AeroDB.WolverineFx
-Phase 3b: Wire up AeroDB.AspNetIdentity
-Phase 3c: Update seed/setup logic
-Phase 4: Strip Marten references
+[x] Phase 1: Move Marten code into Aero.Cms.Db.Marten (Legacy/)
+[ ] Phase 2a: Replace DI registration (ConfigureMartenDb → AddAeroDB)
+[ ] Phase 2b: Namespace swap across all active code
+[ ] Phase 2c: Module system interface swap (IConfigureMarten → IConfigureAeroDB)
+[ ] Phase 2d: Repository refactoring (GenericMartenRepository → direct session)
+[ ] Phase 3a: Wire up AeroDB.WolverineFx
+[ ] Phase 3b: Wire up AeroDB.AspNetIdentity
+[ ] Phase 3c: Update seed/setup logic
+[ ] Phase 4: Strip Marten references
 ```
 
 ---

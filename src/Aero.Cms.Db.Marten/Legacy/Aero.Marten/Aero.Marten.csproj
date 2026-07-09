@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Title>Marten Persistence for the Aero Web Platform</Title>
+    <Description>Core components for the Aero web application platform</Description>
+    <IsPackable>true</IsPackable>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- The unique ID for your package on NuGet.org -->
+    <PackageId>Aero.Marten</PackageId>
+
+    <!-- Increment this version every time you push a new update -->
+    <Version>0.0.9.1-alpha</Version>
+
+    <!-- Your name or organization -->
+    <Authors>Microbians</Authors>
+
+    <!-- A brief description shown in the NuGet gallery -->
+    <Description>A lightweight library for database operations using MartenDB.</Description>
+
+    <!-- Optional: High-quality metadata for better discoverability -->
+    <PackageTags>aero;utils;netcore</PackageTags>
+    <PackageProjectUrl>https://github.com/microbian-systems/aero</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/microbian-systems/aero</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>aero-logo-new.png</PackageIcon>
+
+    <!-- Optional: Automatically creates a package on every build -->
+</PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Throw" />
+    <PackageReference Include="ThrowGuard" />
+    <PackageReference Include="WolverineFx.Marten" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aero.Auth\Aero.Auth.csproj" />
+    <ProjectReference Include="..\Aero.Caching\Aero.Caching.csproj" />
+    <ProjectReference Include="..\Aero.Core\Aero.Core.csproj" />
+    <ProjectReference Include="..\Aero.Models\Aero.Models.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\assets\aero-logo-new.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

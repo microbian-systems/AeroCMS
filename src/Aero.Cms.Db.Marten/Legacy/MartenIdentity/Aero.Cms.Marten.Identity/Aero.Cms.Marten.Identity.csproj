@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+
+    <ItemGroup>
+      <PackageReference Include="Marten" />
+      <PackageReference Include="Microsoft.Extensions.Identity.Core" />
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+    </ItemGroup>
+
+</Project>
