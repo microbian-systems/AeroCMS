@@ -15,13 +15,21 @@
 	</PropertyGroup>
 
 	<PropertyGroup Label="Package information">
-		<Version>0.0.5-alpha</Version>
+		<Version>0.0.9.1-alpha</Version>
 		<Authors>Aero Cms</Authors>
 		<Company>Microbian Systems</Company>
 		<Copyright>Copyright (c) 2025 Microbians</Copyright>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageTags>cms mvc razorpages aspnetcore</PackageTags>
-		<PackageIcon>../Aero.png</PackageIcon>
+		<!-- PackageIcon disabled: ../Aero.png is >2MB, exceeds NuGet 1MB limit. Resize the icon first. -->
+		<!-- <PackageIcon>Aero.png</PackageIcon> -->
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="../../assets/Aero.png" Pack="false" />
+	</ItemGroup>
+
+	<PropertyGroup>
 		<PackageProjectUrl>https://github.com/microbian-systems/Aero.core</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/microbian-systems/Aero.core</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
