@@ -24,6 +24,11 @@
     <IsPackable>true</IsPackable>
   </PropertyGroup>
 
+  <!-- Prevent tsconfig.json from being shipped as NuGet content — it's a build-time artifact -->
+  <ItemGroup>
+    <Content Remove="tsconfig.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Blazor.LocalStorage.WebAssembly" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
