@@ -1,4 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Aero.Cms.AppServer</PackageId>
+  </PropertyGroup>
+
   <ItemGroup>
   <!-- todo move the blazor server stuff to Aero.AppServer.Web to separate concerns. this is to enable blazor server functionality just for the setup process -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

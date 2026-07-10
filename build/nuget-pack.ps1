@@ -111,7 +111,25 @@ foreach ($proj in $libProjects) {
 
     $projName = (Get-Item $csproj).BaseName
     Write-Host "  Packing: $projName..." -ForegroundColor Cyan
-    $output = dotnet pack $csproj -c $Configuration -o $OutputDir --include-symbols -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg @versionArgs 2>&1
+    $packArgs = @(
+        "pack", $csproj,
+        "-c", $Configuration,
+        "-o", $OutputDir,
+        "--include-symbols",
+        "-p:IncludeSymbols=true",
+        "-p:SymbolPackageFormat=snupkg"
+    )
+
+    if ($projName -eq "Aero.Cms.Web.Client") {
+        $packArgs += @(
+            "-m:1",
+            "-p:BuildInParallel=false",
+            "-p:UseSharedCompilation=false",
+            "-p:NodeReuse=false"
+        )
+    }
+
+    $output = dotnet @packArgs @versionArgs 2>&1
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  FAILED: $(Split-Path $proj -Leaf)" -ForegroundColor Red

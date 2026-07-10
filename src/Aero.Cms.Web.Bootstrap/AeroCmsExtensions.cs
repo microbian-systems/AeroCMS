@@ -276,7 +276,6 @@ public static class AeroCmsExtensions
             .AddInteractiveWebAssemblyRenderMode()
             .AddAdditionalAssemblies(
                 typeof(Aero.Cms.Shared._Imports).Assembly,
-                typeof(Aero.Cms.Web.Client._Imports).Assembly,
                 typeof(SetupModule).Assembly);
 
         configureComponents?.Invoke(componentBuilder);

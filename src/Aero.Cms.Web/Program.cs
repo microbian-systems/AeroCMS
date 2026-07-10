@@ -53,5 +53,8 @@ static async Task RunMainAppAsync(string[] args, string webProjectPath, Bootstra
     });
 
     var app = builder.Build();
-    await app.RunAeroCmsAsync<App>(bootstrapState, log);
+    await app.RunAeroCmsAsync<App>(
+        bootstrapState,
+        log,
+        components => components.AddAdditionalAssemblies(typeof(Aero.Cms.Web.Client._Imports).Assembly));
 }

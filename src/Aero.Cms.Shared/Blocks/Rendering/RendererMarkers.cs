@@ -20,8 +20,10 @@ public partial class QuoteBlockRenderer;
 [CmsBlockRenderer(typeof(EmbedBlock))]
 public partial class EmbedBlockRenderer;
 
+#if !AERO_CMS_BROWSER_CLIENT
 [CmsBlockRenderer(typeof(DynamicTemplateBlock))]
 public partial class DynamicTemplateBlockRenderer;
+#endif
 
 [CmsBlockRenderer(typeof(Aero.Cms.Abstractions.Blocks.Common.ColumnsBlock))]
 public partial class ColumnsRenderer;
@@ -98,6 +100,7 @@ public partial class SeparatorBlockRenderer;
 [CmsBlockRenderer(typeof(Aero.Cms.Abstractions.Blocks.Neo.NeoColumnsBlock))]
 public partial class ColumnsBlockRenderer;
 
+#if !AERO_CMS_BROWSER_CLIENT
 [CmsBlockRenderer(typeof(ScribanBlock))]
 public partial class ScribanBlockRenderer;
-
+#endif

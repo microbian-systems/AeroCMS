@@ -24,8 +24,25 @@
     <Folder Include="Security\" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
+    <Content Remove="Blocks\Rendering\BlockPlacementRenderer.razor" />
+    <RazorComponent Remove="Blocks\Rendering\BlockPlacementRenderer.razor" />
+    <Content Remove="Blocks\Rendering\LayoutColumnRenderer.razor" />
+    <RazorComponent Remove="Blocks\Rendering\LayoutColumnRenderer.razor" />
+    <Content Remove="Blocks\Rendering\DynamicTemplateBlockRenderer.razor" />
+    <RazorComponent Remove="Blocks\Rendering\DynamicTemplateBlockRenderer.razor" />
+    <Compile Remove="Blocks\Rendering\DynamicTemplateBlockRenderer.razor.cs" />
+    <Content Remove="Blocks\Rendering\ScribanBlockRenderer.razor" />
+    <RazorComponent Remove="Blocks\Rendering\ScribanBlockRenderer.razor" />
+    <Compile Remove="Blocks\Rendering\ScribanBlockRenderer.razor.cs" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
+    <DefineConstants>$(DefineConstants);AERO_CMS_BROWSER_CLIENT</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
-    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" PrivateAssets="all" />
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
     <ProjectReference Include="..\Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
