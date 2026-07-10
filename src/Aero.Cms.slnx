@@ -29,7 +29,14 @@
     <Project Path="../Aero/src/Aero.Validators/Aero.Validators.csproj" />
     <Project Path="../Aero/src/Aero.Web/Aero.Web.csproj" />
   </Folder>
-  <Folder Name="/AeroDB/" />
+  <Folder Name="/AeroDB/">
+    <Project Path="../AeroDB/src/AeroDB.AspNetIdentity/AeroDB.AspNetIdentity.csproj" />
+    <Project Path="../AeroDB/src/AeroDB.ML/AeroDB.ML.csproj" />
+    <Project Path="../AeroDB/src/AeroDB.Reactive/AeroDB.Reactive.csproj" />
+    <Project Path="../AeroDB/src/AeroDB.Sable/AeroDB.Sable.csproj" />
+    <Project Path="../AeroDB/src/AeroDB.SourceGenerators/AeroDB.SourceGenerators.csproj" />
+    <Project Path="../AeroDB/src/AeroDB.WolverineFx/AeroDB.WolverineFx.csproj" />
+  </Folder>
   <Folder Name="/Modules/">
     <Project Path="Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj" Id="bf6093a6-2be7-443e-bda2-9c8fc57de702" />
     <Project Path="Aero.Cms.Modules.Ai/Aero.Cms.Modules.Ai.csproj" Id="4635f02b-ab13-4e7e-9a2b-b6dc992c9631" />
