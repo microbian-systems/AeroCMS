@@ -120,8 +120,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
                 filteredQuery = filteredQuery.Where(x => x.ParentId == parentId);
             }
 
-            var stats = new global::AeroDB.QueryStatistics();
-            var items = await ((global::AeroDB.ISurrealDbQueryable<MediaAsset>)filteredQuery)
+            var stats = new global::AeroDB.Sable.QueryStatistics();
+            var items = await ((global::AeroDB.Sable.ISurrealDbQueryable<MediaAsset>)filteredQuery)
                 .OrderByDescending(x => x.IsFolder)
                 .ThenByDescending(x => x.CreatedOn)
                 .Stats(out stats)

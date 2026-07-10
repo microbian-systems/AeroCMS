@@ -6,7 +6,7 @@ using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Aliases.Events;
 using Aero.Core;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 using IRequest = Aero.Core.Commands.IRequest;

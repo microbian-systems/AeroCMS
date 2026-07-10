@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
-using AeroDB;
+using AeroDB.Sable;
 using NSubstitute;
 
 namespace Aero.Cms.Core.Tests.Integration;

@@ -105,8 +105,8 @@ public sealed class AeroPageContentService(
                 var s = search.ToLower();
                 filteredQuery = query.Where(x => x.Title.ToLower().Contains(s) || x.Slug.ToLower().Contains(s));
             }
-            var stats = new global::AeroDB.QueryStatistics();
-            var pages = await ((global::AeroDB.ISurrealDbQueryable<PageDocument>)filteredQuery)
+            var stats = new global::AeroDB.Sable.QueryStatistics();
+            var pages = await ((global::AeroDB.Sable.ISurrealDbQueryable<PageDocument>)filteredQuery)
                 .OrderBy(x => x.Title)
                 .Stats(out stats)
                 .Skip(skip)

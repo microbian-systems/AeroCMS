@@ -3,7 +3,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Repositories;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;

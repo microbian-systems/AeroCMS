@@ -1,5 +1,5 @@
 using Aero.Cms.Abstractions.Blocks;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Blocks;
 

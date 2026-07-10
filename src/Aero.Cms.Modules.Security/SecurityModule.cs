@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Aero.Auth.Services;
 using Aero.Modular;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Security;
 

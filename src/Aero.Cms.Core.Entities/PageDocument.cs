@@ -10,7 +10,7 @@ using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Core.Entities;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 

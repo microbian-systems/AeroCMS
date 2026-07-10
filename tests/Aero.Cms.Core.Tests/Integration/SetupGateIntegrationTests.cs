@@ -1,9 +1,9 @@
-﻿using Aero.Cms.Modules.Setup;
+using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Posts;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.ServiceDefaults;
 using FluentAssertions;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;

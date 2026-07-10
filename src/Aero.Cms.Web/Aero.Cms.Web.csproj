@@ -4,6 +4,8 @@
 	<PropertyGroup>
 		<OutputType>exe</OutputType>
 		<InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.OpenApi.Generated</InterceptorsNamespaces>
+    <EnableDefaultTypeScriptItems>false</EnableDefaultTypeScriptItems>
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
 	</PropertyGroup>
 
   <!-- Prevent tsconfig.json from being shipped as NuGet content if this project ever becomes packable -->
@@ -261,7 +263,7 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Social\Aero.Social.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Validators\Aero.Validators.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Web\Aero.Web.csproj" />
-    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
     <ProjectReference Include="..\..\AeroDB\src\AeroDB.AspNetIdentity\AeroDB.AspNetIdentity.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core.Entities\Aero.Cms.Core.Entities.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />

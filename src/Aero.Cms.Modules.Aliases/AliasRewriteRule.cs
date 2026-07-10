@@ -1,6 +1,6 @@
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core.Entities;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.Extensions.DependencyInjection;

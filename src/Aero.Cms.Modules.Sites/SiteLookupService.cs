@@ -1,7 +1,7 @@
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Infrastructure;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Sites;
 

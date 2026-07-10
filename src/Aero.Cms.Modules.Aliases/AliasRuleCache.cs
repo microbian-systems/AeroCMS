@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using Aero.Cms.Core.Entities;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 

@@ -1,5 +1,5 @@
 using Aero.Cms.Core.Entities;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ZiggyCreatures.Caching.Fusion;

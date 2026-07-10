@@ -19,7 +19,7 @@ using Aero.Services.Images;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using FluentValidation;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;

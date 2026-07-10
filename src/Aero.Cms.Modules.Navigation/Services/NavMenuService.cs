@@ -32,8 +32,8 @@ public sealed class NavMenuService(
                 query = query.Where(x => x.Name.ToLower().Contains(s) || x.Key.ToLower().Contains(s));
             }
 
-            var stats = new global::AeroDB.QueryStatistics();
-            var items = await ((global::AeroDB.ISurrealDbQueryable<NavMenuDocument>)query)
+            var stats = new global::AeroDB.Sable.QueryStatistics();
+            var items = await ((global::AeroDB.Sable.ISurrealDbQueryable<NavMenuDocument>)query)
                 .OrderBy(x => x.Name)
                 .Stats(out stats)
                 .Skip(skip)

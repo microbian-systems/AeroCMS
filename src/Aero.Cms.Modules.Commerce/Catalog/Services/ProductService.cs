@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Linq.Expressions;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Catalog.Services;

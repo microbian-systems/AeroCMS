@@ -29,8 +29,8 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
     private const string IContentDefinitionModuleName = "Aero.Modular.IContentDefinitionModule";
 
     // AeroDb configurator interface names
-    private const string IConfigureAeroDBName = "AeroDB.IConfigureAeroDB";
-    private const string IAsyncConfigureAeroDBName = "AeroDB.IAsyncConfigureAeroDB";
+    private const string IConfigureAeroDBName = "AeroDB.Sable.IConfigureAeroDB";
+    private const string IAsyncConfigureAeroDBName = "AeroDB.Sable.IAsyncConfigureAeroDB";
 
     private static readonly DiagnosticDescriptor InvalidModuleTarget = new(
         "AERO010",

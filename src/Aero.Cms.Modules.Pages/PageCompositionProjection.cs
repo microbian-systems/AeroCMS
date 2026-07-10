@@ -2,7 +2,7 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Core.Entities;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Pages;
 

@@ -1,5 +1,5 @@
 using Aero.Cms.Modules.Pages;
-using AeroDB;
+using AeroDB.Sable;
 using NSubstitute;
 
 namespace Aero.Cms.Core.Tests.Services;

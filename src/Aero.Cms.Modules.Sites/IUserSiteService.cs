@@ -2,7 +2,7 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Core;
 using Aero.Core.Railway;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Sites;

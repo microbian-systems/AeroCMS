@@ -13,7 +13,7 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AeroDB;
+using AeroDB.Sable;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 
 namespace Aero.Cms.Generated;

@@ -5,7 +5,7 @@ using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using FluentAssertions;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;

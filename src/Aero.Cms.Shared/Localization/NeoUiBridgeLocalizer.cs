@@ -9,7 +9,7 @@ namespace Aero.Cms.Shared.Localization;
 /// falling back to <see cref="DefaultLocalizer"/> (English hardcoded defaults) when
 /// no translation is found for the current culture.
 /// </summary>
-public sealed class NeoUiBridgeLocalizer : DefaultLocalizer
+public sealed class NeoUiBridgeLocalizer : DefaultLocalizer, NeoUI.Blazor.ILocalizer
 {
     private readonly IStringLocalizer<NeoUiSharedResource> _localizer;
 

@@ -6,7 +6,7 @@ global using System.Text;
 global using System.Threading;
 global using System.Threading.Tasks;
 global using System.Linq;
-global using AeroDB;
+global using AeroDB.Sable;
 global using Aero.Core;
 global using Aero.Core.Railway;
 global using Aero.Cms.Abstractions.Http.Clients;
@@ -23,6 +23,6 @@ global using DeleteCategoryRequest = Aero.Cms.Abstractions.Requests.DeleteCatego
 global using Aero.Cms.Modules.Posts.Models;
 global using Aero.Cms.Modules.Pages;
 global using FluentValidation;
-global using AeroDB;
+global using AeroDB.Sable;
 global using Microsoft.AspNetCore.Http;
 global using Microsoft.Extensions.Logging;

@@ -1,7 +1,7 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries;
 using Aero.Cms.Data.Queries.Base;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Data.Repositories;
 

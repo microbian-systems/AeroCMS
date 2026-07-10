@@ -1,4 +1,4 @@
-using AeroDB;
+using AeroDB.Sable;
 using Aero.Cms.Modules.Setup.Bootstrap;
 
 namespace Aero.Cms.Modules.Setup;

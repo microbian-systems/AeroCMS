@@ -1,7 +1,7 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Repositories;
 using Aero.Cms.Modules.Aliases.Events;
-using AeroDB;
+using AeroDB.Sable;
 using Wolverine;
 
 namespace Aero.Cms.Modules.Aliases;

@@ -22,7 +22,7 @@ public static class BlockServiceExtensions
         services.TryAddSingleton<DynamicTemplateValidator>();
         services.TryAddSingleton<ISecureScribanRenderer, SecureScribanRenderer>();
         services.TryAddScoped<IDynamicBlockDefinitionService, AeroDynamicBlockDefinitionService>();
-        services.AddSingleton<global::AeroDB.IConfigureAeroDB, BlockAeroDbConfiguration>();
+        services.AddSingleton<global::AeroDB.Sable.IConfigureAeroDB, BlockAeroDbConfiguration>();
         return services;
     }
 

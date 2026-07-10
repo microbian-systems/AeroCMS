@@ -1,5 +1,5 @@
 using Aero.Cms.Abstractions.Events;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Pages;
 

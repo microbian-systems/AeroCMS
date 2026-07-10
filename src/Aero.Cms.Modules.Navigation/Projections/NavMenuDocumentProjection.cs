@@ -1,6 +1,6 @@
 using Aero.Cms.Modules.Navigation.Domain;
 using Aero.Cms.Modules.Navigation.Events;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Navigation.Projections;
 

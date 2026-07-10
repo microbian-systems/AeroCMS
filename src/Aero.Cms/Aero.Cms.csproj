@@ -2,9 +2,11 @@
 
   <PropertyGroup>
     <UseMaui>true</UseMaui>
-    <TargetFrameworks>net10.0;net10.0-android</TargetFrameworks>
-    <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('linux'))">$(TargetFrameworks);net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(BuildMobileTargets)' == 'true'">$(TargetFrameworks);net10.0-android</TargetFrameworks>
+    <TargetFrameworks Condition="'$(BuildMobileTargets)' == 'true' and $([MSBuild]::IsOSPlatform('osx'))">$(TargetFrameworks);net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
     <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net10.0-windows10.0.19041.0</TargetFrameworks>
+    <RuntimeIdentifiers Condition="'$(Configuration)' == 'Release' and '$(TargetFramework)' == 'net10.0-maccatalyst'">maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers>
 
     <!-- Note for MacCatalyst:
       The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
@@ -76,6 +78,8 @@
     <PackageReference Include="Microsoft.Maui.Controls" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
+    <PackageReference Include="Scriban" />
+    <PackageReference Include="SurrealDb.Net" />
     <!-- <PackageReference Include="Serilog" /> -->
     <!-- <PackageReference Include="Serilog.Extensions.Logging" /> -->
     <!-- <PackageReference Include="Serilog.Sinks.Debug" /> -->
@@ -83,6 +87,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
   </ItemGroup>
 

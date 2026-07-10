@@ -1,0 +1,347 @@
+{
+  "version": 1,
+  "parameters": "--outdated",
+  "sources": [
+    "https://api.nuget.org/v3/index.json",
+    "C:/Program Files (x86)/Microsoft SDKs/NuGetPackages/"
+  ],
+  "projects": [
+    {
+      "path": "D:/proj/microbians/AeroCMS/tests/Aero.Cms.Modules.Footer.Tests/Aero.Cms.Modules.Footer.Tests.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.AppServer/Aero.AppServer.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Abstractions/Aero.Cms.Abstractions.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.AppHost/Aero.Cms.AppHost.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Contracts/Aero.Cms.Contracts.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Core.Entities/Aero.Cms.Core.Entities.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Core/Aero.Cms.Core.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Data/Aero.Cms.Data.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Db.Marten/Aero.Cms.Db.Marten.csproj",
+      "frameworks": [
+        {
+          "framework": "net10.0",
+          "topLevelPackages": [
+            {
+              "id": "Marten.AspNetCore",
+              "requestedVersion": "8.37.1",
+              "resolvedVersion": "8.37.1",
+              "latestVersion": "9.14.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Db.Polecat/Aero.Cms.Db.Polecat.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Db.Sable/Aero.Cms.Db.Sable.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Generated.Json/Aero.Cms.Generated.Json.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Marten.Identity/Aero.Cms.Marten.Identity.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.ServiceDefaults/Aero.Cms.ServiceDefaults.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Services/Aero.Cms.Services.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Shared/Aero.Cms.Shared.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.SourceGenerators/Aero.Cms.SourceGenerators.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Ui.Hyper/Aero.Cms.Ui.Hyper.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Ui.Neo/Aero.Cms.Ui.Neo.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Web.Bootstrap/Aero.Cms.Web.Bootstrap.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Web.Client/Aero.Cms.Web.Client.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Web.Core/Aero.Cms.Web.Core.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Web/Aero.Cms.Web.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms/Aero.Cms.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Actors.Abstractions/Aero.Actors.Abstractions.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Actors/Aero.Actors.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Auth/Aero.Auth.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Caching/Aero.Caching.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Cloudflare/Aero.Cloudflare.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Core.Ai/Aero.Core.Ai.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Core/Aero.Core.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.EfCore/Aero.EfCore.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Events/Aero.Events.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Marten/Aero.Marten.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Models/Aero.Models.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Modular/Aero.Modular.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Secrets/Aero.Secrets.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Services/Aero.Services.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.SignalR/Aero.SignalR.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Social/Aero.Social.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Validators/Aero.Validators.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/Aero/src/Aero.Web/Aero.Web.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.AspNetIdentity/AeroDB.AspNetIdentity.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.ML/AeroDB.ML.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.Reactive/AeroDB.Reactive.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.Sable/AeroDB.Sable.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.SourceGenerators/AeroDB.SourceGenerators.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/AeroDB/src/AeroDB.WolverineFx/AeroDB.WolverineFx.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.CookiePolicy/Aero.Cms.CookiePolicy.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Ai/Aero.Cms.Modules.Ai.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.AiAssistant/Aero.Cms.Modules.AiAssistant.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Aliases/Aero.Cms.Modules.Aliases.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Analytics/Aero.Cms.Modules.Analytics.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Audit/Aero.Cms.Modules.Audit.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Banner/Aero.Cms.Modules.Banner.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Blog.Importer/Aero.Cms.Modules.Blog.Importer.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Cache/Aero.Cms.Modules.Cache.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Chat/Aero.Cms.Modules.Chat.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Commerce.Client/Aero.Cms.Modules.Commerce.Client.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Commerce/Aero.Cms.Modules.Commerce.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Content/Aero.Cms.Modules.Content.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Crm/Aero.Cms.Modules.Crm.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Docs/Aero.Cms.Modules.Docs.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Export/Aero.Cms.Modules.Export.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Footer/Aero.Cms.Modules.Footer.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Forum/Aero.Cms.Modules.Forum.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Grpc/Aero.Cms.Modules.Grpc.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Health/Aero.Cms.Modules.Health.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Identity/Aero.Cms.Modules.Identity.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Jobs/Aero.Cms.Modules.Jobs.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Jwt/Aero.Cms.Modules.Jwt.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.LettuceEncrypt/Aero.Cms.Modules.LettuceEncrypt.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Localization/Aero.Cms.Modules.Localization.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Logging/Aero.Cms.Modules.Logging.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.MagicLink/Aero.Cms.Modules.MagicLink.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Mail/Aero.Cms.Modules.Mail.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Mailer/Aero.Cms.Modules.Mailer.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Manager/Aero.Cms.Modules.Manager.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Mcp/Aero.Cms.Modules.Mcp.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Media/Aero.Cms.Modules.Media.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Members/Aero.Cms.Modules.Members.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.MiniProfiler/Aero.Cms.Modules.MiniProfiler.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Modules/Aero.Cms.Modules.Modules.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Navigation/Aero.Cms.Modules.Navigation.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.OneTimePasscode/Aero.Cms.Modules.OneTimePasscode.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.OpenTelemetry/Aero.Cms.Modules.OpenTelemetry.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.OutputCache/Aero.Cms.Modules.OutputCache.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Pages/Aero.Cms.Modules.Pages.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Posts/Aero.Cms.Modules.Posts.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.RateLimiting/Aero.Cms.Modules.RateLimiting.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.RequestLog/Aero.Cms.Modules.RequestLog.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Scalar/Aero.Cms.Modules.Scalar.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Search/Aero.Cms.Modules.Search.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Secrets/Aero.Cms.Modules.Secrets.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Security/Aero.Cms.Modules.Security.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Settings/Aero.Cms.Modules.Settings.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Setup/Aero.Cms.Modules.Setup.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.SimpleSecurity/Aero.Cms.Modules.SimpleSecurity.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.SiteMap/Aero.Cms.Modules.SiteMap.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Sites/Aero.Cms.Modules.Sites.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Static/Aero.Cms.Modules.Static.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Tcp/Aero.Cms.Modules.Tcp.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Tenant/Aero.Cms.Modules.Tenant.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Theming/Aero.Cms.Modules.Theming.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.Users/Aero.Cms.Modules.Users.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.WebOptimizer/Aero.Cms.Modules.WebOptimizer.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/src/Aero.Cms.Modules.WorkOS/Aero.Cms.Modules.WorkOS.csproj"
+    },
+    {
+      "path": "D:/proj/microbians/AeroCMS/tests/Aero.Cms.Core.Tests/Aero.Cms.Core.Tests.csproj"
+    }
+  ]
+}

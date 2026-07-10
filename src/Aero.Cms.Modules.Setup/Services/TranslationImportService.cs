@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Posts;
 using Aero.Core;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup.Services;

@@ -1,7 +1,7 @@
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Setup;
-using AeroDB;
+using AeroDB.Sable;
 using NSubstitute;
 using System.Text.Json;
 

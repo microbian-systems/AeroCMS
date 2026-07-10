@@ -1,7 +1,7 @@
 using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Content.Services;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Content.Jobs;
 

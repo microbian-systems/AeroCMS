@@ -5,7 +5,7 @@ using Aero.Cms.Modules.Docs;
 using Aero.Core;
 using Aero.Core.Http;
 using FluentAssertions;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Wolverine;

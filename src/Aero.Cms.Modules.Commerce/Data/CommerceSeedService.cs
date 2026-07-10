@@ -2,7 +2,7 @@ using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Services.Images;
 using Bogus;
-using AeroDB;
+using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Data;

@@ -182,6 +182,6 @@ public class AeroModuleBuilder : IAeroModuleBuilder
         }
 
         _dbConfigurations.Add(type);
-        Services.AddSingleton(typeof(global::AeroDB.IConfigureAeroDB), typeof(T));
+        Services.AddSingleton(typeof(global::AeroDB.Sable.IConfigureAeroDB), typeof(T));
     }
 }

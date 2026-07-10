@@ -1,6 +1,6 @@
-﻿using Aero.EfCore.Extensions;
+using Aero.EfCore.Extensions;
 using FluentAssertions;
-using AeroDB;
+using AeroDB.Sable;
 using Aero.Cms.Core.Blocks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,7 +66,7 @@ public class AeroDbSchemaCompositionTests
 
         // Act - verify TestAeroDbConfiguration is registered
         var configureMartenServices = services
-            .Where(sd => sd.ServiceType == typeof(global::AeroDB.IConfigureAeroDB))
+            .Where(sd => sd.ServiceType == typeof(global::AeroDB.Sable.IConfigureAeroDB))
             .ToList();
 
         // Assert - at minimum, BlockAeroDbConfiguration and TestAeroDbConfiguration should be registered
@@ -122,7 +122,7 @@ public class AeroDbSchemaCompositionTests
 
         // Assert - DocumentStore should be registered (from AddMarten inside AddAeroDataLayer)
         var documentStoreService = services
-            .FirstOrDefault(sd => sd.ServiceType == typeof(global::AeroDB.IDocumentStore));
+            .FirstOrDefault(sd => sd.ServiceType == typeof(global::AeroDB.Sable.IDocumentStore));
 
         documentStoreService.Should().NotBeNull("AddAeroDataLayer() should be called from startup and register DocumentStore");
     }
@@ -142,13 +142,13 @@ public class AeroDbSchemaCompositionTests
         var services = new ServiceCollection();
         
         // Register a tracking configurator
-        services.AddSingleton<global::AeroDB.IConfigureAeroDB>(new TrackingAeroDbConfiguration(opts =>
+        services.AddSingleton<global::AeroDB.Sable.IConfigureAeroDB>(new TrackingAeroDbConfiguration(opts =>
         {
             receivedOptions.Add(opts);
         }));
         
         // Add a second one
-        services.AddSingleton<global::AeroDB.IConfigureAeroDB>(new TrackingAeroDbConfiguration(opts =>
+        services.AddSingleton<global::AeroDB.Sable.IConfigureAeroDB>(new TrackingAeroDbConfiguration(opts =>
         {
             receivedOptions.Add(opts);
         }));
@@ -156,7 +156,7 @@ public class AeroDbSchemaCompositionTests
         // Simulate what AddMarten does internally: resolve all IConfigureMarten and call them
         // with the SAME StoreOptions instance
         using var provider = services.BuildServiceProvider();
-        var configurators = provider.GetServices<global::AeroDB.IConfigureAeroDB>().ToList();
+        var configurators = provider.GetServices<global::AeroDB.Sable.IConfigureAeroDB>().ToList();
         
         var storeOptions = new StoreOptions();
         foreach (var configurator in configurators)
@@ -194,7 +194,7 @@ public class AeroDbSchemaCompositionTests
 
         // Act - resolve all IConfigureMarten registrations
         using var afterConfigServices = services.BuildServiceProvider();
-        var configurators = afterConfigServices.GetServices<global::AeroDB.IConfigureAeroDB>().ToList();
+        var configurators = afterConfigServices.GetServices<global::AeroDB.Sable.IConfigureAeroDB>().ToList();
 
         // Assert
         configurators.Should().Contain(sd => sd.GetType() == typeof(BlockAeroDbConfiguration),
@@ -230,7 +230,7 @@ public class AeroDbSchemaCompositionTests
 
         public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
         {
-            services.AddSingleton<global::AeroDB.IConfigureAeroDB, TestAeroDbConfiguration>();
+            services.AddSingleton<global::AeroDB.Sable.IConfigureAeroDB, TestAeroDbConfiguration>();
         }
 
         public override Task RunAsync(IServiceProvider builder) => Task.CompletedTask;

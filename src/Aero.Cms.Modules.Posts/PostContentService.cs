@@ -4,7 +4,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
 using FlakeId;
-using AeroDB.Pagination;
+using AeroDB.Sable.Pagination;
 using System.Globalization;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
@@ -65,8 +65,8 @@ public sealed class PostContentService(
                 filteredQuery = query.Where(x => x.Title.ToLower().Contains(s) || x.Slug.ToLower().Contains(s));
             }
 
-            var stats = new global::AeroDB.QueryStatistics();
-            var posts = await ((global::AeroDB.ISurrealDbQueryable<PostDocument>)filteredQuery)
+            var stats = new global::AeroDB.Sable.QueryStatistics();
+            var posts = await ((global::AeroDB.Sable.ISurrealDbQueryable<PostDocument>)filteredQuery)
                 .OrderByDescending(x => x.CreatedOn)
                 .Stats(out stats)
                 .Skip(skip)
@@ -308,7 +308,7 @@ public sealed class PostContentService(
                 .OrderByDescending(x => x.PublishedOn)
                 .Skip(skip);
 
-            var pagedList = await AeroDB.Pagination.PagedListQueryableExtensions
+            var pagedList = await AeroDB.Sable.Pagination.PagedListQueryableExtensions
                 .ToPagedListAsync(query, pageNumber, pageSize, cancellationToken);
 
             return Prelude.Ok<IPagedList<PostDocument>, AeroError>(pagedList);

@@ -1,6 +1,6 @@
 // Global using directives
 global using Aero.Core;
-global using AeroDB;
+global using AeroDB.Sable;
 global using Microsoft.AspNetCore.Http;
 global using Microsoft.Extensions.Logging;
 global using Aero.Cms.Abstractions.Http.Clients;

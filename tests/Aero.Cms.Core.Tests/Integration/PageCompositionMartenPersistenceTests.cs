@@ -272,9 +272,6 @@ public sealed class PageCompositionMartenPersistenceTests
                     new MappedType(
                         typeof(NeoCompositionBlock),
                         "neo_composition"));
-                options.Projections.Add(
-                    new PageDocumentProjection(),
-                    ProjectionLifecycle.Inline);
             });
         }
         finally

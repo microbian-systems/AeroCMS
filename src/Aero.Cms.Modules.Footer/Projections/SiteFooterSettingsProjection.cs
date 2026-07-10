@@ -1,6 +1,6 @@
 using Aero.Cms.Modules.Footer.Domain;
 using Aero.Cms.Modules.Footer.Events;
-using AeroDB;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Footer.Projections;
 

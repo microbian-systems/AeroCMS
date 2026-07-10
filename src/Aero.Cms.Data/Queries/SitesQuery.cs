@@ -1,6 +1,6 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
-using AeroDB;
+using AeroDB.Sable;
 using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries;

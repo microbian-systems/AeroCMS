@@ -65,7 +65,7 @@ builder.Services.AddScoped<Aero.Cms.Abstractions.Interfaces.ICurrentSiteAccessor
 builder.Services.AddScoped<Aero.Cms.Contracts.Abstractions.ICurrentSiteAccessor, CurrentSiteAccessor>();
 builder.Services.AddNeoUIPrimitives();
 builder.Services.AddNeoUIComponents();
-builder.Services.Replace(ServiceDescriptor.Scoped<ILocalizer, NeoUiBridgeLocalizer>());
+builder.Services.Replace(ServiceDescriptor.Scoped<NeoUI.Blazor.ILocalizer, NeoUiBridgeLocalizer>());
 builder.Services.AddAeroCmsHyperUiBlocks();
 builder.Services.AddAeroCmsNeoUiBlocks();
 builder.Services.AddSingleton<CannedBlockDefinitionProvider>();

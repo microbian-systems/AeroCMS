@@ -117,7 +117,7 @@ public static class AeroCmsExtensions
         services.AddNeoUIPrimitives();
         services.AddNeoUIComponents();
         // Replace DefaultLocalizer with ASP.NET Core IStringLocalizer-backed bridge
-        services.Replace(ServiceDescriptor.Scoped<ILocalizer, NeoUiBridgeLocalizer>());
+        services.Replace(ServiceDescriptor.Scoped<NeoUI.Blazor.ILocalizer, NeoUiBridgeLocalizer>());
         services.AddAeroCmsHyperUiBlocks();
         services.AddAeroCmsNeoUiBlocks();
         services.AddSingleton<IPageEditorDefinitionRegistry, PageEditorDefinitionRegistry>();

@@ -213,14 +213,14 @@ public static class ModuleOrchestrationExtensions
         }
 
         // Automatically register AeroDB configuration if implemented by the module
-        if (descriptor.IsAeroDbConfigurator || typeof(global::AeroDB.IConfigureAeroDB).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsAeroDbConfigurator || typeof(global::AeroDB.Sable.IConfigureAeroDB).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::AeroDB.IConfigureAeroDB), descriptor.ModuleType));
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::AeroDB.Sable.IConfigureAeroDB), descriptor.ModuleType));
         }
 
-        if (descriptor.IsAsyncAeroDbConfigurator || typeof(global::AeroDB.IAsyncConfigureAeroDB).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsAsyncAeroDbConfigurator || typeof(global::AeroDB.Sable.IAsyncConfigureAeroDB).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::AeroDB.IAsyncConfigureAeroDB), descriptor.ModuleType));
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::AeroDB.Sable.IAsyncConfigureAeroDB), descriptor.ModuleType));
         }
     }
 }

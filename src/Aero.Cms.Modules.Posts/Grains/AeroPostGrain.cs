@@ -6,7 +6,7 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Core.Http;
-using AeroDB.Pagination;
+using AeroDB.Sable.Pagination;
 using Microsoft.Extensions.DependencyInjection;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;

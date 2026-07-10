@@ -10,7 +10,7 @@ using Aero.Core.Http;
 using Aero.EfCore;
 using Aero.Models.Entities;
 using Aero.Core.Identity;
-using AeroDB;
+using AeroDB.Sable;
 using AeroDB.AspNetIdentity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -59,11 +59,11 @@ public sealed class ServerTargetSetupExecutor(
         logger.LogInformation("Step 1/6: Migrations complete.");
 
         logger.LogInformation("Step 2/6: Creating AeroDB DocumentStore...");
-        var opts = new global::AeroDB.StoreOptions();
+        var opts = new global::AeroDB.Sable.StoreOptions();
         opts.Endpoint = serverConnectionString;
         opts.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
         opts.UseAeroGeneratedJsonContext();
-        opts.Events.StreamIdentity = global::AeroDB.StreamIdentity.AsString;
+        opts.Events.StreamIdentity = global::AeroDB.Sable.StreamIdentity.AsString;
         opts.Schema.For<AeroRole>().Identity(x => x.Id);
         opts.Schema.For<AeroUser>().Identity(x => x.Id);
 
