@@ -12,6 +12,8 @@
 .PARAMETER PackageIdPrefix
     Package ID prefix to publish. Defaults to Aero.Cms. so stale or unrelated
     packages in build/nupkgs are not pushed with the CMS key.
+    Standalone Aero.Cms.Modules.* packages are excluded; only
+    Aero.Cms.Modules.Meta is published from that family.
 .EXAMPLE
     # Local: uses $env:GITHUB_API_KEY_AeroCMS or $env:NUGET_API_KEY
     ./build/nuget-publish.ps1
@@ -42,7 +44,10 @@ if ($ApiKey) {
 }
 
 $nupkgs = Get-ChildItem "$RepoRoot/build/nupkgs/*.nupkg" -ErrorAction SilentlyContinue |
-    Where-Object { $_.BaseName -like "$PackageIdPrefix*" }
+    Where-Object {
+        $_.BaseName -like "$PackageIdPrefix*" -and
+        ($_.BaseName -notlike "Aero.Cms.Modules.*" -or $_.BaseName -like "Aero.Cms.Modules.Meta.*")
+    }
 if (-not $nupkgs) {
     Write-Host "No .nupkg files matching '$PackageIdPrefix*' found in build/nupkgs/. Run ./build/nuget-pack.ps1 first." -ForegroundColor Yellow
     exit 1

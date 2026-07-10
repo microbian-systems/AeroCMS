@@ -2,7 +2,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Repositories;
 using Aero.Cms.Modules.Aliases;
 using Aero.Cms.Modules.Aliases.Events;
-using Marten;
+using AeroDB;
 using NSubstitute;
 using Wolverine;
 

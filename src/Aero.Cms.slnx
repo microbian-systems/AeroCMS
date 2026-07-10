@@ -102,7 +102,6 @@
   <Project Path="Aero.Cms.Core.Entities/Aero.Cms.Core.Entities.csproj" Id="ea2d28ee-685e-4007-bda4-46bb230058cf" />
   <Project Path="Aero.Cms.Core/Aero.Cms.Core.csproj" Id="ff176115-2d03-4287-8d16-def80bd19295" />
   <Project Path="Aero.Cms.Data/Aero.Cms.Data.csproj" Id="0e6d60a9-2832-4371-a806-5a26808e4f0c" />
-  <Project Path="Aero.Cms.Db.Dali/Aero.Cms.Db.Dali.csproj" Id="8e9011e6-0759-40ad-bb98-a11ca090483b" />
   <Project Path="Aero.Cms.Db.Marten/Aero.Cms.Db.Marten.csproj" Id="57a77636-537c-4ee7-b81d-f8b26dad3058" />
   <Project Path="Aero.Cms.Db.Polecat/Aero.Cms.Db.Polecat.csproj" Id="bca26121-0db6-4489-9cd0-7d9519917dc8" />
   <Project Path="Aero.Cms.Db.Sable/Aero.Cms.Db.Sable.csproj" Id="3deb0fc4-0e72-4cf6-9692-f8e00549c8ec" />

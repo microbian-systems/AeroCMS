@@ -22,11 +22,19 @@
     <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
     <WasmDebugLevel Condition="'$(AeroCmsEnableWebAssemblyDebugging)' != 'true'">0</WasmDebugLevel>
     <IsPackable>true</IsPackable>
+    <EnableDefaultTypeScriptItems>false</EnableDefaultTypeScriptItems>
+    <TypeScriptCompileBlocked>true</TypeScriptCompileBlocked>
   </PropertyGroup>
 
-  <!-- Prevent tsconfig.json from being shipped as NuGet content — it's a build-time artifact -->
+  <!-- Keep TypeScript build inputs out of NuGet contentFiles; only compiled wwwroot assets should ship. -->
   <ItemGroup>
-    <Content Remove="tsconfig.json" />
+    <Content Remove="tsconfig.json;libman.json;ts\**\*" />
+    <None Remove="tsconfig.json;libman.json;ts\**\*" />
+    <TypeScriptCompile Remove="ts\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="tsconfig.json;libman.json;ts\**\*" Pack="false" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>

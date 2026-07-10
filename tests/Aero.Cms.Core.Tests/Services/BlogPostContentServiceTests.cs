@@ -3,7 +3,7 @@ using Aero.Cms.Modules.Posts;
 using Aero.Core;
 using Aero.Core.Http;
 using FluentAssertions;
-using Marten;
+using AeroDB;
 using NSubstitute;
 
 namespace Aero.Cms.Core.Tests.Services;

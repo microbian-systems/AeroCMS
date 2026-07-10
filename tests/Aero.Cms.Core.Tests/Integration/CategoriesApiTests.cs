@@ -1,8 +1,7 @@
 ﻿using Aero.Cms.Modules.Posts.Areas.Api.v1;
 using Aero.Cms.Modules.Posts.Models;
 using Alba;
-using Marten;
-using Marten.Linq;
+using AeroDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +16,7 @@ public class CategoriesApiTests
     {
         // Arrange
         var session = Substitute.For<IDocumentSession>();
-        var martenQueryable = Substitute.For<IMartenQueryable<Category>>();
+        var surrealDbQueryable = Substitute.For<ISurrealDbQueryable<Category>>();
         
         // This is still tricky with NSubstitute and Marten's extension methods.
         // For now, let's just ensure the host starts and the route is mapped.

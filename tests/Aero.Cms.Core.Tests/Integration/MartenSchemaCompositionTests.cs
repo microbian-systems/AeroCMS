@@ -1,6 +1,7 @@
 ﻿using Aero.EfCore.Extensions;
 using FluentAssertions;
-using Marten;
+using AeroDB;
+using Aero.Cms.Core.Blocks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -17,7 +18,7 @@ namespace Aero.Cms.Core.Tests.Integration;
 /// Regression tests for Marten schema composition through the module system.
 /// 
 /// VALIDATION APPROACH: These tests verify that module-level IConfigureMarten contributions
-/// (from both framework-level BlockMartenConfiguration and module-level configurations)
+/// (from both framework-level BlockAeroDbConfiguration and module-level configurations)
 /// flow into the resolved DocumentStore when AddAeroDataLayer() is called.
 ///
 /// The critical gap being tested: AddAeroDataLayer() must be called AFTER module
@@ -27,7 +28,7 @@ namespace Aero.Cms.Core.Tests.Integration;
 /// This test class does NOT require a live PostgreSQL instance - it validates the
 /// DI registration composition only.
 /// </summary>
-public class MartenSchemaCompositionTests
+public class AeroDbSchemaCompositionTests
 {
     /// <summary>
     /// Test that IConfigureMarten registrations from module ConfigureServices() are
@@ -54,28 +55,28 @@ public class MartenSchemaCompositionTests
     
         
         // 2. Register a test module that contributes IConfigureMarten (simulating DocsModule)
-        services.AddSingleton<IAeroModule, TestMartenModule>();
+        services.AddSingleton<IAeroModule, TestAeroDbModule>();
         
         // 3. Build provider and call Configure/ConfigureServices
         var moduleBuilder = new AeroModuleBuilder(services, configuration, environment);
         using var provider = services.BuildServiceProvider();
         
-        var testModule = provider.GetServices<IAeroModule>().OfType<TestMartenModule>().First();
+        var testModule = provider.GetServices<IAeroModule>().OfType<TestAeroDbModule>().First();
         testModule.ConfigureServices(services, configuration, environment);
 
-        // Act - verify TestMartenConfiguration is registered
+        // Act - verify TestAeroDbConfiguration is registered
         var configureMartenServices = services
-            .Where(sd => sd.ServiceType == typeof(global::Marten.IConfigureMarten))
+            .Where(sd => sd.ServiceType == typeof(global::AeroDB.IConfigureAeroDB))
             .ToList();
 
-        // Assert - at minimum, BlockMartenConfiguration and TestMartenConfiguration should be registered
+        // Assert - at minimum, BlockAeroDbConfiguration and TestAeroDbConfiguration should be registered
         configureMartenServices.Should().Contain(sd => 
-            sd.ImplementationType == typeof(BlockMartenConfiguration),
-            "BlockMartenConfiguration should be registered via AddModuleSystemServices()");
+            sd.ImplementationType == typeof(BlockAeroDbConfiguration),
+            "BlockAeroDbConfiguration should be registered via AddModuleSystemServices()");
         
         configureMartenServices.Should().Contain(sd => 
-            sd.ImplementationType == typeof(TestMartenConfiguration),
-            "TestMartenConfiguration should be registered via TestMartenModule.ConfigureServices()");
+            sd.ImplementationType == typeof(TestAeroDbConfiguration),
+            "TestAeroDbConfiguration should be registered via TestAeroDbModule.ConfigureServices()");
 
         // This count verifies both framework and module contributions are present
         configureMartenServices.Should().HaveCountGreaterThanOrEqualTo(2,
@@ -107,12 +108,12 @@ public class MartenSchemaCompositionTests
         // Simulate full startup chain up to where AddAeroDataLayer() should be
         services.AddBlockSystemServices();
         services.AddModuleSystemServices();
-        services.AddSingleton<IAeroModule, TestMartenModule>();
+        services.AddSingleton<IAeroModule, TestAeroDbModule>();
         
         var moduleBuilder = new AeroModuleBuilder(services, configuration, environment);
         using var provider = services.BuildServiceProvider();
         
-        var testModule = provider.GetServices<IAeroModule>().OfType<TestMartenModule>().First();
+        var testModule = provider.GetServices<IAeroModule>().OfType<TestAeroDbModule>().First();
         testModule.ConfigureServices(services, configuration, environment);
 
         // Act - Call AddAeroDataLayer as it SHOULD be wired in startup
@@ -121,7 +122,7 @@ public class MartenSchemaCompositionTests
 
         // Assert - DocumentStore should be registered (from AddMarten inside AddAeroDataLayer)
         var documentStoreService = services
-            .FirstOrDefault(sd => sd.ServiceType == typeof(global::Marten.IDocumentStore));
+            .FirstOrDefault(sd => sd.ServiceType == typeof(global::AeroDB.IDocumentStore));
 
         documentStoreService.Should().NotBeNull("AddAeroDataLayer() should be called from startup and register DocumentStore");
     }
@@ -141,13 +142,13 @@ public class MartenSchemaCompositionTests
         var services = new ServiceCollection();
         
         // Register a tracking configurator
-        services.AddSingleton<global::Marten.IConfigureMarten>(new TrackingMartenConfiguration(opts =>
+        services.AddSingleton<global::AeroDB.IConfigureAeroDB>(new TrackingAeroDbConfiguration(opts =>
         {
             receivedOptions.Add(opts);
         }));
         
         // Add a second one
-        services.AddSingleton<global::Marten.IConfigureMarten>(new TrackingMartenConfiguration(opts =>
+        services.AddSingleton<global::AeroDB.IConfigureAeroDB>(new TrackingAeroDbConfiguration(opts =>
         {
             receivedOptions.Add(opts);
         }));
@@ -155,7 +156,7 @@ public class MartenSchemaCompositionTests
         // Simulate what AddMarten does internally: resolve all IConfigureMarten and call them
         // with the SAME StoreOptions instance
         using var provider = services.BuildServiceProvider();
-        var configurators = provider.GetServices<global::Marten.IConfigureMarten>().ToList();
+        var configurators = provider.GetServices<global::AeroDB.IConfigureAeroDB>().ToList();
         
         var storeOptions = new StoreOptions();
         foreach (var configurator in configurators)
@@ -184,22 +185,22 @@ public class MartenSchemaCompositionTests
 
         services.AddBlockSystemServices();
         services.AddModuleSystemServices();
-        services.AddSingleton<IAeroModule, TestMartenModule>();
+        services.AddSingleton<IAeroModule, TestAeroDbModule>();
         
         using var provider = services.BuildServiceProvider();
         
-        var testModule = provider.GetServices<IAeroModule>().OfType<TestMartenModule>().First();
+        var testModule = provider.GetServices<IAeroModule>().OfType<TestAeroDbModule>().First();
         testModule.ConfigureServices(services, configuration, environment);
 
         // Act - resolve all IConfigureMarten registrations
         using var afterConfigServices = services.BuildServiceProvider();
-        var configurators = afterConfigServices.GetServices<global::Marten.IConfigureMarten>().ToList();
+        var configurators = afterConfigServices.GetServices<global::AeroDB.IConfigureAeroDB>().ToList();
 
         // Assert
-        configurators.Should().Contain(sd => sd.GetType() == typeof(BlockMartenConfiguration),
-            "BlockMartenConfiguration should be resolvable after module services configured");
-        configurators.Should().Contain(sd => sd.GetType() == typeof(TestMartenConfiguration),
-            "TestMartenConfiguration should be resolvable after module services configured");
+        configurators.Should().Contain(sd => sd.GetType() == typeof(BlockAeroDbConfiguration),
+            "BlockAeroDbConfiguration should be resolvable after module services configured");
+        configurators.Should().Contain(sd => sd.GetType() == typeof(TestAeroDbConfiguration),
+            "TestAeroDbConfiguration should be resolvable after module services configured");
     }
 
     // =====================================================================
@@ -217,9 +218,9 @@ public class MartenSchemaCompositionTests
     /// <summary>
     /// Test module that mimics DocsModule's IConfigureMarten registration pattern.
     /// </summary>
-    private sealed class TestMartenModule : AeroModuleBase
+    private sealed class TestAeroDbModule : AeroModuleBase
     {
-        public override string Name => nameof(TestMartenModule);
+        public override string Name => nameof(TestAeroDbModule);
         public override string Version => "1.0.0";
         public override string Author => "Test";
         public override short Order => 100;
@@ -229,32 +230,31 @@ public class MartenSchemaCompositionTests
 
         public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
         {
-            services.AddSingleton<global::Marten.IConfigureMarten, TestMartenConfiguration>();
+            services.AddSingleton<global::AeroDB.IConfigureAeroDB, TestAeroDbConfiguration>();
         }
 
         public override Task RunAsync(IServiceProvider builder) => Task.CompletedTask;
     }
 
     /// <summary>
-    /// Test IConfigureMarten that mimics DocsAeroDbConfiguration's schema contribution.
+    /// Test IConfigureAeroDB that mimics DocsAeroDbConfiguration's schema contribution.
     /// </summary>
-    private sealed class TestMartenConfiguration : IConfigureMarten
+    private sealed class TestAeroDbConfiguration : IConfigureAeroDB
     {
-        public void Configure(IServiceProvider services, StoreOptions options)
+        public void Configure(StoreOptions options)
         {
             // Simulate a module adding a custom index (like DocsAeroDbConfiguration does)
-            // options.Schema.For<MarkdownPage>().Index(x => x.Slug);
         }
     }
 
     /// <summary>
-    /// Test IConfigureMarten implementation that captures the StoreOptions it receives.
+    /// Test IConfigureAeroDB implementation that captures the StoreOptions it receives.
     /// </summary>
-    private sealed class TrackingMartenConfiguration(Action<StoreOptions> onConfigure) : IConfigureMarten
+    private sealed class TrackingAeroDbConfiguration(Action<StoreOptions> onConfigure) : IConfigureAeroDB
     {
-        public void Configure(IServiceProvider services, StoreOptions options)
+        public void Configure(StoreOptions options)
         {
             onConfigure(options);
-}
+        }
     }
 }

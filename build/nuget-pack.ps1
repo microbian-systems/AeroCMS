@@ -77,7 +77,6 @@ $libProjects = @(
     "$RepoRoot/src/Aero.Cms.Core.Abstractions"
     "$RepoRoot/src/Aero.Cms.Core.Entities"
     "$RepoRoot/src/Aero.Cms.Data"
-    "$RepoRoot/src/Aero.Cms.Db.Dali"
     "$RepoRoot/src/Aero.Cms.Db.Marten"
     "$RepoRoot/src/Aero.Cms.Db.Polecat"
     "$RepoRoot/src/Aero.Cms.Generated.Json"
@@ -138,9 +137,7 @@ foreach ($proj in $libProjects) {
     }
 }
 
-# Meta-package: restore from local packages + nuget.org, then pack
-$metaCsproj = Get-ChildItem "$metaProjDir/*.csproj" | Select-Object -First 1 -ExpandProperty FullName
-if ($metaCsproj) {
+if ($metaCsproj = Get-ChildItem "$metaProjDir/*.csproj" | Select-Object -First 1 -ExpandProperty FullName) {
     # Write nuget.config with absolute path to local packages
     $nugetConfigXml = @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -157,11 +154,15 @@ if ($metaCsproj) {
 
     $projName = (Get-Item $metaCsproj).BaseName
     Write-Host "  Packing: $projName (meta)..." -ForegroundColor Cyan
-    dotnet restore $metaCsproj @versionArgs *>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  FAILED (restore): Meta-package" -ForegroundColor Red
-        $failed += $metaProjDir
-    } else {
+    if ($failed.Count -eq 0) {
+        dotnet restore $metaCsproj @versionArgs *>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  FAILED (restore): Meta-package" -ForegroundColor Red
+            $failed += $metaProjDir
+        }
+    }
+
+    if ($failed.Count -eq 0) {
         $output = dotnet pack $metaCsproj -c $Configuration -o $OutputDir --no-restore --no-build -p:IncludeSymbols=false @versionArgs 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  FAILED (pack): Meta-package" -ForegroundColor Red

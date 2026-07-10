@@ -3,7 +3,7 @@ using Aero.Cms.Modules.Posts;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.ServiceDefaults;
 using FluentAssertions;
-using Marten;
+using AeroDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
@@ -145,7 +145,7 @@ public class SetupGateIntegrationTests
             IsComplete = true
         });
 
-        var store = new MartenSetupStateStore(harness.Session);
+        var store = new AeroSetupStateStore(harness.Session);
 
         var state = await store.LoadAsync();
 

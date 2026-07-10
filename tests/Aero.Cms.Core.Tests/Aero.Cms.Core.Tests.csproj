@@ -30,6 +30,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\..\src\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
