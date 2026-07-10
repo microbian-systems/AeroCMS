@@ -1,6 +1,6 @@
 ﻿using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
-using Marten;
+using AeroDB;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,7 +9,7 @@ using Aero.Modular;
 namespace Aero.Cms.Modules.Tenant;
 
 [Module(nameof(TenantModule))]
-public class TenantModule : AeroModuleBase, IConfigureMarten
+public class TenantModule : AeroModuleBase, IConfigureAeroDB
 {
     public override string Name => nameof(TenantModule);
     public override string Version => AeroConstants.Version;
@@ -18,11 +18,14 @@ public class TenantModule : AeroModuleBase, IConfigureMarten
     public override IReadOnlyList<string> Category => [];
     public override IReadOnlyList<string> Tags => [];
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<TenantModel>().DocumentAlias(Schemas.Tables.Tenants);
-        
-        base.Configure(services, opts);
+        // DocumentAlias not available in AeroDB
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)

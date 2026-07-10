@@ -5,8 +5,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="JoeShook.ZiggyCreatures.FusionCache.Metrics.Core" />
-    <PackageReference Include="Marten" />
-    <PackageReference Include="Marten.AspNetCore" />
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
@@ -37,7 +35,6 @@
     <PackageReference Include="TickerQ.SDK" />
     <PackageReference Include="TickerQ.Utilities" />
     <PackageReference Include="Weasel.Postgresql" />
-    <PackageReference Include="WolverineFx.Marten" />
     <PackageReference Include="ZiggyCreatures.FusionCache" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.Memory" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" />
@@ -51,5 +48,6 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Secrets\Aero.Secrets.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
   </ItemGroup>
 </Project>

@@ -15,7 +15,7 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Content;
 
 [Module(nameof(ContentModule))]
-public sealed class ContentModule : AeroWebModule, IContentDefinitionModule
+public sealed class ContentModule : AeroWebModule, IContentDefinitionModule, IConfigureAeroDB
 {
     public override string Name => nameof(ContentModule);
 
@@ -67,24 +67,26 @@ public sealed class ContentModule : AeroWebModule, IContentDefinitionModule
         builder.AddFieldEditor<UrlFieldEditor>();
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
-        // Marten document configuration for the content type system
+        // AeroDB document configuration for the content type system
         opts.Schema.For<ContentTypeDocument>()
             .Identity(x => x.Id)
-            .DocumentAlias(Schemas.Tables.ContentTypes)
             .Index(x => x.SiteId)
-            .UniqueIndex(x => x.SiteId, x => x.Alias);
+            .UniqueIndex(x => new { x.SiteId, x.Alias });
 
         opts.Schema.For<ContentItem>()
-            .DocumentAlias(Schemas.Tables.ContentItems)
             .Index(x => x.SiteId)
             .Index(x => x.Slug)
             .Index(x => x.ContentTypeAlias);
 
         opts.Schema.For<ContentItemVersion>()
-            .DocumentAlias(Schemas.Tables.ContentItemVersions)
             .Index(x => x.ContentItemId);
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)

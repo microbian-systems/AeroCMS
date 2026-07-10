@@ -1,10 +1,10 @@
 using Aero.Core;
 using Aero.Core.Railway;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
-public sealed class MartenDynamicBlockDefinitionService(IDocumentSession session) : IDynamicBlockDefinitionService
+public sealed class AeroDynamicBlockDefinitionService(IDocumentSession session) : IDynamicBlockDefinitionService
 {
     public async Task<Result<DynamicBlockDefinition, AeroError>> GetAsync(
         long definitionId,
@@ -26,7 +26,7 @@ public sealed class MartenDynamicBlockDefinitionService(IDocumentSession session
             var definition = await session.Query<DynamicBlockDefinition>()
                 .FirstOrDefaultAsync(
                     item => item.Id == definitionId && item.Version == version && item.IsPublished,
-                    token: cancellationToken);
+                    cancellationToken);
 
             return definition is null
                 ? AeroError.NotFoundError($"Published dynamic template definition '{definitionId}' version '{version}' was not found.")

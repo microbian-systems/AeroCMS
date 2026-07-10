@@ -20,6 +20,7 @@
     <WasmEnableSIMD>true</WasmEnableSIMD>
     <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
     <WasmDebugLevel Condition="'$(AeroCmsEnableWebAssemblyDebugging)' != 'true'">0</WasmDebugLevel>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>

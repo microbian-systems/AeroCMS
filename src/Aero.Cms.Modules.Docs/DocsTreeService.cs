@@ -267,7 +267,7 @@ public sealed class DocsTreeService(
         }
     }
 
-    private Task<IReadOnlyList<DocsPage>> LoadSiteDocsAsync(long siteId, bool publishedOnly, string? culture, CancellationToken ct)
+    private Task<List<DocsPage>> LoadSiteDocsAsync(long siteId, bool publishedOnly, string? culture, CancellationToken ct)
     {
         var query = session.Query<DocsPage>()
             .Where(doc => doc.SiteId == siteId);

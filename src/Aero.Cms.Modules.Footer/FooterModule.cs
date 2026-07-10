@@ -8,7 +8,6 @@ using Aero.Cms.Modules.Footer.Validators;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using FluentValidation;
-using JasperFx.Events.Projections;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +16,7 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Footer;
 
 [Module(nameof(FooterModule))]
-public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureMarten
+public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureAeroDB
 {
     public override string Name => nameof(FooterModule);
     public override string Version => AeroConstants.Version;
@@ -35,26 +34,28 @@ public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureMarten
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Http.Clients.UpdateFooterRequest>, UpdateFooterRequestValidator>();
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
         opts.Projections.Add(new FooterDocumentProjection(), ProjectionLifecycle.Inline);
         opts.Projections.Add(new SiteFooterSettingsProjection(), ProjectionLifecycle.Inline);
 
-        opts.Schema.For<FooterDocument>().DocumentAlias("footers");
         opts.Schema.For<FooterDocument>().Identity(x => x.Id);
-        opts.Schema.For<FooterDocument>().UseOptimisticConcurrency(true);
+        opts.Schema.For<FooterDocument>().UseOptimisticConcurrency = true;
         opts.Schema.For<FooterDocument>().Index(x => x.SiteId);
         opts.Schema.For<FooterDocument>().Index(x => x.Culture);
         opts.Schema.For<FooterDocument>().Index(x => x.TranslationGroupId);
-        opts.Schema.For<FooterDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Key);
+        opts.Schema.For<FooterDocument>().UniqueIndex(x => new { x.SiteId, x.Culture, x.Key });
         opts.Schema.For<FooterDocument>().Index(x => x.State);
-        Configure<FooterDocument>(services, opts);
 
-        opts.Schema.For<SiteFooterSettingsDocument>().DocumentAlias("site_footer_settings");
+        // DocumentAlias not available in AeroDB
         opts.Schema.For<SiteFooterSettingsDocument>().Identity(x => x.Id);
         opts.Schema.For<SiteFooterSettingsDocument>().UniqueIndex(x => x.SiteId);
         opts.Schema.For<SiteFooterSettingsDocument>().Index(x => x.DefaultFooterId);
-        Configure<SiteFooterSettingsDocument>(services, opts);
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)
@@ -63,3 +64,6 @@ public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureMarten
         return Task.CompletedTask;
     }
 }
+
+
+

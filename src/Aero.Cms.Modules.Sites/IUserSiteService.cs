@@ -2,7 +2,7 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Core;
 using Aero.Core.Railway;
-using Marten;
+using AeroDB;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Sites;
@@ -42,7 +42,7 @@ public interface IUserSiteService
 }
 
 /// <summary>
-/// Implementation of user-site assignment service using Marten.
+/// Implementation of user-site assignment service using AeroDB.
 /// </summary>
 public class UserSiteService(
     IDocumentSession session,

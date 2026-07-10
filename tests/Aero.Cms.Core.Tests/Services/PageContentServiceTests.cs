@@ -5,7 +5,7 @@ using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using FluentAssertions;
-using Marten;
+using AeroDB;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -18,9 +18,9 @@ public sealed class PageContentServiceTests
     private IDocumentSession _session = null!;
     private IMessageBus _bus = null!;
     private ISiteContext _siteContext = null!;
-    private MartenPageContentService _service = null!;
+    private AeroPageContentService _service = null!;
 
-    private static readonly ILogger<MartenPageContentService> NullLogger = NullLogger<MartenPageContentService>.Instance;
+    private static readonly ILogger<AeroPageContentService> NullLogger = NullLogger<AeroPageContentService>.Instance;
 
     [Before(Test)]
     public async Task Setup()
@@ -34,7 +34,7 @@ public sealed class PageContentServiceTests
         // Configure SaveChangesAsync to succeed (it's called at the end of SaveAsync / DeleteAsync)
         _session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        _service = new MartenPageContentService(
+        _service = new AeroPageContentService(
             _session,
             _bus,
             _siteContext,
@@ -59,7 +59,7 @@ public sealed class PageContentServiceTests
             .Returns((PageDocument?)null);
 
         var page = new PageDocument { Id = Snowflake.NewId(), Title = "Test", Slug = "test" };
-        var service = new MartenPageContentService(session, Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
+        var service = new AeroPageContentService(session, Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
 
         var result = await service.SaveAsync(page, CancellationToken.None);
 
@@ -92,7 +92,7 @@ public sealed class PageContentServiceTests
             SeoDescription: null
         );
 
-        var service = new MartenPageContentService(session, Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
+        var service = new AeroPageContentService(session, Substitute.For<IMessageBus>(), CreateSiteContext(42), NullLogger);
 
         var result = await service.CreateAsync(request, CancellationToken.None);
 

@@ -1,8 +1,8 @@
 using Aero.Cms.Core;
-using Aero.Cms.Marten.Identity;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Core.Identity;
 using Aero.Models.Entities;
+using AeroDB.AspNetIdentity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +27,6 @@ public class IdentityModule : AeroWebModule
             .AddRoles<AeroRole>()
             .AddSignInManager()
             .AddDefaultTokenProviders()
-            .AddMartenStores();
+            .AddAeroDBStores<AeroUser, AeroRole, long>();
     }
 }

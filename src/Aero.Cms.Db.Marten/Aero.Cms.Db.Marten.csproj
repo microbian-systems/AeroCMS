@@ -20,7 +20,6 @@
     <PackageReference Include="WolverineFx.Marten" VersionOverride="5.39.3" />
     <PackageReference Include="Weasel.Postgresql" VersionOverride="8.15.2" />
     <PackageReference Include="MysticMind.PostgresEmbed" VersionOverride="4.0.0" />
-    <PackageReference Include="Npgsql" VersionOverride="9.0.3" />
   </ItemGroup>
 
   <!--

@@ -10,7 +10,7 @@ using IRequest = Aero.Core.Commands.IRequest;
 namespace Aero.Cms.Modules.Media.Grains;
 
 /// <summary>
-/// Orleans grain for media asset management — wraps Marten persistence.
+/// Orleans grain for media asset management — wraps AeroDB persistence.
 /// Publishes Wolverine events after mutations.
 /// File I/O (disk writes) remains in the API layer — grain handles persistence only.
 /// </summary>
@@ -45,7 +45,7 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     public async Task<AeroRequestResponse<MediaViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var asset = await session.LoadAsync<MediaAsset>(id, ct);
         return asset is not null
             ? Ok(MapToViewModel(asset))
@@ -54,7 +54,7 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     public async Task<AeroRequestResponse<MediaViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var assets = await session.Query<MediaAsset>()
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(ct);
@@ -75,7 +75,7 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
     public async Task<AeroRequestResponse<MediaViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var assets = await session.Query<MediaAsset>()
             .Where(x => x.SiteId == siteId)
             .OrderBy(x => x.FileName)
@@ -99,7 +99,7 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     private async Task<AeroRequestResponse<MediaViewModel>> GetBySlugCoreAsync(long siteId, string slug, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var assets = await session.Query<MediaAsset>()
             .Where(x => x.SiteId == siteId && x.Url != null && x.Url.Contains(slug))
             .ToListAsync(ct);
@@ -111,7 +111,7 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     public async Task<List<MediaViewModel>> GetAllAsync(CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var assets = await session.Query<MediaAsset>()
             .OrderBy(x => x.FileName)
             .ToListAsync(ct);
@@ -121,7 +121,7 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
     public async Task<(List<MediaViewModel> Items, long TotalCount)> GetPagedAsync(
         long? parentId, int skip, int take, string? search, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         IQueryable<MediaAsset> query = session.Query<MediaAsset>();
 
         if (!string.IsNullOrEmpty(search))
@@ -139,7 +139,7 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     public async Task<AeroRequestResponse<MediaViewModel>> SaveMediaAsync(MediaViewModel vm, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var existing = await session.LoadAsync<MediaAsset>(vm.Id, ct);
         bool isNew = existing is null;
 
@@ -180,7 +180,7 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     public async Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var existing = await session.LoadAsync<MediaAsset>(id, ct);
         if (existing is null)
             return NotFound($"Media {id} not found");

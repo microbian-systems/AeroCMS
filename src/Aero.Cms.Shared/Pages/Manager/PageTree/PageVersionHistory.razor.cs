@@ -10,7 +10,7 @@ namespace Aero.Cms.Shared.Pages.Manager.PageTree;
 /// <summary>
 /// Modal dialog displaying the full event-sourced version history
 /// for a page. Shows a timeline of all state-change events from
-/// Marten's <c>mt_events</c> table.
+/// AeroDB's <c>mt_events</c> table.
 /// </summary>
 public partial class PageVersionHistory
 {

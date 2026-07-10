@@ -1,7 +1,6 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
-using Aero.Marten.Query;
-using Marten.Linq;
+using AeroDB;
 using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries;
@@ -11,11 +10,11 @@ public sealed class AliasByIdQuery : EntityByIdQuery<AliasDocument>;
 
 public sealed class AliasesByIdsQuery : EntitiesByIdsQuery<AliasDocument>;
 
-public sealed class AliasesBySiteIdQuery : AeroCompiledQueryList<AliasDocument>
+public sealed class AliasesBySiteIdQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
     public required long SiteId { get; set; }
 
-    public override Expression<Func<IMartenQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.SiteId == SiteId)
@@ -24,11 +23,11 @@ public sealed class AliasesBySiteIdQuery : AeroCompiledQueryList<AliasDocument>
     }
 }
 
-public sealed class AliasesByOldPathContainsQuery : AeroCompiledQuery<AliasDocument, IList<AliasDocument>>
+public sealed class AliasesByOldPathContainsQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
     public required string OldPath { get; set; }
 
-    public override Expression<Func<IMartenQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.OldPath.Contains(OldPath))
@@ -37,11 +36,11 @@ public sealed class AliasesByOldPathContainsQuery : AeroCompiledQuery<AliasDocum
     }
 }
 
-public sealed class AliasByOldPathQuery : AeroCompiledQuery<AliasDocument, AliasDocument?>
+public sealed class AliasByOldPathQuery : ICompiledQuery<AliasDocument, AliasDocument?>
 {
     public required string OldPath { get; set; }
 
-    public override Expression<Func<IMartenQueryable<AliasDocument>, AliasDocument?>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.OldPath == OldPath);
@@ -49,23 +48,23 @@ public sealed class AliasByOldPathQuery : AeroCompiledQuery<AliasDocument, Alias
 }
 
 
-public sealed class AliasByOldPathAndSiteIdQuery : AeroCompiledQuery<AliasDocument, AliasDocument?>
+public sealed class AliasByOldPathAndSiteIdQuery : ICompiledQuery<AliasDocument, AliasDocument?>
 {
     public required long SiteId { get; set; }
     public required string OldPath { get; set; }
 
-    public override Expression<Func<IMartenQueryable<AliasDocument>, AliasDocument?>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.SiteId == SiteId && x.OldPath == OldPath);
     }
 }
 
-public sealed class AliasesByNewPathQuery : AeroCompiledQuery<AliasDocument, IList<AliasDocument>>
+public sealed class AliasesByNewPathQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
     public required string NewPath { get; set; }
 
-    public override Expression<Func<IMartenQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.NewPath == NewPath)
@@ -74,12 +73,12 @@ public sealed class AliasesByNewPathQuery : AeroCompiledQuery<AliasDocument, ILi
     }
 }
 
-public sealed class AliasesBySiteIdAndNewPathQuery : AeroCompiledQuery<AliasDocument, IList<AliasDocument>>
+public sealed class AliasesBySiteIdAndNewPathQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
     public required long SiteId { get; set; }
     public required string NewPath { get; set; }
 
-    public override Expression<Func<IMartenQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.SiteId == SiteId && x.NewPath == NewPath)
@@ -88,11 +87,11 @@ public sealed class AliasesBySiteIdAndNewPathQuery : AeroCompiledQuery<AliasDocu
     }
 }
 
-public sealed class AliasesByNotesQuery : AeroCompiledQuery<AliasDocument, IList<AliasDocument>>
+public sealed class AliasesByNotesQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
     public required string Notes { get; set; }
 
-    public override Expression<Func<IMartenQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.Notes == Notes)

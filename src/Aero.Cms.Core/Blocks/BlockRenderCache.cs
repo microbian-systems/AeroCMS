@@ -9,7 +9,7 @@ namespace Aero.Cms.Core.Blocks;
 /// A public page contains multiple <c>BlockPlacement</c> entries, each rendered by
 /// a separate <c>BlockPlacementRenderer</c> Blazor component. Without this cache,
 /// every renderer independently calls <c>IBlockService.GetByIdAsync()</c>, producing
-/// one Marten <c>LoadAsync&lt;BlockBase&gt;(id)</c> per block. A page with 40 blocks
+/// one AeroDB <c>LoadAsync&lt;BlockBase&gt;(id)</c> per block. A page with 40 blocks
 /// makes 40 separate PostgreSQL queries.
 ///
 /// <h2>Solution</h2>

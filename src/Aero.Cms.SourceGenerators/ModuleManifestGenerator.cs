@@ -28,9 +28,9 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
     private const string IFilterModuleName = "Aero.Modular.IFilterModule";
     private const string IContentDefinitionModuleName = "Aero.Modular.IContentDefinitionModule";
 
-    // Marten configurator interface names
-    private const string IConfigureMartenName = "Marten.IConfigureMarten";
-    private const string IAsyncConfigureMartenName = "Marten.IAsyncConfigureMarten";
+    // AeroDb configurator interface names
+    private const string IConfigureAeroDBName = "AeroDB.IConfigureAeroDB";
+    private const string IAsyncConfigureAeroDBName = "AeroDB.IAsyncConfigureAeroDB";
 
     private static readonly DiagnosticDescriptor InvalidModuleTarget = new(
         "AERO010",
@@ -160,8 +160,8 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         var isAdminModule = ImplementsInterface(moduleType, IAdminModuleName);
         var isFilterModule = ImplementsInterface(moduleType, IFilterModuleName);
         var isContentDefinitionModule = ImplementsInterface(moduleType, IContentDefinitionModuleName);
-        var isMartenConfigurator = ImplementsInterface(moduleType, IConfigureMartenName);
-        var isAsyncMartenConfigurator = ImplementsInterface(moduleType, IAsyncConfigureMartenName);
+        var isAeroDbConfigurator = ImplementsInterface(moduleType, IConfigureAeroDBName);
+        var isAsyncAeroDbConfigurator = ImplementsInterface(moduleType, IAsyncConfigureAeroDBName);
 
         var fullTypeName = moduleType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
@@ -184,8 +184,8 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
             isAdminModule: isAdminModule,
             isFilterModule: isFilterModule,
             isContentDefinitionModule: isContentDefinitionModule,
-            isMartenConfigurator: isMartenConfigurator,
-            isAsyncMartenConfigurator: isAsyncMartenConfigurator,
+            isAeroDbConfigurator: isAeroDbConfigurator,
+            isAsyncAeroDbConfigurator: isAsyncAeroDbConfigurator,
             location: moduleType.Locations.FirstOrDefault());
     }
 
@@ -271,8 +271,8 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         source.AppendLine($"            IsAdminModule = {BoolLiteral(descriptor.IsAdminModule)},");
         source.AppendLine($"            IsFilterModule = {BoolLiteral(descriptor.IsFilterModule)},");
         source.AppendLine($"            IsContentDefinitionModule = {BoolLiteral(descriptor.IsContentDefinitionModule)},");
-        source.AppendLine($"            IsMartenConfigurator = {BoolLiteral(descriptor.IsMartenConfigurator)},");
-        source.AppendLine($"            IsAsyncMartenConfigurator = {BoolLiteral(descriptor.IsAsyncMartenConfigurator)},");
+        source.AppendLine($"            IsAeroDbConfigurator = {BoolLiteral(descriptor.IsAeroDbConfigurator)},");
+        source.AppendLine($"            IsAsyncAeroDbConfigurator = {BoolLiteral(descriptor.IsAsyncAeroDbConfigurator)},");
         source.AppendLine($"            DisabledInProduction = {BoolLiteral(descriptor.DisabledInProduction)},");
         source.AppendLine($"            Disabled = false,");
         source.AppendLine($"            Description = {Literal(descriptor.Description)},");
@@ -401,8 +401,8 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         bool isAdminModule,
         bool isFilterModule,
         bool isContentDefinitionModule,
-        bool isMartenConfigurator,
-        bool isAsyncMartenConfigurator,
+        bool isAeroDbConfigurator,
+        bool isAsyncAeroDbConfigurator,
         Location? location)
     {
         public string ModuleName { get; } = name;
@@ -423,8 +423,8 @@ public sealed class ModuleManifestGenerator : IIncrementalGenerator
         public bool IsAdminModule { get; } = isAdminModule;
         public bool IsFilterModule { get; } = isFilterModule;
         public bool IsContentDefinitionModule { get; } = isContentDefinitionModule;
-        public bool IsMartenConfigurator { get; } = isMartenConfigurator;
-        public bool IsAsyncMartenConfigurator { get; } = isAsyncMartenConfigurator;
+        public bool IsAeroDbConfigurator { get; } = isAeroDbConfigurator;
+        public bool IsAsyncAeroDbConfigurator { get; } = isAsyncAeroDbConfigurator;
         public Location? Location { get; } = location;
     }
 }

@@ -1,11 +1,11 @@
 using Aero.Cms.Abstractions.Content;
 using Aero.Core;
 using Aero.Core.Railway;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Core.Content.Services;
 
-public sealed class MartenContentService(IDocumentSession session) : IContentService
+public sealed class AeroContentService(IDocumentSession session) : IContentService
 {
     public async Task<Result<ContentItem, AeroError>> LoadAsync(long id, CancellationToken ct = default)
     {

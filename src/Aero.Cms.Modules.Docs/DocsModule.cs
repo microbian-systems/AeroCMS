@@ -16,7 +16,7 @@ using ZiggyCreatures.Caching.Fusion;
 namespace Aero.Cms.Modules.Docs;
 
 [Module(nameof(DocsModule))]
-public sealed class DocsModule : AeroWebModule
+public sealed class DocsModule : AeroWebModule, IConfigureAeroDB
 {
     public override string Name => nameof(DocsModule);
     public override string Version =>AeroConstants.Version;
@@ -28,12 +28,11 @@ public sealed class DocsModule : AeroWebModule
     public override IReadOnlyList<string> Tags => ["docs", "markdown", "kbase"];
 
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<DocsPage>().DocumentAlias(Schemas.Tables.Docs);
-        opts.Schema.For<DocsPage>().UseOptimisticConcurrency(true);
+        opts.Schema.For<DocsPage>().UseOptimisticConcurrency = true;
         opts.Schema.For<DocsPage>().Index(x => x.SiteId);
-        opts.Schema.For<DocsPage>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Slug);
+        opts.Schema.For<DocsPage>().UniqueIndex(x => new { x.SiteId, x.Culture, x.Slug });
         opts.Schema.For<DocsPage>().Index(x => x.Culture);
         opts.Schema.For<DocsPage>().Index(x => x.TranslationGroupId);
         opts.Schema.For<DocsPage>().Index(x => x.ParentId);
@@ -43,12 +42,16 @@ public sealed class DocsModule : AeroWebModule
         opts.Schema.For<DocsPage>().Index(x => x.ModifiedOn);
 
         // Full-text search (Phase 1)
-        opts.Schema.For<DocsPage>().NgramIndex(x => x.Title);
-        opts.Schema.For<DocsPage>().NgramIndex(x => x.MarkdownContent);
+        // NgramIndex not available in AeroDB
 
         // Editor state (Phase 1)
         opts.Schema.For<DocsEditorState>().Identity(x => x.Id);
         opts.Schema.For<DocsEditorState>().Index(x => x.SiteId);
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
@@ -87,3 +90,6 @@ public sealed class DocsModule : AeroWebModule
         return Task.CompletedTask;
     }
 }
+
+
+

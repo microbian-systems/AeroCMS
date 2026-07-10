@@ -32,13 +32,13 @@ public sealed class FooterService(
                 query = query.Where(x => x.Name.ToLower().Contains(s) || x.Key.ToLower().Contains(s));
             }
 
-            var stats = new global::Marten.Linq.QueryStatistics();
-            var items = await ((global::Marten.Linq.IMartenQueryable<FooterDocument>)query)
+            var stats = new global::AeroDB.QueryStatistics();
+            var items = await ((global::AeroDB.ISurrealDbQueryable<FooterDocument>)query)
                 .OrderBy(x => x.Name)
                 .Stats(out stats)
                 .Skip(skip)
                 .Take(take)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             return Ok<(IReadOnlyList<FooterDocument> Items, long TotalCount), AeroError>((items, stats.TotalResults));
         }
@@ -101,7 +101,7 @@ public sealed class FooterService(
                             x.TranslationGroupId == TranslationGroupId &&
                             x.State != FooterLifecycleState.Archived)
                 .OrderBy(x => x.Culture)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             var details = new List<FooterDetail>(variants.Count);
             foreach (var variant in variants)
@@ -152,7 +152,7 @@ public sealed class FooterService(
                 return Ok<FooterSnapshot?, AeroError>(null);
             }
 
-            var events = await session.Events.FetchStreamAsync(FooterStreams.Footer(id), token: cancellationToken);
+            var events = await session.Events.FetchStreamAsync(FooterStreams.Footer(id), ct: cancellationToken);
             var published = events
                 .OrderByDescending(x => x.Version)
                 .Select(x => x.Data)
@@ -227,7 +227,7 @@ public sealed class FooterService(
             var culture = await GetSiteDefaultCultureAsync(cancellationToken);
             var key = FooterDocument.NormalizeKey(string.IsNullOrWhiteSpace(request.Name) ? "footer" : request.Name);
             var duplicate = await session.Query<FooterDocument>()
-                .AnyAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == key, cancellationToken);
+                .Where(x => x.SiteId == siteId && x.Culture == culture && x.Key == key).AnyAsync(cancellationToken);
             if (duplicate)
             {
                 return Fail<FooterDocument, AeroError>(AeroError.ConflictError($"Footer key '{key}' already exists for this site."));
@@ -241,7 +241,7 @@ public sealed class FooterService(
             var created = new FooterCreated(siteId, request.Name, key, request.Description, userId, now, Culture: culture, TranslationGroupId: id);
             var draftSaved = new FooterDraftSaved(siteId, request.Name, key, request.Description, snapshot, userId, now, "Initial draft");
 
-            session.Events.StartStream(FooterStreams.Footer(id), created, draftSaved);
+            session.Events.StartStream(FooterStreams.Footer(id), new object[] { created, draftSaved });
             await session.SaveChangesAsync(cancellationToken);
 
             var footer = FooterDocument.Create(id, created);
@@ -285,7 +285,7 @@ public sealed class FooterService(
                 DateTimeOffset.UtcNow,
                 null);
 
-            await session.Events.AppendOptimistic(FooterStreams.Footer(id), cancellationToken, draftSaved);
+            await session.Events.AppendOptimistic(FooterStreams.Footer(id), expectedVersion, [draftSaved], cancellationToken);
             await session.SaveChangesAsync(cancellationToken);
 
             footer.Apply(draftSaved);
@@ -328,7 +328,7 @@ public sealed class FooterService(
             draft.Snapshot.Validate();
             var published = new FooterPublished(footer.SiteId, draft.Snapshot, userId, DateTimeOffset.UtcNow, draft.ChangeNote);
 
-            await session.Events.AppendOptimistic(FooterStreams.Footer(id), cancellationToken, published);
+            await session.Events.AppendOptimistic(FooterStreams.Footer(id), expectedVersion, [published], cancellationToken);
             await session.SaveChangesAsync(cancellationToken);
 
             footer.Apply(published);
@@ -371,9 +371,9 @@ public sealed class FooterService(
             var streamKey = FooterStreams.SiteSettings(footer.SiteId);
 
             if (settings is null)
-                session.Events.StartStream(streamKey, changed);
+                session.Events.StartStream(streamKey, new object[] { changed });
             else
-                session.Events.Append(streamKey, changed);
+                session.Events.Append(streamKey, new object[] { changed });
 
             await session.SaveChangesAsync(cancellationToken);
             await PublishFooterChangedAsync(footer.Id, footer.SiteId, FooterChangeKind.DefaultChanged, changed.ChangedOn, cancellationToken);
@@ -404,7 +404,7 @@ public sealed class FooterService(
             await EnsureExpectedVersionAsync(id, expectedVersion, cancellationToken);
 
             var archived = new FooterArchived(footer.SiteId, userId, DateTimeOffset.UtcNow);
-            await session.Events.AppendOptimistic(FooterStreams.Footer(id), cancellationToken, archived);
+            await session.Events.AppendOptimistic(FooterStreams.Footer(id), expectedVersion, [archived], cancellationToken);
             await session.SaveChangesAsync(cancellationToken);
 
             footer.Apply(archived);
@@ -424,7 +424,7 @@ public sealed class FooterService(
 
     private async Task<FooterSnapshot> LoadEditorSnapshotAsync(FooterDocument footer, CancellationToken cancellationToken)
     {
-        var events = await session.Events.FetchStreamAsync(FooterStreams.Footer(footer.Id), token: cancellationToken);
+        var events = await session.Events.FetchStreamAsync(FooterStreams.Footer(footer.Id), ct: cancellationToken);
         var published = events
             .OrderByDescending(x => x.Version)
             .Select(x => x.Data)
@@ -447,7 +447,7 @@ public sealed class FooterService(
 
     private async Task<FooterDraftSaved?> LoadLatestDraftAsync(long id, CancellationToken cancellationToken)
     {
-        var events = await session.Events.FetchStreamAsync(FooterStreams.Footer(id), token: cancellationToken);
+        var events = await session.Events.FetchStreamAsync(FooterStreams.Footer(id), ct: cancellationToken);
         var latestDraft = events.OrderByDescending(x => x.Version).FirstOrDefault(x => x.Data is FooterDraftSaved);
         if (latestDraft is null)
         {
@@ -505,12 +505,12 @@ public sealed class FooterService(
             var TranslationGroupId = source.TranslationGroupId ?? source.Id;
 
             var duplicate = await session.Query<FooterDocument>()
-                .AnyAsync(x =>
+                .Where(x =>
                     x.SiteId == source.SiteId &&
                     x.TranslationGroupId == TranslationGroupId &&
                     x.Culture == culture &&
-                    x.State != FooterLifecycleState.Archived,
-                    cancellationToken);
+                    x.State != FooterLifecycleState.Archived)
+                .AnyAsync(cancellationToken);
             if (duplicate)
             {
                 return Fail<FooterDocument, AeroError>(AeroError.ConflictError($"A {culture} footer translation already exists."));
@@ -520,7 +520,7 @@ public sealed class FooterService(
             var targetId = Snowflake.NewId();
             var fork = FooterCultureForker.Fork(source, sourceSnapshot, targetId, culture, userId);
 
-            session.Events.StartStream(FooterStreams.Footer(targetId), fork.Created, fork.DraftSaved);
+            session.Events.StartStream(FooterStreams.Footer(targetId), new object[] { fork.Created, fork.DraftSaved });
             await session.SaveChangesAsync(cancellationToken);
 
             var footer = FooterDocument.Create(targetId, fork.Created);
@@ -885,3 +885,4 @@ public sealed class FooterService(
     private static string? Clean(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
+

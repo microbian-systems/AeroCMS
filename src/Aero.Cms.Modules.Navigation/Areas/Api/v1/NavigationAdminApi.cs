@@ -352,13 +352,13 @@ public static class NavigationAdminApi
         IQuerySession querySession,
         CancellationToken cancellationToken)
     {
-        var events = await querySession.Events.FetchStreamAsync(NavMenuStreams.Menu(id), token: cancellationToken);
+        var events = await querySession.Events.FetchStreamAsync(NavMenuStreams.Menu(id), ct: cancellationToken);
         var history = events.Select(e => new NavigationEventItem(
             e.Version,
             e.EventType.Name,
             e.Timestamp,
-            e.StreamKey ?? NavMenuStreams.Menu(id),
-            e.IsArchived)).ToList();
+            e.StreamId.Value ?? NavMenuStreams.Menu(id),
+            e.Data is NavMenuArchived)).ToList();
 
         return TypedResults.Ok(new NavigationEventHistory(id, history.Count, history));
     }

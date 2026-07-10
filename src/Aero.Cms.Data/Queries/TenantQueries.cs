@@ -1,6 +1,6 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
-using Marten.Linq;
+using AeroDB;
 using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries;
@@ -14,7 +14,7 @@ public sealed class TenantByNameQuery : ICompiledQuery<TenantModel, TenantModel?
 {
     public required string Name { get; set; }
 
-    public Expression<Func<IMartenQueryable<TenantModel>, TenantModel?>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<TenantModel>, TenantModel?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.Name == Name);
@@ -25,7 +25,7 @@ public sealed class TenantByHostnameQuery : ICompiledQuery<TenantModel, TenantMo
 {
     public required string Hostname { get; set; }
 
-    public Expression<Func<IMartenQueryable<TenantModel>, TenantModel?>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<TenantModel>, TenantModel?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.Hostname == Hostname);
@@ -36,7 +36,7 @@ public sealed class TenantsByNotesQuery : ICompiledQuery<TenantModel, IList<Tena
 {
     public required string Notes { get; set; }
 
-    public Expression<Func<IMartenQueryable<TenantModel>, IList<TenantModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<TenantModel>, IList<TenantModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Notes == Notes)

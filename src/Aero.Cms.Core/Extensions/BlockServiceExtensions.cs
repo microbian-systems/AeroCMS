@@ -11,7 +11,7 @@ public static class BlockServiceExtensions
 {
     public static IServiceCollection AddBlockSystemServices(this IServiceCollection services)
     {
-        services.TryAddScoped<IBlockService, MartenBlockService>();
+        services.TryAddScoped<IBlockService, AeroBlockService>();
         // Per-request block cache that eliminates N+1 DB round-trips during
         // page rendering. DynamicPageModel preloads all block IDs in one
         // batch query; BlockPlacementRenderer reads from this cache instead
@@ -21,8 +21,8 @@ public static class BlockServiceExtensions
         services.TryAddSingleton<SecureScribanTemplateOptions>();
         services.TryAddSingleton<DynamicTemplateValidator>();
         services.TryAddSingleton<ISecureScribanRenderer, SecureScribanRenderer>();
-        services.TryAddScoped<IDynamicBlockDefinitionService, MartenDynamicBlockDefinitionService>();
-        services.AddSingleton<global::Marten.IConfigureMarten, BlockMartenConfiguration>();
+        services.TryAddScoped<IDynamicBlockDefinitionService, AeroDynamicBlockDefinitionService>();
+        services.AddSingleton<global::AeroDB.IConfigureAeroDB, BlockAeroDbConfiguration>();
         return services;
     }
 

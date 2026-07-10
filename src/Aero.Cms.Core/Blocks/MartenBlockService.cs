@@ -1,16 +1,16 @@
 using Aero.Cms.Abstractions.Blocks;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Core.Blocks;
 
 /// <summary>
-/// Marten-backed implementation of <see cref="IBlockService"/>.
+/// AeroDB-backed implementation of <see cref="IBlockService"/>.
 /// </summary>
-public sealed class MartenBlockService : IBlockService
+public sealed class AeroBlockService : IBlockService
 {
     private readonly IDocumentSession _session;
 
-    public MartenBlockService(IDocumentSession session)
+    public AeroBlockService(IDocumentSession session)
     {
         _session = session;
     }
@@ -24,7 +24,7 @@ public sealed class MartenBlockService : IBlockService
     }
 
     /// <summary>
-    /// Batch-loads blocks using Marten's LINQ query with IsOneOf, which issues a single
+    /// Batch-loads blocks using AeroDB's LINQ query with IsOneOf, which issues a single
     /// <c>WHERE d.id = ANY(@p0)</c> PostgreSQL query instead of N individual lookups.
     /// This is the recommended method for page rendering pipelines where all
     /// block placements are resolved together.
@@ -39,11 +39,11 @@ public sealed class MartenBlockService : IBlockService
         if (idsList.Count == 0)
             return new Dictionary<long, BlockBase>();
 
-        // Single Marten query: WHERE d.id = ANY(@p0)
+        // Single AeroDB query: WHERE d.id = ANY(@p0)
         // Uses the same IsOneOf pattern from PagePublishingWorkflowService
-        // line 138-140, verified to produce correct SQL in Marten 8.37.0.
+        // line 138-140, verified to produce correct SQL (originally validated against Marten 8.37.0).
         var blocks = await _session.Query<BlockBase>()
-            .Where(b => b.Id.IsOneOf(idsList.ToArray()))
+            .Where(b => idsList.Contains(b.Id))
             .ToListAsync(ct);
 
         var result = new Dictionary<long, BlockBase>(blocks.Count);

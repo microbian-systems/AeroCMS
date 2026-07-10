@@ -14,7 +14,6 @@
     <PackageReference Include="WolverineFx" />
     <PackageReference Include="WolverineFx.EntityFrameworkCore" />
     <PackageReference Include="WolverineFx.FluentValidation" />
-    <PackageReference Include="WolverineFx.Marten" />
     <PackageReference Include="WolverineFx.Postgresql" />
     <PackageReference Include="WolverineFx.RabbitMQ" />
   </ItemGroup>
@@ -22,12 +21,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Validators\Aero.Validators.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core.Entities\Aero.Cms.Core.Entities.csproj" />
     <ProjectReference Include="..\Aero.Cms.Data\Aero.Cms.Data.csproj" />
     <ProjectReference Include="..\Aero.Cms.Services\Aero.Cms.Services.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
   </ItemGroup>
 
 

@@ -41,11 +41,11 @@ public interface IPageContentService
     Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenPageContentService(
+public sealed class AeroPageContentService(
     IDocumentSession session,
     IMessageBus bus,
     ISiteContext siteContext,
-    ILogger<MartenPageContentService> logger,
+    ILogger<AeroPageContentService> logger,
     string? actor = null,
     IFusionCache? cache = null,
     IPageTreeService? pageTreeService = null) : IPageContentService
@@ -105,13 +105,13 @@ public sealed class MartenPageContentService(
                 var s = search.ToLower();
                 filteredQuery = query.Where(x => x.Title.ToLower().Contains(s) || x.Slug.ToLower().Contains(s));
             }
-            var stats = new global::Marten.Linq.QueryStatistics();
-            var pages = await ((global::Marten.Linq.IMartenQueryable<PageDocument>)filteredQuery)
+            var stats = new global::AeroDB.QueryStatistics();
+            var pages = await ((global::AeroDB.ISurrealDbQueryable<PageDocument>)filteredQuery)
                 .OrderBy(x => x.Title)
                 .Stats(out stats)
                 .Skip(skip)
                 .Take(take)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             await SetCacheAsync(cacheKey, new PageListCacheEntry(pages.ToList(), stats.TotalResults), cancellationToken);
             return Prelude.Ok<(IReadOnlyList<PageDocument> Items, long TotalCount), AeroError>((pages, stats.TotalResults));
@@ -230,7 +230,7 @@ public sealed class MartenPageContentService(
                     x.TranslationGroupId == TranslationGroupId &&
                     x.Culture == normalizedCulture &&
                     x.Deleted == false,
-                    token: cancellationToken);
+                    cancellationToken);
 
             if (existingVariant is not null)
             {
@@ -366,15 +366,15 @@ public sealed class MartenPageContentService(
             // PageCreated establishes metadata; composition pages use a coarse page-tree
             // snapshot event, while older pages can still flow through PageContentUpdated.
             session.Events.StartStream($"page-{page.Id}",
-                new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind, page.Culture, page.TranslationGroupId));
+                new object[] { new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind, page.Culture, page.TranslationGroupId) });
 
             if (page.RootNodes is { Count: > 0 })
             {
-                session.Events.Append($"page-{page.Id}", CreateCompositionDraftSaved(page));
+                session.Events.Append($"page-{page.Id}", new object[] { CreateCompositionDraftSaved(page) });
             }
             else
             {
-                session.Events.Append($"page-{page.Id}", new PageContentUpdated(
+                session.Events.Append($"page-{page.Id}", new object[] { new PageContentUpdated(
                     page.Title,
                     page.Slug,
                     page.Summary,
@@ -388,7 +388,7 @@ public sealed class MartenPageContentService(
                     HideHeader: page.HideHeader,
                     HideFooter: page.HideFooter,
                     ShowChatAgent: page.ShowChatAgent,
-                    BlockIdMap: page.BlockIdMap));
+                    BlockIdMap: page.BlockIdMap) });
             }
             await session.SaveChangesAsync(cancellationToken);
 
@@ -461,11 +461,11 @@ public sealed class MartenPageContentService(
             // the page-tree snapshot event; legacy pages retain PageContentUpdated.
             if (page.RootNodes is { Count: > 0 })
             {
-                session.Events.Append($"page-{id}", CreateCompositionDraftSaved(page));
+                session.Events.Append($"page-{id}", new object[] { CreateCompositionDraftSaved(page) });
             }
             else
             {
-                session.Events.Append($"page-{id}", new PageContentUpdated(
+                session.Events.Append($"page-{id}", new object[] { new PageContentUpdated(
                     Title: page.Title,
                     Slug: page.Slug,
                     Summary: page.Summary,
@@ -479,7 +479,7 @@ public sealed class MartenPageContentService(
                     HideHeader: page.HideHeader,
                     HideFooter: page.HideFooter,
                     ShowChatAgent: page.ShowChatAgent,
-                    BlockIdMap: page.BlockIdMap));
+                    BlockIdMap: page.BlockIdMap) });
             }
 
             await session.SaveChangesAsync(cancellationToken);
@@ -515,15 +515,15 @@ public sealed class MartenPageContentService(
                 return Prelude.Fail<bool, AeroError>(AeroError.NotFoundError($"Page with id '{id}' not found or access denied"));
 
             var reservation = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.Page && x.SiteId == _siteContext.SiteId, token: cancellationToken);
+                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.Page && x.SiteId == _siteContext.SiteId, cancellationToken);
 
             if (reservation is not null)
             {
                 session.Delete(reservation);
             }
 
-            // Append delete event for version history, then soft-delete via Marten ISoftDeleted
-            session.Events.Append($"page-{id}", new PageDeleted(null));
+            // Append delete event for version history, then soft-delete via AeroDB ISoftDeleted
+            session.Events.Append($"page-{id}", new object[] { new PageDeleted(null) });
             session.Delete(page);
 
             await session.SaveChangesAsync(cancellationToken);
@@ -554,7 +554,7 @@ public sealed class MartenPageContentService(
                 // Unpublish the parent page — children remain as-is
                 var previousState = page.PublicationState;
                 page.PublicationState = ContentPublicationState.Draft;
-                session.Events.Append($"page-{id}", new PageStateChanged(ContentPublicationState.Draft));
+                session.Events.Append($"page-{id}", new object[] { new PageStateChanged(ContentPublicationState.Draft) });
                 session.Store(page);
                 await session.SaveChangesAsync(cancellationToken);
                 logger.LogInformation("Unpublished page {PageId} (was {PreviousState})", id, previousState);
@@ -584,11 +584,11 @@ public sealed class MartenPageContentService(
                 var reservation = await session.Query<ContentSlugDocument>()
                     .FirstOrDefaultAsync(x => x.OwnerId == doc.Id
                         && x.OwnerType == ContentSlugOwnerType.Page
-                        && x.SiteId == _siteContext.SiteId, token: cancellationToken);
+                        && x.SiteId == _siteContext.SiteId, cancellationToken);
                 if (reservation is not null)
                     session.Delete(reservation);
 
-                session.Events.Append($"page-{doc.Id}", new PageDeleted(null));
+                session.Events.Append($"page-{doc.Id}", new object[] { new PageDeleted(null) });
                 session.Delete(doc);
             }
 
@@ -645,7 +645,7 @@ public sealed class MartenPageContentService(
 
             // Append PageDeleted events to each stream (audit trail)
             foreach (var id in idList)
-                session.Events.Append($"page-{id}", new PageDeleted(null));
+                session.Events.Append($"page-{id}", new object[] { new PageDeleted(null) });
 
             await session.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Bulk-deleted {Count} pages (deleteDescendants={Cascade})", idList.Count, deleteDescendants);
@@ -685,7 +685,7 @@ public sealed class MartenPageContentService(
 
             foreach (var id in ids)
             {
-                session.Events.Append($"page-{id}", new PageDeleted(null));
+                session.Events.Append($"page-{id}", new object[] { new PageDeleted(null) });
             }
 
             await session.SaveChangesAsync(cancellationToken);
@@ -765,18 +765,18 @@ public sealed class MartenPageContentService(
             if (existingPage is null)
             {
                 session.Events.StartStream($"page-{targetPage.Id}",
-                    new PageCreated(targetPage.SiteId, targetPage.Title, targetPage.Slug,
+                    new object[] { new PageCreated(targetPage.SiteId, targetPage.Title, targetPage.Slug,
                                     targetPage.ParentId, targetPage.Order, targetPage.Path, targetPage.Depth,
-                                    targetPage.PublicationState, targetPage.Kind, targetPage.Culture, targetPage.TranslationGroupId));
+                                    targetPage.PublicationState, targetPage.Kind, targetPage.Culture, targetPage.TranslationGroupId) });
             }
 
             if (targetPage.RootNodes is { Count: > 0 })
             {
-                session.Events.Append($"page-{targetPage.Id}", CreateCompositionDraftSaved(targetPage));
+                session.Events.Append($"page-{targetPage.Id}", new object[] { CreateCompositionDraftSaved(targetPage) });
             }
             else
             {
-                session.Events.Append($"page-{targetPage.Id}", new PageContentUpdated(
+                session.Events.Append($"page-{targetPage.Id}", new object[] { new PageContentUpdated(
                     targetPage.Title,
                     targetPage.Slug,
                     targetPage.Summary,
@@ -790,7 +790,7 @@ public sealed class MartenPageContentService(
                     HideHeader: targetPage.HideHeader,
                     HideFooter: targetPage.HideFooter,
                     ShowChatAgent: targetPage.ShowChatAgent,
-                    BlockIdMap: targetPage.BlockIdMap));
+                    BlockIdMap: targetPage.BlockIdMap) });
             }
 
             await session.SaveChangesAsync(cancellationToken);
@@ -934,7 +934,7 @@ public sealed class MartenPageContentService(
                 x.SiteId == _siteContext.SiteId &&
                 x.Culture == culture &&
                 string.Equals(normalizedSlug, x.NormalizedSlug, StringComparison.OrdinalIgnoreCase),
-                token: cancellationToken);
+                cancellationToken);
 
     private async Task<ContentSlugDocument?> FindDefaultCultureSlugReservationAsync(
         string normalizedSlug,
@@ -958,7 +958,7 @@ public sealed class MartenPageContentService(
                 x.Culture == culture &&
                 string.Equals(pathToMatch, x.Path, StringComparison.OrdinalIgnoreCase) &&
                 x.PublicationState == ContentPublicationState.Published,
-                token: cancellationToken);
+                cancellationToken);
 
     private async Task<PageDocument?> FindDefaultCultureDirectPageAsync(
         string pathToMatch,
@@ -1024,7 +1024,7 @@ public sealed class MartenPageContentService(
                 x.TranslationGroupId == sourceParent.TranslationGroupId &&
                 x.Culture == targetCulture &&
                 x.Deleted == false,
-                token: cancellationToken);
+                cancellationToken);
     }
 
     private static string GetCurrentCulture(string? culture = null)

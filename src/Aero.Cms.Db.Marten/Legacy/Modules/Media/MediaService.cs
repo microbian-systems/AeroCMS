@@ -260,7 +260,8 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
                 // Check for existing record by URL to avoid duplicates
                 var url = $"/media/{subfolder}/{fileName}";
                 var exists = await session.Query<MediaAsset>()
-                    .AnyAsync(x => x.Url == url, ct);
+                    .Where(x => x.Url == url)
+                    .AnyAsync(ct);
                 if (exists) continue;
 
                 // Read attribution sidecar if present

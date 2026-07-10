@@ -79,7 +79,7 @@ public static class SeriesApi
             return TypedResults.NotFound(result.error);
 
         var count = await query.Query<PostDocument>()
-            .CountAsync(x => x.SiteId == siteContext.SiteId && x.SeriesId == id, cancellationToken);
+            .Where(x => x.SiteId == siteContext.SiteId && x.SeriesId == id).CountAsync(cancellationToken);
         return TypedResults.Ok(ToDetail(result.data, count));
     }
 
@@ -298,7 +298,7 @@ public static class SeriesApi
         long seriesId,
         CancellationToken cancellationToken)
         => query.Query<PostDocument>()
-            .CountAsync(x => x.SiteId == siteId && x.SeriesId == seriesId, cancellationToken);
+            .Where(x => x.SiteId == siteId && x.SeriesId == seriesId).CountAsync(cancellationToken);
 
     private static SeriesSummary ToSummary(SeriesViewModel vm, int count)
         => new(vm.Id, vm.Name ?? string.Empty, vm.Slug ?? string.Empty, vm.Description, count);

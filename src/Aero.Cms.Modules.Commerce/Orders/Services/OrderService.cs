@@ -2,6 +2,7 @@ using Aero.Cms.Modules.Commerce.Orders.Data;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Ef = Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Services;
 
@@ -19,9 +20,8 @@ public sealed class OrderService : GenericEntityFrameworkRepository<OrderEntity>
     {
         try
         {
-            var order = await _commerceContext.Orders
-                .Include(o => o.Items)
-                .FirstOrDefaultAsync(o => o.CustomerId == customerId, ct);
+            var query = _commerceContext.Orders.Include(o => o.Items).Where(o => o.CustomerId == customerId);
+            var order = await Ef.FirstOrDefaultAsync(query, ct);
 
             return order is null
                 ? Prelude.Fail<OrderEntity?, AeroError>(AeroError.CreateError($"Order for customer '{customerId}' not found"))

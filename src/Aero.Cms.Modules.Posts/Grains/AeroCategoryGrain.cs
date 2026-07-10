@@ -11,7 +11,7 @@ using IRequest = Aero.Core.Commands.IRequest;
 namespace Aero.Cms.Modules.Posts.Grains;
 
 /// <summary>
-/// Orleans grain for category management — wraps Marten persistence behind
+/// Orleans grain for category management — wraps AeroDB persistence behind
 /// <see cref="IAeroCategoryActor"/>. Publishes Wolverine events after mutations.
 /// </summary>
 public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
@@ -45,7 +45,7 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 
     public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var category = await session.LoadAsync<Models.Category>(id, ct);
         var translations = category is null
             ? new Dictionary<long, CategoryTranslation>()
@@ -58,7 +58,7 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 
     public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var categories = await session.Query<Models.Category>()
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(ct);
@@ -73,7 +73,7 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         if (request is not CreateCategoryRequest create)
             return Fail("Expected CreateCategoryRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
 
         var category = new Models.Category
         {
@@ -97,7 +97,7 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         if (request is not UpdateCategoryRequest update)
             return Fail("Expected UpdateCategoryRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var category = await session.LoadAsync<Models.Category>(update.Id, ct);
 
         if (category is null)
@@ -121,7 +121,7 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         if (request is not DeleteCategoryRequest delete)
             return Fail("Expected DeleteCategoryRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var category = await session.LoadAsync<Models.Category>(delete.Id, ct);
 
         if (category is null)
@@ -143,7 +143,7 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         int rows = 10,
         CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var categories = await session.Query<Models.Category>()
             .Where(x => x.SiteId == siteId)
             .OrderBy(x => x.Name)
@@ -170,7 +170,7 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 
     private async Task<AeroRequestResponse<CategoryViewModel>> GetBySlugCoreAsync(long siteId, string slug, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var culture = GetCurrentCulture();
         var translatedCategoryIds = await session.Query<CategoryTranslation>()
             .Where(x => x.Culture == culture && x.Slug == slug)
@@ -190,7 +190,7 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 
     public async Task<List<CategoryViewModel>> GetAllAsync(CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var categories = await session.Query<Models.Category>()
             .OrderBy(x => x.Name)
             .ToListAsync(ct);

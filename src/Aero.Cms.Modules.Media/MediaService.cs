@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core.Models;
+using Aero.Cms.Core.Models;
 using Microsoft.AspNetCore.Hosting;
 using Serilog;
 
@@ -120,14 +120,14 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
                 filteredQuery = filteredQuery.Where(x => x.ParentId == parentId);
             }
 
-            var stats = new global::Marten.Linq.QueryStatistics();
-            var items = await ((global::Marten.Linq.IMartenQueryable<MediaAsset>)filteredQuery)
+            var stats = new global::AeroDB.QueryStatistics();
+            var items = await ((global::AeroDB.ISurrealDbQueryable<MediaAsset>)filteredQuery)
                 .OrderByDescending(x => x.IsFolder)
                 .ThenByDescending(x => x.CreatedOn)
                 .Stats(out stats)
                 .Skip(skip)
                 .Take(take)
-                .ToListAsync(token: ct);
+                .ToListAsync(ct);
 
             return Prelude.Ok<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>((items, stats.TotalResults));
         }
@@ -260,7 +260,7 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
                 // Check for existing record by URL to avoid duplicates
                 var url = $"/media/{subfolder}/{fileName}";
                 var exists = await session.Query<MediaAsset>()
-                    .AnyAsync(x => x.Url == url, ct);
+                    .Where(x => x.Url == url).AnyAsync(ct);
                 if (exists) continue;
 
                 // Read attribution sidecar if present
@@ -331,3 +331,4 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         string Type,
         DateTimeOffset DownloadedAt);
 }
+

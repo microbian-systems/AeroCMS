@@ -32,13 +32,13 @@ public sealed class NavMenuService(
                 query = query.Where(x => x.Name.ToLower().Contains(s) || x.Key.ToLower().Contains(s));
             }
 
-            var stats = new global::Marten.Linq.QueryStatistics();
-            var items = await ((global::Marten.Linq.IMartenQueryable<NavMenuDocument>)query)
+            var stats = new global::AeroDB.QueryStatistics();
+            var items = await ((global::AeroDB.ISurrealDbQueryable<NavMenuDocument>)query)
                 .OrderBy(x => x.Name)
                 .Stats(out stats)
                 .Skip(skip)
                 .Take(take)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             return Ok<(IReadOnlyList<NavMenuDocument> Items, long TotalCount), AeroError>((items, stats.TotalResults));
         }
@@ -101,7 +101,7 @@ public sealed class NavMenuService(
                             x.TranslationGroupId == TranslationGroupId &&
                             x.State != NavMenuLifecycleState.Archived)
                 .OrderBy(x => x.Culture)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             var details = new List<NavigationDetail>(variants.Count);
             foreach (var variant in variants)
@@ -152,7 +152,7 @@ public sealed class NavMenuService(
                 return Ok<NavMenuSnapshot?, AeroError>(null);
             }
 
-            var events = await session.Events.FetchStreamAsync(NavMenuStreams.Menu(id), token: cancellationToken);
+            var events = await session.Events.FetchStreamAsync(NavMenuStreams.Menu(id), ct: cancellationToken);
             var published = events
                 .OrderByDescending(x => x.Version)
                 .Select(x => x.Data)
@@ -221,7 +221,7 @@ public sealed class NavMenuService(
             var culture = await GetSiteDefaultCultureAsync(cancellationToken);
             var key = NavMenuDocument.NormalizeKey(string.IsNullOrWhiteSpace(request.Name) ? "header" : request.Name);
             var duplicate = await session.Query<NavMenuDocument>()
-                .AnyAsync(x => x.SiteId == siteId && x.Culture == culture && x.Key == key, cancellationToken);
+                .Where(x => x.SiteId == siteId && x.Culture == culture && x.Key == key).AnyAsync(cancellationToken);
             if (duplicate)
             {
                 return Fail<NavMenuDocument, AeroError>(AeroError.ConflictError($"Navigation key '{key}' already exists for this site."));
@@ -235,7 +235,7 @@ public sealed class NavMenuService(
             var created = new NavMenuCreated(siteId, request.Name, key, userId, now, Culture: culture, TranslationGroupId: id);
             var draftSaved = new NavMenuDraftSaved(siteId, request.Name, key, snapshot, userId, now, "Initial draft");
 
-            session.Events.StartStream(NavMenuStreams.Menu(id), created, draftSaved);
+            session.Events.StartStream(NavMenuStreams.Menu(id), new object[] { created, draftSaved });
             await session.SaveChangesAsync(cancellationToken);
 
             var menu = NavMenuDocument.Create(id, created);
@@ -283,7 +283,7 @@ public sealed class NavMenuService(
                 now,
                 null);
 
-            await session.Events.AppendOptimistic(NavMenuStreams.Menu(id), cancellationToken, draftSaved);
+            await session.Events.AppendOptimistic(NavMenuStreams.Menu(id), expectedVersion, [draftSaved], cancellationToken);
             await session.SaveChangesAsync(cancellationToken);
 
             menu.Apply(draftSaved);
@@ -327,7 +327,7 @@ public sealed class NavMenuService(
             var now = DateTimeOffset.UtcNow;
             var published = new NavMenuPublished(menu.SiteId, draft.Snapshot, userId, now, draft.ChangeNote);
 
-            await session.Events.AppendOptimistic(NavMenuStreams.Menu(id), cancellationToken, published);
+            await session.Events.AppendOptimistic(NavMenuStreams.Menu(id), expectedVersion, [published], cancellationToken);
             await session.SaveChangesAsync(cancellationToken);
 
             menu.Apply(published);
@@ -375,9 +375,9 @@ public sealed class NavMenuService(
             var streamKey = NavMenuStreams.SiteSettings(menu.SiteId);
 
             if (settings is null)
-                session.Events.StartStream(streamKey, changed);
+                session.Events.StartStream(streamKey, new object[] { changed });
             else
-                session.Events.Append(streamKey, changed);
+                session.Events.Append(streamKey, new object[] { changed });
 
             await session.SaveChangesAsync(cancellationToken);
             await PublishNavigationChangedAsync(
@@ -415,8 +415,9 @@ public sealed class NavMenuService(
             var archived = new NavMenuArchived(menu.SiteId, userId, DateTimeOffset.UtcNow);
             await session.Events.AppendOptimistic(
                 NavMenuStreams.Menu(id),
-                cancellationToken,
-                archived);
+                expectedVersion,
+                [archived],
+                cancellationToken);
             await session.SaveChangesAsync(cancellationToken);
             menu.Apply(archived);
             await PublishNavigationChangedAsync(
@@ -440,7 +441,7 @@ public sealed class NavMenuService(
 
     private async Task<NavMenuSnapshot> LoadEditorSnapshotAsync(NavMenuDocument menu, CancellationToken cancellationToken)
     {
-        var events = await session.Events.FetchStreamAsync(NavMenuStreams.Menu(menu.Id), token: cancellationToken);
+        var events = await session.Events.FetchStreamAsync(NavMenuStreams.Menu(menu.Id), ct: cancellationToken);
         var published = events
             .OrderByDescending(x => x.Version)
             .Select(x => x.Data)
@@ -463,7 +464,7 @@ public sealed class NavMenuService(
 
     private async Task<NavMenuDraftSaved?> LoadLatestDraftAsync(long id, CancellationToken cancellationToken)
     {
-        var events = await session.Events.FetchStreamAsync(NavMenuStreams.Menu(id), token: cancellationToken);
+        var events = await session.Events.FetchStreamAsync(NavMenuStreams.Menu(id), ct: cancellationToken);
         var latestDraft = events
             .OrderByDescending(x => x.Version)
             .FirstOrDefault(x => x.Data is NavMenuDraftSaved);
@@ -527,12 +528,12 @@ public sealed class NavMenuService(
             var TranslationGroupId = source.TranslationGroupId ?? source.Id;
 
             var duplicate = await session.Query<NavMenuDocument>()
-                .AnyAsync(x =>
+                .Where(x =>
                     x.SiteId == source.SiteId &&
                     x.TranslationGroupId == TranslationGroupId &&
                     x.Culture == culture &&
-                    x.State != NavMenuLifecycleState.Archived,
-                    cancellationToken);
+                    x.State != NavMenuLifecycleState.Archived)
+                .AnyAsync(cancellationToken);
             if (duplicate)
             {
                 return Fail<NavMenuDocument, AeroError>(AeroError.ConflictError($"A {culture} navigation translation already exists."));
@@ -542,7 +543,7 @@ public sealed class NavMenuService(
             var targetId = Snowflake.NewId();
             var fork = NavMenuCultureForker.Fork(source, sourceSnapshot, targetId, culture, userId);
 
-            session.Events.StartStream(NavMenuStreams.Menu(targetId), fork.Created, fork.DraftSaved);
+            session.Events.StartStream(NavMenuStreams.Menu(targetId), new object[] { fork.Created, fork.DraftSaved });
             await session.SaveChangesAsync(cancellationToken);
 
             var menu = NavMenuDocument.Create(targetId, fork.Created);
@@ -930,3 +931,4 @@ public sealed class NavMenuService(
         => Uri.TryCreate(url, UriKind.Absolute, out var uri)
            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }
+

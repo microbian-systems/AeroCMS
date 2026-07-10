@@ -259,7 +259,7 @@ public sealed class NavigationService : INavigationService
                     AeroError.NotFoundError($"Page {pageId} not found."));
             }
 
-            _session.Events.Append($"page-{pageId}", new PageVisibilityChanged(isHidden, ShowInNavMenu: !isHidden));
+            _session.Events.Append($"page-{pageId}", new object[] { new PageVisibilityChanged(isHidden, ShowInNavMenu: !isHidden) });
             await _session.SaveChangesAsync(ct);
 
             // Cascade: if hiding a parent, also hide all descendants (direct update for batch efficiency)

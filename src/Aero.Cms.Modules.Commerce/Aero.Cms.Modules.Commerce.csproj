@@ -12,7 +12,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
     <PackageReference Include="Bogus" />
     <PackageReference Include="FluentValidation" />
-    <PackageReference Include="Marten" />
     <PackageReference Include="TickerQ" />
     <PackageReference Include="TickerQ.Utilities" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
@@ -21,7 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core.Entities\Aero.Cms.Core.Entities.csproj" />
@@ -30,6 +28,7 @@
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
   </ItemGroup>
 
   <ItemGroup>

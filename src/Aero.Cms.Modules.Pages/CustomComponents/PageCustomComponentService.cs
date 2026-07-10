@@ -152,9 +152,7 @@ public sealed class PageCustomComponentService(
                 component.Name == normalizedName);
 
         return excludedComponentId is { } componentId
-            ? query.AnyAsync(
-                component => component.Id != componentId,
-                cancellationToken)
+            ? query.Where(component => component.Id != componentId).AnyAsync(cancellationToken)
             : query.AnyAsync(cancellationToken);
     }
 
@@ -176,3 +174,4 @@ public sealed class PageCustomComponentService(
             CustomComponentTemplate.GetReferencedCatalogIds(root).ToList();
     }
 }
+

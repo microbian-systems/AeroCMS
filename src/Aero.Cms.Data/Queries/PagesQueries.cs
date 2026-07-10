@@ -1,6 +1,6 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
-using Marten.Linq;
+using AeroDB;
 using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries;
@@ -22,7 +22,7 @@ public sealed class LatestPageModifiedByQuery : LatestModifiedByQuery<PageDocume
 /// Used by PageTreeService.MoveAsync and NavigationService.MarkHiddenDescendantsAsync
 /// to avoid re-compiling the LINQ expression tree on each call.
 ///
-/// Marten's LINQ provider translates <c>Path.StartsWith(prefix)</c> to a
+/// AeroDB's LINQ provider translates <c>Path.StartsWith(prefix)</c> to a
 /// PostgreSQL prefix match (leveraging the NgramIndex on Path).
 /// </summary>
 public sealed class PagesByPathPrefixQuery : ICompiledQuery<PageDocument, IList<PageDocument>>
@@ -30,7 +30,7 @@ public sealed class PagesByPathPrefixQuery : ICompiledQuery<PageDocument, IList<
     public required long SiteId { get; set; }
     public required string PathPrefix { get; set; }
 
-    public Expression<Func<IMartenQueryable<PageDocument>, IList<PageDocument>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<PageDocument>, IList<PageDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.SiteId == SiteId && x.Path.StartsWith(PathPrefix))

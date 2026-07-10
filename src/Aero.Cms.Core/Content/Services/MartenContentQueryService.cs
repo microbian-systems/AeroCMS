@@ -2,11 +2,11 @@ using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
 using Aero.Core;
 using Aero.Core.Railway;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Core.Content.Services;
 
-public sealed class MartenContentQueryService(IDocumentSession session) : IContentQueryService
+public sealed class AeroContentQueryService(IDocumentSession session) : IContentQueryService
 {
     public async Task<Result<(IReadOnlyList<ContentItem> Items, long TotalCount), AeroError>> GetByTypeAsync(
         long siteId, string alias, int skip, int take, CancellationToken ct)

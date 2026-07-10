@@ -3,7 +3,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Repositories;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
-using Marten;
+using AeroDB;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
@@ -14,7 +14,7 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Sites;
 
 [Module(nameof(SitesModule))]
-public class SitesModule : AeroWebModule, IConfigureMarten
+public class SitesModule : AeroWebModule, IConfigureAeroDB
 {
     public override string Name => nameof(SitesModule);
     public override string Version => AeroConstants.Version;
@@ -53,27 +53,22 @@ public class SitesModule : AeroWebModule, IConfigureMarten
         }
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
         // SitesModel — no host info stored here; host resolution uses SiteHost.
-        opts.Schema.For<SitesModel>().DatabaseSchemaName(Schemas.Database);
-        opts.Schema.For<SitesModel>().DocumentAlias(Schemas.Tables.Sites);
-        Configure<SitesModel>(services, opts);
+        // DatabaseSchemaName/DocumentAlias not available in AeroDB
+        opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
         opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
 
         // SiteHost — separate document for multi-domain support.
         // Each row stores one normalized host/domain. The unique index on Host
         // prevents domain collisions across sites at the database level.
-        opts.Schema.For<SiteHost>().DatabaseSchemaName(Schemas.Database);
-        opts.Schema.For<SiteHost>().DocumentAlias(Schemas.Tables.SiteHosts);
-        Configure<SiteHost>(services, opts);
+        // DatabaseSchemaName/DocumentAlias not available in AeroDB
         opts.Schema.For<SiteHost>().UniqueIndex(x => x.Host!);
         opts.Schema.For<SiteHost>().Index(x => x.SiteId);
 
         // UserSiteAssignment — maps users to sites with per-site permissions.
-        opts.Schema.For<UserSiteAssignment>().DatabaseSchemaName(Schemas.Database);
-        opts.Schema.For<UserSiteAssignment>().DocumentAlias(Schemas.Tables.SitePerms);
-        Configure<UserSiteAssignment>(services, opts);
+        // DatabaseSchemaName/DocumentAlias not available in AeroDB
         opts.Schema.For<UserSiteAssignment>().Index(x => x.UserId);
         opts.Schema.For<UserSiteAssignment>().Index(x => x.SiteId);
 
@@ -82,6 +77,11 @@ public class SitesModule : AeroWebModule, IConfigureMarten
 
         // base.Configure is not called — Configure<> above already adds
         // the standard entity indexes (CreatedBy, ModifiedBy, CreatedOn, ModifiedOn).
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 
     public override Task RunAsync(IEndpointRouteBuilder endpoints)

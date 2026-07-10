@@ -1,9 +1,8 @@
 ﻿using Aero.Core.Entities;
 using Aero.Core.Railway;
-using Marten;
+using AeroDB;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
-using Aero.Marten;
 using static Aero.Core.Railway.Prelude;
 
 
@@ -17,7 +16,7 @@ namespace Aero.Cms.Core.Data;
 /// common CRUD operations for entities. Implementations are expected to manage the lifecycle of the underlying session
 /// and ensure thread safety as appropriate. The generic methods are constrained to types derived from Entity, ensuring
 /// consistent behavior across domain models.</remarks>
-public interface IAeroCmsDb : IAeroDb
+public interface IAeroCmsDb
 {
     /// <summary>
     /// Gets the current document session used for database operations.
@@ -95,7 +94,7 @@ public interface IAeroCmsDb : IAeroDb
 
 /// <inheritdoc />
 public class AeroCmsDB(IDocumentSession sesh, ILogger<AeroCmsDB> log) 
-    : AeroDb(sesh, log), IAeroCmsDb
+    : IAeroCmsDb
 {
     /// <inheritdoc />
     public IDocumentSession session => sesh;
@@ -118,9 +117,8 @@ public class AeroCmsDB(IDocumentSession sesh, ILogger<AeroCmsDB> log)
     public async Task<bool> ExistsAsync<T>(Expression<Func<T, bool>> predicate) where T : Entity
     {
         var exists = await session.Query<T>()
-            .Take(1)
-            .AnyAsync(predicate)
-           ;
+            .Where(predicate)
+            .AnyAsync();
         return exists;
     }
 

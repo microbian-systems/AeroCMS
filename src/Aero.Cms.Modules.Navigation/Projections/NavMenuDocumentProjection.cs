@@ -1,7 +1,6 @@
 using Aero.Cms.Modules.Navigation.Domain;
 using Aero.Cms.Modules.Navigation.Events;
-using JasperFx.Events;
-using Marten.Events.Projections;
+using AeroDB;
 
 namespace Aero.Cms.Modules.Navigation.Projections;
 
@@ -9,7 +8,7 @@ public sealed class NavMenuDocumentProjection : IProjection
 {
     public void Apply(IDocumentOperations operations, IReadOnlyList<IEvent> events)
     {
-        foreach (var group in MenuEvents(events).GroupBy(e => e.StreamKey!))
+        foreach (var group in MenuEvents(events).GroupBy(e => e.StreamId.Value!))
         {
             ApplyStreamSync(operations, group);
         }
@@ -17,14 +16,14 @@ public sealed class NavMenuDocumentProjection : IProjection
 
     public async Task ApplyAsync(IDocumentOperations operations, IReadOnlyList<IEvent> events, CancellationToken ct)
     {
-        foreach (var group in MenuEvents(events).GroupBy(e => e.StreamKey!))
+        foreach (var group in MenuEvents(events).GroupBy(e => e.StreamId.Value!))
         {
             await ApplyStreamAsync(operations, group, ct);
         }
     }
 
     private static IEnumerable<IEvent> MenuEvents(IEnumerable<IEvent> events)
-        => events.Where(e => NavMenuStreams.IsMenuStream(e.StreamKey));
+        => events.Where(e => NavMenuStreams.IsMenuStream(e.StreamId.Value));
 
     private static void ApplyStreamSync(IDocumentOperations operations, IGrouping<string, IEvent> streamEvents)
     {
@@ -45,7 +44,7 @@ public sealed class NavMenuDocumentProjection : IProjection
     private static async Task ApplyStreamAsync(IDocumentOperations operations, IGrouping<string, IEvent> streamEvents, CancellationToken ct)
     {
         var id = NavMenuStreams.ExtractMenuId(streamEvents.Key);
-        var aggregate = await operations.LoadAsync<NavMenuDocument>(id, ct);
+        var aggregate = await ((IQuerySession)operations).LoadAsync<NavMenuDocument>(id, ct);
 
         foreach (var @event in streamEvents)
         {

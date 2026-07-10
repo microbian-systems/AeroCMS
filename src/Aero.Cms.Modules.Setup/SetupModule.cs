@@ -76,8 +76,8 @@ public sealed class SetupModule : AeroModuleBase
 
         if (runtimeMode)
         {
-            // These services depend on Identity and Marten, which are only available in runtime mode
-            services.TryAddScoped<ISetupStateStore, MartenSetupStateStore>();
+            // These services depend on Identity and AeroDB, which are only available in runtime mode
+            services.TryAddScoped<ISetupStateStore, AeroSetupStateStore>();
             services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
             services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
             services.TryAddScoped<ITranslationImportService, TranslationImportService>();

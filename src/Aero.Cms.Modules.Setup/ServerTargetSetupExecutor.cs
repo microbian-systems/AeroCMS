@@ -10,8 +10,8 @@ using Aero.Core.Http;
 using Aero.EfCore;
 using Aero.Models.Entities;
 using Aero.Core.Identity;
-using JasperFx.Events;
-using Marten;
+using AeroDB;
+using AeroDB.AspNetIdentity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,7 +23,6 @@ using Wolverine;
 using Aero.Cms.Generated;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Modular;
-using Aero.Marten.Identity;
 
 namespace Aero.Cms.Modules.Setup;
 
@@ -59,33 +58,33 @@ public sealed class ServerTargetSetupExecutor(
         await MigrateAsync(serverConnectionString, cancellationToken);
         logger.LogInformation("Step 1/6: Migrations complete.");
 
-        logger.LogInformation("Step 2/6: Creating Marten DocumentStore...");
-        var store = DocumentStore.For(options =>
+        logger.LogInformation("Step 2/6: Creating AeroDB DocumentStore...");
+        var opts = new global::AeroDB.StoreOptions();
+        opts.Endpoint = serverConnectionString;
+        opts.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
+        opts.UseAeroGeneratedJsonContext();
+        opts.Events.StreamIdentity = global::AeroDB.StreamIdentity.AsString;
+        opts.Schema.For<AeroRole>().Identity(x => x.Id);
+        opts.Schema.For<AeroUser>().Identity(x => x.Id);
+
+        foreach (var configure in rootServiceProvider.GetServices<IConfigureAeroDB>())
         {
-            options.Connection(serverConnectionString);
-            options.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
-            options.UseAeroGeneratedJsonContext();
-            options.Events.StreamIdentity = StreamIdentity.AsString;
-            options.Schema.For<AeroRole>().Identity(x => x.Id);
-            options.Schema.For<AeroUser>().Identity(x => x.Id);
+            configure.Configure(rootServiceProvider, opts);
+        }
 
-            foreach (var configure in rootServiceProvider.GetServices<IConfigureMarten>())
-            {
-                configure.Configure(rootServiceProvider, options);
-            }
-        });
+        var store = new DocumentStore(opts);
 
-        logger.LogInformation("Step 2/6: Marten DocumentStore created with {ConfigCount} IConfigureMarten registrations.",
-            rootServiceProvider.GetServices<IConfigureMarten>().Count());
+        logger.LogInformation("Step 2/6: AeroDB DocumentStore created with {ConfigCount} IConfigureAeroDB registrations.",
+            rootServiceProvider.GetServices<IConfigureAeroDB>().Count());
 
         logger.LogInformation("Step 3/6: Creating session and services...");
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var bus = rootServiceProvider.GetRequiredService<IMessageBus>();
         var noopSiteContext = new NoopSiteContext();
-        var pageContentService = new MartenPageContentService(session, bus, noopSiteContext,
-            rootServiceProvider.GetRequiredService<ILogger<MartenPageContentService>>());
+        var pageContentService = new AeroPageContentService(session, bus, noopSiteContext,
+            rootServiceProvider.GetRequiredService<ILogger<AeroPageContentService>>());
         var blogPostContentService = new PostContentService(session, noopSiteContext);
-        var userStore = CreateUserStore(session, rootServiceProvider);
+        var userStore = CreateUserStore(store, rootServiceProvider);
         var userManager = CreateUserManager(userStore, rootServiceProvider);
         var identityBootstrapper = new SetupIdentityBootstrapper(userManager);
         
@@ -150,9 +149,11 @@ public sealed class ServerTargetSetupExecutor(
         }
     }
 
-    private static IUserStore<AeroUser> CreateUserStore(IDocumentSession session, IServiceProvider services)
+    private static IUserStore<AeroUser> CreateUserStore(IDocumentStore store, IServiceProvider services)
     {
-        return new UserStore<AeroUser, AeroRole>(session);
+        return new AeroDBUserStore<AeroUser, AeroRole, long>(
+            store,
+            (ILogger<AeroDBUserStore<AeroUser, AeroRole, long>>)services.GetRequiredService(typeof(ILogger<AeroDBUserStore<AeroUser, AeroRole, long>>)));
     }
 
     private static UserManager<AeroUser> CreateUserManager(IUserStore<AeroUser> userStore, IServiceProvider services)

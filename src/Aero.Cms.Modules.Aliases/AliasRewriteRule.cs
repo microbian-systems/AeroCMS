@@ -1,6 +1,6 @@
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core.Entities;
-using Marten;
+using AeroDB;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +18,7 @@ namespace Aero.Cms.Modules.Aliases;
 /// new paths.
 ///
 /// Primary path: reads from the in-memory <see cref="IAliasRuleCache"/> (zero DB I/O).
-/// Cache-miss fallback: queries Marten directly, scoped to current site.
+/// Cache-miss fallback: queries AeroDB directly, scoped to current site.
 ///
 /// Warmup: <see cref="AliasRuleCacheWarmupService"/> loads the cache from the DB on startup.
 /// Invalidation: cache is invalidated on create/update/delete via <see cref="IAliasRuleCache.Invalidate"/>.
@@ -60,7 +60,7 @@ public sealed class AliasRewriteRule : IRule
         }
 
         // Cache miss — fall back to DB query (site-scoped)
-        _log.LogDebug("Cache miss for SiteId={SiteId} Path='{Path}' — querying Marten", slice.SiteId, path);
+        _log.LogDebug("Cache miss for SiteId={SiteId} Path='{Path}' — querying AeroDB", slice.SiteId, path);
 
         using var scope = _serviceProvider.CreateScope();
         var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();

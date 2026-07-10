@@ -20,7 +20,7 @@ namespace Aero.Cms.Modules.Setup;
 /// <remarks>
 /// This factory creates a lightweight WebApplication that runs during the setup phase.
 /// It includes only the services needed for the setup UI and configuration persistence,
-/// without the full runtime services (Marten, Orleans, Identity, etc.).
+/// without the full runtime services (AeroDB, Orleans, Identity, etc.).
 /// Service registration is delegated to <see cref="SetupModule.ConfigureServices"/>
 /// to eliminate duplication — configure in one place.
 /// </remarks>

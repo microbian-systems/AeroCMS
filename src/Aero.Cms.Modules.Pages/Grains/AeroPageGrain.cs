@@ -22,7 +22,7 @@ namespace Aero.Cms.Modules.Pages.Grains;
 
 /// <summary>
 /// Orleans grain for page management — opens sessions from <see cref="IDocumentStore"/>,
-/// manually constructs <see cref="MartenPageContentService"/> with a <see cref="FixedSiteContext"/>,
+/// manually constructs <see cref="AeroPageContentService"/> with a <see cref="FixedSiteContext"/>,
 /// and delegates each operation to the service.
 /// </summary>
 public sealed class AeroPageGrain : AeroActor, IAeroPageActor
@@ -41,15 +41,15 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         _services = services;
     }
 
-    // ── Helper: manual construction of MartenPageContentService ────────
+    // ── Helper: manual construction of AeroPageContentService ────────
 
-    private MartenPageContentService CreatePageService(IDocumentSession session, long siteId)
+    private AeroPageContentService CreatePageService(IDocumentSession session, long siteId)
     {
         var bus = _services.GetRequiredService<IMessageBus>();
-        var logger = _services.GetRequiredService<ILogger<MartenPageContentService>>();
+        var logger = _services.GetRequiredService<ILogger<AeroPageContentService>>();
         var cache = _services.GetService<IFusionCache>();
         var pageTreeService = _services.GetService<IPageTreeService>();
-        return new MartenPageContentService(
+        return new AeroPageContentService(
             session,
             bus,
             new FixedSiteContext(siteId),
@@ -73,11 +73,11 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     // ── ICruddable<PageViewModel, long> ──────────────────────────────
 
     /// <summary>
-    /// Direct Marten load — no siteId available via <see cref="ICruddable{T,TKey}"/>.
+    /// Direct AeroDB load — no siteId available via <see cref="ICruddable{T,TKey}"/>.
     /// </summary>
     public async Task<AeroRequestResponse<PageViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        await using var session = _store.QuerySession();
+        await using var session = await _store.QuerySessionAsync();
         var doc = await session.LoadAsync<PageDocument>(id, ct);
 
         return doc is not null
@@ -86,11 +86,11 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     }
 
     /// <summary>
-    /// Direct Marten query — no siteId available via interface.
+    /// Direct AeroDB query — no siteId available via interface.
     /// </summary>
     public async Task<AeroRequestResponse<PageViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
-        await using var session = _store.QuerySession();
+        await using var session = await _store.QuerySessionAsync();
         var docs = await session.Query<PageDocument>()
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(ct);
@@ -106,7 +106,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
         create = RehydrateTransportPayload(create);
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, create.SiteId);
         var result = await pageService.CreateAsync(create, ct);
 
@@ -125,7 +125,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         update = RehydrateTransportPayload(update);
 
         // Load page from store to obtain its SiteId (not present on UpdatePageRequest)
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var page = await loadSession.LoadAsync<PageDocument>(update.Id, ct);
 
         if (page is null)
@@ -133,7 +133,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
         var siteId = page.SiteId;
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, siteId);
         var result = await pageService.UpdateAsync(update.Id, update, ct);
 
@@ -150,7 +150,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
             return Fail("Expected DeletePageRequest");
 
         // Load page from store to obtain SiteId and capture the view model
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var page = await loadSession.LoadAsync<PageDocument>(delete.Id, ct);
 
         if (page is null)
@@ -159,7 +159,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         var siteId = page.SiteId;
         var vm = page.ToViewModel();
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, siteId);
         var result = await pageService.DeleteAsync(delete.Id, ct);
 
@@ -175,7 +175,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     public async Task<AeroRequestResponse<PageViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, siteId);
         var result = await pageService.GetAllPagesAsync((page - 1) * rows, rows, null, ct);
 
@@ -207,7 +207,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     private async Task<AeroRequestResponse<PageViewModel>> GetBySlugCoreAsync(
         long siteId, string slug, string? culture, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, siteId);
         var result = await pageService.FindBySlugAsync(slug, culture, ct);
 
@@ -223,12 +223,12 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     // ── IAeroPageActor page-specific methods ───────────────────────────
 
     /// <summary>
-    /// Delegates to <see cref="MartenPageContentService"/> for site-scoped paged query.
+    /// Delegates to <see cref="AeroPageContentService"/> for site-scoped paged query.
     /// </summary>
     public async Task<(List<PageViewModel> Items, long TotalCount)> GetAllPagesAsync(
         long siteId, int skip, int take, string? search, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, siteId);
         var result = await pageService.GetAllPagesAsync(skip, take, search, ct);
 
@@ -246,7 +246,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         if (result is Result<bool, AeroError>.Failure fail)
             return Fail(fail.Error.ToString() ?? "Publish failed");
 
-        await using var session = _store.QuerySession();
+        await using var session = await _store.QuerySessionAsync();
         var page = await session.LoadAsync<PageDocument>(id, ct);
 
         return page is not null
@@ -259,7 +259,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
     public async Task<List<PageViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
     {
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var page = await loadSession.LoadAsync<PageDocument>(id, ct);
 
         if (page is null)
@@ -267,7 +267,7 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
         var TranslationGroupId = page.TranslationGroupId ?? page.Id;
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, page.SiteId);
         var result = await pageService.ListCultureVariantsAsync(TranslationGroupId, ct);
 
@@ -282,13 +282,13 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         string slug,
         CancellationToken ct)
     {
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var page = await loadSession.LoadAsync<PageDocument>(id, ct);
 
         if (page is null)
             return NotFound($"Page {id} not found");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, page.SiteId);
         var result = await pageService.ForkPageForCultureAsync(id, culture, slug, ct);
 
@@ -302,14 +302,14 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     private async Task<AeroRequestResponse<PageViewModel>> TogglePublishStateAsync(
         long id, ContentPublicationState state, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var page = await session.LoadAsync<PageDocument>(id, ct);
 
         if (page is null)
             return NotFound($"Page {id} not found");
 
         var stateChanged = new PageStateChanged(state);
-        session.Events.Append($"page-{id}", stateChanged);
+        session.Events.Append($"page-{id}", new object[] { stateChanged });
         await session.SaveChangesAsync(ct);
 
         page.Apply(stateChanged);
@@ -322,14 +322,14 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
             return 0;
 
         // Load the first page to determine the SiteId for the bulk operation
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var firstPage = await loadSession.LoadAsync<PageDocument>(ids[0], ct);
         if (firstPage is null)
             return 0;
 
         var siteId = firstPage.SiteId;
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, siteId);
         var result = await pageService.DeleteMultipleAsync(ids, deleteDescendants, ct);
 
@@ -339,11 +339,11 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     }
 
     /// <summary>
-    /// Event history is a direct Marten read — no equivalent in the service layer.
+    /// Event history is a direct AeroDB read — no equivalent in the service layer.
     /// </summary>
     public async Task<List<PageEventItem>> GetEventHistoryAsync(long id, CancellationToken ct)
     {
-        await using var session = _store.QuerySession();
+        await using var session = await _store.QuerySessionAsync();
 
         var streamKey = $"page-{id}";
         var page = await session.LoadAsync<PageDocument>(id, ct);
@@ -351,14 +351,14 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         if (page is null)
             return [];
 
-        var events = await session.Events.FetchStreamAsync(streamKey, token: ct);
+        var events = await session.Events.FetchStreamAsync(streamKey, ct: ct);
 
         return events.Select(e => new PageEventItem(
             e.Version,
             e.EventType.Name,
             e.Timestamp,
-            e.StreamKey ?? streamKey,
-            e.IsArchived
+            e.StreamId.Value ?? streamKey,
+            e.Data is PageArchived
         )).ToList();
     }
 

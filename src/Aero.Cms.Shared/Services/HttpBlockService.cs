@@ -32,7 +32,7 @@ public sealed class HttpBlockService : IBlockService
     /// <summary>
     /// Client-side batch-load: issues individual HTTP requests per block ID.
     /// This is NOT optimized for bulk retrieval (unlike the server-side
-    /// MartenBlockService which uses a single PostgreSQL query). The N+1
+    /// AeroBlockService which uses a single PostgreSQL query). The N+1
     /// public page rendering path runs server-side (static SSR), so this
     /// method exists only to satisfy the IBlockService contract in WASM
     /// contexts where bulk-load is not on the hot path.

@@ -1,4 +1,4 @@
-using Marten;
+using AeroDB;
 using Aero.Cms.Modules.Setup.Bootstrap;
 
 namespace Aero.Cms.Modules.Setup;
@@ -8,7 +8,7 @@ public interface ISetupStateStore
     Task<SetupStateDocument?> LoadAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed class MartenSetupStateStore(IQuerySession querySession) : ISetupStateStore
+public sealed class AeroSetupStateStore(IQuerySession querySession) : ISetupStateStore
 {
     public Task<SetupStateDocument?> LoadAsync(CancellationToken cancellationToken = default)
         => querySession.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId, cancellationToken);

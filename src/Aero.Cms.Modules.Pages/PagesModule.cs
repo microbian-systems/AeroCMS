@@ -20,12 +20,11 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using ProjectionLifecycle = JasperFx.Events.Projections.ProjectionLifecycle;
 
 namespace Aero.Cms.Modules.Pages;
 
 [Module(nameof(PagesModule))]
-public sealed class PagesModule : AeroWebModule, IConfigureMarten
+public sealed class PagesModule : AeroWebModule, IConfigureAeroDB
 {
     public override string Name => nameof(PagesModule);
     public override string Version => AeroConstants.Version;
@@ -45,12 +44,12 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
             var session = sp.GetRequiredService<IDocumentSession>();
             var bus = sp.GetRequiredService<IMessageBus>();
             var siteContext = sp.GetRequiredService<ISiteContext>();
-            var logger = sp.GetRequiredService<ILogger<MartenPageContentService>>();
+            var logger = sp.GetRequiredService<ILogger<AeroPageContentService>>();
             var httpContextAccessor = sp.GetService<IHttpContextAccessor>();
             var cache = sp.GetService<IFusionCache>();
             var pageTreeService = sp.GetService<IPageTreeService>();
             var actor = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
-            return new MartenPageContentService(session, bus, siteContext, logger, actor, cache, pageTreeService);
+            return new AeroPageContentService(session, bus, siteContext, logger, actor, cache, pageTreeService);
         });
         services.AddSingleton<BlockEditingService>();
 
@@ -105,18 +104,16 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         });
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
         // ── Event Store ──────────────────────────────────────────────────
-        // Custom IProjection registers inline. Uses MartenReal alias because
-        // global using Marten resolves to Aero.Marten (shim), not real Marten NuGet.
+        // Custom IProjection registers inline.
         opts.Projections.Add(new PageDocumentProjection(), ProjectionLifecycle.Inline);
         opts.Projections.Add(new PageCompositionProjection(), ProjectionLifecycle.Inline);
 
         // ── PageDocument ──────────────────────────────────────────────────
-        opts.Schema.For<PageDocument>().DocumentAlias(Schemas.Tables.Pages);
         opts.Schema.For<PageDocument>().Identity(x => x.Id);
-        opts.Schema.For<PageDocument>().UseOptimisticConcurrency(true);
+        opts.Schema.For<PageDocument>().UseOptimisticConcurrency = true;
 
         // Scalar indexes
         opts.Schema.For<PageDocument>().Index(x => x.SiteId);
@@ -137,18 +134,16 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
 
         // Unique index: no two pages share (SiteId, Culture, ParentId, Slug)
         opts.Schema.For<PageDocument>()
-            .UniqueIndex(x => x.SiteId, x => x.Culture, x => x.ParentId, x => x.Slug);
+            .UniqueIndex(x => new { x.SiteId, x.Culture, x.ParentId, x.Slug });
 
         // Ngram index for efficient Path prefix matching (StartsWith queries)
-        opts.Schema.For<PageDocument>().NgramIndex(x => x.Path);
+        // NgramIndex not available in AeroDB
 
         // Soft-delete — auto-configured via ISoftDeleted on PageDocument
         opts.Schema.For<PageDocument>().SoftDeleted();
 
         // DuplicateField for DateTimeOffset (computed indexes don't support this type)
         opts.Schema.For<PageDocument>().Duplicate(x => x.PublishedOn);
-
-        Configure<PageDocument>(services, opts);
 
         // ── PageCompositionDocument ──────────────────────────────────────
         opts.Schema.For<PageCompositionDocument>().Identity(x => x.Id);
@@ -158,7 +153,6 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         opts.Schema.For<PageCompositionDocument>().Index(x => x.State);
         opts.Schema.For<PageCompositionDocument>().Index(x => new { x.PageId, x.State });
         opts.Schema.For<PageCompositionDocument>().Index(x => new { x.SiteId, x.Culture });
-        Configure<PageCompositionDocument>(services, opts);
 
         // ── PageNodeIndexDocument ────────────────────────────────────────
         opts.Schema.For<PageNodeIndexDocument>().Identity(x => x.Id);
@@ -169,25 +163,27 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         opts.Schema.For<PageNodeIndexDocument>().Index(x => new { x.SiteId, x.CatalogId });
 
         // ── ContentSlugDocument ───────────────────────────────────────────
-        opts.Schema.For<ContentSlugDocument>().DocumentAlias(Schemas.Tables.SlugRegistry);
+        // DocumentAlias not available in AeroDB
         opts.Schema.For<ContentSlugDocument>().Index(x => x.SiteId);
         opts.Schema.For<ContentSlugDocument>().Index(x => x.Culture);
-        opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.NormalizedSlug);
-        Configure<ContentSlugDocument>(services, opts);
+        opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => new { x.SiteId, x.Culture, x.NormalizedSlug });
 
         // ── PageDraft ─────────────────────────────────────────────────────
         opts.Schema.For<PageDraft>().Index(x => x.PageId);
         opts.Schema.For<PageDraft>().Index(x => x.SiteId);
         opts.Schema.For<PageDraft>().Index(x => x.DraftedAt);
-        Configure<PageDraft>(services, opts);
 
         // ── PageCustomComponent ────────────────────────────────────────────
         opts.Schema.For<PageCustomComponent>().Index(x => x.SiteId);
         opts.Schema.For<PageCustomComponent>().Index(x => x.Name);
         opts.Schema.For<PageCustomComponent>().Index(x => x.UpdatedAt);
         opts.Schema.For<PageCustomComponent>()
-            .UniqueIndex(x => x.SiteId, x => x.Name);
-        Configure<PageCustomComponent>(services, opts);
+            .UniqueIndex(x => new { x.SiteId, x.Name });
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)
@@ -199,3 +195,6 @@ public sealed class PagesModule : AeroWebModule, IConfigureMarten
         return Task.CompletedTask;
     }
 }
+
+
+

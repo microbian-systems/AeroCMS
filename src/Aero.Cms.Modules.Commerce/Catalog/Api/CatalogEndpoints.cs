@@ -36,8 +36,10 @@ public static class CatalogEndpoints
             long id,
             IProductService? service = null) =>
         {
-            var product = await service!.FindByIdAsync(id);
-            return product is not null ? Results.Ok(product) : Results.NotFound();
+            var result = await service!.GetByIdAsync(id);
+            if (result is Result<ProductDocument?, AeroError>.Ok(var product) && product is not null)
+                return Results.Ok(product);
+            return Results.NotFound();
         });
 
         // Get by slug

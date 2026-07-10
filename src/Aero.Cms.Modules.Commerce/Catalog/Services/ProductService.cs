@@ -1,21 +1,122 @@
 using System.Globalization;
-using Aero.Cms.Core.Entities;
+using System.Linq.Expressions;
 using Aero.Cms.Modules.Commerce.Catalog.Models;
-using Marten;
-using Marten.Linq;
+using AeroDB;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Catalog.Services;
 
-public sealed class ProductService(IDocumentSession session, ILogger<ProductService> log)
-    : GenericMartenRepository<ProductDocument>(session, log), IProductService
+public sealed class ProductService(IDocumentSession docSession, ILogger<ProductService> log)
+    : IProductService
 {
+    public async Task<Result<ProductDocument?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+    {
+        try
+        {
+            var product = await docSession.LoadAsync<ProductDocument>(id, ct);
+            if (product is not null)
+                await ApplyTranslationAsync(product, GetCurrentCulture(), ct);
+
+            return product is null
+                ? Prelude.Ok<ProductDocument?, AeroError>(null)
+                : Prelude.Ok<ProductDocument?, AeroError>(product);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<ProductDocument?, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<ProductDocument>, AeroError>> GetAllAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var items = await docSession.Query<ProductDocument>().ToListAsync(ct);
+            await ApplyTranslationsAsync(items, GetCurrentCulture(), ct);
+            return Prelude.Ok<IReadOnlyList<ProductDocument>, AeroError>(items);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<IReadOnlyList<ProductDocument>, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<ProductDocument>, AeroError>> FindAsync(
+        Expression<Func<ProductDocument, bool>> predicate, CancellationToken ct = default)
+    {
+        try
+        {
+            var items = await docSession.Query<ProductDocument>().Where(predicate).ToListAsync(ct);
+            await ApplyTranslationsAsync(items, GetCurrentCulture(), ct);
+            return Prelude.Ok<IReadOnlyList<ProductDocument>, AeroError>(items);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<IReadOnlyList<ProductDocument>, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    public async Task<Result<ProductDocument, AeroError>> InsertAsync(ProductDocument entity, CancellationToken ct = default)
+    {
+        try
+        {
+            docSession.Store(entity);
+            await docSession.SaveChangesAsync(ct);
+            return Prelude.Ok<ProductDocument, AeroError>(entity);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<ProductDocument, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    public async Task<Result<ProductDocument, AeroError>> UpdateAsync(ProductDocument entity, CancellationToken ct = default)
+    {
+        try
+        {
+            docSession.Store(entity);
+            await docSession.SaveChangesAsync(ct);
+            return Prelude.Ok<ProductDocument, AeroError>(entity);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<ProductDocument, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+    {
+        try
+        {
+            docSession.Delete<ProductDocument>(id);
+            await docSession.SaveChangesAsync(ct);
+            return Prelude.Ok<bool, AeroError>(true);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<bool, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
+    public async Task<Result<long, AeroError>> CountAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var count = await docSession.Query<ProductDocument>().CountAsync(ct);
+            return Prelude.Ok<long, AeroError>(count);
+        }
+        catch (Exception ex)
+        {
+            return Prelude.Fail<long, AeroError>(AeroError.CreateError(ex.Message));
+        }
+    }
+
     public async Task<Result<ProductDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken ct = default)
     {
         try
         {
-            var product = await session.Query<ProductDocument>()
-                .FirstOrDefaultAsync(x => x.Slug == slug, token: ct);
+            var product = await docSession.Query<ProductDocument>()
+                .FirstOrDefaultAsync(x => x.Slug == slug, ct);
 
             if (product is not null)
                 await ApplyTranslationAsync(product, GetCurrentCulture(), ct);
@@ -41,32 +142,32 @@ public sealed class ProductService(IDocumentSession session, ILogger<ProductServ
     {
         try
         {
-            var martenQueryable = (IMartenQueryable<ProductDocument>)session.Query<ProductDocument>();
+            var martenQueryable = (ISurrealDbQueryable<ProductDocument>)docSession.Query<ProductDocument>();
 
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var term = search.ToLowerInvariant();
-                martenQueryable = (IMartenQueryable<ProductDocument>)martenQueryable.Where(x =>
+                martenQueryable = (ISurrealDbQueryable<ProductDocument>)martenQueryable.Where(x =>
                     x.Name.ToLower().Contains(term) ||
                     x.Description!.ToLower().Contains(term) ||
                     x.Sku!.ToLower().Contains(term));
             }
 
             if (!string.IsNullOrWhiteSpace(category))
-                martenQueryable = (IMartenQueryable<ProductDocument>)martenQueryable.Where(x => x.Category == category);
+                martenQueryable = (ISurrealDbQueryable<ProductDocument>)martenQueryable.Where(x => x.Category == category);
 
             if (minPrice.HasValue)
-                martenQueryable = (IMartenQueryable<ProductDocument>)martenQueryable.Where(x => x.Price >= minPrice.Value);
+                martenQueryable = (ISurrealDbQueryable<ProductDocument>)martenQueryable.Where(x => x.Price >= minPrice.Value);
 
             if (maxPrice.HasValue)
-                martenQueryable = (IMartenQueryable<ProductDocument>)martenQueryable.Where(x => x.Price <= maxPrice.Value);
+                martenQueryable = (ISurrealDbQueryable<ProductDocument>)martenQueryable.Where(x => x.Price <= maxPrice.Value);
 
             var stats = new QueryStatistics();
             var items = await martenQueryable
                 .Stats(out stats)
                 .Skip(skip)
                 .Take(take)
-                .ToListAsync(token: ct);
+                .ToListAsync(ct);
 
             await ApplyTranslationsAsync(items, GetCurrentCulture(), ct);
 
@@ -87,9 +188,9 @@ public sealed class ProductService(IDocumentSession session, ILogger<ProductServ
             return;
 
         var productIds = products.Select(x => x.Id).ToArray();
-        var translations = await session.Query<ProductTranslation>()
+        var translations = await docSession.Query<ProductTranslation>()
             .Where(x => x.Culture == culture && productIds.Contains(x.ProductId))
-            .ToListAsync(token: ct);
+            .ToListAsync(ct);
 
         var translationsByProductId = translations
             .GroupBy(x => x.ProductId)
@@ -107,8 +208,8 @@ public sealed class ProductService(IDocumentSession session, ILogger<ProductServ
         if (string.Equals(culture, SitesModel.DefaultCultureName, StringComparison.OrdinalIgnoreCase))
             return;
 
-        var translation = await session.Query<ProductTranslation>()
-            .FirstOrDefaultAsync(x => x.ProductId == product.Id && x.Culture == culture, token: ct);
+        var translation = await docSession.Query<ProductTranslation>()
+            .FirstOrDefaultAsync(x => x.ProductId == product.Id && x.Culture == culture, ct);
 
         if (translation is not null)
             ProductTranslationMapper.Apply(product, translation);

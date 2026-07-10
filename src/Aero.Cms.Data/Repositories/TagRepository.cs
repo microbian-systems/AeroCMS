@@ -1,11 +1,11 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries;
 using Aero.Cms.Data.Queries.Base;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Data.Repositories;
 
-public interface ITagRepository : IMartenCompiledRepository<TagModel>
+public interface ITagRepository : IAeroCompiledRepository<TagModel>
 {
     Task<IList<TagModel>> GetByNameAsync(string name, CancellationToken cancellationToken = default);
     Task<IList<TagModel>> GetByDescriptionAsync(string description, CancellationToken cancellationToken = default);
@@ -13,7 +13,7 @@ public interface ITagRepository : IMartenCompiledRepository<TagModel>
     Task<IList<TagModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
 }
 
-public sealed class TagRepository : MartenCompiledRepository<TagModel>, ITagRepository
+public sealed class TagRepository : AeroCompiledRepository<TagModel>, ITagRepository
 {
     public TagRepository(IDocumentSession session) : base(session)
     {

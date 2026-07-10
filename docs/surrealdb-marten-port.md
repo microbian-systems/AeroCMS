@@ -1,22 +1,26 @@
 # SurrealDB → Marten Port Plan
 
-**Status:** Active  
-**Last updated:** 2026-07-09  
+**Status:** Phase 2 Complete — AeroDB wired, Marten dormant  
+**Last updated:** 2026-07-09
 **Goal:** Replace Marten/PostgreSQL with AeroDB/SurrealDB ("Sable") across the entire AeroCMS. Marten code is preserved in `Aero.Cms.Db.Marten` as non-buildable reference.
 
 ---
 
 ## Progress
 
-- [x] **Phase 1** — Marten code archived in `Aero.Cms.Db.Marten/Legacy/`
-- [ ] **Phase 2a** — DI registration swap (`ConfigureMartenDb` → `AddAeroDB`)
-- [ ] **Phase 2b** — Namespace swap (`using Marten;` → `using AeroDB;`)
-- [ ] **Phase 2c** — Module system interface swap (`IConfigureMarten` → `IConfigureAeroDB`)
-- [ ] **Phase 2d** — Repository refactoring (`GenericMartenRepository` → direct session)
-- [ ] **Phase 3a** — Wire up `AeroDB.WolverineFx`
-- [ ] **Phase 3b** — Wire up `AeroDB.AspNetIdentity`
-- [ ] **Phase 3c** — Update seed/setup logic
-- [ ] **Phase 4** — Strip Marten package/project references
+- [x] **Phase 1** — Marten code archived in `Aero.Cms.Db.Marten/Legacy/` (107 files)
+- [x] **Phase 2a** — DI registration swap (`ConfigureMartenDb` → `AddAeroDB`, localhost SurrealDB)
+- [x] **Phase 2b** — Namespace swap (`using Marten;` → `using AeroDB;`) across 111 .cs files
+- [x] **Phase 2c** — Module system swap (`IConfigureMarten` → `IConfigureAeroDB`) + source gen + submodule
+- [x] **Phase 2d** — Repository refactoring (7 services: Banner, Product, Basket, Media, UserProfile, Tenant, Site)
+- [x] **Phase 2e** — Class renames (`Marten*Service` → `Aero*Service`, 12 patterns, 43 replacements)
+- [x] **Phase 2f** — Type swaps (`IMartenQueryable` → `ISurrealDbQueryable`, `ISoftDeleted`, `IMartenGenericRepositoryOption`)
+- [x] **Phase 3b** — Wire up `AeroDB.AspNetIdentity` (UserStore → AeroDBUserStore, RoleStore → AeroDBRoleStore)
+- [x] **Phase 3e** — Dead project: `Aero.Cms.Marten.Identity` excluded from compilation
+- [ ] **Phase 3a** — Wire up `AeroDB.WolverineFx` (deferred)
+- [ ] **Phase 3c** — Update seed/setup logic (deferred)
+- [x] **Phase 4** — Strip Marten package/project references (28 csproj files)
+- [x] **Phase 4b** — Marten comment/docs sweep
 
 ---
 
@@ -287,14 +291,16 @@ Once all modules compile against AeroDB:
 
 ```
 [x] Phase 1: Move Marten code into Aero.Cms.Db.Marten (Legacy/)
-[ ] Phase 2a: Replace DI registration (ConfigureMartenDb → AddAeroDB)
-[ ] Phase 2b: Namespace swap across all active code
-[ ] Phase 2c: Module system interface swap (IConfigureMarten → IConfigureAeroDB)
-[ ] Phase 2d: Repository refactoring (GenericMartenRepository → direct session)
-[ ] Phase 3a: Wire up AeroDB.WolverineFx
-[ ] Phase 3b: Wire up AeroDB.AspNetIdentity
-[ ] Phase 3c: Update seed/setup logic
-[ ] Phase 4: Strip Marten references
+[x] Phase 2a: Replace DI registration (ConfigureMartenDb → AddAeroDB)
+[x] Phase 2b: Namespace swap across all active code
+[x] Phase 2c: Module system interface swap (IConfigureMarten → IConfigureAeroDB)
+[x] Phase 2d: Repository refactoring (GenericMartenRepository → direct session)
+[x] Phase 2e: Class renames (Marten*Service → Aero*Service)
+[x] Phase 2f: Type swaps (IMartenQueryable → ISurrealDbQueryable, etc.)
+[x] Phase 3b: Wire up AeroDB.AspNetIdentity
+[ ] Phase 3a: Wire up AeroDB.WolverineFx (deferred)
+[ ] Phase 3c: Update seed/setup logic (deferred)
+[x] Phase 4: Strip Marten references
 ```
 
 ---

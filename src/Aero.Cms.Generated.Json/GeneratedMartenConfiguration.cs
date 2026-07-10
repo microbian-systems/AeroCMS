@@ -1,5 +1,5 @@
 // This file is hand-authored in the shim project to expose AeroCMS's
-// block JSON serializer context to Marten's serializer configuration.
+// block JSON serializer context to AeroDB's serializer configuration.
 //
 // Ideally this would use a source-generated JsonSerializerContext emitted
 // by BlockRendererGenerator and consumed by STJ's JsonSourceGenerator.
@@ -13,14 +13,14 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Marten;
+using AeroDB;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 
 namespace Aero.Cms.Generated;
 
 /// <summary>
 /// Extension methods that wire <see cref="BlockJsonContext.Default"/>
-/// into Marten's serializer pipeline.
+/// into AeroDB's serializer pipeline.
 /// </summary>
 /// <remarks>
 /// When the Roslyn generator-chaining limitation is resolved, this will
@@ -29,15 +29,15 @@ namespace Aero.Cms.Generated;
 /// <c>BlockRendererGenerator</c>-emitted <c>[JsonSerializable]</c>
 /// attributes.
 /// </remarks>
-public static class GeneratedMartenConfiguration
+public static class GeneratedAeroDbConfiguration
 {
     /// <summary>
-    /// Configures Marten to use <see cref="BlockJsonContext.Default"/> as
+    /// Configures AeroDB to use <see cref="BlockJsonContext.Default"/> as
     /// its JSON serializer resolver for AOT-safe block type serialization.
     /// </summary>
     public static StoreOptions UseAeroGeneratedJsonContext(this StoreOptions options)
     {
-        options.UseSystemTextJsonForSerialization(configure: stj =>
+        options.ConfigureSerializer(stj =>
         {
             stj.TypeInfoResolver = BlockJsonContext.Default;
             stj.AllowOutOfOrderMetadataProperties = true;

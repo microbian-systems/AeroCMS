@@ -7,7 +7,6 @@
   <ItemGroup>
     <PackageReference Include="EasyScrutor" />
     <PackageReference Include="HtmlSanitizer" />
-    <PackageReference Include="Marten" />
     <PackageReference Include="Microsoft.AspNetCore.Html.Abstractions" />
     <PackageReference Include="Microsoft.AspNetCore.Routing.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
@@ -23,6 +22,10 @@
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
   </ItemGroup>
 
 </Project>

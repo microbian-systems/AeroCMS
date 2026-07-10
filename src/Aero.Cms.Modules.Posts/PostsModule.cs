@@ -19,7 +19,7 @@ using ActorUpdateSeriesRequest = Aero.Cms.Abstractions.Requests.UpdateSeriesRequ
 namespace Aero.Cms.Modules.Posts;
 
 [Module(nameof(PostsModule))]
-public sealed class PostsModule : AeroWebModule, IUiModule
+public sealed class PostsModule : AeroWebModule, IUiModule, IConfigureAeroDB
 {
     public override string Name => nameof(PostsModule);
     public override string Version => AeroConstants.Version;
@@ -83,35 +83,39 @@ public sealed class PostsModule : AeroWebModule, IUiModule
         });
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<PostDocument>().DocumentAlias(Schemas.Tables.Posts);
         opts.Schema.For<PostDocument>().Identity(x => x.Id);
         opts.Schema.For<PostDocument>().Index(x => x.SiteId);
         opts.Schema.For<PostDocument>().Index(x => x.Culture);
         opts.Schema.For<PostDocument>().Index(x => x.TranslationGroupId);
         opts.Schema.For<PostDocument>().Index(x => x.SeriesId);
-        opts.Schema.For<PostDocument>().UniqueIndex(x => x.SiteId, x => x.Culture, x => x.Slug);
+        opts.Schema.For<PostDocument>().UniqueIndex(x => new { x.SiteId, x.Culture, x.Slug });
         opts.Schema.For<PostDocument>().Index(x => x.PublishedOn);
         opts.Schema.For<PostDocument>().Index(x => x.CreatedOn);
         opts.Schema.For<PostDocument>().Index(x => x.ModifiedOn);
         
         // Tags and Categories
         opts.Schema.For<Tag>().Index(x => x.SiteId);
-        opts.Schema.For<Tag>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        opts.Schema.For<Tag>().UniqueIndex(x => new { x.SiteId, x.Slug });
         opts.Schema.For<Category>().Index(x => x.SiteId);
-        opts.Schema.For<Category>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        opts.Schema.For<Category>().UniqueIndex(x => new { x.SiteId, x.Slug });
         opts.Schema.For<Series>().Index(x => x.SiteId);
-        opts.Schema.For<Series>().UniqueIndex(x => x.SiteId, x => x.Slug);
+        opts.Schema.For<Series>().UniqueIndex(x => new { x.SiteId, x.Slug });
         opts.Schema.For<TagTranslation>().Index(x => x.TagId);
         opts.Schema.For<TagTranslation>().Index(x => x.Culture);
-        opts.Schema.For<TagTranslation>().UniqueIndex(x => x.TagId, x => x.Culture);
+        opts.Schema.For<TagTranslation>().UniqueIndex(x => new { x.TagId, x.Culture });
         opts.Schema.For<CategoryTranslation>().Index(x => x.CategoryId);
         opts.Schema.For<CategoryTranslation>().Index(x => x.Culture);
-        opts.Schema.For<CategoryTranslation>().UniqueIndex(x => x.CategoryId, x => x.Culture);
+        opts.Schema.For<CategoryTranslation>().UniqueIndex(x => new { x.CategoryId, x.Culture });
         opts.Schema.For<SeriesTranslation>().Index(x => x.SeriesId);
         opts.Schema.For<SeriesTranslation>().Index(x => x.Culture);
-        opts.Schema.For<SeriesTranslation>().UniqueIndex(x => x.SeriesId, x => x.Culture);
+        opts.Schema.For<SeriesTranslation>().UniqueIndex(x => new { x.SeriesId, x.Culture });
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 
     public override Task RunAsync(IEndpointRouteBuilder builder)

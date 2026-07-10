@@ -1,3 +1,5 @@
+using AeroDB;
+
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
@@ -22,10 +24,10 @@ public sealed class PageHierarchyMigration
     {
         try
         {
-            await using var session = _store.LightweightSession();
+            await using var session = await _store.LightweightSessionAsync();
             var needsMigration = await session
                 .Query<PageDocument>()
-                .AnyAsync(x => x.Path == "/" && x.ParentId == null, ct);
+                .Where(x => x.Path == "/" && x.ParentId == null).AnyAsync(ct);
 
             return !needsMigration;
         }
@@ -44,12 +46,12 @@ public sealed class PageHierarchyMigration
     {
         _logger.LogInformation("Starting page hierarchy migration...");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
 
         // Determine which pages already have proper paths
         var migratedCount = await session
             .Query<PageDocument>()
-            .CountAsync(x => x.Path != "/" || x.Depth > 0 || x.Order > 0, ct);
+            .Where(x => x.Path != "/" || x.Depth > 0 || x.Order > 0).CountAsync(ct);
 
         if (migratedCount > 0)
         {
@@ -136,3 +138,4 @@ public sealed class PageHierarchyMigration
         }
     }
 }
+

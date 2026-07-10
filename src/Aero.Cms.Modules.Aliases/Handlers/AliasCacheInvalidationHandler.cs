@@ -10,7 +10,7 @@ namespace Aero.Cms.Modules.Aliases.Handlers;
 /// whenever an alias is created, updated, or deleted.
 ///
 /// <see cref="IAliasRuleCache.RefreshAsync"/> reloads all aliases
-/// from Marten into the immutable dictionary.
+/// from AeroDB into the immutable dictionary.
 /// </summary>
 [WolverineHandler]
 public sealed class AliasCacheInvalidationHandler(

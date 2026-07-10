@@ -1,7 +1,7 @@
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Infrastructure;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Modules.Sites;
 
@@ -45,7 +45,7 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
         // Batch-load all SiteHost records for the returned sites
         var siteIds = sites.Select(s => s.Id).ToList();
         var allHosts = await session.Query<SiteHost>()
-            .Where(x => x.SiteId.In(siteIds))
+            .Where(x => siteIds.Contains(x.SiteId))
             .ToListAsync(cancellationToken);
 
         var hostsBySite = allHosts

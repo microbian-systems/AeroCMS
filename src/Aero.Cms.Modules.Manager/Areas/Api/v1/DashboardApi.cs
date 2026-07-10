@@ -65,14 +65,14 @@ public static class DashboardApi
         var logger = loggerFactory.CreateLogger(typeof(DashboardApi));
         try
         {
-            // Assuming AuditEvents are stored as a document type in Marten
+            // Assuming AuditEvents are stored as a document type in AeroDB
             var activities = await session.Query<AuditEvent>()
                 .OrderByDescending(x => x.Timestamp)
                 .Take(count)
                 .ToListAsync(cancellationToken);
 
             var result = activities.Select(a => new RecentActivity(
-                0, // AuditEvent doesn't have an ID in the base record, but Marten usually adds one or uses a property
+                0, // AuditEvent doesn't have an ID in the base record, but AeroDB usually adds one or uses a property
                 a.EventType,
                 a.EntityType,
                 a.EntityId,

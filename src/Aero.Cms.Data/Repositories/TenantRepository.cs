@@ -1,11 +1,11 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries;
 using Aero.Cms.Data.Queries.Base;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Data.Repositories;
 
-public interface ITenantRepository : IMartenCompiledRepository<TenantModel>
+public interface ITenantRepository : IAeroCompiledRepository<TenantModel>
 {
     Task<TenantModel?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
     Task<TenantModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default);
@@ -15,7 +15,7 @@ public interface ITenantRepository : IMartenCompiledRepository<TenantModel>
 }
 
 public sealed class TenantRepository(IDocumentSession session) 
-    : MartenCompiledRepository<TenantModel>(session), ITenantRepository
+    : AeroCompiledRepository<TenantModel>(session), ITenantRepository
 {
 
     protected override EntitiesByIdsQuery<TenantModel> CreateByIdsQuery(IEnumerable<long> ids)

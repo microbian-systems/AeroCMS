@@ -43,12 +43,12 @@ public sealed record PageContentUpdated(
 
 /// <summary>
 /// Appended when the editor saves a draft page composition. AeroCMS already
-/// uses Marten event sourcing for pages; this event is the page-tree successor
+/// uses AeroDB event sourcing for pages; this event is the page-tree successor
 /// to the legacy <see cref="PageContentUpdated"/> body snapshot.
 /// </summary>
 /// <remarks>
 /// The persisted event is intentionally coarse grained. Canvas-level undo/redo
-/// remains an editor concern, while Marten records durable save milestones that
+/// remains an editor concern, while AeroDB records durable save milestones that
 /// can project the page document, flattened node indexes, search documents, and
 /// component usage indexes.
 /// </remarks>
@@ -152,7 +152,7 @@ public sealed record PageMetadataUpdated(
 public sealed record PageArchived;
 
 /// <summary>
-/// Appended when the page is soft-deleted. Marten auto-manages
+/// Appended when the page is soft-deleted. AeroDB auto-manages
 /// the ISoftDeleted fields.
 /// </summary>
 /// <param name="Reason">Optional reason for deletion.</param>

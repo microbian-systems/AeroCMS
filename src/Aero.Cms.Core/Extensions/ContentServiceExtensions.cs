@@ -21,9 +21,9 @@ public static class ContentServiceExtensions
     public static IServiceCollection AddContentTypeSystem(this IServiceCollection services)
     {
         // Core services
-        services.AddScoped<IContentTypeService, MartenContentTypeService>();
-        services.AddScoped<IContentService, MartenContentService>();
-        services.AddScoped<IContentQueryService, MartenContentQueryService>();
+        services.AddScoped<IContentTypeService, AeroContentTypeService>();
+        services.AddScoped<IContentService, AeroContentService>();
+        services.AddScoped<IContentQueryService, AeroContentQueryService>();
         services.AddScoped<ContentValidationService>();
         services.AddScoped<ContentCommandService>();
         services.AddScoped<ContentEmbedBlockRenderer>();

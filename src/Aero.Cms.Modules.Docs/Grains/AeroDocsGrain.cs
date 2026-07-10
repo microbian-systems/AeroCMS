@@ -73,12 +73,12 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
     // ── ICruddable<DocViewModel, long> ──────────────────────────────────
 
     /// <summary>
-    /// Direct Marten load — no siteId available via <see cref="ICruddable{T,TKey}"/>.
+    /// Direct AeroDB load — no siteId available via <see cref="ICruddable{T,TKey}"/>.
     /// Same pattern as <see cref="Aero.Cms.Modules.Pages.Grains.AeroPageGrain"/>.
     /// </summary>
     public async Task<AeroRequestResponse<DocViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        await using var session = _store.QuerySession();
+        await using var session = await _store.QuerySessionAsync();
         var doc = await session.LoadAsync<DocsPage>(id, ct);
 
         return doc is not null
@@ -88,7 +88,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     public async Task<AeroRequestResponse<DocViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         // ICruddable doesn't provide siteId; the service queries by IDs
         // without scoping to a site (caller is responsible for auth).
         var docsService = CreateDocsService(session, siteId: 0);
@@ -109,7 +109,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         if (request is not CreateDocRequest create)
             return Fail("Expected CreateDocRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, create.SiteId);
         var result = await docsService.CreateAsync(create, ct);
 
@@ -126,7 +126,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
             return Fail("Expected UpdateDocRequest");
 
         // Load doc to obtain its SiteId (not present on UpdateDocRequest)
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var doc = await loadSession.LoadAsync<DocsPage>(update.Id, ct);
 
         if (doc is null)
@@ -134,7 +134,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
         var siteId = doc.SiteId;
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
         var result = await docsService.UpdateAsync(update.Id, update, ct);
 
@@ -151,7 +151,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
             return Fail("Expected DeleteDocRequest");
 
         // Load doc to obtain SiteId and capture the view model
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var doc = await loadSession.LoadAsync<DocsPage>(delete.Id, ct);
 
         if (doc is null)
@@ -160,7 +160,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         var siteId = doc.SiteId;
         var vm = doc.ToViewModel();
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
         var result = await docsService.DeleteAsync(delete.Id, ct);
 
@@ -176,7 +176,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
     public async Task<AeroRequestResponse<DocViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
         var result = await docsService.GetAllAsync(ct);
 
@@ -208,7 +208,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
     private async Task<AeroRequestResponse<DocViewModel>> GetBySlugCoreAsync(
         long siteId, string slug, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
         var result = await docsService.GetBySlugAsync(slug, ct);
 
@@ -225,7 +225,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     public async Task<List<DocViewModel>> GetAllBySiteAsync(long siteId, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
         var result = await docsService.GetAllAsync(ct);
 
@@ -236,7 +236,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     public async Task<List<DocViewModel>> GetChildrenAsync(long parentId, long siteId, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
         var result = await docsService.GetChildrenAsync(parentId, ct);
 
@@ -247,7 +247,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     public async Task<List<DocViewModel>> GetTopLevelCategoriesAsync(long siteId, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
         var result = await docsService.GetTopLevelCategoriesAsync(ct);
 
@@ -258,7 +258,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     public async Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, vm.SiteId);
         var result = await docsService.SaveFromViewModelAsync(vm, ct);
 
@@ -275,7 +275,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         if (siteIdResult is null)
             return [];
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteIdResult.Value);
         var result = await docsService.ListCultureVariantsAsync(id, ct);
 
@@ -290,7 +290,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         if (siteIdResult is null)
             return NotFound($"Doc {id} not found");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteIdResult.Value);
         var result = await docsService.ForkToCultureAsync(id, culture, slug, ct);
 
@@ -307,7 +307,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         if (siteIdResult is null)
             return NotFound($"Doc {id} not found");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteIdResult.Value);
         var result = await docsService.PublishAsync(id, ct);
 
@@ -324,7 +324,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         if (siteIdResult is null)
             return NotFound($"Doc {id} not found");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteIdResult.Value);
         var result = await docsService.UnpublishAsync(id, ct);
 
@@ -343,7 +343,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         string? summary,
         CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var treeService = CreateDocsTreeService(session);
         var result = await treeService.CreateChildSectionAsync(siteId, spaceId, parentId, title, summary, ct);
 
@@ -363,7 +363,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         bool rewriteSlug,
         CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var treeService = CreateDocsTreeService(session);
         var result = await treeService.MoveSectionAsync(siteId, spaceId, sectionId, newParentId, order, rewriteSlug, ct);
 
@@ -381,7 +381,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         IReadOnlyList<long> orderedIds,
         CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var treeService = CreateDocsTreeService(session);
         var result = await treeService.ReorderSiblingsAsync(siteId, spaceId, parentId, orderedIds, ct);
 
@@ -394,7 +394,7 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     private async Task<long?> ResolveSiteIdAsync(long id, CancellationToken ct)
     {
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var doc = await loadSession.LoadAsync<DocsPage>(id, ct);
         return doc?.SiteId;
     }

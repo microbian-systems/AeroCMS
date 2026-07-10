@@ -11,7 +11,7 @@ using IRequest = Aero.Core.Commands.IRequest;
 namespace Aero.Cms.Modules.Posts.Grains;
 
 /// <summary>
-/// Orleans grain for tag management — wraps Marten persistence behind
+/// Orleans grain for tag management — wraps AeroDB persistence behind
 /// <see cref="IAeroTagActor"/>. Publishes Wolverine events after mutations.
 /// </summary>
 public sealed class AeroTagGrain : AeroActor, IAeroTagActor
@@ -45,7 +45,7 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
 
     public async Task<AeroRequestResponse<TagViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var tag = await session.LoadAsync<Models.Tag>(id, ct);
         var translations = tag is null
             ? new Dictionary<long, TagTranslation>()
@@ -58,7 +58,7 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
 
     public async Task<AeroRequestResponse<TagViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var tags = await session.Query<Models.Tag>()
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(ct);
@@ -73,7 +73,7 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         if (request is not CreateTagRequest create)
             return Fail("Expected CreateTagRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
 
         var tag = new Models.Tag
         {
@@ -96,7 +96,7 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         if (request is not UpdateTagRequest update)
             return Fail("Expected UpdateTagRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var tag = await session.LoadAsync<Models.Tag>(update.Id, ct);
 
         if (tag is null)
@@ -119,7 +119,7 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         if (request is not DeleteTagRequest delete)
             return Fail("Expected DeleteTagRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var tag = await session.LoadAsync<Models.Tag>(delete.Id, ct);
 
         if (tag is null)
@@ -141,7 +141,7 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         int rows = 10,
         CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var tags = await session.Query<Models.Tag>()
             .Where(x => x.SiteId == siteId)
             .OrderBy(x => x.Name)
@@ -168,7 +168,7 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
 
     private async Task<AeroRequestResponse<TagViewModel>> GetBySlugCoreAsync(long siteId, string slug, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var tags = await session.Query<Models.Tag>()
             .Where(x => x.SiteId == siteId && x.Slug == slug)
             .ToListAsync(ct);
@@ -182,7 +182,7 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
 
     public async Task<List<TagViewModel>> GetAllAsync(CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var tags = await session.Query<Models.Tag>()
             .OrderBy(x => x.Name)
             .ToListAsync(ct);

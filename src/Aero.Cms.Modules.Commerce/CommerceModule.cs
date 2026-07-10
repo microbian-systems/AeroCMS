@@ -19,7 +19,7 @@ using Aero.Services.Images;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using FluentValidation;
-using Marten;
+using AeroDB;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -32,7 +32,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Aero.Cms.Modules.Commerce;
 
 [Module(nameof(CommerceModule))]
-public sealed class CommerceModule : AeroWebModule, IConfigureMarten
+public sealed class CommerceModule : AeroWebModule, IConfigureAeroDB
 {
     public override string Name => nameof(CommerceModule);
     public override string Version => AeroConstants.Version;
@@ -45,10 +45,10 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
     {
         services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, CommerceStartupFilter>());
 
-        // Catalog (Marten)
+        // Catalog (AeroDB)
         services.AddScoped<IProductService, ProductService>();
 
-        // Basket (Marten)
+        // Basket (AeroDB)
         services.AddScoped<IBasketService, BasketService>();
 
         // Orders (EF Core)
@@ -89,29 +89,34 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
         });
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
-        // Product document — Marten schema
-        opts.DatabaseSchemaName = Schemas.Database;
+        // Product document — AeroDB schema
+        // DatabaseSchemaName/DocumentAlias not available in AeroDB
         opts.Schema.For<ProductDocument>()
-            .DocumentAlias(Schemas.Tables.Products)
             .Identity(x => x.Id)
             .Index(x => x.Slug)
             .Index(x => x.Sku)
             .Index(x => x.Category)
             .Index(x => x.Price)
-            .FullTextIndex(x => x.Name)
-            .FullTextIndex(x => x.Description);
+            .FullTextIndex(x => x.Name, "english")
+            .FullTextIndex(x => x.Description, "english");
 
         opts.Schema.For<ProductTranslation>().Index(x => x.ProductId);
         opts.Schema.For<ProductTranslation>().Index(x => x.Culture);
-        opts.Schema.For<ProductTranslation>().UniqueIndex(x => x.ProductId, x => x.Culture);
+        // Composite unique index on (ProductId, Culture) — AeroDB uses anonymous type expression
+        opts.Schema.For<ProductTranslation>().Index(x => new { x.ProductId, x.Culture }, c => c.IsUnique());
 
-        // Basket document — Marten schema
+        // Basket document — AeroDB schema
+        // DocumentAlias not available in AeroDB
         opts.Schema.For<BasketDocument>()
-            .DocumentAlias(Schemas.Tables.Baskets)
             .Identity(x => x.Id)
             .Index(x => x.CustomerId);
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 
     public override void Run(IEndpointRouteBuilder builder)

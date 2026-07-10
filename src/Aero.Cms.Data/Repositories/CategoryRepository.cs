@@ -1,12 +1,12 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries;
 using Aero.Cms.Data.Queries.Base;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Data.Repositories;
 
 
-public interface ICategoryRepository : IMartenCompiledRepository<CategoryModel>
+public interface ICategoryRepository : IAeroCompiledRepository<CategoryModel>
 {
     Task<CategoryModel?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<IList<CategoryModel>> GetByNameAsync(string name, CancellationToken cancellationToken = default);
@@ -16,7 +16,7 @@ public interface ICategoryRepository : IMartenCompiledRepository<CategoryModel>
     Task<IList<CategoryModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
 }
 
-public sealed class CategoryRepository : MartenCompiledRepository<CategoryModel>, ICategoryRepository
+public sealed class CategoryRepository : AeroCompiledRepository<CategoryModel>, ICategoryRepository
 {
     public CategoryRepository(IDocumentSession session) : base(session)
     {

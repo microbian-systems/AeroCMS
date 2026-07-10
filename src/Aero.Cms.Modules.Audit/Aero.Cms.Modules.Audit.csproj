@@ -12,10 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Marten" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
@@ -26,11 +22,11 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Validators\Aero.Validators.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
   </ItemGroup>
 
 

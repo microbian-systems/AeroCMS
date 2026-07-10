@@ -51,7 +51,7 @@ public interface INavigationsHttpClient
     /// </summary>
     /// <param name="id">The navigation identifier to update.</param>
     /// <param name="request">The draft update request.</param>
-    /// <param name="expectedVersion">The expected current Marten stream version.</param>
+    /// <param name="expectedVersion">The expected current AeroDB stream version.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The updated navigation detail or an error.</returns>
     Task<Result<NavigationDetail, AeroError>> SaveDraftAsync(
@@ -72,7 +72,7 @@ public interface INavigationsHttpClient
     /// Publishes a navigation menu draft.
     /// </summary>
     /// <param name="id">The navigation identifier to publish.</param>
-    /// <param name="expectedVersion">The expected current Marten stream version.</param>
+    /// <param name="expectedVersion">The expected current AeroDB stream version.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The published navigation detail or an error.</returns>
     Task<Result<NavigationDetail, AeroError>> PublishAsync(long id, long expectedVersion, CancellationToken ct = default);

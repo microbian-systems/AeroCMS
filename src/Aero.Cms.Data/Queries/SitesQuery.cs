@@ -1,6 +1,6 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
-using Marten.Linq;
+using AeroDB;
 using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries;
@@ -9,7 +9,7 @@ public sealed class SiteByHostnameQuery : ICompiledQuery<SiteHost, SiteHost?>
 {
     public string hostname { get; set; } = null!;
 
-    public Expression<Func<IMartenQueryable<SiteHost>, SiteHost?>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<SiteHost>, SiteHost?>> QueryIs()
     {
         return q => q.FirstOrDefault(x => x.Host == hostname);
     }
@@ -23,7 +23,7 @@ public sealed class SitesByTenantIdQuery : ICompiledQuery<SitesModel, IList<Site
 {
     public required long TenantId { get; set; }
 
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.TenantId == TenantId)
@@ -37,7 +37,7 @@ public sealed class SitesByNameQuery : ICompiledQuery<SitesModel, IList<SitesMod
 {
     public required string Name { get; set; }
 
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name == Name)
@@ -48,7 +48,7 @@ public sealed class SitesByNameQuery : ICompiledQuery<SitesModel, IList<SitesMod
 
 public sealed class EnabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.IsEnabled)
@@ -59,7 +59,7 @@ public sealed class EnabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesMo
 
 public sealed class DisabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => !x.IsEnabled)
@@ -72,7 +72,7 @@ public sealed class SitesByDefaultCultureQuery : ICompiledQuery<SitesModel, ILis
 {
     public required string DefaultCulture { get; set; }
 
-    public Expression<Func<IMartenQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.DefaultCulture == DefaultCulture)

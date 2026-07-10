@@ -6,7 +6,7 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Core.Http;
-using Marten.Pagination;
+using AeroDB.Pagination;
 using Microsoft.Extensions.DependencyInjection;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
@@ -15,7 +15,7 @@ using IRequest = Aero.Core.Commands.IRequest;
 namespace Aero.Cms.Modules.Posts.Grains;
 
 /// <summary>
-/// Orleans grain for blog post management — wraps Marten persistence behind
+/// Orleans grain for blog post management — wraps AeroDB persistence behind
 /// the <see cref="IAeroPostActor"/> interface.
 ///
 /// Uses manual-construction delegation: opens sessions from <see cref="IDocumentStore"/>,
@@ -49,7 +49,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         return Task.CompletedTask;
     }
 
-    // ── Helper: manual construction of MartenBlogPostContentService ──
+    // ── Helper: manual construction of PostContentService ──
 
     private PostContentService CreatePostService(IDocumentSession session, long siteId)
     {
@@ -58,13 +58,13 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         return new PostContentService(session, new FixedSiteContext(siteId), bus, null, cache);
     }
 
-    // ── Blog-specific methods (delegated to MartenBlogPostContentService) ────
+    // ── Blog-specific methods (delegated to PostContentService) ────
 
     /// <summary>Get all posts with paging and optional search.</summary>
     public async Task<(List<PostViewModel> Items, long TotalCount)> GetAllPostsAsync(
         long siteId, int skip, int take, string? search, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var result = await postService.GetAllPostsAsync(skip, take, search, ct);
         if (result is Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>.Ok ok)
@@ -75,7 +75,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
     /// <summary>Load a post by ID within a site (returns null if not found or wrong site).</summary>
     public async Task<PostViewModel?> LoadAsync(long id, long siteId, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var result = await postService.LoadAsync(id, ct);
         if (result is Result<PostDocument?, AeroError>.Ok { Value: not null } ok)
@@ -89,7 +89,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     public async Task<PostViewModel?> FindBySlugAsync(string slug, long siteId, string? culture, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var result = await postService.FindBySlugAsync(slug, culture, ct);
         if (result is Result<PostDocument?, AeroError>.Ok { Value: not null } ok)
@@ -99,14 +99,14 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     public async Task<List<PostViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
     {
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var source = await loadSession.LoadAsync<PostDocument>(id, ct);
         if (source is null)
             return [];
 
         var TranslationGroupId = source.TranslationGroupId ?? source.Id;
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, source.SiteId);
         var result = await postService.ListCultureVariantsAsync(TranslationGroupId, ct);
         return result is Result<IReadOnlyList<PostDocument>, AeroError>.Ok ok
@@ -116,12 +116,12 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(long id, string culture, string slug, CancellationToken ct)
     {
-        await using var loadSession = _store.QuerySession();
+        await using var loadSession = await _store.QuerySessionAsync();
         var source = await loadSession.LoadAsync<PostDocument>(id, ct);
         if (source is null)
             return NotFound($"Post {id} not found");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, source.SiteId);
         var result = await postService.ForkPostForCultureAsync(id, culture, slug, ct);
         if (result is Result<PostDocument, AeroError>.Ok ok)
@@ -143,14 +143,14 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         // (Content is stripped from PostViewModel to avoid Orleans BlockBase serialization errors)
         if (post.Content.Count == 0)
         {
-            await using var loadSession = _store.LightweightSession();
+            await using var loadSession = await _store.LightweightSessionAsync();
             var loadService = CreatePostService(loadSession, siteId);
             var loadResult = await loadService.LoadAsync(post.Id, ct);
             if (loadResult is Result<PostDocument?, AeroError>.Ok { Value: not null } existing)
                 post.Content = existing.Value.Content;
         }
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var result = await postService.SaveAsync(post, ct);
         if (result is Result<PostDocument, AeroError>.Ok ok)
@@ -163,7 +163,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
     /// <summary>Delete a blog post by ID, handling slug cleanup + cache eviction.</summary>
     public async Task<AeroRequestResponse<PostViewModel>> DeletePostAsync(long id, long siteId, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var loadResult = await postService.LoadAsync(id, ct);
         if (loadResult is not Result<PostDocument?, AeroError>.Ok { Value: not null } found)
@@ -207,7 +207,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     public async Task<AeroRequestResponse<PostViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        await using var session = _store.QuerySession();
+        await using var session = await _store.QuerySessionAsync();
         var doc = await session.LoadAsync<PostDocument>(id, ct);
         return doc is not null
             ? Ok(MapToViewModel(doc))
@@ -216,7 +216,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     public async Task<AeroRequestResponse<PostViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
-        await using var session = _store.QuerySession();
+        await using var session = await _store.QuerySessionAsync();
         var docs = await session.Query<PostDocument>()
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(ct);
@@ -254,7 +254,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         if (request is not UpdatePostRequest update)
             return Fail("Expected UpdatePostRequest");
 
-        await using var session = _store.QuerySession();
+        await using var session = await _store.QuerySessionAsync();
         var existing = await session.LoadAsync<PostDocument>(update.Id, ct);
         if (existing is null)
             return NotFound($"Post {update.Id} not found");
@@ -275,7 +275,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
         if (request is not DeletePostRequest delete)
             return Fail("Expected DeletePostRequest");
 
-        await using var session = _store.QuerySession();
+        await using var session = await _store.QuerySessionAsync();
         var existing = await session.LoadAsync<PostDocument>(delete.Id, ct);
         if (existing is null)
             return NotFound($"Post {delete.Id} not found");
@@ -315,7 +315,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     public async Task<(List<PostViewModel> Items, long TotalCount)> GetLatestPostsAsync(long siteId, int count, string? culture, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var result = await postService.GetLatestPostsAsync(count, culture, ct);
         if (result is Result<IReadOnlyList<PostDocument>, AeroError>.Ok ok)
@@ -334,7 +334,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
     public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bool HasNext, bool HasPrev)> GetPagedPostsAsync(
         long siteId, int page, int pageSize, int skipFromLatest, string? culture, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var result = await postService.GetPagedPostsAsync(page, pageSize, skipFromLatest, culture, ct);
         if (result is Result<IPagedList<PostDocument>, AeroError>.Ok ok)
@@ -354,7 +354,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
     /// <summary>Get all tag IDs mapped to their display names for a site.</summary>
     public async Task<Dictionary<long, string>> GetTagNameMapAsync(long siteId, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var result = await postService.GetAllTagsAsync(ct);
         if (result is Result<IReadOnlyList<Tag>, AeroError>.Ok ok)
@@ -365,7 +365,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
     /// <summary>Get a summary of a post author for a site.</summary>
     public async Task<(string? Name, string? Bio, string? AvatarUrl)?> GetPostAuthorSummaryAsync(long siteId, long authorId, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var result = await postService.GetAuthorAsync(authorId, ct);
         if (result is Result<PostAuthor?, AeroError>.Ok { Value: not null } ok)
@@ -469,7 +469,7 @@ public sealed class AeroPostGrain : AeroActor, IAeroPostActor
 
     private async Task<long> EnsureGeneralSeriesIdAsync(long siteId, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var general = await session.Query<Models.Series>()
             .Where(x => x.SiteId == siteId && x.Slug == "general")
             .FirstOrDefaultAsync(ct);

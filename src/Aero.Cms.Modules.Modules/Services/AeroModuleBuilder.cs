@@ -18,7 +18,7 @@ public class AeroModuleBuilder : IAeroModuleBuilder
     private readonly List<Type> _contentParts = new();
     private readonly List<Type> _fieldEditors = new();
     private readonly List<Type> _searchIndexers = new();
-    private readonly List<Type> _martenConfigurations = new();
+    private readonly List<Type> _dbConfigurations = new();
 
     /// <summary>
     /// The service collection for DI registrations.
@@ -70,7 +70,7 @@ public class AeroModuleBuilder : IAeroModuleBuilder
     public IReadOnlyList<Type> SearchIndexers => _searchIndexers.AsReadOnly();
 
     /// <inheritdoc/>
-    public IReadOnlyList<Type> MartenConfigurations => _martenConfigurations.AsReadOnly();
+    public IReadOnlyList<Type> DbConfigurations => _dbConfigurations.AsReadOnly();
 
     /// <inheritdoc/>
     public void AddPermission(string permission)
@@ -173,15 +173,15 @@ public class AeroModuleBuilder : IAeroModuleBuilder
     }
 
     /// <inheritdoc/>
-    public void AddMartenConfiguration<T>() where T : class, global::Marten.IConfigureMarten
+    public void AddDbConfiguration<T>() where T : class
     {
         var type = typeof(T);
-        if (_martenConfigurations.Contains(type))
+        if (_dbConfigurations.Contains(type))
         {
-            throw new InvalidOperationException($"Marten configuration contributor '{type.FullName}' has already been registered.");
+            throw new InvalidOperationException($"AeroDB configuration contributor '{type.FullName}' has already been registered.");
         }
 
-        _martenConfigurations.Add(type);
-        Services.AddSingleton<global::Marten.IConfigureMarten, T>();
+        _dbConfigurations.Add(type);
+        Services.AddSingleton(typeof(global::AeroDB.IConfigureAeroDB), typeof(T));
     }
 }

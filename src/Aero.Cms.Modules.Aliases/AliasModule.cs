@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Abstractions.Validators;
@@ -10,7 +10,7 @@ using Aero.Cms.Web.Core.Modules;
 using Aero.Cms.Web.Core.Pipelines;
 using Aero.Modular;
 using FluentValidation;
-using Marten;
+using AeroDB;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -23,7 +23,7 @@ namespace Aero.Cms.Modules.Aliases;
 /// Site alias management module for handling URL aliases and redirects.
 ///
 /// Architecture:
-///   AliasDocument → Marten persistence (owner)
+///   AliasDocument → AeroDB persistence (owner)
 ///   IAliasRuleCache → ImmutableDictionary hot lookup (zero DB per request)
 ///   AliasRewriteRule → sync IRule, reads cache only, site-scoped via IAeroSiteSlice
 ///   AliasStartupFilter → IStartupFilter, registers UseRewriter
@@ -32,7 +32,7 @@ namespace Aero.Cms.Modules.Aliases;
 /// Pipeline order: SitesModule (-9999) → AliasModule (-9998) → rest of pipeline
 /// </summary>
 [Module(nameof(AliasModule))]
-public class AliasModule : AeroWebModule
+public class AliasModule : AeroWebModule, IConfigureAeroDB
 {
     /// <summary>Load after SitesModule (-9999) so site is resolved before alias lookup.</summary>
     public override short Order => -9998;
@@ -72,7 +72,7 @@ public class AliasModule : AeroWebModule
         // Rewrite rule (IRule) — consumes cache only, no DB access on hot path
         services.AddSingleton<AliasRewriteRule>();
 
-        // Background warmup — loads cache from Marten on startup
+        // Background warmup — loads cache from AeroDB on startup
         services.AddHostedService<AliasRuleCacheWarmupService>();
 
         // Pipeline middleware — runs UseRewriter AFTER SiteResolutionMiddleware.
@@ -88,14 +88,22 @@ public class AliasModule : AeroWebModule
         builder.MapAliasesApi();
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<AliasDocument>().DocumentAlias(Schemas.Tables.Aliases);
+        // DocumentAlias not available in AeroDB
         opts.Schema.For<AliasDocument>().Identity(x => x.Id);
         opts.Schema.For<AliasDocument>().Index(x => x.SiteId);
-        opts.Schema.For<AliasDocument>().UniqueIndex(x => x.SiteId, x => x.OldPath); // site-scoped composite unique
+        opts.Schema.For<AliasDocument>().UniqueIndex(x => new { x.SiteId, x.OldPath }); // site-scoped composite unique
         opts.Schema.For<AliasDocument>().Index(x => x.NewPath);
         opts.Schema.For<AliasDocument>().Index(x => x.CreatedOn);
         opts.Schema.For<AliasDocument>().Index(x => x.ModifiedOn);
     }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
+    }
 }
+
+
+

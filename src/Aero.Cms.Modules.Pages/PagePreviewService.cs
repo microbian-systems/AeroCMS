@@ -48,7 +48,7 @@ internal sealed class PagePreviewService : IPagePreviewService
             // 3. Load BlockBase documents for all resolved BlockIds
             // N+1 REMEDY: Previously used foreach + GetByIdAsync (one DB query
             // per block). Now uses GetByIdsAsync which issues a single batched
-            // Marten LoadManyAsync (WHERE Id = ANY(@ids)). For a page with 40
+            // AeroDB LoadManyAsync (WHERE Id = ANY(@ids)). For a page with 40
             // blocks, this reduces 40 round-trips to 1.
             var blockIds = editor?.Blocks
                 .Where(p => p.BlockId.HasValue)

@@ -1,7 +1,7 @@
 namespace Aero.Cms.Modules.Commerce.Catalog.Models;
 
 /// <summary>
-/// Catalog product stored as a Marten document.
+/// Catalog product stored as an AeroDB document.
 /// Content type integration for product catalog.
 /// </summary>
 public sealed class ProductDocument : Entity

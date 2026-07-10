@@ -12,7 +12,7 @@ using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Core.Entities;
 using Aero.Core;
 using Aero.Modular;
-using Marten;
+using AeroDB;
 using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Modules.Services;
@@ -407,9 +407,9 @@ public sealed class SeedDatabaseService(
             {
                 var changed = new SiteDefaultNavMenuChanged(siteId, existingMenu.Id, UserId: null, DateTimeOffset.UtcNow);
                 if (settings is null)
-                    session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), changed);
+                    session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), new object[] { changed });
                 else
-                    session.Events.Append(NavMenuStreams.SiteSettings(siteId), changed);
+                    session.Events.Append(NavMenuStreams.SiteSettings(siteId), new object[] { changed });
             }
 
             return existingMenu.TranslationGroupId ?? existingMenu.Id;
@@ -429,17 +429,20 @@ public sealed class SeedDatabaseService(
 
         session.Events.StartStream(
             NavMenuStreams.Menu(navMenuId),
-            new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: navMenuId),
-            new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded starter navigation"),
-            new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded starter navigation"));
+            new object[]
+            {
+                new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: navMenuId),
+                new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded starter navigation"),
+                new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded starter navigation")
+            });
 
         if (settings?.DefaultNavMenuId is null)
         {
             var defaultChanged = new SiteDefaultNavMenuChanged(siteId, navMenuId, UserId: null, now);
             if (settings is null)
-                session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), defaultChanged);
+                session.Events.StartStream(NavMenuStreams.SiteSettings(siteId), new object[] { defaultChanged });
             else
-                session.Events.Append(NavMenuStreams.SiteSettings(siteId), defaultChanged);
+                session.Events.Append(NavMenuStreams.SiteSettings(siteId), new object[] { defaultChanged });
         }
 
         return navMenuId;
@@ -467,9 +470,9 @@ public sealed class SeedDatabaseService(
             {
                 var changed = new SiteDefaultFooterChanged(siteId, existingFooter.Id, UserId: null, DateTimeOffset.UtcNow);
                 if (settings is null)
-                    session.Events.StartStream(FooterStreams.SiteSettings(siteId), changed);
+                    session.Events.StartStream(FooterStreams.SiteSettings(siteId), new object[] { changed });
                 else
-                    session.Events.Append(FooterStreams.SiteSettings(siteId), changed);
+                    session.Events.Append(FooterStreams.SiteSettings(siteId), new object[] { changed });
             }
 
             return existingFooter.TranslationGroupId ?? existingFooter.Id;
@@ -536,17 +539,20 @@ public sealed class SeedDatabaseService(
 
         session.Events.StartStream(
             FooterStreams.Footer(footerId),
-            new FooterCreated(siteId, footerName, footerKey, "Default seeded site footer", UserId: null, now, Culture: culture, TranslationGroupId: footerId),
-            new FooterDraftSaved(siteId, footerName, footerKey, "Default seeded site footer", snapshot, UserId: null, now, "Seeded starter footer"),
-            new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded starter footer"));
+            new object[]
+            {
+                new FooterCreated(siteId, footerName, footerKey, "Default seeded site footer", UserId: null, now, Culture: culture, TranslationGroupId: footerId),
+                new FooterDraftSaved(siteId, footerName, footerKey, "Default seeded site footer", snapshot, UserId: null, now, "Seeded starter footer"),
+                new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded starter footer")
+            });
 
         if (settings?.DefaultFooterId is null)
         {
             var defaultChanged = new SiteDefaultFooterChanged(siteId, footerId, UserId: null, now);
             if (settings is null)
-                session.Events.StartStream(FooterStreams.SiteSettings(siteId), defaultChanged);
+                session.Events.StartStream(FooterStreams.SiteSettings(siteId), new object[] { defaultChanged });
             else
-                session.Events.Append(FooterStreams.SiteSettings(siteId), defaultChanged);
+                session.Events.Append(FooterStreams.SiteSettings(siteId), new object[] { defaultChanged });
         }
 
         return footerId;
@@ -640,9 +646,12 @@ public sealed class SeedDatabaseService(
 
         session.Events.StartStream(
             NavMenuStreams.Menu(navMenuId),
-            new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
-            new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded es-MX starter navigation"),
-            new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter navigation"));
+            new object[]
+            {
+                new NavMenuCreated(siteId, navMenuName, navMenuKey, UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
+                new NavMenuDraftSaved(siteId, navMenuName, navMenuKey, snapshot, UserId: null, now, "Seeded es-MX starter navigation"),
+                new NavMenuPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter navigation")
+            });
     }
 
     private async Task SeedSpanishMexicoFooterAsync(
@@ -715,9 +724,12 @@ public sealed class SeedDatabaseService(
 
         session.Events.StartStream(
             FooterStreams.Footer(footerId),
-            new FooterCreated(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
-            new FooterDraftSaved(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", snapshot, UserId: null, now, "Seeded es-MX starter footer"),
-            new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter footer"));
+            new object[]
+            {
+                new FooterCreated(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", UserId: null, now, Culture: culture, TranslationGroupId: TranslationGroupId),
+                new FooterDraftSaved(siteId, footerName, footerKey, "Pie del sitio inicial en es-MX", snapshot, UserId: null, now, "Seeded es-MX starter footer"),
+                new FooterPublished(siteId, snapshot, UserId: null, now, "Seeded es-MX starter footer")
+            });
     }
 
     private static NavMenuSnapshot BuildSeedNavMenuSnapshot(IReadOnlyList<INavMenuComponent> components)
@@ -990,7 +1002,7 @@ public sealed class SeedDatabaseService(
             Title = Normalize(request.HomepageTitle),
             Summary = homepageSummary,
             SeoTitle = $"{Normalize(request.HomepageTitle)} | {Normalize(request.SiteName)}",
-            SeoDescription = $"Welcome to {Normalize(request.SiteName)}. A modern CMS built on .NET 10, Marten, and Microsoft Orleans.",
+            SeoDescription = $"Welcome to {Normalize(request.SiteName)}. A modern CMS built on .NET 10, AeroDB, and Microsoft Orleans.",
             PublicationState = ContentPublicationState.Published
         };
     }
@@ -1020,7 +1032,7 @@ public sealed class SeedDatabaseService(
                                 "The Power Core" +
                             "</h3>" +
                             "<p class='text-slate-600 leading-relaxed font-medium'>" +
-                                "Built on <strong>.NET 10</strong>, <strong>Marten</strong>, and <strong>PostgreSQL</strong>, we provide a sophisticated " +
+                                "Built on <strong>.NET 10</strong>, <strong>AeroDB</strong>, and <strong>PostgreSQL</strong>, we provide a sophisticated " +
                                 "document-database experience with the reliability of a relational backend. <strong>Wolverine</strong> and " +
                                 "<strong>LavinMQ</strong> handle our high-performance messaging, while <strong>S3 compatible storage</strong> " +
                                 "ensures your assets are served globally at scale." +
@@ -1041,7 +1053,7 @@ public sealed class SeedDatabaseService(
                 "</div>"),
             SeededPageCompositionFactory.CreateGridTwoColumnSection(
                 "Performance First",
-                "Built on .NET 10 with Native AOT compilation, achieving sub-millisecond cold starts. MartenDB provides document flexibility with PostgreSQL reliability.",
+                "Built on .NET 10 with Native AOT compilation, achieving sub-millisecond cold starts. AeroDB provides document flexibility with PostgreSQL reliability.",
                 "Developer Experience",
                 "HTMX, Alpine.js, and Blazor components with a type-safe TypeScript layer. Source generators eliminate boilerplate and power the block rendering pipeline.")
         ];
@@ -1473,7 +1485,7 @@ public sealed class SeedDatabaseService(
                 $"{H}pexels-34077030.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "behind-the-scenes-building-a-content-management-system", "Behind the Scenes: Building a Content Management System",
                 "A deep dive into the technical decisions that power our content platform.",
-                "# Behind the Scenes: Building a Content Management System\n\nCreating a CMS from scratch is both exhilarating and challenging. In this post, we're pulling back the curtain on the architectural decisions that shape our platform.\n\nWe chose **.NET 10** for its performance and robust ecosystem. **MartenDB** provides the document storage layer, giving us flexibility in our schema while maintaining query performance. The block-based content model allows for rich, modular layouts.\n\nThe result is a system that's fast, flexible, and fun to use. Stay tuned for more technical deep dives.\n\n> The best systems are those that disappear, letting creators focus on what matters&#8212;creating.\n\n&#8212; Our Team",
+                "# Behind the Scenes: Building a Content Management System\n\nCreating a CMS from scratch is both exhilarating and challenging. In this post, we're pulling back the curtain on the architectural decisions that shape our platform.\n\nWe chose **.NET 10** for its performance and robust ecosystem. **AeroDB** provides the document storage layer, giving us flexibility in our schema while maintaining query performance. The block-based content model allows for rich, modular layouts.\n\nThe result is a system that's fast, flexible, and fun to use. Stay tuned for more technical deep dives.\n\n> The best systems are those that disappear, letting creators focus on what matters&#8212;creating.\n\n&#8212; Our Team",
                 [tagMap["architecture"], tagMap["cms"], tagMap[".net"]],
                 $"{H}pexels-27254940.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "design-principles-for-modern-web-platforms", "Design Principles for Modern Web Platforms",
@@ -1493,7 +1505,7 @@ public sealed class SeedDatabaseService(
                 $"{H}pexels-36391026.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "scaling-postgres-for-high-traffic", "Scaling Postgres for High Traffic",
                 "Lessons learned from optimizing our database layer for performance.",
-                "# Scaling Postgres for High Traffic\n\nPostgreSQL is remarkably capable, but pushing it to its limits requires thoughtfulness. Here's how we handle traffic spikes without breaking a sweat.\n\n**Indexing is everything.** Every query was analyzed and optimized. We use covering indexes for read-heavy paths, partial indexes for filtered queries, and GIN indexes for full-text search. The difference in performance is night and day.\n\n**Connection pooling is essential.** With Marten's pooling built-in, we reuse connections efficiently, avoiding the overhead of establishing new connections for each request.\n\n**And always, always monitor.** Query stats, connection counts, cache hit ratios&#8212;know your system's vital signs before problems arise.\n\n> Premature optimization is the root of all evil. But so is ignoring performance until it bites you.",
+                "# Scaling Postgres for High Traffic\n\nPostgreSQL is remarkably capable, but pushing it to its limits requires thoughtfulness. Here's how we handle traffic spikes without breaking a sweat.\n\n**Indexing is everything.** Every query was analyzed and optimized. We use covering indexes for read-heavy paths, partial indexes for filtered queries, and GIN indexes for full-text search. The difference in performance is night and day.\n\n**Connection pooling is essential.** With AeroDB's pooling built-in, we reuse connections efficiently, avoiding the overhead of establishing new connections for each request.\n\n**And always, always monitor.** Query stats, connection counts, cache hit ratios&#8212;know your system's vital signs before problems arise.\n\n> Premature optimization is the root of all evil. But so is ignoring performance until it bites you.",
                 [tagMap["postgresql"], tagMap["performance"], tagMap["database"]],
                 $"{H}pexels-34043108.jpg", random.Next(1, 1001)),
             BuildPost(Snowflake.NewId(), "embracing-blazor-and-htmx", "Embracing Blazor and HTMX for Interactive UIs",

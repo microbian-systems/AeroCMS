@@ -87,11 +87,12 @@ $libProjects = @(
     "$RepoRoot/src/Aero.Cms.Services"
     "$RepoRoot/src/Aero.Cms.Shared"
     "$RepoRoot/src/Aero.Cms.Shared.Models"
+    "$RepoRoot/src/Aero.Cms.Web.Client"
     "$RepoRoot/src/Aero.Cms.Web.Bootstrap"
     "$RepoRoot/src/Aero.Cms.Web.Core"
     "$RepoRoot/src/Aero.Cms.Ui.Hyper"
     "$RepoRoot/src/Aero.Cms.Ui.Neo"
-    "$RepoRoot/src/Aero.Cms.ServiceDefaults"
+
     "$RepoRoot/src/Aero.AppServer"
 )
 

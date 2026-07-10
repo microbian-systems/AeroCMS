@@ -46,7 +46,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page.PublicationState != ContentPublicationState.Draft)
                 return AeroError.ConflictError("Only draft pages can be submitted for review.");
 
-            _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.InReview));
+            _session.Events.Append($"page-{pageId}", new object[] { new PageStateChanged(ContentPublicationState.InReview) });
             await _session.SaveChangesAsync(ct);
 
             _logger.LogInformation("Page {PageId} submitted for review", pageId);
@@ -71,7 +71,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page.PublicationState != ContentPublicationState.InReview)
                 return AeroError.ConflictError("Page must be in review to approve.");
 
-            _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.Published));
+            _session.Events.Append($"page-{pageId}", new object[] { new PageStateChanged(ContentPublicationState.Published) });
             await _session.SaveChangesAsync(ct);
 
             _logger.LogInformation("Page {PageId} approved by {Reviewer}", pageId, reviewerId);
@@ -96,7 +96,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
             if (page.PublicationState != ContentPublicationState.InReview)
                 return AeroError.ConflictError("Page must be in review to reject.");
 
-            _session.Events.Append($"page-{pageId}", new PageStateChanged(ContentPublicationState.Draft));
+            _session.Events.Append($"page-{pageId}", new object[] { new PageStateChanged(ContentPublicationState.Draft) });
             await _session.SaveChangesAsync(ct);
 
             _logger.LogInformation("Page {PageId} rejected by {Reviewer}", pageId, reviewerId);
@@ -136,7 +136,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
                 if (blockIds.Count > 0)
                 {
                     var blocks = await _session.Query<BlockBase>()
-                        .Where(b => b.Id.IsOneOf(blockIds.ToArray()))
+                        .Where(b => blockIds.Contains(b.Id))
                         .ToListAsync(ct);
                     var blockDict = blocks
                         .Where(b => b is not null)
@@ -178,18 +178,18 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
                     BlockIdMap: page.BlockIdMap);
 
                 _session.Events.Append($"page-{pageId}",
-                    compositionPublished);
+                    new object[] { compositionPublished });
             }
             else
             {
                 legacyPublished = new PagePublished(PageId: pageId, Version: version, LayoutRegions: layoutRegions);
 
                 _session.Events.Append($"page-{pageId}",
-                    legacyPublished);
+                    new object[] { legacyPublished });
             }
 
             _session.Events.Append($"page-{pageId}",
-                stateChanged);
+                new object[] { stateChanged });
             await _session.SaveChangesAsync(ct);
 
             if (compositionPublished is not null)
@@ -228,7 +228,7 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
                 return AeroError.NotFoundError($"Page {pageId} not found.");
 
             var stateChanged = new PageStateChanged(ContentPublicationState.Archived);
-            _session.Events.Append($"page-{pageId}", stateChanged);
+            _session.Events.Append($"page-{pageId}", new object[] { stateChanged });
             await _session.SaveChangesAsync(ct);
 
             page.Apply(stateChanged);

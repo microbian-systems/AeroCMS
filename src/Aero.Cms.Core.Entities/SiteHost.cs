@@ -13,7 +13,7 @@ public class SiteHost : Entity
 
     /// <summary>
     /// The normalized host/domain string (e.g. "example.com").
-    /// Must be globally unique — enforced by a Marten unique index.
+    /// Must be globally unique — enforced by an AeroDB unique index.
     /// </summary>
     public string Host { get; set; } = null!;
 

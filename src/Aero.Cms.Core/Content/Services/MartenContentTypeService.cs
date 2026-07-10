@@ -4,11 +4,11 @@ using Aero.Cms.Abstractions.Content;
 using Aero.Cms.Core.Blocks.Dynamic;
 using Aero.Core;
 using Aero.Core.Railway;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Core.Content.Services;
 
-public sealed class MartenContentTypeService(
+public sealed class AeroContentTypeService(
     IDocumentSession session,
     IEnumerable<IFieldTemplateSnippet> snippets,
     DynamicTemplateValidator templateValidator) : IContentTypeService

@@ -1,7 +1,6 @@
 using Aero.Cms.Modules.Footer.Domain;
 using Aero.Cms.Modules.Footer.Events;
-using JasperFx.Events;
-using Marten.Events.Projections;
+using AeroDB;
 
 namespace Aero.Cms.Modules.Footer.Projections;
 
@@ -9,7 +8,7 @@ public sealed class FooterDocumentProjection : IProjection
 {
     public void Apply(IDocumentOperations operations, IReadOnlyList<IEvent> events)
     {
-        foreach (var group in FooterEvents(events).GroupBy(e => e.StreamKey!))
+        foreach (var group in FooterEvents(events).GroupBy(e => e.StreamId.Value!))
         {
             ApplyStreamSync(operations, group);
         }
@@ -17,14 +16,14 @@ public sealed class FooterDocumentProjection : IProjection
 
     public async Task ApplyAsync(IDocumentOperations operations, IReadOnlyList<IEvent> events, CancellationToken ct)
     {
-        foreach (var group in FooterEvents(events).GroupBy(e => e.StreamKey!))
+        foreach (var group in FooterEvents(events).GroupBy(e => e.StreamId.Value!))
         {
             await ApplyStreamAsync(operations, group, ct);
         }
     }
 
     private static IEnumerable<IEvent> FooterEvents(IEnumerable<IEvent> events)
-        => events.Where(e => FooterStreams.IsFooterStream(e.StreamKey));
+        => events.Where(e => FooterStreams.IsFooterStream(e.StreamId.Value));
 
     private static void ApplyStreamSync(IDocumentOperations operations, IGrouping<string, IEvent> streamEvents)
     {
@@ -45,7 +44,7 @@ public sealed class FooterDocumentProjection : IProjection
     private static async Task ApplyStreamAsync(IDocumentOperations operations, IGrouping<string, IEvent> streamEvents, CancellationToken ct)
     {
         var id = FooterStreams.ExtractFooterId(streamEvents.Key);
-        var aggregate = await operations.LoadAsync<FooterDocument>(id, ct);
+        var aggregate = await ((IQuerySession)operations).LoadAsync<FooterDocument>(id, ct);
 
         foreach (var @event in streamEvents)
         {

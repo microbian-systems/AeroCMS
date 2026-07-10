@@ -1,9 +1,18 @@
+using System.Linq.Expressions;
 using Aero.Cms.Modules.Commerce.Basket.Models;
 
 namespace Aero.Cms.Modules.Commerce.Basket.Services;
 
-public interface IBasketService : IGenericMartenRepository<BasketDocument>
+public interface IBasketService
 {
+    Task<Result<BasketDocument?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<BasketDocument>, AeroError>> GetAllAsync(CancellationToken ct = default);
+    Task<Result<IReadOnlyList<BasketDocument>, AeroError>> FindAsync(Expression<Func<BasketDocument, bool>> predicate, CancellationToken ct = default);
+    Task<Result<BasketDocument, AeroError>> InsertAsync(BasketDocument entity, CancellationToken ct = default);
+    Task<Result<BasketDocument, AeroError>> UpdateAsync(BasketDocument entity, CancellationToken ct = default);
+    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+    Task<Result<long, AeroError>> CountAsync(CancellationToken ct = default);
+
     /// <summary>
     /// Gets the basket for a customer, creating one if it doesn't exist.
     /// </summary>

@@ -1,7 +1,7 @@
 namespace Aero.Cms.Modules.Commerce.Basket.Models;
 
 /// <summary>
-/// Shopping cart stored as a Marten document.
+/// Shopping cart stored as an AeroDB document.
 /// One basket per customer — keyed by customer identity ID.
 /// </summary>
 public sealed class BasketDocument : Entity

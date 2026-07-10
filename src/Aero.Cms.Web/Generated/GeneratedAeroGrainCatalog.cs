@@ -43,7 +43,7 @@ public static class GeneratedAeroGrainCatalog
         //   Aero.Cms.Modules.Pages       — AeroPageGrain
         //   Aero.Cms.Modules.Settings    — AeroSettingGrain
         //
-        // Excluded by design: Identity/Users (EF Core, not Marten)
+        // Excluded by design: Identity/Users (EF Core, not AeroDB)
         // Skipped: AeroThemeGrain — Theme module has no persistence logic to port;
         //          API endpoints are TODO stubs, ThemeService enumerates loaded modules.
         //

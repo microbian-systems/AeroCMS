@@ -212,15 +212,15 @@ public static class ModuleOrchestrationExtensions
             services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(IContentDefinitionModule), descriptor.ModuleType));
         }
 
-        // Automatically register Marten configuration if implemented by the module
-        if (descriptor.IsMartenConfigurator || typeof(global::Marten.IConfigureMarten).IsAssignableFrom(descriptor.ModuleType))
+        // Automatically register AeroDB configuration if implemented by the module
+        if (descriptor.IsAeroDbConfigurator || typeof(global::AeroDB.IConfigureAeroDB).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::Marten.IConfigureMarten), descriptor.ModuleType));
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::AeroDB.IConfigureAeroDB), descriptor.ModuleType));
         }
 
-        if (descriptor.IsAsyncMartenConfigurator || typeof(global::Marten.IAsyncConfigureMarten).IsAssignableFrom(descriptor.ModuleType))
+        if (descriptor.IsAsyncAeroDbConfigurator || typeof(global::AeroDB.IAsyncConfigureAeroDB).IsAssignableFrom(descriptor.ModuleType))
         {
-            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::Marten.IAsyncConfigureMarten), descriptor.ModuleType));
+            services.TryAddEnumerable(ServiceDescriptor.Singleton(typeof(global::AeroDB.IAsyncConfigureAeroDB), descriptor.ModuleType));
         }
     }
 }

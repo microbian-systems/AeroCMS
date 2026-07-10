@@ -14,7 +14,7 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Media;
 
 [Module(nameof(MediaModule))]
-public class MediaModule : AeroWebModule, IConfigureMarten
+public class MediaModule : AeroWebModule, IConfigureAeroDB
 {
     public override string Name => nameof(MediaModule);
     public override string Version => AeroConstants.Version;
@@ -23,12 +23,9 @@ public class MediaModule : AeroWebModule, IConfigureMarten
     public override IReadOnlyList<string> Category => ["content", "media"];
     public override IReadOnlyList<string> Tags => ["media", "assets", "cms"];
 
-    public override void Configure(IServiceProvider services, StoreOptions options)
+    public void Configure(StoreOptions options)
     {
-        base.Configure(services, options);
-
         options.Schema.For<MediaAsset>()
-            .DocumentAlias(Schemas.Tables.Media)
             .Identity(x => x.Id)
             .Index(x => x.SiteId)
             .Index(x => x.FileName)
@@ -36,8 +33,11 @@ public class MediaModule : AeroWebModule, IConfigureMarten
             .Index(x => x.ParentId)
             .Index(x => x.IsFolder)
             .Index(x => x.MimeType);
-        
-        base.Configure<MediaAsset>(services, options);
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions options)
+    {
+        Configure(options);
     }
 
     public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)

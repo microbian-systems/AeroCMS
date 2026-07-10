@@ -4,7 +4,7 @@ using Aero.Auth.Services;
 namespace Aero.Cms.Core.Entities;
 
 /// <summary>
-/// Represents a persisted API key document in Marten.
+/// Represents a persisted API key document in AeroDB.
 /// </summary>
 public sealed class ApiKeyDocument : Entity
 {

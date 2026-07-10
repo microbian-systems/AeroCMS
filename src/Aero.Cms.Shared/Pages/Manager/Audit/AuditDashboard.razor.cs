@@ -6,7 +6,7 @@ namespace Aero.Cms.Shared.Pages.Manager.Audit;
 
 /// <summary>
 /// Manager audit dashboard — displays a global activity feed from the
-/// Marten event store (<c>mt_events</c>).  Filters by entity type and
+/// AeroDB event store (<c>mt_events</c>).  Filters by entity type and
 /// date range.  Per-document history is available in the respective
 /// editors (version history panel).
 /// </summary>

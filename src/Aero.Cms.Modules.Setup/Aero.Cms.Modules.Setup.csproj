@@ -9,7 +9,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Marten" />
     <PackageReference Include="Microsoft.TypeScript.MSBuild">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -43,6 +42,10 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\Aero.AppServer\Aero.AppServer.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
   </ItemGroup>
 
 </Project>

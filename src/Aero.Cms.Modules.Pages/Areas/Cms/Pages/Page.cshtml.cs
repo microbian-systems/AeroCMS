@@ -11,7 +11,7 @@ using Aero.Core.Http;
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Shared.Blocks.Rendering;
-using Marten;
+using AeroDB;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -161,7 +161,7 @@ public class DynamicPageModel(
 
         if (compositionId is { } id)
         {
-            await using var session = documentStore.QuerySession();
+            await using var session = await documentStore.QuerySessionAsync();
             var composition = await session.LoadAsync<PageCompositionDocument>(id, cancellationToken);
 
             if (composition is not null)

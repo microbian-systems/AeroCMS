@@ -6,7 +6,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Marten" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Scrutor.AspNetCore" />
@@ -17,7 +16,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
@@ -25,6 +23,10 @@
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Modules\Aero.Cms.Modules.Modules.csproj" />
     <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
   </ItemGroup>
 
 </Project>

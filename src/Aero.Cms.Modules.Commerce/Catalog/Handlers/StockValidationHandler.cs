@@ -1,4 +1,5 @@
 using Aero.Cms.Modules.Commerce.Catalog.Events;
+using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Cms.Modules.Commerce.Catalog.Services;
 using Aero.Cms.Modules.Commerce.Orders.Events;
 using Aero.Cms.Modules.Commerce.Orders.Services;
@@ -30,7 +31,8 @@ public sealed class StockValidationHandler(
 
             foreach (var item in order.Items)
             {
-                var product = await productService.FindByIdAsync(item.ProductId);
+                var productResult = await productService.GetByIdAsync(item.ProductId);
+                var product = productResult is Result<ProductDocument?, AeroError>.Ok ok ? ok.Value : null;
                 if (product is null || product.StockQuantity < item.Quantity)
                 {
                     outOfStock.Add(item.ProductId);

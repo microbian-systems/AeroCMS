@@ -119,8 +119,8 @@ public class AeroCmsDB(IDocumentSession sesh, ILogger<AeroCmsDB> log)
     {
         var exists = await session.Query<T>()
             .Take(1)
-            .AnyAsync(predicate)
-           ;
+            .Where(predicate)
+            .AnyAsync();
         return exists;
     }
 

@@ -24,7 +24,7 @@ public interface IBlockService
     ///     await blockService.GetByIdAsync(id, ct); // 20 separate DB queries
     /// </code>
     /// 
-    /// Fix — single batch call with the same Marten LoadManyAsync under the hood:
+    /// Fix — single batch call with the same AeroDB LoadManyAsync under the hood:
     /// <code>
     /// var blocks = await blockService.GetByIdsAsync(blockIds, ct); // 1 DB query
     /// </code>
@@ -42,7 +42,7 @@ public interface IBlockService
     /// (callers should fall back to null/placeholder logic per block).
     /// </returns>
     /// <remarks>
-    /// Uses Marten's <c>LoadManyAsync</c> which issues a single <c>WHERE Id IN (...)</c>
+    /// Uses AeroDB's <c>LoadManyAsync</c> which issues a single <c>WHERE Id IN (...)</c>
     /// query to PostgreSQL. This eliminates N+1 round-trips during page rendering
     /// where all block placements on a page are resolved together.
     ///

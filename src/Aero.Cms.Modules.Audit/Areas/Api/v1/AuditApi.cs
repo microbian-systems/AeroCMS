@@ -3,7 +3,7 @@ using Aero.Cms.Abstractions.Http.Clients;
 namespace Aero.Cms.Modules.Audit.Areas.Api.v1;
 
 /// <summary>
-/// Admin API for the global audit feed. Queries the Marten event store
+/// Admin API for the global audit feed. Queries the AeroDB event store
 /// (<c>mt_events</c>) across all streams to produce a unified activity
 /// timeline.  Per-document version history is handled separately via
 /// <c>GET /admin/pages/{id}/events</c> (see <see cref="PagesApi"/>).
@@ -31,7 +31,7 @@ public static class AuditApi
         var logger = loggerFactory.CreateLogger(typeof(AuditApi));
         try
         {
-            IQueryable<JasperFx.Events.IEvent> query = session.Events.QueryAllRawEvents();
+            var query = session.Events.QueryAllRawEvents();
 
             if (from.HasValue)
                 query = query.Where(e => e.Timestamp >= from.Value);
@@ -47,7 +47,7 @@ public static class AuditApi
                     "blogpost" or "blog" => "blog-",
                     _ => type.ToLowerInvariant() + "-"
                 };
-                query = query.Where(e => e.StreamKey!.StartsWith(prefix));
+                query = query.Where(e => e.StreamId.Value!.StartsWith(prefix));
             }
 
             var events = await query
@@ -56,11 +56,11 @@ public static class AuditApi
                 .ToListAsync(ct);
 
             var feed = events.Select(e => new AuditFeedItem(
-                StreamKey: e.StreamKey ?? "unknown",
-                EventType: e.EventTypeName ?? "Unknown",
+                StreamKey: e.StreamId.Value ?? "unknown",
+                EventType: e.EventType.Name ?? "Unknown",
                 Version: e.Version,
                 Timestamp: e.Timestamp.UtcDateTime,
-                IsArchived: e.IsArchived
+                IsArchived: e.Data.GetType().Name.EndsWith("Archived")
             )).ToList();
 
             return TypedResults.Ok(new AuditFeedResult(

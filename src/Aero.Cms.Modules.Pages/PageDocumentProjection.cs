@@ -1,12 +1,11 @@
 using Aero.Cms.Abstractions.Events;
-using JasperFx.Events;
-using Marten.Events.Projections;
+using AeroDB;
 
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
 /// Custom IProjection for <see cref="PageDocument"/> that works with <c>long</c> (Snowflake)
-/// stream identities.  Marten's built-in <c>SingleStreamProjection&lt;T, TId&gt;</c> only
+/// stream identities.  AeroDB's built-in <c>SingleStreamProjection&lt;T, TId&gt;</c> only
 /// supports <c>string</c> or <c>Guid</c> as TId, so we implement the low-level
 /// <see cref="IProjection"/> interface directly.
 /// </summary>
@@ -18,7 +17,7 @@ public sealed class PageDocumentProjection : IProjection
         IDocumentOperations operations,
         IReadOnlyList<IEvent> events)
     {
-        foreach (var group in PageEvents(events).GroupBy(e => e.StreamKey!))
+        foreach (var group in PageEvents(events).GroupBy(e => e.StreamId.Value!))
         {
             ApplyStreamSync(operations, group);
         }
@@ -31,7 +30,7 @@ public sealed class PageDocumentProjection : IProjection
         IReadOnlyList<IEvent> events,
         CancellationToken ct)
     {
-        foreach (var group in PageEvents(events).GroupBy(e => e.StreamKey!))
+        foreach (var group in PageEvents(events).GroupBy(e => e.StreamId.Value!))
         {
             await ApplyStreamAsync(operations, group, ct);
         }
@@ -84,7 +83,7 @@ public sealed class PageDocumentProjection : IProjection
 
         // Async mode: load the existing aggregate so we apply new events
         // on top of the current persisted state.
-        var aggregate = await operations.LoadAsync<PageDocument>(id, ct);
+        var aggregate = await ((IQuerySession)operations).LoadAsync<PageDocument>(id, ct);
 
         foreach (var @event in streamEvents)
         {

@@ -1,5 +1,5 @@
 using Aero.Cms.Core.Entities;
-using Marten;
+using AeroDB;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ZiggyCreatures.Caching.Fusion;
@@ -7,7 +7,7 @@ using ZiggyCreatures.Caching.Fusion;
 namespace Aero.Cms.Modules.SiteMap;
 
 /// <summary>
-/// Marten document session listener that invalidates the site-scoped sitemap cache
+/// AeroDB document session listener that invalidates the site-scoped sitemap cache
 /// whenever content documents are created, updated, or deleted.
 /// </summary>
 public sealed class SitemapCacheListener : DocumentSessionListenerBase

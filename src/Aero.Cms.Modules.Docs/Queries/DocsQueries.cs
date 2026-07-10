@@ -1,7 +1,6 @@
 using System.Linq.Expressions;
 using Aero.Cms.Abstractions.Enums;
-using Marten;
-using Marten.Linq;
+using AeroDB;
 
 namespace Aero.Cms.Modules.Docs.Queries;
 
@@ -12,7 +11,7 @@ public sealed class DocsPublishedBySiteIdQuery : ICompiledQuery<DocsPage, IEnume
 {
     public required long SiteId { get; set; }
 
-    public Expression<Func<IMartenQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
         => q => q
             .Where(x => x.SiteId == SiteId
                      && x.PublicationState == ContentPublicationState.Published)
@@ -28,7 +27,7 @@ public sealed class DocsPublishedBySiteIdPagedQuery : ICompiledQuery<DocsPage, I
     public int Skip { get; set; }
     public int Take { get; set; } = 10;
 
-    public Expression<Func<IMartenQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
         => q => q
             .Where(x => x.SiteId == SiteId
                      && x.PublicationState == ContentPublicationState.Published)
@@ -44,7 +43,7 @@ public sealed class DocsPublishedCountBySiteIdQuery : ICompiledQuery<DocsPage, l
 {
     public required long SiteId { get; set; }
 
-    public Expression<Func<IMartenQueryable<DocsPage>, long>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<DocsPage>, long>> QueryIs()
         => q => q
             .Where(x => x.SiteId == SiteId
                      && x.PublicationState == ContentPublicationState.Published)
@@ -59,7 +58,7 @@ public sealed class DocsPublishedBySlugQuery : ICompiledQuery<DocsPage, DocsPage
     public required long SiteId { get; set; }
     public required string Slug { get; set; }
 
-    public Expression<Func<IMartenQueryable<DocsPage>, DocsPage?>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<DocsPage>, DocsPage?>> QueryIs()
         => q => q.FirstOrDefault(x =>
             x.SiteId == SiteId
             && x.Slug == Slug

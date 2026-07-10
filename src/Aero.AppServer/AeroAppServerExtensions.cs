@@ -1,7 +1,9 @@
 using Aero.Core.Logging;
 using Aero.AppServer.Startup;
 using Aero.Secrets;
-using Aero.Marten.Extensions;
+using Aero.Core.Identity;
+using Aero.Models.Entities;
+using AeroDB;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,7 +22,7 @@ namespace Aero.AppServer;
 public static class AeroAppServerExtensions
 {
     /// <summary>
-    /// Adds Aero application server services (Orleans, Marten, TickerQ, Wolverine).
+    /// Adds Aero application server services (Orleans, AeroDB, TickerQ, Wolverine).
     /// Wolverine handler and grain assembly discovery are driven by source-generated
     /// catalogs passed as callbacks — no AppDomain assembly scanning is performed.
     /// </summary>
@@ -64,11 +66,6 @@ public static class AeroAppServerExtensions
         var resolved = resolver.Resolve();
         services.AddSingleton(resolved);
 
-        if (resolved.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddHostedService<AeroEmbeddedDbService>();
-        }
-
         if (resolved.CacheMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
         {
             services.AddHostedService<AeroCacheService>();
@@ -91,7 +88,20 @@ public static class AeroAppServerExtensions
             });
         });
 
-        services.ConfigureMartenDb(config, env, connString);
+        // Register AeroDB (SurrealDB) document store
+        services.AddAeroDB(opts =>
+        {
+            opts.Endpoint = "ws://localhost:8000/rpc";
+            opts.Namespace = "aero";
+            opts.Database = "aero";
+            opts.Username = "root";
+            opts.Password = "root";
+            // Schema configuration
+            opts.Schema.For<AeroRole>().Identity(x => x.Id);
+            opts.Schema.For<AeroUser>().Identity(x => x.Id);
+            // Enable event sourcing with string stream IDs
+            opts.Events.StreamIdentity = StreamIdentity.AsString;
+        });
 
         // Wolverine — handler discovery is driven by the source-generated
         // GeneratedWolverineHandlerCatalog callback, which disables conventional

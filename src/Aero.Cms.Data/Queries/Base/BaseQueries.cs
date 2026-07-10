@@ -1,21 +1,20 @@
 ﻿using Aero.Core.Entities;
-using Marten;
-using Marten.Linq;
+using AeroDB;
 using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries.Base;
 
 /// <summary>
 /// Compiled query to load a single document by its <c>long</c> identity.
-/// Uses <c>==</c> directly (not <c>IEquatable&lt;&gt;.Equals()</c>) so Marten's LINQ
+/// Uses <c>==</c> directly (not <c>IEquatable&lt;&gt;.Equals()</c>) so AeroDB's LINQ
 /// provider can translate it to SQL.
 /// </summary>
 public class EntityByIdQuery<T> : ICompiledQuery<T, T?>
-    where T : IEntity<long>
+    where T : class, global::Aero.Core.Entities.IEntity<long>
 {
     public required long Id { get; set; }
 
-    public Expression<Func<IMartenQueryable<T>, T?>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<T>, T?>> QueryIs()
     {
         return q => q.FirstOrDefault(x => x.Id == Id);
     }
@@ -23,35 +22,35 @@ public class EntityByIdQuery<T> : ICompiledQuery<T, T?>
 
 /// <summary>
 /// Compiled query to load documents by a <c>long</c> identity (returns a list).
-/// Uses <c>==</c> for Marten-compatible SQL translation.
+/// Uses <c>==</c> for AeroDB-compatible SQL translation.
 /// </summary>
 public abstract class EntityByIdQueryList<T> : ICompiledQuery<T, IList<T>>
-    where T : notnull, IEntity<long>
+    where T : class, global::Aero.Core.Entities.IEntity<long>
 {
     public long Id { get; set; }
 
-    public Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.Id == Id).ToList();
     }
 }
 
 public class EntitiesByIdsQuery<T> : EntitiesByIdsQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public class EntitiesByIdsQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : IEntity<TKey>
+    where T : class, global::Aero.Core.Entities.IEntity<TKey>
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
     public IEnumerable<TKey> Ids { get; init; } = [];
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
-        return q => q.Where(x => x.Id.In(Ids.ToArray())).ToList();
+        return q => q.Where(x => Ids.Contains(x.Id)).ToList();
     }
 }
 
 public abstract class EntitiesByCreatedByQuery<T> : EntitiesByCreatedByQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesByCreatedByQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -59,14 +58,14 @@ public abstract class EntitiesByCreatedByQuery<T, TKey> : ICompiledQuery<T, ILis
 {
     public required string CreatedBy { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.CreatedBy == CreatedBy).ToList();
     }
 }
 
 public abstract class EntitiesByModifiedByQuery<T> : EntitiesByModifiedByQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesByModifiedByQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -74,14 +73,14 @@ public abstract class EntitiesByModifiedByQuery<T, TKey> : ICompiledQuery<T, ILi
 {
     public required string ModifiedBy { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.ModifiedBy == ModifiedBy).ToList();
     }
 }
 
 public abstract class EntitiesCreatedInRangeQuery<T> : EntitiesCreatedInRangeQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesCreatedInRangeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -90,7 +89,7 @@ public abstract class EntitiesCreatedInRangeQuery<T, TKey> : ICompiledQuery<T, I
     public required DateTimeOffset From { get; set; }
     public required DateTimeOffset To { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.CreatedOn >= From && x.CreatedOn < To)
@@ -99,7 +98,7 @@ public abstract class EntitiesCreatedInRangeQuery<T, TKey> : ICompiledQuery<T, I
 }
 
 public abstract class EntitiesModifiedInRangeQuery<T> : EntitiesModifiedInRangeQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesModifiedInRangeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -108,7 +107,7 @@ public abstract class EntitiesModifiedInRangeQuery<T, TKey> : ICompiledQuery<T, 
     public required DateTimeOffset From { get; set; }
     public required DateTimeOffset To { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null &&
@@ -120,7 +119,7 @@ public abstract class EntitiesModifiedInRangeQuery<T, TKey> : ICompiledQuery<T, 
 
 
 public abstract class EntitiesCreatedSinceQuery<T> : EntitiesCreatedSinceQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesCreatedSinceQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -128,14 +127,14 @@ public abstract class EntitiesCreatedSinceQuery<T, TKey> : ICompiledQuery<T, ILi
 {
     public required DateTimeOffset Since { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.CreatedOn >= Since).ToList();
     }
 }
 
 public abstract class EntitiesCreatedBeforeQuery<T> : EntitiesCreatedBeforeQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesCreatedBeforeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -143,14 +142,14 @@ public abstract class EntitiesCreatedBeforeQuery<T, TKey> : ICompiledQuery<T, IL
 {
     public required DateTimeOffset Before { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q.Where(x => x.CreatedOn < Before).ToList();
     }
 }
 
 public abstract class EntitiesModifiedSinceQuery<T> : EntitiesModifiedSinceQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesModifiedSinceQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -158,7 +157,7 @@ public abstract class EntitiesModifiedSinceQuery<T, TKey> : ICompiledQuery<T, IL
 {
     public required DateTimeOffset Since { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null && x.ModifiedOn >= Since)
@@ -167,7 +166,7 @@ public abstract class EntitiesModifiedSinceQuery<T, TKey> : ICompiledQuery<T, IL
 }
 
 public abstract class EntitiesModifiedBeforeQuery<T> : EntitiesModifiedBeforeQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesModifiedBeforeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -175,7 +174,7 @@ public abstract class EntitiesModifiedBeforeQuery<T, TKey> : ICompiledQuery<T, I
 {
     public required DateTimeOffset Before { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null && x.ModifiedOn < Before)
@@ -184,7 +183,7 @@ public abstract class EntitiesModifiedBeforeQuery<T, TKey> : ICompiledQuery<T, I
 }
 
 public abstract class EntitiesByCreatedByInDateRangeQuery<T> : EntitiesByCreatedByInDateRangeQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesByCreatedByInDateRangeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -194,7 +193,7 @@ public abstract class EntitiesByCreatedByInDateRangeQuery<T, TKey> : ICompiledQu
     public required DateTimeOffset From { get; set; }
     public required DateTimeOffset To { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.CreatedBy == CreatedBy &&
@@ -205,7 +204,7 @@ public abstract class EntitiesByCreatedByInDateRangeQuery<T, TKey> : ICompiledQu
 }
 
 public abstract class EntitiesByModifiedByInDateRangeQuery<T> : EntitiesByModifiedByInDateRangeQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class EntitiesByModifiedByInDateRangeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
     where T : EntityBase<TKey>
@@ -215,7 +214,7 @@ public abstract class EntitiesByModifiedByInDateRangeQuery<T, TKey> : ICompiledQ
     public required DateTimeOffset From { get; set; }
     public required DateTimeOffset To { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null &&
@@ -228,7 +227,7 @@ public abstract class EntitiesByModifiedByInDateRangeQuery<T, TKey> : ICompiledQ
 
 
 public abstract class LatestCreatedByQuery<T> : LatestCreatedByQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class LatestCreatedByQuery<T, TKey> : ICompiledQuery<T, T?>
     where T : EntityBase<TKey>
@@ -236,7 +235,7 @@ public abstract class LatestCreatedByQuery<T, TKey> : ICompiledQuery<T, T?>
 {
     public required string CreatedBy { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, T?>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, T?>> QueryIs()
     {
         return q => q
             .Where(x => x.CreatedBy == CreatedBy)
@@ -246,7 +245,7 @@ public abstract class LatestCreatedByQuery<T, TKey> : ICompiledQuery<T, T?>
 }
 
 public abstract class LatestModifiedByQuery<T> : LatestModifiedByQuery<T, long>
-    where T : Entity;
+    where T : global::Aero.Core.Entities.Entity;
 
 public abstract class LatestModifiedByQuery<T, TKey> : ICompiledQuery<T, T?>
     where T : EntityBase<TKey>
@@ -254,7 +253,7 @@ public abstract class LatestModifiedByQuery<T, TKey> : ICompiledQuery<T, T?>
 {
     public required string ModifiedBy { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, T?>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, T?>> QueryIs()
     {
         return q => q
             .Where(x => x.ModifiedOn != null && x.ModifiedBy == ModifiedBy)
@@ -264,12 +263,12 @@ public abstract class LatestModifiedByQuery<T, TKey> : ICompiledQuery<T, T?>
 }
 
 public abstract class TouchedInRangeQuery<T> : ICompiledQuery<T, IList<T>>
-    where T : Entity
-{
+    where T : global::Aero.Core.Entities.Entity
+    {
     public required DateTimeOffset From { get; set; }
     public required DateTimeOffset To { get; set; }
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x =>
@@ -280,14 +279,14 @@ public abstract class TouchedInRangeQuery<T> : ICompiledQuery<T, IList<T>>
 }
 
 public abstract class EntitiesCreatedInRangePagedQuery<T> : ICompiledQuery<T, IList<T>>
-    where T : Entity
-{
+    where T : global::Aero.Core.Entities.Entity
+    {
     public required DateTimeOffset From { get; set; }
     public required DateTimeOffset To { get; set; }
     public int Skip { get; set; }
     public int Take { get; set; } = 50;
 
-    public virtual Expression<Func<IMartenQueryable<T>, IList<T>>> QueryIs()
+    public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
     {
         return q => q
             .Where(x => x.CreatedOn >= From && x.CreatedOn <= To)

@@ -5,7 +5,7 @@ using Aero.Cms.Core.Models;
 namespace Aero.Cms.Modules.Settings.Grains;
 
 /// <summary>
-/// Orleans grain for settings management — key-value store backed by Marten
+/// Orleans grain for settings management — key-value store backed by AeroDB
 /// <see cref="Setting"/> documents (keyed by string).
 /// </summary>
 public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
@@ -22,7 +22,7 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
 
     public async Task<List<SettingSummary>> GetAllAsync(CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var settings = await session.Query<Setting>()
             .OrderBy(x => x.Category)
             .ThenBy(x => x.Key)
@@ -33,14 +33,14 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
 
     public async Task<SettingDetail?> GetByKeyAsync(string key, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var s = await session.LoadAsync<Setting>(key, ct);
         return s is null ? null : ToDetail(s);
     }
 
     public async Task<List<SettingDetail>> GetByCategoryAsync(string category, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var settings = await session.Query<Setting>()
             .Where(x => x.Category == category)
             .OrderBy(x => x.Key)
@@ -51,7 +51,7 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
 
     public async Task<SettingDetail> SetAsync(string key, string value, string category = "General", string type = "string", CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var setting = await session.LoadAsync<Setting>(key, ct);
 
         if (setting is null)
@@ -72,7 +72,7 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
 
     public async Task<bool> DeleteAsync(string key, CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var setting = await session.LoadAsync<Setting>(key, ct);
 
         if (setting is null)
@@ -85,7 +85,7 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
 
     public async Task<List<SettingCategory>> GetCategoriesAsync(CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var settings = await session.Query<Setting>().ToListAsync(ct);
 
         return settings

@@ -38,8 +38,8 @@ public class ProductDetailModel : PageModel
     public async Task<IActionResult> OnPostAddToCartAsync(long productId)
     {
         var customerId = GetCustomerId();
-        var product = await _productService.FindByIdAsync(productId);
-        if (product is null) return NotFound();
+        var productResult = await _productService.GetByIdAsync(productId);
+        if (productResult is not Result<ProductDocument?, AeroError>.Ok(var product) || product is null) return NotFound();
 
         var item = new BasketItem
         {

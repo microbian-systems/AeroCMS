@@ -19,7 +19,7 @@ public sealed class PageEventArchiveJob(
     {
         var cutoff = DateTimeOffset.UtcNow.AddDays(-DefaultRetentionDays);
 
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
 
         var oldEvents = await session.Events
             .QueryAllRawEvents()
@@ -37,7 +37,7 @@ public sealed class PageEventArchiveJob(
 
         foreach (var e in oldEvents)
         {
-            session.Events.ArchiveStream(e.StreamKey ?? e.StreamId.ToString());
+            session.Events.ArchiveStream(e.StreamId.Value);
         }
 
         await session.SaveChangesAsync(cancellationToken);

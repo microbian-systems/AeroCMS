@@ -236,13 +236,13 @@ public class MartenSchemaCompositionTests
     }
 
     /// <summary>
-    /// Test IConfigureMarten that mimics DocsMartenConfiguration's schema contribution.
+    /// Test IConfigureMarten that mimics DocsAeroDbConfiguration's schema contribution.
     /// </summary>
     private sealed class TestMartenConfiguration : IConfigureMarten
     {
         public void Configure(IServiceProvider services, StoreOptions options)
         {
-            // Simulate a module adding a custom index (like DocsMartenConfiguration does)
+            // Simulate a module adding a custom index (like DocsAeroDbConfiguration does)
             // options.Schema.For<MarkdownPage>().Index(x => x.Slug);
         }
     }

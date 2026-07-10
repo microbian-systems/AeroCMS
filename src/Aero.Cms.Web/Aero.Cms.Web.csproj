@@ -15,7 +15,6 @@
     <PackageReference Include="Microsoft.Orleans.Server" />
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Scalar.AspNetCore.Microsoft" />
-    <PackageReference Include="WolverineFx.Marten" />
     <PackageReference Include="Boxed.AspNetCore" />
     <PackageReference Include="Htmx" />
     <PackageReference Include="Htmx.TagHelpers" />
@@ -250,7 +249,6 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core.Ai\Aero.Core.Ai.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.EfCore\Aero.EfCore.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Events\Aero.Events.csproj" />
-    <ProjectReference Include="..\..\Aero\src\Aero.Marten\Aero.Marten.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Models\Aero.Models.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Modular\Aero.Modular.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Services\Aero.Services.csproj" />
@@ -258,10 +256,11 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Social\Aero.Social.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Validators\Aero.Validators.csproj" />
     <ProjectReference Include="..\..\Aero\src\Aero.Web\Aero.Web.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB.AspNetIdentity\AeroDB.AspNetIdentity.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core.Entities\Aero.Cms.Core.Entities.csproj" />
     <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Data\Aero.Cms.Data.csproj" />
-    <ProjectReference Include="..\Aero.Cms.Marten.Identity\Aero.Cms.Marten.Identity.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.AiAssistant\Aero.Cms.Modules.AiAssistant.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Aliases\Aero.Cms.Modules.Aliases.csproj" />
 	  <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />

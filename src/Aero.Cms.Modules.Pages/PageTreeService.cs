@@ -216,7 +216,7 @@ public sealed class PageTreeService : IPageTreeService
             }
 
             // Append PageMoved event for version history (projection handles document update)
-            _session.Events.Append($"page-{pageId}", new PageMoved(newParentId, newPath, newDepth, order ?? 0));
+            _session.Events.Append($"page-{pageId}", new object[] { new PageMoved(newParentId, newPath, newDepth, order ?? 0) });
 
             // Update descendant paths directly (derived fields, not historical events)
             if (oldPath != newPath)
@@ -286,11 +286,12 @@ public sealed class PageTreeService : IPageTreeService
             // Check uniqueness: no OTHER sibling with same slug
             var exists = await _session
                 .Query<PageDocument>()
-                .AnyAsync(x => x.SiteId == siteId
+                .Where(x => x.SiteId == siteId
                     && x.ParentId == parentId
                     && x.Slug == slug
                     && x.Id != excludePageId
-                    && x.Deleted == false, ct);
+                    && x.Deleted == false)
+                .AnyAsync(ct);
 
             if (exists)
             {
@@ -318,7 +319,7 @@ public sealed class PageTreeService : IPageTreeService
                 .Where(x => x.SiteId == siteId && x.ParentId == parentId && !x.Deleted)
                 .MaxAsync(x => x.Order, ct);
 
-            return Prelude.Ok<int, AeroError>(maxOrder + 1);
+            return Prelude.Ok<int, AeroError>((int)maxOrder + 1);
         }
         catch (InvalidOperationException)
         {
@@ -388,3 +389,4 @@ public sealed class PageTreeService : IPageTreeService
 /// Raised when a page's slug or path changes. Handled by Alias + Sitemap modules via Wolverine.
 /// </summary>
 public sealed record PageSlugChanged(long PageId, string OldPath, string NewPath);
+

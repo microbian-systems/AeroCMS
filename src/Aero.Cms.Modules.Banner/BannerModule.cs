@@ -1,6 +1,6 @@
 ﻿using Aero.Cms.Core;
 using Aero.Modular;
-using Marten;
+using AeroDB;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 namespace Aero.Cms.Modules.Banner;
 
 [Module(nameof(BannerModule))]
-public class BannerModule : AeroModuleBase
+public class BannerModule : AeroModuleBase, IConfigureAeroDB
 {
     public override string Name => nameof(BannerModule);
 
@@ -31,10 +31,13 @@ public class BannerModule : AeroModuleBase
         services.AddScoped<IBannerService, BannerService>();
     }
 
-    // <inheritdoc />
-    public override void Configure(IServiceProvider services, StoreOptions options)
+    public void Configure(StoreOptions options)
     {
-        base.Configure(services, options);
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions options)
+    {
+        Configure(options);
     }
 
     // <inheritdoc />

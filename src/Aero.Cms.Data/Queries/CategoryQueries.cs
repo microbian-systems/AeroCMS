@@ -1,6 +1,6 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
-using Marten.Linq;
+using AeroDB;
 using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries;
@@ -14,7 +14,7 @@ public sealed class CategoriesByNameQuery : ICompiledQuery<CategoryModel, IList<
 {
     public required string Name { get; set; }
 
-    public Expression<Func<IMartenQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name == Name)
@@ -27,7 +27,7 @@ public sealed class CategoriesByNameContainsQuery : ICompiledQuery<CategoryModel
 {
     public required string Name { get; set; }
 
-    public Expression<Func<IMartenQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name != null && x.Name.Contains(Name))
@@ -40,7 +40,7 @@ public sealed class CategoryBySlugQuery : ICompiledQuery<CategoryModel, Category
 {
     public required string Slug { get; set; }
 
-    public Expression<Func<IMartenQueryable<CategoryModel>, CategoryModel?>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<CategoryModel>, CategoryModel?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.Slug == Slug);
@@ -51,7 +51,7 @@ public sealed class CategoriesByParentIdQuery : ICompiledQuery<CategoryModel, IL
 {
     public required long ParentCategoryId { get; set; }
 
-    public Expression<Func<IMartenQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.ParentCategoryId == ParentCategoryId)
@@ -62,7 +62,7 @@ public sealed class CategoriesByParentIdQuery : ICompiledQuery<CategoryModel, IL
 
 public sealed class RootCategoriesQuery : ICompiledQuery<CategoryModel, IList<CategoryModel>>
 {
-    public Expression<Func<IMartenQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
+    public Expression<Func<ISurrealDbQueryable<CategoryModel>, IList<CategoryModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.ParentCategoryId == null)

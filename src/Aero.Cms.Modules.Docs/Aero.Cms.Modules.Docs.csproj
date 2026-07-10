@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="Markdig" />
-    <PackageReference Include="Marten" />
     <PackageReference Include="WolverineFx" />
     <PackageReference Include="ZiggyCreatures.FusionCache" />
   </ItemGroup>
@@ -21,6 +20,10 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
   </ItemGroup>
 
   <ItemGroup>

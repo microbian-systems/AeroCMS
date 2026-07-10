@@ -11,7 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Marten" />
+    <ProjectReference Include="..\..\AeroDB\src\AeroDB\AeroDB.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="WolverineFx" />
     <PackageReference Include="ZiggyCreatures.FusionCache" />
   </ItemGroup>

@@ -1,9 +1,10 @@
 using Aero.Cms.Abstractions.Events;
+using AeroDB;
 
 namespace Aero.Cms.Modules.Pages;
 
 /// <summary>
-/// One-time migration that bootstraps Marten event streams for existing pages.
+/// One-time migration that bootstraps AeroDB event streams for existing pages.
 /// Pages created before event sourcing was enabled don't have event streams.
 /// This appends a synthetic PageCreated event to each page's stream so that
 /// the snapshot projection knows about them and the event history is complete.
@@ -24,8 +25,8 @@ public sealed class EventStreamBootstrapMigration
     /// </summary>
     public async Task<bool> IsMigrationNeededAsync(CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
-        await using var query = _store.QuerySession();
+        await using var session = await _store.LightweightSessionAsync();
+        await using var query = await _store.QuerySessionAsync();
 
         var totalPages = await query.Query<PageDocument>().CountAsync(ct);
         if (totalPages == 0) return false;
@@ -36,7 +37,7 @@ public sealed class EventStreamBootstrapMigration
 
         var streamExists = await session.Events
             .QueryAllRawEvents()
-            .AnyAsync(e => e.StreamKey == samplePage.Id.ToString(), ct);
+            .Where(e => e.StreamId.Value == samplePage.Id.ToString()).AnyAsync(ct);
 
         return !streamExists;
     }
@@ -50,8 +51,8 @@ public sealed class EventStreamBootstrapMigration
     {
         _logger.LogInformation("Starting event stream bootstrap migration...");
 
-        await using var session = _store.LightweightSession();
-        await using var query = _store.QuerySession();
+        await using var session = await _store.LightweightSessionAsync();
+        await using var query = await _store.QuerySessionAsync();
 
         var pages = await query.Query<PageDocument>().ToListAsync(ct);
         var count = 0;
@@ -64,7 +65,7 @@ public sealed class EventStreamBootstrapMigration
             // Check if stream already exists
             var streamExists = await session.Events
                 .QueryAllRawEvents()
-                .AnyAsync(e => e.StreamKey == streamId, ct);
+                .Where(e => e.StreamId.Value == streamId).AnyAsync(ct);
 
             if (streamExists)
             {
@@ -74,14 +75,14 @@ public sealed class EventStreamBootstrapMigration
 
             // Append a synthetic PageCreated event reflecting current state
             session.Events.StartStream($"page-{page.Id}",
-                new PageCreated(
+                new object[] { new PageCreated(
                     SiteId: page.SiteId,
                     Title: page.Title,
                     Slug: page.Slug,
                     ParentId: page.ParentId,
                     Order: page.Order,
                     PublicationState: page.PublicationState,
-                    Kind: page.Kind));
+                    Kind: page.Kind) });
 
             count++;
         }
@@ -96,3 +97,4 @@ public sealed class EventStreamBootstrapMigration
             count, skipped);
     }
 }
+

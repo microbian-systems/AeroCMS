@@ -1,7 +1,6 @@
 using Aero.Cms.Modules.Footer.Domain;
 using Aero.Cms.Modules.Footer.Events;
-using JasperFx.Events;
-using Marten.Events.Projections;
+using AeroDB;
 
 namespace Aero.Cms.Modules.Footer.Projections;
 
@@ -9,7 +8,7 @@ public sealed class SiteFooterSettingsProjection : IProjection
 {
     public void Apply(IDocumentOperations operations, IReadOnlyList<IEvent> events)
     {
-        foreach (var group in SiteSettingsEvents(events).GroupBy(e => e.StreamKey!))
+        foreach (var group in SiteSettingsEvents(events).GroupBy(e => e.StreamId.Value!))
         {
             ApplyStreamSync(operations, group);
         }
@@ -17,14 +16,14 @@ public sealed class SiteFooterSettingsProjection : IProjection
 
     public async Task ApplyAsync(IDocumentOperations operations, IReadOnlyList<IEvent> events, CancellationToken ct)
     {
-        foreach (var group in SiteSettingsEvents(events).GroupBy(e => e.StreamKey!))
+        foreach (var group in SiteSettingsEvents(events).GroupBy(e => e.StreamId.Value!))
         {
             await ApplyStreamAsync(operations, group, ct);
         }
     }
 
     private static IEnumerable<IEvent> SiteSettingsEvents(IEnumerable<IEvent> events)
-        => events.Where(e => FooterStreams.IsSiteSettingsStream(e.StreamKey));
+        => events.Where(e => FooterStreams.IsSiteSettingsStream(e.StreamId.Value));
 
     private static void ApplyStreamSync(IDocumentOperations operations, IGrouping<string, IEvent> streamEvents)
     {
@@ -45,7 +44,7 @@ public sealed class SiteFooterSettingsProjection : IProjection
     private static async Task ApplyStreamAsync(IDocumentOperations operations, IGrouping<string, IEvent> streamEvents, CancellationToken ct)
     {
         var siteId = FooterStreams.ExtractSiteId(streamEvents.Key);
-        var aggregate = await operations.LoadAsync<SiteFooterSettingsDocument>(siteId, ct);
+        var aggregate = await ((IQuerySession)operations).LoadAsync<SiteFooterSettingsDocument>(siteId, ct);
 
         foreach (var @event in streamEvents)
         {

@@ -28,7 +28,7 @@ public sealed class AeroSeriesGrain(
 
     public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var series = await session.LoadAsync<Models.Series>(id, ct);
         var translation = series is null
             ? null
@@ -41,7 +41,7 @@ public sealed class AeroSeriesGrain(
 
     public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var series = await session.Query<Models.Series>()
             .Where(x => ids.Contains(x.Id))
             .OrderBy(x => x.Name)
@@ -55,7 +55,7 @@ public sealed class AeroSeriesGrain(
         if (request is not ActorCreateSeriesRequest create)
             return Fail("Expected CreateSeriesRequest");
 
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var series = new Models.Series
         {
             Id = Snowflake.NewId(),
@@ -76,7 +76,7 @@ public sealed class AeroSeriesGrain(
         if (request is not ActorUpdateSeriesRequest update)
             return Fail("Expected UpdateSeriesRequest");
 
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var series = await session.LoadAsync<Models.Series>(update.Id, ct);
         if (series is null)
             return NotFound($"Series {update.Id} not found");
@@ -97,7 +97,7 @@ public sealed class AeroSeriesGrain(
         if (request is not ActorDeleteSeriesRequest delete)
             return Fail("Expected DeleteSeriesRequest");
 
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var series = await session.LoadAsync<Models.Series>(delete.Id, ct);
         if (series is null)
             return NotFound($"Series {delete.Id} not found");
@@ -110,7 +110,7 @@ public sealed class AeroSeriesGrain(
 
     public async Task<AeroRequestResponse<SeriesViewModel>> GetBySiteIdAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var series = await session.Query<Models.Series>()
             .Where(x => x.SiteId == siteId)
             .OrderBy(x => x.Name)
@@ -123,7 +123,7 @@ public sealed class AeroSeriesGrain(
 
     public async Task<AeroRequestResponse<SeriesViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
     {
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var series = await session.Query<Models.Series>()
             .Where(x => x.SiteId == siteId && x.Slug == slug)
             .FirstOrDefaultAsync(ct);
@@ -140,7 +140,7 @@ public sealed class AeroSeriesGrain(
 
     public async Task<List<SeriesViewModel>> GetAllAsync(CancellationToken ct = default)
     {
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var series = await session.Query<Models.Series>()
             .OrderBy(x => x.Name)
             .ToListAsync(ct);
@@ -150,7 +150,7 @@ public sealed class AeroSeriesGrain(
 
     public async Task<SeriesViewModel> EnsureGeneralAsync(long siteId, CancellationToken ct = default)
     {
-        await using var session = store.LightweightSession();
+        await using var session = await store.LightweightSessionAsync();
         var general = await session.Query<Models.Series>()
             .Where(x => x.SiteId == siteId && x.Slug == "general")
             .FirstOrDefaultAsync(ct);

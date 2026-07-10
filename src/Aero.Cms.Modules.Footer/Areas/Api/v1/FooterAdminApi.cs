@@ -301,13 +301,13 @@ public static class FooterAdminApi
 
     private static async Task<IResult> GetEvents(long id, IQuerySession querySession, CancellationToken cancellationToken)
     {
-        var events = await querySession.Events.FetchStreamAsync(FooterStreams.Footer(id), token: cancellationToken);
+        var events = await querySession.Events.FetchStreamAsync(FooterStreams.Footer(id), ct: cancellationToken);
         var history = events.Select(e => new FooterEventItem(
             e.Version,
             e.EventType.Name,
             e.Timestamp,
-            e.StreamKey ?? FooterStreams.Footer(id),
-            e.IsArchived)).ToList();
+            e.StreamId.Value ?? FooterStreams.Footer(id),
+            e.Data is FooterArchived)).ToList();
 
         return TypedResults.Ok(new FooterEventHistory(id, history.Count, history));
     }

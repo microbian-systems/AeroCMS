@@ -1,11 +1,11 @@
 ﻿using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries;
 using Aero.Cms.Data.Queries.Base;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Data.Repositories;
 
-public interface IAliasRepository : IMartenCompiledRepository<AliasDocument>
+public interface IAliasRepository : IAeroCompiledRepository<AliasDocument>
 {
     Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken cancellationToken = default);
     Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken cancellationToken = default);
@@ -17,7 +17,7 @@ public interface IAliasRepository : IMartenCompiledRepository<AliasDocument>
     Task<IList<AliasDocument>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
 }
 
-public sealed class AliasRepository : MartenCompiledRepository<AliasDocument>, IAliasRepository
+public sealed class AliasRepository : AeroCompiledRepository<AliasDocument>, IAliasRepository
 {
     public AliasRepository(IDocumentSession session) : base(session)
     {

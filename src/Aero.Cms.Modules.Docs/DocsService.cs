@@ -14,7 +14,7 @@ using static Aero.Core.Railway.Prelude;
 namespace Aero.Cms.Modules.Docs;
 
 /// <summary>
-/// Content service for docs — mirrors <see cref="Aero.Cms.Modules.Pages.MartenPageContentService"/>.
+/// Content service for docs — mirrors <see cref="Aero.Cms.Modules.Pages.AeroPageContentService"/>.
 /// Constructed per operation by <see cref="Grains.AeroDocsGrain"/> with
 /// an explicit <see cref="IDocumentSession"/> and <see cref="ISiteContext"/>.
 /// Also usable as a scoped service for Razor pages within the HTTP request scope.

@@ -6,11 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Aero.Auth.Services;
 using Aero.Modular;
+using AeroDB;
 
 namespace Aero.Cms.Modules.Security;
 
 [Module(nameof(SecurityModule))]
-public class SecurityModule : AeroModuleBase
+public class SecurityModule : AeroModuleBase, IConfigureAeroDB
 {
     public override string Name => nameof(SecurityModule);
     public override string Version => AeroConstants.Version;
@@ -45,9 +46,14 @@ public class SecurityModule : AeroModuleBase
         // Admin UI registration
     }
 
-    public override void Configure(IServiceProvider services, global::Marten.StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
         opts.Schema.For<ApiKeyDocument>().Index(x => x.SecretHash);
         opts.Schema.For<ApiKeyDocument>().Index(x => x.UserId);
+    }
+
+    public void Configure(IServiceProvider services, StoreOptions opts)
+    {
+        Configure(opts);
     }
 }

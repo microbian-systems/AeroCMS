@@ -12,7 +12,6 @@
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="LlmTornado" />
     <PackageReference Include="LlmTornado.Microsoft.Extensions.AI" />
-    <PackageReference Include="Marten" />
     <PackageReference Include="Microsoft.Agents.AI" />
   </ItemGroup>
 

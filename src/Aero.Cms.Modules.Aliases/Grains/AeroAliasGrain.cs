@@ -6,7 +6,7 @@ using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Aliases.Events;
 using Aero.Core;
-using Marten;
+using AeroDB;
 using Microsoft.Extensions.Logging;
 using Wolverine;
 using IRequest = Aero.Core.Commands.IRequest;
@@ -14,10 +14,10 @@ using IRequest = Aero.Core.Commands.IRequest;
 namespace Aero.Cms.Modules.Aliases.Grains;
 
 /// <summary>
-/// Orleans grain for alias management — wraps Marten persistence behind
+/// Orleans grain for alias management — wraps AeroDB persistence behind
 /// the <see cref="IAeroAliasActor"/> interface.
 ///
-/// Follows the Marten integration pattern: <see cref="IDocumentStore"/> as a
+/// Follows the AeroDB integration pattern: <see cref="IDocumentStore"/> as a
 /// singleton, lightweight session per operation. No <see cref="IDocumentSession"/>
 /// stored as grain state.
 ///
@@ -56,7 +56,7 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
 
     public async Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var doc = await session.LoadAsync<AliasDocument>(id, ct);
 
         return doc is not null
@@ -66,7 +66,7 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
 
     public async Task<AeroRequestResponse<AliasViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var docs = await session.Query<AliasDocument>()
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(ct);
@@ -80,7 +80,7 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
         if (request is not CreateAliasRequest create)
             return Fail("Expected CreateAliasRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
 
         var doc = new AliasDocument
         {
@@ -104,7 +104,7 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
         if (request is not UpdateAliasRequest update)
             return Fail("Expected UpdateAliasRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var doc = await session.LoadAsync<AliasDocument>(update.Id, ct);
 
         if (doc is null)
@@ -128,7 +128,7 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
         if (request is not DeleteAliasRequest delete)
             return Fail("Expected DeleteAliasRequest");
 
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
         var doc = await session.LoadAsync<AliasDocument>(delete.Id, ct);
 
         if (doc is null)
@@ -150,7 +150,7 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
         int rows = 10,
         CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
 
         var docs = await session.Query<AliasDocument>()
             .Where(x => x.SiteId == siteId)
@@ -178,7 +178,7 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
 
     private async Task<AeroRequestResponse<AliasViewModel>> GetBySlugCoreAsync(long siteId, string slug, CancellationToken ct)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
 
         var docs = await session.Query<AliasDocument>()
             .Where(x => x.SiteId == siteId && (x.OldPath == slug || x.NewPath == slug))
@@ -194,7 +194,7 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
         long? siteId = null,
         CancellationToken ct = default)
     {
-        await using var session = _store.LightweightSession();
+        await using var session = await _store.LightweightSessionAsync();
 
         IQueryable<AliasDocument> query = session.Query<AliasDocument>();
 

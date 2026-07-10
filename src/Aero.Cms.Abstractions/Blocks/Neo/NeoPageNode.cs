@@ -6,7 +6,7 @@ using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 /// A node in the Neo editor composition tree.
 /// Persisted inside <see cref="NeoCompositionBlock"/>.
 /// Uses <c>Dictionary&lt;string, JsonElement&gt;</c> for Properties (not <c>JsonObject</c>)
-/// for reliable Marten/STJ serialization across all configurations.
+/// for reliable AeroDB/STJ serialization across all configurations.
 /// </summary>
 public sealed class NeoPageNode
 {

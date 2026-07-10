@@ -1,12 +1,12 @@
 ﻿using Aero.Cms.Data.Queries.Base;
 using Aero.Core.Entities;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Data.Repositories;
 
 
-public interface IMartenCompiledRepository<T>
-    where T : IEntity<long>
+public interface IAeroCompiledRepository<T>
+    where T : global::Aero.Core.Entities.IEntity<long>
 {
     Task<T?> GetByIdAsync(long id, CancellationToken cancellationToken = default);
     Task<IList<T>> GetByIdsAsync(IEnumerable<long> ids, CancellationToken cancellationToken = default);
@@ -17,8 +17,8 @@ public interface IMartenCompiledRepository<T>
 }
 
 
-public abstract class MartenCompiledRepository<T>(IDocumentSession session) : IMartenCompiledRepository<T>
-    where T : Entity
+public abstract class AeroCompiledRepository<T>(IDocumentSession session) : IAeroCompiledRepository<T>
+    where T : global::Aero.Core.Entities.Entity
 {
     protected readonly IDocumentSession Session = session;
 

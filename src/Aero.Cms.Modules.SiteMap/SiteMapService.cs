@@ -8,7 +8,7 @@ using Aero.Cms.Modules.Pages;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
-using Marten;
+using AeroDB;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using static Aero.Core.Railway.Prelude;
@@ -268,7 +268,7 @@ public sealed class SiteMapService : ISiteMapService
             .Where(doc => doc.SiteId == _siteContext.SiteId
                        && doc.PublicationState == ContentPublicationState.Published
                        && doc.TranslationGroupId != null
-                       && doc.TranslationGroupId.IsOneOf(TranslationGroupIdValues))
+                       && TranslationGroupIdValues.Contains(doc.TranslationGroupId))
             .ToListAsync(ct);
 
         return variants
@@ -296,7 +296,7 @@ public sealed class SiteMapService : ISiteMapService
                      && !p.IsHidden
                      && !p.Deleted
                      && p.TranslationGroupId != null
-                     && p.TranslationGroupId.IsOneOf(TranslationGroupIdValues))
+                     && TranslationGroupIdValues.Contains(p.TranslationGroupId))
             .ToListAsync(ct);
 
         return variants
@@ -322,7 +322,7 @@ public sealed class SiteMapService : ISiteMapService
             .Where(p => p.SiteId == _siteContext.SiteId
                      && p.PublicationState == ContentPublicationState.Published
                      && p.TranslationGroupId != null
-                     && p.TranslationGroupId.IsOneOf(TranslationGroupIdValues))
+                     && TranslationGroupIdValues.Contains(p.TranslationGroupId))
             .ToListAsync(ct);
 
         return variants

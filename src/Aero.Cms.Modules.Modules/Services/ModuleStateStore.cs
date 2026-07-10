@@ -1,10 +1,10 @@
 using Aero.Modular;
-using Marten;
+using AeroDB;
 
 namespace Aero.Cms.Modules.Modules.Services;
 
 /// <summary>
-/// Marten-backed implementation of <see cref="IModuleStateStore"/>.
+/// AeroDB-backed implementation of <see cref="IModuleStateStore"/>.
 /// </summary>
 public sealed class ModuleStateStore : IModuleStateStore
 {
@@ -16,9 +16,9 @@ public sealed class ModuleStateStore : IModuleStateStore
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ModuleDocument>> GetAllAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<ModuleDocument>> GetAllAsync(CancellationToken ct = default)
     {
-        return _session.Query<ModuleDocument>().ToListAsync(ct);
+        return await _session.Query<ModuleDocument>().ToListAsync(ct);
     }
 
     /// <inheritdoc/>

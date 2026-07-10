@@ -4,7 +4,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
 using FlakeId;
-using Marten.Pagination;
+using AeroDB.Pagination;
 using System.Globalization;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
@@ -65,13 +65,13 @@ public sealed class PostContentService(
                 filteredQuery = query.Where(x => x.Title.ToLower().Contains(s) || x.Slug.ToLower().Contains(s));
             }
 
-            var stats = new global::Marten.Linq.QueryStatistics();
-            var posts = await ((global::Marten.Linq.IMartenQueryable<PostDocument>)filteredQuery)
+            var stats = new global::AeroDB.QueryStatistics();
+            var posts = await ((global::AeroDB.ISurrealDbQueryable<PostDocument>)filteredQuery)
                 .OrderByDescending(x => x.CreatedOn)
                 .Stats(out stats)
                 .Skip(skip)
                 .Take(take)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             await SetCacheAsync(cacheKey, new BlogPostListCacheEntry(posts.ToList(), stats.TotalResults), cancellationToken);
             return Prelude.Ok<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>((posts, stats.TotalResults));
@@ -92,7 +92,7 @@ public sealed class PostContentService(
                 return Prelude.Fail<bool, AeroError>(AeroError.CreateError($"Blog post with id '{id}' not found or access denied"));
 
             var reservation = await session.Query<ContentSlugDocument>()
-                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.BlogPost && x.SiteId == _siteContext.SiteId, token: cancellationToken);
+                .FirstOrDefaultAsync(x => x.OwnerId == id && x.OwnerType == ContentSlugOwnerType.BlogPost && x.SiteId == _siteContext.SiteId, cancellationToken);
 
             if (reservation is not null)
             {
@@ -199,7 +199,7 @@ public sealed class PostContentService(
                 .Where(x => x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
                 .Take(count)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             await SetCacheAsync(cacheKey, new BlogPostCollectionCacheEntry(latest.ToList()), cancellationToken);
             return Prelude.Ok<IReadOnlyList<PostDocument>, AeroError>(latest);
@@ -266,7 +266,7 @@ public sealed class PostContentService(
                 .Where(x => x.SiteId == _siteContext.SiteId && x.Culture == GetCurrentCulture())
                 .Where(x => x.TagIds.Contains(tagId) && x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             return Prelude.Ok<IReadOnlyList<PostDocument>, AeroError>(posts);
         }
@@ -284,7 +284,7 @@ public sealed class PostContentService(
                 .Where(x => x.SiteId == _siteContext.SiteId && x.Culture == GetCurrentCulture())
                 .Where(x => x.CategoryIds.Contains(categoryId) && x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             return Prelude.Ok<IReadOnlyList<PostDocument>, AeroError>(posts);
         }
@@ -302,12 +302,14 @@ public sealed class PostContentService(
         try
         {
             var currentCulture = GetCurrentCulture(culture);
-            var pagedList = await session.Query<PostDocument>()
+            var query = session.Query<PostDocument>()
                 .Where(x => x.SiteId == _siteContext.SiteId && x.Culture == currentCulture)
                 .Where(x => x.PublicationState == ContentPublicationState.Published)
                 .OrderByDescending(x => x.PublishedOn)
-                .Skip(skip)
-                .ToPagedListAsync(pageNumber, pageSize, cancellationToken);
+                .Skip(skip);
+
+            var pagedList = await AeroDB.Pagination.PagedListQueryableExtensions
+                .ToPagedListAsync(query, pageNumber, pageSize, cancellationToken);
 
             return Prelude.Ok<IPagedList<PostDocument>, AeroError>(pagedList);
         }
@@ -324,7 +326,7 @@ public sealed class PostContentService(
             var tags = await session.Query<Tag>()
                 .Where(x => x.SiteId == _siteContext.SiteId)
                 .OrderBy(x => x.Name)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             return Prelude.Ok<IReadOnlyList<Tag>, AeroError>(tags);
         }
@@ -341,7 +343,7 @@ public sealed class PostContentService(
             var categories = await session.Query<Category>()
                 .Where(x => x.SiteId == _siteContext.SiteId)
                 .OrderBy(x => x.Name)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             return Prelude.Ok<IReadOnlyList<Category>, AeroError>(categories);
         }
@@ -384,7 +386,7 @@ public sealed class PostContentService(
                 x.SiteId == _siteContext.SiteId &&
                 x.Culture == culture &&
                 string.Equals(normalizedSlug, x.NormalizedSlug, StringComparison.OrdinalIgnoreCase),
-                token: cancellationToken);
+                cancellationToken);
 
     private async Task<ContentSlugDocument?> FindDefaultCultureSlugReservationAsync(
         string normalizedSlug,
@@ -445,7 +447,7 @@ public sealed class PostContentService(
             var variants = await session.Query<PostDocument>()
                 .Where(x => x.SiteId == _siteContext.SiteId && x.TranslationGroupId == TranslationGroupId)
                 .OrderBy(x => x.Culture)
-                .ToListAsync(token: cancellationToken);
+                .ToListAsync(cancellationToken);
 
             return Prelude.Ok<IReadOnlyList<PostDocument>, AeroError>(variants);
         }
@@ -478,7 +480,7 @@ public sealed class PostContentService(
                     x.SiteId == source.SiteId &&
                     x.TranslationGroupId == TranslationGroupId &&
                     x.Culture == normalizedCulture,
-                    token: cancellationToken);
+                    cancellationToken);
 
             if (existingVariant is not null)
                 return Prelude.Fail<PostDocument, AeroError>(AeroError.ConflictError($"Blog post already has a '{normalizedCulture}' variant."));
