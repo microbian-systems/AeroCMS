@@ -10,7 +10,10 @@ namespace Aero.Cms.Abstractions.Validators;
 /// </summary>
 public sealed class CreateAliasRequestValidator : AbstractValidator<CreateAliasRequest>
 {
-    public CreateAliasRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CreateAliasRequestValidator"/> class.
+    /// </summary>
+public CreateAliasRequestValidator()
     {
         RuleFor(x => x.SiteId)
             .GreaterThan(0).WithMessage("SiteId must be a positive integer.");
@@ -72,9 +75,15 @@ public sealed class CreateAliasRequestValidator : AbstractValidator<CreateAliasR
     };
 }
 
+/// <summary>
+/// Represents a class for UpdateAliasRequestValidator.
+/// </summary>
 public sealed class UpdateAliasRequestValidator : AbstractValidator<UpdateAliasRequest>
 {
-    public UpdateAliasRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateAliasRequestValidator"/> class.
+    /// </summary>
+public UpdateAliasRequestValidator()
     {
         RuleFor(x => x.Id)
             .GreaterThan(0).WithMessage("Id must be a positive integer.");
@@ -97,9 +106,15 @@ public sealed class UpdateAliasRequestValidator : AbstractValidator<UpdateAliasR
         CreateAliasRequestValidator.BeAValidUrlPath(path); // reuse logic
 }
 
+/// <summary>
+/// Represents a class for DeleteAliasRequestValidator.
+/// </summary>
 public sealed class DeleteAliasRequestValidator : AbstractValidator<DeleteAliasRequest>
 {
-    public DeleteAliasRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DeleteAliasRequestValidator"/> class.
+    /// </summary>
+public DeleteAliasRequestValidator()
     {
         RuleFor(x => x.Id)
             .GreaterThan(0).WithMessage("Id must be a positive integer.");

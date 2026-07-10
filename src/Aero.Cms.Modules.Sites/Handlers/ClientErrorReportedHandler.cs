@@ -18,7 +18,10 @@ namespace Aero.Cms.Modules.Sites.Handlers;
 public sealed class ClientErrorReportedHandler(ILogger<ClientErrorReportedHandler> logger)
     : IWolverineHandler
 {
-    public Task Handle(ClientErrorReported message)
+        /// <summary>
+    /// Handle method.
+    /// </summary>
+public Task Handle(ClientErrorReported message)
     {
         if (message.ErrorType is "HttpRequest" or "Database" or "Timeout")
         {

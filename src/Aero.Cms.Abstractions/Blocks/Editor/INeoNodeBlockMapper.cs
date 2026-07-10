@@ -7,7 +7,13 @@ namespace Aero.Cms.Abstractions.Blocks.Editor;
 /// </summary>
 public interface INeoNodeBlockMapper
 {
-    BlockBase ToBlock(NeoPageNode node);
+        /// <summary>
+    /// ToBlock method.
+    /// </summary>
+BlockBase ToBlock(NeoPageNode node);
 
-    NeoPageNode ToNode(BlockBase block);
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+NeoPageNode ToNode(BlockBase block);
 }

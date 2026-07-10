@@ -7,6 +7,9 @@ using Npgsql;
 
 namespace Aero.AppServer;
 
+/// <summary>
+/// Represents a class for AeroEmbeddedDbService.
+/// </summary>
 public class AeroEmbeddedDbService(
     IOptionsMonitor<AeroDbOptions> embeddedOptions,
     ILogger<AeroEmbeddedDbService> log,
@@ -15,12 +18,18 @@ public class AeroEmbeddedDbService(
 {
     PgServer? server;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         log.LogInformation("Aero embedded PostgreSQL server is running...");
     }
 
-    public override async Task StartAsync(CancellationToken cancellationToken)
+        /// <summary>
+    /// StartAsync method.
+    /// </summary>
+public override async Task StartAsync(CancellationToken cancellationToken)
     {
         log.LogInformation("AeroEmbedDbService: Starting Aero embedded PostgreSQL server...");
         var current = embeddedOptions.CurrentValue;
@@ -111,7 +120,10 @@ public class AeroEmbeddedDbService(
         await base.StartAsync(cancellationToken);
     }
 
-    public override Task StopAsync(CancellationToken cancellationToken)
+        /// <summary>
+    /// StopAsync method.
+    /// </summary>
+public override Task StopAsync(CancellationToken cancellationToken)
     {
          log.LogInformation("AeroEmbedDbService: Stopping Aero embedded PostgreSQL server...");
         server?.Stop();
@@ -133,7 +145,10 @@ public class AeroEmbeddedDbService(
         log.LogInformation("AeroEmbedDbService: Application has stopped. Aero cache resources released.");
     }
 
-    public override void Dispose()
+        /// <summary>
+    /// Dispose method.
+    /// </summary>
+public override void Dispose()
     {
         log.LogInformation("AeroEmbedDbService: Disposing Aero cache server...");
         server?.Stop();

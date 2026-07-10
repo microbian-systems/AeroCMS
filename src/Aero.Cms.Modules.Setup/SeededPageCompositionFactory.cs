@@ -6,7 +6,10 @@ namespace Aero.Cms.Modules.Setup;
 
 internal static class SeededPageCompositionFactory
 {
-    public static NeoPageNode CreateBidirectionalFeature()
+        /// <summary>
+    /// CreateBidirectionalFeature method.
+    /// </summary>
+public static NeoPageNode CreateBidirectionalFeature()
     {
         var container = FeatureContainer();
 
@@ -21,7 +24,10 @@ internal static class SeededPageCompositionFactory
         return container;
     }
 
-    public static NeoPageNode CreateBidirectionalFeature(
+        /// <summary>
+    /// CreateBidirectionalFeature method.
+    /// </summary>
+public static NeoPageNode CreateBidirectionalFeature(
         string ltrHeading,
         string ltrBody,
         string rtlHeading,
@@ -40,7 +46,10 @@ internal static class SeededPageCompositionFactory
         return container;
     }
 
-    public static NeoPageNode CreateFeatureSection(
+        /// <summary>
+    /// CreateFeatureSection method.
+    /// </summary>
+public static NeoPageNode CreateFeatureSection(
         string heading,
         string body,
         string buttonText,
@@ -55,14 +64,20 @@ internal static class SeededPageCompositionFactory
         return container;
     }
 
-    public static NeoPageNode CreateTextSection(string content)
+        /// <summary>
+    /// CreateTextSection method.
+    /// </summary>
+public static NeoPageNode CreateTextSection(string content)
     {
         var container = SectionContainer();
         container.Children.Add(Text(content, ContentDirection.LeftToRight));
         return container;
     }
 
-    public static NeoPageNode CreateTwoColumnSection(
+        /// <summary>
+    /// CreateTwoColumnSection method.
+    /// </summary>
+public static NeoPageNode CreateTwoColumnSection(
         string leftHeading,
         string leftBody,
         string rightHeading,
@@ -143,7 +158,10 @@ internal static class SeededPageCompositionFactory
         };
     }
 
-    public static NeoPageNode CreateRichText(string content)
+        /// <summary>
+    /// CreateRichText method.
+    /// </summary>
+public static NeoPageNode CreateRichText(string content)
     {
         return new NeoPageNode
         {
@@ -162,7 +180,10 @@ internal static class SeededPageCompositionFactory
         };
     }
 
-    public static NeoPageNode CreateHeadingBlock(string text)
+        /// <summary>
+    /// CreateHeadingBlock method.
+    /// </summary>
+public static NeoPageNode CreateHeadingBlock(string text)
     {
         return new NeoPageNode
         {
@@ -182,7 +203,10 @@ internal static class SeededPageCompositionFactory
         };
     }
 
-    public static NeoPageNode CreateCtaButton(string text, string url)
+        /// <summary>
+    /// CreateCtaButton method.
+    /// </summary>
+public static NeoPageNode CreateCtaButton(string text, string url)
     {
         return new NeoPageNode
         {
@@ -226,7 +250,10 @@ internal static class SeededPageCompositionFactory
                 ["level"] = JsonSerializer.SerializeToElement(level)
             });
 
-    public static NeoPageNode CreateBlockquote(string text, string? citation = null)
+        /// <summary>
+    /// CreateBlockquote method.
+    /// </summary>
+public static NeoPageNode CreateBlockquote(string text, string? citation = null)
     {
         var props = new Dictionary<string, JsonElement>
         {
@@ -238,7 +265,10 @@ internal static class SeededPageCompositionFactory
         return Node("primitive.blockquote", NeoPageNodeKind.Primitive, props);
     }
 
-    public static NeoPageNode CreateSemanticSection(params NeoPageNode[] children)
+        /// <summary>
+    /// CreateSemanticSection method.
+    /// </summary>
+public static NeoPageNode CreateSemanticSection(params NeoPageNode[] children)
     {
         var section = Node("primitive.section", NeoPageNodeKind.Container);
         foreach (var child in children)
@@ -246,7 +276,10 @@ internal static class SeededPageCompositionFactory
         return section;
     }
 
-    public static NeoPageNode CreateGridTwoColumnSection(
+        /// <summary>
+    /// CreateGridTwoColumnSection method.
+    /// </summary>
+public static NeoPageNode CreateGridTwoColumnSection(
         string leftHeading,
         string leftBody,
         string rightHeading,
@@ -299,7 +332,10 @@ internal static class SeededPageCompositionFactory
         return grid;
     }
 
-    public static NeoPageNode CreateSemanticPageLayout(
+        /// <summary>
+    /// CreateSemanticPageLayout method.
+    /// </summary>
+public static NeoPageNode CreateSemanticPageLayout(
         string headerTitle,
         string navLink1, string navLink2, string navLink3,
         string mainHeading, string mainBody)

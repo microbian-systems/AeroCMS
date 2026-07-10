@@ -11,6 +11,9 @@ using System.Globalization;
 
 namespace Aero.Cms.Modules.Docs.Areas.Docs.Pages;
 
+/// <summary>
+/// Represents a class for DocsIndexModel.
+/// </summary>
 [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any)]
 [OutputCache(PolicyName = "DocsIndexPolicy")]
 public class DocsIndexModel : PageModel
@@ -18,23 +21,56 @@ public class DocsIndexModel : PageModel
     private readonly IDocsService _docsService;
     private readonly IDocsTreeService _docsTreeService;
 
-    public DocsIndexModel(IDocsService docsService, IDocsTreeService docsTreeService)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DocsIndexModel"/> class.
+    /// </summary>
+public DocsIndexModel(IDocsService docsService, IDocsTreeService docsTreeService)
     {
         _docsService = docsService;
         _docsTreeService = docsTreeService;
     }
 
-    public IReadOnlyList<DocsPage> Chapters { get; private set; } = [];
-    public Dictionary<long, List<DocsPage>> Sections { get; private set; } = [];
-    public List<DocsSidebarNode> SidebarTree { get; private set; } = [];
-    public string RequestedCulture { get; private set; } = "en-US";
-    public string RenderedCulture { get; private set; } = "en-US";
-    public bool IsCultureFallback { get; private set; }
-    public string CanonicalUrl { get; private set; } = string.Empty;
-    public IReadOnlyList<AlternateDocsIndexLink> AlternateLinks { get; private set; } = [];
-    public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Chapters.
+    /// </summary>
+public IReadOnlyList<DocsPage> Chapters { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Sections.
+    /// </summary>
+public Dictionary<long, List<DocsPage>> Sections { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Sidebar Tree.
+    /// </summary>
+public List<DocsSidebarNode> SidebarTree { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Requested Culture.
+    /// </summary>
+public string RequestedCulture { get; private set; } = "en-US";
+        /// <summary>
+    /// Gets or sets the Rendered Culture.
+    /// </summary>
+public string RenderedCulture { get; private set; } = "en-US";
+        /// <summary>
+    /// Gets or sets the Is Culture Fallback.
+    /// </summary>
+public bool IsCultureFallback { get; private set; }
+        /// <summary>
+    /// Gets or sets the Canonical Url.
+    /// </summary>
+public string CanonicalUrl { get; private set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alternate Links.
+    /// </summary>
+public IReadOnlyList<AlternateDocsIndexLink> AlternateLinks { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Culture Switcher Links.
+    /// </summary>
+public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
-    public async Task OnGetAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task OnGetAsync(CancellationToken cancellationToken = default)
     {
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
         RenderedCulture = RequestedCulture;
@@ -167,5 +203,8 @@ public class DocsIndexModel : PageModel
         return links;
     }
 
-    public sealed record AlternateDocsIndexLink(string Hreflang, string Href);
+        /// <summary>
+    /// Represents a record for AlternateDocsIndexLink.
+    /// </summary>
+public sealed record AlternateDocsIndexLink(string Hreflang, string Href);
 }

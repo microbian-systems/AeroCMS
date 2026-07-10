@@ -3,45 +3,102 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
+/// <summary>
+/// Defines an interface for ISeriesHttpClient.
+/// </summary>
 public interface ISeriesHttpClient
 {
-    Task<Result<IReadOnlyList<SeriesSummary>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    Task<Result<SeriesDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Result<SeriesDetail, AeroError>> CreateAsync(CreateSeriesRequest request, CancellationToken ct = default);
-    Task<Result<SeriesDetail, AeroError>> UpdateAsync(long id, UpdateSeriesRequest request, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
-    Task<Result<SeriesDetail, AeroError>> EnsureGeneralAsync(CancellationToken ct = default);
-    Task<Result<IReadOnlyList<SeriesTranslationSummary>, AeroError>> ListTranslationsAsync(long id, CancellationToken ct = default);
-    Task<Result<SeriesTranslationSummary, AeroError>> UpsertTranslationAsync(long id, string culture, UpsertSeriesTranslationRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<SeriesSummary>, AeroError>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+Task<Result<SeriesDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<SeriesDetail, AeroError>> CreateAsync(CreateSeriesRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<SeriesDetail, AeroError>> UpdateAsync(long id, UpdateSeriesRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// EnsureGeneralAsync method.
+    /// </summary>
+Task<Result<SeriesDetail, AeroError>> EnsureGeneralAsync(CancellationToken ct = default);
+        /// <summary>
+    /// ListTranslationsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<SeriesTranslationSummary>, AeroError>> ListTranslationsAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// UpsertTranslationAsync method.
+    /// </summary>
+Task<Result<SeriesTranslationSummary, AeroError>> UpsertTranslationAsync(long id, string culture, UpsertSeriesTranslationRequest request, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Represents a class for SeriesHttpClient.
+/// </summary>
 public sealed class SeriesHttpClient(HttpClient httpClient, ILogger<SeriesHttpClient> logger)
     : AeroCmsClientBase(httpClient, logger), ISeriesHttpClient
 {
-    public override string Path => "admin/series";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/series";
 
-    public Task<Result<IReadOnlyList<SeriesSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<SeriesSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)
         => GetAsync<IReadOnlyList<SeriesSummary>>(string.Empty, ct);
 
-    public Task<Result<SeriesDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public Task<Result<SeriesDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
         => GetAsync<SeriesDetail>($"details/{id}", ct);
 
-    public Task<Result<SeriesDetail, AeroError>> CreateAsync(CreateSeriesRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<Result<SeriesDetail, AeroError>> CreateAsync(CreateSeriesRequest request, CancellationToken ct = default)
         => PostAsync<CreateSeriesRequest, SeriesDetail>(string.Empty, request, ct);
 
-    public Task<Result<SeriesDetail, AeroError>> UpdateAsync(long id, UpdateSeriesRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<Result<SeriesDetail, AeroError>> UpdateAsync(long id, UpdateSeriesRequest request, CancellationToken ct = default)
         => PutAsync<UpdateSeriesRequest, SeriesDetail>(id.ToString(), request, ct);
 
-    public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
         => MapBoolResult(base.DeleteAsync(id.ToString(), ct));
 
-    public Task<Result<SeriesDetail, AeroError>> EnsureGeneralAsync(CancellationToken ct = default)
+        /// <summary>
+    /// EnsureGeneralAsync method.
+    /// </summary>
+public Task<Result<SeriesDetail, AeroError>> EnsureGeneralAsync(CancellationToken ct = default)
         => PostAsync<object, SeriesDetail>("general", new object(), ct);
 
-    public Task<Result<IReadOnlyList<SeriesTranslationSummary>, AeroError>> ListTranslationsAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// ListTranslationsAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<SeriesTranslationSummary>, AeroError>> ListTranslationsAsync(long id, CancellationToken ct = default)
         => GetAsync<IReadOnlyList<SeriesTranslationSummary>>($"{id}/translations", ct);
 
-    public Task<Result<SeriesTranslationSummary, AeroError>> UpsertTranslationAsync(long id, string culture, UpsertSeriesTranslationRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// UpsertTranslationAsync method.
+    /// </summary>
+public Task<Result<SeriesTranslationSummary, AeroError>> UpsertTranslationAsync(long id, string culture, UpsertSeriesTranslationRequest request, CancellationToken ct = default)
         => PutAsync<UpsertSeriesTranslationRequest, SeriesTranslationSummary>($"{id}/translations/{Uri.EscapeDataString(culture)}", request, ct);
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
@@ -56,9 +113,27 @@ public sealed class SeriesHttpClient(HttpClient httpClient, ILogger<SeriesHttpCl
     }
 }
 
+/// <summary>
+/// Represents a record for SeriesSummary.
+/// </summary>
 public record SeriesSummary(long Id, string Name, string Slug, string? Description, int ContentCount);
+/// <summary>
+/// Represents a record for SeriesDetail.
+/// </summary>
 public record SeriesDetail(long Id, string Name, string Slug, string? Description, int ContentCount, DateTime CreatedAt);
+/// <summary>
+/// Represents a record for CreateSeriesRequest.
+/// </summary>
 public record CreateSeriesRequest(string Name, string Slug, string? Description);
+/// <summary>
+/// Represents a record for UpdateSeriesRequest.
+/// </summary>
 public record UpdateSeriesRequest(string Name, string Slug, string? Description);
+/// <summary>
+/// Represents a record for SeriesTranslationSummary.
+/// </summary>
 public record SeriesTranslationSummary(string Culture, string Name, string Slug, string? Description, bool HasTranslation, bool IsDefaultCulture);
+/// <summary>
+/// Represents a record for UpsertSeriesTranslationRequest.
+/// </summary>
 public record UpsertSeriesTranslationRequest(string Name, string Slug, string? Description);

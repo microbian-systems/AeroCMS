@@ -7,9 +7,15 @@ using Microsoft.AspNetCore.Hosting;
 
 namespace Aero.Cms.Modules.Setup.Endpoints;
 
+/// <summary>
+/// Represents a class for SetupStatusEndpoints.
+/// </summary>
 public static class SetupStatusEndpoints
 {
-    public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteBuilder endpoints)
+        /// <summary>
+    /// MapSetupStatusEndpoints method.
+    /// </summary>
+public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/setup/status", async (IServiceProvider sp, CancellationToken cancellationToken) =>
         {
@@ -42,9 +48,15 @@ public static class SetupStatusEndpoints
     }
 }
 
+/// <summary>
+/// Represents a class for SetupStatusStartupFilter.
+/// </summary>
 public sealed class SetupStatusStartupFilter : IStartupFilter
 {
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
         => app =>
         {
             app.UseRouting();

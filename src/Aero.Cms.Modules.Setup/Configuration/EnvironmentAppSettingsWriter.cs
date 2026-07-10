@@ -1,15 +1,24 @@
 namespace Aero.Cms.Modules.Setup.Configuration;
 
+/// <summary>
+/// Represents a class for EnvironmentAppSettingsWriter.
+/// </summary>
 public sealed class EnvironmentAppSettingsWriter : IEnvironmentAppSettingsWriter
 {
     private readonly string _webProjectPath;
 
-    public EnvironmentAppSettingsWriter(string? webProjectPath = null)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="EnvironmentAppSettingsWriter"/> class.
+    /// </summary>
+public EnvironmentAppSettingsWriter(string? webProjectPath = null)
     {
         _webProjectPath = webProjectPath ?? AppSettingsPathResolver.GetWebProjectPath();
     }
 
-    public async Task WriteAsync(string environmentName, string json, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// WriteAsync method.
+    /// </summary>
+public async Task WriteAsync(string environmentName, string json, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
         ArgumentException.ThrowIfNullOrEmpty(json);

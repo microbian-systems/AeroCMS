@@ -10,7 +10,10 @@ namespace Aero.Cms.Modules.Audit.Areas.Api.v1;
 /// </summary>
 public static class AuditApi
 {
-    public static void MapAuditApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapAuditApi method.
+    /// </summary>
+public static void MapAuditApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/audit")
             .WithTags("Admin - Audit");

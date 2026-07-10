@@ -8,7 +8,13 @@ namespace Aero.Cms.Web.Core.Modules;
 /// </summary>
 public interface IAeroPipelineModule : IAeroModule
 {
-    int PipelineOrder => 0;
+        /// <summary>
+    /// Gets or sets the Pipeline Order.
+    /// </summary>
+int PipelineOrder => 0;
 
-    void ConfigurePipeline(IApplicationBuilder app);
+        /// <summary>
+    /// ConfigurePipeline method.
+    /// </summary>
+void ConfigurePipeline(IApplicationBuilder app);
 }

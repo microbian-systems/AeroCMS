@@ -4,8 +4,14 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a record for CreateFooterDialogResult.
+/// </summary>
 public sealed record CreateFooterDialogResult(string Name, string? Description);
 
+/// <summary>
+/// Represents a class for CreateFooterDialog.
+/// </summary>
 public partial class CreateFooterDialog
 {
     [Inject] private DialogService DialogService { get; set; } = default!;

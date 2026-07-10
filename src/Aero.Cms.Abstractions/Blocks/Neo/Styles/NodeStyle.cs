@@ -5,63 +5,147 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Styles;
 /// </summary>
 public sealed record NodeStyle
 {
-    public LogicalSpacing Margin { get; init; } = new();
+        /// <summary>
+    /// Gets or sets the Margin.
+    /// </summary>
+public LogicalSpacing Margin { get; init; } = new();
 
-    public LogicalSpacing Padding { get; init; } = new();
+        /// <summary>
+    /// Gets or sets the Padding.
+    /// </summary>
+public LogicalSpacing Padding { get; init; } = new();
 
-    public CssLength? Width { get; init; }
+        /// <summary>
+    /// Gets or sets the Width.
+    /// </summary>
+public CssLength? Width { get; init; }
 
-    public CssLength? Height { get; init; }
+        /// <summary>
+    /// Gets or sets the Height.
+    /// </summary>
+public CssLength? Height { get; init; }
 
-    public CssLength? MinimumWidth { get; init; }
+        /// <summary>
+    /// Gets or sets the Minimum Width.
+    /// </summary>
+public CssLength? MinimumWidth { get; init; }
 
-    public CssLength? MaximumWidth { get; init; }
+        /// <summary>
+    /// Gets or sets the Maximum Width.
+    /// </summary>
+public CssLength? MaximumWidth { get; init; }
 
-    public CssLength? MinimumHeight { get; init; }
+        /// <summary>
+    /// Gets or sets the Minimum Height.
+    /// </summary>
+public CssLength? MinimumHeight { get; init; }
 
-    public CssLength? MaximumHeight { get; init; }
+        /// <summary>
+    /// Gets or sets the Maximum Height.
+    /// </summary>
+public CssLength? MaximumHeight { get; init; }
 
-    public decimal? Opacity { get; init; }
+        /// <summary>
+    /// Gets or sets the Opacity.
+    /// </summary>
+public decimal? Opacity { get; init; }
 
-    public CssColor? ForegroundColor { get; init; }
+        /// <summary>
+    /// Gets or sets the Foreground Color.
+    /// </summary>
+public CssColor? ForegroundColor { get; init; }
 
-    public CssColor? BackgroundColor { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Color.
+    /// </summary>
+public CssColor? BackgroundColor { get; init; }
 
-    public CssColor? BackgroundOverlayColor { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Overlay Color.
+    /// </summary>
+public CssColor? BackgroundOverlayColor { get; init; }
 
-    public LinearGradient? BackgroundGradient { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Gradient.
+    /// </summary>
+public LinearGradient? BackgroundGradient { get; init; }
 
-    public BackgroundImageStyle? BackgroundImage { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Image.
+    /// </summary>
+public BackgroundImageStyle? BackgroundImage { get; init; }
 
-    public BackgroundVideoStyle? BackgroundVideo { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Video.
+    /// </summary>
+public BackgroundVideoStyle? BackgroundVideo { get; init; }
 
-    public CssColor? BorderColor { get; init; }
+        /// <summary>
+    /// Gets or sets the Border Color.
+    /// </summary>
+public CssColor? BorderColor { get; init; }
 
-    public CssLength? BorderWidth { get; init; }
+        /// <summary>
+    /// Gets or sets the Border Width.
+    /// </summary>
+public CssLength? BorderWidth { get; init; }
 
-    public CssLength? BorderRadius { get; init; }
+        /// <summary>
+    /// Gets or sets the Border Radius.
+    /// </summary>
+public CssLength? BorderRadius { get; init; }
 
-    public BoxShadow? Shadow { get; init; }
+        /// <summary>
+    /// Gets or sets the Shadow.
+    /// </summary>
+public BoxShadow? Shadow { get; init; }
 
-    public bool Hidden { get; init; }
+        /// <summary>
+    /// Gets or sets the Hidden.
+    /// </summary>
+public bool Hidden { get; init; }
 
-    public CssLength? FontSize { get; init; }
+        /// <summary>
+    /// Gets or sets the Font Size.
+    /// </summary>
+public CssLength? FontSize { get; init; }
 
-    public FontWeight FontWeight { get; init; } = FontWeight.Inherit;
+        /// <summary>
+    /// Gets or sets the Font Weight.
+    /// </summary>
+public FontWeight FontWeight { get; init; } = FontWeight.Inherit;
 
-    public decimal? LineHeight { get; init; }
+        /// <summary>
+    /// Gets or sets the Line Height.
+    /// </summary>
+public decimal? LineHeight { get; init; }
 
-    public CssLength? LetterSpacing { get; init; }
+        /// <summary>
+    /// Gets or sets the Letter Spacing.
+    /// </summary>
+public CssLength? LetterSpacing { get; init; }
 
-    public TextAlignment TextAlignment { get; init; } = TextAlignment.Inherit;
+        /// <summary>
+    /// Gets or sets the Text Alignment.
+    /// </summary>
+public TextAlignment TextAlignment { get; init; } = TextAlignment.Inherit;
 
-    public HorizontalContentAlignment HorizontalContentAlignment { get; init; } =
+        /// <summary>
+    /// Gets or sets the Horizontal Content Alignment.
+    /// </summary>
+public HorizontalContentAlignment HorizontalContentAlignment { get; init; } =
         HorizontalContentAlignment.Inherit;
 
-    public VerticalContentAlignment VerticalContentAlignment { get; init; } =
+        /// <summary>
+    /// Gets or sets the Vertical Content Alignment.
+    /// </summary>
+public VerticalContentAlignment VerticalContentAlignment { get; init; } =
         VerticalContentAlignment.Inherit;
 
-    public ContentDirection Direction { get; init; } = ContentDirection.Inherit;
+        /// <summary>
+    /// Gets or sets the Direction.
+    /// </summary>
+public ContentDirection Direction { get; init; } = ContentDirection.Inherit;
 
     internal NodeStyle Apply(NodeStyleOverride? value)
     {
@@ -111,59 +195,143 @@ public sealed record NodeStyle
 /// </summary>
 public sealed record NodeStyleOverride
 {
-    public LogicalSpacingOverride? Margin { get; init; }
+        /// <summary>
+    /// Gets or sets the Margin.
+    /// </summary>
+public LogicalSpacingOverride? Margin { get; init; }
 
-    public LogicalSpacingOverride? Padding { get; init; }
+        /// <summary>
+    /// Gets or sets the Padding.
+    /// </summary>
+public LogicalSpacingOverride? Padding { get; init; }
 
-    public CssLength? Width { get; init; }
+        /// <summary>
+    /// Gets or sets the Width.
+    /// </summary>
+public CssLength? Width { get; init; }
 
-    public CssLength? Height { get; init; }
+        /// <summary>
+    /// Gets or sets the Height.
+    /// </summary>
+public CssLength? Height { get; init; }
 
-    public CssLength? MinimumWidth { get; init; }
+        /// <summary>
+    /// Gets or sets the Minimum Width.
+    /// </summary>
+public CssLength? MinimumWidth { get; init; }
 
-    public CssLength? MaximumWidth { get; init; }
+        /// <summary>
+    /// Gets or sets the Maximum Width.
+    /// </summary>
+public CssLength? MaximumWidth { get; init; }
 
-    public CssLength? MinimumHeight { get; init; }
+        /// <summary>
+    /// Gets or sets the Minimum Height.
+    /// </summary>
+public CssLength? MinimumHeight { get; init; }
 
-    public CssLength? MaximumHeight { get; init; }
+        /// <summary>
+    /// Gets or sets the Maximum Height.
+    /// </summary>
+public CssLength? MaximumHeight { get; init; }
 
-    public decimal? Opacity { get; init; }
+        /// <summary>
+    /// Gets or sets the Opacity.
+    /// </summary>
+public decimal? Opacity { get; init; }
 
-    public CssColor? ForegroundColor { get; init; }
+        /// <summary>
+    /// Gets or sets the Foreground Color.
+    /// </summary>
+public CssColor? ForegroundColor { get; init; }
 
-    public CssColor? BackgroundColor { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Color.
+    /// </summary>
+public CssColor? BackgroundColor { get; init; }
 
-    public CssColor? BackgroundOverlayColor { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Overlay Color.
+    /// </summary>
+public CssColor? BackgroundOverlayColor { get; init; }
 
-    public LinearGradient? BackgroundGradient { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Gradient.
+    /// </summary>
+public LinearGradient? BackgroundGradient { get; init; }
 
-    public BackgroundImageStyle? BackgroundImage { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Image.
+    /// </summary>
+public BackgroundImageStyle? BackgroundImage { get; init; }
 
-    public BackgroundVideoStyle? BackgroundVideo { get; init; }
+        /// <summary>
+    /// Gets or sets the Background Video.
+    /// </summary>
+public BackgroundVideoStyle? BackgroundVideo { get; init; }
 
-    public CssColor? BorderColor { get; init; }
+        /// <summary>
+    /// Gets or sets the Border Color.
+    /// </summary>
+public CssColor? BorderColor { get; init; }
 
-    public CssLength? BorderWidth { get; init; }
+        /// <summary>
+    /// Gets or sets the Border Width.
+    /// </summary>
+public CssLength? BorderWidth { get; init; }
 
-    public CssLength? BorderRadius { get; init; }
+        /// <summary>
+    /// Gets or sets the Border Radius.
+    /// </summary>
+public CssLength? BorderRadius { get; init; }
 
-    public BoxShadow? Shadow { get; init; }
+        /// <summary>
+    /// Gets or sets the Shadow.
+    /// </summary>
+public BoxShadow? Shadow { get; init; }
 
-    public bool? Hidden { get; init; }
+        /// <summary>
+    /// Gets or sets the Hidden.
+    /// </summary>
+public bool? Hidden { get; init; }
 
-    public CssLength? FontSize { get; init; }
+        /// <summary>
+    /// Gets or sets the Font Size.
+    /// </summary>
+public CssLength? FontSize { get; init; }
 
-    public FontWeight? FontWeight { get; init; }
+        /// <summary>
+    /// Gets or sets the Font Weight.
+    /// </summary>
+public FontWeight? FontWeight { get; init; }
 
-    public decimal? LineHeight { get; init; }
+        /// <summary>
+    /// Gets or sets the Line Height.
+    /// </summary>
+public decimal? LineHeight { get; init; }
 
-    public CssLength? LetterSpacing { get; init; }
+        /// <summary>
+    /// Gets or sets the Letter Spacing.
+    /// </summary>
+public CssLength? LetterSpacing { get; init; }
 
-    public TextAlignment? TextAlignment { get; init; }
+        /// <summary>
+    /// Gets or sets the Text Alignment.
+    /// </summary>
+public TextAlignment? TextAlignment { get; init; }
 
-    public HorizontalContentAlignment? HorizontalContentAlignment { get; init; }
+        /// <summary>
+    /// Gets or sets the Horizontal Content Alignment.
+    /// </summary>
+public HorizontalContentAlignment? HorizontalContentAlignment { get; init; }
 
-    public VerticalContentAlignment? VerticalContentAlignment { get; init; }
+        /// <summary>
+    /// Gets or sets the Vertical Content Alignment.
+    /// </summary>
+public VerticalContentAlignment? VerticalContentAlignment { get; init; }
 
-    public ContentDirection? Direction { get; init; }
+        /// <summary>
+    /// Gets or sets the Direction.
+    /// </summary>
+public ContentDirection? Direction { get; init; }
 }

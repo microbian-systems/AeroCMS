@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
 
+/// <summary>
+/// Represents a class for Footer1BlockMapper.
+/// </summary>
 public static class Footer1BlockMapper
 {
-    public static NeoPageNode ToNode(Footer1Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Footer1Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.footers.1",
@@ -23,7 +29,10 @@ public static class Footer1BlockMapper
         }
     };
 
-    public static Footer1Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Footer1Block FromNode(NeoPageNode node) => new()
     {
         NewsletterTitle = GetString(node, "newsletterTitle", "Get the latest news!"),
         NewsletterDescription = GetString(node, "newsletterDescription", "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Esse non cupiditate quae nam molestias."),

@@ -5,6 +5,9 @@ using Wolverine;
 
 namespace Aero.Cms.Modules.Pages;
 
+/// <summary>
+/// Defines an interface for IPageTreeService.
+/// </summary>
 public interface IPageTreeService
 {
     /// <summary>
@@ -54,6 +57,9 @@ public interface IPageTreeService
         long pageId, string oldPath, string newPath, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Represents a class for PageTreeService.
+/// </summary>
 public sealed class PageTreeService : IPageTreeService
 {
     private readonly IDocumentSession _session;
@@ -61,7 +67,10 @@ public sealed class PageTreeService : IPageTreeService
     private readonly IMessageBus _bus;
     private readonly ILogger<PageTreeService> _logger;
 
-    public PageTreeService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PageTreeService"/> class.
+    /// </summary>
+public PageTreeService(
         IDocumentSession session,
         ISiteContext siteContext,
         IMessageBus bus,
@@ -73,7 +82,10 @@ public sealed class PageTreeService : IPageTreeService
         _logger = logger;
     }
 
-    public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetTreeAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetTreeAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetTreeAsync(CancellationToken ct = default)
     {
         try
         {
@@ -94,7 +106,10 @@ public sealed class PageTreeService : IPageTreeService
         }
     }
 
-    public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetChildrenAsync(
+        /// <summary>
+    /// GetChildrenAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetChildrenAsync(
         long? parentId = null, CancellationToken ct = default)
     {
         try
@@ -117,7 +132,10 @@ public sealed class PageTreeService : IPageTreeService
         }
     }
 
-    public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetAncestorsAsync(
+        /// <summary>
+    /// GetAncestorsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<PageDocument>, AeroError>> GetAncestorsAsync(
         long pageId, CancellationToken ct = default)
     {
         try
@@ -163,7 +181,10 @@ public sealed class PageTreeService : IPageTreeService
         }
     }
 
-    public async Task<Result<PageDocument, AeroError>> MoveAsync(
+        /// <summary>
+    /// MoveAsync method.
+    /// </summary>
+public async Task<Result<PageDocument, AeroError>> MoveAsync(
         long pageId, long? newParentId, int? order = null, CancellationToken ct = default)
     {
         try
@@ -258,7 +279,10 @@ public sealed class PageTreeService : IPageTreeService
         }
     }
 
-    public async Task<Result<(string Path, int Depth), AeroError>> ComputePathAsync(
+        /// <summary>
+    /// ComputePathAsync method.
+    /// </summary>
+public async Task<Result<(string Path, int Depth), AeroError>> ComputePathAsync(
         long siteId, long? parentId, string slug,
         long? excludePageId = null,
         CancellationToken ct = default)
@@ -309,7 +333,10 @@ public sealed class PageTreeService : IPageTreeService
         }
     }
 
-    public async Task<Result<int, AeroError>> GetNextSiblingOrderAsync(
+        /// <summary>
+    /// GetNextSiblingOrderAsync method.
+    /// </summary>
+public async Task<Result<int, AeroError>> GetNextSiblingOrderAsync(
         long siteId, long? parentId, CancellationToken ct = default)
     {
         try
@@ -334,7 +361,10 @@ public sealed class PageTreeService : IPageTreeService
         }
     }
 
-    public async Task<Result<bool, AeroError>> UpdateDescendantPathsAsync(
+        /// <summary>
+    /// UpdateDescendantPathsAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> UpdateDescendantPathsAsync(
         long pageId, string oldPath, string newPath, CancellationToken ct = default)
     {
         try

@@ -4,9 +4,15 @@ using Aero.Core.Railway;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
+/// <summary>
+/// Defines an interface for ISecureScribanRenderer.
+/// </summary>
 public interface ISecureScribanRenderer
 {
-    Task<Result<string, AeroError>> RenderAsync(
+        /// <summary>
+    /// RenderAsync method.
+    /// </summary>
+Task<Result<string, AeroError>> RenderAsync(
         DynamicBlockDefinition definition,
         JsonDocument? data,
         CancellationToken cancellationToken = default);

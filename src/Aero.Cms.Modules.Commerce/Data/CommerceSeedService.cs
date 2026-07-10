@@ -7,9 +7,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Data;
 
+/// <summary>
+/// Defines an interface for ICommerceSeedService.
+/// </summary>
 public interface ICommerceSeedService
 {
-    Task SeedAsync(long siteId, CancellationToken ct = default);
+        /// <summary>
+    /// SeedAsync method.
+    /// </summary>
+Task SeedAsync(long siteId, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -23,7 +29,10 @@ public sealed class CommerceSeedService(
 {
     private static readonly string[] Categories = ["Clothing", "Equipment", "Accessories", "Footwear"];
 
-    public async Task SeedAsync(long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// SeedAsync method.
+    /// </summary>
+public async Task SeedAsync(long siteId, CancellationToken ct = default)
     {
         log.LogInformation("Commerce seed: starting product seeding with Pexels images...");
 

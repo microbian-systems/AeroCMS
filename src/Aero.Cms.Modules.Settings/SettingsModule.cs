@@ -16,21 +16,45 @@ namespace Aero.Cms.Modules.Settings;
 [Module(nameof(SettingsModule))]
 public sealed class SettingsModule : AeroWebModule
 {
-    public override string Name => nameof(SettingsModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["admin", "settings"];
-    public override IReadOnlyList<string> Tags => ["admin", "settings", "configuration", "management"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(SettingsModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["admin", "settings"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["admin", "settings", "configuration", "management"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // Grain-backed actor — direct injection for thin API controllers
         services.AddSingleton<IAeroSettingActor>(sp =>
             sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroSettingActor>(0, "aero"));
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapSettingsApi();
         return Task.CompletedTask;

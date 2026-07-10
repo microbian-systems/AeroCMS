@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Announcements;
 
+/// <summary>
+/// Represents a class for Announcement3BlockMapper.
+/// </summary>
 public static class Announcement3BlockMapper
 {
-    public static NeoPageNode ToNode(Announcement3Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Announcement3Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.announcements.3",
@@ -18,7 +24,10 @@ public static class Announcement3BlockMapper
         }
     };
 
-    public static Announcement3Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Announcement3Block FromNode(NeoPageNode node) => new()
     {
         MainText = GetString(node, "mainText", "Lorem, ipsum dolor"),
         CtaText = GetString(node, "ctaText", "sit amet consectetur"),

@@ -3,22 +3,43 @@ using Microsoft.AspNetCore.Components;
 
 namespace Aero.Cms.Shared.Components;
 
+/// <summary>
+/// Represents a class for FallbackBanner.
+/// </summary>
 public partial class FallbackBanner : ComponentBase
 {
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Show.
+    /// </summary>
+[Parameter]
     public bool Show { get; set; }
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Requested Culture.
+    /// </summary>
+[Parameter]
     public string RequestedCulture { get; set; } = CultureInfo.CurrentUICulture.Name;
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Rendered Culture.
+    /// </summary>
+[Parameter]
     public string RenderedCulture { get; set; } = CultureInfo.CurrentUICulture.Name;
 
-    protected string RequestedCultureDisplayName => GetCultureDisplayName(RequestedCulture);
+        /// <summary>
+    /// Gets or sets the Requested Culture Display Name.
+    /// </summary>
+protected string RequestedCultureDisplayName => GetCultureDisplayName(RequestedCulture);
 
-    protected string RenderedCultureDisplayName => GetCultureDisplayName(RenderedCulture);
+        /// <summary>
+    /// Gets or sets the Rendered Culture Display Name.
+    /// </summary>
+protected string RenderedCultureDisplayName => GetCultureDisplayName(RenderedCulture);
 
-    protected string DismissCookieName =>
+        /// <summary>
+    /// Gets or sets the Dismiss Cookie Name.
+    /// </summary>
+protected string DismissCookieName =>
         $"AeroCms.LocalizationFallback.{NormalizeCookiePart(RequestedCulture)}.{NormalizeCookiePart(RenderedCulture)}";
 
     private static string GetCultureDisplayName(string culture)

@@ -19,6 +19,9 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.PostEditor;
 
+/// <summary>
+/// Represents a class for PostEditor.
+/// </summary>
 public partial class PostEditor : ComponentBase, IDisposable
 {
     // ──────────────────────────────────────────────────────────
@@ -28,68 +31,200 @@ public partial class PostEditor : ComponentBase, IDisposable
     /// <summary>Optional ID of an existing post to edit.</summary>
     [Parameter] public long? Id { get; set; }
 
-    [SupplyParameterFromQuery(Name = "tab")]
+        /// <summary>
+    /// Gets or sets the Requested Tab.
+    /// </summary>
+[SupplyParameterFromQuery(Name = "tab")]
     protected string? RequestedTab { get; set; }
 
-    [Inject] protected IBlogHttpClient BlogApi { get; set; } = default!;
-    [Inject] protected IAiHttpClient AiClient { get; set; } = default!;
-    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
-    [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
-    [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
-    [Inject] protected ISeriesHttpClient SeriesClient { get; set; } = default!;
-    [Inject] protected NavigationManager NavManager { get; set; } = default!;
-    [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
-    [Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
-    [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
-    [Inject] protected AdminStateContainer AdminState { get; set; } = default!;
-    [Inject] protected DialogService DialogService { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Blog Api.
+    /// </summary>
+[Inject] protected IBlogHttpClient BlogApi { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Ai Client.
+    /// </summary>
+[Inject] protected IAiHttpClient AiClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the L.
+    /// </summary>
+[Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Categories Client.
+    /// </summary>
+[Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Tags Client.
+    /// </summary>
+[Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Series Client.
+    /// </summary>
+[Inject] protected ISeriesHttpClient SeriesClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Nav Manager.
+    /// </summary>
+[Inject] protected NavigationManager NavManager { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Preview Client.
+    /// </summary>
+[Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Sites Client.
+    /// </summary>
+[Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Current Site Accessor.
+    /// </summary>
+[Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Admin State.
+    /// </summary>
+[Inject] protected AdminStateContainer AdminState { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Dialog Service.
+    /// </summary>
+[Inject] protected DialogService DialogService { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // Editor state
     // ──────────────────────────────────────────────────────────
 
-    protected string PostTitle { get; set; } = string.Empty;
-    protected string PostSlug { get; set; } = string.Empty;
-    protected string Content { get; set; } = string.Empty;
-    protected string Excerpt { get; set; } = string.Empty;
-    protected string SeoTitle { get; set; } = string.Empty;
-    protected string SeoDescription { get; set; } = string.Empty;
-    protected string FeaturedImageUrl { get; set; } = string.Empty;
-    protected long CategoryId { get; set; }
-    protected long SeriesId { get; set; }
-    protected List<long> SelectedTagIds { get; set; } = [];
-    protected DateTime? PublishedAt { get; set; }
+        /// <summary>
+    /// Gets or sets the Post Title.
+    /// </summary>
+protected string PostTitle { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Post Slug.
+    /// </summary>
+protected string PostSlug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Content.
+    /// </summary>
+protected string Content { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Excerpt.
+    /// </summary>
+protected string Excerpt { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+protected string SeoTitle { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+protected string SeoDescription { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Featured Image Url.
+    /// </summary>
+protected string FeaturedImageUrl { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Category Id.
+    /// </summary>
+protected long CategoryId { get; set; }
+        /// <summary>
+    /// Gets or sets the Series Id.
+    /// </summary>
+protected long SeriesId { get; set; }
+        /// <summary>
+    /// Gets or sets the Selected Tag Ids.
+    /// </summary>
+protected List<long> SelectedTagIds { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Published At.
+    /// </summary>
+protected DateTime? PublishedAt { get; set; }
 
-    protected string LastSaved { get; set; } = "Never";
-    protected bool IsSaving { get; set; }
-    protected string ActiveTab { get; set; } = "editor";
+        /// <summary>
+    /// Gets or sets the Last Saved.
+    /// </summary>
+protected string LastSaved { get; set; } = "Never";
+        /// <summary>
+    /// Gets or sets the Is Saving.
+    /// </summary>
+protected bool IsSaving { get; set; }
+        /// <summary>
+    /// Gets or sets the Active Tab.
+    /// </summary>
+protected string ActiveTab { get; set; } = "editor";
 
     // Preview state
-    protected bool FullPreviewMode { get; set; }
-    protected string PreviewDevice { get; set; } = "desktop";
-    protected bool   IsPreviewRendering { get; set; }
-    protected string? PreviewHtml { get; set; }
-    protected string? PreviewError { get; set; }
-    protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/blog-posts/render-fragment");
-    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri, L);
-    protected string? PreviewFrameUrl => Id.HasValue
+        /// <summary>
+    /// Gets or sets the Full Preview Mode.
+    /// </summary>
+protected bool FullPreviewMode { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Device.
+    /// </summary>
+protected string PreviewDevice { get; set; } = "desktop";
+        /// <summary>
+    /// Gets or sets the Is Preview Rendering.
+    /// </summary>
+protected bool   IsPreviewRendering { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Html.
+    /// </summary>
+protected string? PreviewHtml { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Error.
+    /// </summary>
+protected string? PreviewError { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Fragment Url.
+    /// </summary>
+protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/blog-posts/render-fragment");
+        /// <summary>
+    /// Gets or sets the Preview Frame Document.
+    /// </summary>
+protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri, L);
+        /// <summary>
+    /// Gets or sets the Preview Frame Url.
+    /// </summary>
+protected string? PreviewFrameUrl => Id.HasValue
         ? BuildAbsoluteUrl($"_cms/preview/blog/drafts/{Id.Value}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
 
     // Loaded post data
-    protected BlogDetail? LoadedPost { get; set; }
-    protected SiteViewModel? CurrentSite { get; set; }
-    protected IReadOnlyList<BlogDetail> PostCultureVariants { get; set; } = [];
-    protected string SelectedTranslationCulture { get; set; } = string.Empty;
-    protected string TranslationSlug { get; set; } = string.Empty;
-    protected bool IsLoadingTranslations { get; set; }
-    protected bool IsCreatingTranslation { get; set; }
-    protected IReadOnlyList<string> SupportedCultures =>
+        /// <summary>
+    /// Gets or sets the Loaded Post.
+    /// </summary>
+protected BlogDetail? LoadedPost { get; set; }
+        /// <summary>
+    /// Gets or sets the Current Site.
+    /// </summary>
+protected SiteViewModel? CurrentSite { get; set; }
+        /// <summary>
+    /// Gets or sets the Post Culture Variants.
+    /// </summary>
+protected IReadOnlyList<BlogDetail> PostCultureVariants { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Selected Translation Culture.
+    /// </summary>
+protected string SelectedTranslationCulture { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Translation Slug.
+    /// </summary>
+protected string TranslationSlug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Is Loading Translations.
+    /// </summary>
+protected bool IsLoadingTranslations { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Creating Translation.
+    /// </summary>
+protected bool IsCreatingTranslation { get; set; }
+        /// <summary>
+    /// Gets or sets the Supported Cultures.
+    /// </summary>
+protected IReadOnlyList<string> SupportedCultures =>
         CurrentSite?.SupportedCultures is { Count: > 0 } cultures
             ? cultures
             : [LoadedPost?.Culture ?? CurrentSite?.DefaultCulture ?? "en-US"];
 
-    protected IEnumerable<string> AvailableTranslationCultures =>
+        /// <summary>
+    /// Gets or sets the Available Translation Cultures.
+    /// </summary>
+protected IEnumerable<string> AvailableTranslationCultures =>
         SupportedCultures
             .Select(NormalizeCultureName)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -98,12 +233,24 @@ public partial class PostEditor : ComponentBase, IDisposable
             .ToList();
 
     // Reference data
-    protected List<CategorySummary> Categories { get; set; } = [];
-    protected List<TagSummary> AllTags { get; set; } = [];
-    protected List<SeriesSummary> Series { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Categories.
+    /// </summary>
+protected List<CategorySummary> Categories { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the All Tags.
+    /// </summary>
+protected List<TagSummary> AllTags { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Series.
+    /// </summary>
+protected List<SeriesSummary> Series { get; set; } = [];
 
     // BlazorMonaco editor reference
-    protected StandaloneCodeEditor? _editor;
+        /// <summary>
+    /// _editor.
+    /// </summary>
+protected StandaloneCodeEditor? _editor;
     private bool _editorReady;
 
     // Guards against RadzenTextArea @bind-Value firing ValueChanged("") 
@@ -111,28 +258,79 @@ public partial class PostEditor : ComponentBase, IDisposable
     private bool _contentInitialized;
 
     // Media selector modal state
-    protected bool MediaModalOpen { get; set; }
+        /// <summary>
+    /// Gets or sets the Media Modal Open.
+    /// </summary>
+protected bool MediaModalOpen { get; set; }
 
     // Toasts
-    protected List<ToastMessage> Toasts { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Toasts.
+    /// </summary>
+protected List<ToastMessage> Toasts { get; set; } = [];
 
     // AI enhancement state
-    protected bool IsEnhancePanelOpen { get; set; }
-    protected bool IsEnhancing { get; set; }
-    protected bool IsLoadingAiProviders { get; set; }
-    protected string EnhanceTargetField { get; set; } = "body";
-    protected string EnhancePrompt { get; set; } = string.Empty;
-    protected string? SelectedAiProviderId { get; set; }
-    protected string? EnhanceSuggestion { get; set; }
-    protected string? EnhanceRationale { get; set; }
-    protected IReadOnlyList<string> EnhanceWarnings { get; set; } = [];
-    protected IReadOnlyList<AiProviderOption> AiProviderOptions { get; set; } = [];
-    protected bool IsTranslatingAll { get; set; }
-    protected bool OverwriteExistingTranslations { get; set; }
-    protected HashSet<string> TranslatingCultures { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-    protected bool IsBulkPublishingTranslations { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Enhance Panel Open.
+    /// </summary>
+protected bool IsEnhancePanelOpen { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Enhancing.
+    /// </summary>
+protected bool IsEnhancing { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Loading Ai Providers.
+    /// </summary>
+protected bool IsLoadingAiProviders { get; set; }
+        /// <summary>
+    /// Gets or sets the Enhance Target Field.
+    /// </summary>
+protected string EnhanceTargetField { get; set; } = "body";
+        /// <summary>
+    /// Gets or sets the Enhance Prompt.
+    /// </summary>
+protected string EnhancePrompt { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Selected Ai Provider Id.
+    /// </summary>
+protected string? SelectedAiProviderId { get; set; }
+        /// <summary>
+    /// Gets or sets the Enhance Suggestion.
+    /// </summary>
+protected string? EnhanceSuggestion { get; set; }
+        /// <summary>
+    /// Gets or sets the Enhance Rationale.
+    /// </summary>
+protected string? EnhanceRationale { get; set; }
+        /// <summary>
+    /// Gets or sets the Enhance Warnings.
+    /// </summary>
+protected IReadOnlyList<string> EnhanceWarnings { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Ai Provider Options.
+    /// </summary>
+protected IReadOnlyList<AiProviderOption> AiProviderOptions { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Is Translating All.
+    /// </summary>
+protected bool IsTranslatingAll { get; set; }
+        /// <summary>
+    /// Gets or sets the Overwrite Existing Translations.
+    /// </summary>
+protected bool OverwriteExistingTranslations { get; set; }
+        /// <summary>
+    /// Gets or sets the Translating Cultures.
+    /// </summary>
+protected HashSet<string> TranslatingCultures { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+    /// Gets or sets the Is Bulk Publishing Translations.
+    /// </summary>
+protected bool IsBulkPublishingTranslations { get; set; }
 
-    protected IReadOnlyList<EnhanceTargetOption> EnhanceTargetOptions =>
+        /// <summary>
+    /// Gets or sets the Enhance Target Options.
+    /// </summary>
+protected IReadOnlyList<EnhanceTargetOption> EnhanceTargetOptions =>
     [
         new("body", L["Body"]),
         new("title", L["Title"]),
@@ -156,7 +354,10 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Lifecycle
     // ──────────────────────────────────────────────────────────
 
-    protected override void OnParametersSet()
+        /// <summary>
+    /// OnParametersSet method.
+    /// </summary>
+protected override void OnParametersSet()
     {
         if (IsKnownTab(RequestedTab))
         {
@@ -165,7 +366,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
     }
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         await ResolvePreviewBaseUriAsync();
         CurrentSite = await ResolveCurrentSiteAsync();
@@ -192,7 +396,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         _autoSaveTimer.Start();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+        /// <summary>
+    /// OnAfterRenderAsync method.
+    /// </summary>
+protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // Once Monaco is initialized, sync any content loaded asynchronously
         if (_editor is not null && !_editorReady)
@@ -205,7 +412,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
     }
 
-    public void Dispose()
+        /// <summary>
+    /// Dispose method.
+    /// </summary>
+public void Dispose()
     {
         _autoSaveTimer?.Dispose();
         _previewDebounceCts?.Cancel();
@@ -284,7 +494,10 @@ public partial class PostEditor : ComponentBase, IDisposable
     // BlazorMonaco integration
     // ──────────────────────────────────────────────────────────
 
-    protected StandaloneEditorConstructionOptions EditorConstructionOptions(StandaloneCodeEditor editor)
+        /// <summary>
+    /// EditorConstructionOptions method.
+    /// </summary>
+protected StandaloneEditorConstructionOptions EditorConstructionOptions(StandaloneCodeEditor editor)
     {
         return new StandaloneEditorConstructionOptions
         {
@@ -299,7 +512,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         };
     }
 
-    protected async Task OnEditorContentChanged()
+        /// <summary>
+    /// OnEditorContentChanged method.
+    /// </summary>
+protected async Task OnEditorContentChanged()
     {
         if (_editor is not null)
         {
@@ -316,7 +532,10 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Tab switching
     // ──────────────────────────────────────────────────────────
 
-    protected async Task SwitchToTab(string tab)
+        /// <summary>
+    /// SwitchToTab method.
+    /// </summary>
+protected async Task SwitchToTab(string tab)
     {
         // When leaving the Code tab, sync Monaco value to Content
         if (ActiveTab == "code" && tab != "code" && _editor is not null)
@@ -350,7 +569,10 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Preview
     // ──────────────────────────────────────────────────────────
 
-    protected async Task TogglePreview()
+        /// <summary>
+    /// TogglePreview method.
+    /// </summary>
+protected async Task TogglePreview()
     {
         // Sync Monaco before entering preview mode
         if (!FullPreviewMode && ActiveTab == "code" && _editor is not null)
@@ -628,7 +850,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
     }
 
-    protected async Task CreateTranslationAsync()
+        /// <summary>
+    /// CreateTranslationAsync method.
+    /// </summary>
+protected async Task CreateTranslationAsync()
     {
         if (Id is null || IsCreatingTranslation)
             return;
@@ -685,10 +910,16 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
     }
 
-    protected void OpenTranslation(long postId)
+        /// <summary>
+    /// OpenTranslation method.
+    /// </summary>
+protected void OpenTranslation(long postId)
         => NavManager.NavigateTo($"/manager/post/editor/{postId}?tab=translations");
 
-    protected async Task TranslateMissingCulturesAsync()
+        /// <summary>
+    /// TranslateMissingCulturesAsync method.
+    /// </summary>
+protected async Task TranslateMissingCulturesAsync()
     {
         if (Id is null || IsTranslatingAll)
             return;
@@ -706,7 +937,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         await TranslateCulturesAsync(targets, overwriteExisting: false, translateAll: true);
     }
 
-    protected async Task TranslateAllCulturesAsync()
+        /// <summary>
+    /// TranslateAllCulturesAsync method.
+    /// </summary>
+protected async Task TranslateAllCulturesAsync()
     {
         if (Id is null || LoadedPost is null || IsTranslatingAll)
             return;
@@ -731,7 +965,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         await TranslateCulturesAsync(targets, OverwriteExistingTranslations, translateAll: true);
     }
 
-    protected async Task TranslateCultureAsync(string culture, bool overwriteExisting)
+        /// <summary>
+    /// TranslateCultureAsync method.
+    /// </summary>
+protected async Task TranslateCultureAsync(string culture, bool overwriteExisting)
     {
         if (Id is null || TranslatingCultures.Contains(culture))
             return;
@@ -835,13 +1072,19 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
     }
 
-    protected void OpenPublicTranslation(BlogDetail variant)
+        /// <summary>
+    /// OpenPublicTranslation method.
+    /// </summary>
+protected void OpenPublicTranslation(BlogDetail variant)
     {
         var baseUri = _previewBaseUri ?? NavManager.BaseUri.TrimEnd('/');
         NavManager.NavigateTo($"{baseUri.TrimEnd('/')}/blog/{variant.Slug}");
     }
 
-    protected async Task DeleteTranslationAsync(BlogDetail variant)
+        /// <summary>
+    /// DeleteTranslationAsync method.
+    /// </summary>
+protected async Task DeleteTranslationAsync(BlogDetail variant)
     {
         if (LoadedPost is null)
             return;
@@ -873,10 +1116,16 @@ public partial class PostEditor : ComponentBase, IDisposable
             ShowToast($"Delete failed: {failure.Error}", "error");
     }
 
-    protected Task PublishAllTranslationsAsync()
+        /// <summary>
+    /// PublishAllTranslationsAsync method.
+    /// </summary>
+protected Task PublishAllTranslationsAsync()
         => SetAllTranslationsPublicationStateAsync(publish: true);
 
-    protected Task UnpublishAllTranslationsAsync()
+        /// <summary>
+    /// UnpublishAllTranslationsAsync method.
+    /// </summary>
+protected Task UnpublishAllTranslationsAsync()
         => SetAllTranslationsPublicationStateAsync(publish: false);
 
     private async Task SetAllTranslationsPublicationStateAsync(bool publish)
@@ -941,7 +1190,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         TranslationSlug = string.Empty;
     }
 
-    protected string FormatCulture(string? culture)
+        /// <summary>
+    /// FormatCulture method.
+    /// </summary>
+protected string FormatCulture(string? culture)
     {
         var normalized = NormalizeCultureName(culture);
         try
@@ -974,7 +1226,10 @@ public partial class PostEditor : ComponentBase, IDisposable
     // Metadata helpers
     // ──────────────────────────────────────────────────────────
 
-    protected void ToggleTag(long tagId)
+        /// <summary>
+    /// ToggleTag method.
+    /// </summary>
+protected void ToggleTag(long tagId)
     {
         if (SelectedTagIds.Contains(tagId))
             SelectedTagIds.Remove(tagId);
@@ -985,15 +1240,24 @@ public partial class PostEditor : ComponentBase, IDisposable
 
     // ── Dirty tracking helpers for input handlers ────────
 
-    protected void OnTitleChanged(string title) 
+        /// <summary>
+    /// OnTitleChanged method.
+    /// </summary>
+protected void OnTitleChanged(string title) 
     { 
         PostTitle = title; 
         if (string.IsNullOrWhiteSpace(PostSlug))
             PostSlug = TitleToSlug(title);
         MarkDirty(); 
     }
-    protected void OnSlugChanged(string slug) { PostSlug = slug; MarkDirty(); }
-    protected void OnContentChanged(string content)
+        /// <summary>
+    /// OnSlugChanged method.
+    /// </summary>
+protected void OnSlugChanged(string slug) { PostSlug = slug; MarkDirty(); }
+        /// <summary>
+    /// OnContentChanged method.
+    /// </summary>
+protected void OnContentChanged(string content)
     {
         Content = content;
         MarkDirty();
@@ -1002,11 +1266,26 @@ public partial class PostEditor : ComponentBase, IDisposable
             QueuePreviewRefresh();
         }
     }
-    protected void OnExcerptChanged(string excerpt) { Excerpt = excerpt; MarkDirty(); }
-    protected void OnSeoTitleChanged(string title) { SeoTitle = title; MarkDirty(); }
-    protected void OnSeoDescriptionChanged(string description) { SeoDescription = description; MarkDirty(); }
-    protected void OnFeaturedImageChanged(string url) { FeaturedImageUrl = url; MarkDirty(); }
-    protected void OnCategoryChanged(string categoryId)
+        /// <summary>
+    /// OnExcerptChanged method.
+    /// </summary>
+protected void OnExcerptChanged(string excerpt) { Excerpt = excerpt; MarkDirty(); }
+        /// <summary>
+    /// OnSeoTitleChanged method.
+    /// </summary>
+protected void OnSeoTitleChanged(string title) { SeoTitle = title; MarkDirty(); }
+        /// <summary>
+    /// OnSeoDescriptionChanged method.
+    /// </summary>
+protected void OnSeoDescriptionChanged(string description) { SeoDescription = description; MarkDirty(); }
+        /// <summary>
+    /// OnFeaturedImageChanged method.
+    /// </summary>
+protected void OnFeaturedImageChanged(string url) { FeaturedImageUrl = url; MarkDirty(); }
+        /// <summary>
+    /// OnCategoryChanged method.
+    /// </summary>
+protected void OnCategoryChanged(string categoryId)
     {
         if (long.TryParse(categoryId, out var id)) CategoryId = id;
         MarkDirty();
@@ -1024,7 +1303,10 @@ public partial class PostEditor : ComponentBase, IDisposable
             : $"{normalized}-{NormalizeCultureName(culture).ToLowerInvariant()}";
     }
 
-    protected void OnSeriesChanged(string seriesId)
+        /// <summary>
+    /// OnSeriesChanged method.
+    /// </summary>
+protected void OnSeriesChanged(string seriesId)
     {
         if (long.TryParse(seriesId, out var id)) SeriesId = id;
         MarkDirty();
@@ -1062,7 +1344,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         _autoSaveTimer?.Start();
     }
 
-    protected async Task SavePost()
+        /// <summary>
+    /// SavePost method.
+    /// </summary>
+protected async Task SavePost()
     {
         if (IsSaving) return;
 
@@ -1155,7 +1440,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
     }
 
-    protected async Task PublishPost()
+        /// <summary>
+    /// PublishPost method.
+    /// </summary>
+protected async Task PublishPost()
     {
         if (!Id.HasValue)
         {
@@ -1178,7 +1466,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         }
     }
 
-    protected async Task UnpublishPost()
+        /// <summary>
+    /// UnpublishPost method.
+    /// </summary>
+protected async Task UnpublishPost()
     {
         if (!Id.HasValue) return;
 
@@ -1215,14 +1506,20 @@ public partial class PostEditor : ComponentBase, IDisposable
         return slug;
     }
 
-    protected void UpdateLastSaved()
+        /// <summary>
+    /// UpdateLastSaved method.
+    /// </summary>
+protected void UpdateLastSaved()
         => LastSaved = $"Post saved at {DateTime.Now:HH:mm:ss}";
 
     // ──────────────────────────────────────────────────────────
     // Toast notifications
     // ──────────────────────────────────────────────────────────
 
-    protected void ShowToast(string message, string type = "info")
+        /// <summary>
+    /// ShowToast method.
+    /// </summary>
+protected void ShowToast(string message, string type = "info")
     {
         var toast = new ToastMessage { Message = message, Type = type };
         Toasts.Add(toast);
@@ -1234,19 +1531,28 @@ public partial class PostEditor : ComponentBase, IDisposable
         }));
     }
 
-    protected void RemoveToast(string id)
+        /// <summary>
+    /// RemoveToast method.
+    /// </summary>
+protected void RemoveToast(string id)
         => Toasts.RemoveAll(t => t.Id == id);
 
     // ──────────────────────────────────────────────────────────
     // Media selector
     // ──────────────────────────────────────────────────────────
 
-    protected void OpenMediaSelector()
+        /// <summary>
+    /// OpenMediaSelector method.
+    /// </summary>
+protected void OpenMediaSelector()
     {
         MediaModalOpen = true;
     }
 
-    protected void OnConfirmFeaturedImage(List<MediaItem> items)
+        /// <summary>
+    /// OnConfirmFeaturedImage method.
+    /// </summary>
+protected void OnConfirmFeaturedImage(List<MediaItem> items)
     {
         if (items.Count > 0)
         {
@@ -1261,7 +1567,10 @@ public partial class PostEditor : ComponentBase, IDisposable
     // AI enhancement
     // ──────────────────────────────────────────────────────────
 
-    protected async Task OpenEnhancePanel()
+        /// <summary>
+    /// OpenEnhancePanel method.
+    /// </summary>
+protected async Task OpenEnhancePanel()
     {
         if (ActiveTab == "code" && _editor is not null)
         {
@@ -1276,18 +1585,27 @@ public partial class PostEditor : ComponentBase, IDisposable
         await LoadAiProviderOptionsAsync();
     }
 
-    protected void CloseEnhancePanel()
+        /// <summary>
+    /// CloseEnhancePanel method.
+    /// </summary>
+protected void CloseEnhancePanel()
     {
         IsEnhancePanelOpen = false;
         IsEnhancing = false;
     }
 
-    protected void UseQuickPrompt(string prompt)
+        /// <summary>
+    /// UseQuickPrompt method.
+    /// </summary>
+protected void UseQuickPrompt(string prompt)
     {
         EnhancePrompt = prompt;
     }
 
-    protected async Task RunEnhancementAsync()
+        /// <summary>
+    /// RunEnhancementAsync method.
+    /// </summary>
+protected async Task RunEnhancementAsync()
     {
         if (IsEnhancing)
         {
@@ -1332,7 +1650,10 @@ public partial class PostEditor : ComponentBase, IDisposable
         IsEnhancing = false;
     }
 
-    protected async Task ApplyEnhancementAsync()
+        /// <summary>
+    /// ApplyEnhancementAsync method.
+    /// </summary>
+protected async Task ApplyEnhancementAsync()
     {
         if (string.IsNullOrWhiteSpace(EnhanceSuggestion))
         {
@@ -1442,5 +1763,8 @@ public partial class PostEditor : ComponentBase, IDisposable
                         ? "translations"
                         : "editor";
 
-    protected sealed record EnhanceTargetOption(string Value, string Label);
+        /// <summary>
+    /// Represents a record for EnhanceTargetOption.
+    /// </summary>
+protected sealed record EnhanceTargetOption(string Value, string Label);
 }

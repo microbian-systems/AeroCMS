@@ -4,10 +4,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Basket.Services;
 
+/// <summary>
+/// Represents a class for BasketService.
+/// </summary>
 public sealed class BasketService(IDocumentSession session, ILogger<BasketService> log)
     : GenericMartenRepository<BasketDocument>(session, log), IBasketService
 {
-    public async Task<Result<BasketDocument, AeroError>> GetOrCreateBasketAsync(string customerId, CancellationToken ct = default)
+        /// <summary>
+    /// GetOrCreateBasketAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> GetOrCreateBasketAsync(string customerId, CancellationToken ct = default)
     {
         try
         {
@@ -35,7 +41,10 @@ public sealed class BasketService(IDocumentSession session, ILogger<BasketServic
         }
     }
 
-    public async Task<Result<BasketDocument, AeroError>> AddItemAsync(string customerId, BasketItem item, CancellationToken ct = default)
+        /// <summary>
+    /// AddItemAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> AddItemAsync(string customerId, BasketItem item, CancellationToken ct = default)
     {
         try
         {
@@ -68,7 +77,10 @@ public sealed class BasketService(IDocumentSession session, ILogger<BasketServic
         }
     }
 
-    public async Task<Result<BasketDocument, AeroError>> RemoveItemAsync(string customerId, long productId, CancellationToken ct = default)
+        /// <summary>
+    /// RemoveItemAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> RemoveItemAsync(string customerId, long productId, CancellationToken ct = default)
     {
         try
         {
@@ -90,7 +102,10 @@ public sealed class BasketService(IDocumentSession session, ILogger<BasketServic
         }
     }
 
-    public async Task<Result<BasketDocument, AeroError>> ClearBasketAsync(string customerId, CancellationToken ct = default)
+        /// <summary>
+    /// ClearBasketAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> ClearBasketAsync(string customerId, CancellationToken ct = default)
     {
         try
         {

@@ -1,8 +1,14 @@
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 
+/// <summary>
+/// Represents a class for NeoCatalogSectionMapper.
+/// </summary>
 public static class NeoCatalogSectionMapper
 {
-    public static bool TryMap(string? category, out NeoEditorCatalogSection section)
+        /// <summary>
+    /// TryMap method.
+    /// </summary>
+public static bool TryMap(string? category, out NeoEditorCatalogSection section)
     {
         switch (category?.Trim().ToUpperInvariant())
         {

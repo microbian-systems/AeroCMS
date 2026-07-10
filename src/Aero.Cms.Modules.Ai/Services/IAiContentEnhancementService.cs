@@ -4,9 +4,15 @@ using Aero.Core.Railway;
 
 namespace Aero.Cms.Modules.Ai.Services;
 
+/// <summary>
+/// Defines an interface for IAiContentEnhancementService.
+/// </summary>
 public interface IAiContentEnhancementService
 {
-    Task<Result<EnhanceContentResponse>> EnhanceAsync(
+        /// <summary>
+    /// EnhanceAsync method.
+    /// </summary>
+Task<Result<EnhanceContentResponse>> EnhanceAsync(
         EnhanceContentRequest request,
         CancellationToken cancellationToken = default);
 }

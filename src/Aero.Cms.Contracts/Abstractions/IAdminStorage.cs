@@ -6,6 +6,12 @@ namespace Aero.Cms.Contracts.Abstractions;
 /// </summary>
 public interface IAdminStorage
 {
-    T? GetItem<T>(string key);
-    void SetItem<T>(string key, T value);
+        /// <summary>
+    /// GetItem method.
+    /// </summary>
+T? GetItem<T>(string key);
+        /// <summary>
+    /// SetItem method.
+    /// </summary>
+void SetItem<T>(string key, T value);
 }

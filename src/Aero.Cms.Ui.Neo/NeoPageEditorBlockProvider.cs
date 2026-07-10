@@ -56,6 +56,9 @@ using Aero.Cms.Ui.Neo.Primitives.TextBlock;
 
 namespace Aero.Cms.Ui.Neo;
 
+/// <summary>
+/// Represents a class for NeoPageEditorBlockProvider.
+/// </summary>
 public sealed class NeoPageEditorBlockProvider :
     IPageEditorBlockProvider,
     IPageEditorDefinitionProvider,
@@ -142,7 +145,16 @@ public sealed class NeoPageEditorBlockProvider :
         ColumnsPrimitiveDefinition.Descriptor
     ];
 
-    public IReadOnlyCollection<IPageEditorBlockDefinition> GetDefinitions() => Definitions;
-    public IReadOnlyCollection<PageEditorDefinitionDescriptor> GetEditorDefinitions() => EditorDefinitions;
-    public IReadOnlyCollection<CmsBlockModelRegistration> GetBlockModels() => BlockModels;
+        /// <summary>
+    /// GetDefinitions method.
+    /// </summary>
+public IReadOnlyCollection<IPageEditorBlockDefinition> GetDefinitions() => Definitions;
+        /// <summary>
+    /// GetEditorDefinitions method.
+    /// </summary>
+public IReadOnlyCollection<PageEditorDefinitionDescriptor> GetEditorDefinitions() => EditorDefinitions;
+        /// <summary>
+    /// GetBlockModels method.
+    /// </summary>
+public IReadOnlyCollection<CmsBlockModelRegistration> GetBlockModels() => BlockModels;
 }

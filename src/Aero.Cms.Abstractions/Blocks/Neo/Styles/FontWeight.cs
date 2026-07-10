@@ -2,6 +2,9 @@ using System.Text.Json.Serialization;
 
 namespace Aero.Cms.Abstractions.Blocks.Neo.Styles;
 
+/// <summary>
+/// Defines an enumeration for FontWeight.
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<FontWeight>))]
 public enum FontWeight
 {

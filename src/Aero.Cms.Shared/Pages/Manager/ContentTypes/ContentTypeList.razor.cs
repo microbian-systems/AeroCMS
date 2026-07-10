@@ -8,6 +8,9 @@ using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 
+/// <summary>
+/// Represents a class for ContentTypeList.
+/// </summary>
 public partial class ContentTypeList
 {
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
@@ -30,7 +33,10 @@ public partial class ContentTypeList
                 (type.Category?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
             .ToList();
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
     }

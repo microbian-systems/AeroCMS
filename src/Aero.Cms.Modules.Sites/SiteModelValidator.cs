@@ -4,9 +4,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Modules.Sites;
 
+/// <summary>
+/// Represents a class for SiteModelValidator.
+/// </summary>
 public sealed class SiteModelValidator : AbstractValidator<SitesModel>
 {
-    public SiteModelValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="SiteModelValidator"/> class.
+    /// </summary>
+public SiteModelValidator()
     {
         RuleFor(x => x.Id)
             .GreaterThan(0)

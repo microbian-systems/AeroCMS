@@ -5,13 +5,25 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Styles;
 /// </summary>
 public sealed class ResponsiveNodeStyle
 {
-    public NodeStyle Base { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Base.
+    /// </summary>
+public NodeStyle Base { get; set; } = new();
 
-    public NodeStyleOverride? Tablet { get; set; }
+        /// <summary>
+    /// Gets or sets the Tablet.
+    /// </summary>
+public NodeStyleOverride? Tablet { get; set; }
 
-    public NodeStyleOverride? Mobile { get; set; }
+        /// <summary>
+    /// Gets or sets the Mobile.
+    /// </summary>
+public NodeStyleOverride? Mobile { get; set; }
 
-    public NodeStyle Resolve(EditorBreakpoint breakpoint) =>
+        /// <summary>
+    /// Resolve method.
+    /// </summary>
+public NodeStyle Resolve(EditorBreakpoint breakpoint) =>
         breakpoint switch
         {
             EditorBreakpoint.Desktop => Base,
@@ -20,7 +32,10 @@ public sealed class ResponsiveNodeStyle
             _ => throw new ArgumentOutOfRangeException(nameof(breakpoint), breakpoint, null)
         };
 
-    public ResponsiveNodeStyle DeepClone() =>
+        /// <summary>
+    /// DeepClone method.
+    /// </summary>
+public ResponsiveNodeStyle DeepClone() =>
         new()
         {
             Base = Base with

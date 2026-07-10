@@ -12,9 +12,15 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Footer.Areas.Api.v1;
 
+/// <summary>
+/// Represents a class for FooterAdminApi.
+/// </summary>
 public static class FooterAdminApi
 {
-    public static void MapFooterAdminApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapFooterAdminApi method.
+    /// </summary>
+public static void MapFooterAdminApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/footers")
             .WithTags("Admin - Footers");
@@ -543,8 +549,14 @@ public static class FooterAdminApi
             : TypedResults.Problem("Unexpected footer API result.");
 }
 
+/// <summary>
+/// Represents a record for FooterEventItem.
+/// </summary>
 public sealed record FooterEventItem(long Version, string EventType, DateTimeOffset Timestamp, string StreamKey, bool IsArchived);
 
+/// <summary>
+/// Represents a record for FooterEventHistory.
+/// </summary>
 public sealed record FooterEventHistory(long FooterId, int TotalEvents, IReadOnlyList<FooterEventItem> Events);
 
 internal sealed record AiTranslateFooterPlan(
@@ -557,11 +569,20 @@ internal sealed record AiTranslatedFooterPlan(
     TranslateDocumentResponse? Response,
     string? Error)
 {
-    public string Culture => Plan.Culture;
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture => Plan.Culture;
 
-    public static AiTranslatedFooterPlan Success(AiTranslateFooterPlan plan, TranslateDocumentResponse response)
+        /// <summary>
+    /// Success method.
+    /// </summary>
+public static AiTranslatedFooterPlan Success(AiTranslateFooterPlan plan, TranslateDocumentResponse response)
         => new(plan, true, response, null);
 
-    public static AiTranslatedFooterPlan Failed(AiTranslateFooterPlan plan, string error)
+        /// <summary>
+    /// Failed method.
+    /// </summary>
+public static AiTranslatedFooterPlan Failed(AiTranslateFooterPlan plan, string error)
         => new(plan, false, null, error);
 }

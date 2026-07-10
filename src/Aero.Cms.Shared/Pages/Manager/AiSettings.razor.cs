@@ -9,23 +9,50 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a class for AiSettings.
+/// </summary>
 public partial class AiSettings
 {
-    [Inject] protected IAiHttpClient AiClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Ai Client.
+    /// </summary>
+[Inject] protected IAiHttpClient AiClient { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
-    protected bool IsLoading { get; set; } = true;
-    protected bool IsSaving { get; set; }
-    protected bool Enabled { get; set; }
-    protected string DefaultProviderId { get; set; } = "opencode";
-    protected List<ProviderFormModel> Providers { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Is Loading.
+    /// </summary>
+protected bool IsLoading { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Is Saving.
+    /// </summary>
+protected bool IsSaving { get; set; }
+        /// <summary>
+    /// Gets or sets the Enabled.
+    /// </summary>
+protected bool Enabled { get; set; }
+        /// <summary>
+    /// Gets or sets the Default Provider Id.
+    /// </summary>
+protected string DefaultProviderId { get; set; } = "opencode";
+        /// <summary>
+    /// Gets or sets the Providers.
+    /// </summary>
+protected List<ProviderFormModel> Providers { get; set; } = [];
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
     }
 
-    protected async Task LoadAsync()
+        /// <summary>
+    /// LoadAsync method.
+    /// </summary>
+protected async Task LoadAsync()
     {
         IsLoading = true;
         var result = await AiClient.GetSettingsAsync();
@@ -43,7 +70,10 @@ public partial class AiSettings
         IsLoading = false;
     }
 
-    protected async Task SaveAsync()
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+protected async Task SaveAsync()
     {
         IsSaving = true;
 
@@ -68,7 +98,10 @@ public partial class AiSettings
         IsSaving = false;
     }
 
-    protected void SelectDefaultProvider(string providerId)
+        /// <summary>
+    /// SelectDefaultProvider method.
+    /// </summary>
+protected void SelectDefaultProvider(string providerId)
     {
         DefaultProviderId = providerId;
     }
@@ -84,25 +117,76 @@ public partial class AiSettings
         });
     }
 
-    protected sealed class ProviderFormModel
+        /// <summary>
+    /// Represents a class for ProviderFormModel.
+    /// </summary>
+protected sealed class ProviderFormModel
     {
-        public string Id { get; set; } = string.Empty;
-        public string DisplayName { get; set; } = string.Empty;
-        public AiProviderKind Provider { get; set; }
-        public bool Enabled { get; set; }
-        public string Endpoint { get; set; } = string.Empty;
-        public string Model { get; set; } = string.Empty;
-        public bool HasApiKey { get; set; }
-        public string ApiKey { get; set; } = string.Empty;
-        public bool ClearApiKey { get; set; }
-        public string Temperature { get; set; } = "0.3";
-        public string MaxOutputTokens { get; set; } = "1200";
-        public string TimeoutSeconds { get; set; } = "60";
-        public bool StreamResponses { get; set; }
-        public bool SaveUsageTelemetry { get; set; }
-        public bool SupportsContentEnhancement { get; set; }
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+public string Id { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Display Name.
+        /// </summary>
+public string DisplayName { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Provider.
+        /// </summary>
+public AiProviderKind Provider { get; set; }
+                /// <summary>
+        /// Gets or sets the Enabled.
+        /// </summary>
+public bool Enabled { get; set; }
+                /// <summary>
+        /// Gets or sets the Endpoint.
+        /// </summary>
+public string Endpoint { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Model.
+        /// </summary>
+public string Model { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Has Api Key.
+        /// </summary>
+public bool HasApiKey { get; set; }
+                /// <summary>
+        /// Gets or sets the Api Key.
+        /// </summary>
+public string ApiKey { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Clear Api Key.
+        /// </summary>
+public bool ClearApiKey { get; set; }
+                /// <summary>
+        /// Gets or sets the Temperature.
+        /// </summary>
+public string Temperature { get; set; } = "0.3";
+                /// <summary>
+        /// Gets or sets the Max Output Tokens.
+        /// </summary>
+public string MaxOutputTokens { get; set; } = "1200";
+                /// <summary>
+        /// Gets or sets the Timeout Seconds.
+        /// </summary>
+public string TimeoutSeconds { get; set; } = "60";
+                /// <summary>
+        /// Gets or sets the Stream Responses.
+        /// </summary>
+public bool StreamResponses { get; set; }
+                /// <summary>
+        /// Gets or sets the Save Usage Telemetry.
+        /// </summary>
+public bool SaveUsageTelemetry { get; set; }
+                /// <summary>
+        /// Gets or sets the Supports Content Enhancement.
+        /// </summary>
+public bool SupportsContentEnhancement { get; set; }
 
-        public static ProviderFormModel FromSettings(AiProviderSettings settings)
+                /// <summary>
+        /// FromSettings method.
+        /// </summary>
+public static ProviderFormModel FromSettings(AiProviderSettings settings)
             => new()
             {
                 Id = settings.Id,
@@ -120,7 +204,10 @@ public partial class AiSettings
                 SupportsContentEnhancement = settings.SupportsContentEnhancement
             };
 
-        public AiProviderSettingsUpdate ToUpdate()
+                /// <summary>
+        /// ToUpdate method.
+        /// </summary>
+public AiProviderSettingsUpdate ToUpdate()
             => new(
                 Id,
                 DisplayName,

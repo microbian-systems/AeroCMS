@@ -5,9 +5,15 @@ using FluentValidation.Results;
 
 namespace Aero.Cms.Core.Content.Services;
 
+/// <summary>
+/// Represents a class for UniqueSlugValidator.
+/// </summary>
 public sealed class UniqueSlugValidator(IContentService contentService) : IAsyncContentValidator
 {
-    public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
+        /// <summary>
+    /// ValidateAsync method.
+    /// </summary>
+public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(item.Slug))
             return [];
@@ -20,9 +26,15 @@ public sealed class UniqueSlugValidator(IContentService contentService) : IAsync
     }
 }
 
+/// <summary>
+/// Represents a class for ReferenceExistenceValidator.
+/// </summary>
 public sealed class ReferenceExistenceValidator(IContentService contentService) : IAsyncContentValidator
 {
-    public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
+        /// <summary>
+    /// ValidateAsync method.
+    /// </summary>
+public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem item, ContentTypeDefinition type, CancellationToken ct)
     {
         var failures = new List<ValidationFailure>();
 

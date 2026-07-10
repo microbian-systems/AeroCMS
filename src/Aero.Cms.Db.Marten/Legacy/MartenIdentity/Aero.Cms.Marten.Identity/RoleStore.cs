@@ -11,12 +11,18 @@ internal class RoleStore<TRole>(IDocumentSession session) :
     IRoleClaimStore<TRole>
     where TRole : AeroRole
 {
-    public void Dispose()
+        /// <summary>
+    /// Dispose method.
+    /// </summary>
+public void Dispose()
     {
         session.Dispose();
     }
 
-    public async Task<IdentityResult> CreateAsync(TRole role, CancellationToken cancellationToken)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<IdentityResult> CreateAsync(TRole role, CancellationToken cancellationToken)
     {
         try
         {
@@ -32,7 +38,10 @@ internal class RoleStore<TRole>(IDocumentSession session) :
         }
     }
 
-    public async Task<IdentityResult> UpdateAsync(TRole role, CancellationToken cancellationToken)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<IdentityResult> UpdateAsync(TRole role, CancellationToken cancellationToken)
     {
         try
         {
@@ -48,7 +57,10 @@ internal class RoleStore<TRole>(IDocumentSession session) :
         }
     }
 
-    public async Task<IdentityResult> DeleteAsync(TRole role, CancellationToken cancellationToken)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<IdentityResult> DeleteAsync(TRole role, CancellationToken cancellationToken)
     {
         try
         {
@@ -64,21 +76,30 @@ internal class RoleStore<TRole>(IDocumentSession session) :
         }
     }
 
-    public Task<string> GetRoleIdAsync(TRole role, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetRoleIdAsync method.
+    /// </summary>
+public Task<string> GetRoleIdAsync(TRole role, CancellationToken cancellationToken)
     {
         ValidateParameters(role, cancellationToken);
 
         return Task.FromResult(role.Id.ToString(CultureInfo.InvariantCulture));
     }
 
-    public Task<string> GetRoleNameAsync(TRole role, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetRoleNameAsync method.
+    /// </summary>
+public Task<string> GetRoleNameAsync(TRole role, CancellationToken cancellationToken)
     {
         ValidateParameters(role, cancellationToken);
 
         return Task.FromResult(role.Name);
     }
 
-    public Task SetRoleNameAsync(TRole role, string roleName, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetRoleNameAsync method.
+    /// </summary>
+public Task SetRoleNameAsync(TRole role, string roleName, CancellationToken cancellationToken)
     {
         if (roleName == null)
             throw new ArgumentNullException(nameof(roleName));
@@ -90,14 +111,20 @@ internal class RoleStore<TRole>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<string> GetNormalizedRoleNameAsync(TRole role, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetNormalizedRoleNameAsync method.
+    /// </summary>
+public Task<string> GetNormalizedRoleNameAsync(TRole role, CancellationToken cancellationToken)
     {
         ValidateParameters(role, cancellationToken);
 
         return Task.FromResult(role.NormalizedName);
     }
 
-    public Task SetNormalizedRoleNameAsync(TRole role, string normalizedName, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetNormalizedRoleNameAsync method.
+    /// </summary>
+public Task SetNormalizedRoleNameAsync(TRole role, string normalizedName, CancellationToken cancellationToken)
     {
         if (normalizedName == null)
             throw new ArgumentNullException(nameof(normalizedName));
@@ -108,21 +135,33 @@ internal class RoleStore<TRole>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<TRole?> FindByIdAsync(string roleId, CancellationToken cancellationToken)
+        /// <summary>
+    /// FindByIdAsync method.
+    /// </summary>
+public Task<TRole?> FindByIdAsync(string roleId, CancellationToken cancellationToken)
     {
         if (!long.TryParse(roleId, out var parsedRoleId)) return Task.FromResult<TRole?>(null);
         return session.Query<TRole>().FirstOrDefaultAsync(x => x.Id == parsedRoleId, cancellationToken);
     }
 
-    public Task<TRole?> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
+        /// <summary>
+    /// FindByNameAsync method.
+    /// </summary>
+public Task<TRole?> FindByNameAsync(string normalizedRoleName, CancellationToken cancellationToken)
     {
         return session.Query<TRole>()
             .FirstOrDefaultAsync(x => x.NormalizedName == normalizedRoleName, cancellationToken);
     }
 
-    public IQueryable<TRole> Roles => session.Query<TRole>();
+        /// <summary>
+    /// Gets or sets the Roles.
+    /// </summary>
+public IQueryable<TRole> Roles => session.Query<TRole>();
 
-    public Task<IList<Claim>> GetClaimsAsync(TRole role, CancellationToken cancellationToken = new())
+        /// <summary>
+    /// GetClaimsAsync method.
+    /// </summary>
+public Task<IList<Claim>> GetClaimsAsync(TRole role, CancellationToken cancellationToken = new())
     {
         ValidateParameters(role, cancellationToken);
 
@@ -133,7 +172,10 @@ internal class RoleStore<TRole>(IDocumentSession session) :
         return Task.FromResult<IList<Claim>>(claims);
     }
 
-    public Task AddClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = new())
+        /// <summary>
+    /// AddClaimAsync method.
+    /// </summary>
+public Task AddClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = new())
     {
         ValidateParameters(role, cancellationToken);
 
@@ -150,7 +192,10 @@ internal class RoleStore<TRole>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task RemoveClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = new())
+        /// <summary>
+    /// RemoveClaimAsync method.
+    /// </summary>
+public Task RemoveClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = new())
     {
         ValidateParameters(role, cancellationToken);
         IdentityRoleClaim<long> test;

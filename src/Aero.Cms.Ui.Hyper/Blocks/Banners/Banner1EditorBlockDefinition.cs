@@ -4,29 +4,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Banners;
 
+/// <summary>
+/// Represents a class for Banner1EditorBlockDefinition.
+/// </summary>
 public sealed class Banner1EditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "hyper.banners.1";
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "hyper.banners.1";
 
-    public string DisplayName => "Banner 1";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Banner 1";
 
-    public string? Description => "Centered hero banner with CTA buttons.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Centered hero banner with CTA buttons.";
 
-    public string Category => "Hyper";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Hyper";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "image";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "image";
 
-    public int SortOrder => 60;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 60;
 
-    public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
 
-    public Type? PreviewComponentType => typeof(Banner1BlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(Banner1BlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(Banner1BlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(Banner1BlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -41,13 +77,19 @@ public sealed class Banner1EditorBlockDefinition : IPageEditorBlockDefinition
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBannerBlock(editorBlock);
         return Banner1BlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBannerBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBannerBlock(editorBlock);
 
     private static Banner1Block ToBannerBlock(EditorBlock editorBlock)
     {

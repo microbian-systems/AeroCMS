@@ -17,22 +17,43 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Faqs;
     SchemaVersion = 1)]
 public sealed class Faq1Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.faqs.1";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.faqs.1";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "FAQs";
-    public string Description { get; set; } = "";
-    public List<AeroFaqItem> Items { get; set; } = DefaultItems.Select(CloneItem).ToList();
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "FAQs";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Items.
+    /// </summary>
+public List<AeroFaqItem> Items { get; set; } = DefaultItems.Select(CloneItem).ToList();
 
-    public static readonly List<AeroFaqItem> DefaultItems =
+        /// <summary>
+    /// DefaultItems.
+    /// </summary>
+public static readonly List<AeroFaqItem> DefaultItems =
     [
         new() { Question = "Lorem ipsum dolor sit amet consectetur adipisicing?", Answer = "Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ab hic veritatis molestias culpa in, recusandae laboriosam neque aliquid libero nesciunt voluptate dicta quo officiis explicabo consequuntur distinctio corporis earum similique!" },
         new() { Question = "Lorem ipsum dolor sit amet consectetur adipisicing?", Answer = "Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ab hic veritatis molestias culpa in, recusandae laboriosam neque aliquid libero nesciunt voluptate dicta quo officiis explicabo consequuntur distinctio corporis earum similique!" },
         new() { Question = "Lorem ipsum dolor sit amet consectetur adipisicing?", Answer = "Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ab hic veritatis molestias culpa in, recusandae laboriosam neque aliquid libero nesciunt voluptate dicta quo officiis explicabo consequuntur distinctio corporis earum similique!" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static AeroFaqItem CloneItem(AeroFaqItem item) => new()
     {

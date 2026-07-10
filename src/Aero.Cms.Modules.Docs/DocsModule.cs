@@ -15,20 +15,47 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.Docs;
 
+/// <summary>
+/// Represents a class for DocsModule.
+/// </summary>
 [Module(nameof(DocsModule))]
 public sealed class DocsModule : AeroWebModule, IConfigureAeroDB
 {
-    public override string Name => nameof(DocsModule);
-    public override string Version =>AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override short Order => 100;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(DocsModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version =>AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public override short Order => 100;
 
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["documentation", "knowledge base"];
-    public override IReadOnlyList<string> Tags => ["docs", "markdown", "kbase"];
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["documentation", "knowledge base"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["docs", "markdown", "kbase"];
 
 
-    public void Configure(StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions opts)
     {
         opts.Schema.For<DocsPage>().UseOptimisticConcurrency = true;
         opts.Schema.For<DocsPage>().Index(x => x.SiteId);
@@ -49,12 +76,18 @@ public sealed class DocsModule : AeroWebModule, IConfigureAeroDB
         opts.Schema.For<DocsEditorState>().Index(x => x.SiteId);
     }
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.Configure<RazorPagesOptions>(options =>
         {
@@ -84,7 +117,10 @@ public sealed class DocsModule : AeroWebModule, IConfigureAeroDB
             sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroDocsActor>(0, "aero"));
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapDocsApi();
         return Task.CompletedTask;

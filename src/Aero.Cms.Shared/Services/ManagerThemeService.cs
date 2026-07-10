@@ -2,17 +2,35 @@ using Microsoft.JSInterop;
 
 namespace Aero.Cms.Shared.Services;
 
+/// <summary>
+/// Represents a class for ManagerThemeService.
+/// </summary>
 public class ManagerThemeService(IJSRuntime jsRuntime)
 {
     private bool _isDarkMode = true;
     private bool _isInitialized;
-    public bool IsDarkMode => _isDarkMode;
-    public string Theme => _isDarkMode ? "dark" : "light";
-    public bool IsSidebarCollapsed { get; private set; }
+        /// <summary>
+    /// Gets or sets the Is Dark Mode.
+    /// </summary>
+public bool IsDarkMode => _isDarkMode;
+        /// <summary>
+    /// Gets or sets the Theme.
+    /// </summary>
+public string Theme => _isDarkMode ? "dark" : "light";
+        /// <summary>
+    /// Gets or sets the Is Sidebar Collapsed.
+    /// </summary>
+public bool IsSidebarCollapsed { get; private set; }
 
-    public event Action? OnThemeChanged;
+        /// <summary>
+    /// Event raised for OnThemeChanged.
+    /// </summary>
+public event Action? OnThemeChanged;
 
-    public async Task InitializeAsync()
+        /// <summary>
+    /// InitializeAsync method.
+    /// </summary>
+public async Task InitializeAsync()
     {
         if (_isInitialized)
         {
@@ -32,7 +50,10 @@ public class ManagerThemeService(IJSRuntime jsRuntime)
         NotifyChanged();
     }
 
-    public async Task SetDarkModeAsync(bool isDark)
+        /// <summary>
+    /// SetDarkModeAsync method.
+    /// </summary>
+public async Task SetDarkModeAsync(bool isDark)
     {
         _isDarkMode = isDark;
         await PersistThemeAsync();
@@ -41,7 +62,10 @@ public class ManagerThemeService(IJSRuntime jsRuntime)
         NotifyChanged();
     }
 
-    public async Task ToggleThemeAsync()
+        /// <summary>
+    /// ToggleThemeAsync method.
+    /// </summary>
+public async Task ToggleThemeAsync()
     {
         _isDarkMode = !_isDarkMode;
         await PersistThemeAsync();
@@ -128,7 +152,10 @@ public class ManagerThemeService(IJSRuntime jsRuntime)
                string.Equals(value, "dark", StringComparison.OrdinalIgnoreCase);
     }
 
-    public void ToggleSidebar()
+        /// <summary>
+    /// ToggleSidebar method.
+    /// </summary>
+public void ToggleSidebar()
     {
         IsSidebarCollapsed = !IsSidebarCollapsed;
         NotifyChanged();

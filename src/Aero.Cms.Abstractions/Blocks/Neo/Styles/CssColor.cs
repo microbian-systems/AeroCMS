@@ -8,5 +8,8 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Styles;
 [JsonConverter(typeof(CssColorJsonConverter))]
 public readonly record struct CssColor(string Value)
 {
-    public override string ToString() => Value;
+        /// <summary>
+    /// ToString method.
+    /// </summary>
+public override string ToString() => Value;
 }

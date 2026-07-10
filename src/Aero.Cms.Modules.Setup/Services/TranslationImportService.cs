@@ -9,25 +9,40 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup.Services;
 
+/// <summary>
+/// Defines an interface for ITranslationImportService.
+/// </summary>
 public interface ITranslationImportService
 {
-    Task<Result<TranslationImportResult, AeroError>> ImportAsync(
+        /// <summary>
+    /// ImportAsync method.
+    /// </summary>
+Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         TranslationImportFileRequest request,
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for TranslationImportService.
+/// </summary>
 public sealed class TranslationImportService : ITranslationImportService
 {
     private readonly IDocumentSession _session;
     private readonly ILogger<TranslationImportService> _log;
 
-    public TranslationImportService(IDocumentSession session, ILogger<TranslationImportService> log)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="TranslationImportService"/> class.
+    /// </summary>
+public TranslationImportService(IDocumentSession session, ILogger<TranslationImportService> log)
     {
         _session = session;
         _log = log;
     }
 
-    public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
+        /// <summary>
+    /// ImportAsync method.
+    /// </summary>
+public async Task<Result<TranslationImportResult, AeroError>> ImportAsync(
         TranslationImportFileRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -366,7 +381,10 @@ internal static class TranslationImportPayloadReader
         PropertyNameCaseInsensitive = true
     };
 
-    public static async Task<Result<List<TranslationImportPayload>, AeroError>> ReadAsync(
+        /// <summary>
+    /// ReadAsync method.
+    /// </summary>
+public static async Task<Result<List<TranslationImportPayload>, AeroError>> ReadAsync(
         string fileName,
         byte[] fileData,
         CancellationToken cancellationToken)
@@ -465,11 +483,17 @@ internal static class TranslationImportPayloadReader
     }
 }
 
+/// <summary>
+/// Represents a record for TranslationImportFileRequest.
+/// </summary>
 public sealed record TranslationImportFileRequest(
     string FileName,
     string MimeType,
     string Base64Data);
 
+/// <summary>
+/// Represents a record for TranslationImportResult.
+/// </summary>
 public sealed record TranslationImportResult(
     int TotalProcessed,
     int TotalImported,
@@ -480,113 +504,227 @@ public sealed record TranslationImportResult(
     IReadOnlyList<TranslationImportSkip> SkippedItems,
     IReadOnlyList<TranslationImportError> Errors);
 
+/// <summary>
+/// Represents a record for TranslationImportItem.
+/// </summary>
 public sealed record TranslationImportItem(string Type, long Id, string Culture, string Slug);
 
+/// <summary>
+/// Represents a record for TranslationImportSkip.
+/// </summary>
 public sealed record TranslationImportSkip(string Type, long Id, string Reason);
 
+/// <summary>
+/// Represents a record for TranslationImportError.
+/// </summary>
 public sealed record TranslationImportError(string Type, long Id, string Message);
 
+/// <summary>
+/// Represents a record for TranslationImportPayload.
+/// </summary>
 public sealed record TranslationImportPayload
 {
-    [JsonPropertyName("culture")]
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+[JsonPropertyName("culture")]
     public string Culture { get; init; } = SitesModel.DefaultCultureName;
 
-    [JsonPropertyName("pages")]
+        /// <summary>
+    /// Gets or sets the Pages.
+    /// </summary>
+[JsonPropertyName("pages")]
     public List<TranslationPageImport> Pages { get; init; } = [];
 
-    [JsonPropertyName("posts")]
+        /// <summary>
+    /// Gets or sets the Posts.
+    /// </summary>
+[JsonPropertyName("posts")]
     public List<TranslationPostImport> Posts { get; init; } = [];
 
-    [JsonPropertyName("categories")]
+        /// <summary>
+    /// Gets or sets the Categories.
+    /// </summary>
+[JsonPropertyName("categories")]
     public List<TranslationCategoryImport> Categories { get; init; } = [];
 
-    [JsonPropertyName("tags")]
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+[JsonPropertyName("tags")]
     public List<TranslationTagImport> Tags { get; init; } = [];
 
-    [JsonPropertyName("products")]
+        /// <summary>
+    /// Gets or sets the Products.
+    /// </summary>
+[JsonPropertyName("products")]
     public List<TranslationProductImport> Products { get; init; } = [];
 }
 
+/// <summary>
+/// Represents a record for TranslationPageImport.
+/// </summary>
 public sealed record TranslationPageImport
 {
-    [JsonPropertyName("sourceId")]
+        /// <summary>
+    /// Gets or sets the Source Id.
+    /// </summary>
+[JsonPropertyName("sourceId")]
     public long SourceId { get; init; }
 
-    [JsonPropertyName("slug")]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[JsonPropertyName("slug")]
     public string? Slug { get; init; }
 
-    [JsonPropertyName("title")]
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+[JsonPropertyName("title")]
     public string? Title { get; init; }
 
-    [JsonPropertyName("summary")]
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+[JsonPropertyName("summary")]
     public string? Summary { get; init; }
 
-    [JsonPropertyName("seoTitle")]
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+[JsonPropertyName("seoTitle")]
     public string? SeoTitle { get; init; }
 
-    [JsonPropertyName("seoDescription")]
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+[JsonPropertyName("seoDescription")]
     public string? SeoDescription { get; init; }
 }
 
+/// <summary>
+/// Represents a record for TranslationPostImport.
+/// </summary>
 public sealed record TranslationPostImport
 {
-    [JsonPropertyName("sourceId")]
+        /// <summary>
+    /// Gets or sets the Source Id.
+    /// </summary>
+[JsonPropertyName("sourceId")]
     public long SourceId { get; init; }
 
-    [JsonPropertyName("slug")]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[JsonPropertyName("slug")]
     public string? Slug { get; init; }
 
-    [JsonPropertyName("title")]
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+[JsonPropertyName("title")]
     public string? Title { get; init; }
 
-    [JsonPropertyName("excerpt")]
+        /// <summary>
+    /// Gets or sets the Excerpt.
+    /// </summary>
+[JsonPropertyName("excerpt")]
     public string? Excerpt { get; init; }
 
-    [JsonPropertyName("seoTitle")]
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+[JsonPropertyName("seoTitle")]
     public string? SeoTitle { get; init; }
 
-    [JsonPropertyName("seoDescription")]
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+[JsonPropertyName("seoDescription")]
     public string? SeoDescription { get; init; }
 }
 
+/// <summary>
+/// Represents a record for TranslationCategoryImport.
+/// </summary>
 public sealed record TranslationCategoryImport
 {
-    [JsonPropertyName("categoryId")]
+        /// <summary>
+    /// Gets or sets the Category Id.
+    /// </summary>
+[JsonPropertyName("categoryId")]
     public long CategoryId { get; init; }
 
-    [JsonPropertyName("name")]
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+[JsonPropertyName("name")]
     public string? Name { get; init; }
 
-    [JsonPropertyName("slug")]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[JsonPropertyName("slug")]
     public string? Slug { get; init; }
 
-    [JsonPropertyName("description")]
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+[JsonPropertyName("description")]
     public string? Description { get; init; }
 }
 
+/// <summary>
+/// Represents a record for TranslationTagImport.
+/// </summary>
 public sealed record TranslationTagImport
 {
-    [JsonPropertyName("tagId")]
+        /// <summary>
+    /// Gets or sets the Tag Id.
+    /// </summary>
+[JsonPropertyName("tagId")]
     public long TagId { get; init; }
 
-    [JsonPropertyName("name")]
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+[JsonPropertyName("name")]
     public string? Name { get; init; }
 
-    [JsonPropertyName("description")]
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+[JsonPropertyName("description")]
     public string? Description { get; init; }
 }
 
+/// <summary>
+/// Represents a record for TranslationProductImport.
+/// </summary>
 public sealed record TranslationProductImport
 {
-    [JsonPropertyName("productId")]
+        /// <summary>
+    /// Gets or sets the Product Id.
+    /// </summary>
+[JsonPropertyName("productId")]
     public long ProductId { get; init; }
 
-    [JsonPropertyName("name")]
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+[JsonPropertyName("name")]
     public string? Name { get; init; }
 
-    [JsonPropertyName("description")]
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+[JsonPropertyName("description")]
     public string? Description { get; init; }
 
-    [JsonPropertyName("shortDescription")]
+        /// <summary>
+    /// Gets or sets the Short Description.
+    /// </summary>
+[JsonPropertyName("shortDescription")]
     public string? ShortDescription { get; init; }
 }

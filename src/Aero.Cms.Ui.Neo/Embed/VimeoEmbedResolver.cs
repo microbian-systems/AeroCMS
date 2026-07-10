@@ -11,9 +11,15 @@ public sealed partial class VimeoEmbedResolver : IEmbedUrlResolver
     [GeneratedRegex(@"vimeo\.com/(?<id>\d+)", RegexOptions.Compiled)]
     private static partial Regex Pattern();
 
-    public bool CanResolve(Uri uri) => uri.Host.Contains("vimeo.com");
+        /// <summary>
+    /// CanResolve method.
+    /// </summary>
+public bool CanResolve(Uri uri) => uri.Host.Contains("vimeo.com");
 
-    public EmbedResolvedUrl Resolve(Uri uri)
+        /// <summary>
+    /// Resolve method.
+    /// </summary>
+public EmbedResolvedUrl Resolve(Uri uri)
     {
         var id = Pattern().Match(uri.ToString()).Groups["id"].Value;
         return new EmbedResolvedUrl(

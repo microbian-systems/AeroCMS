@@ -17,21 +17,30 @@ public sealed class AliasCacheInvalidationHandler(
     IAliasRuleCache cache,
     ILogger<AliasCacheInvalidationHandler> log) : IWolverineHandler
 {
-    public async Task Handle(AliasCreated e)
+        /// <summary>
+    /// Handle method.
+    /// </summary>
+public async Task Handle(AliasCreated e)
     {
         log.LogInformation("Alias created ({Id}, '{OldPath}' → '{NewPath}') — refreshing cache",
             e.Document.Id, e.Document.OldPath, e.Document.NewPath);
         await cache.RefreshAsync();
     }
 
-    public async Task Handle(AliasUpdated e)
+        /// <summary>
+    /// Handle method.
+    /// </summary>
+public async Task Handle(AliasUpdated e)
     {
         log.LogInformation("Alias updated ({Id}, '{OldPath}' → '{NewPath}') — refreshing cache",
             e.Document.Id, e.Document.OldPath, e.Document.NewPath);
         await cache.RefreshAsync();
     }
 
-    public async Task Handle(AliasDeleted e)
+        /// <summary>
+    /// Handle method.
+    /// </summary>
+public async Task Handle(AliasDeleted e)
     {
         log.LogInformation("Alias deleted ({Id}) — refreshing cache", e.Document.Id);
         await cache.RefreshAsync();

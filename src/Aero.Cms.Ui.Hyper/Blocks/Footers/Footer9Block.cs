@@ -16,15 +16,33 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
     SchemaVersion = 1)]
 public sealed class Footer9Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.footers.9";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.footers.9";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Description { get; set; } = "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Incidunt consequuntur amet culpa cum itaque neque.";
-    public List<FooterLink> NavLinks { get; set; } = DefaultNavLinks.Select(CloneLink).ToList();
-    public string Copyright { get; set; } = "Copyright &copy; 2022. All rights reserved.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Incidunt consequuntur amet culpa cum itaque neque.";
+        /// <summary>
+    /// Gets or sets the Nav Links.
+    /// </summary>
+public List<FooterLink> NavLinks { get; set; } = DefaultNavLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Copyright.
+    /// </summary>
+public string Copyright { get; set; } = "Copyright &copy; 2022. All rights reserved.";
 
-    public static readonly List<FooterLink> DefaultNavLinks =
+        /// <summary>
+    /// DefaultNavLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultNavLinks =
     [
         new() { Text = "About" },
         new() { Text = "Services" },
@@ -32,7 +50,10 @@ public sealed class Footer9Block : BlockBase
         new() { Text = "Blog" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static FooterLink CloneLink(FooterLink link) => new()
     {

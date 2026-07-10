@@ -1,8 +1,14 @@
 namespace Aero.Cms.Abstractions.Blocks.Neo;
 
+/// <summary>
+/// Represents a class for VideoBlockMapper.
+/// </summary>
 public static class VideoBlockMapper
 {
-    public static NeoPageNode ToNode(VideoBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(VideoBlock block) => new()
     {
         CatalogId = "media.video", Kind = NeoPageNodeKind.Block,
         Properties = new Dictionary<string, JsonElement>
@@ -16,7 +22,10 @@ public static class VideoBlockMapper
         }
     };
 
-    public static VideoBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static VideoBlock FromNode(NeoPageNode node) => new()
     {
         Src = GetS(node, "src", string.Empty),
         Poster = GetS(node, "poster", null),

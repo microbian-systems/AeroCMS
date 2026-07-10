@@ -5,28 +5,64 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.BoringHero;
 
+/// <summary>
+/// Represents a class for BoringHeroPrimitiveDefinition.
+/// </summary>
 public sealed class BoringHeroPrimitiveDefinition : PrimitiveDefinitionBase
 {
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new BoringHeroPrimitiveDefinition(), new BoringHeroPrimitiveDefinition());
 
-    public override string CatalogId => "boring_hero";
-    public override string DisplayName => "Boring Hero";
-    public override string? Description => "Simple hero section with title, subtitle, and background.";
-    public override string Category => "Components";
-    public override string IconName => "layout";
-    public override int SortOrder => 91;
-    public override Type? PreviewComponentType => null;
-    public override Type? PropertyEditorComponentType => null;
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "boring_hero";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Boring Hero";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "Simple hero section with title, subtitle, and background.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Components";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "layout";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 91;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => null;
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => null;
 
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Leaf(
             NeoPageNodeKind.Section,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component,
             NeoPageNodeKind.Block);
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable
         | EditorInteractionCapabilities.Editable
         | EditorInteractionCapabilities.Draggable
@@ -34,7 +70,10 @@ public sealed class BoringHeroPrimitiveDefinition : PrimitiveDefinitionBase
         | EditorInteractionCapabilities.Deletable
         | EditorInteractionCapabilities.Copyable;
 
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Content
         | EditorCapabilitySet.Spacing
         | EditorCapabilitySet.Dimensions
@@ -43,7 +82,10 @@ public sealed class BoringHeroPrimitiveDefinition : PrimitiveDefinitionBase
         | EditorCapabilitySet.Background
         | EditorCapabilitySet.Visibility;
 
-    public override NeoPageNode CreateDefaultNode() => new()
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() => new()
     {
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,

@@ -31,17 +31,41 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Aero.Cms.Modules.Commerce;
 
+/// <summary>
+/// Represents a class for CommerceModule.
+/// </summary>
 [Module(nameof(CommerceModule))]
 public sealed class CommerceModule : AeroWebModule, IConfigureMarten
 {
-    public override string Name => nameof(CommerceModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["commerce"];
-    public override IReadOnlyList<string> Tags => ["commerce", "catalog", "orders", "basket", "payments"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(CommerceModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["commerce"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["commerce", "catalog", "orders", "basket", "payments"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, CommerceStartupFilter>());
 
@@ -89,7 +113,10 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
         });
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         // Product document — Marten schema
         opts.DatabaseSchemaName = Schemas.Database;
@@ -114,7 +141,10 @@ public sealed class CommerceModule : AeroWebModule, IConfigureMarten
             .Index(x => x.CustomerId);
     }
 
-    public override void Run(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// Run method.
+    /// </summary>
+public override void Run(IEndpointRouteBuilder builder)
     {
         builder.MapCatalogApi();
         builder.MapBasketApi();

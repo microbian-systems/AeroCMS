@@ -26,7 +26,10 @@ public partial class AuditDashboard : ComponentBase
 
     private static readonly List<string> _typeOptions = ["", "Page", "BlogPost"];
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         await LoadFeedAsync();
     }

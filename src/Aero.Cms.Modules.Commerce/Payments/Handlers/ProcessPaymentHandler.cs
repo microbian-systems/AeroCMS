@@ -17,7 +17,10 @@ public sealed class ProcessPaymentHandler(
 {
     private static readonly Random _rng = new();
 
-    public async Task Handle(OrderStatusChangedToStockConfirmed @event)
+        /// <summary>
+    /// Handle method.
+    /// </summary>
+public async Task Handle(OrderStatusChangedToStockConfirmed @event)
     {
         // Simulate payment processing with 90% success rate
         var paymentReference = $"PAY-{@event.OrderId}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";

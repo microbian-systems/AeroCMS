@@ -22,7 +22,10 @@ public partial class BreadcrumbNav
 
     private IReadOnlyList<TreeBreadcrumbItem> _items = [];
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         if (PageId <= 0) return;
 

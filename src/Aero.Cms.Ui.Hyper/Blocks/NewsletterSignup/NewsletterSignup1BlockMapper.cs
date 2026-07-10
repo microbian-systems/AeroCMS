@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.NewsletterSignup;
 
+/// <summary>
+/// Represents a class for NewsletterSignup1BlockMapper.
+/// </summary>
 public static class NewsletterSignup1BlockMapper
 {
-    public static NeoPageNode ToNode(NewsletterSignup1Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(NewsletterSignup1Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.newsletter-signup.1",
@@ -20,7 +26,10 @@ public static class NewsletterSignup1BlockMapper
         }
     };
 
-    public static NewsletterSignup1Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static NewsletterSignup1Block FromNode(NeoPageNode node) => new()
     {
         Title = GetString(node, "title", "Sign up for our newsletter"),
         Description = GetString(node, "description", "Lorem ipsum dolor sit amet consectetur adipisicing elit."),

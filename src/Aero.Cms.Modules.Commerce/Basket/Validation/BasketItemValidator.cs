@@ -3,9 +3,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Modules.Commerce.Basket.Validation;
 
+/// <summary>
+/// Represents a class for BasketItemValidator.
+/// </summary>
 public sealed class BasketItemValidator : AbstractValidator<BasketItem>
 {
-    public BasketItemValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="BasketItemValidator"/> class.
+    /// </summary>
+public BasketItemValidator()
     {
         RuleFor(x => x.ProductId)
             .GreaterThan(0)

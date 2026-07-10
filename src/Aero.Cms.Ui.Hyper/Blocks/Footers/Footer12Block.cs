@@ -16,19 +16,49 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
     SchemaVersion = 1)]
 public sealed class Footer12Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.footers.12";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.footers.12";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string CtaTitle { get; set; } = "Make Your Next Career Move!";
-    public string CtaText { get; set; } = "Let's Get Started";
-    public string CtaUrl { get; set; } = "#";
-    public string Description { get; set; } = "CTA banner footer with link columns and social icons.";
-    public List<FooterLinkColumn> LinkColumns { get; set; } = DefaultLinkColumns.Select(CloneColumn).ToList();
-    public List<FooterSocialLink> SocialLinks { get; set; } = FooterDefaults.DefaultSocialLinks.Select(FooterDefaults.CloneSocialLink).ToList();
-    public string Copyright { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
+        /// <summary>
+    /// Gets or sets the Cta Title.
+    /// </summary>
+public string CtaTitle { get; set; } = "Make Your Next Career Move!";
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText { get; set; } = "Let's Get Started";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "CTA banner footer with link columns and social icons.";
+        /// <summary>
+    /// Gets or sets the Link Columns.
+    /// </summary>
+public List<FooterLinkColumn> LinkColumns { get; set; } = DefaultLinkColumns.Select(CloneColumn).ToList();
+        /// <summary>
+    /// Gets or sets the Social Links.
+    /// </summary>
+public List<FooterSocialLink> SocialLinks { get; set; } = FooterDefaults.DefaultSocialLinks.Select(FooterDefaults.CloneSocialLink).ToList();
+        /// <summary>
+    /// Gets or sets the Copyright.
+    /// </summary>
+public string Copyright { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
 
-    public static readonly List<FooterLinkColumn> DefaultLinkColumns =
+        /// <summary>
+    /// DefaultLinkColumns.
+    /// </summary>
+public static readonly List<FooterLinkColumn> DefaultLinkColumns =
     [
         new()
         {
@@ -76,7 +106,10 @@ public sealed class Footer12Block : BlockBase
         }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static FooterLinkColumn CloneColumn(FooterLinkColumn col) => new()
     {

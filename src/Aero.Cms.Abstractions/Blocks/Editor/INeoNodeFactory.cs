@@ -7,5 +7,8 @@ namespace Aero.Cms.Abstractions.Blocks.Editor;
 /// </summary>
 public interface INeoNodeFactory
 {
-    NeoPageNode CreateDefaultNode();
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+NeoPageNode CreateDefaultNode();
 }

@@ -3,11 +3,20 @@ using Microsoft.AspNetCore.Html;
 
 namespace Aero.Cms.Abstractions.Blocks.Common;
 
+/// <summary>
+/// Represents a class for ContentEmbedBlock.
+/// </summary>
 [BlockMetadata("content_embed", "Content Embed", Category = "Content")]
 public sealed class ContentEmbedBlock : BlockBase
 {
-    public const string Discriminator = "content_embed";
-    public override string BlockType => Discriminator;
+        /// <summary>
+    /// Discriminator.
+    /// </summary>
+public const string Discriminator = "content_embed";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => Discriminator;
 
     /// <summary>The ContentItem to render.</summary>
     public long ContentItemId { get; set; }
@@ -23,5 +32,8 @@ public sealed class ContentEmbedBlock : BlockBase
     /// </summary>
     public List<ContentEmbedFieldMapping>? FieldOverrides { get; set; }
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

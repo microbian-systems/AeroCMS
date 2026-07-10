@@ -4,29 +4,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.BlogCards;
 
+/// <summary>
+/// Represents a class for BlogCard6EditorBlockDefinition.
+/// </summary>
 public sealed class BlogCard6EditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "hyper.blog-cards.6";
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "hyper.blog-cards.6";
 
-    public string DisplayName => "Blog Card 6";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Blog Card 6";
 
-    public string? Description => "Horizontal blog card with vertical date, image, and CTA button.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Horizontal blog card with vertical date, image, and CTA button.";
 
-    public string Category => "Hyper";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Hyper";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "file-text";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "file-text";
 
-    public int SortOrder => 92;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 92;
 
-    public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
 
-    public Type? PreviewComponentType => typeof(BlogCard6BlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(BlogCard6BlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(BlogCard6BlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(BlogCard6BlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -39,13 +75,19 @@ public sealed class BlogCard6EditorBlockDefinition : IPageEditorBlockDefinition
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlogCardBlock(editorBlock);
         return BlogCard6BlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlogCardBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlogCardBlock(editorBlock);
 
     private static BlogCard6Block ToBlogCardBlock(EditorBlock editorBlock)
     {

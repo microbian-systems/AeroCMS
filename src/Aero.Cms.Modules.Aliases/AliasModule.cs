@@ -37,14 +37,35 @@ public class AliasModule : AeroWebModule, IConfigureAeroDB
     /// <summary>Load after SitesModule (-9999) so site is resolved before alias lookup.</summary>
     public override short Order => -9998;
 
-    public override string Name => nameof(AliasModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => [];
-    public override IReadOnlyList<string> Tags => [];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(AliasModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => [];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => [];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
 
@@ -83,12 +104,18 @@ public class AliasModule : AeroWebModule, IConfigureAeroDB
         }
     }
 
-    public override async Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override async Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapAliasesApi();
     }
 
-    public void Configure(StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions opts)
     {
         // DocumentAlias not available in AeroDB
         opts.Schema.For<AliasDocument>().Identity(x => x.Id);
@@ -99,7 +126,10 @@ public class AliasModule : AeroWebModule, IConfigureAeroDB
         opts.Schema.For<AliasDocument>().Index(x => x.ModifiedOn);
     }
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }

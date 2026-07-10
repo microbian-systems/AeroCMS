@@ -7,9 +7,15 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Aero.Cms.Core.Extensions;
 
+/// <summary>
+/// Represents a class for BlockServiceExtensions.
+/// </summary>
 public static class BlockServiceExtensions
 {
-    public static IServiceCollection AddBlockSystemServices(this IServiceCollection services)
+        /// <summary>
+    /// AddBlockSystemServices method.
+    /// </summary>
+public static IServiceCollection AddBlockSystemServices(this IServiceCollection services)
     {
         services.TryAddScoped<IBlockService, AeroBlockService>();
         // Per-request block cache that eliminates N+1 DB round-trips during
@@ -28,30 +34,54 @@ public static class BlockServiceExtensions
 
     // Helper methods to get specific module types from DI
 
-    public static IEnumerable<T> GetModules<T>(this IServiceProvider provider)
+        /// <summary>
+    /// GetModules method.
+    /// </summary>
+public static IEnumerable<T> GetModules<T>(this IServiceProvider provider)
         where T : IAeroModule
     {
         return provider.GetServices<T>().OrderBy(m => m.Order);
     }
 
-    public static IEnumerable<IUiModule> GetUiModules(this IServiceProvider provider)
+        /// <summary>
+    /// GetUiModules method.
+    /// </summary>
+public static IEnumerable<IUiModule> GetUiModules(this IServiceProvider provider)
         => provider.GetModules<IUiModule>();
 
-    public static IEnumerable<IApiModule> GetApiModules(this IServiceProvider provider)
+        /// <summary>
+    /// GetApiModules method.
+    /// </summary>
+public static IEnumerable<IApiModule> GetApiModules(this IServiceProvider provider)
         => provider.GetModules<IApiModule>();
 
-    public static IEnumerable<IBackgroundModule> GetBackgroundModules(this IServiceProvider provider)
+        /// <summary>
+    /// GetBackgroundModules method.
+    /// </summary>
+public static IEnumerable<IBackgroundModule> GetBackgroundModules(this IServiceProvider provider)
         => provider.GetModules<IBackgroundModule>();
 
-    public static IEnumerable<IThemeModule> GetThemeModules(this IServiceProvider provider)
+        /// <summary>
+    /// GetThemeModules method.
+    /// </summary>
+public static IEnumerable<IThemeModule> GetThemeModules(this IServiceProvider provider)
         => provider.GetModules<IThemeModule>();
 
-    public static IEnumerable<IAdminModule> GetAdminModules(this IServiceProvider provider)
+        /// <summary>
+    /// GetAdminModules method.
+    /// </summary>
+public static IEnumerable<IAdminModule> GetAdminModules(this IServiceProvider provider)
         => provider.GetModules<IAdminModule>();
 
-    public static IEnumerable<IFilterModule> GetFilterModules(this IServiceProvider provider)
+        /// <summary>
+    /// GetFilterModules method.
+    /// </summary>
+public static IEnumerable<IFilterModule> GetFilterModules(this IServiceProvider provider)
         => provider.GetModules<IFilterModule>();
 
-    public static IEnumerable<IContentDefinitionModule> GetContentDefinitionModules(this IServiceProvider provider)
+        /// <summary>
+    /// GetContentDefinitionModules method.
+    /// </summary>
+public static IEnumerable<IContentDefinitionModule> GetContentDefinitionModules(this IServiceProvider provider)
         => provider.GetModules<IContentDefinitionModule>();
 }

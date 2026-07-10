@@ -21,6 +21,9 @@ using System.Globalization;
 
 namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 
+/// <summary>
+/// Represents a class for DynamicPageModel.
+/// </summary>
 [OutputCache(PolicyName = "PagesPolicy")]
 public class DynamicPageModel(
     IAeroPageActor pageActor,
@@ -29,29 +32,83 @@ public class DynamicPageModel(
     ISiteContext siteContext,
     IDocumentStore documentStore) : PageModel
 {
-    [BindProperty(SupportsGet = true)]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
 
-    [BindProperty(SupportsGet = true)]
+        /// <summary>
+    /// Gets or sets the Draft Id.
+    /// </summary>
+[BindProperty(SupportsGet = true)]
     public long? DraftId { get; set; }
 
-    public string? SeoTitle { get; private set; }
-    public string? Title { get; private set; }
-    public bool ShowHeaderNavigation { get; private set; } = true;
-    public bool HideFooter { get; private set; }
-    public bool ShowChatAgent { get; private set; } = true;
-    public List<LayoutRegion> LayoutRegions { get; private set; } = [];
-    public NeoPageNode? RootNode { get; private set; }
-    public long? PageId { get; private set; }
-    public string? PageSlug { get; private set; }
-    public string RequestedCulture { get; private set; } = SitesModel.DefaultCultureName;
-    public string RenderedCulture { get; private set; } = SitesModel.DefaultCultureName;
-    public bool IsCultureFallback { get; private set; }
-    public string CanonicalUrl { get; private set; } = string.Empty;
-    public IReadOnlyList<AlternatePageLink> AlternateLinks { get; private set; } = [];
-    public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+public string? SeoTitle { get; private set; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; private set; }
+        /// <summary>
+    /// Gets or sets the Show Header Navigation.
+    /// </summary>
+public bool ShowHeaderNavigation { get; private set; } = true;
+        /// <summary>
+    /// Gets or sets the Hide Footer.
+    /// </summary>
+public bool HideFooter { get; private set; }
+        /// <summary>
+    /// Gets or sets the Show Chat Agent.
+    /// </summary>
+public bool ShowChatAgent { get; private set; } = true;
+        /// <summary>
+    /// Gets or sets the Layout Regions.
+    /// </summary>
+public List<LayoutRegion> LayoutRegions { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Root Node.
+    /// </summary>
+public NeoPageNode? RootNode { get; private set; }
+        /// <summary>
+    /// Gets or sets the Page Id.
+    /// </summary>
+public long? PageId { get; private set; }
+        /// <summary>
+    /// Gets or sets the Page Slug.
+    /// </summary>
+public string? PageSlug { get; private set; }
+        /// <summary>
+    /// Gets or sets the Requested Culture.
+    /// </summary>
+public string RequestedCulture { get; private set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Rendered Culture.
+    /// </summary>
+public string RenderedCulture { get; private set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Is Culture Fallback.
+    /// </summary>
+public bool IsCultureFallback { get; private set; }
+        /// <summary>
+    /// Gets or sets the Canonical Url.
+    /// </summary>
+public string CanonicalUrl { get; private set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alternate Links.
+    /// </summary>
+public IReadOnlyList<AlternatePageLink> AlternateLinks { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Culture Switcher Links.
+    /// </summary>
+public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
-    public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         AeroRequestResponse<Aero.Cms.Abstractions.Models.PageViewModel> result;
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
@@ -264,5 +321,8 @@ public class DynamicPageModel(
         Response.Headers.CacheControl = "public,max-age=300";
     }
 
-    public sealed record AlternatePageLink(string Hreflang, string Href);
+        /// <summary>
+    /// Represents a record for AlternatePageLink.
+    /// </summary>
+public sealed record AlternatePageLink(string Hreflang, string Href);
 }

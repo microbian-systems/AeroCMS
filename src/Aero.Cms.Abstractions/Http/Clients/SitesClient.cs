@@ -4,37 +4,82 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
+/// <summary>
+/// Defines an interface for ISitesHttpClient.
+/// </summary>
 public interface ISitesHttpClient
 {
-    Task<Result<IReadOnlyList<SiteViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default);
-    Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default);
-    Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<SiteViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetDefaultAsync method.
+    /// </summary>
+Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Represents a class for SitesHttpClient.
+/// </summary>
 public class SitesHttpClient(HttpClient httpClient, ILogger<SitesHttpClient> logger)
     : AeroCmsClientBase(httpClient, logger), ISitesHttpClient, Aero.Cms.Contracts.Abstractions.ISitesHttpClient
 {
-    public override string Path => "admin/sites";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/sites";
 
-    public Task<Result<IReadOnlyList<SiteViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<SiteViewModel>, AeroError>> GetAllAsync(CancellationToken ct = default)
         => GetAsync<IReadOnlyList<SiteViewModel>>("", ct);
 
-    public Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public Task<Result<SiteViewModel, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
         => GetAsync<SiteViewModel>(id.ToString(), ct);
 
-    public Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetDefaultAsync method.
+    /// </summary>
+public Task<Result<SiteViewModel, AeroError>> GetDefaultAsync(CancellationToken ct = default)
         => GetAsync<SiteViewModel>("default", ct);
 
-    public Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, CancellationToken ct = default)
         => PostAsync<CreateSiteRequest, SiteViewModel>(string.Empty, request, ct);
 
-    public Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default)
         => PutAsync<UpdateSiteRequest, SiteViewModel>(id.ToString(), request, ct);
 
-    public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
         => MapBoolResult(base.DeleteAsync(id.ToString(), ct));
 
     // ── Contracts.ISitesHttpClient implementation (SiteInfo, no Orleans deps) ──

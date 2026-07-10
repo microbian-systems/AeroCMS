@@ -4,11 +4,20 @@ using FluentValidation;
 
 namespace Aero.Cms.Core.Content.Services;
 
+/// <summary>
+/// Represents a class for TextFieldValidator.
+/// </summary>
 public sealed class TextFieldValidator : IContentFieldValidator
 {
-    public string FieldType => "text";
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => "text";
 
-    public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
+        /// <summary>
+    /// ValidateElement method.
+    /// </summary>
+public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
         if (element.ValueKind != JsonValueKind.String)
         {
@@ -26,11 +35,20 @@ public sealed class TextFieldValidator : IContentFieldValidator
     }
 }
 
+/// <summary>
+/// Represents a class for NumberFieldValidator.
+/// </summary>
 public sealed class NumberFieldValidator : IContentFieldValidator
 {
-    public string FieldType => "number";
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => "number";
 
-    public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
+        /// <summary>
+    /// ValidateElement method.
+    /// </summary>
+public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
         if (!element.TryGetDecimal(out var value))
         {
@@ -46,11 +64,20 @@ public sealed class NumberFieldValidator : IContentFieldValidator
     }
 }
 
+/// <summary>
+/// Represents a class for ReferenceFieldValidator.
+/// </summary>
 public sealed class ReferenceFieldValidator : IContentFieldValidator
 {
-    public string FieldType => "reference";
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => "reference";
 
-    public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
+        /// <summary>
+    /// ValidateElement method.
+    /// </summary>
+public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
         var targetContentType = field.Settings.TryGetValue("targetContentType", out var t) ? t?.ToString() : null;
 

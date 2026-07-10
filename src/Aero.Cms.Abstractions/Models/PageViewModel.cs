@@ -3,74 +3,173 @@ using Aero.Cms.Abstractions.Enums;
 namespace Aero.Cms.Abstractions.Models;
 
 
+/// <summary>
+/// Represents a record for PageViewModel.
+/// </summary>
 [Alias("PageViewModel")]
 [GenerateSerializer]
 public record PageViewModel : AeroEntityViewModel
 {
-    [Id(0)]
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+[Id(0)]
     public string? Title { get; init; }
-    [Id(1)]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[Id(1)]
     public string? Slug { get; init; } 
-    [Id(2)]
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+[Id(2)]
     public PageKind Kind { get; init; }
-    [Id(3)]
+        /// <summary>
+    /// Gets or sets the Content.
+    /// </summary>
+[Id(3)]
     public string? Content { get; init; }
-    [Id(4)]
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+[Id(4)]
     public string? Author { get; init; }
-    [Id(5)]
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+[Id(5)]
     public IReadOnlyList<string> Tags { get; init; } = [];
-    [Id(6)]
+        /// <summary>
+    /// Gets or sets the Categories.
+    /// </summary>
+[Id(6)]
     public IReadOnlyList<string> Categories { get; init; } = [];
-    [Id(7)]
+        /// <summary>
+    /// Gets or sets the Blocks.
+    /// </summary>
+[Id(7)]
     public IReadOnlyList<object> Blocks { get; init; } = [];
-    [Id(8)]
+        /// <summary>
+    /// Gets or sets the Is Published.
+    /// </summary>
+[Id(8)]
     public bool IsPublished { get; init; }
-    [Id(9)]
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+[Id(9)]
     public DateTimeOffset? PublishedOn { get; init; }
-    [Id(10)]
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+[Id(10)]
     public long SiteId { get; init; }
-    [Id(11)]
+        /// <summary>
+    /// Gets or sets the Parent Id.
+    /// </summary>
+[Id(11)]
     public long? ParentId { get; init; }
-    [Id(12)]
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+[Id(12)]
     public string? Path { get; init; }
-    [Id(13)]
+        /// <summary>
+    /// Gets or sets the Depth.
+    /// </summary>
+[Id(13)]
     public int Depth { get; init; }
-    [Id(14)]
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+[Id(14)]
     public int Order { get; init; }
-    [Id(15)]
+        /// <summary>
+    /// Gets or sets the Is Hidden.
+    /// </summary>
+[Id(15)]
     public bool IsHidden { get; init; }
-    [Id(16)]
+        /// <summary>
+    /// Gets or sets the Show In Nav Menu.
+    /// </summary>
+[Id(16)]
     public bool ShowInNavMenu { get; init; } = true;
-    [Id(17)]
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+[Id(17)]
     public string? Summary { get; init; }
-    [Id(18)]
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+[Id(18)]
     public string? SeoTitle { get; init; }
-    [Id(19)]
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+[Id(19)]
     public string? SeoDescription { get; init; }
-    [Id(20)]
+        /// <summary>
+    /// Gets or sets the Show Header Navigation.
+    /// </summary>
+[Id(20)]
     public bool ShowHeaderNavigation { get; init; } = true;
-    [Id(21)]
+        /// <summary>
+    /// Gets or sets the Hide Footer.
+    /// </summary>
+[Id(21)]
     public bool HideFooter { get; init; }
-    [Id(22)]
+        /// <summary>
+    /// Gets or sets the Show Chat Agent.
+    /// </summary>
+[Id(22)]
     public bool ShowChatAgent { get; init; } = true;
-    [Id(23)]
+        /// <summary>
+    /// Gets or sets the Layout Regions Json.
+    /// </summary>
+[Id(23)]
     public string? LayoutRegionsJson { get; init; }
-    [Id(24)]
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+[Id(24)]
     public string Culture { get; init; } = "en-US";
-    [Id(25)]
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+[Id(25)]
     public long? TranslationGroupId { get; init; }
-    [Id(26)]
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+[Id(26)]
     public ContentPublicationState PublicationState { get; init; } = ContentPublicationState.Draft;
-    [Id(27)]
+        /// <summary>
+    /// Gets or sets the Root Node Json.
+    /// </summary>
+[Id(27)]
     public string? RootNodeJson { get; init; }
-    [Id(28)]
+        /// <summary>
+    /// Gets or sets the Draft Composition Id.
+    /// </summary>
+[Id(28)]
     public long? DraftCompositionId { get; init; }
-    [Id(29)]
+        /// <summary>
+    /// Gets or sets the Published Composition Id.
+    /// </summary>
+[Id(29)]
     public long? PublishedCompositionId { get; init; }
-    [Id(30)]
+        /// <summary>
+    /// Gets or sets the Content Revision.
+    /// </summary>
+[Id(30)]
     public long ContentRevision { get; init; }
 }
 
+/// <summary>
+/// Represents a record for PageErrorViewModel.
+/// </summary>
 [GenerateSerializer]
 [Alias("PageErrorViewModel")]
 public record PageErrorViewModel : AeroErrorViewModel<PageViewModel>;

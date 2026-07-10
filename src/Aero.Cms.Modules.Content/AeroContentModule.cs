@@ -14,27 +14,54 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Content;
 
+/// <summary>
+/// Represents a class for ContentModule.
+/// </summary>
 [Module(nameof(ContentModule))]
 public sealed class ContentModule : AeroWebModule, IContentDefinitionModule, IConfigureAeroDB
 {
-    public override string Name => nameof(ContentModule);
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(ContentModule);
 
-    public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
 
-    public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
 
-    public override string Description => "Runtime-defined content types with Scriban-based rendering. " +
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string Description => "Runtime-defined content types with Scriban-based rendering. " +
         "Managers define content type schemas (fields, validation, templates) at runtime. " +
         "Content items are stored as field bags (Dictionary<string, JsonElement>) and rendered " +
         "through the existing DynamicTemplateBlock pipeline.";
 
-    public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
 
-    public override IReadOnlyList<string> Category => ["content", "infrastructure"];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["content", "infrastructure"];
 
-    public override IReadOnlyList<string> Tags => ["content", "content-types", "cms", "structured-data"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["content", "content-types", "cms", "structured-data"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // Register the entire content type system via the extension method
         services.AddContentTypeSystem();
@@ -56,7 +83,10 @@ public sealed class ContentModule : AeroWebModule, IContentDefinitionModule, ICo
             sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroContentTypeActor>(0, "aero"));
     }
 
-    public override void Configure(IAeroModuleBuilder builder)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public override void Configure(IAeroModuleBuilder builder)
     {
         // Register the content types and field editors through the builder
         builder.AddFieldEditor<TextFieldEditor>();
@@ -67,7 +97,10 @@ public sealed class ContentModule : AeroWebModule, IContentDefinitionModule, ICo
         builder.AddFieldEditor<UrlFieldEditor>();
     }
 
-    public void Configure(StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions opts)
     {
         // AeroDB document configuration for the content type system
         opts.Schema.For<ContentTypeDocument>()
@@ -84,12 +117,18 @@ public sealed class ContentModule : AeroWebModule, IContentDefinitionModule, ICo
             .Index(x => x.ContentItemId);
     }
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapContentTypesApi();
         builder.MapContentItemsApi();

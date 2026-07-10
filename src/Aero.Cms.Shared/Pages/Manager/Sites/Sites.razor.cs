@@ -12,21 +12,57 @@ using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager.Sites;
 
+/// <summary>
+/// Represents a class for Sites.
+/// </summary>
 public partial class Sites : ComponentBase
 {
-    [Inject] protected ISitesHttpClient SitesClient { get; set; } = null!;
-    [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = null!;
-    [Inject] protected AdminStateContainer AdminState { get; set; } = null!;
-    [Inject] protected DialogService DialogService { get; set; } = null!;
-    [Inject] protected NavigationManager Navigation { get; set; } = null!;
-    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Sites Client.
+    /// </summary>
+[Inject] protected ISitesHttpClient SitesClient { get; set; } = null!;
+        /// <summary>
+    /// Gets or sets the Current Site Accessor.
+    /// </summary>
+[Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = null!;
+        /// <summary>
+    /// Gets or sets the Admin State.
+    /// </summary>
+[Inject] protected AdminStateContainer AdminState { get; set; } = null!;
+        /// <summary>
+    /// Gets or sets the Dialog Service.
+    /// </summary>
+[Inject] protected DialogService DialogService { get; set; } = null!;
+        /// <summary>
+    /// Gets or sets the Navigation.
+    /// </summary>
+[Inject] protected NavigationManager Navigation { get; set; } = null!;
+        /// <summary>
+    /// Gets or sets the L.
+    /// </summary>
+[Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
-    protected RadzenDataGrid<SiteViewModel>? Grid;
-    protected IReadOnlyList<SiteViewModel>? SiteRows;
-    protected int Count;
-    protected bool IsLoading;
+        /// <summary>
+    /// Grid.
+    /// </summary>
+protected RadzenDataGrid<SiteViewModel>? Grid;
+        /// <summary>
+    /// SiteRows.
+    /// </summary>
+protected IReadOnlyList<SiteViewModel>? SiteRows;
+        /// <summary>
+    /// Count.
+    /// </summary>
+protected int Count;
+        /// <summary>
+    /// IsLoading.
+    /// </summary>
+protected bool IsLoading;
 
-    protected async Task LoadData(LoadDataArgs args)
+        /// <summary>
+    /// LoadData method.
+    /// </summary>
+protected async Task LoadData(LoadDataArgs args)
     {
         IsLoading = true;
         try
@@ -48,7 +84,10 @@ public partial class Sites : ComponentBase
         }
     }
 
-    protected async Task DeleteSiteAsync(SiteViewModel site)
+        /// <summary>
+    /// DeleteSiteAsync method.
+    /// </summary>
+protected async Task DeleteSiteAsync(SiteViewModel site)
     {
         var confirmed = await DialogService.Confirm(
             $"Are you sure you want to delete '{site.Name}'? This action cannot be undone.",
@@ -69,7 +108,10 @@ public partial class Sites : ComponentBase
         }
     }
 
-    protected async Task SelectSiteAsync(long siteId, string? siteName)
+        /// <summary>
+    /// SelectSiteAsync method.
+    /// </summary>
+protected async Task SelectSiteAsync(long siteId, string? siteName)
     {
         await CurrentSiteAccessor.SetCurrentSiteAsync(siteId);
         AdminState.SetSite(siteId, siteName ?? "Site");
@@ -77,7 +119,10 @@ public partial class Sites : ComponentBase
         Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
     }
 
-    protected static string FormatCulture(string? culture)
+        /// <summary>
+    /// FormatCulture method.
+    /// </summary>
+protected static string FormatCulture(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
             return "en-US";

@@ -16,17 +16,47 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Banners;
     SchemaVersion = 1)]
 public sealed class Banner3Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.banners.3";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.banners.3";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Understand user flow and <strong class=\"text-indigo-600\"> increase </strong> conversions";
-    public string Highlight { get; set; } = "increase";
-    public string Description { get; set; } = "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Eaque, nisi. Natus, provident accusamus impedit minima harum corporis iusto.";
-    public string CtaText { get; set; } = "Get Started";
-    public string CtaUrl { get; set; } = "#";
-    public string CtaText2 { get; set; } = "Learn More";
-    public string CtaUrl2 { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Understand user flow and <strong class=\"text-indigo-600\"> increase </strong> conversions";
+        /// <summary>
+    /// Gets or sets the Highlight.
+    /// </summary>
+public string Highlight { get; set; } = "increase";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Eaque, nisi. Natus, provident accusamus impedit minima harum corporis iusto.";
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText { get; set; } = "Get Started";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Cta Text2.
+    /// </summary>
+public string CtaText2 { get; set; } = "Learn More";
+        /// <summary>
+    /// Gets or sets the Cta Url2.
+    /// </summary>
+public string CtaUrl2 { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

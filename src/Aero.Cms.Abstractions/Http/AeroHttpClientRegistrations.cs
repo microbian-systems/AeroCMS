@@ -5,9 +5,15 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Aero.Cms.Abstractions.Http;
 
+/// <summary>
+/// Represents a class for AeroHttpClientExtensions.
+/// </summary>
 public static class AeroHttpClientExtensions
 {
-    public static IServiceCollection AddAeroHttpClients(
+        /// <summary>
+    /// AddAeroHttpClients method.
+    /// </summary>
+public static IServiceCollection AddAeroHttpClients(
         this IServiceCollection services, Uri? baseAddress = null)
     {
         services.TryAddSingleton<ISiteContext, NoopSiteContext>();

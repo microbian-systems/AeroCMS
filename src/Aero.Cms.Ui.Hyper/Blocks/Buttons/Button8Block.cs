@@ -16,9 +16,15 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Buttons;
     SchemaVersion = 1)]
 public sealed class Button8Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.buttons.8";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.buttons.8";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
     /// <summary>Button label text.</summary>
     public string Text { get; set; } = "Download";
@@ -32,5 +38,8 @@ public sealed class Button8Block : BlockBase
     /// <summary>Rotate direction: "positive" (rotate-2) or "negative" (-rotate-2).</summary>
     public string RotateDirection { get; set; } = "positive";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

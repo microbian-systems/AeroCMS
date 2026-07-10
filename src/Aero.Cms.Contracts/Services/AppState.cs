@@ -18,7 +18,10 @@ public sealed class AppState
 {
     private readonly ILogger<AppState> _logger;
 
-    public AppState(ILogger<AppState> logger)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AppState"/> class.
+    /// </summary>
+public AppState(ILogger<AppState> logger)
     {
         _logger = logger;
     }
@@ -106,9 +109,18 @@ public sealed class AppState
         return _permissions.TryGetValue(key, out var perm) && perm.Contains(operation);
     }
 
-    public bool CanRead(string domain) => HasPermission(domain, 'R');
-    public bool CanWrite(string domain) => HasPermission(domain, 'W') || HasPermission(domain, 'C');
-    public bool CanDelete(string domain) => HasPermission(domain, 'D');
+        /// <summary>
+    /// CanRead method.
+    /// </summary>
+public bool CanRead(string domain) => HasPermission(domain, 'R');
+        /// <summary>
+    /// CanWrite method.
+    /// </summary>
+public bool CanWrite(string domain) => HasPermission(domain, 'W') || HasPermission(domain, 'C');
+        /// <summary>
+    /// CanDelete method.
+    /// </summary>
+public bool CanDelete(string domain) => HasPermission(domain, 'D');
 
     // ── Notification ──────────────────────────────────────────────
 

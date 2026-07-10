@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.Hero;
 
+/// <summary>
+/// Represents a class for Hero01BlockMapper.
+/// </summary>
 public static class Hero01BlockMapper
 {
-    public static NeoPageNode ToNode(Hero01Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Hero01Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "aero.hero.01",
@@ -24,7 +30,10 @@ public static class Hero01BlockMapper
         }
     };
 
-    public static Hero01Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Hero01Block FromNode(NeoPageNode node) => new()
     {
         Eyebrow = GetString(node, "eyebrow", "Introducing NeoUI v3"),
         Title = GetString(node, "title", "Build beautiful Blazor apps"),

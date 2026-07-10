@@ -12,7 +12,10 @@ namespace Aero.Cms.Modules.Sites.Handlers;
 public sealed class SiteSelectionAuditHandler(
     ILogger<SiteSelectionAuditHandler> log) : IWolverineHandler
 {
-    public void Handle(SiteSelectionChanged e)
+        /// <summary>
+    /// Handle method.
+    /// </summary>
+public void Handle(SiteSelectionChanged e)
     {
         log.LogInformation("User {UserId} selected site {SiteId} at {Timestamp}",
             e.UserId, e.SiteId, e.Timestamp);

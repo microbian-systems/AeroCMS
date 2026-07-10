@@ -16,7 +16,10 @@ namespace Aero.Cms.Modules.Aliases.Areas.Api.v1;
 /// </summary>
 public static class AliasesAdminApi
 {
-    public static void MapAliasesApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapAliasesApi method.
+    /// </summary>
+public static void MapAliasesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/aliases")
             .WithTags("Admin - Aliases");

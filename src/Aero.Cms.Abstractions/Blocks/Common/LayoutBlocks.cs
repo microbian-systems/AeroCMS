@@ -9,7 +9,10 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("columns", "Columns", Category = "Layout")]
 public class ColumnsBlock : BlockBase
 {
-    public override string BlockType => "columns";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "columns";
 
     /// <summary>
     /// The collection of columns within this row.
@@ -36,7 +39,10 @@ public class ColumnsBlock : BlockBase
     /// </summary>
     public string? Gap { get; set; }
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -66,7 +72,10 @@ public class ColumnItem : Entity
 [BlockMetadata("cards", "Cards", Category = "Layout")]
 public sealed class CardBlock : ColumnsBlock
 {
-    public override string BlockType => "cards";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "cards";
 
     /// <summary>
     /// Whether to display an image at the top of the cards.
@@ -78,5 +87,8 @@ public sealed class CardBlock : ColumnsBlock
     /// </summary>
     public string? CardStyle { get; set; }
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

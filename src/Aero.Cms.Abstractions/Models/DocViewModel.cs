@@ -2,28 +2,58 @@ using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Models;
 
+/// <summary>
+/// Represents a record for DocViewModel.
+/// </summary>
 [Alias("DocViewModel")]
 [GenerateSerializer]
 public sealed record DocViewModel : AeroEntityViewModel
 {
-    [Id(0)]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[Id(0)]
     public string? Slug { get; set; } 
-    [Id(1)]
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+[Id(1)]
     public string? Title { get; set; } 
-    [Id(2)]
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+[Id(2)]
     public string? Summary { get; set; }
-    [Id(3)]
+        /// <summary>
+    /// Gets or sets the Markdown Content.
+    /// </summary>
+[Id(3)]
     public string? MarkdownContent { get; set; }
-    [Id(4)]
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+[Id(4)]
     public string? SeoTitle { get; set; }
-    [Id(5)]
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+[Id(5)]
     public string? SeoDescription { get; set; }
 
-    [Id(6)]
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+[Id(6)]
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
-    [Id(7)]
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+[Id(7)]
     public DateTimeOffset? PublishedOn { get; set; } = null;
-    public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+        /// <summary>
+    /// Gets or sets the Is Publicly Visible.
+    /// </summary>
+public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 
     /// <summary>
     /// Gets or sets whether the global header navigation should be shown when viewing this page.
@@ -61,13 +91,22 @@ public sealed record DocViewModel : AeroEntityViewModel
     [Id(13)]
     public int BlockSchemaVersion { get; set; }
 
-    [Id(14)]
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+[Id(14)]
     public string Culture { get; set; } = "en-US";
 
-    [Id(15)]
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+[Id(15)]
     public long? TranslationGroupId { get; set; }
 }
 
+/// <summary>
+/// Represents a record for DocErrorViewModel.
+/// </summary>
 [GenerateSerializer]
 [Alias("DocErrorViewModel")]
 public record DocErrorViewModel : AeroErrorViewModel<DocViewModel>;

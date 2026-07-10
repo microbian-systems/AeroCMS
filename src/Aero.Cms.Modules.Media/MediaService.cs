@@ -4,24 +4,63 @@ using Serilog;
 
 namespace Aero.Cms.Modules.Media;
 
+/// <summary>
+/// Defines an interface for IMediaService.
+/// </summary>
 public interface IMediaService
 {
-    Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    Task<Result<MediaAsset?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetByFolderAsync(long? parentId, CancellationToken ct = default);
-    Task<Result<MediaAsset, AeroError>> GetByPathAsync(string url, CancellationToken ct = default);
-    Task<Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>> GetPagedAsync(
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+Task<Result<MediaAsset?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetByFolderAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetByFolderAsync(long? parentId, CancellationToken ct = default);
+        /// <summary>
+    /// GetByPathAsync method.
+    /// </summary>
+Task<Result<MediaAsset, AeroError>> GetByPathAsync(string url, CancellationToken ct = default);
+        /// <summary>
+    /// GetPagedAsync method.
+    /// </summary>
+Task<Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>> GetPagedAsync(
         long? parentId, int skip, int take, string? search = null, CancellationToken ct = default);
-    Task<Result<MediaAsset, AeroError>> CreateAsync(MediaAsset asset, CancellationToken ct = default);
-    Task<Result<MediaAsset, AeroError>> CreateFolderAsync(string name, long? parentId = null, CancellationToken ct = default);
-    Task<Result<MediaAsset, AeroError>> UpdateAsync(MediaAsset asset, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
-    Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolder, CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<MediaAsset, AeroError>> CreateAsync(MediaAsset asset, CancellationToken ct = default);
+        /// <summary>
+    /// CreateFolderAsync method.
+    /// </summary>
+Task<Result<MediaAsset, AeroError>> CreateFolderAsync(string name, long? parentId = null, CancellationToken ct = default);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<MediaAsset, AeroError>> UpdateAsync(MediaAsset asset, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// SeedFromDirectoryAsync method.
+    /// </summary>
+Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolder, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Represents a class for MediaService.
+/// </summary>
 public sealed class MediaService(IDocumentSession session, IWebHostEnvironment env) : IMediaService
 {
-    public async Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetAllAsync(CancellationToken ct = default)
     {
         try
         {
@@ -37,7 +76,10 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<Result<MediaAsset?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -52,7 +94,10 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetByFolderAsync(long? parentId, CancellationToken ct = default)
+        /// <summary>
+    /// GetByFolderAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<MediaAsset>, AeroError>> GetByFolderAsync(long? parentId, CancellationToken ct = default)
     {
         try
         {
@@ -82,7 +127,10 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset, AeroError>> GetByPathAsync(string url, CancellationToken ct = default)
+        /// <summary>
+    /// GetByPathAsync method.
+    /// </summary>
+public async Task<Result<MediaAsset, AeroError>> GetByPathAsync(string url, CancellationToken ct = default)
     {
         try
         {
@@ -99,7 +147,10 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>> GetPagedAsync(
+        /// <summary>
+    /// GetPagedAsync method.
+    /// </summary>
+public async Task<Result<(IReadOnlyList<MediaAsset> Items, long TotalCount), AeroError>> GetPagedAsync(
         long? parentId, int skip, int take, string? search = null, CancellationToken ct = default)
     {
         try
@@ -137,7 +188,10 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset, AeroError>> CreateAsync(MediaAsset asset, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<Result<MediaAsset, AeroError>> CreateAsync(MediaAsset asset, CancellationToken ct = default)
     {
         try
         {
@@ -152,7 +206,10 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset, AeroError>> CreateFolderAsync(string name, long? parentId = null, CancellationToken ct = default)
+        /// <summary>
+    /// CreateFolderAsync method.
+    /// </summary>
+public async Task<Result<MediaAsset, AeroError>> CreateFolderAsync(string name, long? parentId = null, CancellationToken ct = default)
     {
         try
         {
@@ -176,7 +233,10 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<MediaAsset, AeroError>> UpdateAsync(MediaAsset asset, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<Result<MediaAsset, AeroError>> UpdateAsync(MediaAsset asset, CancellationToken ct = default)
     {
         try
         {
@@ -190,7 +250,10 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -220,7 +283,10 @@ public sealed class MediaService(IDocumentSession session, IWebHostEnvironment e
         }
     }
 
-    public async Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolder, CancellationToken ct = default)
+        /// <summary>
+    /// SeedFromDirectoryAsync method.
+    /// </summary>
+public async Task<Result<int, AeroError>> SeedFromDirectoryAsync(string subfolder, CancellationToken ct = default)
     {
         try
         {

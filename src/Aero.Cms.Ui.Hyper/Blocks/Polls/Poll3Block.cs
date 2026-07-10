@@ -16,13 +16,31 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Polls;
     SchemaVersion = 1)]
 public sealed class Poll3Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.polls.3";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.polls.3";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Question { get; set; } = "Leave a rating";
-    public string PollName { get; set; } = "Rating1";
-    public int MaxRating { get; set; } = 5;
+        /// <summary>
+    /// Gets or sets the Question.
+    /// </summary>
+public string Question { get; set; } = "Leave a rating";
+        /// <summary>
+    /// Gets or sets the Poll Name.
+    /// </summary>
+public string PollName { get; set; } = "Rating1";
+        /// <summary>
+    /// Gets or sets the Max Rating.
+    /// </summary>
+public int MaxRating { get; set; } = 5;
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

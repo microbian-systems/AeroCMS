@@ -11,7 +11,10 @@ public sealed class EmbedResolverPipeline
 {
     private readonly IReadOnlyList<IEmbedUrlResolver> _resolvers;
 
-    public EmbedResolverPipeline(IEnumerable<IEmbedUrlResolver> resolvers)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="EmbedResolverPipeline"/> class.
+    /// </summary>
+public EmbedResolverPipeline(IEnumerable<IEmbedUrlResolver> resolvers)
     {
         _resolvers = resolvers.ToList();
     }

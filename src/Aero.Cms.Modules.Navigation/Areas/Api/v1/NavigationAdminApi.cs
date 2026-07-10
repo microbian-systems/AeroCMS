@@ -12,9 +12,15 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Navigation.Areas.Api.v1;
 
+/// <summary>
+/// Represents a class for NavigationAdminApi.
+/// </summary>
 public static class NavigationAdminApi
 {
-    public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapNavigationAdminApi method.
+    /// </summary>
+public static void MapNavigationAdminApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/navigations")
             .WithTags("Admin - Navigations");
@@ -556,6 +562,9 @@ public static class NavigationAdminApi
             : TypedResults.Problem("Unexpected navigation API result.");
 }
 
+/// <summary>
+/// Represents a record for NavigationEventItem.
+/// </summary>
 public sealed record NavigationEventItem(
     long Version,
     string EventType,
@@ -563,6 +572,9 @@ public sealed record NavigationEventItem(
     string StreamKey,
     bool IsArchived);
 
+/// <summary>
+/// Represents a record for NavigationEventHistory.
+/// </summary>
 public sealed record NavigationEventHistory(
     long NavMenuId,
     int TotalEvents,
@@ -578,11 +590,20 @@ internal sealed record AiTranslatedNavigationPlan(
     TranslateDocumentResponse? Response,
     string? Error)
 {
-    public string Culture => Plan.Culture;
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture => Plan.Culture;
 
-    public static AiTranslatedNavigationPlan Success(AiTranslateNavigationPlan plan, TranslateDocumentResponse response)
+        /// <summary>
+    /// Success method.
+    /// </summary>
+public static AiTranslatedNavigationPlan Success(AiTranslateNavigationPlan plan, TranslateDocumentResponse response)
         => new(plan, true, response, null);
 
-    public static AiTranslatedNavigationPlan Failed(AiTranslateNavigationPlan plan, string error)
+        /// <summary>
+    /// Failed method.
+    /// </summary>
+public static AiTranslatedNavigationPlan Failed(AiTranslateNavigationPlan plan, string error)
         => new(plan, false, null, error);
 }

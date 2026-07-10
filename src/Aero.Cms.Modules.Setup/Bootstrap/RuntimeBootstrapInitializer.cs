@@ -2,18 +2,30 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Defines an interface for IRuntimeBootstrapInitializer.
+/// </summary>
 public interface IRuntimeBootstrapInitializer
 {
-    Task InitializeAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+    /// InitializeAsync method.
+    /// </summary>
+Task InitializeAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for RuntimeBootstrapInitializer.
+/// </summary>
 public sealed class RuntimeBootstrapInitializer(
     ISetupInitializationService setupInitializationService,
     IBootstrapPendingSetupRequestStore pendingSetupRequestStore,
     ISetupCompletionService setupCompletionService,
     ILogger<RuntimeBootstrapInitializer> logger) : IRuntimeBootstrapInitializer
 {
-    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// InitializeAsync method.
+    /// </summary>
+public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         var bootstrap = setupInitializationService.GetBootstrapState();
         if (!bootstrap.IsConfiguredMode)

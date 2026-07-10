@@ -53,7 +53,10 @@ public sealed class ScrollingContentItem
 [BlockMetadata("scrolling_content", "Scrolling Content", Category = "Layout")]
 public sealed class ScrollingContentBlock : BlockBase
 {
-    public override string BlockType => "scrolling_content";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "scrolling_content";
 
     /// <summary>
     /// Gets or sets the scrolling direction.
@@ -75,5 +78,8 @@ public sealed class ScrollingContentBlock : BlockBase
     /// </summary>
     public List<ScrollingContentItem> Items { get; set; } = new();
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

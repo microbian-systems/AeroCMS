@@ -5,7 +5,10 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Composition;
 /// </summary>
 public interface ICompositionPolicy
 {
-    Result<bool, AeroError> ValidatePlacement(
+        /// <summary>
+    /// ValidatePlacement method.
+    /// </summary>
+Result<bool, AeroError> ValidatePlacement(
         NeoPageNode child,
         NeoPageNode? parent,
         string dropZoneId,

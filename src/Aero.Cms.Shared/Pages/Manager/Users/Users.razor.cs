@@ -8,22 +8,55 @@ using Microsoft.Extensions.Localization;
 using Radzen;
 using Radzen.Blazor;
 
+/// <summary>
+/// Represents a class for Users.
+/// </summary>
 public partial class Users : ComponentBase
 {
-    [Inject] protected IUsersHttpClient UsersApi { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Users Api.
+    /// </summary>
+[Inject] protected IUsersHttpClient UsersApi { get; set; } = default!;
 
-    [Inject] protected DialogService DialogService { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Dialog Service.
+    /// </summary>
+[Inject] protected DialogService DialogService { get; set; } = default!;
 
-    [Inject] protected NavigationManager Navigation { get; set; } = default!;
-    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Navigation.
+    /// </summary>
+[Inject] protected NavigationManager Navigation { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the L.
+    /// </summary>
+[Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
-    protected RadzenDataGrid<UserSummary>? _grid;
-    protected IEnumerable<UserSummary> _users = [];
-    protected int _count;
-    protected bool _isLoading;
-    protected string _searchText = string.Empty;
+        /// <summary>
+    /// _grid.
+    /// </summary>
+protected RadzenDataGrid<UserSummary>? _grid;
+        /// <summary>
+    /// _users.
+    /// </summary>
+protected IEnumerable<UserSummary> _users = [];
+        /// <summary>
+    /// _count.
+    /// </summary>
+protected int _count;
+        /// <summary>
+    /// _isLoading.
+    /// </summary>
+protected bool _isLoading;
+        /// <summary>
+    /// _searchText.
+    /// </summary>
+protected string _searchText = string.Empty;
 
-    protected async Task LoadData(LoadDataArgs args)
+        /// <summary>
+    /// LoadData method.
+    /// </summary>
+protected async Task LoadData(LoadDataArgs args)
     {
         _isLoading = true;
 
@@ -45,7 +78,10 @@ public partial class Users : ComponentBase
         _isLoading = false;
     }
 
-    protected async Task OnSearchChanged(string text)
+        /// <summary>
+    /// OnSearchChanged method.
+    /// </summary>
+protected async Task OnSearchChanged(string text)
     {
         _searchText = text;
 
@@ -55,7 +91,10 @@ public partial class Users : ComponentBase
         }
     }
 
-    protected async Task ReloadUsersAsync()
+        /// <summary>
+    /// ReloadUsersAsync method.
+    /// </summary>
+protected async Task ReloadUsersAsync()
     {
         if (_grid is not null)
         {
@@ -63,12 +102,18 @@ public partial class Users : ComponentBase
         }
     }
 
-    protected void OnRowClick(DataGridRowMouseEventArgs<UserSummary> args)
+        /// <summary>
+    /// OnRowClick method.
+    /// </summary>
+protected void OnRowClick(DataGridRowMouseEventArgs<UserSummary> args)
     {
         Navigation.NavigateTo($"/manager/users/{args.Data.Id}");
     }
 
-    protected async Task DeleteUserAsync(UserSummary user)
+        /// <summary>
+    /// DeleteUserAsync method.
+    /// </summary>
+protected async Task DeleteUserAsync(UserSummary user)
     {
         var confirmed = await DialogService.Confirm(
             $"Delete {GetDisplayName(user)}? This removes the CRM user account and cannot be undone.",
@@ -94,12 +139,18 @@ public partial class Users : ComponentBase
         }
     }
 
-    protected void NotifyError(string title, AeroError error)
+        /// <summary>
+    /// NotifyError method.
+    /// </summary>
+protected void NotifyError(string title, AeroError error)
     {
         NotificationService.Notify(NotificationSeverity.Error, title, FormatError(error), duration: 5000);
     }
 
-    protected static string FormatError(AeroError error)
+        /// <summary>
+    /// FormatError method.
+    /// </summary>
+protected static string FormatError(AeroError error)
     {
         return error switch
         {
@@ -116,12 +167,18 @@ public partial class Users : ComponentBase
         };
     }
 
-    protected static string GetDisplayName(UserSummary user)
+        /// <summary>
+    /// GetDisplayName method.
+    /// </summary>
+protected static string GetDisplayName(UserSummary user)
     {
         return string.IsNullOrWhiteSpace(user.DisplayName) ? user.UserName : user.DisplayName;
     }
 
-    protected static string GetInitials(string displayName, string userName)
+        /// <summary>
+    /// GetInitials method.
+    /// </summary>
+protected static string GetInitials(string displayName, string userName)
     {
         var name = string.IsNullOrWhiteSpace(displayName) ? userName : displayName;
         if (string.IsNullOrWhiteSpace(name))

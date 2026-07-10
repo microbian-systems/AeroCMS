@@ -13,7 +13,10 @@ namespace Aero.Cms.Web.Core.Blocks.Rendering;
 /// </summary>
 public sealed class CmsBlockHtmlRenderer(HtmlRenderer htmlRenderer)
 {
-    public async Task<IHtmlContent> RenderAsync(
+        /// <summary>
+    /// RenderAsync method.
+    /// </summary>
+public async Task<IHtmlContent> RenderAsync(
         BlockBase block,
         BlockRenderContext? context = null,
         CancellationToken cancellationToken = default)
@@ -41,7 +44,10 @@ public sealed class CmsBlockHtmlRenderer(HtmlRenderer htmlRenderer)
         return new HtmlString(html);
     }
 
-    public async Task<IHtmlContent> RenderBlocksAsync(
+        /// <summary>
+    /// RenderBlocksAsync method.
+    /// </summary>
+public async Task<IHtmlContent> RenderBlocksAsync(
         IEnumerable<BlockBase> blocks,
         BlockRenderContext? context = null,
         CancellationToken cancellationToken = default)
@@ -61,7 +67,10 @@ public sealed class CmsBlockHtmlRenderer(HtmlRenderer htmlRenderer)
         return new HtmlString(sb.ToString());
     }
 
-    public async Task<IHtmlContent> RenderRegionsAsync(
+        /// <summary>
+    /// RenderRegionsAsync method.
+    /// </summary>
+public async Task<IHtmlContent> RenderRegionsAsync(
         IEnumerable<LayoutRegion> regions,
         CancellationToken cancellationToken = default)
     {

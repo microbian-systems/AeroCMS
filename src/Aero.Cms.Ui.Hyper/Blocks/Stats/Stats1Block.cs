@@ -16,15 +16,33 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Stats;
     SchemaVersion = 1)]
 public sealed class Stats1Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.stats.1";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.stats.1";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Trusted by eCommerce Businesses";
-    public string Description { get; set; } = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Ratione dolores laborum labore provident impedit esse recusandae facere libero harum sequi.";
-    public List<StatItem> Stats { get; set; } = DefaultStats.Select(CloneStat).ToList();
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Trusted by eCommerce Businesses";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Ratione dolores laborum labore provident impedit esse recusandae facere libero harum sequi.";
+        /// <summary>
+    /// Gets or sets the Stats.
+    /// </summary>
+public List<StatItem> Stats { get; set; } = DefaultStats.Select(CloneStat).ToList();
 
-    public static readonly List<StatItem> DefaultStats =
+        /// <summary>
+    /// DefaultStats.
+    /// </summary>
+public static readonly List<StatItem> DefaultStats =
     [
         new() { Label = "Total Sales", Value = "$4.8m" },
         new() { Label = "Official Addons", Value = "24" },
@@ -32,7 +50,10 @@ public sealed class Stats1Block : BlockBase
         new() { Label = "Downloads", Value = "86k" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static StatItem CloneStat(StatItem stat) => new()
     {

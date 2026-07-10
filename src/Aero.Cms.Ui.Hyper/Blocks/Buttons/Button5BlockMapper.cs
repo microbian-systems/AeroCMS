@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Buttons;
 
+/// <summary>
+/// Represents a class for Button5BlockMapper.
+/// </summary>
 public static class Button5BlockMapper
 {
-    public static NeoPageNode ToNode(Button5Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Button5Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.buttons.5",
@@ -18,7 +24,10 @@ public static class Button5BlockMapper
         }
     };
 
-    public static Button5Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Button5Block FromNode(NeoPageNode node) => new()
     {
         Text = GetString(node, "text", "Download"),
         Url = GetString(node, "url", "#"),

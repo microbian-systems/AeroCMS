@@ -4,29 +4,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.StatsRow;
 
+/// <summary>
+/// Represents a class for StatsRowEditorBlockDefinition.
+/// </summary>
 public sealed class StatsRowEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => StatsRowBlock.BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => StatsRowBlock.BlockTypeId;
 
-    public string DisplayName => "Status / Social Row";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Status / Social Row";
 
-    public string? Description => "A NeoUI stats row displaying value/label pairs with divider lines.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "A NeoUI stats row displaying value/label pairs with divider lines.";
 
-    public string Category => "Neo";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Neo";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "bar-chart-3";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "bar-chart-3";
 
-    public int SortOrder => 50;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 50;
 
-    public bool PublicStaticSsrSafe => false;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => false;
 
-    public Type? PreviewComponentType => typeof(StatsRowBlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(StatsRowBlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(StatsRowBlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(StatsRowBlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -36,13 +72,19 @@ public sealed class StatsRowEditorBlockDefinition : IPageEditorBlockDefinition
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlock(editorBlock);
         return StatsRowBlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
 
     private static StatsRowBlock ToBlock(EditorBlock editor) => new()
     {

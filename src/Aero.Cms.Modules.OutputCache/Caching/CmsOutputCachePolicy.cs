@@ -20,11 +20,20 @@ namespace Aero.Cms.Modules.OutputCache.Caching;
 /// </summary>
 public sealed class CmsOutputCachePolicy : IOutputCachePolicy
 {
-    public const string DiagnosticHeaderName = "X-Aero-Output-Cache";
+        /// <summary>
+    /// DiagnosticHeaderName.
+    /// </summary>
+public const string DiagnosticHeaderName = "X-Aero-Output-Cache";
 
-    public static readonly CmsOutputCachePolicy Instance = new();
+        /// <summary>
+    /// Instance.
+    /// </summary>
+public static readonly CmsOutputCachePolicy Instance = new();
 
-    public CmsOutputCachePolicy()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CmsOutputCachePolicy"/> class.
+    /// </summary>
+public CmsOutputCachePolicy()
     {
     }
 

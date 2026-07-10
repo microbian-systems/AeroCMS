@@ -4,29 +4,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.CtaBanner;
 
+/// <summary>
+/// Represents a class for CtaBannerEditorBlockDefinition.
+/// </summary>
 public sealed class CtaBannerEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => CtaBannerBlock.BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => CtaBannerBlock.BlockTypeId;
 
-    public string DisplayName => "CTA Banner";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "CTA Banner";
 
-    public string? Description => "A NeoUI call-to-action banner with title, description, and dual CTAs.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "A NeoUI call-to-action banner with title, description, and dual CTAs.";
 
-    public string Category => "Neo";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Neo";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "megaphone";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "megaphone";
 
-    public int SortOrder => 30;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 30;
 
-    public bool PublicStaticSsrSafe => false;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => false;
 
-    public Type? PreviewComponentType => typeof(CtaBannerBlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(CtaBannerBlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(CtaBannerBlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(CtaBannerBlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -40,13 +76,19 @@ public sealed class CtaBannerEditorBlockDefinition : IPageEditorBlockDefinition
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlock(editorBlock);
         return CtaBannerBlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
 
     private static CtaBannerBlock ToBlock(EditorBlock editor) => new()
     {

@@ -3,9 +3,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Modules.Footer.Validators;
 
+/// <summary>
+/// Represents a class for CreateFooterRequestValidator.
+/// </summary>
 public sealed class CreateFooterRequestValidator : AbstractValidator<CreateFooterRequest>
 {
-    public CreateFooterRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CreateFooterRequestValidator"/> class.
+    /// </summary>
+public CreateFooterRequestValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(160);
         RuleFor(x => x.Description).MaximumLength(512);
@@ -20,9 +26,15 @@ public sealed class CreateFooterRequestValidator : AbstractValidator<CreateFoote
     }
 }
 
+/// <summary>
+/// Represents a class for UpdateFooterRequestValidator.
+/// </summary>
 public sealed class UpdateFooterRequestValidator : AbstractValidator<UpdateFooterRequest>
 {
-    public UpdateFooterRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateFooterRequestValidator"/> class.
+    /// </summary>
+public UpdateFooterRequestValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(160);
         RuleFor(x => x.Description).MaximumLength(512);
@@ -35,36 +47,60 @@ public sealed class UpdateFooterRequestValidator : AbstractValidator<UpdateFoote
     }
 }
 
+/// <summary>
+/// Represents a class for CreateFooterLinkGroupRequestValidator.
+/// </summary>
 public sealed class CreateFooterLinkGroupRequestValidator : AbstractValidator<CreateFooterLinkGroupRequest>
 {
-    public CreateFooterLinkGroupRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CreateFooterLinkGroupRequestValidator"/> class.
+    /// </summary>
+public CreateFooterLinkGroupRequestValidator()
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(120);
         RuleForEach(x => x.Links).SetValidator(new CreateFooterLinkRequestValidator());
     }
 }
 
+/// <summary>
+/// Represents a class for UpdateFooterLinkGroupRequestValidator.
+/// </summary>
 public sealed class UpdateFooterLinkGroupRequestValidator : AbstractValidator<UpdateFooterLinkGroupRequest>
 {
-    public UpdateFooterLinkGroupRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateFooterLinkGroupRequestValidator"/> class.
+    /// </summary>
+public UpdateFooterLinkGroupRequestValidator()
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(120);
         RuleForEach(x => x.Links).SetValidator(new UpdateFooterLinkRequestValidator());
     }
 }
 
+/// <summary>
+/// Represents a class for CreateFooterLinkRequestValidator.
+/// </summary>
 public sealed class CreateFooterLinkRequestValidator : AbstractValidator<CreateFooterLinkRequest>
 {
-    public CreateFooterLinkRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CreateFooterLinkRequestValidator"/> class.
+    /// </summary>
+public CreateFooterLinkRequestValidator()
     {
         RuleFor(x => x.Label).NotEmpty().MaximumLength(120);
         RuleFor(x => x.Href).NotEmpty().MaximumLength(2048);
     }
 }
 
+/// <summary>
+/// Represents a class for UpdateFooterLinkRequestValidator.
+/// </summary>
 public sealed class UpdateFooterLinkRequestValidator : AbstractValidator<UpdateFooterLinkRequest>
 {
-    public UpdateFooterLinkRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateFooterLinkRequestValidator"/> class.
+    /// </summary>
+public UpdateFooterLinkRequestValidator()
     {
         RuleFor(x => x.Label).NotEmpty().MaximumLength(120);
         RuleFor(x => x.Href).NotEmpty().MaximumLength(2048);

@@ -2,9 +2,15 @@ using Microsoft.Extensions.Configuration;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Represents a class for AppSettingsBootstrapStateProvider.
+/// </summary>
 public sealed class AppSettingsBootstrapStateProvider(IConfiguration configuration) : IBootstrapStateProvider
 {
-    public BootstrapState GetState()
+        /// <summary>
+    /// GetState method.
+    /// </summary>
+public BootstrapState GetState()
     {
         var section = configuration.GetSection("AeroCms:Bootstrap");
         var hasBootstrapConfig = section.GetValue<bool?>("HasBootstrapConfig")

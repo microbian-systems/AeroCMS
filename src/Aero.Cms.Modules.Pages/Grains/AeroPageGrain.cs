@@ -31,7 +31,10 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
     private readonly IServiceProvider _services;
     private PageViewModel _state = new();
 
-    public AeroPageGrain(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroPageGrain"/> class.
+    /// </summary>
+public AeroPageGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
         IServiceProvider services)
@@ -61,10 +64,16 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
     // ── IHaveState<PageViewModel> ────────────────────────────────────
 
-    public Task<PageViewModel> GetStateAsync(CancellationToken ct)
+        /// <summary>
+    /// GetStateAsync method.
+    /// </summary>
+public Task<PageViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-    public Task UpdateStateAsync(PageViewModel state, CancellationToken ct)
+        /// <summary>
+    /// UpdateStateAsync method.
+    /// </summary>
+public Task UpdateStateAsync(PageViewModel state, CancellationToken ct)
     {
         _state = state;
         return Task.CompletedTask;
@@ -99,7 +108,10 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         return Ok(primary);
     }
 
-    public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not CreatePageRequest create)
             return Fail("Expected CreatePageRequest");
@@ -117,7 +129,10 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         return Fail("Unexpected result");
     }
 
-    public async Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not UpdatePageRequest update)
             return Fail("Expected UpdatePageRequest");
@@ -144,7 +159,10 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         return Fail("Unexpected result");
     }
 
-    public async Task<AeroRequestResponse<PageViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<PageViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not DeletePageRequest delete)
             return Fail("Expected DeletePageRequest");
@@ -172,7 +190,10 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
     // ── ICanFindBySite<PageViewModel, long> ──────────────────────────
 
-    public async Task<AeroRequestResponse<PageViewModel>> GetBySiteIdAsync(
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<PageViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -190,10 +211,16 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
     // ── ICanFindBySlug ──────────────────────────────────────────────
 
-    public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, culture: null, ct);
 
-    public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, string? culture, CancellationToken ct)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, string slug, string? culture, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, culture, ct);
 
     Task<AeroRequestResponse<PageViewModel>> ICanFindBySlug<PageViewModel, string>.GetBySlugAsync(
@@ -237,7 +264,10 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         return ([], 0);
     }
 
-    public async Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, CancellationToken ct)
     {
         using var scope = _services.CreateScope();
         var workflow = scope.ServiceProvider.GetRequiredService<IPagePublishingWorkflowService>();
@@ -254,10 +284,16 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
             : NotFound($"Page {id} not found");
     }
 
-    public async Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// UnpublishAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<PageViewModel>> UnpublishAsync(long id, CancellationToken ct)
         => await TogglePublishStateAsync(id, ContentPublicationState.Draft, ct);
 
-    public async Task<List<PageViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+public async Task<List<PageViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct)
     {
         await using var loadSession = await _store.QuerySessionAsync();
         var page = await loadSession.LoadAsync<PageDocument>(id, ct);
@@ -276,7 +312,10 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
             : [];
     }
 
-    public async Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(
+        /// <summary>
+    /// ForkPageForCultureAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(
         long id,
         string culture,
         string slug,
@@ -316,7 +355,10 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
         return Ok(page.ToViewModel());
     }
 
-    public async Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, CancellationToken ct)
+        /// <summary>
+    /// DeleteMultipleAsync method.
+    /// </summary>
+public async Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, CancellationToken ct)
     {
         if (ids.Length == 0)
             return 0;
@@ -404,7 +446,13 @@ public sealed class AeroPageGrain : AeroActor, IAeroPageActor
 
     private sealed class FixedSiteContext(long siteId) : ISiteContext
     {
-        public long SiteId { get; } = siteId;
-        public long TenantId { get; } = siteId;
+                /// <summary>
+        /// Gets or sets the Site Id.
+        /// </summary>
+public long SiteId { get; } = siteId;
+                /// <summary>
+        /// Gets or sets the Tenant Id.
+        /// </summary>
+public long TenantId { get; } = siteId;
     }
 }

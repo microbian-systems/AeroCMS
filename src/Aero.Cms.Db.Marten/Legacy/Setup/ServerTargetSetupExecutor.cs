@@ -27,21 +27,33 @@ using Aero.Marten.Identity;
 
 namespace Aero.Cms.Modules.Setup;
 
+/// <summary>
+/// Defines an interface for IServerTargetSetupExecutor.
+/// </summary>
 public interface IServerTargetSetupExecutor
 {
-    Task<SeedDatabaseResult> ExecuteAsync(
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+Task<SeedDatabaseResult> ExecuteAsync(
         string serverConnectionString,
         SeedDatabaseRequest request,
         IReadOnlyList<ModuleDescriptor>? descriptors = null,
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for ServerTargetSetupExecutor.
+/// </summary>
 public sealed class ServerTargetSetupExecutor(
     IServiceProvider rootServiceProvider,
     ILogger<ServerTargetSetupExecutor> logger,
     IBootstrapCompletionWriter bootstrapCompletionWriter) : IServerTargetSetupExecutor
 {
-    public async Task<SeedDatabaseResult> ExecuteAsync(
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+public async Task<SeedDatabaseResult> ExecuteAsync(
         string serverConnectionString,
         SeedDatabaseRequest request,
         IReadOnlyList<ModuleDescriptor>? descriptors = null,

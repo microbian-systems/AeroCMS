@@ -8,6 +8,9 @@ using Microsoft.JSInterop;
 
 namespace Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 
+/// <summary>
+/// Represents a class for Setup.
+/// </summary>
 public partial class Setup : ComponentBase
 {
     private const int TotalSteps = 6;
@@ -27,43 +30,121 @@ public partial class Setup : ComponentBase
     [Inject]
     private IStringLocalizer<SetupResource> L { get; set; } = default!;
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Return Url.
+    /// </summary>
+[Parameter]
     public string? ReturnUrl { get; set; }
 
-    public SetupInput Input { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Input.
+    /// </summary>
+public SetupInput Input { get; set; } = new();
 
-    public string? StatusMessage { get; set; }
+        /// <summary>
+    /// Gets or sets the Status Message.
+    /// </summary>
+public string? StatusMessage { get; set; }
 
-    public bool ShowPassword { get; set; }
-    public bool ShowConfirmPassword { get; set; }
+        /// <summary>
+    /// Gets or sets the Show Password.
+    /// </summary>
+public bool ShowPassword { get; set; }
+        /// <summary>
+    /// Gets or sets the Show Confirm Password.
+    /// </summary>
+public bool ShowConfirmPassword { get; set; }
 
     // Service readiness status
-    public bool PostgresReady { get; set; }
-    public bool GarnetReady { get; set; }
+        /// <summary>
+    /// Gets or sets the Postgres Ready.
+    /// </summary>
+public bool PostgresReady { get; set; }
+        /// <summary>
+    /// Gets or sets the Garnet Ready.
+    /// </summary>
+public bool GarnetReady { get; set; }
 
     // Computed properties for conditional display
-    public bool ShowConnectionString => Input.DatabaseMode == "Server";
-    public bool ShowCacheConnectionString => Input.CacheMode == "Server";
-    public bool ShowInfisicalFields => Input.SecretProvider == "Infisical";
+        /// <summary>
+    /// Gets or sets the Show Connection String.
+    /// </summary>
+public bool ShowConnectionString => Input.DatabaseMode == "Server";
+        /// <summary>
+    /// Gets or sets the Show Cache Connection String.
+    /// </summary>
+public bool ShowCacheConnectionString => Input.CacheMode == "Server";
+        /// <summary>
+    /// Gets or sets the Show Infisical Fields.
+    /// </summary>
+public bool ShowInfisicalFields => Input.SecretProvider == "Infisical";
 
-    public bool RequiresPostgres => Input.DatabaseMode == "Embedded";
-    public bool RequiresGarnet => Input.CacheMode == "Embedded";
+        /// <summary>
+    /// Gets or sets the Requires Postgres.
+    /// </summary>
+public bool RequiresPostgres => Input.DatabaseMode == "Embedded";
+        /// <summary>
+    /// Gets or sets the Requires Garnet.
+    /// </summary>
+public bool RequiresGarnet => Input.CacheMode == "Embedded";
 
-    public bool IsReady => true;
-    public bool IsSubmitting { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Ready.
+    /// </summary>
+public bool IsReady => true;
+        /// <summary>
+    /// Gets or sets the Is Submitting.
+    /// </summary>
+public bool IsSubmitting { get; set; }
 
-    public string ReadinessMessage => BuildReadinessMessage();
-    public int CurrentStep { get; set; } = 1;
-    public bool IsLastStep => CurrentStep == TotalSteps;
-    public bool CanMoveNext => ValidateCurrentStep(false);
-    public double ProgressPercent => CurrentStep * 100d / TotalSteps;
-    public string CurrentStepTitle => GetStepName(CurrentStep);
-    public string CurrentStepDescription => GetStepSummary(CurrentStep);
-    public string EffectiveDatabaseMode => NormalizeMode(Input.DatabaseMode, "Embedded");
-    public string EffectiveCacheMode => NormalizeMode(Input.CacheMode, "Memory");
-    public string EffectiveSecretProvider => NormalizeMode(Input.SecretProvider, "Local Certificate");
-    public string EffectiveAuthenticationMode => NormalizeMode(Input.AuthenticationMode, "Local");
-    public IReadOnlyList<CultureOption> CommonCultureOptions { get; } =
+        /// <summary>
+    /// Gets or sets the Readiness Message.
+    /// </summary>
+public string ReadinessMessage => BuildReadinessMessage();
+        /// <summary>
+    /// Gets or sets the Current Step.
+    /// </summary>
+public int CurrentStep { get; set; } = 1;
+        /// <summary>
+    /// Gets or sets the Is Last Step.
+    /// </summary>
+public bool IsLastStep => CurrentStep == TotalSteps;
+        /// <summary>
+    /// Gets or sets the Can Move Next.
+    /// </summary>
+public bool CanMoveNext => ValidateCurrentStep(false);
+        /// <summary>
+    /// Gets or sets the Progress Percent.
+    /// </summary>
+public double ProgressPercent => CurrentStep * 100d / TotalSteps;
+        /// <summary>
+    /// Gets or sets the Current Step Title.
+    /// </summary>
+public string CurrentStepTitle => GetStepName(CurrentStep);
+        /// <summary>
+    /// Gets or sets the Current Step Description.
+    /// </summary>
+public string CurrentStepDescription => GetStepSummary(CurrentStep);
+        /// <summary>
+    /// Gets or sets the Effective Database Mode.
+    /// </summary>
+public string EffectiveDatabaseMode => NormalizeMode(Input.DatabaseMode, "Embedded");
+        /// <summary>
+    /// Gets or sets the Effective Cache Mode.
+    /// </summary>
+public string EffectiveCacheMode => NormalizeMode(Input.CacheMode, "Memory");
+        /// <summary>
+    /// Gets or sets the Effective Secret Provider.
+    /// </summary>
+public string EffectiveSecretProvider => NormalizeMode(Input.SecretProvider, "Local Certificate");
+        /// <summary>
+    /// Gets or sets the Effective Authentication Mode.
+    /// </summary>
+public string EffectiveAuthenticationMode => NormalizeMode(Input.AuthenticationMode, "Local");
+        /// <summary>
+    /// Gets or sets the Common Culture Options.
+    /// </summary>
+public IReadOnlyList<CultureOption> CommonCultureOptions { get; } =
     [
         new("en-US", "English (United States)"),
         new("en-GB", "English (United Kingdom)"),
@@ -85,9 +166,15 @@ public partial class Setup : ComponentBase
         new("uk-UA", "Ukrainian (Ukraine)")
     ];
 
-    public bool HasValidationErrors { get; set; }
+        /// <summary>
+    /// Gets or sets the Has Validation Errors.
+    /// </summary>
+public bool HasValidationErrors { get; set; }
 
-    protected override void OnInitialized()
+        /// <summary>
+    /// OnInitialized method.
+    /// </summary>
+protected override void OnInitialized()
     {
         // Set default values
         Input ??= new SetupInput
@@ -115,17 +202,26 @@ public partial class Setup : ComponentBase
 #endif
     }
 
-    public void TogglePassword()
+        /// <summary>
+    /// TogglePassword method.
+    /// </summary>
+public void TogglePassword()
     {
         ShowPassword = !ShowPassword;
     }
 
-    public void ToggleConfirmPassword()
+        /// <summary>
+    /// ToggleConfirmPassword method.
+    /// </summary>
+public void ToggleConfirmPassword()
     {
         ShowConfirmPassword = !ShowConfirmPassword;
     }
 
-    public async Task NextStep()
+        /// <summary>
+    /// NextStep method.
+    /// </summary>
+public async Task NextStep()
     {
         if (!ValidateCurrentStep(true))
         {
@@ -141,7 +237,10 @@ public partial class Setup : ComponentBase
         }
     }
 
-    public async Task PreviousStep()
+        /// <summary>
+    /// PreviousStep method.
+    /// </summary>
+public async Task PreviousStep()
     {
         if (CurrentStep > 1)
         {
@@ -152,17 +251,26 @@ public partial class Setup : ComponentBase
         }
     }
 
-    public string GetFieldClass(string key)
+        /// <summary>
+    /// GetFieldClass method.
+    /// </summary>
+public string GetFieldClass(string key)
     {
         // For now, return default styling
         // TODO: Add validation state tracking
         return "h-12 w-full px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all";
     }
 
-    public bool IsCultureSelected(string culture)
+        /// <summary>
+    /// IsCultureSelected method.
+    /// </summary>
+public bool IsCultureSelected(string culture)
         => Input.SupportedCultures.Any(selected => string.Equals(selected, culture, StringComparison.OrdinalIgnoreCase));
 
-    public void ToggleCulture(string culture, ChangeEventArgs args)
+        /// <summary>
+    /// ToggleCulture method.
+    /// </summary>
+public void ToggleCulture(string culture, ChangeEventArgs args)
     {
         var isChecked = args.Value is bool checkedValue && checkedValue;
         var normalizedCulture = NormalizeCultureName(culture);
@@ -190,13 +298,19 @@ public partial class Setup : ComponentBase
         }
     }
 
-    public void OnDefaultCultureChanged(ChangeEventArgs args)
+        /// <summary>
+    /// OnDefaultCultureChanged method.
+    /// </summary>
+public void OnDefaultCultureChanged(ChangeEventArgs args)
     {
         Input.DefaultCulture = NormalizeCultureName(args.Value?.ToString());
         EnsureSupportedCulturesContainDefault();
     }
 
-    protected async Task HandleSubmit()
+        /// <summary>
+    /// HandleSubmit method.
+    /// </summary>
+protected async Task HandleSubmit()
     {
         HasValidationErrors = false;
         Input.AuthenticationMode = "Local";
@@ -324,7 +438,10 @@ public partial class Setup : ComponentBase
         return false;
     }
 
-    public string GetStepName(int step) => step switch
+        /// <summary>
+    /// GetStepName method.
+    /// </summary>
+public string GetStepName(int step) => step switch
     {
         1 => L["CMS Info"],
         2 => L["Database"],
@@ -335,7 +452,10 @@ public partial class Setup : ComponentBase
         _ => L["Setup"]
     };
 
-    public string GetStepSummary(int step) => step switch
+        /// <summary>
+    /// GetStepSummary method.
+    /// </summary>
+public string GetStepSummary(int step) => step switch
     {
         1 => L["Site name, culture, homepage, and blog metadata."],
         2 => L["Embedded or server database connectivity."],
@@ -386,74 +506,152 @@ public partial class Setup : ComponentBase
 
 }
 
+/// <summary>
+/// Represents a class for SetupStatusResponse.
+/// </summary>
 public sealed class SetupStatusResponse
 {
-    public bool PostgresReady { get; set; }
-    public bool GarnetReady { get; set; }
-    public bool RequiresPostgres { get; set; }
-    public bool RequiresGarnet { get; set; }
-    public bool IsReady { get; set; }
+        /// <summary>
+    /// Gets or sets the Postgres Ready.
+    /// </summary>
+public bool PostgresReady { get; set; }
+        /// <summary>
+    /// Gets or sets the Garnet Ready.
+    /// </summary>
+public bool GarnetReady { get; set; }
+        /// <summary>
+    /// Gets or sets the Requires Postgres.
+    /// </summary>
+public bool RequiresPostgres { get; set; }
+        /// <summary>
+    /// Gets or sets the Requires Garnet.
+    /// </summary>
+public bool RequiresGarnet { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Ready.
+    /// </summary>
+public bool IsReady { get; set; }
 }
 
+/// <summary>
+/// Represents a class for SetupInput.
+/// </summary>
 public class SetupInput
 {
-    [Required]
+        /// <summary>
+    /// Gets or sets the Database Mode.
+    /// </summary>
+[Required]
     public string DatabaseMode { get; set; } = "Embedded";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Cache Mode.
+    /// </summary>
+[Required]
     public string CacheMode { get; set; } = "Memory";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Secret Provider.
+    /// </summary>
+[Required]
     public string SecretProvider { get; set; } = "Local Certificate";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Authentication Mode.
+    /// </summary>
+[Required]
     public string AuthenticationMode { get; set; } = "Local";
 
-    public string? ConnectionString { get; set; }
+        /// <summary>
+    /// Gets or sets the Connection String.
+    /// </summary>
+public string? ConnectionString { get; set; }
 
-    public string? CacheConnectionString { get; set; }
+        /// <summary>
+    /// Gets or sets the Cache Connection String.
+    /// </summary>
+public string? CacheConnectionString { get; set; }
 
-    public string? InfisicalMachineId { get; set; }
+        /// <summary>
+    /// Gets or sets the Infisical Machine Id.
+    /// </summary>
+public string? InfisicalMachineId { get; set; }
 
-    public string? InfisicalClientSecret { get; set; }
+        /// <summary>
+    /// Gets or sets the Infisical Client Secret.
+    /// </summary>
+public string? InfisicalClientSecret { get; set; }
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Admin User Name.
+    /// </summary>
+[Required]
     [StringLength(100, MinimumLength = 3)]
     public string AdminUserName { get; set; } = "admin";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Admin Email.
+    /// </summary>
+[Required]
     [EmailAddress]
     public string AdminEmail { get; set; } = "hello@getaerocms.net";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Password.
+    /// </summary>
+[Required]
     [StringLength(100, MinimumLength = 8)]
     public string Password { get; set; } = "";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Confirm Password.
+    /// </summary>
+[Required]
     [Compare("Password")]
     public string ConfirmPassword { get; set; } = "";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Site Name.
+    /// </summary>
+[Required]
     [StringLength(100)]
     public string SiteName { get; set; } = "Aero CMS";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Homepage Title.
+    /// </summary>
+[Required]
     [StringLength(100)]
     public string HomepageTitle { get; set; } = "Welcome";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Blog Name.
+    /// </summary>
+[Required]
     [StringLength(100)]
     public string BlogName { get; set; } = "Blog";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Hostname.
+    /// </summary>
+[Required]
     [StringLength(256)]
     public string Hostname { get; set; } = "localhost";
 
-    [Required]
+        /// <summary>
+    /// Gets or sets the Default Culture.
+    /// </summary>
+[Required]
     [StringLength(10)]
     public string DefaultCulture { get; set; } = "en-US";
 
-    public List<string> SupportedCultures { get; set; } = ["en-US"];
+        /// <summary>
+    /// Gets or sets the Supported Cultures.
+    /// </summary>
+public List<string> SupportedCultures { get; set; } = ["en-US"];
 }
 
+/// <summary>
+/// Represents a record for CultureOption.
+/// </summary>
 public sealed record CultureOption(string Name, string DisplayName);

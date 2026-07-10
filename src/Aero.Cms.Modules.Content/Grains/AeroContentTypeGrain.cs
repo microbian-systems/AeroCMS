@@ -17,7 +17,10 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
 {
     private readonly IServiceScopeFactory _scopeFactory;
 
-    public AeroContentTypeGrain(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroContentTypeGrain"/> class.
+    /// </summary>
+public AeroContentTypeGrain(
         ILogger<AeroActor> log,
         IServiceScopeFactory scopeFactory)
         : base(log)
@@ -25,7 +28,10 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         _scopeFactory = scopeFactory;
     }
 
-    public async Task<List<ContentTypeViewModel>> GetAllAsync(long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<List<ContentTypeViewModel>> GetAllAsync(long siteId, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
@@ -39,7 +45,10 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         };
     }
 
-    public async Task<ContentTypeViewModel?> GetByAliasAsync(long siteId, string alias, CancellationToken ct = default)
+        /// <summary>
+    /// GetByAliasAsync method.
+    /// </summary>
+public async Task<ContentTypeViewModel?> GetByAliasAsync(long siteId, string alias, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
@@ -52,7 +61,10 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         };
     }
 
-    public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<ContentTypeViewModel>> CreateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
@@ -75,7 +87,10 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         };
     }
 
-    public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<ContentTypeViewModel>> UpdateAsync(ContentTypeViewModel vm, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();
@@ -98,7 +113,10 @@ public sealed class AeroContentTypeGrain : AeroActor, IAeroContentTypeActor
         };
     }
 
-    public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IContentTypeService>();

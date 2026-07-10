@@ -6,31 +6,73 @@ using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Media;
 
 namespace Aero.Cms.Ui.Neo.Definitions;
 
+/// <summary>
+/// Represents a class for AudioEditorBlockDefinition.
+/// </summary>
 public sealed class AudioEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "media.audio";
-    public string DisplayName => "Audio";
-    public string? Description => "Embed an audio player with controls.";
-    public string Category => "Media";
-    public string Kind => "Block";
-    public string IconName => "volume-2";
-    public int SortOrder => 50;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(AudioBlockEditorPreview);
-    public Type? PropertyEditorComponentType => typeof(AudioBlockEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "media.audio";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Audio";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Embed an audio player with controls.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Media";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "volume-2";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 50;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(AudioBlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(AudioBlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock() => new()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock() => new()
     {
         Type = CatalogId
     };
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlock(editorBlock);
         return AudioBlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
 
     private static AudioBlock ToBlock(EditorBlock editor) => new()
     {

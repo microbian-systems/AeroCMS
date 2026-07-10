@@ -3,23 +3,53 @@ using Aero.Core.Entities;
 
 namespace Aero.Cms.Abstractions.Content;
 
+/// <summary>
+/// Represents a class for ContentItem.
+/// </summary>
 public sealed class ContentItem : Entity
 {
-    public long SiteId { get; set; }
-    public string ContentTypeAlias { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Title { get; set; }
-    public long? TranslationGroupId { get; set; }
-    public string Culture { get; set; } = string.Empty;
-    public long? SourceItemId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Content Type Alias.
+    /// </summary>
+public string ContentTypeAlias { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+public long? TranslationGroupId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Source Item Id.
+    /// </summary>
+public long? SourceItemId { get; set; }
 
     /// <summary>
     /// Field values stored as JsonElement for AOT-safe serialization.
     /// </summary>
     public Dictionary<string, JsonElement> Fields { get; set; } = [];
 
-    public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
-    public DateTimeOffset? PublishedOn { get; set; }
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+public DateTimeOffset? PublishedOn { get; set; }
 
     /// <summary>Monotonically incremented on each save. 0 = unsaved.</summary>
     public int VersionNumber { get; set; }

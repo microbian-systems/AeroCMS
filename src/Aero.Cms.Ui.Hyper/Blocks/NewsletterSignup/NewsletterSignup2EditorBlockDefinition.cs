@@ -4,29 +4,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.NewsletterSignup;
 
+/// <summary>
+/// Represents a class for NewsletterSignup2EditorBlockDefinition.
+/// </summary>
 public sealed class NewsletterSignup2EditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "hyper.newsletter-signup.2";
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "hyper.newsletter-signup.2";
 
-    public string DisplayName => "Newsletter Signup 2";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Newsletter Signup 2";
 
-    public string? Description => "Centered newsletter signup form with email input and CTA button.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Centered newsletter signup form with email input and CTA button.";
 
-    public string Category => "Hyper";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Hyper";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "mail";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "mail";
 
-    public int SortOrder => 123;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 123;
 
-    public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
 
-    public Type? PreviewComponentType => typeof(NewsletterSignup2BlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(NewsletterSignup2BlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(NewsletterSignup2BlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(NewsletterSignup2BlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -38,13 +74,19 @@ public sealed class NewsletterSignup2EditorBlockDefinition : IPageEditorBlockDef
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToNewsletterBlock(editorBlock);
         return NewsletterSignup2BlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToNewsletterBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToNewsletterBlock(editorBlock);
 
     private static NewsletterSignup2Block ToNewsletterBlock(EditorBlock editorBlock)
     {

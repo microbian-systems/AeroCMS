@@ -4,13 +4,19 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Aero.Cms.Modules.Navigation.ViewComponents;
 
+/// <summary>
+/// Represents a class for AeroNavBarViewComponent.
+/// </summary>
 public sealed class AeroNavBarViewComponent(
     ISiteContext siteContext,
     INavMenuService navMenuService,
     NavMenuContext navMenuContext,
     ILogger<AeroNavBarViewComponent> logger) : ViewComponent
 {
-    public async Task<IViewComponentResult> InvokeAsync(long? pageOverrideId = null)
+        /// <summary>
+    /// InvokeAsync method.
+    /// </summary>
+public async Task<IViewComponentResult> InvokeAsync(long? pageOverrideId = null)
     {
         var result = await navMenuContext.ResolveAsync(
             siteContext.SiteId,

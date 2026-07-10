@@ -9,9 +9,15 @@ using Wolverine;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Api;
 
+/// <summary>
+/// Represents a class for OrderEndpoints.
+/// </summary>
 public static class OrderEndpoints
 {
-    public static IEndpointRouteBuilder MapOrderApi(this IEndpointRouteBuilder builder)
+        /// <summary>
+    /// MapOrderApi method.
+    /// </summary>
+public static IEndpointRouteBuilder MapOrderApi(this IEndpointRouteBuilder builder)
     {
         var group = builder
             .MapGroup("/api/commerce/orders")

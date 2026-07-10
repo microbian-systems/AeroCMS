@@ -23,11 +23,20 @@ public interface INavigationsHttpClient
     /// <returns>The navigation detail or an error.</returns>
     Task<Result<NavigationDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
 
-    Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
 
-    Task<Result<NavigationDetail, AeroError>> ForkToCultureAsync(long id, ForkNavigationCultureRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+Task<Result<NavigationDetail, AeroError>> ForkToCultureAsync(long id, ForkNavigationCultureRequest request, CancellationToken ct = default);
 
-    Task<Result<AiTranslateNavigationResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateNavigationRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// TranslateWithAiAsync method.
+    /// </summary>
+Task<Result<AiTranslateNavigationResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateNavigationRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Creates a new navigation menu.
@@ -119,7 +128,10 @@ public class NavigationsHttpClient(HttpClient httpClient, ILogger<NavigationsHtt
         return PostAsync<ForkNavigationCultureRequest, NavigationDetail>($"{id}/translations", request, ct);
     }
 
-    public Task<Result<AiTranslateNavigationResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateNavigationRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// TranslateWithAiAsync method.
+    /// </summary>
+public Task<Result<AiTranslateNavigationResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateNavigationRequest request, CancellationToken ct = default)
     {
         return PostAsync<AiTranslateNavigationRequest, AiTranslateNavigationResult>($"{id}/ai-translate", request, ct);
     }
@@ -211,22 +223,43 @@ public record NavigationDetail(
     IReadOnlyList<NavigationComponentDetail>? Components = null,
     IReadOnlyList<NavigationCanvasRowDetail>? Rows = null)
 {
-    public IReadOnlyList<NavigationComponentDetail> Components { get; init; } = Components ?? [];
-    public IReadOnlyList<NavigationCanvasRowDetail> Rows { get; init; } = Rows ?? [];
+        /// <summary>
+    /// Gets or sets the Components.
+    /// </summary>
+public IReadOnlyList<NavigationComponentDetail> Components { get; init; } = Components ?? [];
+        /// <summary>
+    /// Gets or sets the Rows.
+    /// </summary>
+public IReadOnlyList<NavigationCanvasRowDetail> Rows { get; init; } = Rows ?? [];
 }
 
+/// <summary>
+/// Represents a record for ForkNavigationCultureRequest.
+/// </summary>
 public sealed record ForkNavigationCultureRequest(string Culture);
 
+/// <summary>
+/// Represents a record for AiTranslateNavigationRequest.
+/// </summary>
 public sealed record AiTranslateNavigationRequest(
     IReadOnlyList<AiTranslateNavigationCultureRequest> Targets,
     string? ProviderId = null,
     bool OverwriteExisting = false);
 
+/// <summary>
+/// Represents a record for AiTranslateNavigationCultureRequest.
+/// </summary>
 public sealed record AiTranslateNavigationCultureRequest(string Culture);
 
+/// <summary>
+/// Represents a record for AiTranslateNavigationResult.
+/// </summary>
 public sealed record AiTranslateNavigationResult(
     IReadOnlyList<AiTranslateNavigationCultureResult> Results);
 
+/// <summary>
+/// Represents a record for AiTranslateNavigationCultureResult.
+/// </summary>
 public sealed record AiTranslateNavigationCultureResult(
     string Culture,
     bool Succeeded,
@@ -247,6 +280,9 @@ public record NavigationItemDetail(
     bool IsExternal = false,
     string? Target = null);
 
+/// <summary>
+/// Represents a record for NavigationComponentDetail.
+/// </summary>
 public record NavigationComponentDetail(
     long Id,
     string Kind,
@@ -265,9 +301,15 @@ public record NavigationComponentDetail(
     string? ButtonLabel = null,
     string Visibility = "Always")
 {
-    public IReadOnlyList<NavigationComponentDetail> Children { get; init; } = Children ?? [];
+        /// <summary>
+    /// Gets or sets the Children.
+    /// </summary>
+public IReadOnlyList<NavigationComponentDetail> Children { get; init; } = Children ?? [];
 }
 
+/// <summary>
+/// Represents a record for NavigationCanvasRowDetail.
+/// </summary>
 public record NavigationCanvasRowDetail(
     long Id,
     int Order,
@@ -277,9 +319,15 @@ public record NavigationCanvasRowDetail(
     string MobileDisplay = "Stack",
     IReadOnlyList<NavigationCanvasColumnDetail>? Columns = null)
 {
-    public IReadOnlyList<NavigationCanvasColumnDetail> Columns { get; init; } = Columns ?? [];
+        /// <summary>
+    /// Gets or sets the Columns.
+    /// </summary>
+public IReadOnlyList<NavigationCanvasColumnDetail> Columns { get; init; } = Columns ?? [];
 }
 
+/// <summary>
+/// Represents a record for NavigationCanvasColumnDetail.
+/// </summary>
 public record NavigationCanvasColumnDetail(
     long Id,
     int Order,
@@ -288,7 +336,10 @@ public record NavigationCanvasColumnDetail(
     int MobileSpan,
     IReadOnlyList<NavigationComponentDetail>? Blocks = null)
 {
-    public IReadOnlyList<NavigationComponentDetail> Blocks { get; init; } = Blocks ?? [];
+        /// <summary>
+    /// Gets or sets the Blocks.
+    /// </summary>
+public IReadOnlyList<NavigationComponentDetail> Blocks { get; init; } = Blocks ?? [];
 }
 
 /// <summary>
@@ -307,8 +358,14 @@ public record UpdateNavigationRequest(
     IReadOnlyList<UpdateNavigationComponentRequest>? Components = null,
     IReadOnlyList<UpdateNavigationCanvasRowRequest>? Rows = null)
 {
-    public IReadOnlyList<UpdateNavigationComponentRequest> Components { get; init; } = Components ?? [];
-    public IReadOnlyList<UpdateNavigationCanvasRowRequest> Rows { get; init; } = Rows ?? [];
+        /// <summary>
+    /// Gets or sets the Components.
+    /// </summary>
+public IReadOnlyList<UpdateNavigationComponentRequest> Components { get; init; } = Components ?? [];
+        /// <summary>
+    /// Gets or sets the Rows.
+    /// </summary>
+public IReadOnlyList<UpdateNavigationCanvasRowRequest> Rows { get; init; } = Rows ?? [];
 }
 
 /// <summary>
@@ -336,6 +393,9 @@ public record UpdateNavigationItemRequest(
     bool IsExternal = false,
     string? Target = null);
 
+/// <summary>
+/// Represents a record for UpdateNavigationComponentRequest.
+/// </summary>
 public record UpdateNavigationComponentRequest(
     long Id,
     string Kind,
@@ -354,9 +414,15 @@ public record UpdateNavigationComponentRequest(
     string? ButtonLabel = null,
     string Visibility = "Always")
 {
-    public IReadOnlyList<UpdateNavigationComponentRequest> Children { get; init; } = Children ?? [];
+        /// <summary>
+    /// Gets or sets the Children.
+    /// </summary>
+public IReadOnlyList<UpdateNavigationComponentRequest> Children { get; init; } = Children ?? [];
 }
 
+/// <summary>
+/// Represents a record for UpdateNavigationCanvasRowRequest.
+/// </summary>
 public record UpdateNavigationCanvasRowRequest(
     long Id,
     int Order,
@@ -366,9 +432,15 @@ public record UpdateNavigationCanvasRowRequest(
     string MobileDisplay = "Stack",
     IReadOnlyList<UpdateNavigationCanvasColumnRequest>? Columns = null)
 {
-    public IReadOnlyList<UpdateNavigationCanvasColumnRequest> Columns { get; init; } = Columns ?? [];
+        /// <summary>
+    /// Gets or sets the Columns.
+    /// </summary>
+public IReadOnlyList<UpdateNavigationCanvasColumnRequest> Columns { get; init; } = Columns ?? [];
 }
 
+/// <summary>
+/// Represents a record for UpdateNavigationCanvasColumnRequest.
+/// </summary>
 public record UpdateNavigationCanvasColumnRequest(
     long Id,
     int Order,
@@ -377,5 +449,8 @@ public record UpdateNavigationCanvasColumnRequest(
     int MobileSpan,
     IReadOnlyList<UpdateNavigationComponentRequest>? Blocks = null)
 {
-    public IReadOnlyList<UpdateNavigationComponentRequest> Blocks { get; init; } = Blocks ?? [];
+        /// <summary>
+    /// Gets or sets the Blocks.
+    /// </summary>
+public IReadOnlyList<UpdateNavigationComponentRequest> Blocks { get; init; } = Blocks ?? [];
 }

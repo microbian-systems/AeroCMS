@@ -5,6 +5,9 @@ using Microsoft.Extensions.Configuration;
 
 namespace Aero.AppServer.Startup;
 
+/// <summary>
+/// Represents a record for DataProtectionBootstrapSettings.
+/// </summary>
 public sealed record DataProtectionBootstrapSettings(
     string CertificatePath,
     string KeyRingPath,
@@ -12,12 +15,24 @@ public sealed record DataProtectionBootstrapSettings(
     string ApplicationName,
     string ProtectorPurpose);
 
+/// <summary>
+/// Represents a class for DataProtectionCertificateBootstrapper.
+/// </summary>
 public static class DataProtectionCertificateBootstrapper
 {
-    public const string DefaultApplicationName = "AeroCMS";
-    public const string DefaultProtectorPurpose = "Aero.Secrets.V1";
+        /// <summary>
+    /// DefaultApplicationName.
+    /// </summary>
+public const string DefaultApplicationName = "AeroCMS";
+        /// <summary>
+    /// DefaultProtectorPurpose.
+    /// </summary>
+public const string DefaultProtectorPurpose = "Aero.Secrets.V1";
 
-    public static DataProtectionBootstrapSettings ResolveSettings(IConfiguration? configuration)
+        /// <summary>
+    /// ResolveSettings method.
+    /// </summary>
+public static DataProtectionBootstrapSettings ResolveSettings(IConfiguration? configuration)
     {
         static string? Get(IConfiguration? cfg, params string[] keys)
         {
@@ -67,14 +82,20 @@ public static class DataProtectionCertificateBootstrapper
         return new DataProtectionBootstrapSettings(certPath, keyRingPath, certificatePassword, applicationName, protectorPurpose);
     }
 
-    public static ISecretManager CreateSecretManager(IConfiguration? configuration)
+        /// <summary>
+    /// CreateSecretManager method.
+    /// </summary>
+public static ISecretManager CreateSecretManager(IConfiguration? configuration)
     {
         var settings = ResolveSettings(configuration);
         var certificate = GetOrCreateCertificate(settings);
         return new DataProtectionCertificateSecretManager(certificate, settings.ApplicationName, settings.KeyRingPath, settings.ProtectorPurpose);
     }
 
-    public static X509Certificate2 GetOrCreateCertificate(DataProtectionBootstrapSettings settings)
+        /// <summary>
+    /// GetOrCreateCertificate method.
+    /// </summary>
+public static X509Certificate2 GetOrCreateCertificate(DataProtectionBootstrapSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
 

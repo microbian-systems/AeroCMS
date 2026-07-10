@@ -2,23 +2,47 @@ using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Models;
 
+/// <summary>
+/// Represents a record for PostViewModel.
+/// </summary>
 [Alias("PostViewModel")]
 [GenerateSerializer]
 public sealed record PostViewModel : AeroEntityViewModel
 {
-    [Id(0)]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[Id(0)]
     public string? Slug { get; set; }
-    [Id(1)]
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+[Id(1)]
     public string? Title { get; set; }
-    [Id(2)]
+        /// <summary>
+    /// Gets or sets the Excerpt.
+    /// </summary>
+[Id(2)]
     public string? Excerpt { get; set; }
-    [Id(3)]
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+[Id(3)]
     public string? SeoTitle { get; set; }
-    [Id(4)]
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+[Id(4)]
     public string? SeoDescription { get; set; }
-    [Id(5)]
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+[Id(5)]
     public DateTimeOffset? PublishedOn { get; set; } = null;
-    [Id(6)]
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+[Id(6)]
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
 
     /// <summary>
@@ -56,17 +80,32 @@ public sealed record PostViewModel : AeroEntityViewModel
     /// </summary>
     [Id(12)]
     public int Likes { get; set; }
-    [Id(13)]
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+[Id(13)]
     public string Culture { get; set; } = "en-US";
-    [Id(14)]
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+[Id(14)]
     public long? TranslationGroupId { get; set; }
-    [Id(15)]
+        /// <summary>
+    /// Gets or sets the Series Id.
+    /// </summary>
+[Id(15)]
     public long? SeriesId { get; set; }
 
-    public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+        /// <summary>
+    /// Gets or sets the Is Publicly Visible.
+    /// </summary>
+public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 }
 
 
+/// <summary>
+/// Represents a record for PostErrorViewModel.
+/// </summary>
 [GenerateSerializer]
 [Alias("PostErrorViewModel")]
 public record PostErrorViewModel : AeroErrorViewModel<PostViewModel>;

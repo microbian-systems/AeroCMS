@@ -8,32 +8,59 @@ using Wolverine;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
+/// <summary>
+/// Represents a class for CheckoutModel.
+/// </summary>
 [Microsoft.AspNetCore.Authorization.Authorize]
 public class CheckoutModel : PageModel
 {
     private readonly IBasketService _basketService;
     private readonly IMessageBus _bus;
 
-    public CheckoutModel(IBasketService basketService, IMessageBus bus)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CheckoutModel"/> class.
+    /// </summary>
+public CheckoutModel(IBasketService basketService, IMessageBus bus)
     {
         _basketService = basketService;
         _bus = bus;
     }
 
-    [BindProperty]
+        /// <summary>
+    /// Gets or sets the Street.
+    /// </summary>
+[BindProperty]
     public string? Street { get; set; }
-    [BindProperty]
+        /// <summary>
+    /// Gets or sets the City.
+    /// </summary>
+[BindProperty]
     public string? City { get; set; }
-    [BindProperty]
+        /// <summary>
+    /// Gets or sets the State.
+    /// </summary>
+[BindProperty]
     public string? State { get; set; }
-    [BindProperty]
+        /// <summary>
+    /// Gets or sets the Zip Code.
+    /// </summary>
+[BindProperty]
     public string? ZipCode { get; set; }
-    [BindProperty]
+        /// <summary>
+    /// Gets or sets the Country.
+    /// </summary>
+[BindProperty]
     public string? Country { get; set; }
 
-    public void OnGet() { }
+        /// <summary>
+    /// OnGet method.
+    /// </summary>
+public void OnGet() { }
 
-    public async Task<IActionResult> OnPostPlaceOrderAsync()
+        /// <summary>
+    /// OnPostPlaceOrderAsync method.
+    /// </summary>
+public async Task<IActionResult> OnPostPlaceOrderAsync()
     {
         if (!ModelState.IsValid) return Page();
 

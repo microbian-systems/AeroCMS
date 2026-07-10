@@ -19,7 +19,10 @@ public sealed class BlockAeroDbConfiguration : IConfigureAeroDB
         AddSubClassMethod.MakeGenericMethod(modelType).Invoke(mapping, null);
     }
 
-    public void Configure(StoreOptions options)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions options)
     {
         var generatedTypes = GeneratedBlockModelManifest.Blocks.Values
             .Select(descriptor => new CmsBlockModelRegistration(descriptor.BlockType, descriptor.ModelType));
@@ -33,7 +36,10 @@ public sealed class BlockAeroDbConfiguration : IConfigureAeroDB
             .Index(x => x.SiteId);
     }
 
-    public void Configure(IServiceProvider? services, StoreOptions options)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider? services, StoreOptions options)
     {
         if (services is null)
         {

@@ -4,8 +4,14 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a record for CreateNavMenuDialogResult.
+/// </summary>
 public sealed record CreateNavMenuDialogResult(string Name, string? Description);
 
+/// <summary>
+/// Represents a class for CreateNavMenuDialog.
+/// </summary>
 public partial class CreateNavMenuDialog
 {
     [Inject] private DialogService DialogService { get; set; } = default!;

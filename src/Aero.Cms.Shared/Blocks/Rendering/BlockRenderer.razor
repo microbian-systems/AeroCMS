@@ -46,8 +46,7 @@
             }
         }
 
-        adapter = null!;
-        return false;
+        return CmsBlockRenderRegistry.TryGet(blockType, out adapter!);
     }
 
     private static Aero.Cms.Abstractions.Blocks.Neo.Styles.ResponsiveNodeStyle GetStyle(IBlock block) =>

@@ -5,7 +5,10 @@ namespace Aero.Cms.Modules.Commerce.Shared.ValueObjects;
 /// </summary>
 public sealed record Money(decimal Amount, string Currency = "USD")
 {
-    public static Money Zero => new(0);
+        /// <summary>
+    /// Gets or sets the Zero.
+    /// </summary>
+public static Money Zero => new(0);
 
     public static Money operator +(Money a, Money b)
     {

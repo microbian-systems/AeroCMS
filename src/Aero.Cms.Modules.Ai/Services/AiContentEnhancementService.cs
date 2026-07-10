@@ -11,6 +11,9 @@ using System.Text.Json;
 
 namespace Aero.Cms.Modules.Ai.Services;
 
+/// <summary>
+/// Represents a class for AiContentEnhancementService.
+/// </summary>
 public sealed class AiContentEnhancementService(
     IAiSettingsProvider settingsProvider,
     IAiChatClientFactory chatClientFactory,
@@ -34,7 +37,10 @@ public sealed class AiContentEnhancementService(
         keep the text conservative. No cussing. No questionable material responses.
         """;
 
-    public async Task<Result<EnhanceContentResponse>> EnhanceAsync(
+        /// <summary>
+    /// EnhanceAsync method.
+    /// </summary>
+public async Task<Result<EnhanceContentResponse>> EnhanceAsync(
         EnhanceContentRequest request,
         CancellationToken cancellationToken = default)
     {

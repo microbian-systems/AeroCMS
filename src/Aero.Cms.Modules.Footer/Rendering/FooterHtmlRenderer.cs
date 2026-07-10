@@ -6,14 +6,26 @@ using Microsoft.AspNetCore.Html;
 
 namespace Aero.Cms.Modules.Footer.Rendering;
 
+/// <summary>
+/// Defines an interface for IFooterHtmlRenderer.
+/// </summary>
 public interface IFooterHtmlRenderer
 {
-    IHtmlContent Render(FooterSnapshot? snapshot);
+        /// <summary>
+    /// Render method.
+    /// </summary>
+IHtmlContent Render(FooterSnapshot? snapshot);
 }
 
+/// <summary>
+/// Represents a class for FooterHtmlRenderer.
+/// </summary>
 public sealed class FooterHtmlRenderer : IFooterHtmlRenderer
 {
-    public IHtmlContent Render(FooterSnapshot? snapshot)
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public IHtmlContent Render(FooterSnapshot? snapshot)
     {
         if (snapshot is null)
         {

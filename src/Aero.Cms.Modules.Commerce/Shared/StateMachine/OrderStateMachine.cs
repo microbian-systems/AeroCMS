@@ -9,7 +9,10 @@ namespace Aero.Cms.Modules.Commerce.Shared.StateMachine;
 /// </summary>
 public static class OrderStateMachine
 {
-    public static Result<OrderEntity, AeroError> Transition(OrderEntity order, OrderStatus newStatus)
+        /// <summary>
+    /// Transition method.
+    /// </summary>
+public static Result<OrderEntity, AeroError> Transition(OrderEntity order, OrderStatus newStatus)
     {
         var target = newStatus;
 

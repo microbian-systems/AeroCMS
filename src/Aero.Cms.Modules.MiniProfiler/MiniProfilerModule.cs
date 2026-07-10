@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Microsoft.AspNetCore.Builder;
@@ -10,22 +10,46 @@ using StackExchange.Profiling.Storage;
 
 namespace Aero.Cms.Modules.MiniProfiler;
 
+/// <summary>
+/// Represents a class for MiniProfilerModule.
+/// </summary>
 [Module(nameof(MiniProfilerModule))]
 public class MiniProfilerModule : AeroWebModule, IStartupFilter
 {
-    public override string Name => nameof(MiniProfilerModule);
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(MiniProfilerModule);
 
-    public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
 
-    public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
 
-    public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
 
-    public override IReadOnlyList<string> Category => ["profiler", "performance"];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["profiler", "performance"];
 
-    public override IReadOnlyList<string> Tags => ["profiler", "performance"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["profiler", "performance"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         var enabled = config?.GetValue<bool>("AeroCms:Modules:MiniProfiler:Enable") ?? false;
         if (enabled)
@@ -117,7 +141,10 @@ public class MiniProfilerModule : AeroWebModule, IStartupFilter
         base.ConfigureServices(services, config, env);
     }
 
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
     {
         return app =>
         {

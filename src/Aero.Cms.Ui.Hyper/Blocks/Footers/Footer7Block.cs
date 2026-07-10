@@ -16,22 +16,61 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
     SchemaVersion = 1)]
 public sealed class Footer7Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.footers.7";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.footers.7";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string NewsletterTitle { get; set; } = "Want us to email you with the latest blockbuster news?";
-    public string NewsletterDescription { get; set; } = "Lorem ipsum, dolor sit amet consectetur adipisicing elit. Praesentium natus quod eveniet aut perferendis distinctio iusto repudiandae, provident velit earum?";
-    public string EmailPlaceholder { get; set; } = "john@doe.com";
-    public string ButtonText { get; set; } = "Subscribe";
-    public List<FooterSocialLink> SocialLinks { get; set; } = FooterDefaults.DefaultSocialLinks.Select(FooterDefaults.CloneSocialLink).ToList();
-    public List<FooterLink> ServicesLinks { get; set; } = DefaultServicesLinks.Select(CloneLink).ToList();
-    public List<FooterLink> AboutLinks { get; set; } = DefaultAboutLinks.Select(CloneLink).ToList();
-    public List<FooterLink> SupportLinks { get; set; } = DefaultSupportLinks.Select(CloneLink).ToList();
-    public string CopyrightText { get; set; } = "&copy; Company 2022. All rights reserved.";
-    public string CreatedWithText { get; set; } = "Created with Laravel and Laravel Livewire.";
+        /// <summary>
+    /// Gets or sets the Newsletter Title.
+    /// </summary>
+public string NewsletterTitle { get; set; } = "Want us to email you with the latest blockbuster news?";
+        /// <summary>
+    /// Gets or sets the Newsletter Description.
+    /// </summary>
+public string NewsletterDescription { get; set; } = "Lorem ipsum, dolor sit amet consectetur adipisicing elit. Praesentium natus quod eveniet aut perferendis distinctio iusto repudiandae, provident velit earum?";
+        /// <summary>
+    /// Gets or sets the Email Placeholder.
+    /// </summary>
+public string EmailPlaceholder { get; set; } = "john@doe.com";
+        /// <summary>
+    /// Gets or sets the Button Text.
+    /// </summary>
+public string ButtonText { get; set; } = "Subscribe";
+        /// <summary>
+    /// Gets or sets the Social Links.
+    /// </summary>
+public List<FooterSocialLink> SocialLinks { get; set; } = FooterDefaults.DefaultSocialLinks.Select(FooterDefaults.CloneSocialLink).ToList();
+        /// <summary>
+    /// Gets or sets the Services Links.
+    /// </summary>
+public List<FooterLink> ServicesLinks { get; set; } = DefaultServicesLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the About Links.
+    /// </summary>
+public List<FooterLink> AboutLinks { get; set; } = DefaultAboutLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Support Links.
+    /// </summary>
+public List<FooterLink> SupportLinks { get; set; } = DefaultSupportLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Copyright Text.
+    /// </summary>
+public string CopyrightText { get; set; } = "&copy; Company 2022. All rights reserved.";
+        /// <summary>
+    /// Gets or sets the Created With Text.
+    /// </summary>
+public string CreatedWithText { get; set; } = "Created with Laravel and Laravel Livewire.";
 
-    public static readonly List<FooterLink> DefaultServicesLinks =
+        /// <summary>
+    /// DefaultServicesLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultServicesLinks =
     [
         new() { Text = "Marketing" },
         new() { Text = "Graphic Design" },
@@ -39,7 +78,10 @@ public sealed class Footer7Block : BlockBase
         new() { Text = "Web Development" }
     ];
 
-    public static readonly List<FooterLink> DefaultAboutLinks =
+        /// <summary>
+    /// DefaultAboutLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultAboutLinks =
     [
         new() { Text = "About" },
         new() { Text = "Careers" },
@@ -47,14 +89,20 @@ public sealed class Footer7Block : BlockBase
         new() { Text = "Our Team" }
     ];
 
-    public static readonly List<FooterLink> DefaultSupportLinks =
+        /// <summary>
+    /// DefaultSupportLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultSupportLinks =
     [
         new() { Text = "FAQs" },
         new() { Text = "Contact" },
         new() { Text = "Live Chat" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static FooterLink CloneLink(FooterLink link) => new()
     {

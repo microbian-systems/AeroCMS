@@ -4,20 +4,56 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.LogoClouds;
 
+/// <summary>
+/// Represents a class for LogoClouds1EditorBlockDefinition.
+/// </summary>
 public sealed class LogoClouds1EditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "hyper.logo-clouds.1";
-    public string DisplayName => "Logo Clouds 1";
-    public string? Description => "Simple grid of grayscale logo SVGs.";
-    public string Category => "Hyper";
-    public string Kind => "Block";
-    public string IconName => "layers";
-    public int SortOrder => 73;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(LogoClouds1BlockEditorPreview);
-    public Type? PropertyEditorComponentType => typeof(LogoClouds1BlockEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "hyper.logo-clouds.1";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Logo Clouds 1";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Simple grid of grayscale logo SVGs.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Hyper";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "layers";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 73;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(LogoClouds1BlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(LogoClouds1BlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -25,13 +61,19 @@ public sealed class LogoClouds1EditorBlockDefinition : IPageEditorBlockDefinitio
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToLogoCloudsBlock(editorBlock);
         return LogoClouds1BlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToLogoCloudsBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToLogoCloudsBlock(editorBlock);
 
     private static LogoClouds1Block ToLogoCloudsBlock(EditorBlock editorBlock)
     {

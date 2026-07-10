@@ -1,5 +1,8 @@
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Represents a record for DatabaseBootstrapModel.
+/// </summary>
 public sealed record DatabaseBootstrapModel(
     string DatabaseMode,
     string? ConnectionString,
@@ -12,6 +15,9 @@ public sealed record DatabaseBootstrapModel(
     string? ConnectionStringReference = null,
     bool HasBootstrapConfig = true);
 
+/// <summary>
+/// Represents a record for CacheBootstrapModel.
+/// </summary>
 public sealed record CacheBootstrapModel(
     string CacheMode,
     string? ConnectionString,

@@ -8,19 +8,28 @@ using static Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Modules.Docs;
 
+/// <summary>
+/// Represents a class for DocsTreeService.
+/// </summary>
 public sealed class DocsTreeService(
     IDocumentSession session,
     IMessageBus bus,
     ILogger<DocsTreeService> logger) : IDocsTreeService
 {
-    public async Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
+        /// <summary>
+    /// GetSidebarTreeAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
         long siteId,
         long activeId = 0,
         bool publishedOnly = true,
         CancellationToken ct = default)
         => await GetSidebarTreeAsync(siteId, activeId, publishedOnly, null, ct);
 
-    public async Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
+        /// <summary>
+    /// GetSidebarTreeAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
         long siteId,
         long activeId,
         bool publishedOnly,
@@ -47,14 +56,20 @@ public sealed class DocsTreeService(
         }
     }
 
-    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
+        /// <summary>
+    /// GetBreadcrumbsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
         long siteId,
         long docId,
         bool publishedOnly = true,
         CancellationToken ct = default)
         => await GetBreadcrumbsAsync(siteId, docId, publishedOnly, null, ct);
 
-    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
+        /// <summary>
+    /// GetBreadcrumbsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
         long siteId,
         long docId,
         bool publishedOnly,
@@ -91,10 +106,16 @@ public sealed class DocsTreeService(
         }
     }
 
-    public IReadOnlyList<HeadingItem> ExtractHeadings(string? markdown)
+        /// <summary>
+    /// ExtractHeadings method.
+    /// </summary>
+public IReadOnlyList<HeadingItem> ExtractHeadings(string? markdown)
         => HeadingExtractor.Extract(markdown);
 
-    public async Task<Result<DocsPage, AeroError>> CreateChildSectionAsync(
+        /// <summary>
+    /// CreateChildSectionAsync method.
+    /// </summary>
+public async Task<Result<DocsPage, AeroError>> CreateChildSectionAsync(
         long siteId,
         long spaceId,
         long parentId,
@@ -152,7 +173,10 @@ public sealed class DocsTreeService(
         }
     }
 
-    public async Task<Result<DocsPage, AeroError>> MoveSectionAsync(
+        /// <summary>
+    /// MoveSectionAsync method.
+    /// </summary>
+public async Task<Result<DocsPage, AeroError>> MoveSectionAsync(
         long siteId,
         long spaceId,
         long sectionId,
@@ -215,7 +239,10 @@ public sealed class DocsTreeService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
+        /// <summary>
+    /// ReorderSiblingsAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         long siteId,
         long spaceId,
         long parentId,

@@ -1,4 +1,4 @@
-﻿namespace Aero.Cms.Core;
+namespace Aero.Cms.Core;
 
 /// <summary>
 /// default Aero CMS roles
@@ -25,9 +25,15 @@ public static class AeroCmsRoles
     /// </summary>
     public const string ViewOnly = nameof(ViewOnly);
 
-    public const string ManagerRoleCsv = Admin + "," + Editor + "," + Contributor + "," + ViewOnly;
+        /// <summary>
+    /// ManagerRoleCsv.
+    /// </summary>
+public const string ManagerRoleCsv = Admin + "," + Editor + "," + Contributor + "," + ViewOnly;
 
-    public static IReadOnlyList<string> All { get; } =
+        /// <summary>
+    /// Gets or sets the All.
+    /// </summary>
+public static IReadOnlyList<string> All { get; } =
     [
         Admin,
         Editor,

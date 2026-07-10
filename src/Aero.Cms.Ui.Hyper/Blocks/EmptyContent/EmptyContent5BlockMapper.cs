@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.EmptyContent;
 
+/// <summary>
+/// Represents a class for EmptyContent5BlockMapper.
+/// </summary>
 public static class EmptyContent5BlockMapper
 {
-    public static NeoPageNode ToNode(EmptyContent5Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(EmptyContent5Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.empty-content.5",
@@ -22,7 +28,10 @@ public static class EmptyContent5BlockMapper
         }
     };
 
-    public static EmptyContent5Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static EmptyContent5Block FromNode(NeoPageNode node) => new()
     {
         Title = GetString(node, "title", "Out of stock"),
         Description = GetString(node, "description", "This item is currently unavailable."),

@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.CtaBanner;
 
+/// <summary>
+/// Represents a class for CtaBannerBlockMapper.
+/// </summary>
 public static class CtaBannerBlockMapper
 {
-    public static NeoPageNode ToNode(CtaBannerBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(CtaBannerBlock block) => new()
     {
         NodeId = string.Empty,
         CatalogId = CtaBannerBlock.BlockTypeId,
@@ -21,7 +27,10 @@ public static class CtaBannerBlockMapper
         }
     };
 
-    public static CtaBannerBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static CtaBannerBlock FromNode(NeoPageNode node) => new()
     {
         Title         = GetString(node, "title",         "Start building for free today"),
         Description   = GetString(node, "description",   string.Empty),

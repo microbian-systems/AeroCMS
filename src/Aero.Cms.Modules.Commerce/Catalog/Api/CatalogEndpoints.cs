@@ -7,9 +7,15 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Commerce.Catalog.Api;
 
+/// <summary>
+/// Represents a class for CatalogEndpoints.
+/// </summary>
 public static class CatalogEndpoints
 {
-    public static IEndpointRouteBuilder MapCatalogApi(this IEndpointRouteBuilder builder)
+        /// <summary>
+    /// MapCatalogApi method.
+    /// </summary>
+public static IEndpointRouteBuilder MapCatalogApi(this IEndpointRouteBuilder builder)
     {
         var group = builder
             .MapGroup("/api/commerce/catalog")

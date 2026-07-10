@@ -6,31 +6,73 @@ using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Media;
 
 namespace Aero.Cms.Ui.Neo.Definitions;
 
+/// <summary>
+/// Represents a class for VideoEditorBlockDefinition.
+/// </summary>
 public sealed class VideoEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "media.video";
-    public string DisplayName => "Video";
-    public string? Description => "Embed a video with playback options.";
-    public string Category => "Media";
-    public string Kind => "Block";
-    public string IconName => "video";
-    public int SortOrder => 40;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(VideoBlockEditorPreview);
-    public Type? PropertyEditorComponentType => typeof(VideoBlockEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "media.video";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Video";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Embed a video with playback options.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Media";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "video";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 40;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(VideoBlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(VideoBlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock() => new()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock() => new()
     {
         Type = CatalogId
     };
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlock(editorBlock);
         return VideoBlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
 
     private static VideoBlock ToBlock(EditorBlock editor) => new()
     {

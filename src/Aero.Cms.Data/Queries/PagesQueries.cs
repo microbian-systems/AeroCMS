@@ -6,15 +6,45 @@ using System.Linq.Expressions;
 namespace Aero.Cms.Data.Queries;
 
 
+/// <summary>
+/// Represents a class for PageByIdQuery.
+/// </summary>
 public sealed class PageByIdQuery : EntityByIdQuery<PageDocument>;
+/// <summary>
+/// Represents a class for PagesByIdsQuery.
+/// </summary>
 public sealed class PagesByIdsQuery : EntitiesByIdsQuery<PageDocument>;
+/// <summary>
+/// Represents a class for PagesCreatedByQuery.
+/// </summary>
 public sealed class PagesCreatedByQuery : EntitiesByCreatedByQuery<PageDocument>;
+/// <summary>
+/// Represents a class for PagesModifiedByQuery.
+/// </summary>
 public sealed class PagesModifiedByQuery : EntitiesByModifiedByQuery<PageDocument>;
+/// <summary>
+/// Represents a class for PagesCreatedOnRangeQuery.
+/// </summary>
 public sealed class PagesCreatedOnRangeQuery : EntitiesCreatedInRangeQuery<PageDocument>;
+/// <summary>
+/// Represents a class for PagesModifiedOnRangeQuery.
+/// </summary>
 public sealed class PagesModifiedOnRangeQuery : EntitiesModifiedInRangeQuery<PageDocument>;
+/// <summary>
+/// Represents a class for PagesByCreatedByInDateRangeQuery.
+/// </summary>
 public sealed class PagesByCreatedByInDateRangeQuery : EntitiesByCreatedByInDateRangeQuery<PageDocument>;
+/// <summary>
+/// Represents a class for PagesByModifiedByInDateRangeQuery.
+/// </summary>
 public sealed class PagesByModifiedByInDateRangeQuery : EntitiesByModifiedByInDateRangeQuery<PageDocument>;
+/// <summary>
+/// Represents a class for LatestPageCreatedByQuery.
+/// </summary>
 public sealed class LatestPageCreatedByQuery : LatestCreatedByQuery<PageDocument>;
+/// <summary>
+/// Represents a class for LatestPageModifiedByQuery.
+/// </summary>
 public sealed class LatestPageModifiedByQuery : LatestModifiedByQuery<PageDocument>;
 
 /// <summary>
@@ -27,10 +57,19 @@ public sealed class LatestPageModifiedByQuery : LatestModifiedByQuery<PageDocume
 /// </summary>
 public sealed class PagesByPathPrefixQuery : ICompiledQuery<PageDocument, IList<PageDocument>>
 {
-    public required long SiteId { get; set; }
-    public required string PathPrefix { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public required long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Path Prefix.
+    /// </summary>
+public required string PathPrefix { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<PageDocument>, IList<PageDocument>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<PageDocument>, IList<PageDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.SiteId == SiteId && x.Path.StartsWith(PathPrefix))

@@ -27,7 +27,10 @@ public abstract partial class BlockBase : Entity, IBlock
     [JsonPropertyName("order")]
     public int Order { get; set; }
 
-    [JsonPropertyName("responsiveStyle")]
+        /// <summary>
+    /// Gets or sets the Responsive Style.
+    /// </summary>
+[JsonPropertyName("responsiveStyle")]
     public ResponsiveNodeStyle ResponsiveStyle { get; set; } = new();
 
     /// <summary>

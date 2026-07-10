@@ -3,10 +3,16 @@ using Aero.Cms.Abstractions.Http.Clients;
 
 namespace Aero.Cms.Modules.Pages.CustomComponents;
 
+/// <summary>
+/// Represents a class for SavePageCustomComponentRequestValidator.
+/// </summary>
 public sealed class SavePageCustomComponentRequestValidator
     : AbstractValidator<SavePageCustomComponentRequest>
 {
-    public SavePageCustomComponentRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="SavePageCustomComponentRequestValidator"/> class.
+    /// </summary>
+public SavePageCustomComponentRequestValidator()
     {
         RuleFor(request => request.Name)
             .NotEmpty()

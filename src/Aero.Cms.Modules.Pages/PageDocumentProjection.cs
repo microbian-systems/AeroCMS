@@ -13,7 +13,10 @@ public sealed class PageDocumentProjection : IProjection
 {
     // ── IProjection (sync) ──────────────────────────────────────────────
 
-    public void Apply(
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(
         IDocumentOperations operations,
         IReadOnlyList<IEvent> events)
     {
@@ -25,7 +28,10 @@ public sealed class PageDocumentProjection : IProjection
 
     // ── IProjection (async) ─────────────────────────────────────────────
 
-    public async Task ApplyAsync(
+        /// <summary>
+    /// ApplyAsync method.
+    /// </summary>
+public async Task ApplyAsync(
         IDocumentOperations operations,
         IReadOnlyList<IEvent> events,
         CancellationToken ct)

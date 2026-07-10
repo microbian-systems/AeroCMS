@@ -3,9 +3,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Modules.Ai.Validation;
 
+/// <summary>
+/// Represents a class for TranslateDocumentRequestValidator.
+/// </summary>
 public sealed class TranslateDocumentRequestValidator : AbstractValidator<TranslateDocumentRequest>
 {
-    public TranslateDocumentRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="TranslateDocumentRequestValidator"/> class.
+    /// </summary>
+public TranslateDocumentRequestValidator()
     {
         RuleFor(x => x.SourceCulture)
             .NotEmpty()

@@ -25,6 +25,9 @@ using Aero.Cms.Ui.Hyper.Blocks.TeamSections;
 
 namespace Aero.Cms.Ui.Hyper;
 
+/// <summary>
+/// Represents a class for HyperPageEditorBlockProvider.
+/// </summary>
 public sealed class HyperPageEditorBlockProvider : IPageEditorBlockProvider, ICmsBlockModelProvider
 {
     private static readonly IReadOnlyCollection<IPageEditorBlockDefinition> Definitions =
@@ -139,6 +142,12 @@ public sealed class HyperPageEditorBlockProvider : IPageEditorBlockProvider, ICm
         new(ContactForm5Block.BlockTypeId, typeof(ContactForm5Block))
     ];
 
-    public IReadOnlyCollection<IPageEditorBlockDefinition> GetDefinitions() => Definitions;
-    public IReadOnlyCollection<CmsBlockModelRegistration> GetBlockModels() => BlockModels;
+        /// <summary>
+    /// GetDefinitions method.
+    /// </summary>
+public IReadOnlyCollection<IPageEditorBlockDefinition> GetDefinitions() => Definitions;
+        /// <summary>
+    /// GetBlockModels method.
+    /// </summary>
+public IReadOnlyCollection<CmsBlockModelRegistration> GetBlockModels() => BlockModels;
 }

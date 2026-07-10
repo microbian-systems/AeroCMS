@@ -2,6 +2,9 @@ using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Requests;
 
+/// <summary>
+/// Represents a record for CreateDocRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("CreateDocRequest")]
 public record CreateDocRequest(
@@ -17,6 +20,9 @@ public record CreateDocRequest(
 ) : IRequest;
 
 
+/// <summary>
+/// Represents a record for UpdateDocRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("UpdateDocRequest")]
 public record UpdateDocRequest(
@@ -32,6 +38,9 @@ public record UpdateDocRequest(
 ) : IRequest;
 
 
+/// <summary>
+/// Represents a record for DeleteDocRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("DeleteDocRequest")]
 public record DeleteDocRequest(

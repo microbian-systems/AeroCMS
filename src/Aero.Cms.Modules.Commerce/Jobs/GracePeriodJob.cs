@@ -18,7 +18,10 @@ public sealed class GracePeriodJob(
     IMessageBus bus,
     ILogger<GracePeriodJob> log)
 {
-    [TickerFunction("commerce.grace-period")]
+        /// <summary>
+    /// CheckExpiredOrders method.
+    /// </summary>
+[TickerFunction("commerce.grace-period")]
     public async Task CheckExpiredOrders(
         TickerFunctionContext context,
         CancellationToken cancellationToken)

@@ -6,20 +6,56 @@ using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Hero01;
 
 namespace Aero.Cms.Ui.Neo.Definitions;
 
+/// <summary>
+/// Represents a class for BasicHeroEditorBlockDefinition.
+/// </summary>
 public sealed class BasicHeroEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "aero.hero.basic";
-    public string DisplayName => "Basic Hero";
-    public string? Description => "A hero section with headline, description, and CTA.";
-    public string Category => "Components";
-    public string Kind => "Block";
-    public string IconName => "layout";
-    public int SortOrder => 20;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(BasicHeroBlockEditorPreview);
-    public Type? PropertyEditorComponentType => typeof(BasicHeroBlockEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "aero.hero.basic";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Basic Hero";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "A hero section with headline, description, and CTA.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Components";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "layout";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 20;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(BasicHeroBlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(BasicHeroBlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock() => new()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock() => new()
     {
         Type = CatalogId,
         MainText = "Welcome",
@@ -30,13 +66,19 @@ public sealed class BasicHeroEditorBlockDefinition : IPageEditorBlockDefinition
         FullWidth = true
     };
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlock(editorBlock);
         return BasicHeroBlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
 
     private static BasicHeroBlock ToBlock(EditorBlock editor) => new()
     {

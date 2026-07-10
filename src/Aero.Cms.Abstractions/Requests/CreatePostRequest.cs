@@ -3,6 +3,9 @@ using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Requests;
 
+/// <summary>
+/// Represents a record for CreatePostRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("CreatePostRequest")]
 public record CreatePostRequest(
@@ -18,6 +21,9 @@ public record CreatePostRequest(
     long SiteId = 0
 ): IRequest;
 
+/// <summary>
+/// Represents a record for UpdatePostRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("UpdatePostRequest")]
 public record UpdatePostRequest(
@@ -33,6 +39,9 @@ public record UpdatePostRequest(
     IReadOnlyList<EditorBlock>? EditorBlocks = null
 ): IRequest;
 
+/// <summary>
+/// Represents a record for DeletePostRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("DeletePostRequest")]
 public record DeletePostRequest(

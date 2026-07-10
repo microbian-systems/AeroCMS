@@ -49,7 +49,10 @@ namespace Aero.Cms.Web.Bootstrap;
 /// </summary>
 public static class AeroCmsExtensions
 {
-    public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> AddAeroCmsAsync<TProgram>(
+        /// <summary>
+    /// AddAeroCmsAsync method.
+    /// </summary>
+public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> AddAeroCmsAsync<TProgram>(
         this WebApplicationBuilder builder,
         Action<AeroCmsOptions> configure)
         where TProgram : class
@@ -180,7 +183,10 @@ public static class AeroCmsExtensions
         return (builder, log);
     }
 
-    public static async Task RunAeroCmsAsync<TRootComponent>(
+        /// <summary>
+    /// RunAeroCmsAsync method.
+    /// </summary>
+public static async Task RunAeroCmsAsync<TRootComponent>(
         this WebApplication app,
         BootstrapState bootstrapState,
         Serilog.ILogger log,
@@ -361,7 +367,10 @@ public static class AeroCmsExtensions
         }
     }
 
-    public static void ConfigureAeroCmsBootstrapLogging(string webProjectPath)
+        /// <summary>
+    /// ConfigureAeroCmsBootstrapLogging method.
+    /// </summary>
+public static void ConfigureAeroCmsBootstrapLogging(string webProjectPath)
     {
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()

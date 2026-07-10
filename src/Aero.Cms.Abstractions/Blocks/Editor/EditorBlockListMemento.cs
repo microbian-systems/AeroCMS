@@ -3,6 +3,9 @@ using Aero.Cms.Abstractions.Blocks.Serialization;
 
 namespace Aero.Cms.Abstractions.Blocks.Editor;
 
+/// <summary>
+/// Represents a class for EditorBlockListMemento.
+/// </summary>
 public sealed class EditorBlockListMemento
 {
     private readonly string _json;
@@ -12,7 +15,10 @@ public sealed class EditorBlockListMemento
         _json = json;
     }
 
-    public static EditorBlockListMemento Capture(IReadOnlyList<EditorBlock> blocks)
+        /// <summary>
+    /// Capture method.
+    /// </summary>
+public static EditorBlockListMemento Capture(IReadOnlyList<EditorBlock> blocks)
     {
         ArgumentNullException.ThrowIfNull(blocks);
 
@@ -20,6 +26,9 @@ public sealed class EditorBlockListMemento
             JsonSerializer.Serialize(blocks, BlockJsonContext.Default.IReadOnlyListEditorBlock));
     }
 
-    public List<EditorBlock> Restore() =>
+        /// <summary>
+    /// Restore method.
+    /// </summary>
+public List<EditorBlock> Restore() =>
         JsonSerializer.Deserialize(_json, BlockJsonContext.Default.ListEditorBlock) ?? [];
 }

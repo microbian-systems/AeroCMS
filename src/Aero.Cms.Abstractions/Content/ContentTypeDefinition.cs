@@ -2,14 +2,35 @@ using Aero.Core.Entities;
 
 namespace Aero.Cms.Abstractions.Content;
 
+/// <summary>
+/// Represents a class for ContentTypeDefinition.
+/// </summary>
 public sealed class ContentTypeDefinition : Entity
 {
-    public long SiteId { get; set; }
-    public string Alias { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string? Category { get; set; }
-    public string? Icon { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Alias.
+    /// </summary>
+public string Alias { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string? Category { get; set; }
+        /// <summary>
+    /// Gets or sets the Icon.
+    /// </summary>
+public string? Icon { get; set; }
 
     /// <summary>
     /// When true, entries of this type can be addressed by their own public URL.

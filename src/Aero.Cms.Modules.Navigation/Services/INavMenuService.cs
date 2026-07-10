@@ -3,61 +3,103 @@ using Aero.Cms.Modules.Navigation.Domain;
 
 namespace Aero.Cms.Modules.Navigation.Services;
 
+/// <summary>
+/// Defines an interface for INavMenuService.
+/// </summary>
 public interface INavMenuService
 {
-    Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount), AeroError>> ListAsync(
+        /// <summary>
+    /// ListAsync method.
+    /// </summary>
+Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount), AeroError>> ListAsync(
         int skip = 0,
         int take = 20,
         string? search = null,
         CancellationToken cancellationToken = default);
 
-    Task<Result<NavMenuDocument, AeroError>> GetAsync(long id, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetAsync method.
+    /// </summary>
+Task<Result<NavMenuDocument, AeroError>> GetAsync(long id, CancellationToken cancellationToken = default);
 
-    Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetDetailAsync method.
+    /// </summary>
+Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default);
 
-    Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken cancellationToken = default);
 
-    Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
         long id,
         string targetCulture,
         long? userId = null,
         CancellationToken cancellationToken = default);
 
-    Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetDefaultIdAsync method.
+    /// </summary>
+Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default);
 
-    Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
+        /// <summary>
+    /// GetPublishedSnapshotAsync method.
+    /// </summary>
+Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
         long id,
         CancellationToken cancellationToken = default);
 
-    Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
+        /// <summary>
+    /// ResolveSnapshotAsync method.
+    /// </summary>
+Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
         long siteId,
         long? pageOverrideId = null,
         CancellationToken cancellationToken = default);
 
-    Task<Result<NavMenuDocument, AeroError>> CreateAsync(
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<NavMenuDocument, AeroError>> CreateAsync(
         CreateNavigationRequest request,
         long? userId = null,
         CancellationToken cancellationToken = default);
 
-    Task<Result<NavMenuDocument, AeroError>> SaveDraftAsync(
+        /// <summary>
+    /// SaveDraftAsync method.
+    /// </summary>
+Task<Result<NavMenuDocument, AeroError>> SaveDraftAsync(
         long id,
         UpdateNavigationRequest request,
         long expectedVersion,
         long? userId = null,
         CancellationToken cancellationToken = default);
 
-    Task<Result<NavMenuDocument, AeroError>> PublishAsync(
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+Task<Result<NavMenuDocument, AeroError>> PublishAsync(
         long id,
         long expectedVersion,
         long? userId = null,
         CancellationToken cancellationToken = default);
 
-    Task<Result<bool, AeroError>> SetDefaultAsync(
+        /// <summary>
+    /// SetDefaultAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> SetDefaultAsync(
         long id,
         long? userId = null,
         CancellationToken cancellationToken = default);
 
-    Task<Result<bool, AeroError>> ArchiveAsync(
+        /// <summary>
+    /// ArchiveAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> ArchiveAsync(
         long id,
         long expectedVersion,
         long? userId = null,

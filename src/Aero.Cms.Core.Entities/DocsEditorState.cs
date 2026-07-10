@@ -12,7 +12,10 @@ public sealed class DocsEditorState
     /// </summary>
     public long Id { get; set; }
 
-    public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
 
     // ── Draft versioning ──────────────────────────────────────────────────
 
@@ -39,5 +42,8 @@ public sealed class DocsEditorState
     /// </summary>
     public Dictionary<string, long> BlockIdMap { get; set; } = [];
 
-    public DateTimeOffset LastModified { get; set; }
+        /// <summary>
+    /// Gets or sets the Last Modified.
+    /// </summary>
+public DateTimeOffset LastModified { get; set; }
 }

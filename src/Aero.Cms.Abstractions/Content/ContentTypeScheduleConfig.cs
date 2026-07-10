@@ -8,12 +8,21 @@ namespace Aero.Cms.Abstractions.Content;
 [Alias("ContentTypeScheduleConfig")]
 public sealed record ContentTypeScheduleConfig
 {
-    [Id(0)]
+        /// <summary>
+    /// Gets or sets the Allow Scheduled Publish.
+    /// </summary>
+[Id(0)]
     public bool AllowScheduledPublish { get; init; }
 
-    [Id(1)]
+        /// <summary>
+    /// Gets or sets the Allow Scheduled Unpublish.
+    /// </summary>
+[Id(1)]
     public bool AllowScheduledUnpublish { get; init; }
 
-    [Id(2)]
+        /// <summary>
+    /// Gets or sets the Max Publish Delay Days.
+    /// </summary>
+[Id(2)]
     public int? MaxPublishDelayDays { get; init; }
 }

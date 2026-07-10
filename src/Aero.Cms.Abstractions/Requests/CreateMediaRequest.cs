@@ -1,5 +1,8 @@
 namespace Aero.Cms.Abstractions.Requests;
 
+/// <summary>
+/// Represents a record for CreateMediaRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("CreateMediaRequest")]
 public record CreateMediaRequest(
@@ -13,6 +16,9 @@ public record CreateMediaRequest(
 ) : IRequest;
 
 
+/// <summary>
+/// Represents a record for UpdateMediaRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("UpdateMediaRequest")]
 public record UpdateMediaRequest(
@@ -24,6 +30,9 @@ public record UpdateMediaRequest(
     Dictionary<string, string>? Metadata = null
 );
 
+/// <summary>
+/// Represents a record for DeleteMediaRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("DeleteMediaRequest")]
 public record DeleteMediaRequest(

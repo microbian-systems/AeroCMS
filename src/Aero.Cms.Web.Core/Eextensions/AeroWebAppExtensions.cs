@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Web.Core.Modules;
+using Aero.Cms.Web.Core.Modules;
 using Aero.EfCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -17,6 +17,9 @@ using Microsoft.AspNetCore.Components.Web;
 
 namespace Aero.Cms.Web.Core.Eextensions;
 
+/// <summary>
+/// Represents a class for AeroWebAppExtensions.
+/// </summary>
 public static class AeroWebAppExtensions
 {
     /// <summary>
@@ -44,7 +47,10 @@ public static class AeroWebAppExtensions
         return (builder, log);
     }
 
-    public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
+        /// <summary>
+    /// AddAeroCmsRuntimeAsync method.
+    /// </summary>
+public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRuntimeAsync<T>(
         this WebApplicationBuilder builder,
         IReadOnlyList<ModuleDescriptor> generatedDescriptors,
         string[]? args = null)

@@ -16,29 +16,56 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Cards;
     SchemaVersion = 1)]
 public sealed class Card6Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.cards.6";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.cards.6";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Name { get; set; } = "Claire Mac";
-    public string AvatarUrl { get; set; } = "https://images.unsplash.com/photo-1614644147724-2d4785d69962?auto=format&fit=crop&q=80&w=1160";
-    public List<Card6SocialLink> SocialLinks { get; set; } = DefaultSocialLinks.Select(CloneSocialLink).ToList();
-    public List<Card6Project> Projects { get; set; } = DefaultProjects.Select(CloneProject).ToList();
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = "Claire Mac";
+        /// <summary>
+    /// Gets or sets the Avatar Url.
+    /// </summary>
+public string AvatarUrl { get; set; } = "https://images.unsplash.com/photo-1614644147724-2d4785d69962?auto=format&fit=crop&q=80&w=1160";
+        /// <summary>
+    /// Gets or sets the Social Links.
+    /// </summary>
+public List<Card6SocialLink> SocialLinks { get; set; } = DefaultSocialLinks.Select(CloneSocialLink).ToList();
+        /// <summary>
+    /// Gets or sets the Projects.
+    /// </summary>
+public List<Card6Project> Projects { get; set; } = DefaultProjects.Select(CloneProject).ToList();
 
-    public static readonly List<Card6SocialLink> DefaultSocialLinks =
+        /// <summary>
+    /// DefaultSocialLinks.
+    /// </summary>
+public static readonly List<Card6SocialLink> DefaultSocialLinks =
     [
         new() { Name = "Twitter", Url = "#" },
         new() { Name = "GitHub", Url = "#" },
         new() { Name = "Website", Url = "#" }
     ];
 
-    public static readonly List<Card6Project> DefaultProjects =
+        /// <summary>
+    /// DefaultProjects.
+    /// </summary>
+public static readonly List<Card6Project> DefaultProjects =
     [
         new() { Title = "Project A", Description = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Maxime consequuntur deleniti, unde ab ut in!", Url = "#" },
         new() { Title = "Project B", Description = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Sapiente cumque saepe sit.", Url = "#" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static Card6SocialLink CloneSocialLink(Card6SocialLink link) => new()
     {
@@ -54,15 +81,36 @@ public sealed class Card6Block : BlockBase
     };
 }
 
+/// <summary>
+/// Represents a class for Card6SocialLink.
+/// </summary>
 public sealed class Card6SocialLink
 {
-    public string Name { get; set; } = "";
-    public string Url { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Url.
+    /// </summary>
+public string Url { get; set; } = "";
 }
 
+/// <summary>
+/// Represents a class for Card6Project.
+/// </summary>
 public sealed class Card6Project
 {
-    public string Title { get; set; } = "";
-    public string Description { get; set; } = "";
-    public string Url { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Url.
+    /// </summary>
+public string Url { get; set; } = "";
 }

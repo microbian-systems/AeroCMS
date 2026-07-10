@@ -3,9 +3,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Abstractions.Validators;
 
+/// <summary>
+/// Represents a class for PageRequestValidators.
+/// </summary>
 public class PageRequestValidators : AbstractValidator<CreatePageRequest>
 {
-    public PageRequestValidators()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PageRequestValidators"/> class.
+    /// </summary>
+public PageRequestValidators()
     {
         RuleFor(x => x.Title).NotNull().NotEmpty().MaximumLength(200);
         RuleFor(x => x.Slug).NotNull().NotEmpty().MaximumLength(200).Matches(@"^[a-z0-9]+(?:-[a-z0-9]+)*$");
@@ -15,9 +21,15 @@ public class PageRequestValidators : AbstractValidator<CreatePageRequest>
     }
 }
 
+/// <summary>
+/// Represents a class for UpdatePageRequestValidator.
+/// </summary>
 public class UpdatePageRequestValidator : AbstractValidator<UpdatePageRequest>
 {
-    public UpdatePageRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdatePageRequestValidator"/> class.
+    /// </summary>
+public UpdatePageRequestValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.Title).NotNull().NotEmpty().MaximumLength(200);
@@ -28,9 +40,15 @@ public class UpdatePageRequestValidator : AbstractValidator<UpdatePageRequest>
     }
 }
 
+/// <summary>
+/// Represents a class for DeletePageRequestValidator.
+/// </summary>
 public class DeletePageRequestValidator : AbstractValidator<DeletePageRequest>
 {
-    public DeletePageRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DeletePageRequestValidator"/> class.
+    /// </summary>
+public DeletePageRequestValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
     }

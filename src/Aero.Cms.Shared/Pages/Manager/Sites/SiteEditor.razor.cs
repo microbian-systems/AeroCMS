@@ -11,31 +11,91 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.Sites;
 
+/// <summary>
+/// Represents a class for SiteEditor.
+/// </summary>
 public partial class SiteEditor : ComponentBase
 {
-    [Parameter] public long? Id { get; set; }
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+[Parameter] public long? Id { get; set; }
 
-    [Inject] protected ISitesHttpClient SitesClient { get; set; } = null!;
-    [Inject] protected NavigationManager Navigation { get; set; } = null!;
-    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Sites Client.
+    /// </summary>
+[Inject] protected ISitesHttpClient SitesClient { get; set; } = null!;
+        /// <summary>
+    /// Gets or sets the Navigation.
+    /// </summary>
+[Inject] protected NavigationManager Navigation { get; set; } = null!;
+        /// <summary>
+    /// Gets or sets the L.
+    /// </summary>
+[Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
-    protected bool IsLoading { get; set; }
-    protected bool IsSaving { get; set; }
-    protected string Name { get; set; } = string.Empty;
-    protected string PrimaryHost { get; set; } = string.Empty;
-    protected string Description { get; set; } = string.Empty;
-    protected string HostDraft { get; set; } = string.Empty;
-    protected string LocaleSearch { get; set; } = string.Empty;
-    protected string DefaultCulture { get; set; } = "en-US";
-    protected List<string> Hosts { get; } = [];
-    protected List<string> SupportedCultures { get; } = ["en-US"];
-    protected IReadOnlyList<AeroLocaleOption> LocaleOptions { get; } = AeroLocaleCatalog.GetLocales();
+        /// <summary>
+    /// Gets or sets the Is Loading.
+    /// </summary>
+protected bool IsLoading { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Saving.
+    /// </summary>
+protected bool IsSaving { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+protected string Name { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Primary Host.
+    /// </summary>
+protected string PrimaryHost { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+protected string Description { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Host Draft.
+    /// </summary>
+protected string HostDraft { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Locale Search.
+    /// </summary>
+protected string LocaleSearch { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Default Culture.
+    /// </summary>
+protected string DefaultCulture { get; set; } = "en-US";
+        /// <summary>
+    /// Gets or sets the Hosts.
+    /// </summary>
+protected List<string> Hosts { get; } = [];
+        /// <summary>
+    /// Gets or sets the Supported Cultures.
+    /// </summary>
+protected List<string> SupportedCultures { get; } = ["en-US"];
+        /// <summary>
+    /// Gets or sets the Locale Options.
+    /// </summary>
+protected IReadOnlyList<AeroLocaleOption> LocaleOptions { get; } = AeroLocaleCatalog.GetLocales();
 
-    protected bool IsNew => Id is null or 0;
-    protected string PageTitle => IsNew ? L["New Site"] : $"{L["Edit"]} {Name}";
-    protected string SaveButtonText => IsSaving ? L["Saving..."] : IsNew ? L["Create Site"] : L["Save Site"];
+        /// <summary>
+    /// Gets or sets the Is New.
+    /// </summary>
+protected bool IsNew => Id is null or 0;
+        /// <summary>
+    /// Gets or sets the Page Title.
+    /// </summary>
+protected string PageTitle => IsNew ? L["New Site"] : $"{L["Edit"]} {Name}";
+        /// <summary>
+    /// Gets or sets the Save Button Text.
+    /// </summary>
+protected string SaveButtonText => IsSaving ? L["Saving..."] : IsNew ? L["Create Site"] : L["Save Site"];
 
-    protected IEnumerable<AeroLocaleOption> FilteredLocales
+        /// <summary>
+    /// Gets or sets the Filtered Locales.
+    /// </summary>
+protected IEnumerable<AeroLocaleOption> FilteredLocales
     {
         get
         {
@@ -54,7 +114,10 @@ public partial class SiteEditor : ComponentBase
         }
     }
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         if (IsNew)
             return;
@@ -79,7 +142,10 @@ public partial class SiteEditor : ComponentBase
         }
     }
 
-    protected async Task SaveAsync()
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+protected async Task SaveAsync()
     {
         if (!Validate())
             return;
@@ -140,7 +206,10 @@ public partial class SiteEditor : ComponentBase
         }
     }
 
-    protected void AddHost()
+        /// <summary>
+    /// AddHost method.
+    /// </summary>
+protected void AddHost()
     {
         var host = HostDraft.Trim();
         if (string.IsNullOrWhiteSpace(host))
@@ -155,10 +224,16 @@ public partial class SiteEditor : ComponentBase
         HostDraft = string.Empty;
     }
 
-    protected void RemoveHost(string host)
+        /// <summary>
+    /// RemoveHost method.
+    /// </summary>
+protected void RemoveHost(string host)
         => Hosts.RemoveAll(existing => string.Equals(existing, host, StringComparison.OrdinalIgnoreCase));
 
-    protected void ToggleLocale(string culture)
+        /// <summary>
+    /// ToggleLocale method.
+    /// </summary>
+protected void ToggleLocale(string culture)
     {
         var normalized = AeroLocaleCatalog.NormalizeCultureOrDefault(culture, DefaultCulture);
         if (SupportedCultures.Contains(normalized, StringComparer.OrdinalIgnoreCase))
@@ -169,7 +244,10 @@ public partial class SiteEditor : ComponentBase
         EnsureDefaultCulture();
     }
 
-    protected void RemoveLocale(string culture)
+        /// <summary>
+    /// RemoveLocale method.
+    /// </summary>
+protected void RemoveLocale(string culture)
     {
         if (string.Equals(culture, DefaultCulture, StringComparison.OrdinalIgnoreCase))
             return;
@@ -177,12 +255,18 @@ public partial class SiteEditor : ComponentBase
         SupportedCultures.RemoveAll(existing => string.Equals(existing, culture, StringComparison.OrdinalIgnoreCase));
     }
 
-    protected string LocaleButtonStyle(bool selected)
+        /// <summary>
+    /// LocaleButtonStyle method.
+    /// </summary>
+protected string LocaleButtonStyle(bool selected)
         => selected
             ? "background: color-mix(in srgb, var(--pe-primary) 12%, transparent); color: var(--pe-primary); border: 1px solid color-mix(in srgb, var(--pe-primary) 40%, var(--pe-border));"
             : "background: var(--pe-bg-secondary); color: var(--pe-text-secondary); border: 1px solid var(--pe-border);";
 
-    protected static string FormatCulture(string? culture)
+        /// <summary>
+    /// FormatCulture method.
+    /// </summary>
+protected static string FormatCulture(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
             return "en-US";

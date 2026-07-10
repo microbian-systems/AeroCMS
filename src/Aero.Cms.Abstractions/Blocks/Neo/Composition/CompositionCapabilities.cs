@@ -14,7 +14,10 @@ public sealed record CompositionCapabilities(
     IReadOnlySet<string>? AllowedParentCatalogIds = null,
     bool IsSlotted = false) : ICompositionCapabilities
 {
-    public static CompositionCapabilities Leaf(params NeoPageNodeKind[] allowedParentKinds) =>
+        /// <summary>
+    /// Leaf method.
+    /// </summary>
+public static CompositionCapabilities Leaf(params NeoPageNodeKind[] allowedParentKinds) =>
         new(
             true,
             false,
@@ -23,7 +26,10 @@ public sealed record CompositionCapabilities(
             0,
             []);
 
-    public static CompositionCapabilities Container(
+        /// <summary>
+    /// Container method.
+    /// </summary>
+public static CompositionCapabilities Container(
         IEnumerable<NeoPageNodeKind> allowedChildKinds,
         IEnumerable<NeoPageNodeKind> allowedParentKinds,
         int? maximumChildren = null,

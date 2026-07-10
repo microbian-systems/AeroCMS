@@ -5,29 +5,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.ProductCollections;
 
+/// <summary>
+/// Represents a class for ProductCollection4EditorBlockDefinition.
+/// </summary>
 public sealed class ProductCollection4EditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "hyper.product-collections.4";
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "hyper.product-collections.4";
 
-    public string DisplayName => "Product Collections 4";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Product Collections 4";
 
-    public string? Description => "Product grid with sidebar filters.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Product grid with sidebar filters.";
 
-    public string Category => "Hyper";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Hyper";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "grid";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "grid";
 
-    public int SortOrder => 117;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 117;
 
-    public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
 
-    public Type? PreviewComponentType => typeof(ProductCollection4BlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(ProductCollection4BlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(ProductCollection4BlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(ProductCollection4BlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -38,13 +74,19 @@ public sealed class ProductCollection4EditorBlockDefinition : IPageEditorBlockDe
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToProductCollectionBlock(editorBlock);
         return ProductCollection4BlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToProductCollectionBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToProductCollectionBlock(editorBlock);
 
     private static ProductCollection4Block ToProductCollectionBlock(EditorBlock editorBlock)
     {

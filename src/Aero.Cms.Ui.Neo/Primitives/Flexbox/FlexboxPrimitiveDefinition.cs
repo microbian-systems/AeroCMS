@@ -5,9 +5,15 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Flexbox;
 
+/// <summary>
+/// Represents a class for FlexboxPrimitiveDefinition.
+/// </summary>
 public sealed class FlexboxPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 {
-    public const string ContentDropZone = "content";
+        /// <summary>
+    /// ContentDropZone.
+    /// </summary>
+public const string ContentDropZone = "content";
 
     private static readonly IReadOnlySet<NeoPageNodeKind> ChildKinds =
         new HashSet<NeoPageNodeKind>
@@ -18,19 +24,49 @@ public sealed class FlexboxPrimitiveDefinition : ContainerDefinitionBase, ISlott
             NeoPageNodeKind.Component
         };
 
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new FlexboxPrimitiveDefinition(), new FlexboxPrimitiveDefinition());
 
-    public override string CatalogId => "primitive.flexbox";
-    public override string DisplayName => "Flexbox";
-    public override string? Description => "A flexible row or column container for composing responsive layouts.";
-    public override string Category => "Primitives";
-    public override string IconName => "panel-top";
-    public override int SortOrder => 3;
-    public override Type? PreviewComponentType => typeof(FlexboxPrimitivePreview);
-    public override Type? PropertyEditorComponentType => null;
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "primitive.flexbox";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Flexbox";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "A flexible row or column container for composing responsive layouts.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Primitives";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "panel-top";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 3;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => typeof(FlexboxPrimitivePreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => null;
 
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             ChildKinds,
             [
@@ -43,7 +79,10 @@ public sealed class FlexboxPrimitiveDefinition : ContainerDefinitionBase, ISlott
                 new NeoDropZoneDefinition(ContentDropZone, ChildKinds)
             ]);
 
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Spacing |
         EditorCapabilitySet.Dimensions |
         EditorCapabilitySet.Layout |
@@ -54,7 +93,10 @@ public sealed class FlexboxPrimitiveDefinition : ContainerDefinitionBase, ISlott
         EditorCapabilitySet.Visibility |
         EditorCapabilitySet.Direction;
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable |
         EditorInteractionCapabilities.Editable |
         EditorInteractionCapabilities.Draggable |
@@ -63,7 +105,10 @@ public sealed class FlexboxPrimitiveDefinition : ContainerDefinitionBase, ISlott
         EditorInteractionCapabilities.Copyable |
         EditorInteractionCapabilities.PasteTarget;
 
-    public override NeoPageNode CreateDefaultNode() =>
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),
@@ -94,6 +139,9 @@ public sealed class FlexboxPrimitiveDefinition : ContainerDefinitionBase, ISlott
             })
     ];
 
-    public ISlotDefinition? GetSlot(string slotId) =>
+        /// <summary>
+    /// GetSlot method.
+    /// </summary>
+public ISlotDefinition? GetSlot(string slotId) =>
         _slots.FirstOrDefault(slot => slot.Id == slotId);
 }

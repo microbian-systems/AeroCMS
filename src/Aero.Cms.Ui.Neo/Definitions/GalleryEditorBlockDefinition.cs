@@ -6,31 +6,73 @@ using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Media;
 
 namespace Aero.Cms.Ui.Neo.Definitions;
 
+/// <summary>
+/// Represents a class for GalleryEditorBlockDefinition.
+/// </summary>
 public sealed class GalleryEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "media.gallery";
-    public string DisplayName => "Gallery";
-    public string? Description => "An image gallery with grid layout.";
-    public string Category => "Media";
-    public string Kind => "Block";
-    public string IconName => "layout-grid";
-    public int SortOrder => 60;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(GalleryBlockEditorPreview);
-    public Type? PropertyEditorComponentType => typeof(GalleryBlockEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "media.gallery";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Gallery";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "An image gallery with grid layout.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Media";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "layout-grid";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 60;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(GalleryBlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(GalleryBlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock() => new()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock() => new()
     {
         Type = CatalogId
     };
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlock(editorBlock);
         return GalleryBlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
 
     private static GalleryBlock ToBlock(EditorBlock editor) => new()
     {

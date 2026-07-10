@@ -6,7 +6,10 @@ namespace Aero.Cms.Core.Infrastructure;
 /// </summary>
 public static class HostNormalizer
 {
-    public static string Normalize(string? host)
+        /// <summary>
+    /// Normalize method.
+    /// </summary>
+public static string Normalize(string? host)
     {
         if (string.IsNullOrWhiteSpace(host))
             return string.Empty;

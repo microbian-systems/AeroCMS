@@ -8,12 +8,18 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("markdown", "Markdown Text", Category = "Text")]
 public sealed class MarkdownBlock : BlockBase
 {
-    public override string BlockType => "markdown";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "markdown";
 
     /// <summary>
     /// Gets or sets the raw markdown content.
     /// </summary>
     public string Content { get; set; } = string.Empty;
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

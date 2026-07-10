@@ -8,5 +8,8 @@ public sealed record NeoDropZoneDefinition(
     IReadOnlySet<NeoPageNodeKind> AllowedChildKinds,
     int? MaximumChildren = null)
 {
-    public const string DefaultId = "default";
+        /// <summary>
+    /// DefaultId.
+    /// </summary>
+public const string DefaultId = "default";
 }

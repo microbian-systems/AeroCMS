@@ -4,9 +4,15 @@ using Microsoft.Extensions.Configuration;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Data;
 
+/// <summary>
+/// Represents a class for CommerceDbContextFactory.
+/// </summary>
 public sealed class CommerceDbContextFactory : IDesignTimeDbContextFactory<CommerceDbContext>
 {
-    public CommerceDbContext CreateDbContext(string[] args)
+        /// <summary>
+    /// CreateDbContext method.
+    /// </summary>
+public CommerceDbContext CreateDbContext(string[] args)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 

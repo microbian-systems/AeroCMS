@@ -2,24 +2,60 @@ using System.Text.Json.Serialization;
 
 namespace Aero.Cms.Modules.Navigation.Domain;
 
+/// <summary>
+/// Represents a record for NavMenuSnapshot.
+/// </summary>
 public sealed record NavMenuSnapshot
 {
-    public NavMenuLayout Layout { get; init; } = NavMenuLayout.Default;
-    public NavMenuResponsiveSettings Responsive { get; init; } = NavMenuResponsiveSettings.Default;
-    public NavMenuStyleSettings Style { get; init; } = NavMenuStyleSettings.Default;
-    public string? SiteLogoUrl { get; init; }
-    public List<NavCanvasRow> Rows { get; init; } = [];
-    public List<INavMenuComponent> Left { get; init; } = [];
-    public List<INavMenuComponent> Center { get; init; } = [];
-    public List<INavMenuComponent> Right { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Layout.
+    /// </summary>
+public NavMenuLayout Layout { get; init; } = NavMenuLayout.Default;
+        /// <summary>
+    /// Gets or sets the Responsive.
+    /// </summary>
+public NavMenuResponsiveSettings Responsive { get; init; } = NavMenuResponsiveSettings.Default;
+        /// <summary>
+    /// Gets or sets the Style.
+    /// </summary>
+public NavMenuStyleSettings Style { get; init; } = NavMenuStyleSettings.Default;
+        /// <summary>
+    /// Gets or sets the Site Logo Url.
+    /// </summary>
+public string? SiteLogoUrl { get; init; }
+        /// <summary>
+    /// Gets or sets the Rows.
+    /// </summary>
+public List<NavCanvasRow> Rows { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Left.
+    /// </summary>
+public List<INavMenuComponent> Left { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Center.
+    /// </summary>
+public List<INavMenuComponent> Center { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Right.
+    /// </summary>
+public List<INavMenuComponent> Right { get; init; } = [];
 
-    public static NavMenuSnapshot Empty { get; } = new();
+        /// <summary>
+    /// Gets or sets the Empty.
+    /// </summary>
+public static NavMenuSnapshot Empty { get; } = new();
 
-    public NavMenuSnapshot()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="NavMenuSnapshot"/> class.
+    /// </summary>
+public NavMenuSnapshot()
     {
     }
 
-    public NavMenuSnapshot(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="NavMenuSnapshot"/> class.
+    /// </summary>
+public NavMenuSnapshot(
         NavMenuLayout layout,
         NavMenuResponsiveSettings responsive,
         NavMenuStyleSettings style,
@@ -38,14 +74,20 @@ public sealed record NavMenuSnapshot
         }
     }
 
-    [JsonIgnore]
+        /// <summary>
+    /// Gets or sets the Components.
+    /// </summary>
+[JsonIgnore]
     public IEnumerable<INavMenuComponent> Components => Rows.Count > 0
         ? Rows.OrderBy(row => row.Order)
             .SelectMany(row => row.Columns.OrderBy(column => column.Order))
             .SelectMany(column => column.Blocks.OrderBy(block => block.Order).Select(block => block.Component))
         : Left.Concat(Center).Concat(Right);
 
-    public void Validate()
+        /// <summary>
+    /// Validate method.
+    /// </summary>
+public void Validate()
     {
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var component in Components)
@@ -216,34 +258,94 @@ public sealed record NavMenuSnapshot
     }
 }
 
+/// <summary>
+/// Represents a record for NavCanvasRow.
+/// </summary>
 public sealed record NavCanvasRow
 {
-    public string Key { get; init; } = string.Empty;
-    public int Order { get; init; }
-    public string? Label { get; init; }
-    public string DesktopDisplay { get; init; } = "Flex";
-    public string TabletDisplay { get; init; } = "Flex";
-    public string MobileDisplay { get; init; } = "Stack";
-    public List<NavCanvasColumn> Columns { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public int Order { get; init; }
+        /// <summary>
+    /// Gets or sets the Label.
+    /// </summary>
+public string? Label { get; init; }
+        /// <summary>
+    /// Gets or sets the Desktop Display.
+    /// </summary>
+public string DesktopDisplay { get; init; } = "Flex";
+        /// <summary>
+    /// Gets or sets the Tablet Display.
+    /// </summary>
+public string TabletDisplay { get; init; } = "Flex";
+        /// <summary>
+    /// Gets or sets the Mobile Display.
+    /// </summary>
+public string MobileDisplay { get; init; } = "Stack";
+        /// <summary>
+    /// Gets or sets the Columns.
+    /// </summary>
+public List<NavCanvasColumn> Columns { get; init; } = [];
 }
 
+/// <summary>
+/// Represents a record for NavCanvasColumn.
+/// </summary>
 public sealed record NavCanvasColumn
 {
-    public string Key { get; init; } = string.Empty;
-    public int Order { get; init; }
-    public int DesktopSpan { get; init; } = 4;
-    public int TabletSpan { get; init; } = 6;
-    public int MobileSpan { get; init; } = 12;
-    public List<NavCanvasBlock> Blocks { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public int Order { get; init; }
+        /// <summary>
+    /// Gets or sets the Desktop Span.
+    /// </summary>
+public int DesktopSpan { get; init; } = 4;
+        /// <summary>
+    /// Gets or sets the Tablet Span.
+    /// </summary>
+public int TabletSpan { get; init; } = 6;
+        /// <summary>
+    /// Gets or sets the Mobile Span.
+    /// </summary>
+public int MobileSpan { get; init; } = 12;
+        /// <summary>
+    /// Gets or sets the Blocks.
+    /// </summary>
+public List<NavCanvasBlock> Blocks { get; init; } = [];
 }
 
+/// <summary>
+/// Represents a record for NavCanvasBlock.
+/// </summary>
 public sealed record NavCanvasBlock
 {
-    public string Key { get; init; } = string.Empty;
-    public int Order { get; init; }
-    public INavMenuComponent Component { get; init; } = new NavLink();
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public int Order { get; init; }
+        /// <summary>
+    /// Gets or sets the Component.
+    /// </summary>
+public INavMenuComponent Component { get; init; } = new NavLink();
 }
 
+/// <summary>
+/// Defines an interface for INavMenuComponent.
+/// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(NavLink), "link")]
 [JsonDerivedType(typeof(NavMenu), "menu")]
@@ -253,11 +355,23 @@ public sealed record NavCanvasBlock
 [JsonDerivedType(typeof(NavAuthButton), "authButton")]
 public interface INavMenuComponent
 {
-    string Key { get; }
-    NavAlignment Alignment { get; }
-    NavAuthVisibility Visibility { get; }
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+string Key { get; }
+        /// <summary>
+    /// Gets or sets the Alignment.
+    /// </summary>
+NavAlignment Alignment { get; }
+        /// <summary>
+    /// Gets or sets the Visibility.
+    /// </summary>
+NavAuthVisibility Visibility { get; }
 }
 
+/// <summary>
+/// Defines an enumeration for NavAlignment.
+/// </summary>
 public enum NavAlignment
 {
     Left,
@@ -265,65 +379,191 @@ public enum NavAlignment
     Right
 }
 
+/// <summary>
+/// Represents a record for NavLink.
+/// </summary>
 public sealed record NavLink : INavMenuComponent
 {
-    public string Key { get; init; } = string.Empty;
-    public NavAlignment Alignment { get; init; }
-    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-    public string Label { get; init; } = string.Empty;
-    public string Href { get; init; } = string.Empty;
-    public bool OpenInNewTab { get; init; }
-    public bool IsExternal { get; init; }
-    public string? Target { get; init; }
-    public long? PageId { get; init; }
-    public string? AltText { get; init; }
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alignment.
+    /// </summary>
+public NavAlignment Alignment { get; init; }
+        /// <summary>
+    /// Gets or sets the Visibility.
+    /// </summary>
+public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
+        /// <summary>
+    /// Gets or sets the Label.
+    /// </summary>
+public string Label { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Href.
+    /// </summary>
+public string Href { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Open In New Tab.
+    /// </summary>
+public bool OpenInNewTab { get; init; }
+        /// <summary>
+    /// Gets or sets the Is External.
+    /// </summary>
+public bool IsExternal { get; init; }
+        /// <summary>
+    /// Gets or sets the Target.
+    /// </summary>
+public string? Target { get; init; }
+        /// <summary>
+    /// Gets or sets the Page Id.
+    /// </summary>
+public long? PageId { get; init; }
+        /// <summary>
+    /// Gets or sets the Alt Text.
+    /// </summary>
+public string? AltText { get; init; }
 }
 
+/// <summary>
+/// Represents a record for NavMenu.
+/// </summary>
 public sealed record NavMenu : INavMenuComponent
 {
-    public string Key { get; init; } = string.Empty;
-    public NavAlignment Alignment { get; init; }
-    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-    public string Label { get; init; } = string.Empty;
-    public List<INavMenuComponent> Children { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alignment.
+    /// </summary>
+public NavAlignment Alignment { get; init; }
+        /// <summary>
+    /// Gets or sets the Visibility.
+    /// </summary>
+public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
+        /// <summary>
+    /// Gets or sets the Label.
+    /// </summary>
+public string Label { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Children.
+    /// </summary>
+public List<INavMenuComponent> Children { get; init; } = [];
 }
 
+/// <summary>
+/// Represents a record for NavHtml.
+/// </summary>
 public sealed record NavHtml : INavMenuComponent
 {
-    public string Key { get; init; } = string.Empty;
-    public NavAlignment Alignment { get; init; }
-    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-    public string Html { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alignment.
+    /// </summary>
+public NavAlignment Alignment { get; init; }
+        /// <summary>
+    /// Gets or sets the Visibility.
+    /// </summary>
+public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
+        /// <summary>
+    /// Gets or sets the Html.
+    /// </summary>
+public string Html { get; init; } = string.Empty;
 }
 
+/// <summary>
+/// Represents a record for NavSearch.
+/// </summary>
 public sealed record NavSearch : INavMenuComponent
 {
-    public string Key { get; init; } = string.Empty;
-    public NavAlignment Alignment { get; init; }
-    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-    public string Placeholder { get; init; } = "Search...";
-    public string SearchAction { get; init; } = string.Empty;
-    public string ButtonLabel { get; init; } = "Search";
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alignment.
+    /// </summary>
+public NavAlignment Alignment { get; init; }
+        /// <summary>
+    /// Gets or sets the Visibility.
+    /// </summary>
+public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
+        /// <summary>
+    /// Gets or sets the Placeholder.
+    /// </summary>
+public string Placeholder { get; init; } = "Search...";
+        /// <summary>
+    /// Gets or sets the Search Action.
+    /// </summary>
+public string SearchAction { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Button Label.
+    /// </summary>
+public string ButtonLabel { get; init; } = "Search";
 }
 
+/// <summary>
+/// Represents a record for NavLanguageSelect.
+/// </summary>
 public sealed record NavLanguageSelect : INavMenuComponent
 {
-    public string Key { get; init; } = string.Empty;
-    public NavAlignment Alignment { get; init; } = NavAlignment.Right;
-    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-    public string Label { get; init; } = "Language";
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alignment.
+    /// </summary>
+public NavAlignment Alignment { get; init; } = NavAlignment.Right;
+        /// <summary>
+    /// Gets or sets the Visibility.
+    /// </summary>
+public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
+        /// <summary>
+    /// Gets or sets the Label.
+    /// </summary>
+public string Label { get; init; } = "Language";
 }
 
+/// <summary>
+/// Represents a record for NavAuthButton.
+/// </summary>
 public sealed record NavAuthButton : INavMenuComponent
 {
-    public string Key { get; init; } = string.Empty;
-    public NavAlignment Alignment { get; init; } = NavAlignment.Right;
-    public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
-    public string Label { get; init; } = string.Empty;
-    public string Href { get; init; } = string.Empty;
-    public string ButtonStyle { get; init; } = "Primary";
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alignment.
+    /// </summary>
+public NavAlignment Alignment { get; init; } = NavAlignment.Right;
+        /// <summary>
+    /// Gets or sets the Visibility.
+    /// </summary>
+public NavAuthVisibility Visibility { get; init; } = NavAuthVisibility.Always;
+        /// <summary>
+    /// Gets or sets the Label.
+    /// </summary>
+public string Label { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Href.
+    /// </summary>
+public string Href { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Button Style.
+    /// </summary>
+public string ButtonStyle { get; init; } = "Primary";
 }
 
+/// <summary>
+/// Defines an enumeration for NavAuthVisibility.
+/// </summary>
 public enum NavAuthVisibility
 {
     Always,
@@ -331,9 +571,15 @@ public enum NavAuthVisibility
     AuthenticatedOnly
 }
 
+/// <summary>
+/// Represents a record for NavMenuLayout.
+/// </summary>
 public sealed record NavMenuLayout(IReadOnlyList<NavLayoutSlot> Slots)
 {
-    public static NavMenuLayout Default { get; } = new(
+        /// <summary>
+    /// Gets or sets the Default.
+    /// </summary>
+public static NavMenuLayout Default { get; } = new(
         [
             new NavLayoutSlot(NavLayoutSlots.Left, "Left", 0),
             new NavLayoutSlot(NavLayoutSlots.Center, "Center", 1),
@@ -341,15 +587,33 @@ public sealed record NavMenuLayout(IReadOnlyList<NavLayoutSlot> Slots)
         ]);
 }
 
+/// <summary>
+/// Represents a record for NavLayoutSlot.
+/// </summary>
 public sealed record NavLayoutSlot(string Key, string Label, int Order);
 
+/// <summary>
+/// Represents a class for NavLayoutSlots.
+/// </summary>
 public static class NavLayoutSlots
 {
-    public const string Left = "left";
-    public const string Center = "center";
-    public const string Right = "right";
+        /// <summary>
+    /// Left.
+    /// </summary>
+public const string Left = "left";
+        /// <summary>
+    /// Center.
+    /// </summary>
+public const string Center = "center";
+        /// <summary>
+    /// Right.
+    /// </summary>
+public const string Right = "right";
 
-    public static NavAlignment ToAlignment(string? slotKey)
+        /// <summary>
+    /// ToAlignment method.
+    /// </summary>
+public static NavAlignment ToAlignment(string? slotKey)
         => slotKey?.ToLowerInvariant() switch
         {
             Center => NavAlignment.Center,
@@ -358,26 +622,50 @@ public static class NavLayoutSlots
         };
 }
 
+/// <summary>
+/// Represents a record for NavMenuResponsiveSettings.
+/// </summary>
 public sealed record NavMenuResponsiveSettings(string MobileBreakpoint)
 {
-    public static NavMenuResponsiveSettings Default { get; } = new("md");
+        /// <summary>
+    /// Gets or sets the Default.
+    /// </summary>
+public static NavMenuResponsiveSettings Default { get; } = new("md");
 }
 
+/// <summary>
+/// Represents a record for NavMenuStyleSettings.
+/// </summary>
 public sealed record NavMenuStyleSettings(bool IsSticky)
 {
-    public static NavMenuStyleSettings Default { get; } = new(false);
+        /// <summary>
+    /// Gets or sets the Default.
+    /// </summary>
+public static NavMenuStyleSettings Default { get; } = new(false);
 }
 
+/// <summary>
+/// Represents a record for NavItemVisibility.
+/// </summary>
 public sealed record NavItemVisibility(
     bool HideOnMobile,
     bool HideOnDesktop,
     IReadOnlyList<string> AllowedRoles,
     RoleVisibilityMode RoleMode)
 {
-    public static NavItemVisibility Default { get; } = new(false, false, [], RoleVisibilityMode.Any);
-    public bool HasRoleRules => AllowedRoles.Count > 0;
+        /// <summary>
+    /// Gets or sets the Default.
+    /// </summary>
+public static NavItemVisibility Default { get; } = new(false, false, [], RoleVisibilityMode.Any);
+        /// <summary>
+    /// Gets or sets the Has Role Rules.
+    /// </summary>
+public bool HasRoleRules => AllowedRoles.Count > 0;
 }
 
+/// <summary>
+/// Defines an enumeration for NavLinkTarget.
+/// </summary>
 public enum NavLinkTarget
 {
     InternalUrl,
@@ -385,24 +673,36 @@ public enum NavLinkTarget
     ExternalUrl
 }
 
+/// <summary>
+/// Defines an enumeration for SearchDisplayMode.
+/// </summary>
 public enum SearchDisplayMode
 {
     IconPopup,
     InlineTextbox
 }
 
+/// <summary>
+/// Defines an enumeration for SearchInputStyle.
+/// </summary>
 public enum SearchInputStyle
 {
     Rounded,
     Square
 }
 
+/// <summary>
+/// Defines an enumeration for RoleVisibilityMode.
+/// </summary>
 public enum RoleVisibilityMode
 {
     Any,
     All
 }
 
+/// <summary>
+/// Defines an enumeration for NavMenuLifecycleState.
+/// </summary>
 public enum NavMenuLifecycleState
 {
     Draft,

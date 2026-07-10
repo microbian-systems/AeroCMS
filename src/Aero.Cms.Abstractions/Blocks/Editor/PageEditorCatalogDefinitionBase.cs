@@ -29,18 +29,54 @@ public abstract class PageEditorCatalogDefinitionBase :
     INeoNodeFactory,
     IEditorInteractionProvider
 {
-    public abstract string CatalogId { get; }
-    public abstract string DisplayName { get; }
-    public virtual string? Description => null;
-    public abstract string Category { get; }
-    public abstract NeoPageNodeKind Kind { get; }
-    public virtual string IconName => "unknown";
-    public virtual int SortOrder => 0;
-    public virtual bool PublicStaticSsrSafe => true;
-    public virtual Type? PreviewComponentType => null;
-    public virtual Type? PropertyEditorComponentType => null;
-    public abstract ICompositionCapabilities Composition { get; }
-    public abstract EditorCapabilitySet EditorCapabilities { get; }
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public abstract string CatalogId { get; }
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public abstract string DisplayName { get; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public virtual string? Description => null;
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public abstract string Category { get; }
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public abstract NeoPageNodeKind Kind { get; }
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public virtual string IconName => "unknown";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public virtual int SortOrder => 0;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public virtual bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public virtual Type? PreviewComponentType => null;
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public virtual Type? PropertyEditorComponentType => null;
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public abstract ICompositionCapabilities Composition { get; }
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public abstract EditorCapabilitySet EditorCapabilities { get; }
 
     /// <summary>
     /// Declares which canvas interactions are available.
@@ -49,5 +85,8 @@ public abstract class PageEditorCatalogDefinitionBase :
     /// </summary>
     public abstract EditorInteractionCapabilities Interaction { get; }
 
-    public abstract NeoPageNode CreateDefaultNode();
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public abstract NeoPageNode CreateDefaultNode();
 }

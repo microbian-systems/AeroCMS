@@ -13,10 +13,16 @@ public partial class PathPreview
 {
     [Inject] private IPagesHttpClient PagesClient { get; set; } = null!;
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Parent Id.
+    /// </summary>
+[Parameter]
     public long? ParentId { get; set; }
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[Parameter]
     public string Slug { get; set; } = "";
 
     /// <summary>
@@ -28,7 +34,10 @@ public partial class PathPreview
 
     private ComputedPathResult? _result;
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         await ComputeAsync();
     }

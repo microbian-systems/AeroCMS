@@ -3,9 +3,15 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Aero.Cms.Marten.Identity;
 
+/// <summary>
+/// Represents a class for IdentityBuilderExtensions.
+/// </summary>
 public static class IdentityBuilderExtensions
 {
-    public static IdentityBuilder AddMartenStores(this IdentityBuilder builder)
+        /// <summary>
+    /// AddMartenStores method.
+    /// </summary>
+public static IdentityBuilder AddMartenStores(this IdentityBuilder builder)
     {
         if (builder == null)
             throw new ArgumentNullException(nameof(builder));

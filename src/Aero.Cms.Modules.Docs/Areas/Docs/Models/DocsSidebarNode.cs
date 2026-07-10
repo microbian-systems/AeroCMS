@@ -6,12 +6,36 @@ namespace Aero.Cms.Modules.Docs.Areas.Docs.Models;
 /// </summary>
 public sealed class DocsSidebarNode
 {
-    public long Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public int Order { get; set; }
-    public int Depth { get; set; }
-    public bool IsActive { get; set; }
-    public bool IsExpanded { get; set; }
-    public List<DocsSidebarNode> Children { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+public long Id { get; set; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public int Order { get; set; }
+        /// <summary>
+    /// Gets or sets the Depth.
+    /// </summary>
+public int Depth { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Active.
+    /// </summary>
+public bool IsActive { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Expanded.
+    /// </summary>
+public bool IsExpanded { get; set; }
+        /// <summary>
+    /// Gets or sets the Children.
+    /// </summary>
+public List<DocsSidebarNode> Children { get; set; } = [];
 }

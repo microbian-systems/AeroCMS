@@ -1,4 +1,4 @@
-﻿
+
 
 using Aero.Actors;
 using Aero.Cms.Abstractions.Http.Clients;
@@ -6,6 +6,9 @@ using Aero.Cms.Abstractions.Interfaces;
 
 namespace Aero.Cms.Abstractions.Actors;
 
+/// <summary>
+/// Defines an interface for IAeroAliasActor.
+/// </summary>
 public interface IAeroAliasActor : IAeroCmsContentActor<AliasViewModel>
 {
     /// <summary>
@@ -16,12 +19,21 @@ public interface IAeroAliasActor : IAeroCmsContentActor<AliasViewModel>
         long? siteId = null,
         CancellationToken ct = default);
 }
+/// <summary>
+/// Defines an interface for IAeroAuthorActor.
+/// </summary>
 public interface IAeroAuthorActor : IAeroCmsContentActor<AuthorViewModel>;
+/// <summary>
+/// Defines an interface for IAeroCategoryActor.
+/// </summary>
 public interface IAeroCategoryActor : IAeroCmsContentActor<CategoryViewModel>
 {
     /// <summary>Get all categories (unpaged).</summary>
     Task<List<CategoryViewModel>> GetAllAsync(CancellationToken ct = default);
 }
+/// <summary>
+/// Defines an interface for IAeroSeriesActor.
+/// </summary>
 public interface IAeroSeriesActor : IAeroCmsContentActor<SeriesViewModel>
 {
     /// <summary>Get all series (unpaged).</summary>
@@ -30,6 +42,9 @@ public interface IAeroSeriesActor : IAeroCmsContentActor<SeriesViewModel>
     /// <summary>Get or create the default General series for a site.</summary>
     Task<SeriesViewModel> EnsureGeneralAsync(long siteId, CancellationToken ct = default);
 }
+/// <summary>
+/// Defines an interface for IAeroDocsActor.
+/// </summary>
 public interface IAeroDocsActor : IAeroCmsContentActor<DocViewModel>
 {
     /// <summary>Get all docs for a site (unpaged).</summary>
@@ -55,13 +70,31 @@ public interface IAeroDocsActor : IAeroCmsContentActor<DocViewModel>
     /// <summary>Reorder sibling sections inside a docs space.</summary>
     Task<AeroRequestResponse<DocViewModel>> ReorderSectionsAsync(long siteId, long spaceId, long parentId, IReadOnlyList<long> orderedIds, CancellationToken ct = default);
 }
+/// <summary>
+/// Defines an interface for IAeroMediaActor.
+/// </summary>
 public interface IAeroMediaActor : IAeroCmsContentActor<MediaViewModel>
 {
-    Task<List<MediaViewModel>> GetAllAsync(CancellationToken ct = default);
-    Task<(List<MediaViewModel> Items, long TotalCount)> GetPagedAsync(long? parentId, int skip, int take, string? search, CancellationToken ct = default);
-    Task<AeroRequestResponse<MediaViewModel>> SaveMediaAsync(MediaViewModel vm, CancellationToken ct = default);
-    Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<List<MediaViewModel>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetPagedAsync method.
+    /// </summary>
+Task<(List<MediaViewModel> Items, long TotalCount)> GetPagedAsync(long? parentId, int skip, int take, string? search, CancellationToken ct = default);
+        /// <summary>
+    /// SaveMediaAsync method.
+    /// </summary>
+Task<AeroRequestResponse<MediaViewModel>> SaveMediaAsync(MediaViewModel vm, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteMediaAsync method.
+    /// </summary>
+Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id, CancellationToken ct = default);
 }
+/// <summary>
+/// Defines an interface for IAeroPageActor.
+/// </summary>
 public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
 {
     /// <summary>Find a published page by slug for a specific site and culture.</summary>
@@ -81,6 +114,9 @@ public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
     /// <summary>Get event stream history for a page.</summary>
     Task<List<PageEventItem>> GetEventHistoryAsync(long id, CancellationToken ct);
 }
+/// <summary>
+/// Defines an interface for IAeroPostActor.
+/// </summary>
 public interface IAeroPostActor : IAeroCmsContentActor<PostViewModel>
 {
     /// <summary>
@@ -142,12 +178,21 @@ public interface IAeroPostActor : IAeroCmsContentActor<PostViewModel>
     /// <summary>Get a summary of a post author.</summary>
     Task<(string? Name, string? Bio, string? AvatarUrl)?> GetPostAuthorSummaryAsync(long siteId, long authorId, CancellationToken ct);
 }
+/// <summary>
+/// Defines an interface for IAeroSiteActor.
+/// </summary>
 public interface IAeroSiteActor : IAeroCmsContentActor<SiteViewModel>;
+/// <summary>
+/// Defines an interface for IAeroTagActor.
+/// </summary>
 public interface IAeroTagActor : IAeroCmsContentActor<TagViewModel>
 {
     /// <summary>Get all tags (unpaged).</summary>
     Task<List<TagViewModel>> GetAllAsync(CancellationToken ct = default);
 }
+/// <summary>
+/// Defines an interface for IAeroContentItemActor.
+/// </summary>
 public interface IAeroContentItemActor : IAeroCmsContentActor<ContentItemViewModel>
 {
     /// <summary>Get content items by type (paged).</summary>
@@ -162,6 +207,9 @@ public interface IAeroContentItemActor : IAeroCmsContentActor<ContentItemViewMod
     /// <summary>Delete a content item by id.</summary>
     Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(long id, CancellationToken ct = default);
 }
+/// <summary>
+/// Defines an interface for IAeroContentTypeActor.
+/// </summary>
 public interface IAeroContentTypeActor : IAeroActor
 {
     /// <summary>Get all content types for a site.</summary>
@@ -175,18 +223,42 @@ public interface IAeroContentTypeActor : IAeroActor
     /// <summary>Delete a content type by alias.</summary>
     Task<bool> DeleteAsync(long siteId, string alias, CancellationToken ct = default);
 }
+/// <summary>
+/// Defines an interface for IAeroSettingActor.
+/// </summary>
 public interface IAeroSettingActor : IAeroActor
 {
-    Task<List<SettingSummary>> GetAllAsync(CancellationToken ct = default);
-    Task<SettingDetail?> GetByKeyAsync(string key, CancellationToken ct = default);
-    Task<List<SettingDetail>> GetByCategoryAsync(string category, CancellationToken ct = default);
-    Task<SettingDetail> SetAsync(string key, string value, string category = "General", string type = "string", CancellationToken ct = default);
-    Task<bool> DeleteAsync(string key, CancellationToken ct = default);
-    Task<List<SettingCategory>> GetCategoriesAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<List<SettingSummary>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetByKeyAsync method.
+    /// </summary>
+Task<SettingDetail?> GetByKeyAsync(string key, CancellationToken ct = default);
+        /// <summary>
+    /// GetByCategoryAsync method.
+    /// </summary>
+Task<List<SettingDetail>> GetByCategoryAsync(string category, CancellationToken ct = default);
+        /// <summary>
+    /// SetAsync method.
+    /// </summary>
+Task<SettingDetail> SetAsync(string key, string value, string category = "General", string type = "string", CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<bool> DeleteAsync(string key, CancellationToken ct = default);
+        /// <summary>
+    /// GetCategoriesAsync method.
+    /// </summary>
+Task<List<SettingCategory>> GetCategoriesAsync(CancellationToken ct = default);
 }
 
 
 
+/// <summary>
+/// Defines an interface for IAeroCmsContentActor.
+/// </summary>
 public interface IAeroCmsContentActor<T> :
     IAeroActor,
     ICruddable<T, long>,
@@ -197,6 +269,9 @@ public interface IAeroCmsContentActor<T> :
     where T : AeroEntityViewModel;
 
 
+/// <summary>
+/// Defines an interface for IAeroCmsContentActor.
+/// </summary>
 public interface IAeroCmsContentActor<T, TKey> :
     IAeroActor,
     ICruddable<T, TKey>,

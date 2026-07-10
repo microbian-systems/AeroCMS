@@ -5,20 +5,44 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Aero.Cms.Modules.Setup;
 
+/// <summary>
+/// Represents a record for SetupIdentityBootstrapRequest.
+/// </summary>
 public sealed record SetupIdentityBootstrapRequest(
     string AdminUserName,
     string AdminEmail,
     string Password);
 
+/// <summary>
+/// Represents a class for SetupIdentityBootstrapResult.
+/// </summary>
 public sealed class SetupIdentityBootstrapResult
 {
-    public bool Succeeded => Errors.Count == 0;
-    public bool CreatedAdmin { get; init; }
-    public bool CreatedRoles { get; init; }
-    public AeroUser? AdminUser { get; init; }
-    public List<IdentityError> Errors { get; } = [];
+        /// <summary>
+    /// Gets or sets the Succeeded.
+    /// </summary>
+public bool Succeeded => Errors.Count == 0;
+        /// <summary>
+    /// Gets or sets the Created Admin.
+    /// </summary>
+public bool CreatedAdmin { get; init; }
+        /// <summary>
+    /// Gets or sets the Created Roles.
+    /// </summary>
+public bool CreatedRoles { get; init; }
+        /// <summary>
+    /// Gets or sets the Admin User.
+    /// </summary>
+public AeroUser? AdminUser { get; init; }
+        /// <summary>
+    /// Gets or sets the Errors.
+    /// </summary>
+public List<IdentityError> Errors { get; } = [];
 
-    public static SetupIdentityBootstrapResult Failure(IEnumerable<IdentityError> errors)
+        /// <summary>
+    /// Failure method.
+    /// </summary>
+public static SetupIdentityBootstrapResult Failure(IEnumerable<IdentityError> errors)
     {
         var result = new SetupIdentityBootstrapResult();
         result.Errors.AddRange(errors);
@@ -26,15 +50,27 @@ public sealed class SetupIdentityBootstrapResult
     }
 }
 
+/// <summary>
+/// Defines an interface for ISetupIdentityBootstrapper.
+/// </summary>
 public interface ISetupIdentityBootstrapper
 {
-    Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// BootstrapAsync method.
+    /// </summary>
+Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for SetupIdentityBootstrapper.
+/// </summary>
 public sealed class SetupIdentityBootstrapper(
     UserManager<AeroUser> userManager) : ISetupIdentityBootstrapper
 {
-    public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// BootstrapAsync method.
+    /// </summary>
+public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default)
     {
         var existingAdmins = await userManager.GetUsersInRoleAsync(AeroCmsRoles.Admin);
         var adminUser = existingAdmins.FirstOrDefault();

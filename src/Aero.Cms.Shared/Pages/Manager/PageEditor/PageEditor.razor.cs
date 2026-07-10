@@ -33,6 +33,9 @@ using PageEditorCatalog = Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
+/// <summary>
+/// Represents a class for PageEditor.
+/// </summary>
 public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorCallbacks
 {
     // ──────────────────────────────────────────────────────────
@@ -42,37 +45,106 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     /// <summary>Optional ID of an existing page to edit.</summary>
     [Parameter] public long? Id { get; set; }
 
-    [Inject] protected IDocsHttpClient DocsClient { get; set; } = default!;
-    [Inject] protected IPagesHttpClient PagesClient { get; set; } = default!;
-    [Inject] protected IPageCustomComponentsHttpClient CustomComponentsClient { get; set; } = default!;
-    [Inject] protected IMediaHttpClient MediaClient { get; set; } = default!;
-    [Inject] protected IBlogHttpClient BlogClient { get; set; } = default!;
-    [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
-    [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
-    [Inject] protected IUsersHttpClient UsersClient { get; set; } = default!;
-    [Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
-    [Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
-    [Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
-    [Inject] protected AdminStateContainer AdminState { get; set; } = default!;
-    [Inject] protected Aero.Cms.Contracts.Abstractions.IAdminStorage AdminStorage { get; set; } = default!;
-    [Inject] protected NavigationManager NavManager { get; set; } = default!;
-    [Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
-    [Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
-    [Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
-    [Inject] protected IPageEditorDefinitionRegistry DefinitionRegistry { get; set; } = default!;
-    [Inject] protected DialogService DialogService { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Docs Client.
+    /// </summary>
+[Inject] protected IDocsHttpClient DocsClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Pages Client.
+    /// </summary>
+[Inject] protected IPagesHttpClient PagesClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Custom Components Client.
+    /// </summary>
+[Inject] protected IPageCustomComponentsHttpClient CustomComponentsClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Media Client.
+    /// </summary>
+[Inject] protected IMediaHttpClient MediaClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Blog Client.
+    /// </summary>
+[Inject] protected IBlogHttpClient BlogClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Categories Client.
+    /// </summary>
+[Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Tags Client.
+    /// </summary>
+[Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Users Client.
+    /// </summary>
+[Inject] protected IUsersHttpClient UsersClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Preview Client.
+    /// </summary>
+[Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Sites Client.
+    /// </summary>
+[Inject] protected ISitesHttpClient SitesClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Current Site Accessor.
+    /// </summary>
+[Inject] protected ICurrentSiteAccessor CurrentSiteAccessor { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Admin State.
+    /// </summary>
+[Inject] protected AdminStateContainer AdminState { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Admin Storage.
+    /// </summary>
+[Inject] protected Aero.Cms.Contracts.Abstractions.IAdminStorage AdminStorage { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Nav Manager.
+    /// </summary>
+[Inject] protected NavigationManager NavManager { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the JS Runtime.
+    /// </summary>
+[Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Html Sanitizer.
+    /// </summary>
+[Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Catalog.
+    /// </summary>
+[Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Definition Registry.
+    /// </summary>
+[Inject] protected IPageEditorDefinitionRegistry DefinitionRegistry { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Dialog Service.
+    /// </summary>
+[Inject] protected DialogService DialogService { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     // ──────────────────────────────────────────────────────────
     // State  (mirrors Alpine.js cmsEditor() properties)
     // ──────────────────────────────────────────────────────────
 
-    protected string PageTitle    { get; set; } = "Homepage";
-    protected string LastSaved    { get; set; } = "Never";
-    protected string Author       { get; set; } = "Admin";
+        /// <summary>
+    /// Gets or sets the Page Title.
+    /// </summary>
+protected string PageTitle    { get; set; } = "Homepage";
+        /// <summary>
+    /// Gets or sets the Last Saved.
+    /// </summary>
+protected string LastSaved    { get; set; } = "Never";
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+protected string Author       { get; set; } = "Admin";
 
     // NeoPageNode composition tree root
-    protected NeoPageNode RootNode { get; set; } = CreateDefaultRootNode();
+        /// <summary>
+    /// Gets or sets the Root Node.
+    /// </summary>
+protected NeoPageNode RootNode { get; set; } = CreateDefaultRootNode();
     private static NeoPageNode CreateDefaultRootNode() => new()
     {
         NodeId = "page-root",
@@ -82,43 +154,127 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     };
 
     // Selection / drag state
-    protected string? SelectedBlockId  { get; set; }
-    protected string? DraggedType      { get; set; }
-    protected int?    DraggedIndex     { get; set; }
-    protected EditorPaletteDragState PaletteDragState { get; } = new();
+        /// <summary>
+    /// Gets or sets the Selected Block Id.
+    /// </summary>
+protected string? SelectedBlockId  { get; set; }
+        /// <summary>
+    /// Gets or sets the Dragged Type.
+    /// </summary>
+protected string? DraggedType      { get; set; }
+        /// <summary>
+    /// Gets or sets the Dragged Index.
+    /// </summary>
+protected int?    DraggedIndex     { get; set; }
+        /// <summary>
+    /// Gets or sets the Palette Drag State.
+    /// </summary>
+protected EditorPaletteDragState PaletteDragState { get; } = new();
 
     // UI state
-    protected bool   SidebarCollapsed { get; set; }
-    protected bool   PreviewMode      { get; set; }
-    protected string PreviewDevice    { get; set; } = "desktop";
-    protected bool   IsPreviewRendering { get; set; }
-    protected string? PreviewHtml { get; set; }
-    protected string? PreviewError { get; set; }
-    protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/pages/render-fragment");
-    protected string? PreviewFrameUrl => Id is { } id
+        /// <summary>
+    /// Gets or sets the Sidebar Collapsed.
+    /// </summary>
+protected bool   SidebarCollapsed { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Mode.
+    /// </summary>
+protected bool   PreviewMode      { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Device.
+    /// </summary>
+protected string PreviewDevice    { get; set; } = "desktop";
+        /// <summary>
+    /// Gets or sets the Is Preview Rendering.
+    /// </summary>
+protected bool   IsPreviewRendering { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Html.
+    /// </summary>
+protected string? PreviewHtml { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Error.
+    /// </summary>
+protected string? PreviewError { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Fragment Url.
+    /// </summary>
+protected string PreviewFragmentUrl => BuildAbsoluteUrl("api/v1/admin/preview/pages/render-fragment");
+        /// <summary>
+    /// Gets or sets the Preview Frame Url.
+    /// </summary>
+protected string? PreviewFrameUrl => Id is { } id
         ? BuildAbsoluteUrl($"_cms/preview/pages/drafts/{id}?previewVersion={_previewRefreshVersion}", _previewBaseUri)
         : null;
-    protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri, L);
-    protected bool   RightSidebarCollapsed { get; set; } = true;
-    protected bool   IsSaving              { get; set; }
-    protected string ActiveTab             { get; set; } = "editor";
+        /// <summary>
+    /// Gets or sets the Preview Frame Document.
+    /// </summary>
+protected string PreviewFrameDocument => BuildPreviewFrameDocument(PreviewHtml, NavManager.BaseUri, L);
+        /// <summary>
+    /// Gets or sets the Right Sidebar Collapsed.
+    /// </summary>
+protected bool   RightSidebarCollapsed { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Is Saving.
+    /// </summary>
+protected bool   IsSaving              { get; set; }
+        /// <summary>
+    /// Gets or sets the Active Tab.
+    /// </summary>
+protected string ActiveTab             { get; set; } = "editor";
 
     // Sidebar category toggles
-    protected bool CategoryAeroUi      { get; set; } = true;
-    protected bool CategoryComponents  { get; set; } = true;
-    protected bool CategoryReferences  { get; set; }
-    protected bool CategorySettings    { get; set; } = true;
-    protected bool CategoryHyper       { get; set; } = true;
-    protected bool CategoryNeo         { get; set; } = true;
-    protected bool CategoryPrimitives  { get; set; } = true;
-    protected bool CategoryCustom      { get; set; } = true;
-    protected string PaletteSearch { get; set; } = string.Empty;
-    protected string? CompositionDropError { get; set; }
+        /// <summary>
+    /// Gets or sets the Category Aero Ui.
+    /// </summary>
+protected bool CategoryAeroUi      { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Category Components.
+    /// </summary>
+protected bool CategoryComponents  { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Category References.
+    /// </summary>
+protected bool CategoryReferences  { get; set; }
+        /// <summary>
+    /// Gets or sets the Category Settings.
+    /// </summary>
+protected bool CategorySettings    { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Category Hyper.
+    /// </summary>
+protected bool CategoryHyper       { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Category Neo.
+    /// </summary>
+protected bool CategoryNeo         { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Category Primitives.
+    /// </summary>
+protected bool CategoryPrimitives  { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Category Custom.
+    /// </summary>
+protected bool CategoryCustom      { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Palette Search.
+    /// </summary>
+protected string PaletteSearch { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Composition Drop Error.
+    /// </summary>
+protected string? CompositionDropError { get; set; }
     private const string PaletteStateStorageKey = "aero.page-editor.palette-state.v1";
 
     // Page Settings
-    protected string PageSlug { get; set; } = string.Empty;
-    protected string Summary { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Page Slug.
+    /// </summary>
+protected string PageSlug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+protected string Summary { get; set; } = string.Empty;
 
     /// <summary>Tracks whether the slug should auto-populate from the title.</summary>
     private enum SlugState { Auto, Loaded, Locked }
@@ -128,39 +284,99 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // public string Id { get; set; } = string.Empty; 
 
     private string SeoTitle { get; set; } = string.Empty;
-    protected string SeoDescription { get; set; } = string.Empty;
-    protected bool   ShowInNavMenu { get; set; } = true;
-    protected bool   ShowHeaderNavigation { get; set; } = true;
-    protected bool   HideFooter { get; set; }
-    protected bool   ShowChatAgent { get; set; } = true;
-    protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+protected string SeoDescription { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Show In Nav Menu.
+    /// </summary>
+protected bool   ShowInNavMenu { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Show Header Navigation.
+    /// </summary>
+protected bool   ShowHeaderNavigation { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Hide Footer.
+    /// </summary>
+protected bool   HideFooter { get; set; }
+        /// <summary>
+    /// Gets or sets the Show Chat Agent.
+    /// </summary>
+protected bool   ShowChatAgent { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+protected ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
     /// <summary>Optional parent page ID to pre-select when creating a new child page.</summary>
     [SupplyParameterFromQuery(Name = "parentId")]
     protected long? ParentId { get; set; }
 
-    [SupplyParameterFromQuery(Name = "tab")]
+        /// <summary>
+    /// Gets or sets the Requested Tab.
+    /// </summary>
+[SupplyParameterFromQuery(Name = "tab")]
     protected string? RequestedTab { get; set; }
 
     /// <summary>Read-only parent path prefix shown as a pill before the slug input.</summary>
     protected string ParentSlugPrefix { get; set; } = "";
 
-    protected CmsPageDetail? LoadedPage { get; set; }
-    protected SiteViewModel? CurrentSite { get; set; }
-    protected IReadOnlyList<CmsPageDetail> PageCultureVariants { get; set; } = [];
-    protected string SelectedTranslationCulture { get; set; } = string.Empty;
-    protected string TranslationSlug { get; set; } = string.Empty;
-    protected bool IsLoadingTranslations { get; set; }
-    protected bool IsCreatingTranslation { get; set; }
-    protected bool IsBulkPublishingTranslations { get; set; }
-    protected bool IsTranslatingAll { get; set; }
-    protected bool OverwriteExistingTranslations { get; set; }
-    protected HashSet<string> TranslatingCultures { get; } = new(StringComparer.OrdinalIgnoreCase);
-    protected IReadOnlyList<string> SupportedCultures =>
+        /// <summary>
+    /// Gets or sets the Loaded Page.
+    /// </summary>
+protected CmsPageDetail? LoadedPage { get; set; }
+        /// <summary>
+    /// Gets or sets the Current Site.
+    /// </summary>
+protected SiteViewModel? CurrentSite { get; set; }
+        /// <summary>
+    /// Gets or sets the Page Culture Variants.
+    /// </summary>
+protected IReadOnlyList<CmsPageDetail> PageCultureVariants { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Selected Translation Culture.
+    /// </summary>
+protected string SelectedTranslationCulture { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Translation Slug.
+    /// </summary>
+protected string TranslationSlug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Is Loading Translations.
+    /// </summary>
+protected bool IsLoadingTranslations { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Creating Translation.
+    /// </summary>
+protected bool IsCreatingTranslation { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Bulk Publishing Translations.
+    /// </summary>
+protected bool IsBulkPublishingTranslations { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Translating All.
+    /// </summary>
+protected bool IsTranslatingAll { get; set; }
+        /// <summary>
+    /// Gets or sets the Overwrite Existing Translations.
+    /// </summary>
+protected bool OverwriteExistingTranslations { get; set; }
+        /// <summary>
+    /// Gets or sets the Translating Cultures.
+    /// </summary>
+protected HashSet<string> TranslatingCultures { get; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+    /// Gets or sets the Supported Cultures.
+    /// </summary>
+protected IReadOnlyList<string> SupportedCultures =>
         CurrentSite?.SupportedCultures is { Count: > 0 } cultures
             ? cultures
             : [LoadedPage?.Culture ?? CurrentSite?.DefaultCulture ?? "en-US"];
 
-    protected IEnumerable<string> AvailableTranslationCultures =>
+        /// <summary>
+    /// Gets or sets the Available Translation Cultures.
+    /// </summary>
+protected IEnumerable<string> AvailableTranslationCultures =>
         SupportedCultures
             .Select(NormalizeCultureName)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -168,40 +384,97 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
                 string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
-    protected IReadOnlyList<DocsSummary>? DocsCategories { get; set; }
+        /// <summary>
+    /// Gets or sets the Docs Categories.
+    /// </summary>
+protected IReadOnlyList<DocsSummary>? DocsCategories { get; set; }
 
     // Media modal
-    protected bool         MediaModalOpen   { get; set; }
-    protected EditorBlock? CurrentMediaBlock { get; set; }
-    protected bool         IsGalleryMode    { get; set; }
-    protected string?      MediaContext     { get; set; }   // "background" | "nested"
-    protected NestedBlock? NestedMediaTarget { get; set; }
+        /// <summary>
+    /// Gets or sets the Media Modal Open.
+    /// </summary>
+protected bool         MediaModalOpen   { get; set; }
+        /// <summary>
+    /// Gets or sets the Current Media Block.
+    /// </summary>
+protected EditorBlock? CurrentMediaBlock { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Gallery Mode.
+    /// </summary>
+protected bool         IsGalleryMode    { get; set; }
+        /// <summary>
+    /// Gets or sets the Media Context.
+    /// </summary>
+protected string?      MediaContext     { get; set; }   // "background" | "nested"
+        /// <summary>
+    /// Gets or sets the Nested Media Target.
+    /// </summary>
+protected NestedBlock? NestedMediaTarget { get; set; }
     private string? NativeMediaNodeId { get; set; }
     private string? NativeMediaField { get; set; }
     private EditorBreakpoint NativeMediaBreakpoint { get; set; }
 
     // Block edit modal
-    protected bool BlockEditorModalOpen { get; set; }
-    protected string? EditingBlockId { get; set; }
-    protected string? EditingNodeId { get; set; }
-    protected string BlockEditorTab { get; set; } = "design";
-    protected NeoPageNode? CurrentEditNode =>
+        /// <summary>
+    /// Gets or sets the Block Editor Modal Open.
+    /// </summary>
+protected bool BlockEditorModalOpen { get; set; }
+        /// <summary>
+    /// Gets or sets the Editing Block Id.
+    /// </summary>
+protected string? EditingBlockId { get; set; }
+        /// <summary>
+    /// Gets or sets the Editing Node Id.
+    /// </summary>
+protected string? EditingNodeId { get; set; }
+        /// <summary>
+    /// Gets or sets the Block Editor Tab.
+    /// </summary>
+protected string BlockEditorTab { get; set; } = "design";
+        /// <summary>
+    /// Gets or sets the Current Edit Node.
+    /// </summary>
+protected NeoPageNode? CurrentEditNode =>
         string.IsNullOrEmpty(EditingBlockId)
             ? null
             : FindNodeInTree(EditingBlockId);
 
-    protected IReadOnlyList<PageCustomComponentDetail> CustomComponents { get; set; } = [];
-    protected bool SaveCustomComponentModalOpen { get; set; }
-    protected bool IsSavingCustomComponent { get; set; }
-    protected long? EditingCustomComponentId { get; set; }
-    protected string CustomComponentName { get; set; } = string.Empty;
-    protected string CustomComponentDescription { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Custom Components.
+    /// </summary>
+protected IReadOnlyList<PageCustomComponentDetail> CustomComponents { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Save Custom Component Modal Open.
+    /// </summary>
+protected bool SaveCustomComponentModalOpen { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Saving Custom Component.
+    /// </summary>
+protected bool IsSavingCustomComponent { get; set; }
+        /// <summary>
+    /// Gets or sets the Editing Custom Component Id.
+    /// </summary>
+protected long? EditingCustomComponentId { get; set; }
+        /// <summary>
+    /// Gets or sets the Custom Component Name.
+    /// </summary>
+protected string CustomComponentName { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Custom Component Description.
+    /// </summary>
+protected string CustomComponentDescription { get; set; } = string.Empty;
 
     private Dictionary<string, List<ReferenceItem>> _referenceData = new();
-    protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
+        /// <summary>
+    /// Gets or sets the Dynamic Template Preview Html.
+    /// </summary>
+protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
 
     // Toasts
-    protected List<ToastMessage> Toasts { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Toasts.
+    /// </summary>
+protected List<ToastMessage> Toasts { get; set; } = [];
 
     // Auto-save timer & dirty tracking
     private const int PreviewDebounceMilliseconds = 300;
@@ -231,7 +504,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
 
     private long? _previousParentId;
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         if (IsKnownTab(RequestedTab))
         {
@@ -245,7 +521,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         PaletteDragState.Cleared += ClearPaletteDragState;
         RestorePaletteState();
@@ -402,7 +681,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             _referenceData["authors"] = usersOk.Value.Items.Select(u => new ReferenceItem(u.Id.ToString(), Name: u.DisplayName)).ToList();
     }
 
-    public async ValueTask DisposeAsync()
+        /// <summary>
+    /// DisposeAsync method.
+    /// </summary>
+public async ValueTask DisposeAsync()
     {
         PaletteDragState.Cleared -= ClearPaletteDragState;
         _autoSaveTimer?.Dispose();
@@ -422,7 +704,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+        /// <summary>
+    /// OnAfterRenderAsync method.
+    /// </summary>
+protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
@@ -439,7 +724,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // Category toggle  (mirrors toggleCategory())
     // ──────────────────────────────────────────────────────────
 
-    protected void ToggleCategory(string category)
+        /// <summary>
+    /// ToggleCategory method.
+    /// </summary>
+protected void ToggleCategory(string category)
     {
         switch (category)
         {
@@ -456,7 +744,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         PersistPaletteState();
     }
 
-    protected Task OnRightSidebarCollapsedChanged(bool isCollapsed)
+        /// <summary>
+    /// OnRightSidebarCollapsedChanged method.
+    /// </summary>
+protected Task OnRightSidebarCollapsedChanged(bool isCollapsed)
     {
         RightSidebarCollapsed = isCollapsed;
         PersistPaletteState();
@@ -507,7 +798,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         bool CategoryPrimitives,
         bool CategoryCustom);
 
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> CustomCatalogItems =>
+        /// <summary>
+    /// Gets or sets the Custom Catalog Items.
+    /// </summary>
+protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> CustomCatalogItems =>
         CustomComponents
             .Select((component, index) => new PageEditorCatalog.NeoEditorCatalogItem
             {
@@ -523,13 +817,19 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             })
             .ToList();
 
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoAeroCatalogItems =>
+        /// <summary>
+    /// Gets or sets the Neo Aero Catalog Items.
+    /// </summary>
+protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoAeroCatalogItems =>
         Catalog.GetCatalogItems()
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.AeroUi)
             .OrderBy(i => i.SortOrder)
             .ToList();
 
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ReferenceCatalogItems { get; } =
+        /// <summary>
+    /// Gets or sets the Reference Catalog Items.
+    /// </summary>
+protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ReferenceCatalogItems { get; } =
     [
         CatalogItem("pages", "Pages", 10),
         CatalogItem("posts", "Posts", 20),
@@ -538,34 +838,49 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         CatalogItem("authors", "Authors", 50)
     ];
 
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoHyperCatalogItems =>
+        /// <summary>
+    /// Gets or sets the Neo Hyper Catalog Items.
+    /// </summary>
+protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoHyperCatalogItems =>
         Catalog.GetCatalogItems()
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
             .OrderBy(i => i.SortOrder)
             .ToList();
 
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoNeoCatalogItems =>
+        /// <summary>
+    /// Gets or sets the Neo Neo Catalog Items.
+    /// </summary>
+protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoNeoCatalogItems =>
         DefinitionRegistry.AllDescriptors
             .Select(ToCatalogItem)
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Neo)
             .OrderBy(i => i.SortOrder)
             .ToList();
 
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> PrimitiveCatalogItems =>
+        /// <summary>
+    /// Gets or sets the Primitive Catalog Items.
+    /// </summary>
+protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> PrimitiveCatalogItems =>
         DefinitionRegistry.AllDescriptors
             .Select(ToCatalogItem)
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Primitives)
             .OrderBy(i => i.SortOrder)
             .ToList();
 
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ComponentsCatalogItems =>
+        /// <summary>
+    /// Gets or sets the Components Catalog Items.
+    /// </summary>
+protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ComponentsCatalogItems =>
         DefinitionRegistry.AllDescriptors
             .Select(ToCatalogItem)
             .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Components)
             .OrderBy(i => i.SortOrder)
             .ToList();
 
-    protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> FilterPaletteItems(
+        /// <summary>
+    /// FilterPaletteItems method.
+    /// </summary>
+protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> FilterPaletteItems(
         IEnumerable<PageEditorCatalog.NeoEditorCatalogItem> items)
     {
         return items
@@ -575,7 +890,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             .ToList();
     }
 
-    protected bool HasPaletteSearchResults =>
+        /// <summary>
+    /// Gets or sets the Has Palette Search Results.
+    /// </summary>
+protected bool HasPaletteSearchResults =>
         string.IsNullOrWhiteSpace(PaletteSearch) ||
         new IEnumerable<PageEditorCatalog.NeoEditorCatalogItem>[]
         {
@@ -733,7 +1051,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // Block management  (mirrors addBlock / deleteBlock / etc.)
     // ──────────────────────────────────────────────────────────
 
-    protected NeoPageNode CreateNode(string catalogId)
+        /// <summary>
+    /// CreateNode method.
+    /// </summary>
+protected NeoPageNode CreateNode(string catalogId)
     {
         if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor))
         {
@@ -822,7 +1143,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             _ => NeoPageNodeKind.Block
         };
 
-    protected void AddBlock(string type)
+        /// <summary>
+    /// AddBlock method.
+    /// </summary>
+protected void AddBlock(string type)
     {
         EnsureCanvasHistory();
         var node = CreateNode(type);
@@ -834,14 +1158,20 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         QueuePreviewRefresh();
     }
 
-    protected Task OnEditorBlockChanged(EditorBlock block)
+        /// <summary>
+    /// OnEditorBlockChanged method.
+    /// </summary>
+protected Task OnEditorBlockChanged(EditorBlock block)
     {
         MarkDirty();
         QueuePreviewRefresh();
         return Task.CompletedTask;
     }
 
-    protected void OpenBlockEditor(string editorId)
+        /// <summary>
+    /// OpenBlockEditor method.
+    /// </summary>
+protected void OpenBlockEditor(string editorId)
     {
         SelectedBlockId = editorId;
         EditingBlockId = editorId;
@@ -850,14 +1180,20 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         BlockEditorModalOpen = true;
     }
 
-    protected void CloseBlockEditor()
+        /// <summary>
+    /// CloseBlockEditor method.
+    /// </summary>
+protected void CloseBlockEditor()
     {
         BlockEditorModalOpen = false;
         EditingBlockId = null;
         EditingNodeId = null;
     }
 
-    protected void OpenSaveCustomComponentModal()
+        /// <summary>
+    /// OpenSaveCustomComponentModal method.
+    /// </summary>
+protected void OpenSaveCustomComponentModal()
     {
         if (CurrentEditNode is null && _pendingSaveNode is null)
         {
@@ -873,7 +1209,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         SaveCustomComponentModalOpen = true;
     }
 
-    protected void OpenEditCustomComponentModal(
+        /// <summary>
+    /// OpenEditCustomComponentModal method.
+    /// </summary>
+protected void OpenEditCustomComponentModal(
         PageEditorCatalog.NeoEditorCatalogItem item)
     {
         if (!TryGetCustomComponentId(item.CatalogId, out var componentId))
@@ -894,7 +1233,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         SaveCustomComponentModalOpen = true;
     }
 
-    protected void CloseSaveCustomComponentModal()
+        /// <summary>
+    /// CloseSaveCustomComponentModal method.
+    /// </summary>
+protected void CloseSaveCustomComponentModal()
     {
         if (IsSavingCustomComponent)
         {
@@ -906,7 +1248,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         EditingCustomComponentId = null;
     }
 
-    protected async Task SaveCurrentBlockAsCustomAsync()
+        /// <summary>
+    /// SaveCurrentBlockAsCustomAsync method.
+    /// </summary>
+protected async Task SaveCurrentBlockAsCustomAsync()
     {
         if ((!EditingCustomComponentId.HasValue && CurrentEditNode is null && _pendingSaveNode is null) ||
             string.IsNullOrWhiteSpace(CustomComponentName))
@@ -962,7 +1307,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected async Task DeleteCustomComponentAsync(
+        /// <summary>
+    /// DeleteCustomComponentAsync method.
+    /// </summary>
+protected async Task DeleteCustomComponentAsync(
         PageEditorCatalog.NeoEditorCatalogItem item)
     {
         if (!TryGetCustomComponentId(item.CatalogId, out var componentId))
@@ -1055,7 +1403,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         return node;
     }
 
-    protected string GetBlockDisplayName(string catalogId)
+        /// <summary>
+    /// GetBlockDisplayName method.
+    /// </summary>
+protected string GetBlockDisplayName(string catalogId)
     {
         var allItems = NeoAeroCatalogItems
             .Concat(NeoHyperCatalogItems)
@@ -1194,9 +1545,15 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         return true;
     }
 
-    protected void SelectBlock(string id) => SelectedBlockId = id;
+        /// <summary>
+    /// SelectBlock method.
+    /// </summary>
+protected void SelectBlock(string id) => SelectedBlockId = id;
 
-    protected void DeleteBlock(int index)
+        /// <summary>
+    /// DeleteBlock method.
+    /// </summary>
+protected void DeleteBlock(int index)
     {
         EnsureCanvasHistory();
         if (index >= 0 && index < RootNode.Children.Count)
@@ -1212,7 +1569,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected void DuplicateBlock(int index)
+        /// <summary>
+    /// DuplicateBlock method.
+    /// </summary>
+protected void DuplicateBlock(int index)
     {
         if (index < 0 || index >= RootNode.Children.Count) return;
 
@@ -1229,7 +1589,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             L["Block duplicated"]);
     }
 
-    protected void MoveBlockUp(int index)
+        /// <summary>
+    /// MoveBlockUp method.
+    /// </summary>
+protected void MoveBlockUp(int index)
     {
         if (index <= 0 || index >= RootNode.Children.Count) return;
         EnsureCanvasHistory();
@@ -1240,7 +1603,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         QueuePreviewRefresh();
     }
 
-    protected void MoveBlockDown(int index)
+        /// <summary>
+    /// MoveBlockDown method.
+    /// </summary>
+protected void MoveBlockDown(int index)
     {
         if (index < 0 || index >= RootNode.Children.Count - 1) return;
         EnsureCanvasHistory();
@@ -1255,12 +1621,18 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // Node operation handlers  (called from CanvasTree)
     // ──────────────────────────────────────────────────────────
 
-    protected void OnNodeSelected(string nodeId)
+        /// <summary>
+    /// OnNodeSelected method.
+    /// </summary>
+protected void OnNodeSelected(string nodeId)
     {
         SelectedBlockId = nodeId;
     }
 
-    protected void OnNodeEditRequested(string nodeId)
+        /// <summary>
+    /// OnNodeEditRequested method.
+    /// </summary>
+protected void OnNodeEditRequested(string nodeId)
     {
         var node = FindNodeInTree(nodeId);
         if (node is null) return;
@@ -1286,7 +1658,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         return InvokeAsync(StateHasChanged);
     }
 
-    protected void OnRootCompositionDropRejected(string message)
+        /// <summary>
+    /// OnRootCompositionDropRejected method.
+    /// </summary>
+protected void OnRootCompositionDropRejected(string message)
     {
         CompositionDropError = message;
         ShowToast(L["Cannot place item here: {0}", message], "error");
@@ -1472,7 +1847,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         _treeRedoStack.Clear();
     }
 
-    protected void OnNodeCopy(string nodeId)
+        /// <summary>
+    /// OnNodeCopy method.
+    /// </summary>
+protected void OnNodeCopy(string nodeId)
     {
         var node = FindNodeInTree(nodeId);
         if (node is null) return;
@@ -1481,7 +1859,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         ShowToast(L["Node copied"], "success");
     }
 
-    protected void OnNodePaste(string targetNodeId)
+        /// <summary>
+    /// OnNodePaste method.
+    /// </summary>
+protected void OnNodePaste(string targetNodeId)
     {
         if (_nodeClipboard is null)
         {
@@ -1518,7 +1899,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             L["Node pasted"]);
     }
 
-    protected void OnNodeSaveAsCustom(string nodeId)
+        /// <summary>
+    /// OnNodeSaveAsCustom method.
+    /// </summary>
+protected void OnNodeSaveAsCustom(string nodeId)
     {
         var node = FindNodeInTree(nodeId);
         if (node is null) return;
@@ -1530,7 +1914,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         SaveCustomComponentModalOpen = true;
     }
 
-    protected void OnNodeDuplicate(string nodeId)
+        /// <summary>
+    /// OnNodeDuplicate method.
+    /// </summary>
+protected void OnNodeDuplicate(string nodeId)
     {
         var node = FindNodeInTree(nodeId);
         if (node is null) return;
@@ -1550,7 +1937,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             L["Block duplicated"]);
     }
 
-    protected void OnNodeDelete(string nodeId)
+        /// <summary>
+    /// OnNodeDelete method.
+    /// </summary>
+protected void OnNodeDelete(string nodeId)
     {
         if (nodeId == RootNode.NodeId) return;  // can't delete root
 
@@ -1567,7 +1957,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         QueuePreviewRefresh();
     }
 
-    protected void OnNodeMoveUp(string nodeId)
+        /// <summary>
+    /// OnNodeMoveUp method.
+    /// </summary>
+protected void OnNodeMoveUp(string nodeId)
     {
         var (parent, index) = FindParentAndIndex(nodeId);
         if (parent is null || index <= 0) return;
@@ -1579,7 +1972,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         QueuePreviewRefresh();
     }
 
-    protected void OnNodeMoveDown(string nodeId)
+        /// <summary>
+    /// OnNodeMoveDown method.
+    /// </summary>
+protected void OnNodeMoveDown(string nodeId)
     {
         var (parent, index) = FindParentAndIndex(nodeId);
         if (parent is null || index >= parent.Children.Count - 1) return;
@@ -1595,14 +1991,20 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // Drag & Drop  (mirrors dragStart / dragStartBlock / drop / etc.)
     // ──────────────────────────────────────────────────────────
 
-    protected void DragStart(DragEventArgs e, string type)
+        /// <summary>
+    /// DragStart method.
+    /// </summary>
+protected void DragStart(DragEventArgs e, string type)
     {
         DraggedType  = type;
         DraggedIndex   = null;
         PaletteDragState.Start(type);
     }
 
-    protected void OnPaletteDragStarted(string catalogId)
+        /// <summary>
+    /// OnPaletteDragStarted method.
+    /// </summary>
+protected void OnPaletteDragStarted(string catalogId)
     {
         if (string.IsNullOrWhiteSpace(catalogId))
         {
@@ -1614,7 +2016,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         PaletteDragState.Start(catalogId);
     }
 
-    protected void OnPaletteDragEnded()
+        /// <summary>
+    /// OnPaletteDragEnded method.
+    /// </summary>
+protected void OnPaletteDragEnded()
     {
         PaletteDragState.Clear();
     }
@@ -1667,7 +2072,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // Markdown  (mirrors renderMarkdown())
     // ──────────────────────────────────────────────────────────
 
-    protected static string RenderMarkdown(string? content)
+        /// <summary>
+    /// RenderMarkdown method.
+    /// </summary>
+protected static string RenderMarkdown(string? content)
     {
         if (string.IsNullOrEmpty(content)) return string.Empty;
 
@@ -1699,12 +2107,18 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         return html;
     }
 
-    protected void SanitizeHtmlPaste(HtmlEditorPasteEventArgs args)
+        /// <summary>
+    /// SanitizeHtmlPaste method.
+    /// </summary>
+protected void SanitizeHtmlPaste(HtmlEditorPasteEventArgs args)
     {
         args.Html = HtmlSanitizer.Sanitize(args.Html);
     }
 
-    protected async Task RefreshDynamicTemplatePreviewAsync(EditorBlock block)
+        /// <summary>
+    /// RefreshDynamicTemplatePreviewAsync method.
+    /// </summary>
+protected async Task RefreshDynamicTemplatePreviewAsync(EditorBlock block)
     {
         if (string.IsNullOrWhiteSpace(block.ScribanTemplate))
         {
@@ -1753,7 +2167,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // Media selector  (mirrors openMediaSelector / confirmMediaSelection / etc.)
     // ──────────────────────────────────────────────────────────
 
-    protected void OpenMediaSelector(EditorBlock block, bool isGallery = false, string? context = null)
+        /// <summary>
+    /// OpenMediaSelector method.
+    /// </summary>
+protected void OpenMediaSelector(EditorBlock block, bool isGallery = false, string? context = null)
     {
         CurrentMediaBlock = block;
         IsGalleryMode     = isGallery;
@@ -1765,7 +2182,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         InvokeAsync(StateHasChanged);
     }
 
-    protected void OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb)
+        /// <summary>
+    /// OpenMediaSelectorForNested method.
+    /// </summary>
+protected void OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb)
     {
         CurrentMediaBlock = parent;
         IsGalleryMode     = false;
@@ -1775,7 +2195,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         InvokeAsync(StateHasChanged);
     }
 
-    protected void OpenNodeMediaSelector(
+        /// <summary>
+    /// OpenNodeMediaSelector method.
+    /// </summary>
+protected void OpenNodeMediaSelector(
         EditorBlock block,
         string nodeId,
         string field,
@@ -1792,7 +2215,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         InvokeAsync(StateHasChanged);
     }
 
-    protected void OpenNodeMediaSelector(
+        /// <summary>
+    /// OpenNodeMediaSelector method.
+    /// </summary>
+protected void OpenNodeMediaSelector(
         string nodeId,
         string field,
         EditorBreakpoint breakpoint)
@@ -1815,7 +2241,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         OpenNodeMediaSelector(block, nodeId, field, breakpoint);
     }
 
-    protected void OpenAudioSelector(EditorBlock block)
+        /// <summary>
+    /// OpenAudioSelector method.
+    /// </summary>
+protected void OpenAudioSelector(EditorBlock block)
     {
         // Simulate audio selection with a placeholder URL
         block.Src = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
@@ -1998,7 +2427,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         return null;
     }
 
-    protected void RemoveImage(EditorBlock block)
+        /// <summary>
+    /// RemoveImage method.
+    /// </summary>
+protected void RemoveImage(EditorBlock block)
     {
         block.Src     = string.Empty;
         block.Alt     = string.Empty;
@@ -2011,7 +2443,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // Video  (mirrors loadVideo / removeVideo)
     // ──────────────────────────────────────────────────────────
 
-    protected void LoadVideo(EditorBlock block)
+        /// <summary>
+    /// LoadVideo method.
+    /// </summary>
+protected void LoadVideo(EditorBlock block)
     {
         var url      = block.Url;
         var embedUrl = ResolveVideoEmbed(url);
@@ -2027,7 +2462,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected void LoadNestedVideo(NestedBlock nb)
+        /// <summary>
+    /// LoadNestedVideo method.
+    /// </summary>
+protected void LoadNestedVideo(NestedBlock nb)
     {
         var url      = nb.Url;
         var embedUrl = ResolveVideoEmbed(url);
@@ -2035,7 +2473,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             nb.Src = embedUrl;
     }
 
-    protected void RemoveVideo(EditorBlock block)
+        /// <summary>
+    /// RemoveVideo method.
+    /// </summary>
+protected void RemoveVideo(EditorBlock block)
     {
         block.Src = string.Empty;
         block.Url = string.Empty;
@@ -2062,14 +2503,20 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // References  (mirrors getReferenceItems / renderReferencePreview)
     // ──────────────────────────────────────────────────────────
 
-    protected List<ReferenceItem> GetReferenceItems(string type)
+        /// <summary>
+    /// GetReferenceItems method.
+    /// </summary>
+protected List<ReferenceItem> GetReferenceItems(string type)
         => _referenceData.TryGetValue(type, out var items) ? items : [];
 
     // ──────────────────────────────────────────────────────────
     // Preview  (mirrors togglePreview())
     // ──────────────────────────────────────────────────────────
 
-    protected async Task TogglePreview()
+        /// <summary>
+    /// TogglePreview method.
+    /// </summary>
+protected async Task TogglePreview()
     {
         PreviewMode = !PreviewMode;
         if (PreviewMode)
@@ -2288,7 +2735,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected async Task CreateTranslationAsync()
+        /// <summary>
+    /// CreateTranslationAsync method.
+    /// </summary>
+protected async Task CreateTranslationAsync()
     {
         if (Id is null || IsCreatingTranslation)
             return;
@@ -2345,7 +2795,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected async Task TranslateAllCulturesAsync()
+        /// <summary>
+    /// TranslateAllCulturesAsync method.
+    /// </summary>
+protected async Task TranslateAllCulturesAsync()
     {
         if (LoadedPage is null || Id is null || IsTranslatingAll)
             return;
@@ -2395,7 +2848,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         await TranslateCulturesAsync(targets, OverwriteExistingTranslations, translateAll: true);
     }
 
-    protected Task TranslateCultureAsync(CmsPageDetail variant)
+        /// <summary>
+    /// TranslateCultureAsync method.
+    /// </summary>
+protected Task TranslateCultureAsync(CmsPageDetail variant)
     {
         if (LoadedPage is null || Id is null)
             return Task.CompletedTask;
@@ -2492,16 +2948,25 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected void OpenTranslation(long pageId)
+        /// <summary>
+    /// OpenTranslation method.
+    /// </summary>
+protected void OpenTranslation(long pageId)
         => NavManager.NavigateTo($"/manager/page/editor/{pageId}?tab=translations");
 
-    protected void OpenPublicTranslation(CmsPageDetail variant)
+        /// <summary>
+    /// OpenPublicTranslation method.
+    /// </summary>
+protected void OpenPublicTranslation(CmsPageDetail variant)
     {
         var baseUri = _previewBaseUri ?? NavManager.BaseUri.TrimEnd('/');
         NavManager.NavigateTo($"{baseUri.TrimEnd('/')}{variant.Path}");
     }
 
-    protected async Task DeleteTranslationAsync(CmsPageDetail variant)
+        /// <summary>
+    /// DeleteTranslationAsync method.
+    /// </summary>
+protected async Task DeleteTranslationAsync(CmsPageDetail variant)
     {
         if (LoadedPage is null)
             return;
@@ -2533,10 +2998,16 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             ShowToast(L["Delete failed: {0}", failure.Error], "error");
     }
 
-    protected Task PublishAllTranslationsAsync()
+        /// <summary>
+    /// PublishAllTranslationsAsync method.
+    /// </summary>
+protected Task PublishAllTranslationsAsync()
         => SetAllTranslationsPublicationStateAsync(publish: true);
 
-    protected Task UnpublishAllTranslationsAsync()
+        /// <summary>
+    /// UnpublishAllTranslationsAsync method.
+    /// </summary>
+protected Task UnpublishAllTranslationsAsync()
         => SetAllTranslationsPublicationStateAsync(publish: false);
 
     private async Task SetAllTranslationsPublicationStateAsync(bool publish)
@@ -2603,7 +3074,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         TranslationSlug = string.Empty;
     }
 
-    protected string FormatCulture(string? culture)
+        /// <summary>
+    /// FormatCulture method.
+    /// </summary>
+protected string FormatCulture(string? culture)
     {
         var normalized = NormalizeCultureName(culture);
         try
@@ -2812,7 +3286,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected async Task PublishPage()
+        /// <summary>
+    /// PublishPage method.
+    /// </summary>
+protected async Task PublishPage()
     {
         if (!Id.HasValue)
         {
@@ -2836,7 +3313,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected async Task UnpublishPage()
+        /// <summary>
+    /// UnpublishPage method.
+    /// </summary>
+protected async Task UnpublishPage()
     {
         if (Id.HasValue)
         {
@@ -2854,7 +3334,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected void UpdateLastSaved()
+        /// <summary>
+    /// UpdateLastSaved method.
+    /// </summary>
+protected void UpdateLastSaved()
         => LastSaved = DateTime.Now.ToString("HH:mm");
 
     // ──────────────────────────────────────────────────────────
@@ -2902,7 +3385,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     // Toast  (mirrors showToast / removeToast)
     // ──────────────────────────────────────────────────────────
 
-    protected void ShowToast(string message, string type = "info")
+        /// <summary>
+    /// ShowToast method.
+    /// </summary>
+protected void ShowToast(string message, string type = "info")
     {
         var toast = new ToastMessage { Message = message, Type = type };
         Toasts.Add(toast);
@@ -2915,7 +3401,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }));
     }
 
-    protected void RemoveToast(string id)
+        /// <summary>
+    /// RemoveToast method.
+    /// </summary>
+protected void RemoveToast(string id)
         => Toasts.RemoveAll(t => t.Id == id);
 
     private string TabBtnClass(string tab) =>
@@ -2949,7 +3438,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         QueuePreviewRefresh();
     }
 
-    protected async Task AddPaletteItemAsync(
+        /// <summary>
+    /// AddPaletteItemAsync method.
+    /// </summary>
+protected async Task AddPaletteItemAsync(
         PageEditorCatalog.NeoEditorCatalogItem item)
     {
         if (!TryGetCustomComponentId(item.CatalogId, out var componentId))
@@ -2976,7 +3468,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         }
     }
 
-    protected void CopySelectedBlock()
+        /// <summary>
+    /// CopySelectedBlock method.
+    /// </summary>
+protected void CopySelectedBlock()
     {
         if (_nodeClipboard is not null)
         {
@@ -2993,7 +3488,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         ShowToast(L["Block copied"], "success");
     }
 
-    protected void CutSelectedBlock()
+        /// <summary>
+    /// CutSelectedBlock method.
+    /// </summary>
+protected void CutSelectedBlock()
     {
         var index = GetSelectedBlockIndex();
         if (index < 0 || index >= RootNode.Children.Count)
@@ -3011,7 +3509,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         QueuePreviewRefresh();
     }
 
-    protected void PasteBlock()
+        /// <summary>
+    /// PasteBlock method.
+    /// </summary>
+protected void PasteBlock()
     {
         if (_nodeClipboard is null)
         {
@@ -3033,7 +3534,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             L["Block pasted"]);
     }
 
-    [JSInvokable]
+        /// <summary>
+    /// HandleEditorShortcut method.
+    /// </summary>
+[JSInvokable]
     public Task HandleEditorShortcut(string command)
     {
         switch (command)
@@ -3105,7 +3609,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         _ = InvokeAsync(StateHasChanged);
     }
 
-    protected void ClearCompositionDropError()
+        /// <summary>
+    /// ClearCompositionDropError method.
+    /// </summary>
+protected void ClearCompositionDropError()
     {
         CompositionDropError = null;
     }
@@ -3120,11 +3627,17 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         _ = InvokeAsync(StateHasChanged);
     }
 
-    protected bool CanUndoComposition =>
+        /// <summary>
+    /// Gets or sets the Can Undo Composition.
+    /// </summary>
+protected bool CanUndoComposition =>
         CurrentCompositionHistory?.CanUndo == true ||
         _treeUndoStack.Count > 0;
 
-    protected bool CanRedoComposition =>
+        /// <summary>
+    /// Gets or sets the Can Redo Composition.
+    /// </summary>
+protected bool CanRedoComposition =>
         CurrentCompositionHistory?.CanRedo == true ||
         _treeRedoStack.Count > 0;
 
@@ -3134,7 +3647,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
             ? history
             : null;
 
-    protected void UndoComposition()
+        /// <summary>
+    /// UndoComposition method.
+    /// </summary>
+protected void UndoComposition()
     {
         if (CurrentCompositionHistory?.CanUndo == true)
         {
@@ -3158,7 +3674,10 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
         QueuePreviewRefresh();
     }
 
-    protected void RedoComposition()
+        /// <summary>
+    /// RedoComposition method.
+    /// </summary>
+protected void RedoComposition()
     {
         if (CurrentCompositionHistory?.CanRedo == true)
         {

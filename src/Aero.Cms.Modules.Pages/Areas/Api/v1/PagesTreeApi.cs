@@ -12,7 +12,10 @@ namespace Aero.Cms.Modules.Pages.Areas.Api.v1;
 /// </summary>
 public static class PagesTreeApi
 {
-    public static void MapPagesTreeApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapPagesTreeApi method.
+    /// </summary>
+public static void MapPagesTreeApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/pages/tree")
             .WithTags("Admin - Pages Tree");

@@ -16,13 +16,25 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Pricing;
     SchemaVersion = 1)]
 public sealed class Pricing2Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.pricing.2";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.pricing.2";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public List<Pricing2Plan> Plans { get; set; } = DefaultPlans.Select(ClonePlan).ToList();
+        /// <summary>
+    /// Gets or sets the Plans.
+    /// </summary>
+public List<Pricing2Plan> Plans { get; set; } = DefaultPlans.Select(ClonePlan).ToList();
 
-    public static readonly List<Pricing2Plan> DefaultPlans =
+        /// <summary>
+    /// DefaultPlans.
+    /// </summary>
+public static readonly List<Pricing2Plan> DefaultPlans =
     [
         new()
         {
@@ -77,7 +89,10 @@ public sealed class Pricing2Block : BlockBase
         }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static Pricing2Plan ClonePlan(Pricing2Plan plan) => new()
     {
@@ -91,19 +106,52 @@ public sealed class Pricing2Block : BlockBase
     };
 }
 
+/// <summary>
+/// Represents a class for Pricing2Plan.
+/// </summary>
 public sealed class Pricing2Plan
 {
-    public string Name { get; set; } = "";
-    public string Description { get; set; } = "";
-    public string Price { get; set; } = "";
-    public string Period { get; set; } = "/month";
-    public string CtaText { get; set; } = "Get Started";
-    public string CtaUrl { get; set; } = "#";
-    public List<Pricing2Feature> Features { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Price.
+    /// </summary>
+public string Price { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Period.
+    /// </summary>
+public string Period { get; set; } = "/month";
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText { get; set; } = "Get Started";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Features.
+    /// </summary>
+public List<Pricing2Feature> Features { get; set; } = [];
 }
 
+/// <summary>
+/// Represents a class for Pricing2Feature.
+/// </summary>
 public sealed class Pricing2Feature
 {
-    public string Text { get; set; } = "";
-    public bool Included { get; set; }
+        /// <summary>
+    /// Gets or sets the Text.
+    /// </summary>
+public string Text { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Included.
+    /// </summary>
+public bool Included { get; set; }
 }

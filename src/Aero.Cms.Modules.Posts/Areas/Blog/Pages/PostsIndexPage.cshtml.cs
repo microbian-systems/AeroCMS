@@ -11,27 +11,69 @@ using System.Globalization;
 
 namespace Aero.Cms.Modules.Posts.Areas.Blog.Pages;
 
+/// <summary>
+/// Represents a class for PostsIndexPageModel.
+/// </summary>
 [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, VaryByQueryKeys = ["p"])]
 [OutputCache(PolicyName = "BlogPolicy")]
 public class PostsIndexPageModel(
     IAeroPostActor postActor,
     ISiteContext siteContext) : PageModel
 {
-    public int PageNumber { get; private set; } = 1;
-    public int PageSize { get; private set; } = 10;
-    public int TotalCount { get; private set; }
-    public int TotalPages { get; private set; }
-    public bool HasNextPage { get; private set; }
-    public bool HasPreviousPage { get; private set; }
+        /// <summary>
+    /// Gets or sets the Page Number.
+    /// </summary>
+public int PageNumber { get; private set; } = 1;
+        /// <summary>
+    /// Gets or sets the Page Size.
+    /// </summary>
+public int PageSize { get; private set; } = 10;
+        /// <summary>
+    /// Gets or sets the Total Count.
+    /// </summary>
+public int TotalCount { get; private set; }
+        /// <summary>
+    /// Gets or sets the Total Pages.
+    /// </summary>
+public int TotalPages { get; private set; }
+        /// <summary>
+    /// Gets or sets the Has Next Page.
+    /// </summary>
+public bool HasNextPage { get; private set; }
+        /// <summary>
+    /// Gets or sets the Has Previous Page.
+    /// </summary>
+public bool HasPreviousPage { get; private set; }
 
-    public List<PostViewModel> FeaturedPosts { get; private set; } = [];
-    public List<PostViewModel> OtherPosts { get; private set; } = [];
-    public Dictionary<long, string> TagNames { get; private set; } = [];
-    public string RequestedCulture { get; private set; } = "en-US";
-    public string CanonicalUrl { get; private set; } = string.Empty;
-    public IReadOnlyList<AlternateBlogIndexLink> AlternateLinks { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Featured Posts.
+    /// </summary>
+public List<PostViewModel> FeaturedPosts { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Other Posts.
+    /// </summary>
+public List<PostViewModel> OtherPosts { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Tag Names.
+    /// </summary>
+public Dictionary<long, string> TagNames { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Requested Culture.
+    /// </summary>
+public string RequestedCulture { get; private set; } = "en-US";
+        /// <summary>
+    /// Gets or sets the Canonical Url.
+    /// </summary>
+public string CanonicalUrl { get; private set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alternate Links.
+    /// </summary>
+public IReadOnlyList<AlternateBlogIndexLink> AlternateLinks { get; private set; } = [];
 
-    public async Task OnGetAsync(int? p, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task OnGetAsync(int? p, CancellationToken cancellationToken = default)
     {
         PageNumber = p ?? 1;
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
@@ -48,7 +90,10 @@ public class PostsIndexPageModel(
         TagNames = await postActor.GetTagNameMapAsync(siteContext.SiteId, cancellationToken);
     }
 
-    public async Task<IActionResult> OnGetPostsPageAsync(int p, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// OnGetPostsPageAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetPostsPageAsync(int p, CancellationToken cancellationToken = default)
     {
         PageNumber = p;
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
@@ -61,10 +106,16 @@ public class PostsIndexPageModel(
         return Partial("_PostsList", this);
     }
 
-    public string BuildPostUrl(PostViewModel post)
+        /// <summary>
+    /// BuildPostUrl method.
+    /// </summary>
+public string BuildPostUrl(PostViewModel post)
         => AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, RequestedCulture, $"blog/{post.Slug}");
 
-    public string BuildPostsPageUrl(int pageNumber)
+        /// <summary>
+    /// BuildPostsPageUrl method.
+    /// </summary>
+public string BuildPostsPageUrl(int pageNumber)
     {
         var path = AeroCultureRoute.BuildCulturePathForCurrentRequest(HttpContext, RequestedCulture, "blog");
         return $"{path}?handler=PostsPage&p={pageNumber}";
@@ -104,5 +155,8 @@ public class PostsIndexPageModel(
         return links;
     }
 
-    public sealed record AlternateBlogIndexLink(string Hreflang, string Href);
+        /// <summary>
+    /// Represents a record for AlternateBlogIndexLink.
+    /// </summary>
+public sealed record AlternateBlogIndexLink(string Hreflang, string Href);
 }

@@ -3,15 +3,27 @@ using Microsoft.AspNetCore.Components;
 
 namespace Aero.Cms.Shared.Components;
 
+/// <summary>
+/// Represents a class for CultureSwitcher.
+/// </summary>
 public partial class CultureSwitcher : ComponentBase
 {
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Links.
+    /// </summary>
+[Parameter]
     public IReadOnlyList<CultureSwitcherLink> Links { get; set; } = [];
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Css Class.
+    /// </summary>
+[Parameter]
     public string CssClass { get; set; } = string.Empty;
 
-    public static CultureSwitcherLink CreateLink(string culture, string href, bool isActive)
+        /// <summary>
+    /// CreateLink method.
+    /// </summary>
+public static CultureSwitcherLink CreateLink(string culture, string href, bool isActive)
     {
         var normalizedCulture = NormalizeCulture(culture);
         return new CultureSwitcherLink(
@@ -47,6 +59,9 @@ public partial class CultureSwitcher : ComponentBase
     }
 }
 
+/// <summary>
+/// Represents a record for CultureSwitcherLink.
+/// </summary>
 public sealed record CultureSwitcherLink(
     string Hreflang,
     string Label,

@@ -10,7 +10,10 @@ public sealed class AeroBlockService : IBlockService
 {
     private readonly IDocumentSession _session;
 
-    public AeroBlockService(IDocumentSession session)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroBlockService"/> class.
+    /// </summary>
+public AeroBlockService(IDocumentSession session)
     {
         _session = session;
     }
@@ -56,7 +59,10 @@ public sealed class AeroBlockService : IBlockService
         return result;
     }
 
-    public async Task<BlockBase> SaveAsync(BlockBase block, CancellationToken ct = default)
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+public async Task<BlockBase> SaveAsync(BlockBase block, CancellationToken ct = default)
     {
         _session.Store(block);
         await _session.SaveChangesAsync(ct);

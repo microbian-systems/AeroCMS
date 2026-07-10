@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Abstractions.Validators;
 using Aero.Core;
@@ -11,9 +11,15 @@ using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a class for Aliases.
+/// </summary>
 public partial class Aliases
 {
-    [Inject] public ILogger<Aliases> log { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the log.
+    /// </summary>
+[Inject] public ILogger<Aliases> log { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
     private RadzenDataGrid<AliasViewModel>? _grid;

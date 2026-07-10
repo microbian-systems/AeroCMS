@@ -24,6 +24,9 @@ public interface IPostImportService
         ImportFileRequest request, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Represents a class for PostsImportService.
+/// </summary>
 public sealed class PostsImportService : IPostImportService
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -42,7 +45,10 @@ public sealed class PostsImportService : IPostImportService
     private readonly ISiteContext _siteContext;
     private readonly ILogger<PostsImportService> _log;
 
-    public PostsImportService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PostsImportService"/> class.
+    /// </summary>
+public PostsImportService(
         IEnumerable<IPostImportParser> parsers,
         IDocumentSession session,
         IPexelsService? pexels,

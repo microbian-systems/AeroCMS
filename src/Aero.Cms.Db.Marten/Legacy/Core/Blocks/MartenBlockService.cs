@@ -10,7 +10,10 @@ public sealed class MartenBlockService : IBlockService
 {
     private readonly IDocumentSession _session;
 
-    public MartenBlockService(IDocumentSession session)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="MartenBlockService"/> class.
+    /// </summary>
+public MartenBlockService(IDocumentSession session)
     {
         _session = session;
     }
@@ -56,7 +59,10 @@ public sealed class MartenBlockService : IBlockService
         return result;
     }
 
-    public async Task<BlockBase> SaveAsync(BlockBase block, CancellationToken ct = default)
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+public async Task<BlockBase> SaveAsync(BlockBase block, CancellationToken ct = default)
     {
         _session.Store(block);
         await _session.SaveChangesAsync(ct);

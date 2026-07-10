@@ -4,20 +4,56 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Sections;
 
+/// <summary>
+/// Represents a class for Sections4EditorBlockDefinition.
+/// </summary>
 public sealed class Sections4EditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "hyper.sections.4";
-    public string DisplayName => "Sections 4";
-    public string? Description => "Stacked layout with text on top, image below.";
-    public string Category => "Hyper";
-    public string Kind => "Block";
-    public string IconName => "columns";
-    public int SortOrder => 80;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(Sections4BlockEditorPreview);
-    public Type? PropertyEditorComponentType => typeof(Sections4BlockEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "hyper.sections.4";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Sections 4";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Stacked layout with text on top, image below.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Hyper";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "columns";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 80;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(Sections4BlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(Sections4BlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -27,13 +63,19 @@ public sealed class Sections4EditorBlockDefinition : IPageEditorBlockDefinition
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToSectionsBlock(editorBlock);
         return Sections4BlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToSectionsBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToSectionsBlock(editorBlock);
 
     private static Sections4Block ToSectionsBlock(EditorBlock editorBlock)
     {

@@ -14,9 +14,15 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a class for FooterEditor.
+/// </summary>
 public partial class FooterEditor
 {
-    [Parameter] public long Id { get; set; }
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+[Parameter] public long Id { get; set; }
 
     [Inject] private IFootersHttpClient FootersClient { get; set; } = default!;
     [Inject] private ISitesHttpClient SitesClient { get; set; } = default!;
@@ -37,7 +43,10 @@ public partial class FooterEditor
     private bool _isCreatingTranslation;
     private bool _isTranslatingAll;
     private bool _overwriteExistingTranslations;
-    protected bool PreviewMode { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Mode.
+    /// </summary>
+protected bool PreviewMode { get; set; }
     private bool RightSidebarCollapsed { get; set; }
     private bool CategoryFooter { get; set; } = true;
     private string SelectedBlockId { get; set; } = string.Empty;
@@ -56,7 +65,10 @@ public partial class FooterEditor
         _currentSite?.SupportedCultures is { Count: > 0 } cultures
             ? cultures
             : [_selected?.Culture ?? _currentSite?.DefaultCulture ?? "en-US"];
-    protected string PreviewFrameDocument => BuildPreviewFrameDocument(BuildPreviewHtml(), Navigation.BaseUri, _editName);
+        /// <summary>
+    /// Gets or sets the Preview Frame Document.
+    /// </summary>
+protected string PreviewFrameDocument => BuildPreviewFrameDocument(BuildPreviewHtml(), Navigation.BaseUri, _editName);
     private static IReadOnlyList<PaletteBlock> FooterPalette { get; } =
     [
         new("linkGroup", "Link Group"),
@@ -75,7 +87,10 @@ public partial class FooterEditor
                 string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         await LoadFooterAsync();
     }
@@ -1317,32 +1332,98 @@ public partial class FooterEditor
         Close();
     };
 
-    protected sealed class FooterLinkEditorModel
+        /// <summary>
+    /// Represents a class for FooterLinkEditorModel.
+    /// </summary>
+protected sealed class FooterLinkEditorModel
     {
-        public long Id { get; set; }
-        public string Label { get; set; } = string.Empty;
-        public string Href { get; set; } = "/";
-        public int Order { get; set; }
-        public bool OpenInNewTab { get; set; }
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+public long Id { get; set; }
+                /// <summary>
+        /// Gets or sets the Label.
+        /// </summary>
+public string Label { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Href.
+        /// </summary>
+public string Href { get; set; } = "/";
+                /// <summary>
+        /// Gets or sets the Order.
+        /// </summary>
+public int Order { get; set; }
+                /// <summary>
+        /// Gets or sets the Open In New Tab.
+        /// </summary>
+public bool OpenInNewTab { get; set; }
     }
 
-    protected sealed class FooterComponentEditorModel
+        /// <summary>
+    /// Represents a class for FooterComponentEditorModel.
+    /// </summary>
+protected sealed class FooterComponentEditorModel
     {
-        public string ClientId { get; } = Guid.NewGuid().ToString("N");
-        public long Id { get; set; }
-        public string Kind { get; set; } = "linkGroup";
-        public string Placement { get; set; } = "Main";
-        public int Order { get; set; }
-        public string? Title { get; set; }
-        public string? Text { get; set; }
-        public List<FooterLinkEditorModel> Links { get; set; } = [];
-        public List<FooterSocialLinkEditorModel> SocialLinks { get; set; } = [];
-        public string? EndpointKey { get; set; }
-        public string? Placeholder { get; set; }
-        public string? ButtonLabel { get; set; }
-        public string? SearchAction { get; set; }
-        public string? SizeToken { get; set; }
-        public string DisplayName => Kind.Trim().ToLowerInvariant() switch
+                /// <summary>
+        /// Gets or sets the Client Id.
+        /// </summary>
+public string ClientId { get; } = Guid.NewGuid().ToString("N");
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+public long Id { get; set; }
+                /// <summary>
+        /// Gets or sets the Kind.
+        /// </summary>
+public string Kind { get; set; } = "linkGroup";
+                /// <summary>
+        /// Gets or sets the Placement.
+        /// </summary>
+public string Placement { get; set; } = "Main";
+                /// <summary>
+        /// Gets or sets the Order.
+        /// </summary>
+public int Order { get; set; }
+                /// <summary>
+        /// Gets or sets the Title.
+        /// </summary>
+public string? Title { get; set; }
+                /// <summary>
+        /// Gets or sets the Text.
+        /// </summary>
+public string? Text { get; set; }
+                /// <summary>
+        /// Gets or sets the Links.
+        /// </summary>
+public List<FooterLinkEditorModel> Links { get; set; } = [];
+                /// <summary>
+        /// Gets or sets the Social Links.
+        /// </summary>
+public List<FooterSocialLinkEditorModel> SocialLinks { get; set; } = [];
+                /// <summary>
+        /// Gets or sets the Endpoint Key.
+        /// </summary>
+public string? EndpointKey { get; set; }
+                /// <summary>
+        /// Gets or sets the Placeholder.
+        /// </summary>
+public string? Placeholder { get; set; }
+                /// <summary>
+        /// Gets or sets the Button Label.
+        /// </summary>
+public string? ButtonLabel { get; set; }
+                /// <summary>
+        /// Gets or sets the Search Action.
+        /// </summary>
+public string? SearchAction { get; set; }
+                /// <summary>
+        /// Gets or sets the Size Token.
+        /// </summary>
+public string? SizeToken { get; set; }
+                /// <summary>
+        /// Gets or sets the Display Name.
+        /// </summary>
+public string DisplayName => Kind.Trim().ToLowerInvariant() switch
         {
             "text" => "Text",
             "social" or "sociallinks" => "Social links",
@@ -1353,33 +1434,93 @@ public partial class FooterEditor
         };
     }
 
-    protected sealed class FooterSocialLinkEditorModel
+        /// <summary>
+    /// Represents a class for FooterSocialLinkEditorModel.
+    /// </summary>
+protected sealed class FooterSocialLinkEditorModel
     {
-        public string Platform { get; set; } = string.Empty;
-        public string Href { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Platform.
+        /// </summary>
+public string Platform { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Href.
+        /// </summary>
+public string Href { get; set; } = string.Empty;
     }
 
-    protected sealed class FooterCanvasRowEditorModel
+        /// <summary>
+    /// Represents a class for FooterCanvasRowEditorModel.
+    /// </summary>
+protected sealed class FooterCanvasRowEditorModel
     {
-        public string ClientId { get; } = Guid.NewGuid().ToString("N");
-        public long Id { get; set; }
-        public int Order { get; set; }
-        public string? Label { get; set; }
-        public string DesktopDisplay { get; set; } = "Grid";
-        public string TabletDisplay { get; set; } = "Grid";
-        public string MobileDisplay { get; set; } = "Stack";
-        public List<FooterCanvasColumnEditorModel> Columns { get; set; } = [];
+                /// <summary>
+        /// Gets or sets the Client Id.
+        /// </summary>
+public string ClientId { get; } = Guid.NewGuid().ToString("N");
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+public long Id { get; set; }
+                /// <summary>
+        /// Gets or sets the Order.
+        /// </summary>
+public int Order { get; set; }
+                /// <summary>
+        /// Gets or sets the Label.
+        /// </summary>
+public string? Label { get; set; }
+                /// <summary>
+        /// Gets or sets the Desktop Display.
+        /// </summary>
+public string DesktopDisplay { get; set; } = "Grid";
+                /// <summary>
+        /// Gets or sets the Tablet Display.
+        /// </summary>
+public string TabletDisplay { get; set; } = "Grid";
+                /// <summary>
+        /// Gets or sets the Mobile Display.
+        /// </summary>
+public string MobileDisplay { get; set; } = "Stack";
+                /// <summary>
+        /// Gets or sets the Columns.
+        /// </summary>
+public List<FooterCanvasColumnEditorModel> Columns { get; set; } = [];
     }
 
-    protected sealed class FooterCanvasColumnEditorModel
+        /// <summary>
+    /// Represents a class for FooterCanvasColumnEditorModel.
+    /// </summary>
+protected sealed class FooterCanvasColumnEditorModel
     {
-        public string ClientId { get; } = Guid.NewGuid().ToString("N");
-        public long Id { get; set; }
-        public int Order { get; set; }
-        public int DesktopSpan { get; set; } = 4;
-        public int TabletSpan { get; set; } = 6;
-        public int MobileSpan { get; set; } = 12;
-        public List<FooterComponentEditorModel> Blocks { get; set; } = [];
+                /// <summary>
+        /// Gets or sets the Client Id.
+        /// </summary>
+public string ClientId { get; } = Guid.NewGuid().ToString("N");
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+public long Id { get; set; }
+                /// <summary>
+        /// Gets or sets the Order.
+        /// </summary>
+public int Order { get; set; }
+                /// <summary>
+        /// Gets or sets the Desktop Span.
+        /// </summary>
+public int DesktopSpan { get; set; } = 4;
+                /// <summary>
+        /// Gets or sets the Tablet Span.
+        /// </summary>
+public int TabletSpan { get; set; } = 6;
+                /// <summary>
+        /// Gets or sets the Mobile Span.
+        /// </summary>
+public int MobileSpan { get; set; } = 12;
+                /// <summary>
+        /// Gets or sets the Blocks.
+        /// </summary>
+public List<FooterComponentEditorModel> Blocks { get; set; } = [];
     }
 
     private sealed record PaletteBlock(string Kind, string Label);

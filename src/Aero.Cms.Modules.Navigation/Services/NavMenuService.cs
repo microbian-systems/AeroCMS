@@ -9,13 +9,19 @@ using static Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Modules.Navigation.Services;
 
+/// <summary>
+/// Represents a class for NavMenuService.
+/// </summary>
 public sealed class NavMenuService(
     IDocumentSession session,
     ISiteContext siteContext,
     ILogger<NavMenuService> logger,
     IMessageBus? bus = null) : INavMenuService
 {
-    public async Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount), AeroError>> ListAsync(
+        /// <summary>
+    /// ListAsync method.
+    /// </summary>
+public async Task<Result<(IReadOnlyList<NavMenuDocument> Items, long TotalCount), AeroError>> ListAsync(
         int skip = 0,
         int take = 20,
         string? search = null,
@@ -49,7 +55,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<NavMenuDocument, AeroError>> GetAsync(long id, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetAsync method.
+    /// </summary>
+public async Task<Result<NavMenuDocument, AeroError>> GetAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -68,7 +77,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetDetailAsync method.
+    /// </summary>
+public async Task<Result<NavigationDetail, AeroError>> GetDetailAsync(long id, CancellationToken cancellationToken = default)
     {
         var menuResult = await GetAsync(id, cancellationToken);
         if (menuResult is Result<NavMenuDocument, AeroError>.Failure failure)
@@ -82,7 +94,10 @@ public sealed class NavMenuService(
         return Ok<NavigationDetail, AeroError>(MapDetail(menu, snapshot, version));
     }
 
-    public async Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<NavigationDetail>, AeroError>> ListCultureVariantsAsync(
         long id,
         CancellationToken cancellationToken = default)
     {
@@ -120,7 +135,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetDefaultIdAsync method.
+    /// </summary>
+public async Task<Result<long?, AeroError>> GetDefaultIdAsync(long siteId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -140,7 +158,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
+        /// <summary>
+    /// GetPublishedSnapshotAsync method.
+    /// </summary>
+public async Task<Result<NavMenuSnapshot?, AeroError>> GetPublishedSnapshotAsync(
         long id,
         CancellationToken cancellationToken = default)
     {
@@ -172,7 +193,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
+        /// <summary>
+    /// ResolveSnapshotAsync method.
+    /// </summary>
+public async Task<Result<NavMenuSnapshot?, AeroError>> ResolveSnapshotAsync(
         long siteId,
         long? pageOverrideId = null,
         CancellationToken cancellationToken = default)
@@ -205,7 +229,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<NavMenuDocument, AeroError>> CreateAsync(
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<Result<NavMenuDocument, AeroError>> CreateAsync(
         CreateNavigationRequest request,
         long? userId = null,
         CancellationToken cancellationToken = default)
@@ -249,7 +276,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<NavMenuDocument, AeroError>> SaveDraftAsync(
+        /// <summary>
+    /// SaveDraftAsync method.
+    /// </summary>
+public async Task<Result<NavMenuDocument, AeroError>> SaveDraftAsync(
         long id,
         UpdateNavigationRequest request,
         long expectedVersion,
@@ -300,7 +330,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<NavMenuDocument, AeroError>> PublishAsync(
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+public async Task<Result<NavMenuDocument, AeroError>> PublishAsync(
         long id,
         long expectedVersion,
         long? userId = null,
@@ -350,7 +383,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> SetDefaultAsync(
+        /// <summary>
+    /// SetDefaultAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> SetDefaultAsync(
         long id,
         long? userId = null,
         CancellationToken cancellationToken = default)
@@ -395,7 +431,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> ArchiveAsync(
+        /// <summary>
+    /// ArchiveAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> ArchiveAsync(
         long id,
         long expectedVersion,
         long? userId = null,
@@ -509,7 +548,10 @@ public sealed class NavMenuService(
         }
     }
 
-    public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+public async Task<Result<NavMenuDocument, AeroError>> ForkToCultureAsync(
         long id,
         string targetCulture,
         long? userId = null,

@@ -1,7 +1,16 @@
 namespace Aero.AppServer.Startup;
 
+/// <summary>
+/// Represents a class for StartupServiceNames.
+/// </summary>
 public static class StartupServiceNames
 {
-    public const string Postgres = nameof(Postgres);
-    public const string Garnet = nameof(Garnet);
+        /// <summary>
+    /// Postgres.
+    /// </summary>
+public const string Postgres = nameof(Postgres);
+        /// <summary>
+    /// Garnet.
+    /// </summary>
+public const string Garnet = nameof(Garnet);
 }

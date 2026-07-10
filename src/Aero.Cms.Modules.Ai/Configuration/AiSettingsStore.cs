@@ -11,6 +11,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Ai.Configuration;
 
+/// <summary>
+/// Represents a class for AiSettingsStore.
+/// </summary>
 public sealed class AiSettingsStore(
     IDocumentSession session,
     IConfiguration configuration,
@@ -24,7 +27,10 @@ public sealed class AiSettingsStore(
         WriteIndented = false
     };
 
-    public async Task<Result<AiSettingsConfiguration, AeroError>> GetConfigurationAsync(
+        /// <summary>
+    /// GetConfigurationAsync method.
+    /// </summary>
+public async Task<Result<AiSettingsConfiguration, AeroError>> GetConfigurationAsync(
         CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
@@ -68,7 +74,10 @@ public sealed class AiSettingsStore(
         }
     }
 
-    public async Task<Result<AiSettingsConfiguration, AeroError>> SaveConfigurationAsync(
+        /// <summary>
+    /// SaveConfigurationAsync method.
+    /// </summary>
+public async Task<Result<AiSettingsConfiguration, AeroError>> SaveConfigurationAsync(
         SaveAiSettingsRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -159,7 +168,10 @@ public sealed class AiSettingsStore(
         }
     }
 
-    public async Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProviderOptionsAsync(
+        /// <summary>
+    /// GetProviderOptionsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<AiProviderOption>, AeroError>> GetProviderOptionsAsync(
         CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
@@ -196,7 +208,10 @@ public sealed class AiSettingsStore(
         return options;
     }
 
-    public async Task<Result<AiRuntimeSettings>> GetRuntimeSettingsAsync(
+        /// <summary>
+    /// GetRuntimeSettingsAsync method.
+    /// </summary>
+public async Task<Result<AiRuntimeSettings>> GetRuntimeSettingsAsync(
         string? providerId = null,
         CancellationToken cancellationToken = default)
     {
@@ -286,7 +301,10 @@ public sealed class AiSettingsStore(
         }
     }
 
-    public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// EnsureDefaultsAsync method.
+    /// </summary>
+public async Task EnsureDefaultsAsync(CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
         try

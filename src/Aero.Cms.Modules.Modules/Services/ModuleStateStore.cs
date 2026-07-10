@@ -10,7 +10,10 @@ public sealed class ModuleStateStore : IModuleStateStore
 {
     private readonly IDocumentSession _session;
 
-    public ModuleStateStore(IDocumentSession session)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="ModuleStateStore"/> class.
+    /// </summary>
+public ModuleStateStore(IDocumentSession session)
     {
         _session = session;
     }

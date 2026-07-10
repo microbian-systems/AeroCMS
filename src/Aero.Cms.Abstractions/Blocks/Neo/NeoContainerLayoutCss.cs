@@ -7,7 +7,10 @@ using System.Text.Json;
 /// </summary>
 public static class NeoContainerLayoutCss
 {
-    public static string FromProperties(IReadOnlyDictionary<string, JsonElement> properties)
+        /// <summary>
+    /// FromProperties method.
+    /// </summary>
+public static string FromProperties(IReadOnlyDictionary<string, JsonElement> properties)
     {
         var layout = GetString(properties, "layout", "stack");
         var gap = GetInt(properties, "gap", 4);

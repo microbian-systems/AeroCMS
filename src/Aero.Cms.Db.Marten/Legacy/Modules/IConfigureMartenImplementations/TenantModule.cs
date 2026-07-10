@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
 using Marten;
 using Microsoft.Extensions.Configuration;
@@ -8,24 +8,51 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Tenant;
 
+/// <summary>
+/// Represents a class for TenantModule.
+/// </summary>
 [Module(nameof(TenantModule))]
 public class TenantModule : AeroModuleBase, IConfigureMarten
 {
-    public override string Name => nameof(TenantModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => [];
-    public override IReadOnlyList<string> Tags => [];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(TenantModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => [];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => [];
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         opts.Schema.For<TenantModel>().DocumentAlias(Schemas.Tables.Tenants);
         
         base.Configure(services, opts);
     }
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
 

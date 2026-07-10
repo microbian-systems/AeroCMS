@@ -8,22 +8,52 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("aero_faq", "Aero FAQ", Category = "Aero")]
 public class AeroFaqBlock : BlockBase
 {
-    public override string BlockType => "aero_faq";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "aero_faq";
 
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public List<AeroFaqItem> Items { get; set; } = new();
-    public AeroFaqLayout Layout { get; set; } = AeroFaqLayout.Collapse;
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Items.
+    /// </summary>
+public List<AeroFaqItem> Items { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Layout.
+    /// </summary>
+public AeroFaqLayout Layout { get; set; } = AeroFaqLayout.Collapse;
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
+/// <summary>
+/// Represents a class for AeroFaqItem.
+/// </summary>
 public class AeroFaqItem
 {
-    public string? Question { get; set; }
-    public string? Answer { get; set; }
+        /// <summary>
+    /// Gets or sets the Question.
+    /// </summary>
+public string? Question { get; set; }
+        /// <summary>
+    /// Gets or sets the Answer.
+    /// </summary>
+public string? Answer { get; set; }
 }
 
+/// <summary>
+/// Defines an enumeration for AeroFaqLayout.
+/// </summary>
 public enum AeroFaqLayout
 {
     Collapse,

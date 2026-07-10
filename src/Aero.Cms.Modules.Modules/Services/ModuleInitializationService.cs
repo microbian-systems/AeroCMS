@@ -11,7 +11,10 @@ public sealed class ModuleInitializationService : IModuleInitializationService
 {
     private readonly IModuleStateStore _moduleStateStore;
         
-    public ModuleInitializationService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="ModuleInitializationService"/> class.
+    /// </summary>
+public ModuleInitializationService(
         IModuleStateStore moduleStateStore)
     {
         _moduleStateStore = moduleStateStore;

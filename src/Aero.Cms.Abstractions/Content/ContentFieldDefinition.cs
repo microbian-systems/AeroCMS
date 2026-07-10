@@ -1,5 +1,8 @@
 namespace Aero.Cms.Abstractions.Content;
 
+/// <summary>
+/// Represents a class for ContentFieldDefinition.
+/// </summary>
 public sealed class ContentFieldDefinition
 {
     /// <summary>Field name used as the key in ContentItem.Fields</summary>
@@ -11,7 +14,10 @@ public sealed class ContentFieldDefinition
     /// <summary>Display label for the admin UI</summary>
     public string? Label { get; set; }
 
-    public bool Required { get; set; }
+        /// <summary>
+    /// Gets or sets the Required.
+    /// </summary>
+public bool Required { get; set; }
 
     /// <summary>Default value when the field is empty</summary>
     public string? DefaultValue { get; set; }

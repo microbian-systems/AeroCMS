@@ -4,29 +4,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.CenteredHero;
 
+/// <summary>
+/// Represents a class for CenteredHeroEditorBlockDefinition.
+/// </summary>
 public sealed class CenteredHeroEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => CenteredHeroBlock.BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => CenteredHeroBlock.BlockTypeId;
 
-    public string DisplayName => "Centered Hero";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Centered Hero";
 
-    public string? Description => "A NeoUI centered hero section with eyebrow, title, highlight, dual CTAs, and trust markers.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "A NeoUI centered hero section with eyebrow, title, highlight, dual CTAs, and trust markers.";
 
-    public string Category => "Neo";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Neo";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "sparkles";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "sparkles";
 
-    public int SortOrder => 10;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 10;
 
-    public bool PublicStaticSsrSafe => false;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => false;
 
-    public Type? PreviewComponentType => typeof(CenteredHeroBlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(CenteredHeroBlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(CenteredHeroBlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(CenteredHeroBlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -44,13 +80,19 @@ public sealed class CenteredHeroEditorBlockDefinition : IPageEditorBlockDefiniti
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlock(editorBlock);
         return CenteredHeroBlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
 
     private static CenteredHeroBlock ToBlock(EditorBlock editor) => new()
     {

@@ -4,29 +4,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.ProductCards;
 
+/// <summary>
+/// Represents a class for ProductCard1EditorBlockDefinition.
+/// </summary>
 public sealed class ProductCard1EditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "hyper.product-cards.1";
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "hyper.product-cards.1";
 
-    public string DisplayName => "Product Card 1";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Product Card 1";
 
-    public string? Description => "Product card with image hover swap, title, and price.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Product card with image hover swap, title, and price.";
 
-    public string Category => "Hyper";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Hyper";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "shopping-bag";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "shopping-bag";
 
-    public int SortOrder => 103;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 103;
 
-    public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
 
-    public Type? PreviewComponentType => typeof(ProductCard1BlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(ProductCard1BlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(ProductCard1BlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(ProductCard1BlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -36,13 +72,19 @@ public sealed class ProductCard1EditorBlockDefinition : IPageEditorBlockDefiniti
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToCardBlock(editorBlock);
         return ProductCard1BlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToCardBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToCardBlock(editorBlock);
 
     private static ProductCard1Block ToCardBlock(EditorBlock editorBlock)
     {

@@ -5,7 +5,16 @@ namespace Aero.Cms.Modules.Docs.Areas.Docs.Models;
 /// </summary>
 public sealed class HeadingItem
 {
-    public string Text { get; set; } = string.Empty;
-    public string AnchorId { get; set; } = string.Empty;
-    public int Level { get; set; } // 2 = H2, 3 = H3
+        /// <summary>
+    /// Gets or sets the Text.
+    /// </summary>
+public string Text { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Anchor Id.
+    /// </summary>
+public string AnchorId { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Level.
+    /// </summary>
+public int Level { get; set; } // 2 = H2, 3 = H3
 }

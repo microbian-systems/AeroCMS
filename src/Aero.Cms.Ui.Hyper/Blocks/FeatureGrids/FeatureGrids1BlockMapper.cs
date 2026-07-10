@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.FeatureGrids;
 
+/// <summary>
+/// Represents a class for FeatureGrids1BlockMapper.
+/// </summary>
 public static class FeatureGrids1BlockMapper
 {
-    public static NeoPageNode ToNode(FeatureGrids1Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(FeatureGrids1Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.feature-grids.1",
@@ -18,7 +24,10 @@ public static class FeatureGrids1BlockMapper
         }
     };
 
-    public static FeatureGrids1Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static FeatureGrids1Block FromNode(NeoPageNode node) => new()
     {
         Title = GetString(node, "title", "Features for growth"),
         Description = GetString(node, "description", "Lorem ipsum dolor sit, amet consectetur adipisicing elit. Veritatis tenetur, nemo quam voluptas sunt impedit dolorem asperiores aliquid doloribus fugit."),

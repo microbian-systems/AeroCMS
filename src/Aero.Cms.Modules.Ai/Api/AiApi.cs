@@ -13,9 +13,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Ai.Api;
 
+/// <summary>
+/// Represents a class for AiApi.
+/// </summary>
 public static class AiApi
 {
-    public static void MapAiApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapAiApi method.
+    /// </summary>
+public static void MapAiApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/ai")
             .WithTags("Admin - AI")

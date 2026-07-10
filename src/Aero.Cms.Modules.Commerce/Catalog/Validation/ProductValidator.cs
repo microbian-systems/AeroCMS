@@ -3,9 +3,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Modules.Commerce.Catalog.Validation;
 
+/// <summary>
+/// Represents a class for ProductValidator.
+/// </summary>
 public sealed class ProductValidator : AbstractValidator<ProductDocument>
 {
-    public ProductValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="ProductValidator"/> class.
+    /// </summary>
+public ProductValidator()
     {
         RuleFor(x => x.Id)
             .GreaterThan(0)

@@ -38,7 +38,10 @@ internal sealed class ServerAuthenticationStateProvider(
     /// </summary>
     public CurrentUserResponse? CurrentUser => _cachedUser;
 
-    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+        /// <summary>
+    /// GetAuthenticationStateAsync method.
+    /// </summary>
+public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         // Return cached result if we've already resolved
         if (_cachedAuthState is not null)
@@ -96,7 +99,10 @@ internal sealed class ServerAuthenticationStateProvider(
         }
     }
 
-    public void InvalidateCache()
+        /// <summary>
+    /// InvalidateCache method.
+    /// </summary>
+public void InvalidateCache()
     {
         _cachedAuthState = null;
         _cachedUser = null;
@@ -130,7 +136,10 @@ internal sealed class ServerAuthenticationStateProvider(
             new ClaimsPrincipal(new ClaimsIdentity(claims, "BlazorWebAppAuthentication")));
     }
 
-    public sealed record CurrentUserResponse(
+        /// <summary>
+    /// Represents a record for CurrentUserResponse.
+    /// </summary>
+public sealed record CurrentUserResponse(
         long UserId,
         string UserName,
         string? Email,

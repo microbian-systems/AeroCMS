@@ -1,9 +1,15 @@
-﻿using Foundation;
+using Foundation;
 
 namespace Aero.Cms;
 
+/// <summary>
+/// Represents a class for AppDelegate.
+/// </summary>
 [Register("AppDelegate")]
 public class AppDelegate : MauiUIApplicationDelegate
 {
-    protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+        /// <summary>
+    /// CreateMauiApp method.
+    /// </summary>
+protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
 }

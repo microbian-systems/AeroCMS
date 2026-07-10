@@ -16,16 +16,43 @@ namespace Aero.Cms.Ui.Hyper.Blocks.EmptyContent;
     SchemaVersion = 1)]
 public sealed class EmptyContent1Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.empty-content.1";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.empty-content.1";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Hmm, nothing found";
-    public string Description { get; set; } = "We couldn't find what you were looking for. Try a different search term or explore our popular categories.";
-    public string CtaText { get; set; } = "Browse Popular Items";
-    public string CtaUrl { get; set; } = "#";
-    public string CtaText2 { get; set; } = "Refine Search";
-    public string CtaUrl2 { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Hmm, nothing found";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "We couldn't find what you were looking for. Try a different search term or explore our popular categories.";
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText { get; set; } = "Browse Popular Items";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Cta Text2.
+    /// </summary>
+public string CtaText2 { get; set; } = "Refine Search";
+        /// <summary>
+    /// Gets or sets the Cta Url2.
+    /// </summary>
+public string CtaUrl2 { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core;
 using Aero.Core.Http;
 using Aero.Models.Entities;
 using Aero.Modular;
@@ -10,22 +10,46 @@ using WorkOS;
 
 namespace Aero.Cms.Modules.WorkOS;
 
+/// <summary>
+/// Represents a class for WorkOsModule.
+/// </summary>
 [Module(nameof(WorkOsModule))]
 public class WorkOsModule : AeroModuleBase
 {
-    public override string Name => nameof(WorkOsModule);
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(WorkOsModule);
 
-    public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
 
-    public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
 
-    public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
 
-    public override IReadOnlyList<string> Category => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => [];
 
-    public override IReadOnlyList<string> Tags => [];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => [];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         var apiKey = config?.GetValue<string>("WorkOs:ApiKey");
         if (string.IsNullOrEmpty(apiKey))
@@ -53,9 +77,15 @@ public class WorkOsModule : AeroModuleBase
 }
 
 
+/// <summary>
+/// Represents a class for WorkOsService.
+/// </summary>
 public sealed class WorkOsService(WorkOSClient client)
 {
-    public async Task AddUser(AeroUser user)
+        /// <summary>
+    /// AddUser method.
+    /// </summary>
+public async Task AddUser(AeroUser user)
     {
         var opts = new BaseOptions();
         var request = new WorkOSRequest
@@ -71,9 +101,15 @@ public sealed class WorkOsService(WorkOSClient client)
 }
 
 
+/// <summary>
+/// Represents a class for WorkOsHttpClient.
+/// </summary>
 public sealed class WorkOsHttpClient : HttpClientBase
 {
-    public WorkOsHttpClient(HttpClient httpClient, ILogger<HttpClientBase> logger)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="WorkOsHttpClient"/> class.
+    /// </summary>
+public WorkOsHttpClient(HttpClient httpClient, ILogger<HttpClientBase> logger)
         : base(httpClient, logger)
     {
     }

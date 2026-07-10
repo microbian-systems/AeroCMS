@@ -5,6 +5,9 @@ using System.Text.Json;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Section;
 
+/// <summary>
+/// Represents a class for SectionPrimitiveDefinition.
+/// </summary>
 public sealed class SectionPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 {
     private static readonly IReadOnlySet<NeoPageNodeKind> ChildKinds =
@@ -16,18 +19,48 @@ public sealed class SectionPrimitiveDefinition : ContainerDefinitionBase, ISlott
             NeoPageNodeKind.Component
         };
 
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new SectionPrimitiveDefinition(), new SectionPrimitiveDefinition());
 
-    public override string CatalogId => "primitive.section";
-    public override string DisplayName => "Section";
-    public override string? Description => "Semantic page section container.";
-    public override string Category => "Primitives";
-    public override string IconName => "section";
-    public override int SortOrder => 0;
-    public override Type? PreviewComponentType => typeof(SectionPrimitivePreview);
-    public override Type? PropertyEditorComponentType => null;
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "primitive.section";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Section";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "Semantic page section container.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Primitives";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "section";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 0;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => typeof(SectionPrimitivePreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => null;
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             ChildKinds,
             [
@@ -39,7 +72,10 @@ public sealed class SectionPrimitiveDefinition : ContainerDefinitionBase, ISlott
             [
                 new NeoDropZoneDefinition(NeoDropZoneDefinition.DefaultId, ChildKinds)
             ]);
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Spacing |
         EditorCapabilitySet.Dimensions |
         EditorCapabilitySet.Layout |
@@ -50,7 +86,10 @@ public sealed class SectionPrimitiveDefinition : ContainerDefinitionBase, ISlott
         EditorCapabilitySet.Visibility |
         EditorCapabilitySet.Direction;
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable |
         EditorInteractionCapabilities.Editable |
         EditorInteractionCapabilities.Draggable |
@@ -59,7 +98,10 @@ public sealed class SectionPrimitiveDefinition : ContainerDefinitionBase, ISlott
         EditorInteractionCapabilities.Copyable |
         EditorInteractionCapabilities.PasteTarget;
 
-    public override NeoPageNode CreateDefaultNode() =>
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),
@@ -83,6 +125,9 @@ public sealed class SectionPrimitiveDefinition : ContainerDefinitionBase, ISlott
             MinChildren: 0),
     };
 
-    public ISlotDefinition? GetSlot(string slotId) =>
+        /// <summary>
+    /// GetSlot method.
+    /// </summary>
+public ISlotDefinition? GetSlot(string slotId) =>
         _slots.FirstOrDefault(s => s.Id == slotId);
 }

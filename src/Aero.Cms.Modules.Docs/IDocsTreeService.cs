@@ -2,37 +2,58 @@ using Aero.Cms.Modules.Docs.Areas.Docs.Models;
 
 namespace Aero.Cms.Modules.Docs;
 
+/// <summary>
+/// Defines an interface for IDocsTreeService.
+/// </summary>
 public interface IDocsTreeService
 {
-    Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
+        /// <summary>
+    /// GetSidebarTreeAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
         long siteId,
         long activeId = 0,
         bool publishedOnly = true,
         CancellationToken ct = default);
 
-    Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
+        /// <summary>
+    /// GetSidebarTreeAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<DocsSidebarNode>, AeroError>> GetSidebarTreeAsync(
         long siteId,
         long activeId,
         bool publishedOnly,
         string? culture,
         CancellationToken ct = default);
 
-    Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
+        /// <summary>
+    /// GetBreadcrumbsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
         long siteId,
         long docId,
         bool publishedOnly = true,
         CancellationToken ct = default);
 
-    Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
+        /// <summary>
+    /// GetBreadcrumbsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetBreadcrumbsAsync(
         long siteId,
         long docId,
         bool publishedOnly,
         string? culture,
         CancellationToken ct = default);
 
-    IReadOnlyList<HeadingItem> ExtractHeadings(string? markdown);
+        /// <summary>
+    /// ExtractHeadings method.
+    /// </summary>
+IReadOnlyList<HeadingItem> ExtractHeadings(string? markdown);
 
-    Task<Result<DocsPage, AeroError>> CreateChildSectionAsync(
+        /// <summary>
+    /// CreateChildSectionAsync method.
+    /// </summary>
+Task<Result<DocsPage, AeroError>> CreateChildSectionAsync(
         long siteId,
         long spaceId,
         long parentId,
@@ -40,7 +61,10 @@ public interface IDocsTreeService
         string? summary,
         CancellationToken ct = default);
 
-    Task<Result<DocsPage, AeroError>> MoveSectionAsync(
+        /// <summary>
+    /// MoveSectionAsync method.
+    /// </summary>
+Task<Result<DocsPage, AeroError>> MoveSectionAsync(
         long siteId,
         long spaceId,
         long sectionId,
@@ -49,7 +73,10 @@ public interface IDocsTreeService
         bool rewriteSlug,
         CancellationToken ct = default);
 
-    Task<Result<bool, AeroError>> ReorderSiblingsAsync(
+        /// <summary>
+    /// ReorderSiblingsAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> ReorderSiblingsAsync(
         long siteId,
         long spaceId,
         long parentId,

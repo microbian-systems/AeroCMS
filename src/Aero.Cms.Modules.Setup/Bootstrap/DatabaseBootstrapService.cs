@@ -8,13 +8,19 @@ using Microsoft.Extensions.Options;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Represents a class for DatabaseBootstrapService.
+/// </summary>
 public sealed class DatabaseBootstrapService(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager,
     IOptionsMonitor<AeroDbOptions> embeddedOptions,
     InfisicalBootstrapSettingsProvider infisicalSettingsProvider) : IDatabaseBootstrapService
 {
-    public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// PersistAsync method.
+    /// </summary>
+public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(model);
 

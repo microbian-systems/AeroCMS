@@ -6,6 +6,9 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Features;
 
+/// <summary>
+/// Represents a class for FeaturesPrimitiveDefinition.
+/// </summary>
 public sealed class FeaturesPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 {
     private static readonly IReadOnlySet<NeoPageNodeKind> ChildKinds =
@@ -63,20 +66,53 @@ public sealed class FeaturesPrimitiveDefinition : ContainerDefinitionBase, ISlot
         ),
     };
 
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new FeaturesPrimitiveDefinition(), new FeaturesPrimitiveDefinition());
 
-    public override string CatalogId => "aero_features";
-    public override string DisplayName => "Features";
-    public override string? Description => "Feature grid section with title, description, and feature cards.";
-    public override string Category => "Components";
-    public override string IconName => "grid";
-    public override int SortOrder => 201;
-    public override NeoPageNodeKind Kind => NeoPageNodeKind.Component;
-    public override Type? PreviewComponentType => null; // TODO: add preview later
-    public override Type? PropertyEditorComponentType => null; // TODO: add editor later
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "aero_features";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Features";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "Feature grid section with title, description, and feature cards.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Components";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "grid";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 201;
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public override NeoPageNodeKind Kind => NeoPageNodeKind.Component;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => null; // TODO: add preview later
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => null; // TODO: add editor later
 
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             ChildKinds,
             ParentKinds,
@@ -84,7 +120,10 @@ public sealed class FeaturesPrimitiveDefinition : ContainerDefinitionBase, ISlot
                 new NeoDropZoneDefinition(s.Id, s.AllowedChildKinds, s.MaxChildren)).ToArray(),
             isSlotted: true);
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable
         | EditorInteractionCapabilities.Editable
         | EditorInteractionCapabilities.Draggable
@@ -93,7 +132,10 @@ public sealed class FeaturesPrimitiveDefinition : ContainerDefinitionBase, ISlot
         | EditorInteractionCapabilities.Copyable
         | EditorInteractionCapabilities.PasteTarget;
 
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Spacing
         | EditorCapabilitySet.Dimensions
         | EditorCapabilitySet.Layout
@@ -104,7 +146,10 @@ public sealed class FeaturesPrimitiveDefinition : ContainerDefinitionBase, ISlot
         | EditorCapabilitySet.Visibility
         | EditorCapabilitySet.Direction;
 
-    public override NeoPageNode CreateDefaultNode() => new()
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() => new()
     {
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
@@ -119,6 +164,9 @@ public sealed class FeaturesPrimitiveDefinition : ContainerDefinitionBase, ISlot
 
     IReadOnlyList<ISlotDefinition> ISlotted.Slots => _slots;
 
-    public ISlotDefinition? GetSlot(string slotId) =>
+        /// <summary>
+    /// GetSlot method.
+    /// </summary>
+public ISlotDefinition? GetSlot(string slotId) =>
         _slots.FirstOrDefault(s => s.Id == slotId);
 }

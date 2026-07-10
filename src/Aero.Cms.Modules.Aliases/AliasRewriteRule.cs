@@ -32,14 +32,20 @@ public sealed class AliasRewriteRule : IRule
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AliasRewriteRule> _log;
 
-    public AliasRewriteRule(IAliasRuleCache cache, IServiceProvider serviceProvider, ILogger<AliasRewriteRule> log)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AliasRewriteRule"/> class.
+    /// </summary>
+public AliasRewriteRule(IAliasRuleCache cache, IServiceProvider serviceProvider, ILogger<AliasRewriteRule> log)
     {
         _cache = cache;
         _serviceProvider = serviceProvider;
         _log = log;
     }
 
-    public void ApplyRule(RewriteContext context)
+        /// <summary>
+    /// ApplyRule method.
+    /// </summary>
+public void ApplyRule(RewriteContext context)
     {
         var http = context.HttpContext;
         var rawPath = http.Request.Path.Value;

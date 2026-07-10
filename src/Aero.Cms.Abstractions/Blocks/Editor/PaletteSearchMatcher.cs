@@ -1,5 +1,8 @@
 namespace Aero.Cms.Abstractions.Blocks.Editor;
 
+/// <summary>
+/// Represents a record for PaletteSearchDocument.
+/// </summary>
 public sealed record PaletteSearchDocument(
     string? DisplayName,
     string? Description,
@@ -8,9 +11,15 @@ public sealed record PaletteSearchDocument(
     string? Section,
     IReadOnlyCollection<string>? Keywords = null);
 
+/// <summary>
+/// Represents a class for PaletteSearchMatcher.
+/// </summary>
 public static class PaletteSearchMatcher
 {
-    public static bool Matches(PaletteSearchDocument document, string? query)
+        /// <summary>
+    /// Matches method.
+    /// </summary>
+public static bool Matches(PaletteSearchDocument document, string? query)
     {
         ArgumentNullException.ThrowIfNull(document);
 

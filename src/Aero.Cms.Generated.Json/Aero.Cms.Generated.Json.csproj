@@ -11,13 +11,10 @@
     <!--
       Source Generators as analyzers: the custom generators (BlockRendererGenerator,
       ContentTypeGenerator) emit [JsonSerializable] partial classes into THIS
-      project. The built-in STJ JsonSourceGenerator sees them in the same
-      compilation and produces the real JsonSerializerContext implementation.
+      project via Directory.Build.props. The built-in STJ JsonSourceGenerator
+      sees them in the same compilation and produces the real
+      JsonSerializerContext implementation.
     -->
-    <ProjectReference Include="..\Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
-
     <!--
       Real types that the generated context references. These are the types
       with [JsonSerializable] attributes — BlockBase subtypes from Abstractions,

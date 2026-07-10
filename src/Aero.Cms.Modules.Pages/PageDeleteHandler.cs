@@ -11,7 +11,10 @@ public sealed class PageDeleteHandler
     private readonly IDocumentSession _session;
     private readonly ILogger<PageDeleteHandler> _logger;
 
-    public PageDeleteHandler(IDocumentSession session, ILogger<PageDeleteHandler> logger)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PageDeleteHandler"/> class.
+    /// </summary>
+public PageDeleteHandler(IDocumentSession session, ILogger<PageDeleteHandler> logger)
     {
         _session = session;
         _logger = logger;

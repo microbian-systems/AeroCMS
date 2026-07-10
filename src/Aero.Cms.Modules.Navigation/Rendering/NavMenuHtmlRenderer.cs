@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Http;
 
 namespace Aero.Cms.Modules.Navigation.Rendering;
 
+/// <summary>
+/// Defines an enumeration for NavMenuRenderMode.
+/// </summary>
 public enum NavMenuRenderMode
 {
     Desktop,
@@ -15,24 +18,57 @@ public enum NavMenuRenderMode
     Mobile
 }
 
+/// <summary>
+/// Defines an interface for INavMenuComponentVisitor.
+/// </summary>
 public interface INavMenuComponentVisitor<out TResult>
 {
-    TResult Visit(NavLink link);
-    TResult Visit(NavMenu menu);
-    TResult Visit(NavSearch search);
-    TResult Visit(NavHtml html);
-    TResult Visit(NavLanguageSelect language);
-    TResult Visit(NavAuthButton authButton);
+        /// <summary>
+    /// Visit method.
+    /// </summary>
+TResult Visit(NavLink link);
+        /// <summary>
+    /// Visit method.
+    /// </summary>
+TResult Visit(NavMenu menu);
+        /// <summary>
+    /// Visit method.
+    /// </summary>
+TResult Visit(NavSearch search);
+        /// <summary>
+    /// Visit method.
+    /// </summary>
+TResult Visit(NavHtml html);
+        /// <summary>
+    /// Visit method.
+    /// </summary>
+TResult Visit(NavLanguageSelect language);
+        /// <summary>
+    /// Visit method.
+    /// </summary>
+TResult Visit(NavAuthButton authButton);
 }
 
+/// <summary>
+/// Defines an interface for INavMenuHtmlRenderer.
+/// </summary>
 public interface INavMenuHtmlRenderer
 {
-    IHtmlContent Render(INavMenuComponent component, NavMenuRenderMode mode);
+        /// <summary>
+    /// Render method.
+    /// </summary>
+IHtmlContent Render(INavMenuComponent component, NavMenuRenderMode mode);
 }
 
+/// <summary>
+/// Represents a class for NavMenuHtmlRenderer.
+/// </summary>
 public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor) : INavMenuHtmlRenderer
 {
-    public IHtmlContent Render(INavMenuComponent component, NavMenuRenderMode mode)
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public IHtmlContent Render(INavMenuComponent component, NavMenuRenderMode mode)
     {
         var visitor = new HtmlVisitor(mode, httpContextAccessor.HttpContext);
         return component switch
@@ -51,7 +87,10 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
     {
         private bool IsMobile => mode == NavMenuRenderMode.Mobile;
 
-        public IHtmlContent Visit(NavLink link)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public IHtmlContent Visit(NavLink link)
         {
             if (!ShouldRender(link.Visibility))
             {
@@ -71,7 +110,10 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
                 $"<a href=\"{Encode(link.Href)}\" class=\"{css}\"{target}{rel}>{Encode(link.Label)}</a>");
         }
 
-        public IHtmlContent Visit(NavMenu menu)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public IHtmlContent Visit(NavMenu menu)
         {
             if (!ShouldRender(menu.Visibility))
             {
@@ -99,7 +141,10 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
             return new HtmlString(builder.ToString());
         }
 
-        public IHtmlContent Visit(NavSearch search)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public IHtmlContent Visit(NavSearch search)
         {
             if (!ShouldRender(search.Visibility))
             {
@@ -120,10 +165,16 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
                 $"<form action=\"{Encode(search.SearchAction)}\" method=\"get\" class=\"{formCss}\"><input name=\"q\" class=\"{inputCss}\" placeholder=\"{Encode(search.Placeholder)}\" /><button type=\"submit\" class=\"{buttonCss}\">{Encode(search.ButtonLabel)}</button></form>");
         }
 
-        public IHtmlContent Visit(NavHtml html)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public IHtmlContent Visit(NavHtml html)
             => ShouldRender(html.Visibility) ? new HtmlString(html.Html) : HtmlString.Empty;
 
-        public IHtmlContent Visit(NavLanguageSelect language)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public IHtmlContent Visit(NavLanguageSelect language)
         {
             if (!ShouldRender(language.Visibility))
             {
@@ -161,7 +212,10 @@ public sealed class NavMenuHtmlRenderer(IHttpContextAccessor httpContextAccessor
             return new HtmlString(builder.ToString());
         }
 
-        public IHtmlContent Visit(NavAuthButton authButton)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public IHtmlContent Visit(NavAuthButton authButton)
         {
             if (!ShouldRender(authButton.Visibility))
             {

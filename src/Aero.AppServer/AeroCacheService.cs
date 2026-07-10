@@ -17,7 +17,10 @@ internal sealed class AeroCacheService(
 {
     private GarnetServer? server;
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         log.LogInformation("Aero Caching Server is running...");
 
@@ -26,7 +29,10 @@ internal sealed class AeroCacheService(
         return Task.CompletedTask;
     }
 
-    public override Task StartAsync(CancellationToken cancellationToken)
+        /// <summary>
+    /// StartAsync method.
+    /// </summary>
+public override Task StartAsync(CancellationToken cancellationToken)
     {
         var port = config.GetValue("Aero:Cache:Port", AeroAppServerConstants.CachePort);
 
@@ -92,7 +98,10 @@ internal sealed class AeroCacheService(
         return base.StartAsync(cancellationToken);
     }
 
-    public override Task StopAsync(CancellationToken cancellationToken)
+        /// <summary>
+    /// StopAsync method.
+    /// </summary>
+public override Task StopAsync(CancellationToken cancellationToken)
     {
         log.LogInformation("Stopping Aero cache server...");
         return base.StopAsync(cancellationToken);
@@ -113,7 +122,10 @@ internal sealed class AeroCacheService(
         log.LogInformation("AeroCacheService: Application has stopped. Aero cache resources released.");
     }
 
-    public override void Dispose()
+        /// <summary>
+    /// Dispose method.
+    /// </summary>
+public override void Dispose()
     {
         log.LogInformation("AeroCacheService: Disposing Aero cache server...");
         server?.Dispose();

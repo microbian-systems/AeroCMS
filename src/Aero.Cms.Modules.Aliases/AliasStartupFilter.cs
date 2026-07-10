@@ -14,7 +14,10 @@ namespace Aero.Cms.Modules.Aliases;
 /// </summary>
 public sealed class AliasStartupFilter : IStartupFilter
 {
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
     {
         return app =>
         {

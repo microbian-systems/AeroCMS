@@ -28,6 +28,9 @@ using System.Globalization;
 
 namespace Aero.Cms.Modules.Setup;
 
+/// <summary>
+/// Represents a record for SeedDatabaseRequest.
+/// </summary>
 public sealed record SeedDatabaseRequest(
     string DatabaseMode,
     string CacheMode,
@@ -47,22 +50,58 @@ public sealed record SeedDatabaseRequest(
     string DefaultCulture,
     IReadOnlyList<string> SupportedCultures);
 
+/// <summary>
+/// Represents a class for SeedDatabaseResult.
+/// </summary>
 public sealed class SeedDatabaseResult
 {
-    public bool Succeeded => Errors.Count == 0;
-    public bool AlreadyComplete { get; init; }
-    public bool CreatedAdmin { get; init; }
-    public bool CreatedRoles { get; init; }
-    public bool CreatedTenant { get; init; }
-    public bool CreatedSite { get; init; }
-    public long? TenantId { get; init; }
-    public long? SiteId { get; init; }
-    public List<string> Errors { get; } = [];
+        /// <summary>
+    /// Gets or sets the Succeeded.
+    /// </summary>
+public bool Succeeded => Errors.Count == 0;
+        /// <summary>
+    /// Gets or sets the Already Complete.
+    /// </summary>
+public bool AlreadyComplete { get; init; }
+        /// <summary>
+    /// Gets or sets the Created Admin.
+    /// </summary>
+public bool CreatedAdmin { get; init; }
+        /// <summary>
+    /// Gets or sets the Created Roles.
+    /// </summary>
+public bool CreatedRoles { get; init; }
+        /// <summary>
+    /// Gets or sets the Created Tenant.
+    /// </summary>
+public bool CreatedTenant { get; init; }
+        /// <summary>
+    /// Gets or sets the Created Site.
+    /// </summary>
+public bool CreatedSite { get; init; }
+        /// <summary>
+    /// Gets or sets the Tenant Id.
+    /// </summary>
+public long? TenantId { get; init; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long? SiteId { get; init; }
+        /// <summary>
+    /// Gets or sets the Errors.
+    /// </summary>
+public List<string> Errors { get; } = [];
 
-    public static SeedDatabaseResult Failure(params string[] errors)
+        /// <summary>
+    /// Failure method.
+    /// </summary>
+public static SeedDatabaseResult Failure(params string[] errors)
         => Failure(errors.AsEnumerable());
 
-    public static SeedDatabaseResult Failure(IEnumerable<string> errors)
+        /// <summary>
+    /// Failure method.
+    /// </summary>
+public static SeedDatabaseResult Failure(IEnumerable<string> errors)
     {
         var result = new SeedDatabaseResult();
         result.Errors.AddRange(errors.Where(error => !string.IsNullOrWhiteSpace(error)));
@@ -70,9 +109,15 @@ public sealed class SeedDatabaseResult
     }
 }
 
+/// <summary>
+/// Defines an interface for ISeedDatabaseService.
+/// </summary>
 public interface ISeedDatabaseService
 {
-    Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// CompleteAsync method.
+    /// </summary>
+Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -80,6 +125,9 @@ public interface ISeedDatabaseService
 /// </summary>
 public interface ISetupCompletionService : ISeedDatabaseService { }
 
+/// <summary>
+/// Represents a class for SeedDatabaseService.
+/// </summary>
 public sealed class SeedDatabaseService(
     IDocumentSession session,
     IWebHostEnvironment env,
@@ -95,7 +143,10 @@ public sealed class SeedDatabaseService(
     IApiKeyService apiKeyService,
     IReadOnlyList<ModuleDescriptor> moduleDescriptors) : ISeedDatabaseService, ISetupCompletionService
 {
-    public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CompleteAsync method.
+    /// </summary>
+public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 

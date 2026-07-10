@@ -41,17 +41,32 @@ public interface IRuntimeActivationService
 /// </summary>
 public sealed class RuntimeActivationResult
 {
-    public bool Succeeded { get; set; }
-    public string? Error { get; set; }
-    public string? Warning { get; set; }
+        /// <summary>
+    /// Gets or sets the Succeeded.
+    /// </summary>
+public bool Succeeded { get; set; }
+        /// <summary>
+    /// Gets or sets the Error.
+    /// </summary>
+public string? Error { get; set; }
+        /// <summary>
+    /// Gets or sets the Warning.
+    /// </summary>
+public string? Warning { get; set; }
 
-    public static RuntimeActivationResult Success(string? warning = null) => new()
+        /// <summary>
+    /// Success method.
+    /// </summary>
+public static RuntimeActivationResult Success(string? warning = null) => new()
     {
         Succeeded = true,
         Warning = warning
     };
 
-    public static RuntimeActivationResult Failed(string error) => new()
+        /// <summary>
+    /// Failed method.
+    /// </summary>
+public static RuntimeActivationResult Failed(string error) => new()
     {
         Succeeded = false,
         Error = error

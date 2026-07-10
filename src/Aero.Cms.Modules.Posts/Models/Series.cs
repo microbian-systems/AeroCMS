@@ -8,8 +8,20 @@ namespace Aero.Cms.Modules.Posts.Models;
 /// </summary>
 public sealed class Series : Entity, ISiteOwned
 {
-    public long SiteId { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
 }

@@ -6,18 +6,30 @@ using Microsoft.AspNetCore.Components;
 
 namespace Aero.Cms.Shared.Blocks.Rendering;
 
+/// <summary>
+/// Represents a class for ScribanBlockRenderer.
+/// </summary>
 public partial class ScribanBlockRenderer
 {
     private string? RenderedHtml;
     private string? ErrorMessage;
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Block.
+    /// </summary>
+[Parameter]
     public ScribanBlock? Block { get; set; }
 
-    [Inject]
+        /// <summary>
+    /// Gets or sets the Scriban Renderer.
+    /// </summary>
+[Inject]
     public ISecureScribanRenderer ScribanRenderer { get; set; } = default!;
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         RenderedHtml = null;
         ErrorMessage = null;

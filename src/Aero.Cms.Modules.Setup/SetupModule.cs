@@ -28,26 +28,53 @@ namespace Aero.Cms.Modules.Setup;
 [Module(nameof(SetupModule))]
 public sealed class SetupModule : AeroModuleBase
 {
-    public override string Name => nameof(SetupModule);
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(SetupModule);
 
-    public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
 
-    public override string Author => AeroConstants.Author;
-    public override short Order { get; } = -32768;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public override short Order { get; } = -32768;
 
-    public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
 
-    public override IReadOnlyList<string> Category => ["setup", "bootstrap"];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["setup", "bootstrap"];
 
-    public override IReadOnlyList<string> Tags => ["setup", "bootstrap"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["setup", "bootstrap"];
 
-    public override Dictionary<string, Uri> Urls { get; } = new()
+        /// <summary>
+    /// Gets or sets the Urls.
+    /// </summary>
+public override Dictionary<string, Uri> Urls { get; } = new()
     {
         ["github"] = new Uri("https://github.com/microbian-systems/aerocms"),
         ["website"] = new Uri($"https://aerocms.io/modules/{nameof(SetupModule)}")
     };
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddLocalization();
 
@@ -87,7 +114,10 @@ public sealed class SetupModule : AeroModuleBase
         }
     }
 
-    public override async Task RunAsync(IServiceProvider sp)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override async Task RunAsync(IServiceProvider sp)
     {
         var log = sp.GetRequiredService<ILogger<SetupModule>>();
         var setupInitService = sp.GetRequiredService<ISetupInitializationService>();
@@ -112,9 +142,15 @@ public sealed class SetupModule : AeroModuleBase
 
 }
 
+/// <summary>
+/// Represents a class for TranslationImportStartupFilter.
+/// </summary>
 public sealed class TranslationImportStartupFilter : IStartupFilter
 {
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
         => app =>
         {
             app.UseRouting();

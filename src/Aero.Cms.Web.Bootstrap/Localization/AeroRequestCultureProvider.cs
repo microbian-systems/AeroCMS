@@ -5,11 +5,17 @@ using Microsoft.AspNetCore.Localization;
 
 namespace Aero.Cms.Web.Bootstrap.Localization;
 
+/// <summary>
+/// Represents a class for AeroRequestCultureProvider.
+/// </summary>
 public sealed class AeroRequestCultureProvider : RequestCultureProvider
 {
     private static readonly PathString ManagerPathPrefix = "/manager";
 
-    public override Task<ProviderCultureResult?> DetermineProviderCultureResult(HttpContext httpContext)
+        /// <summary>
+    /// DetermineProviderCultureResult method.
+    /// </summary>
+public override Task<ProviderCultureResult?> DetermineProviderCultureResult(HttpContext httpContext)
     {
         ArgumentNullException.ThrowIfNull(httpContext);
 

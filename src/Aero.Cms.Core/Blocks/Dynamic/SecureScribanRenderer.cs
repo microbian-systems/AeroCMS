@@ -9,6 +9,9 @@ using Scriban.Syntax;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
+/// <summary>
+/// Represents a class for SecureScribanRenderer.
+/// </summary>
 public sealed class SecureScribanRenderer : ISecureScribanRenderer
 {
     private readonly SecureScribanTemplateOptions options;
@@ -16,24 +19,36 @@ public sealed class SecureScribanRenderer : ISecureScribanRenderer
     private readonly IHtmlSanitizer htmlSanitizer;
     private readonly ConcurrentDictionary<TemplateCacheKey, Template> templateCache = new();
 
-    public SecureScribanRenderer()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="SecureScribanRenderer"/> class.
+    /// </summary>
+public SecureScribanRenderer()
         : this(new SecureScribanTemplateOptions(), new HtmlSanitizer())
     {
     }
 
-    public SecureScribanRenderer(SecureScribanTemplateOptions options)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="SecureScribanRenderer"/> class.
+    /// </summary>
+public SecureScribanRenderer(SecureScribanTemplateOptions options)
         : this(options, new HtmlSanitizer())
     {
     }
 
-    public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitizer htmlSanitizer)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="SecureScribanRenderer"/> class.
+    /// </summary>
+public SecureScribanRenderer(SecureScribanTemplateOptions options, IHtmlSanitizer htmlSanitizer)
     {
         this.options = options;
         this.htmlSanitizer = htmlSanitizer;
         validator = new DynamicTemplateValidator(options);
     }
 
-    public async Task<Result<string, AeroError>> RenderAsync(
+        /// <summary>
+    /// RenderAsync method.
+    /// </summary>
+public async Task<Result<string, AeroError>> RenderAsync(
         DynamicBlockDefinition definition,
         JsonDocument? data,
         CancellationToken cancellationToken = default)

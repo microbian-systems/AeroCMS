@@ -16,9 +16,15 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Buttons;
     SchemaVersion = 1)]
 public sealed class Button12Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.buttons.12";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.buttons.12";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
     /// <summary>Button label text.</summary>
     public string Text { get; set; } = "Download";
@@ -29,5 +35,8 @@ public sealed class Button12Block : BlockBase
     /// <summary>Style variant: "solid" (filled red bg with white text) or "bordered" (border-only with red text).</summary>
     public string Style { get; set; } = "solid";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

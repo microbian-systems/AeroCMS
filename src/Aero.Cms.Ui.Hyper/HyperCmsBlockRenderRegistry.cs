@@ -34,7 +34,10 @@ public sealed class HyperCmsBlockRenderRegistry : ICmsBlockRenderRegistry
 {
     private static readonly IReadOnlyDictionary<string, ICmsBlockRenderAdapter> Adapters = CreateAdapters();
 
-    public bool TryGet(string blockType, out ICmsBlockRenderAdapter adapter) =>
+        /// <summary>
+    /// TryGet method.
+    /// </summary>
+public bool TryGet(string blockType, out ICmsBlockRenderAdapter adapter) =>
         Adapters.TryGetValue(blockType, out adapter!);
 
     private static IReadOnlyDictionary<string, ICmsBlockRenderAdapter> CreateAdapters()

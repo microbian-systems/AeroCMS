@@ -16,17 +16,41 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Headers;
     SchemaVersion = 1)]
 public sealed class Header4Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.headers.4";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.headers.4";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public List<HyperNavLink> NavLinks { get; set; } = DefaultNavLinks.Select(CloneNavLink).ToList();
-    public string? UserAvatarUrl { get; set; }
-    public List<HyperNavLink> UserMenuItems { get; set; } = DefaultUserMenuItems.Select(CloneNavLink).ToList();
-    public string? LogoutUrl { get; set; }
-    public string LogoutText { get; set; } = "Logout";
+        /// <summary>
+    /// Gets or sets the Nav Links.
+    /// </summary>
+public List<HyperNavLink> NavLinks { get; set; } = DefaultNavLinks.Select(CloneNavLink).ToList();
+        /// <summary>
+    /// Gets or sets the User Avatar Url.
+    /// </summary>
+public string? UserAvatarUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the User Menu Items.
+    /// </summary>
+public List<HyperNavLink> UserMenuItems { get; set; } = DefaultUserMenuItems.Select(CloneNavLink).ToList();
+        /// <summary>
+    /// Gets or sets the Logout Url.
+    /// </summary>
+public string? LogoutUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Logout Text.
+    /// </summary>
+public string LogoutText { get; set; } = "Logout";
 
-    public static readonly List<HyperNavLink> DefaultNavLinks =
+        /// <summary>
+    /// DefaultNavLinks.
+    /// </summary>
+public static readonly List<HyperNavLink> DefaultNavLinks =
     [
         new() { Label = "About", Url = "#" },
         new() { Label = "Careers", Url = "#" },
@@ -36,14 +60,20 @@ public sealed class Header4Block : BlockBase
         new() { Label = "Blog", Url = "#" }
     ];
 
-    public static readonly List<HyperNavLink> DefaultUserMenuItems =
+        /// <summary>
+    /// DefaultUserMenuItems.
+    /// </summary>
+public static readonly List<HyperNavLink> DefaultUserMenuItems =
     [
         new() { Label = "My profile", Url = "#" },
         new() { Label = "My data", Url = "#" },
         new() { Label = "Team settings", Url = "#" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static HyperNavLink CloneNavLink(HyperNavLink link) => new()
     {

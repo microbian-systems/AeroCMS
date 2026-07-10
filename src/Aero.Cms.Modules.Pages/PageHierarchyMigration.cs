@@ -11,7 +11,10 @@ public sealed class PageHierarchyMigration
     private readonly IDocumentStore _store;
     private readonly ILogger<PageHierarchyMigration> _logger;
 
-    public PageHierarchyMigration(IDocumentStore store, ILogger<PageHierarchyMigration> logger)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PageHierarchyMigration"/> class.
+    /// </summary>
+public PageHierarchyMigration(IDocumentStore store, ILogger<PageHierarchyMigration> logger)
     {
         _store = store;
         _logger = logger;

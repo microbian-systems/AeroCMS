@@ -19,6 +19,9 @@ namespace Aero.AppServer;
 // us to target netstandard for the library and net10 for the web server project, which is currently not possible with them
 // combined in one project.  Can be combined with Aero.Modular (like aero.cms uses)
 
+/// <summary>
+/// Represents a class for AeroAppServerExtensions.
+/// </summary>
 public static class AeroAppServerExtensions
 {
     /// <summary>
@@ -117,7 +120,10 @@ public static class AeroAppServerExtensions
         return Task.FromResult(builder);
     }
 
-    public static WebApplication UseAeroApplicationServer(this WebApplication app)
+        /// <summary>
+    /// UseAeroApplicationServer method.
+    /// </summary>
+public static WebApplication UseAeroApplicationServer(this WebApplication app)
     {
         app.UseTickerQ();
         return app;

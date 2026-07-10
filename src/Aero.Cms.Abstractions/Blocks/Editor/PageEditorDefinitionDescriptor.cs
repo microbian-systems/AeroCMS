@@ -9,7 +9,10 @@ public sealed record PageEditorDefinitionDescriptor(
     INeoNodeBlockMapper? BlockMapper = null,
     IPageEditorBlockDefinition? LegacyDefinition = null)
 {
-    public string CatalogId => Catalog.CatalogId;
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => Catalog.CatalogId;
 
     /// <summary>
     /// Canvas interaction capabilities for this definition.

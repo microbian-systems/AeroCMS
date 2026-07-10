@@ -9,9 +9,15 @@ namespace Aero.Cms.Modules.Docs.Queries;
 /// </summary>
 public sealed class DocsPublishedBySiteIdQuery : ICompiledQuery<DocsPage, IEnumerable<DocsPage>>
 {
-    public required long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public required long SiteId { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
         => q => q
             .Where(x => x.SiteId == SiteId
                      && x.PublicationState == ContentPublicationState.Published)
@@ -23,11 +29,23 @@ public sealed class DocsPublishedBySiteIdQuery : ICompiledQuery<DocsPage, IEnume
 /// </summary>
 public sealed class DocsPublishedBySiteIdPagedQuery : ICompiledQuery<DocsPage, IEnumerable<DocsPage>>
 {
-    public required long SiteId { get; set; }
-    public int Skip { get; set; }
-    public int Take { get; set; } = 10;
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public required long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Skip.
+    /// </summary>
+public int Skip { get; set; }
+        /// <summary>
+    /// Gets or sets the Take.
+    /// </summary>
+public int Take { get; set; } = 10;
 
-    public Expression<Func<ISurrealDbQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<DocsPage>, IEnumerable<DocsPage>>> QueryIs()
         => q => q
             .Where(x => x.SiteId == SiteId
                      && x.PublicationState == ContentPublicationState.Published)
@@ -41,9 +59,15 @@ public sealed class DocsPublishedBySiteIdPagedQuery : ICompiledQuery<DocsPage, I
 /// </summary>
 public sealed class DocsPublishedCountBySiteIdQuery : ICompiledQuery<DocsPage, long>
 {
-    public required long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public required long SiteId { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<DocsPage>, long>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<DocsPage>, long>> QueryIs()
         => q => q
             .Where(x => x.SiteId == SiteId
                      && x.PublicationState == ContentPublicationState.Published)
@@ -55,10 +79,19 @@ public sealed class DocsPublishedCountBySiteIdQuery : ICompiledQuery<DocsPage, l
 /// </summary>
 public sealed class DocsPublishedBySlugQuery : ICompiledQuery<DocsPage, DocsPage?>
 {
-    public required long SiteId { get; set; }
-    public required string Slug { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public required long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public required string Slug { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<DocsPage>, DocsPage?>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<DocsPage>, DocsPage?>> QueryIs()
         => q => q.FirstOrDefault(x =>
             x.SiteId == SiteId
             && x.Slug == Slug

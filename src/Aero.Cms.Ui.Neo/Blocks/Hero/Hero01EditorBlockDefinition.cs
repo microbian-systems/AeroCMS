@@ -4,29 +4,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.Hero;
 
+/// <summary>
+/// Represents a class for Hero01EditorBlockDefinition.
+/// </summary>
 public sealed class Hero01EditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "aero.hero.01";
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "aero.hero.01";
 
-    public string DisplayName => "Hero 01";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Hero 01";
 
-    public string? Description => "A NeoUI hero section with eyebrow, title, highlight, dual CTAs, and trust markers.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "A NeoUI hero section with eyebrow, title, highlight, dual CTAs, and trust markers.";
 
-    public string Category => "Neo";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Neo";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "sparkles";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "sparkles";
 
-    public int SortOrder => 10;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 10;
 
-    public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
 
-    public Type? PreviewComponentType => typeof(Hero01BlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(Hero01BlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(Hero01BlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(Hero01BlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -50,13 +86,19 @@ public sealed class Hero01EditorBlockDefinition : IPageEditorBlockDefinition
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToHeroBlock(editorBlock);
         return Hero01BlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToHeroBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToHeroBlock(editorBlock);
 
     private static Hero01Block ToHeroBlock(EditorBlock editor) => new()
     {

@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.CenteredHero;
 
+/// <summary>
+/// Represents a class for CenteredHeroBlockMapper.
+/// </summary>
 public static class CenteredHeroBlockMapper
 {
-    public static NeoPageNode ToNode(CenteredHeroBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(CenteredHeroBlock block) => new()
     {
         NodeId = string.Empty,
         CatalogId = CenteredHeroBlock.BlockTypeId,
@@ -24,7 +30,10 @@ public static class CenteredHeroBlockMapper
         }
     };
 
-    public static CenteredHeroBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static CenteredHeroBlock FromNode(NeoPageNode node) => new()
     {
         Eyebrow       = GetString(node, "eyebrow",       "Introducing NeoUI v3"),
         Title         = GetString(node, "title",         "Build beautiful Blazor apps"),

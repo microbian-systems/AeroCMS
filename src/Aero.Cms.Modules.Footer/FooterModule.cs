@@ -15,17 +15,41 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Footer;
 
+/// <summary>
+/// Represents a class for FooterModule.
+/// </summary>
 [Module(nameof(FooterModule))]
 public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureAeroDB
 {
-    public override string Name => nameof(FooterModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["content", "layout"];
-    public override IReadOnlyList<string> Tags => ["content", "footer", "cms"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(FooterModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["content", "layout"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["content", "footer", "cms"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IFooterService, FooterService>();
         services.AddScoped<FooterContext>();
@@ -34,7 +58,10 @@ public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureAeroDB
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Http.Clients.UpdateFooterRequest>, UpdateFooterRequestValidator>();
     }
 
-    public void Configure(StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions opts)
     {
         opts.Projections.Add(new FooterDocumentProjection(), ProjectionLifecycle.Inline);
         opts.Projections.Add(new SiteFooterSettingsProjection(), ProjectionLifecycle.Inline);
@@ -53,12 +80,18 @@ public sealed class FooterModule : AeroWebModule, IUiModule, IConfigureAeroDB
         opts.Schema.For<SiteFooterSettingsDocument>().Index(x => x.DefaultFooterId);
     }
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapFooterAdminApi();
         return Task.CompletedTask;

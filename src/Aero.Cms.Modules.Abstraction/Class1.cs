@@ -1,6 +1,9 @@
-﻿namespace Aero.Cms.Modules.Abstraction
+namespace Aero.Cms.Modules.Abstraction
 {
-    public class Class1
+        /// <summary>
+    /// Represents a class for Class1.
+    /// </summary>
+public class Class1
     {
 
     }

@@ -2,9 +2,15 @@ using Microsoft.AspNetCore.Http;
 
 namespace Aero.Cms.Modules.Setup;
 
+/// <summary>
+/// Represents a class for SetupPathAllowlist.
+/// </summary>
 public sealed class SetupPathAllowlist
 {
-    public const string SetupPath = "/setup";
+        /// <summary>
+    /// SetupPath.
+    /// </summary>
+public const string SetupPath = "/setup";
 
     private static readonly string[] ExactPaths =
     [
@@ -35,7 +41,10 @@ private static readonly string[] PrefixPaths =
         "/hydro"
     ];
 
-    public bool IsAllowed(PathString path)
+        /// <summary>
+    /// IsAllowed method.
+    /// </summary>
+public bool IsAllowed(PathString path)
     {
         if (!path.HasValue)
         {

@@ -21,7 +21,10 @@ public sealed class CreateOrderHandler(
     IMessageBus bus,
     ILogger<CreateOrderHandler> log) : IWolverineHandler
 {
-    public async Task Handle(CreateOrder command)
+        /// <summary>
+    /// Handle method.
+    /// </summary>
+public async Task Handle(CreateOrder command)
     {
         // 1. Load the customer's basket
         var basketResult = await basketService.GetOrCreateBasketAsync(command.CustomerId);

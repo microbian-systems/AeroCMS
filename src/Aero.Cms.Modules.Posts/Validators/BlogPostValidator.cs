@@ -1,8 +1,11 @@
-﻿namespace Aero.Cms.Modules.Posts.Validators;
+namespace Aero.Cms.Modules.Posts.Validators;
 
 internal class PostValidator : AbstractValidator<PostDocument>
 {
-    public PostValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PostValidator"/> class.
+    /// </summary>
+public PostValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.SiteId).GreaterThan(0);

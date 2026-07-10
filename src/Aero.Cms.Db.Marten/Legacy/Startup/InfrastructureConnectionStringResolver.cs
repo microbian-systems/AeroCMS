@@ -6,6 +6,9 @@ using System.Text.Json.Nodes;
 
 namespace Aero.AppServer.Startup;
 
+/// <summary>
+/// Represents a record for ResolvedInfrastructureSettings.
+/// </summary>
 public sealed record ResolvedInfrastructureSettings(
     string DatabaseConnectionString,
     string? CacheConnectionString,
@@ -13,9 +16,15 @@ public sealed record ResolvedInfrastructureSettings(
     string CacheMode,
     string SecretProvider);
 
+/// <summary>
+/// Represents a class for InfrastructureConnectionStringResolver.
+/// </summary>
 public sealed class InfrastructureConnectionStringResolver(IConfiguration configuration)
 {
-    public ResolvedInfrastructureSettings Resolve()
+        /// <summary>
+    /// Resolve method.
+    /// </summary>
+public ResolvedInfrastructureSettings Resolve()
     {
         var embedded = AeroDbOptions.FromConfiguration(configuration);
         var bootstrap = configuration.GetSection("AeroCms:Bootstrap");

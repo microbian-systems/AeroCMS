@@ -1,11 +1,17 @@
-﻿using Aero.Validators.Extensions;
+using Aero.Validators.Extensions;
 using FluentValidation;
 
 namespace Aero.Cms.Modules.Banner;
 
+/// <summary>
+/// Represents a class for BannerValidator.
+/// </summary>
 public class BannerValidator : AbstractValidator<BannerModel>
 {
-    public BannerValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="BannerValidator"/> class.
+    /// </summary>
+public BannerValidator()
     {
         RuleFor(x => x.Id)
             .GreaterThan(0)

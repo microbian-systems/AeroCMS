@@ -1,9 +1,24 @@
 namespace Aero.AppServer.Startup;
 
+/// <summary>
+/// Defines an interface for IMultiStartupSignal.
+/// </summary>
 public interface IMultiStartupSignal
 {
-    void MarkReady(string serviceName);
-    bool IsReady(string serviceName);
-    Task WaitForReadyAsync(string serviceName, CancellationToken cancellationToken = default);
-    Task WaitForAllAsync(IEnumerable<string> serviceNames, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// MarkReady method.
+    /// </summary>
+void MarkReady(string serviceName);
+        /// <summary>
+    /// IsReady method.
+    /// </summary>
+bool IsReady(string serviceName);
+        /// <summary>
+    /// WaitForReadyAsync method.
+    /// </summary>
+Task WaitForReadyAsync(string serviceName, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// WaitForAllAsync method.
+    /// </summary>
+Task WaitForAllAsync(IEnumerable<string> serviceNames, CancellationToken cancellationToken = default);
 }

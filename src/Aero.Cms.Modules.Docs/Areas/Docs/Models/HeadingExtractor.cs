@@ -16,7 +16,10 @@ public static class HeadingExtractor
         .UseAutoIdentifiers()
         .Build();
 
-    public static List<HeadingItem> Extract(string? markdown)
+        /// <summary>
+    /// Extract method.
+    /// </summary>
+public static List<HeadingItem> Extract(string? markdown)
     {
         var headings = new List<HeadingItem>();
 

@@ -5,28 +5,67 @@ using AeroDB.Sable;
 
 namespace Aero.Cms.Data.Repositories;
 
+/// <summary>
+/// Defines an interface for IAliasRepository.
+/// </summary>
 public interface IAliasRepository : IAeroCompiledRepository<AliasDocument>
 {
-    Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken cancellationToken = default);
-    Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken cancellationToken = default);
-    Task<AliasDocument?> GetByOldPathAsync(long siteId, string oldPath, CancellationToken cancellationToken = default);
-    Task<IList<AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken cancellationToken = default);
-    Task<IList<AliasDocument>> GetByNewPathAsync(long siteId, string newPath, CancellationToken cancellationToken = default);
-    Task<IList<AliasDocument>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default);
-    Task<IList<AliasDocument>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
-    Task<IList<AliasDocument>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByOldPathAsync method.
+    /// </summary>
+Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByOldPathAsync method.
+    /// </summary>
+Task<AliasDocument?> GetByOldPathAsync(long siteId, string oldPath, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByNewPathAsync method.
+    /// </summary>
+Task<IList<AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByNewPathAsync method.
+    /// </summary>
+Task<IList<AliasDocument>> GetByNewPathAsync(long siteId, string newPath, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByNotesAsync method.
+    /// </summary>
+Task<IList<AliasDocument>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetCreatedInRangeAsync method.
+    /// </summary>
+Task<IList<AliasDocument>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetModifiedInRangeAsync method.
+    /// </summary>
+Task<IList<AliasDocument>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for AliasRepository.
+/// </summary>
 public sealed class AliasRepository : AeroCompiledRepository<AliasDocument>, IAliasRepository
 {
-    public AliasRepository(IDocumentSession session) : base(session)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AliasRepository"/> class.
+    /// </summary>
+public AliasRepository(IDocumentSession session) : base(session)
     {
     }
 
-    protected override EntityByIdQuery<AliasDocument> CreateByIdQuery(long id)
+        /// <summary>
+    /// CreateByIdQuery method.
+    /// </summary>
+protected override EntityByIdQuery<AliasDocument> CreateByIdQuery(long id)
         => new AliasByIdQuery { Id = id };
 
-    protected override EntitiesByIdsQuery<AliasDocument> CreateByIdsQuery(IEnumerable<long> ids)
+        /// <summary>
+    /// CreateByIdsQuery method.
+    /// </summary>
+protected override EntitiesByIdsQuery<AliasDocument> CreateByIdsQuery(IEnumerable<long> ids)
     {
         var query = new AliasesByIdsQuery()
         {
@@ -35,27 +74,51 @@ public sealed class AliasRepository : AeroCompiledRepository<AliasDocument>, IAl
         return query;
     }
 
-    public async Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public async Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken cancellationToken = default)
         => await Session.QueryAsync(new AliasesBySiteIdQuery { SiteId = siteId }, cancellationToken);
 
-    public Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByOldPathAsync method.
+    /// </summary>
+public Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken cancellationToken = default)
         => Session.QueryAsync(new AliasByOldPathQuery { OldPath = oldPath }, cancellationToken);
 
-    public Task<AliasDocument?> GetByOldPathAsync(long siteId, string oldPath, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByOldPathAsync method.
+    /// </summary>
+public Task<AliasDocument?> GetByOldPathAsync(long siteId, string oldPath, CancellationToken cancellationToken = default)
         => Session.QueryAsync(new AliasByOldPathAndSiteIdQuery { SiteId = siteId, OldPath = oldPath }, cancellationToken);
 
-    public async Task<IList<AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByNewPathAsync method.
+    /// </summary>
+public async Task<IList<AliasDocument>> GetByNewPathAsync(string newPath, CancellationToken cancellationToken = default)
         => await Session.QueryAsync(new AliasesByNewPathQuery { NewPath = newPath }, cancellationToken);
 
-    public async Task<IList<AliasDocument>> GetByNewPathAsync(long siteId, string newPath, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByNewPathAsync method.
+    /// </summary>
+public async Task<IList<AliasDocument>> GetByNewPathAsync(long siteId, string newPath, CancellationToken cancellationToken = default)
         => await Session.QueryAsync(new AliasesBySiteIdAndNewPathQuery { SiteId = siteId, NewPath = newPath }, cancellationToken);
 
-    public async Task<IList<AliasDocument>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByNotesAsync method.
+    /// </summary>
+public async Task<IList<AliasDocument>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default)
         => await Session.QueryAsync(new AliasesByNotesQuery { Notes = notes }, cancellationToken);
 
-    public async Task<IList<AliasDocument>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetCreatedInRangeAsync method.
+    /// </summary>
+public async Task<IList<AliasDocument>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
         => await Session.QueryAsync(new AliasesCreatedInRangeQuery { From = from, To = to }, cancellationToken);
 
-    public async Task<IList<AliasDocument>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetModifiedInRangeAsync method.
+    /// </summary>
+public async Task<IList<AliasDocument>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
         => await Session.QueryAsync(new AliasesModifiedInRangeQuery { From = from, To = to }, cancellationToken);
 }

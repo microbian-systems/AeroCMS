@@ -3,6 +3,9 @@ using Aero.Cms.Modules.Footer.Domain;
 
 namespace Aero.Cms.Modules.Footer.Serialization;
 
+/// <summary>
+/// Represents a class for FooterJsonContext.
+/// </summary>
 [JsonSerializable(typeof(FooterDocument))]
 [JsonSerializable(typeof(SiteFooterSettingsDocument))]
 [JsonSerializable(typeof(FooterSnapshot))]

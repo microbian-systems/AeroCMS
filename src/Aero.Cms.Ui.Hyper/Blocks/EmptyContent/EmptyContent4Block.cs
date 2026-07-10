@@ -16,23 +16,50 @@ namespace Aero.Cms.Ui.Hyper.Blocks.EmptyContent;
     SchemaVersion = 1)]
 public sealed class EmptyContent4Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.empty-content.4";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.empty-content.4";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Explore more";
-    public string Description { get; set; } = "This section doesn't have content right now. Discover related topics and inspiration instead.";
-    public string CtaText { get; set; } = "Back to Shopping";
-    public string CtaUrl { get; set; } = "#";
-    public List<EmptyContentLink> Links { get; set; } = DefaultLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Explore more";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "This section doesn't have content right now. Discover related topics and inspiration instead.";
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText { get; set; } = "Back to Shopping";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Links.
+    /// </summary>
+public List<EmptyContentLink> Links { get; set; } = DefaultLinks.Select(CloneLink).ToList();
 
-    public static readonly List<EmptyContentLink> DefaultLinks =
+        /// <summary>
+    /// DefaultLinks.
+    /// </summary>
+public static readonly List<EmptyContentLink> DefaultLinks =
     [
         new() { Title = "Featured Collection", Description = "Browse our curated selection", Url = "#" },
         new() { Title = "Latest Trends", Description = "See what's trending now", Url = "#" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static EmptyContentLink CloneLink(EmptyContentLink l) => new()
     {
@@ -42,9 +69,21 @@ public sealed class EmptyContent4Block : BlockBase
     };
 }
 
+/// <summary>
+/// Represents a class for EmptyContentLink.
+/// </summary>
 public sealed class EmptyContentLink
 {
-    public string Title { get; set; } = "";
-    public string Description { get; set; } = "";
-    public string Url { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Url.
+    /// </summary>
+public string Url { get; set; } = "#";
 }

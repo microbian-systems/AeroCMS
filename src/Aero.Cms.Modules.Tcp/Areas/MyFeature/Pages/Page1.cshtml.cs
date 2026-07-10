@@ -1,10 +1,16 @@
-﻿using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Tcp.Areas.MyFeature.Pages;
 
+/// <summary>
+/// Represents a class for Page1Model.
+/// </summary>
 public class Page1Model : PageModel
 {
-    public void OnGet()
+        /// <summary>
+    /// OnGet method.
+    /// </summary>
+public void OnGet()
     {
 
     }

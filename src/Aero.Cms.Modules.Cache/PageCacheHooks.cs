@@ -8,9 +8,15 @@ namespace Aero.Cms.Modules.Cache;
 /// </summary>
 public class PageCacheHook(IFusionCache cache) : IPageReadHook
 {
-    public int Order => -100; // Run early to catch cache hits
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public int Order => -100; // Run early to catch cache hits
 
-    public async Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+public async Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
     {
         var key = GetCacheKey(ctx);
         
@@ -42,9 +48,15 @@ public class PageCacheHook(IFusionCache cache) : IPageReadHook
 /// </summary>
 public class PageCacheStoreHook(IFusionCache cache) : IPageReadHook
 {
-    public int Order => 1000; // Run late to capture the loaded page
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public int Order => 1000; // Run late to capture the loaded page
 
-    public async Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+public async Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
     {
         // Don't re-cache if it was already a short-circuit (e.g. cache hit)
         if (ctx.Page != null && !ctx.IsShortCircuited)
@@ -78,9 +90,15 @@ public class PageCacheInvalidatorHook(IFusionCache cache) : IPageSaveHook
 {
     private readonly IFusionCache _cache = cache;
 
-    public int Order => 1000; // Run after save is confirmed
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public int Order => 1000; // Run after save is confirmed
 
-    public async Task ExecuteAsync(PageSaveContext ctx, CancellationToken ct)
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+public async Task ExecuteAsync(PageSaveContext ctx, CancellationToken ct)
     {
         if (ctx.HasValidationErrors || ctx.IsShortCircuited) return;
 

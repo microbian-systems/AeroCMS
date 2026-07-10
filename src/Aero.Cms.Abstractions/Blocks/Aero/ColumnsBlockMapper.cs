@@ -1,8 +1,14 @@
 namespace Aero.Cms.Abstractions.Blocks.Neo;
 
+/// <summary>
+/// Represents a class for NeoColumnsBlockMapper.
+/// </summary>
 public static class NeoColumnsBlockMapper
 {
-    public static NeoPageNode ToNode(NeoColumnsBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(NeoColumnsBlock block) => new()
     {
         CatalogId = "neo.layout.columns", Kind = NeoPageNodeKind.Block,
         Properties = new Dictionary<string, JsonElement>
@@ -24,7 +30,10 @@ public static class NeoColumnsBlockMapper
         }).ToList()
     };
 
-    public static NeoColumnsBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static NeoColumnsBlock FromNode(NeoPageNode node) => new()
     {
         Gap = GetInt(node, "gap", 4),
         ColumnsPerRow = GetInt(node, "columnsPerRow", 2),

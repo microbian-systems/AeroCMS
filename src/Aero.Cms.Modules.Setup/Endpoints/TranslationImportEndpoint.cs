@@ -9,9 +9,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Setup.Endpoints;
 
+/// <summary>
+/// Represents a class for TranslationImportEndpoint.
+/// </summary>
 public static class TranslationImportEndpoint
 {
-    public static IEndpointRouteBuilder MapTranslationImportEndpoint(this IEndpointRouteBuilder endpoints)
+        /// <summary>
+    /// MapTranslationImportEndpoint method.
+    /// </summary>
+public static IEndpointRouteBuilder MapTranslationImportEndpoint(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup($"/{HttpConstants.ApiPrefix}admin/localization")
             .WithTags("Admin - Localization");

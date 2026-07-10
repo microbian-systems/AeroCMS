@@ -11,32 +11,92 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 /// </summary>
 public interface IBlockEditorCallbacks
 {
-    bool PreviewMode { get; }
+        /// <summary>
+    /// Gets or sets the Preview Mode.
+    /// </summary>
+bool PreviewMode { get; }
 
-    void SelectBlock(string editorId);
-    void BlockChanged(EditorBlock block);
-    void CompositionChanged(EditorBlock block, CompositionMutation mutation);
-    void CompositionDropRejected(string message);
-    void OpenNodeEditor(EditorBlock block, string nodeId);
-    void OpenBlockEditor(EditorBlock block);
-    void OpenMediaSelector(EditorBlock block, bool multiSelect = false, string field = "src");
-    void OpenNodeMediaSelector(
+        /// <summary>
+    /// SelectBlock method.
+    /// </summary>
+void SelectBlock(string editorId);
+        /// <summary>
+    /// BlockChanged method.
+    /// </summary>
+void BlockChanged(EditorBlock block);
+        /// <summary>
+    /// CompositionChanged method.
+    /// </summary>
+void CompositionChanged(EditorBlock block, CompositionMutation mutation);
+        /// <summary>
+    /// CompositionDropRejected method.
+    /// </summary>
+void CompositionDropRejected(string message);
+        /// <summary>
+    /// OpenNodeEditor method.
+    /// </summary>
+void OpenNodeEditor(EditorBlock block, string nodeId);
+        /// <summary>
+    /// OpenBlockEditor method.
+    /// </summary>
+void OpenBlockEditor(EditorBlock block);
+        /// <summary>
+    /// OpenMediaSelector method.
+    /// </summary>
+void OpenMediaSelector(EditorBlock block, bool multiSelect = false, string field = "src");
+        /// <summary>
+    /// OpenNodeMediaSelector method.
+    /// </summary>
+void OpenNodeMediaSelector(
         EditorBlock block,
         string nodeId,
         string field,
         EditorBreakpoint breakpoint);
-    void OpenNodeMediaSelector(
+        /// <summary>
+    /// OpenNodeMediaSelector method.
+    /// </summary>
+void OpenNodeMediaSelector(
         string nodeId,
         string field,
         EditorBreakpoint breakpoint);
-    void OpenAudioSelector(EditorBlock block);
-    void RemoveImage(EditorBlock block);
-    void RemoveVideo(EditorBlock block);
-    void LoadVideo(EditorBlock block);
-    Task RefreshDynamicTemplatePreviewAsync(EditorBlock block);
-    void LoadNestedVideo(NestedBlock nb);
-    void OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb);
-    List<ReferenceItem> GetReferenceItems(string type);
-    Dictionary<string, string> DynamicTemplatePreviewHtml { get; }
-    string RenderDynamicTemplateIfCached(EditorBlock block);
+        /// <summary>
+    /// OpenAudioSelector method.
+    /// </summary>
+void OpenAudioSelector(EditorBlock block);
+        /// <summary>
+    /// RemoveImage method.
+    /// </summary>
+void RemoveImage(EditorBlock block);
+        /// <summary>
+    /// RemoveVideo method.
+    /// </summary>
+void RemoveVideo(EditorBlock block);
+        /// <summary>
+    /// LoadVideo method.
+    /// </summary>
+void LoadVideo(EditorBlock block);
+        /// <summary>
+    /// RefreshDynamicTemplatePreviewAsync method.
+    /// </summary>
+Task RefreshDynamicTemplatePreviewAsync(EditorBlock block);
+        /// <summary>
+    /// LoadNestedVideo method.
+    /// </summary>
+void LoadNestedVideo(NestedBlock nb);
+        /// <summary>
+    /// OpenMediaSelectorForNested method.
+    /// </summary>
+void OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb);
+        /// <summary>
+    /// GetReferenceItems method.
+    /// </summary>
+List<ReferenceItem> GetReferenceItems(string type);
+        /// <summary>
+    /// Gets or sets the Dynamic Template Preview Html.
+    /// </summary>
+Dictionary<string, string> DynamicTemplatePreviewHtml { get; }
+        /// <summary>
+    /// RenderDynamicTemplateIfCached method.
+    /// </summary>
+string RenderDynamicTemplateIfCached(EditorBlock block);
 }

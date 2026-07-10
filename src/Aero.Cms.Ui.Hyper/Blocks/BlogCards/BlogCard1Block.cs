@@ -16,15 +16,39 @@ namespace Aero.Cms.Ui.Hyper.Blocks.BlogCards;
     SchemaVersion = 1)]
 public sealed class BlogCard1Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.blog-cards.1";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.blog-cards.1";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&q=80&w=1160";
-    public string MainText { get; set; } = "How to position your furniture for positivity";
-    public string Description { get; set; } = "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Recusandae dolores, possimus pariatur animi temporibus nesciunt praesentium dolore sed nulla ipsum eveniet corporis quidem, mollitia itaque minus soluta, voluptates neque explicabo tempora nisi culpa eius atque dignissimos. Molestias explicabo corporis voluptatem?";
-    public string PublishedAt { get; set; } = "10th Oct 2022";
-    public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&q=80&w=1160";
+        /// <summary>
+    /// Gets or sets the Main Text.
+    /// </summary>
+public string MainText { get; set; } = "How to position your furniture for positivity";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Recusandae dolores, possimus pariatur animi temporibus nesciunt praesentium dolore sed nulla ipsum eveniet corporis quidem, mollitia itaque minus soluta, voluptates neque explicabo tempora nisi culpa eius atque dignissimos. Molestias explicabo corporis voluptatem?";
+        /// <summary>
+    /// Gets or sets the Published At.
+    /// </summary>
+public string PublishedAt { get; set; } = "10th Oct 2022";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

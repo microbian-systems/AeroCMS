@@ -13,12 +13,18 @@ namespace Aero.Cms.ServiceDefaults;
 // Adds common Aspire services: service discovery, resilience, health checks, and OpenTelemetry.
 // This project should be referenced by each service project in your solution.
 // To learn more about using this project, see https://aka.ms/dotnet/aspire/service-defaults
+/// <summary>
+/// Represents a class for Extensions.
+/// </summary>
 public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
 
-    public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+        /// <summary>
+    /// AddServiceDefaults method.
+    /// </summary>
+public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.ConfigureOpenTelemetry();
 
@@ -44,7 +50,10 @@ public static class Extensions
         return builder;
     }
 
-    public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+        /// <summary>
+    /// ConfigureOpenTelemetry method.
+    /// </summary>
+public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.Logging.AddOpenTelemetry(logging =>
         {
@@ -97,7 +106,10 @@ public static class Extensions
         return builder;
     }
 
-    public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+        /// <summary>
+    /// AddDefaultHealthChecks method.
+    /// </summary>
+public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.Services.AddHealthChecks()
             // Add a default liveness check to ensure app is responsive
@@ -106,7 +118,10 @@ public static class Extensions
         return builder;
     }
 
-    public static WebApplication MapDefaultEndpoints(this WebApplication app)
+        /// <summary>
+    /// MapDefaultEndpoints method.
+    /// </summary>
+public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
         // Adding health checks endpoints to applications in non-development environments has security implications.
         // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.

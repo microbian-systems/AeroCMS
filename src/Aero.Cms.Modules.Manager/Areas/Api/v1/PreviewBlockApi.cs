@@ -16,7 +16,10 @@ namespace Aero.Cms.Modules.Manager.Areas.Api.v1;
 /// </summary>
 public static class PreviewBlockApi
 {
-    public static void MapPreviewBlockFragmentApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapPreviewBlockFragmentApi method.
+    /// </summary>
+public static void MapPreviewBlockFragmentApi(this IEndpointRouteBuilder app)
     {
         app.MapPost($"/{HttpConstants.ApiPrefix}admin/preview/blocks/render-fragment", PreviewBlockFragment)
             .WithName("PreviewBlockFragment")

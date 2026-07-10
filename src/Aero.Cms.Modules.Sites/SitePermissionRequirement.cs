@@ -13,7 +13,10 @@ public sealed class SitePermissionRequirement : IAuthorizationRequirement
     /// </summary>
     public string Permission { get; }
 
-    public SitePermissionRequirement(string permission)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="SitePermissionRequirement"/> class.
+    /// </summary>
+public SitePermissionRequirement(string permission)
     {
         Permission = permission;
     }

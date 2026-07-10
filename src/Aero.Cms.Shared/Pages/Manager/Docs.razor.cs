@@ -9,6 +9,9 @@ using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a class for Docs.
+/// </summary>
 public partial class Docs
 {
     [Inject] private IDocsHttpClient DocsClient { get; set; } = default!;
@@ -33,7 +36,10 @@ public partial class Docs
                 (space.Summary?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
             .ToList();
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
     }
@@ -232,9 +238,21 @@ public partial class Docs
 
     private sealed class SpaceDraft
     {
-        public string Title { get; set; } = string.Empty;
-        public string Slug { get; set; } = string.Empty;
-        public string? Summary { get; set; }
-        public bool SlugLocked { get; set; }
+                /// <summary>
+        /// Gets or sets the Title.
+        /// </summary>
+public string Title { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Slug.
+        /// </summary>
+public string Slug { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Summary.
+        /// </summary>
+public string? Summary { get; set; }
+                /// <summary>
+        /// Gets or sets the Slug Locked.
+        /// </summary>
+public bool SlugLocked { get; set; }
     }
 }

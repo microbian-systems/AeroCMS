@@ -4,9 +4,15 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Commerce.Payments.Api;
 
+/// <summary>
+/// Represents a class for PaymentEndpoints.
+/// </summary>
 public static class PaymentEndpoints
 {
-    public static IEndpointRouteBuilder MapPaymentApi(this IEndpointRouteBuilder builder)
+        /// <summary>
+    /// MapPaymentApi method.
+    /// </summary>
+public static IEndpointRouteBuilder MapPaymentApi(this IEndpointRouteBuilder builder)
     {
         var group = builder
             .MapGroup("/api/commerce/payments")

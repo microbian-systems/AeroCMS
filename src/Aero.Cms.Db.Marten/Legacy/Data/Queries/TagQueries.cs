@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Entities;
 using Aero.Cms.Data.Queries.Base;
 using Aero.Marten.Query;
 using Marten.Linq;
@@ -7,15 +7,30 @@ using System.Linq.Expressions;
 namespace Aero.Cms.Data.Queries;
 
 
+/// <summary>
+/// Represents a class for TagByIdQuery.
+/// </summary>
 public sealed class TagByIdQuery : EntityByIdQuery<TagModel>;
 
+/// <summary>
+/// Represents a class for TagsByIdsQuery.
+/// </summary>
 public sealed class TagsByIdsQuery : EntitiesByIdsQuery<TagModel>;
 
+/// <summary>
+/// Represents a class for TagsByNameQuery.
+/// </summary>
 public sealed class TagsByNameQuery : AeroCompiledQuery<TagModel, IList<TagModel>>
 {
-    public required string Name { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public required string Name { get; set; }
 
-    public override Expression<Func<IMartenQueryable<TagModel>, IList<TagModel>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public override Expression<Func<IMartenQueryable<TagModel>, IList<TagModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name == Name)
@@ -24,11 +39,20 @@ public sealed class TagsByNameQuery : AeroCompiledQuery<TagModel, IList<TagModel
     }
 }
 
+/// <summary>
+/// Represents a class for TagsByNameContainsQuery.
+/// </summary>
 public sealed class TagsByNameContainsQuery : AeroCompiledQuery<TagModel, IList<TagModel>>
 {
-    public required string Name { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public required string Name { get; set; }
 
-    public override Expression<Func<IMartenQueryable<TagModel>, IList<TagModel>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public override Expression<Func<IMartenQueryable<TagModel>, IList<TagModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name != null && x.Name.Contains(Name))
@@ -37,11 +61,20 @@ public sealed class TagsByNameContainsQuery : AeroCompiledQuery<TagModel, IList<
     }
 }
 
+/// <summary>
+/// Represents a class for TagsByDescriptionQuery.
+/// </summary>
 public sealed class TagsByDescriptionQuery : AeroCompiledQuery<TagModel, IList<TagModel>>
 {
-    public required string Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public required string Description { get; set; }
 
-    public override Expression<Func<IMartenQueryable<TagModel>, IList<TagModel>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public override Expression<Func<IMartenQueryable<TagModel>, IList<TagModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Description == Description)
@@ -50,6 +83,12 @@ public sealed class TagsByDescriptionQuery : AeroCompiledQuery<TagModel, IList<T
     }
 }
 
+/// <summary>
+/// Represents a class for TagsCreatedInRangeQuery.
+/// </summary>
 public sealed class TagsCreatedInRangeQuery : EntitiesCreatedInRangeQuery<TagModel>;
 
+/// <summary>
+/// Represents a class for TagsModifiedInRangeQuery.
+/// </summary>
 public sealed class TagsModifiedInRangeQuery : EntitiesModifiedInRangeQuery<TagModel>;

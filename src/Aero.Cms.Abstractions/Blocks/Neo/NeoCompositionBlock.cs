@@ -12,7 +12,10 @@ namespace Aero.Cms.Abstractions.Blocks;
 [BlockMetadata("neo_composition", "Neo Composition", Category = "Layout", Description = "A composition container that holds a tree of Neo UI nodes.")]
 public sealed class NeoCompositionBlock : BlockBase
 {
-    public override string BlockType => "neo_composition";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "neo_composition";
 
     /// <summary>
     /// The root-level nodes of this composition tree.
@@ -20,5 +23,8 @@ public sealed class NeoCompositionBlock : BlockBase
     /// </summary>
     public List<NeoPageNode> Nodes { get; set; } = [];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

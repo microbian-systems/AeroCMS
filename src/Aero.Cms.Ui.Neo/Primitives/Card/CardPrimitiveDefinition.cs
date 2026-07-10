@@ -5,13 +5,19 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Card;
 
+/// <summary>
+/// Represents a class for CardPrimitiveDefinition.
+/// </summary>
 public sealed class CardPrimitiveDefinition :
     IPageEditorCatalogDefinition,
     INeoNodeFactory,
     IEmbeddable,
     ISlotted
 {
-    public const string ContentDropZone = "content";
+        /// <summary>
+    /// ContentDropZone.
+    /// </summary>
+public const string ContentDropZone = "content";
 
     private static readonly IReadOnlySet<NeoPageNodeKind> ChildKinds =
         new HashSet<NeoPageNodeKind>
@@ -22,20 +28,56 @@ public sealed class CardPrimitiveDefinition :
             NeoPageNodeKind.Component
         };
 
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new CardPrimitiveDefinition(), new CardPrimitiveDefinition());
 
-    public string CatalogId => "preset.card";
-    public string DisplayName => "Card";
-    public string? Description => "An editable card composed from standard primitives.";
-    public string Category => "Primitives";
-    public NeoPageNodeKind Kind => NeoPageNodeKind.Component;
-    public string IconName => "square-stack";
-    public int SortOrder => 100;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(CardPrimitivePreview);
-    public Type? PropertyEditorComponentType => null;
-    public ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "preset.card";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Card";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "An editable card composed from standard primitives.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Primitives";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public NeoPageNodeKind Kind => NeoPageNodeKind.Component;
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "square-stack";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 100;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(CardPrimitivePreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => null;
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             ChildKinds,
             [
@@ -47,7 +89,10 @@ public sealed class CardPrimitiveDefinition :
             [
                 new NeoDropZoneDefinition(ContentDropZone, ChildKinds)
             ]);
-    public EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Spacing |
         EditorCapabilitySet.Dimensions |
         EditorCapabilitySet.Layout |
@@ -58,7 +103,10 @@ public sealed class CardPrimitiveDefinition :
         EditorCapabilitySet.Visibility |
         EditorCapabilitySet.Direction;
 
-    public NeoPageNode CreateDefaultNode() =>
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = NewId(),
@@ -133,6 +181,9 @@ public sealed class CardPrimitiveDefinition :
         ),
     };
 
-    public ISlotDefinition? GetSlot(string slotId) =>
+        /// <summary>
+    /// GetSlot method.
+    /// </summary>
+public ISlotDefinition? GetSlot(string slotId) =>
         _slots.FirstOrDefault(s => s.Id == slotId);
 }

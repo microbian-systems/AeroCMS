@@ -3,14 +3,23 @@ using System.Net.Http.Json;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
+/// <summary>
+/// Represents a class for AuthClient.
+/// </summary>
 public sealed class AuthClient(
     HttpClient httpClient,
     ILogger<AuthClient> logger)
     : AeroCmsClientBase(httpClient, logger), IAuthClient
 {
-    public override string Path => "auth";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "auth";
 
-    public async Task<Result<JwtTokenResponse, AeroError>> LoginAsync(
+        /// <summary>
+    /// LoginAsync method.
+    /// </summary>
+public async Task<Result<JwtTokenResponse, AeroError>> LoginAsync(
         LoginRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -32,7 +41,10 @@ public sealed class AuthClient(
         return result;
     }
 
-    public async Task<Result<JwtTokenResponse, AeroError>> AuthWithApiKeyAsync(
+        /// <summary>
+    /// AuthWithApiKeyAsync method.
+    /// </summary>
+public async Task<Result<JwtTokenResponse, AeroError>> AuthWithApiKeyAsync(
         ApiKeyAuthRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -40,7 +52,10 @@ public sealed class AuthClient(
             $"{HttpConstants.ApiPrefix}jwt/token", request, cancellationToken);
     }
 
-    public async Task<Result<JwtTokenResponse, AeroError>> RefreshJwtTokenAsync(
+        /// <summary>
+    /// RefreshJwtTokenAsync method.
+    /// </summary>
+public async Task<Result<JwtTokenResponse, AeroError>> RefreshJwtTokenAsync(
         RefreshTokenRequest request,
         CancellationToken cancellationToken = default)
     {

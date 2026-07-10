@@ -9,7 +9,10 @@ namespace Aero.Cms.Core.Blocks;
 /// </summary>
 public sealed class BlockMartenConfiguration : IConfigureMarten
 {
-    public void Configure(IServiceProvider services, StoreOptions options)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions options)
     {
         var generatedTypes = GeneratedBlockModelManifest.Blocks.Values
             .Select(descriptor => new CmsBlockModelRegistration(descriptor.BlockType, descriptor.ModelType));

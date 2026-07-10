@@ -16,15 +16,33 @@ namespace Aero.Cms.Ui.Hyper.Blocks.ProductCollections;
     SchemaVersion = 1)]
 public sealed class ProductCollection1Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.product-collections.1";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.product-collections.1";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Product Collection";
-    public string Description { get; set; } = "Lorem ipsum, dolor sit amet consectetur adipisicing elit. Itaque praesentium cumque iure dicta incidunt est ipsam, officia dolor fugit natus?";
-    public List<ProductCollectionItem> Products { get; set; } = DefaultProducts.Select(CloneProduct).ToList();
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Product Collection";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "Lorem ipsum, dolor sit amet consectetur adipisicing elit. Itaque praesentium cumque iure dicta incidunt est ipsam, officia dolor fugit natus?";
+        /// <summary>
+    /// Gets or sets the Products.
+    /// </summary>
+public List<ProductCollectionItem> Products { get; set; } = DefaultProducts.Select(CloneProduct).ToList();
 
-    public static readonly List<ProductCollectionItem> DefaultProducts =
+        /// <summary>
+    /// DefaultProducts.
+    /// </summary>
+public static readonly List<ProductCollectionItem> DefaultProducts =
     [
         new() { Name = "Basic Tee", Price = "£24.00 GBP", ImageUrl = "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=1160", ProductUrl = "#" },
         new() { Name = "Basic Tee", Price = "£24.00 GBP", ImageUrl = "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=1160", ProductUrl = "#" },
@@ -32,7 +50,10 @@ public sealed class ProductCollection1Block : BlockBase
         new() { Name = "Basic Tee", Price = "£24.00 GBP", ImageUrl = "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=1160", ProductUrl = "#" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static ProductCollectionItem CloneProduct(ProductCollectionItem p) => new()
     {
@@ -43,10 +64,25 @@ public sealed class ProductCollection1Block : BlockBase
     };
 }
 
+/// <summary>
+/// Represents a class for ProductCollectionItem.
+/// </summary>
 public sealed class ProductCollectionItem
 {
-    public string Name { get; set; } = "";
-    public string Price { get; set; } = "";
-    public string ImageUrl { get; set; } = "";
-    public string ProductUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Price.
+    /// </summary>
+public string Price { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string ImageUrl { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Product Url.
+    /// </summary>
+public string ProductUrl { get; set; } = "#";
 }

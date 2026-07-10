@@ -4,9 +4,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Core.Content.Services;
 
+/// <summary>
+/// Represents a class for DynamicContentValidator.
+/// </summary>
 public sealed class DynamicContentValidator : AbstractValidator<ContentItem>
 {
-    public DynamicContentValidator(ContentTypeDefinition type, ContentValidationMode mode, IEnumerable<IContentFieldValidator> fieldValidators)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DynamicContentValidator"/> class.
+    /// </summary>
+public DynamicContentValidator(ContentTypeDefinition type, ContentValidationMode mode, IEnumerable<IContentFieldValidator> fieldValidators)
     {
         RuleFor(x => x.ContentTypeAlias).Equal(type.Alias);
         RuleFor(x => x.Slug).NotEmpty();

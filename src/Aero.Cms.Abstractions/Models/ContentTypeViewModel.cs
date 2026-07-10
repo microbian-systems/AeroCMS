@@ -9,30 +9,66 @@ namespace Aero.Cms.Abstractions.Models;
 [GenerateSerializer]
 public sealed record ContentTypeViewModel : AeroEntityViewModel
 {
-    [Id(0)]
+        /// <summary>
+    /// Gets or sets the Alias.
+    /// </summary>
+[Id(0)]
     public string Alias { get; set; } = string.Empty;
-    [Id(1)]
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+[Id(1)]
     public string Name { get; set; } = string.Empty;
-    [Id(2)]
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+[Id(2)]
     public string? Description { get; set; }
-    [Id(3)]
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+[Id(3)]
     public string? Category { get; set; }
-    [Id(4)]
+        /// <summary>
+    /// Gets or sets the Icon.
+    /// </summary>
+[Id(4)]
     public string? Icon { get; set; }
-    [Id(5)]
+        /// <summary>
+    /// Gets or sets the Fields Json.
+    /// </summary>
+[Id(5)]
     public string FieldsJson { get; set; } = "[]";
-    [Id(6)]
+        /// <summary>
+    /// Gets or sets the Scriban Template.
+    /// </summary>
+[Id(6)]
     public string? ScribanTemplate { get; set; }
-    [Id(7)]
+        /// <summary>
+    /// Gets or sets the Render Mode.
+    /// </summary>
+[Id(7)]
     public ContentTypeRenderMode RenderMode { get; set; }
-    [Id(8)]
+        /// <summary>
+    /// Gets or sets the Allow Public Url.
+    /// </summary>
+[Id(8)]
     public bool AllowPublicUrl { get; set; }
-    [Id(9)]
+        /// <summary>
+    /// Gets or sets the Hide From Search.
+    /// </summary>
+[Id(9)]
     public bool HideFromSearch { get; set; }
-    [Id(10)]
+        /// <summary>
+    /// Gets or sets the Schedule Config.
+    /// </summary>
+[Id(10)]
     public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
 }
 
+/// <summary>
+/// Represents a record for ContentTypeErrorViewModel.
+/// </summary>
 [GenerateSerializer]
 [Alias("ContentTypeErrorViewModel")]
 public record ContentTypeErrorViewModel : AeroErrorViewModel<ContentTypeViewModel>;

@@ -16,15 +16,39 @@ namespace Aero.Cms.Ui.Hyper.Blocks.EmptyContent;
     SchemaVersion = 1)]
 public sealed class EmptyContent3Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.empty-content.3";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.empty-content.3";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Coming soon!";
-    public string Description { get; set; } = "We're working on something exciting. Be the first to know when it launches.";
-    public string EmailPlaceholder { get; set; } = "your@email.com";
-    public string SubmitText { get; set; } = "Notify Me";
-    public string Footnote { get; set; } = "We'll let you know the moment it's available.";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Coming soon!";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "We're working on something exciting. Be the first to know when it launches.";
+        /// <summary>
+    /// Gets or sets the Email Placeholder.
+    /// </summary>
+public string EmailPlaceholder { get; set; } = "your@email.com";
+        /// <summary>
+    /// Gets or sets the Submit Text.
+    /// </summary>
+public string SubmitText { get; set; } = "Notify Me";
+        /// <summary>
+    /// Gets or sets the Footnote.
+    /// </summary>
+public string Footnote { get; set; } = "We'll let you know the moment it's available.";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

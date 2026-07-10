@@ -1,11 +1,14 @@
-﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.AppServer;
 
 internal sealed class AeroLifetimeObserver(IHostApplicationLifetime lifetime, ILogger<AeroLifetimeObserver> log) : IHostedService
 {
-    public Task StartAsync(CancellationToken cancellationToken)
+        /// <summary>
+    /// StartAsync method.
+    /// </summary>
+public Task StartAsync(CancellationToken cancellationToken)
     {
         // Register the callbacks
         lifetime.ApplicationStarted.Register(() =>
@@ -20,5 +23,8 @@ internal sealed class AeroLifetimeObserver(IHostApplicationLifetime lifetime, IL
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        /// <summary>
+    /// StopAsync method.
+    /// </summary>
+public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

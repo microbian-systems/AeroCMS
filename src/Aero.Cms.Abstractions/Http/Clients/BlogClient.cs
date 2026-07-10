@@ -33,11 +33,20 @@ public interface IBlogHttpClient
     /// <returns>The blog post detail or an error.</returns>
     Task<Result<BlogDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
 
-    Task<Result<IReadOnlyList<BlogDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<BlogDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
 
-    Task<Result<BlogDetail, AeroError>> ForkToCultureAsync(long id, ForkBlogCultureRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+Task<Result<BlogDetail, AeroError>> ForkToCultureAsync(long id, ForkBlogCultureRequest request, CancellationToken ct = default);
 
-    Task<Result<AiTranslateBlogResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateBlogRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// TranslateWithAiAsync method.
+    /// </summary>
+Task<Result<AiTranslateBlogResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateBlogRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Creates a new blog post.
@@ -69,9 +78,15 @@ public interface IBlogHttpClient
     /// </summary>
     Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
-    Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+        /// <summary>
+    /// PublishTranslationGroupAsync method.
+    /// </summary>
+Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
-    Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+        /// <summary>
+    /// UnpublishTranslationGroupAsync method.
+    /// </summary>
+Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
     /// <summary>
     /// Publishes a blog post.
@@ -272,12 +287,21 @@ public sealed record BlogTranslationVariantSummary(
     DateTime? PublishedAt,
     bool IsDefaultCulture);
 
+/// <summary>
+/// Represents a record for DeleteBlogTranslationGroupResult.
+/// </summary>
 public sealed record DeleteBlogTranslationGroupResult(int Deleted);
 
+/// <summary>
+/// Represents a record for PublicationBulkResult.
+/// </summary>
 public sealed record PublicationBulkResult(
     int Updated,
     IReadOnlyList<PublicationBulkItem> Items);
 
+/// <summary>
+/// Represents a record for PublicationBulkItem.
+/// </summary>
 public sealed record PublicationBulkItem(
     long Id,
     string Culture,
@@ -308,20 +332,35 @@ public record BlogDetail(
     long? TranslationGroupId = null,
     long? SeriesId = null);
 
+/// <summary>
+/// Represents a record for ForkBlogCultureRequest.
+/// </summary>
 public sealed record ForkBlogCultureRequest(string Culture, string Slug);
 
+/// <summary>
+/// Represents a record for AiTranslateBlogRequest.
+/// </summary>
 public sealed record AiTranslateBlogRequest(
     IReadOnlyList<AiTranslateBlogCultureRequest> Targets,
     string? ProviderId = null,
     bool OverwriteExisting = false);
 
+/// <summary>
+/// Represents a record for AiTranslateBlogCultureRequest.
+/// </summary>
 public sealed record AiTranslateBlogCultureRequest(
     string Culture,
     string? Slug = null);
 
+/// <summary>
+/// Represents a record for AiTranslateBlogResult.
+/// </summary>
 public sealed record AiTranslateBlogResult(
     IReadOnlyList<AiTranslateBlogCultureResult> Results);
 
+/// <summary>
+/// Represents a record for AiTranslateBlogCultureResult.
+/// </summary>
 public sealed record AiTranslateBlogCultureResult(
     string Culture,
     bool Succeeded,
@@ -334,18 +373,54 @@ public sealed record AiTranslateBlogCultureResult(
 /// </summary>
 public class CreateBlogRequest
 {
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Summary { get; set; }
-    public string? SeoTitle { get; set; }
-    public string? SeoDescription { get; set; }
-    public string? MarkdownContent { get; set; }
-    public List<string>? Tags { get; set; }
-    public string? Category { get; set; }
-    public long? SeriesId { get; set; }
-    public string? Author { get; set; }
-    public string? ImageUrl { get; set; }
-    public int PublicationState { get; set; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+public string? Summary { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+public string? SeoTitle { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+public string? SeoDescription { get; set; }
+        /// <summary>
+    /// Gets or sets the Markdown Content.
+    /// </summary>
+public string? MarkdownContent { get; set; }
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public List<string>? Tags { get; set; }
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string? Category { get; set; }
+        /// <summary>
+    /// Gets or sets the Series Id.
+    /// </summary>
+public long? SeriesId { get; set; }
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public string? Author { get; set; }
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string? ImageUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+public int PublicationState { get; set; }
 }
 
 /// <summary>
@@ -353,19 +428,58 @@ public class CreateBlogRequest
 /// </summary>
 public class UpdateBlogRequest
 {
-    public long Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Summary { get; set; }
-    public string? SeoTitle { get; set; }
-    public string? SeoDescription { get; set; }
-    public string? MarkdownContent { get; set; }
-    public List<string>? Tags { get; set; }
-    public string? Category { get; set; }
-    public long? SeriesId { get; set; }
-    public string? Author { get; set; }
-    public string? ImageUrl { get; set; }
-    public int PublicationState { get; set; }
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+public long Id { get; set; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+public string? Summary { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+public string? SeoTitle { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+public string? SeoDescription { get; set; }
+        /// <summary>
+    /// Gets or sets the Markdown Content.
+    /// </summary>
+public string? MarkdownContent { get; set; }
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public List<string>? Tags { get; set; }
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string? Category { get; set; }
+        /// <summary>
+    /// Gets or sets the Series Id.
+    /// </summary>
+public long? SeriesId { get; set; }
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public string? Author { get; set; }
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string? ImageUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+public int PublicationState { get; set; }
 }
 
 // ─── Import Feature DTOs ─────────────────────────────────────
@@ -375,9 +489,18 @@ public class UpdateBlogRequest
 /// </summary>
 public static class DuplicateSlugBehavior
 {
-    public const string Skip = "skip";
-    public const string Suffix = "suffix";
-    public const string Overwrite = "overwrite";
+        /// <summary>
+    /// Skip.
+    /// </summary>
+public const string Skip = "skip";
+        /// <summary>
+    /// Suffix.
+    /// </summary>
+public const string Suffix = "suffix";
+        /// <summary>
+    /// Overwrite.
+    /// </summary>
+public const string Overwrite = "overwrite";
 }
 
 /// <summary>

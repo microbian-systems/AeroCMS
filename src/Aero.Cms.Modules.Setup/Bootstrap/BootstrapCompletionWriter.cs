@@ -4,16 +4,34 @@ using Aero.Cms.Modules.Setup.Configuration;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Defines an interface for IBootstrapCompletionWriter.
+/// </summary>
 public interface IBootstrapCompletionWriter
 {
-    Task MarkCompleteAsync(CancellationToken cancellationToken = default);
-    Task MarkConfiguredAsync(CancellationToken cancellationToken = default);
-    Task MarkFailedAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+    /// MarkCompleteAsync method.
+    /// </summary>
+Task MarkCompleteAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+    /// MarkConfiguredAsync method.
+    /// </summary>
+Task MarkConfiguredAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+    /// MarkFailedAsync method.
+    /// </summary>
+Task MarkFailedAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for BootstrapCompletionWriter.
+/// </summary>
 public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appSettingsWriter) : IBootstrapCompletionWriter
 {
-    public async Task MarkCompleteAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// MarkCompleteAsync method.
+    /// </summary>
+public async Task MarkCompleteAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
@@ -43,7 +61,10 @@ public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appS
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }
 
-    public async Task MarkConfiguredAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// MarkConfiguredAsync method.
+    /// </summary>
+public async Task MarkConfiguredAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);
@@ -74,7 +95,10 @@ public sealed class BootstrapCompletionWriter(IEnvironmentAppSettingsWriter appS
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }
 
-    public async Task MarkFailedAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// MarkFailedAsync method.
+    /// </summary>
+public async Task MarkFailedAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var path = AppSettingsPathResolver.GetAppSettingsFilePath(env);

@@ -10,17 +10,41 @@ using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Security;
 
+/// <summary>
+/// Represents a class for SecurityModule.
+/// </summary>
 [Module(nameof(SecurityModule))]
 public class SecurityModule : AeroModuleBase, IConfigureAeroDB
 {
-    public override string Name => nameof(SecurityModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => [];
-    public override IReadOnlyList<string> Tags => [];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(SecurityModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => [];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => [];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         if (config != null)
         {
@@ -41,18 +65,27 @@ public class SecurityModule : AeroModuleBase, IConfigureAeroDB
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
     }
 
-    public override void Configure(IAeroModuleBuilder builder)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public override void Configure(IAeroModuleBuilder builder)
     {
         // Admin UI registration
     }
 
-    public void Configure(StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions opts)
     {
         opts.Schema.For<ApiKeyDocument>().Index(x => x.SecretHash);
         opts.Schema.For<ApiKeyDocument>().Index(x => x.UserId);
     }
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }

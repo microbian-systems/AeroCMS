@@ -1,10 +1,22 @@
-﻿using Aero.Core.Entities;
+using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Entities;
 
+/// <summary>
+/// Represents a class for TenantModel.
+/// </summary>
 public class TenantModel : Entity
 {
-    public string Name { get; set; } = default!;
-    public string Hostname { get; set; } = default!;
-    public string? Notes { get; set; } = null;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Hostname.
+    /// </summary>
+public string Hostname { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Notes.
+    /// </summary>
+public string? Notes { get; set; } = null;
 }

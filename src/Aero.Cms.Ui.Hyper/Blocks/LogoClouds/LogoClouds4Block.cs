@@ -16,11 +16,23 @@ namespace Aero.Cms.Ui.Hyper.Blocks.LogoClouds;
     SchemaVersion = 1)]
 public sealed class LogoClouds4Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.logo-clouds.4";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.logo-clouds.4";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public List<LogoCloudsLogoItem> LogoItems { get; set; } = LogoCloudsDefaults.CloneDefaults();
+        /// <summary>
+    /// Gets or sets the Logo Items.
+    /// </summary>
+public List<LogoCloudsLogoItem> LogoItems { get; set; } = LogoCloudsDefaults.CloneDefaults();
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

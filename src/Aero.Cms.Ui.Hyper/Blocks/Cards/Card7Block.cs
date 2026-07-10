@@ -16,14 +16,35 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Cards;
     SchemaVersion = 1)]
 public sealed class Card7Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.cards.7";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.cards.7";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Company Name";
-    public string Subtitle { get; set; } = "Branding / Signage";
-    public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1588515724527-074a7a56616c?auto=format&fit=crop&q=80&w=1160";
-    public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Company Name";
+        /// <summary>
+    /// Gets or sets the Subtitle.
+    /// </summary>
+public string Subtitle { get; set; } = "Branding / Signage";
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1588515724527-074a7a56616c?auto=format&fit=crop&q=80&w=1160";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

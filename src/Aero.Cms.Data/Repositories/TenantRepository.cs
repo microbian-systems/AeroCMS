@@ -5,20 +5,44 @@ using AeroDB.Sable;
 
 namespace Aero.Cms.Data.Repositories;
 
+/// <summary>
+/// Defines an interface for ITenantRepository.
+/// </summary>
 public interface ITenantRepository : IAeroCompiledRepository<TenantModel>
 {
-    Task<TenantModel?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
-    Task<TenantModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default);
-    Task<IList<TenantModel>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default);
-    Task<IList<TenantModel>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
-    Task<IList<TenantModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByNameAsync method.
+    /// </summary>
+Task<TenantModel?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByHostnameAsync method.
+    /// </summary>
+Task<TenantModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByNotesAsync method.
+    /// </summary>
+Task<IList<TenantModel>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetCreatedInRangeAsync method.
+    /// </summary>
+Task<IList<TenantModel>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetModifiedInRangeAsync method.
+    /// </summary>
+Task<IList<TenantModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for TenantRepository.
+/// </summary>
 public sealed class TenantRepository(IDocumentSession session) 
     : AeroCompiledRepository<TenantModel>(session), ITenantRepository
 {
 
-    protected override EntitiesByIdsQuery<TenantModel> CreateByIdsQuery(IEnumerable<long> ids)
+        /// <summary>
+    /// CreateByIdsQuery method.
+    /// </summary>
+protected override EntitiesByIdsQuery<TenantModel> CreateByIdsQuery(IEnumerable<long> ids)
     {
         var query = new TenantsByIdsQuery()
         {
@@ -27,18 +51,33 @@ public sealed class TenantRepository(IDocumentSession session)
         return query;
     }
 
-    public Task<TenantModel?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByNameAsync method.
+    /// </summary>
+public Task<TenantModel?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
         => Session.QueryAsync(new TenantByNameQuery { Name = name }, cancellationToken);
 
-    public Task<TenantModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByHostnameAsync method.
+    /// </summary>
+public Task<TenantModel?> GetByHostnameAsync(string hostname, CancellationToken cancellationToken = default)
         => Session.QueryAsync(new TenantByHostnameQuery { Hostname = hostname }, cancellationToken);
 
-    public async Task<IList<TenantModel>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByNotesAsync method.
+    /// </summary>
+public async Task<IList<TenantModel>> GetByNotesAsync(string notes, CancellationToken cancellationToken = default)
         => await Session.QueryAsync(new TenantsByNotesQuery { Notes = notes }, cancellationToken);
 
-    public async Task<IList<TenantModel>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetCreatedInRangeAsync method.
+    /// </summary>
+public async Task<IList<TenantModel>> GetCreatedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
         => await Session.QueryAsync(new TenantsCreatedInRangeQuery { From = from, To = to }, cancellationToken);
 
-    public async Task<IList<TenantModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetModifiedInRangeAsync method.
+    /// </summary>
+public async Task<IList<TenantModel>> GetModifiedInRangeAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
         => await Session.QueryAsync(new TenantsModifiedInRangeQuery { From = from, To = to }, cancellationToken);
 }

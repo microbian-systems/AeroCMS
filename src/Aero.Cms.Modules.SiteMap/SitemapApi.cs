@@ -10,9 +10,15 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.SiteMap;
 
+/// <summary>
+/// Represents a class for SitemapApi.
+/// </summary>
 public static class SitemapApi
 {
-    public static void MapSitemapApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapSitemapApi method.
+    /// </summary>
+public static void MapSitemapApi(this IEndpointRouteBuilder app)
     {
         app.MapGet("/sitemap", RedirectToSitemapXml)
             .WithName("GetSitemapRedirect")

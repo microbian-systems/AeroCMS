@@ -17,5 +17,8 @@ public abstract class PrimitiveDefinitionBase :
     PageEditorCatalogDefinitionBase,
     IEmbeddable
 {
-    public override NeoPageNodeKind Kind => NeoPageNodeKind.Primitive;
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public override NeoPageNodeKind Kind => NeoPageNodeKind.Primitive;
 }

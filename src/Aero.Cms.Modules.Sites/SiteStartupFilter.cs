@@ -14,7 +14,10 @@ namespace Aero.Cms.Modules.Sites;
 /// </summary>
 public sealed class SiteStartupFilter : IStartupFilter
 {
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
     {
         return app =>
         {

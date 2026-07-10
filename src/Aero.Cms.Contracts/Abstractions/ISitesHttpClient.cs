@@ -11,7 +11,16 @@ namespace Aero.Cms.Contracts.Abstractions;
 /// </summary>
 public interface ISitesHttpClient
 {
-    Task<Result<IReadOnlyList<SiteInfo>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    Task<Result<SiteInfo, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Result<SiteInfo, AeroError>> GetDefaultAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<SiteInfo>, AeroError>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+Task<Result<SiteInfo, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetDefaultAsync method.
+    /// </summary>
+Task<Result<SiteInfo, AeroError>> GetDefaultAsync(CancellationToken ct = default);
 }

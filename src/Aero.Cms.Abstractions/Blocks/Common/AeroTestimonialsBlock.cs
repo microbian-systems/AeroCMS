@@ -8,22 +8,61 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("aero_testimonials", "Aero Testimonials", Category = "Aero")]
 public class AeroTestimonialsBlock : BlockBase
 {
-    public override string BlockType => "aero_testimonials";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "aero_testimonials";
 
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public List<AeroTestimonialItem> Testimonials { get; set; } = new();
-    public string? AeroLayout { get; set; } = "Grid"; // Grid, Slider, Simple
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Testimonials.
+    /// </summary>
+public List<AeroTestimonialItem> Testimonials { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Aero Layout.
+    /// </summary>
+public string? AeroLayout { get; set; } = "Grid"; // Grid, Slider, Simple
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
+/// <summary>
+/// Represents a class for AeroTestimonialItem.
+/// </summary>
 public class AeroTestimonialItem
 {
-    public string? AuthorName { get; set; }
-    public string? AuthorRole { get; set; }
-    public string? AuthorImage { get; set; }
-    public string? Content { get; set; }
-    public int StarRating { get; set; } = 5;
-    public string? CompanyName { get; set; }
+        /// <summary>
+    /// Gets or sets the Author Name.
+    /// </summary>
+public string? AuthorName { get; set; }
+        /// <summary>
+    /// Gets or sets the Author Role.
+    /// </summary>
+public string? AuthorRole { get; set; }
+        /// <summary>
+    /// Gets or sets the Author Image.
+    /// </summary>
+public string? AuthorImage { get; set; }
+        /// <summary>
+    /// Gets or sets the Content.
+    /// </summary>
+public string? Content { get; set; }
+        /// <summary>
+    /// Gets or sets the Star Rating.
+    /// </summary>
+public int StarRating { get; set; } = 5;
+        /// <summary>
+    /// Gets or sets the Company Name.
+    /// </summary>
+public string? CompanyName { get; set; }
 }

@@ -16,17 +16,41 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Headers;
     SchemaVersion = 1)]
 public sealed class Header1Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.headers.1";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.headers.1";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public List<HyperNavLink> NavLinks { get; set; } = DefaultNavLinks.Select(CloneNavLink).ToList();
-    public string LoginUrl { get; set; } = "#";
-    public string RegisterUrl { get; set; } = "#";
-    public string LoginText { get; set; } = "Login";
-    public string RegisterText { get; set; } = "Register";
+        /// <summary>
+    /// Gets or sets the Nav Links.
+    /// </summary>
+public List<HyperNavLink> NavLinks { get; set; } = DefaultNavLinks.Select(CloneNavLink).ToList();
+        /// <summary>
+    /// Gets or sets the Login Url.
+    /// </summary>
+public string LoginUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Register Url.
+    /// </summary>
+public string RegisterUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Login Text.
+    /// </summary>
+public string LoginText { get; set; } = "Login";
+        /// <summary>
+    /// Gets or sets the Register Text.
+    /// </summary>
+public string RegisterText { get; set; } = "Register";
 
-    public static readonly List<HyperNavLink> DefaultNavLinks =
+        /// <summary>
+    /// DefaultNavLinks.
+    /// </summary>
+public static readonly List<HyperNavLink> DefaultNavLinks =
     [
         new() { Label = "About", Url = "#" },
         new() { Label = "Careers", Url = "#" },
@@ -36,7 +60,10 @@ public sealed class Header1Block : BlockBase
         new() { Label = "Blog", Url = "#" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static HyperNavLink CloneNavLink(HyperNavLink link) => new()
     {
@@ -50,6 +77,12 @@ public sealed class Header1Block : BlockBase
 /// </summary>
 public sealed class HyperNavLink
 {
-    public string Label { get; set; } = "";
-    public string Url { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Label.
+    /// </summary>
+public string Label { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Url.
+    /// </summary>
+public string Url { get; set; } = "#";
 }

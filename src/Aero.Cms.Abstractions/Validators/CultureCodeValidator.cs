@@ -4,9 +4,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Abstractions.Validators;
 
+/// <summary>
+/// Represents a class for CultureCodeValidator.
+/// </summary>
 public sealed class CultureCodeValidator : AbstractValidator<ICultureAware>
 {
-    public CultureCodeValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CultureCodeValidator"/> class.
+    /// </summary>
+public CultureCodeValidator()
     {
         RuleFor(x => x.Culture)
             .NotEmpty()

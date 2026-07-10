@@ -16,21 +16,57 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
     SchemaVersion = 1)]
 public sealed class Footer6Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.footers.6";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.footers.6";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string CtaTitle { get; set; } = "Request a Demo";
-    public string CtaDescription { get; set; } = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Veritatis, harum deserunt nesciunt praesentium, repellendus eum perspiciatis ratione pariatur a aperiam eius numquam doloribus asperiores sunt.";
-    public string EmailPlaceholder { get; set; } = "john@rhcp.com";
-    public string ButtonText { get; set; } = "Sign Up";
-    public List<FooterLink> ServicesLinks { get; set; } = DefaultServicesLinks.Select(CloneLink).ToList();
-    public List<FooterLink> CompanyLinks { get; set; } = DefaultCompanyLinks.Select(CloneLink).ToList();
-    public List<FooterLink> HelpfulLinks { get; set; } = DefaultHelpfulLinks.Select(CloneLink).ToList();
-    public List<FooterLink> BottomLinks { get; set; } = DefaultBottomLinks.Select(CloneLink).ToList();
-    public string CopyrightText { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
+        /// <summary>
+    /// Gets or sets the Cta Title.
+    /// </summary>
+public string CtaTitle { get; set; } = "Request a Demo";
+        /// <summary>
+    /// Gets or sets the Cta Description.
+    /// </summary>
+public string CtaDescription { get; set; } = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Veritatis, harum deserunt nesciunt praesentium, repellendus eum perspiciatis ratione pariatur a aperiam eius numquam doloribus asperiores sunt.";
+        /// <summary>
+    /// Gets or sets the Email Placeholder.
+    /// </summary>
+public string EmailPlaceholder { get; set; } = "john@rhcp.com";
+        /// <summary>
+    /// Gets or sets the Button Text.
+    /// </summary>
+public string ButtonText { get; set; } = "Sign Up";
+        /// <summary>
+    /// Gets or sets the Services Links.
+    /// </summary>
+public List<FooterLink> ServicesLinks { get; set; } = DefaultServicesLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Company Links.
+    /// </summary>
+public List<FooterLink> CompanyLinks { get; set; } = DefaultCompanyLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Helpful Links.
+    /// </summary>
+public List<FooterLink> HelpfulLinks { get; set; } = DefaultHelpfulLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Bottom Links.
+    /// </summary>
+public List<FooterLink> BottomLinks { get; set; } = DefaultBottomLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Copyright Text.
+    /// </summary>
+public string CopyrightText { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
 
-    public static readonly List<FooterLink> DefaultServicesLinks =
+        /// <summary>
+    /// DefaultServicesLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultServicesLinks =
     [
         new() { Text = "1on1 Coaching" },
         new() { Text = "Company Review" },
@@ -39,28 +75,40 @@ public sealed class Footer6Block : BlockBase
         new() { Text = "SEO Optimisation" }
     ];
 
-    public static readonly List<FooterLink> DefaultCompanyLinks =
+        /// <summary>
+    /// DefaultCompanyLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultCompanyLinks =
     [
         new() { Text = "About" },
         new() { Text = "Meet the Team" },
         new() { Text = "Accounts Review" }
     ];
 
-    public static readonly List<FooterLink> DefaultHelpfulLinks =
+        /// <summary>
+    /// DefaultHelpfulLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultHelpfulLinks =
     [
         new() { Text = "Contact" },
         new() { Text = "FAQs" },
         new() { Text = "Live Chat" }
     ];
 
-    public static readonly List<FooterLink> DefaultBottomLinks =
+        /// <summary>
+    /// DefaultBottomLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultBottomLinks =
     [
         new() { Text = "Terms & Conditions" },
         new() { Text = "Privacy Policy" },
         new() { Text = "Cookies" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static FooterLink CloneLink(FooterLink link) => new()
     {

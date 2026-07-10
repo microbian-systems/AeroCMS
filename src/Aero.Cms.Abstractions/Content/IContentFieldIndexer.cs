@@ -1,8 +1,17 @@
 namespace Aero.Cms.Abstractions.Content;
 
+/// <summary>
+/// Defines an interface for IContentFieldIndexer.
+/// </summary>
 public interface IContentFieldIndexer
 {
-    string FieldType { get; }
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+string FieldType { get; }
 
-    IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value);
+        /// <summary>
+    /// GetIndexTokens method.
+    /// </summary>
+IEnumerable<string> GetIndexTokens(ContentFieldDefinition field, JsonElement value);
 }

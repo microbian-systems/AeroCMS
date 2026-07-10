@@ -2,9 +2,15 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Web.Pages
 {
-    public class MvcTestModel : PageModel
+        /// <summary>
+    /// Represents a class for MvcTestModel.
+    /// </summary>
+public class MvcTestModel : PageModel
     {
-        public void OnGet()
+                /// <summary>
+        /// OnGet method.
+        /// </summary>
+public void OnGet()
         {
         }
     }

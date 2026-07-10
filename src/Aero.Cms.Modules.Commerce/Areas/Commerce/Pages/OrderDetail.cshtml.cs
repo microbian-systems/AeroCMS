@@ -5,19 +5,31 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
+/// <summary>
+/// Represents a class for OrderDetailModel.
+/// </summary>
 [Microsoft.AspNetCore.Authorization.Authorize]
 public class OrderDetailModel : PageModel
 {
     private readonly IOrderService _orderService;
 
-    public OrderDetailModel(IOrderService orderService)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="OrderDetailModel"/> class.
+    /// </summary>
+public OrderDetailModel(IOrderService orderService)
     {
         _orderService = orderService;
     }
 
-    public OrderEntity? Order { get; set; }
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public OrderEntity? Order { get; set; }
 
-    public async Task<IActionResult> OnGetAsync(long id)
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetAsync(long id)
     {
         var customerId = User.Identity!.Name!;
 

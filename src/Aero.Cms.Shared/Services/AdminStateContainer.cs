@@ -15,7 +15,10 @@ public sealed class AdminStateContainer
     private const string StorageKey = "aero-admin-state";
     private readonly IAdminStorage _storage;
 
-    public AdminStateContainer(IAdminStorage storage)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AdminStateContainer"/> class.
+    /// </summary>
+public AdminStateContainer(IAdminStorage storage)
     {
         _storage = storage;
     }
@@ -26,9 +29,18 @@ public sealed class AdminStateContainer
     /// </summary>
     public event Action? StateChanged;
 
-    public long? CurrentSiteId { get; private set; }
-    public string? CurrentSiteName { get; private set; }
-    public string? CurrentView { get; set; }
+        /// <summary>
+    /// Gets or sets the Current Site Id.
+    /// </summary>
+public long? CurrentSiteId { get; private set; }
+        /// <summary>
+    /// Gets or sets the Current Site Name.
+    /// </summary>
+public string? CurrentSiteName { get; private set; }
+        /// <summary>
+    /// Gets or sets the Current View.
+    /// </summary>
+public string? CurrentView { get; set; }
 
     /// <summary>
     /// True after <see cref="LoadFromStorageAsync(ILocalStorageService)"/> has completed.

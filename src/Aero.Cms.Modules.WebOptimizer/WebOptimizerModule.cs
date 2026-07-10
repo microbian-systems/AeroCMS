@@ -6,17 +6,41 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.WebOptimizer;
 
+/// <summary>
+/// Represents a class for WebOptimizerModule.
+/// </summary>
 [Module(nameof(WebOptimizerModule))]
 public class WebOptimizerModule : AeroModuleBase
 {
-    public override string Name { get; } = nameof(WebOptimizerModule);
-    public override string Version { get; } = AeroConstants.Version;
-    public override string Author { get; } = AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies { get; } = [];
-    public override IReadOnlyList<string> Category { get; } = ["utilities", "web"];
-    public override IReadOnlyList<string> Tags { get; } = ["utilities", "web"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name { get; } = nameof(WebOptimizerModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version { get; } = AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author { get; } = AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies { get; } = [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category { get; } = ["utilities", "web"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags { get; } = ["utilities", "web"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration config=null, IHostEnvironment env=null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration config=null, IHostEnvironment env=null)
     {
         // todo - configure WebOptimizer more granularly w/ bundles, etc
         // https://weboptimizer.azurewebsites.net/

@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Carts;
 
+/// <summary>
+/// Represents a class for Cart3BlockMapper.
+/// </summary>
 public static class Cart3BlockMapper
 {
-    public static NeoPageNode ToNode(Cart3Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Cart3Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.carts.3",
@@ -27,7 +33,10 @@ public static class Cart3BlockMapper
         }
     };
 
-    public static Cart3Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Cart3Block FromNode(NeoPageNode node) => new()
     {
         CartItemCount = GetString(node, "cartItemCount", "2"),
         ViewCartText = GetString(node, "viewCartText", "View my cart"),

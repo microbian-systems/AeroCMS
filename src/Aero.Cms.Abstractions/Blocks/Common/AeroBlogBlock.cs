@@ -8,23 +8,65 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("aero_blog", "Aero Blog", Category = "Aero")]
 public class AeroBlogBlock : BlockBase
 {
-    public override string BlockType => "aero_blog";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "aero_blog";
 
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public List<AeroBlogItem> Posts { get; set; } = new();
-    public string? AeroLayout { get; set; } = "Cards"; // Cards, List, Large
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Posts.
+    /// </summary>
+public List<AeroBlogItem> Posts { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Aero Layout.
+    /// </summary>
+public string? AeroLayout { get; set; } = "Cards"; // Cards, List, Large
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
+/// <summary>
+/// Represents a class for AeroBlogItem.
+/// </summary>
 public class AeroBlogItem
 {
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public string? ImageUrl { get; set; }
-    public string? AuthorName { get; set; }
-    public string? PublishedAt { get; set; }
-    public string? Category { get; set; }
-    public string? PostUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string? ImageUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Author Name.
+    /// </summary>
+public string? AuthorName { get; set; }
+        /// <summary>
+    /// Gets or sets the Published At.
+    /// </summary>
+public string? PublishedAt { get; set; }
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string? Category { get; set; }
+        /// <summary>
+    /// Gets or sets the Post Url.
+    /// </summary>
+public string? PostUrl { get; set; }
 }

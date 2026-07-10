@@ -1,5 +1,8 @@
 namespace Aero.Cms.Abstractions.Requests;
 
+/// <summary>
+/// Represents a record for CreateSeriesRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("CreateSeriesRequest")]
 public record CreateSeriesRequest(
@@ -9,6 +12,9 @@ public record CreateSeriesRequest(
     string? Description = null
 ) : IRequest;
 
+/// <summary>
+/// Represents a record for UpdateSeriesRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("UpdateSeriesRequest")]
 public record UpdateSeriesRequest(
@@ -18,6 +24,9 @@ public record UpdateSeriesRequest(
     string? Description = null
 ) : IRequest;
 
+/// <summary>
+/// Represents a record for DeleteSeriesRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("DeleteSeriesRequest")]
 public record DeleteSeriesRequest(long Id) : IRequest;

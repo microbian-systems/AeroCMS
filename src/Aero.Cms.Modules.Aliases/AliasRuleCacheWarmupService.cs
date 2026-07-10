@@ -12,13 +12,19 @@ public sealed class AliasRuleCacheWarmupService : BackgroundService
     private readonly IAliasRuleCache _cache;
     private readonly ILogger<AliasRuleCacheWarmupService> _log;
 
-    public AliasRuleCacheWarmupService(IAliasRuleCache cache, ILogger<AliasRuleCacheWarmupService> log)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AliasRuleCacheWarmupService"/> class.
+    /// </summary>
+public AliasRuleCacheWarmupService(IAliasRuleCache cache, ILogger<AliasRuleCacheWarmupService> log)
     {
         _cache = cache;
         _log = log;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _log.LogInformation("Warming alias rule cache...");
         await _cache.RefreshAsync(stoppingToken);

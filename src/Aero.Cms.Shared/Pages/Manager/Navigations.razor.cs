@@ -9,6 +9,9 @@ using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a class for Navigations.
+/// </summary>
 public partial class Navigations
 {
     [Inject] private INavigationsHttpClient NavigationsClient { get; set; } = default!;
@@ -22,7 +25,10 @@ public partial class Navigations
     private bool _isLoading;
     private bool _isSaving;
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         await LoadMenusAsync();
     }

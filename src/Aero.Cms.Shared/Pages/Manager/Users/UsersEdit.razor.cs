@@ -7,38 +7,107 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
 using Radzen;
 
+/// <summary>
+/// Represents a class for UsersEdit.
+/// </summary>
 public partial class UsersEdit : ComponentBase
 {
-    [Parameter] public long? Id { get; set; }
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+[Parameter] public long? Id { get; set; }
 
-    [Inject] protected IUsersHttpClient UsersApi { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Users Api.
+    /// </summary>
+[Inject] protected IUsersHttpClient UsersApi { get; set; } = default!;
 
-    [Inject] protected NavigationManager Navigation { get; set; } = default!;
-    [Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Navigation.
+    /// </summary>
+[Inject] protected NavigationManager Navigation { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the L.
+    /// </summary>
+[Inject] protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
-    protected bool IsLoading { get; set; }
-    protected bool IsSaving { get; set; }
-    protected string UserName { get; set; } = string.Empty;
-    protected string Email { get; set; } = string.Empty;
-    protected string DisplayName { get; set; } = string.Empty;
-    protected string Password { get; set; } = string.Empty;
-    protected string RoleDraft { get; set; } = string.Empty;
-    protected bool IsEnabled { get; set; } = true;
-    protected DateTime? CreatedAt { get; set; }
-    protected DateTime? LastLoginAt { get; set; }
-    protected List<string> Roles { get; } = [];
+        /// <summary>
+    /// Gets or sets the Is Loading.
+    /// </summary>
+protected bool IsLoading { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Saving.
+    /// </summary>
+protected bool IsSaving { get; set; }
+        /// <summary>
+    /// Gets or sets the User Name.
+    /// </summary>
+protected string UserName { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Email.
+    /// </summary>
+protected string Email { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+protected string DisplayName { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Password.
+    /// </summary>
+protected string Password { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Role Draft.
+    /// </summary>
+protected string RoleDraft { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Is Enabled.
+    /// </summary>
+protected bool IsEnabled { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Created At.
+    /// </summary>
+protected DateTime? CreatedAt { get; set; }
+        /// <summary>
+    /// Gets or sets the Last Login At.
+    /// </summary>
+protected DateTime? LastLoginAt { get; set; }
+        /// <summary>
+    /// Gets or sets the Roles.
+    /// </summary>
+protected List<string> Roles { get; } = [];
 
-    protected bool IsNew => Id is null or 0;
-    protected string PageTitle => IsNew ? L["New User"] : $"{L["Edit"]} {DisplayNameOrUserName}";
-    protected string SaveButtonText => IsSaving ? L["Saving..."] : IsNew ? L["Create User"] : L["Save User"];
-    protected string StatusDescription => IsEnabled ? L["This user can sign in."] : L["This user is disabled."];
-    protected string CreatedAtText => CreatedAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? "-";
-    protected string LastLoginText => LastLoginAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? L["Never"];
+        /// <summary>
+    /// Gets or sets the Is New.
+    /// </summary>
+protected bool IsNew => Id is null or 0;
+        /// <summary>
+    /// Gets or sets the Page Title.
+    /// </summary>
+protected string PageTitle => IsNew ? L["New User"] : $"{L["Edit"]} {DisplayNameOrUserName}";
+        /// <summary>
+    /// Gets or sets the Save Button Text.
+    /// </summary>
+protected string SaveButtonText => IsSaving ? L["Saving..."] : IsNew ? L["Create User"] : L["Save User"];
+        /// <summary>
+    /// Gets or sets the Status Description.
+    /// </summary>
+protected string StatusDescription => IsEnabled ? L["This user can sign in."] : L["This user is disabled."];
+        /// <summary>
+    /// Gets or sets the Created At Text.
+    /// </summary>
+protected string CreatedAtText => CreatedAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? "-";
+        /// <summary>
+    /// Gets or sets the Last Login Text.
+    /// </summary>
+protected string LastLoginText => LastLoginAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? L["Never"];
 
     private string DisplayNameOrUserName
         => !string.IsNullOrWhiteSpace(DisplayName) ? DisplayName : UserName;
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         if (IsNew)
         {
@@ -66,7 +135,10 @@ public partial class UsersEdit : ComponentBase
         }
     }
 
-    protected async Task SaveAsync()
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+protected async Task SaveAsync()
     {
         if (!Validate())
             return;
@@ -120,7 +192,10 @@ public partial class UsersEdit : ComponentBase
         }
     }
 
-    protected void AddRole()
+        /// <summary>
+    /// AddRole method.
+    /// </summary>
+protected void AddRole()
     {
         var role = RoleDraft.Trim();
         if (string.IsNullOrWhiteSpace(role))
@@ -134,10 +209,16 @@ public partial class UsersEdit : ComponentBase
         RoleDraft = string.Empty;
     }
 
-    protected void RemoveRole(string role)
+        /// <summary>
+    /// RemoveRole method.
+    /// </summary>
+protected void RemoveRole(string role)
         => Roles.RemoveAll(existing => string.Equals(existing, role, StringComparison.OrdinalIgnoreCase));
 
-    protected void ToggleEnabled(ChangeEventArgs args)
+        /// <summary>
+    /// ToggleEnabled method.
+    /// </summary>
+protected void ToggleEnabled(ChangeEventArgs args)
     {
         IsEnabled = args.Value is bool value && value;
     }

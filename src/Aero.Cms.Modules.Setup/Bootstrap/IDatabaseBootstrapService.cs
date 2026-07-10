@@ -1,6 +1,12 @@
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Defines an interface for IDatabaseBootstrapService.
+/// </summary>
 public interface IDatabaseBootstrapService
 {
-    Task PersistAsync(DatabaseBootstrapModel model, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// PersistAsync method.
+    /// </summary>
+Task PersistAsync(DatabaseBootstrapModel model, CancellationToken cancellationToken = default);
 }

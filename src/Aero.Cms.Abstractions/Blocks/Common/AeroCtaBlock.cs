@@ -8,18 +8,45 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("aero_cta", "Aero CTA", Category = "Aero")]
 public class AeroCtaBlock : BlockBase
 {
-    public override string BlockType => "aero_cta";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "aero_cta";
 
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public string? CtaText { get; set; }
-    public string? CtaUrl { get; set; }
-    public string? ImageUrl { get; set; }
-    public AeroCtaLayout Layout { get; set; } = AeroCtaLayout.Card;
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string? CtaText { get; set; }
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string? CtaUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string? ImageUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Layout.
+    /// </summary>
+public AeroCtaLayout Layout { get; set; } = AeroCtaLayout.Card;
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
+/// <summary>
+/// Defines an enumeration for AeroCtaLayout.
+/// </summary>
 public enum AeroCtaLayout
 {
     Simple,

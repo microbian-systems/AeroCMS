@@ -4,13 +4,22 @@ using Aero.Cms.Modules.Footer.Events;
 
 namespace Aero.Cms.Modules.Footer;
 
+/// <summary>
+/// Represents a record for FooterCultureFork.
+/// </summary>
 public sealed record FooterCultureFork(
     FooterCreated Created,
     FooterDraftSaved DraftSaved);
 
+/// <summary>
+/// Represents a class for FooterCultureForker.
+/// </summary>
 public static class FooterCultureForker
 {
-    public static FooterCultureFork Fork(
+        /// <summary>
+    /// Fork method.
+    /// </summary>
+public static FooterCultureFork Fork(
         FooterDocument source,
         FooterSnapshot sourceSnapshot,
         long targetFooterId,

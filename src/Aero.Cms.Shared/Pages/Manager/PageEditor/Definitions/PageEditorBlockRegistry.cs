@@ -2,6 +2,9 @@ using Aero.Cms.Abstractions.Blocks.Editor;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 
+/// <summary>
+/// Represents a class for PageEditorBlockRegistry.
+/// </summary>
 [Obsolete("Use IPageEditorDefinitionRegistry via DI instead. This class is a deprecated compatibility shim.")]
 public static class PageEditorBlockRegistry
 {
@@ -20,7 +23,10 @@ public static class PageEditorBlockRegistry
         _activeRegistry = registry;
     }
 
-    [Obsolete("Use IPageEditorDefinitionRegistry from DI instead.")]
+        /// <summary>
+    /// RegisterProviders method.
+    /// </summary>
+[Obsolete("Use IPageEditorDefinitionRegistry from DI instead.")]
     public static void RegisterProviders(
         IEnumerable<IPageEditorBlockProvider> providers,
         IEnumerable<IPageEditorDefinitionProvider>? nativeProviders = null)
@@ -40,7 +46,10 @@ public static class PageEditorBlockRegistry
             .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
     }
 
-    public static bool TryGet(string? catalogId, out IPageEditorBlockDefinition definition)
+        /// <summary>
+    /// TryGet method.
+    /// </summary>
+public static bool TryGet(string? catalogId, out IPageEditorBlockDefinition definition)
     {
         if (TryGetDescriptor(catalogId, out var descriptor) &&
             descriptor.LegacyDefinition is { } legacyDefinition)
@@ -53,7 +62,10 @@ public static class PageEditorBlockRegistry
         return false;
     }
 
-    public static bool TryGetDescriptor(
+        /// <summary>
+    /// TryGetDescriptor method.
+    /// </summary>
+public static bool TryGetDescriptor(
         string? catalogId,
         out PageEditorDefinitionDescriptor definition)
     {
@@ -71,13 +83,19 @@ public static class PageEditorBlockRegistry
         return _definitions.TryGetValue(catalogId, out definition!);
     }
 
-    public static IReadOnlyCollection<IPageEditorBlockDefinition> All =>
+        /// <summary>
+    /// Gets or sets the All.
+    /// </summary>
+public static IReadOnlyCollection<IPageEditorBlockDefinition> All =>
         _activeRegistry?.LegacyDefinitions ??
         _definitions.Values
             .Select(definition => definition.LegacyDefinition)
             .OfType<IPageEditorBlockDefinition>()
             .ToList();
 
-    public static IReadOnlyCollection<PageEditorDefinitionDescriptor> AllDescriptors =>
+        /// <summary>
+    /// Gets or sets the All Descriptors.
+    /// </summary>
+public static IReadOnlyCollection<PageEditorDefinitionDescriptor> AllDescriptors =>
         _activeRegistry?.AllDescriptors ?? _definitions.Values.ToList();
 }

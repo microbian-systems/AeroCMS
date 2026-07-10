@@ -12,12 +12,36 @@ namespace Aero.Cms.Core.Entities;
 /// </summary>
 public sealed class PageDraft : Entity, ISiteOwned
 {
-    public long SiteId { get; set; }
-    public long PageId { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Summary { get; set; }
-    public string? RootNodeJson { get; set; }
-    public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
-    public DateTimeOffset DraftedAt { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Page Id.
+    /// </summary>
+public long PageId { get; set; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+public string? Summary { get; set; }
+        /// <summary>
+    /// Gets or sets the Root Node Json.
+    /// </summary>
+public string? RootNodeJson { get; set; }
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+        /// <summary>
+    /// Gets or sets the Drafted At.
+    /// </summary>
+public DateTimeOffset DraftedAt { get; set; }
 }

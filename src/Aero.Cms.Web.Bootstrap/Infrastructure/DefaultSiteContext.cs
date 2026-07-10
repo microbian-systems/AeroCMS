@@ -12,7 +12,10 @@ public sealed class DefaultSiteContext(IHttpContextAccessor httpContextAccessor)
     private static readonly PathString ManagerPathPrefix = "/manager";
     private static readonly PathString AdminApiPathPrefix = "/api/v1/admin";
 
-    public long SiteId
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId
     {
         get
         {
@@ -30,7 +33,10 @@ public sealed class DefaultSiteContext(IHttpContextAccessor httpContextAccessor)
         }
     }
 
-    public long TenantId
+        /// <summary>
+    /// Gets or sets the Tenant Id.
+    /// </summary>
+public long TenantId
     {
         get
         {

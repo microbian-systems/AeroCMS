@@ -9,6 +9,9 @@ using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a class for Footers.
+/// </summary>
 public partial class Footers
 {
     [Inject] private IFootersHttpClient FootersClient { get; set; } = default!;
@@ -22,7 +25,10 @@ public partial class Footers
     private bool _isLoading;
     private bool _isSaving;
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         await LoadFootersAsync();
     }

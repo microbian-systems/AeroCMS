@@ -13,17 +13,41 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Jwt;
 
+/// <summary>
+/// Represents a class for JwtAuthModule.
+/// </summary>
 [Module(nameof(JwtAuthModule))]
 public class JwtAuthModule : AeroWebModule
 {
-    public override string Name => nameof(JwtAuthModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["Identity", "Security"];
-    public override IReadOnlyList<string> Tags => ["auth", "jwt", "tokens", "security"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(JwtAuthModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["Identity", "Security"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["auth", "jwt", "tokens", "security"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         var key = Encoding.UTF8.GetBytes("super-secret-key");
 
@@ -41,7 +65,10 @@ public class JwtAuthModule : AeroWebModule
             });
     }
 
-    public override void Run(IEndpointRouteBuilder endpoints)
+        /// <summary>
+    /// Run method.
+    /// </summary>
+public override void Run(IEndpointRouteBuilder endpoints)
     {
         // Map the /auth/login placeholder (pre-existing)
         var group = endpoints.MapGroup("/auth");
@@ -58,7 +85,10 @@ public class JwtAuthModule : AeroWebModule
         base.Run(endpoints);
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapJwtApi();
         builder.MapAuthApi();

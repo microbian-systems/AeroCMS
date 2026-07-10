@@ -5,19 +5,34 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
+/// <summary>
+/// Represents a class for ShopHomeModel.
+/// </summary>
 public class ShopHomeModel : PageModel
 {
     private readonly IProductService _productService;
 
-    public ShopHomeModel(IProductService productService)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="ShopHomeModel"/> class.
+    /// </summary>
+public ShopHomeModel(IProductService productService)
     {
         _productService = productService;
     }
 
-    public List<ProductDocument>? FeaturedProducts { get; set; }
-    public List<string> GalleryImages { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Featured Products.
+    /// </summary>
+public List<ProductDocument>? FeaturedProducts { get; set; }
+        /// <summary>
+    /// Gets or sets the Gallery Images.
+    /// </summary>
+public List<string> GalleryImages { get; set; } = [];
 
-    public async Task<IActionResult> OnGetAsync()
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetAsync()
     {
         var result = await _productService.SearchAsync(take: 3);
         if (result is Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>.Ok(var ok))

@@ -16,25 +16,61 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
     SchemaVersion = 1)]
 public sealed class Footer5Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.footers.5";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.footers.5";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1642370324100-324b21fab3a9?auto=format&fit=crop&q=80&w=1160";
-    public string CallUsText { get; set; } = "Call us";
-    public string PhoneNumber { get; set; } = "0123456789";
-    public List<string> Hours { get; set; } =
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1642370324100-324b21fab3a9?auto=format&fit=crop&q=80&w=1160";
+        /// <summary>
+    /// Gets or sets the Call Us Text.
+    /// </summary>
+public string CallUsText { get; set; } = "Call us";
+        /// <summary>
+    /// Gets or sets the Phone Number.
+    /// </summary>
+public string PhoneNumber { get; set; } = "0123456789";
+        /// <summary>
+    /// Gets or sets the Hours.
+    /// </summary>
+public List<string> Hours { get; set; } =
     [
         "Monday to Friday: 10am - 5pm",
         "Weekend: 10am - 3pm"
     ];
-    public List<FooterSocialLink> SocialLinks { get; set; } = FooterDefaults.DefaultSocialLinks.Select(FooterDefaults.CloneSocialLink).ToList();
-    public List<FooterLink> ServicesLinks { get; set; } = DefaultServicesLinks.Select(CloneLink).ToList();
-    public List<FooterLink> CompanyLinks { get; set; } = DefaultCompanyLinks.Select(CloneLink).ToList();
-    public List<FooterLink> BottomLinks { get; set; } = DefaultBottomLinks.Select(CloneLink).ToList();
-    public string CopyrightText { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
+        /// <summary>
+    /// Gets or sets the Social Links.
+    /// </summary>
+public List<FooterSocialLink> SocialLinks { get; set; } = FooterDefaults.DefaultSocialLinks.Select(FooterDefaults.CloneSocialLink).ToList();
+        /// <summary>
+    /// Gets or sets the Services Links.
+    /// </summary>
+public List<FooterLink> ServicesLinks { get; set; } = DefaultServicesLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Company Links.
+    /// </summary>
+public List<FooterLink> CompanyLinks { get; set; } = DefaultCompanyLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Bottom Links.
+    /// </summary>
+public List<FooterLink> BottomLinks { get; set; } = DefaultBottomLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Copyright Text.
+    /// </summary>
+public string CopyrightText { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
 
-    public static readonly List<FooterLink> DefaultServicesLinks =
+        /// <summary>
+    /// DefaultServicesLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultServicesLinks =
     [
         new() { Text = "1on1 Coaching" },
         new() { Text = "Company Review" },
@@ -43,21 +79,30 @@ public sealed class Footer5Block : BlockBase
         new() { Text = "SEO Optimisation" }
     ];
 
-    public static readonly List<FooterLink> DefaultCompanyLinks =
+        /// <summary>
+    /// DefaultCompanyLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultCompanyLinks =
     [
         new() { Text = "About" },
         new() { Text = "Meet the Team" },
         new() { Text = "Accounts Review" }
     ];
 
-    public static readonly List<FooterLink> DefaultBottomLinks =
+        /// <summary>
+    /// DefaultBottomLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultBottomLinks =
     [
         new() { Text = "Terms & Conditions" },
         new() { Text = "Privacy Policy" },
         new() { Text = "Cookies" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static FooterLink CloneLink(FooterLink link) => new()
     {

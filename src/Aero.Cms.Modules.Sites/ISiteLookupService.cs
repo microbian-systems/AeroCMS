@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Abstractions.Models;
 
 namespace Aero.Cms.Modules.Sites;
 
@@ -7,6 +7,12 @@ namespace Aero.Cms.Modules.Sites;
 /// </summary>
 public interface ISiteLookupService
 {
-    Task<IReadOnlyList<SiteViewModel>> GetAllAsync(CancellationToken cancellationToken = default);
-    Task<SiteViewModel?> ResolveByHostAsync(string host, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<IReadOnlyList<SiteViewModel>> GetAllAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+    /// ResolveByHostAsync method.
+    /// </summary>
+Task<SiteViewModel?> ResolveByHostAsync(string host, CancellationToken cancellationToken = default);
 }

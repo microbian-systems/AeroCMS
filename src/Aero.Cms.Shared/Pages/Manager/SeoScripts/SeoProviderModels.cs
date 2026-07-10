@@ -1,5 +1,8 @@
 namespace Aero.Cms.Shared.Pages.Manager.SeoScripts;
 
+/// <summary>
+/// Represents a record for SeoProviderDefinition.
+/// </summary>
 public sealed record SeoProviderDefinition(
     string Key,
     string Name,
@@ -10,6 +13,9 @@ public sealed record SeoProviderDefinition(
     string? HostLabel = null,
     string? HostDefault = null);
 
+/// <summary>
+/// Represents a record for SeoProviderSummary.
+/// </summary>
 public sealed record SeoProviderSummary(
     string Key,
     string Name,
@@ -18,8 +24,17 @@ public sealed record SeoProviderSummary(
     bool Enabled,
     DateTime? LastModified);
 
+/// <summary>
+/// Represents a class for SeoProviderEditModel.
+/// </summary>
 public sealed class SeoProviderEditModel
 {
-    public string TrackingId { get; set; } = string.Empty;
-    public string Host { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Tracking Id.
+    /// </summary>
+public string TrackingId { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Host.
+    /// </summary>
+public string Host { get; set; } = string.Empty;
 }

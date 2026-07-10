@@ -13,7 +13,10 @@ public sealed class CompositionHistory
     private readonly List<HistoryEntry> _undo = [];
     private readonly List<HistoryEntry> _redo = [];
 
-    public CompositionHistory(NeoPageNode initialState, int capacity = 100)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CompositionHistory"/> class.
+    /// </summary>
+public CompositionHistory(NeoPageNode initialState, int capacity = 100)
     {
         ArgumentNullException.ThrowIfNull(initialState);
         ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
@@ -22,13 +25,25 @@ public sealed class CompositionHistory
         Current = EditorNodeMemento.Capture(initialState).Restore();
     }
 
-    public NeoPageNode Current { get; private set; }
+        /// <summary>
+    /// Gets or sets the Current.
+    /// </summary>
+public NeoPageNode Current { get; private set; }
 
-    public bool CanUndo => _undo.Count > 0;
+        /// <summary>
+    /// Gets or sets the Can Undo.
+    /// </summary>
+public bool CanUndo => _undo.Count > 0;
 
-    public bool CanRedo => _redo.Count > 0;
+        /// <summary>
+    /// Gets or sets the Can Redo.
+    /// </summary>
+public bool CanRedo => _redo.Count > 0;
 
-    public void Record(NeoPageNode nextState, string? coalescingKey = null)
+        /// <summary>
+    /// Record method.
+    /// </summary>
+public void Record(NeoPageNode nextState, string? coalescingKey = null)
     {
         ArgumentNullException.ThrowIfNull(nextState);
 
@@ -54,7 +69,10 @@ public sealed class CompositionHistory
         Current = after.Restore();
     }
 
-    public NeoPageNode Undo()
+        /// <summary>
+    /// Undo method.
+    /// </summary>
+public NeoPageNode Undo()
     {
         if (!CanUndo)
         {
@@ -68,7 +86,10 @@ public sealed class CompositionHistory
         return EditorNodeMemento.Capture(Current).Restore();
     }
 
-    public NeoPageNode Redo()
+        /// <summary>
+    /// Redo method.
+    /// </summary>
+public NeoPageNode Redo()
     {
         if (!CanRedo)
         {

@@ -8,6 +8,9 @@ public sealed record CompositionTreeContext(
     int ExistingChildrenInDropZone,
     bool MovingNodeAlreadyInTargetDropZone = false)
 {
-    public static CompositionTreeContext Empty { get; } =
+        /// <summary>
+    /// Gets or sets the Empty.
+    /// </summary>
+public static CompositionTreeContext Empty { get; } =
         new(new HashSet<string>(StringComparer.Ordinal), 0);
 }

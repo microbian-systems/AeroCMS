@@ -8,18 +8,30 @@ using Microsoft.Extensions.Options;
 
 namespace Aero.Cms.Modules.Analytics;
 
+/// <summary>
+/// Defines an interface for ISeoScriptRenderer.
+/// </summary>
 public interface ISeoScriptRenderer
 {
-    Task<IHtmlContent> RenderAsync(SeoScriptPlacement placement, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// RenderAsync method.
+    /// </summary>
+Task<IHtmlContent> RenderAsync(SeoScriptPlacement placement, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for SeoScriptRenderer.
+/// </summary>
 public sealed class SeoScriptRenderer(
     IOptions<AnalyticsSettings> settings,
     IAeroSettingActor settingActor) : ISeoScriptRenderer
 {
     private readonly AnalyticsSettings _configuredSettings = settings.Value;
 
-    public async Task<IHtmlContent> RenderAsync(SeoScriptPlacement placement, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// RenderAsync method.
+    /// </summary>
+public async Task<IHtmlContent> RenderAsync(SeoScriptPlacement placement, CancellationToken cancellationToken = default)
     {
         var scriptSettings = await LoadScriptSettingsAsync(cancellationToken);
         var builder = new StringBuilder();

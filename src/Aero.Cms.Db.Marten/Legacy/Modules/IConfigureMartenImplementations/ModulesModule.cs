@@ -15,14 +15,35 @@ namespace Aero.Cms.Modules.Modules;
 [Module(nameof(ModulesModule))]
 public sealed class ModulesModule : AeroModuleBase, IConfigureMarten
 {
-    public override string Name => nameof(ModulesModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["Infrastructure", "Settings", "Management"];
-    public override IReadOnlyList<string> Tags => ["modules", "settings", "configuration", "management"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(ModulesModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["Infrastructure", "Settings", "Management"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["modules", "settings", "configuration", "management"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // Register the initialization service
         services.TryAddScoped<IModuleInitializationService, ModuleInitializationService>();
@@ -31,7 +52,10 @@ public sealed class ModulesModule : AeroModuleBase, IConfigureMarten
         services.TryAddScoped<IModuleStateStore, ModuleStateStore>();
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         // Configure the ModuleDocument schema
         opts.Schema.For<ModuleDocument>().DatabaseSchemaName(Schemas.Database);

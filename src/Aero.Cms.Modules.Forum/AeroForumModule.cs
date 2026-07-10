@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core;
 using Aero.Modular;
 
 namespace Aero.Cms.Modules.Forum;
@@ -9,10 +9,28 @@ namespace Aero.Cms.Modules.Forum;
 [Module(nameof(AeroForumModule))]
 public class AeroForumModule : AeroModuleBase
 {
-    public override string Name { get; } = nameof(AeroForumModule);
-    public override string Version { get; } = AeroConstants.Version;
-    public override string Author { get; } = AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies { get; } = [];
-    public override IReadOnlyList<string> Category { get; } = [];
-    public override IReadOnlyList<string> Tags { get; } = [];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name { get; } = nameof(AeroForumModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version { get; } = AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author { get; } = AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies { get; } = [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category { get; } = [];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags { get; } = [];
 }

@@ -20,15 +20,39 @@ namespace Aero.Cms.Modules.OutputCache;
 [Module(nameof(OutputCacheModule))]
 public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
 {
-    public override string Name => nameof(OutputCacheModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["infrastructure", "performance"];
-    public override IReadOnlyList<string> Tags => ["cache", "output-cache", "performance"];
-    public int PipelineOrder => 200;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(OutputCacheModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["infrastructure", "performance"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["cache", "output-cache", "performance"];
+        /// <summary>
+    /// Gets or sets the Pipeline Order.
+    /// </summary>
+public int PipelineOrder => 200;
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // TODO: Switch to Redis output cache store with AddStackExchangeRedisOutputCache()
         // when a shared/distributed output cache is needed across server nodes.
@@ -94,6 +118,9 @@ public sealed class OutputCacheModule : AeroWebModule, IAeroPipelineModule
         });
     }
 
-    public void ConfigurePipeline(IApplicationBuilder app)
+        /// <summary>
+    /// ConfigurePipeline method.
+    /// </summary>
+public void ConfigurePipeline(IApplicationBuilder app)
         => app.UseOutputCache();
 }

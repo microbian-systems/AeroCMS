@@ -3,9 +3,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Modules.Navigation.Validators;
 
+/// <summary>
+/// Represents a class for CreateNavigationRequestValidator.
+/// </summary>
 public sealed class CreateNavigationRequestValidator : AbstractValidator<CreateNavigationRequest>
 {
-    public CreateNavigationRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CreateNavigationRequestValidator"/> class.
+    /// </summary>
+public CreateNavigationRequestValidator()
     {
         RuleFor(x => x.Name)
             .NotEmpty()
@@ -24,9 +30,15 @@ public sealed class CreateNavigationRequestValidator : AbstractValidator<CreateN
     }
 }
 
+/// <summary>
+/// Represents a class for UpdateNavigationRequestValidator.
+/// </summary>
 public sealed class UpdateNavigationRequestValidator : AbstractValidator<UpdateNavigationRequest>
 {
-    public UpdateNavigationRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateNavigationRequestValidator"/> class.
+    /// </summary>
+public UpdateNavigationRequestValidator()
     {
         RuleFor(x => x.Name)
             .NotEmpty()
@@ -45,9 +57,15 @@ public sealed class UpdateNavigationRequestValidator : AbstractValidator<UpdateN
     }
 }
 
+/// <summary>
+/// Represents a class for CreateNavigationItemRequestValidator.
+/// </summary>
 public sealed class CreateNavigationItemRequestValidator : AbstractValidator<CreateNavigationItemRequest>
 {
-    public CreateNavigationItemRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CreateNavigationItemRequestValidator"/> class.
+    /// </summary>
+public CreateNavigationItemRequestValidator()
     {
         RuleFor(x => x.Label)
             .NotEmpty()
@@ -70,9 +88,15 @@ public sealed class CreateNavigationItemRequestValidator : AbstractValidator<Cre
     }
 }
 
+/// <summary>
+/// Represents a class for UpdateNavigationItemRequestValidator.
+/// </summary>
 public sealed class UpdateNavigationItemRequestValidator : AbstractValidator<UpdateNavigationItemRequest>
 {
-    public UpdateNavigationItemRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateNavigationItemRequestValidator"/> class.
+    /// </summary>
+public UpdateNavigationItemRequestValidator()
     {
         RuleFor(x => x.Label)
             .NotEmpty()
@@ -97,13 +121,22 @@ public sealed class UpdateNavigationItemRequestValidator : AbstractValidator<Upd
 
 internal static class NavigationUrlRules
 {
-    public static bool IsValid(CreateNavigationItemRequest request)
+        /// <summary>
+    /// IsValid method.
+    /// </summary>
+public static bool IsValid(CreateNavigationItemRequest request)
         => IsValid(request.Url, request.PageId, request.IsExternal);
 
-    public static bool IsValid(UpdateNavigationItemRequest request)
+        /// <summary>
+    /// IsValid method.
+    /// </summary>
+public static bool IsValid(UpdateNavigationItemRequest request)
         => IsValid(request.Url, request.PageId, request.IsExternal);
 
-    public static bool IsValidTarget(string? target)
+        /// <summary>
+    /// IsValidTarget method.
+    /// </summary>
+public static bool IsValidTarget(string? target)
         => string.IsNullOrWhiteSpace(target) || target is "_self" or "_blank" or "_parent" or "_top";
 
     private static bool IsValid(string? url, long? pageId, bool isExternal)

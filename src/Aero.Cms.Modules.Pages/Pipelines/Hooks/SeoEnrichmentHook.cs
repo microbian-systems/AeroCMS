@@ -12,7 +12,10 @@ public class SeoEnrichmentHook(ILogger<SeoEnrichmentHook> logger) : IPageReadHoo
     /// </summary>
     public int Order => 50;
 
-    public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
     {
         // Skip if context is already short-circuited
         if (ctx.IsShortCircuited)

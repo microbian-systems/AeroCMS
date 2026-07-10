@@ -1,5 +1,8 @@
 namespace Aero.Cms.Abstractions.Enums;
 
+/// <summary>
+/// Defines an enumeration for ContentPublicationState.
+/// </summary>
 public enum ContentPublicationState
 {
     Draft = 0,

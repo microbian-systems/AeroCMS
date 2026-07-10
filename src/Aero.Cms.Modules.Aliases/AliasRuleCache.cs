@@ -18,26 +18,38 @@ public sealed class AliasRuleCache : IAliasRuleCache
     private ImmutableDictionary<SitePathKey, AliasRuleEntry> _rules =
         ImmutableDictionary<SitePathKey, AliasRuleEntry>.Empty;
 
-    public AliasRuleCache(IServiceProvider serviceProvider, ILogger<AliasRuleCache> log)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AliasRuleCache"/> class.
+    /// </summary>
+public AliasRuleCache(IServiceProvider serviceProvider, ILogger<AliasRuleCache> log)
     {
         _serviceProvider = serviceProvider;
         _log = log;
     }
 
-    public AliasRuleEntry? Find(long siteId, string oldPath)
+        /// <summary>
+    /// Find method.
+    /// </summary>
+public AliasRuleEntry? Find(long siteId, string oldPath)
     {
         var key = new SitePathKey(siteId, oldPath);
         _rules.TryGetValue(key, out var entry);
         return entry;
     }
 
-    public void Invalidate()
+        /// <summary>
+    /// Invalidate method.
+    /// </summary>
+public void Invalidate()
     {
         _rules = ImmutableDictionary<SitePathKey, AliasRuleEntry>.Empty;
         _log.LogInformation("Alias rule cache invalidated");
     }
 
-    public async Task RefreshAsync(CancellationToken ct = default)
+        /// <summary>
+    /// RefreshAsync method.
+    /// </summary>
+public async Task RefreshAsync(CancellationToken ct = default)
     {
         try
         {

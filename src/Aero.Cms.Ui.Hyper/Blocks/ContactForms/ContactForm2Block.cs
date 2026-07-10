@@ -16,22 +16,67 @@ namespace Aero.Cms.Ui.Hyper.Blocks.ContactForms;
     SchemaVersion = 1)]
 public sealed class ContactForm2Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.contact-forms.2";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.contact-forms.2";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string NameLabel { get; set; } = "Name";
-    public string NamePlaceholder { get; set; } = "Your name";
-    public string EmailLabel { get; set; } = "Email";
-    public string EmailPlaceholder { get; set; } = "Your email";
-    public string SubjectLabel { get; set; } = "Subject";
-    public string SubjectDefaultOption { get; set; } = "Select a subject";
-    public string PriorityLabel { get; set; } = "Priority";
-    public string PriorityDefaultOption { get; set; } = "Select a priority";
-    public string MessageLabel { get; set; } = "Message";
-    public string MessagePlaceholder { get; set; } = "Your message";
-    public string CtaText { get; set; } = "Send Message";
-    public string FormAction { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Name Label.
+    /// </summary>
+public string NameLabel { get; set; } = "Name";
+        /// <summary>
+    /// Gets or sets the Name Placeholder.
+    /// </summary>
+public string NamePlaceholder { get; set; } = "Your name";
+        /// <summary>
+    /// Gets or sets the Email Label.
+    /// </summary>
+public string EmailLabel { get; set; } = "Email";
+        /// <summary>
+    /// Gets or sets the Email Placeholder.
+    /// </summary>
+public string EmailPlaceholder { get; set; } = "Your email";
+        /// <summary>
+    /// Gets or sets the Subject Label.
+    /// </summary>
+public string SubjectLabel { get; set; } = "Subject";
+        /// <summary>
+    /// Gets or sets the Subject Default Option.
+    /// </summary>
+public string SubjectDefaultOption { get; set; } = "Select a subject";
+        /// <summary>
+    /// Gets or sets the Priority Label.
+    /// </summary>
+public string PriorityLabel { get; set; } = "Priority";
+        /// <summary>
+    /// Gets or sets the Priority Default Option.
+    /// </summary>
+public string PriorityDefaultOption { get; set; } = "Select a priority";
+        /// <summary>
+    /// Gets or sets the Message Label.
+    /// </summary>
+public string MessageLabel { get; set; } = "Message";
+        /// <summary>
+    /// Gets or sets the Message Placeholder.
+    /// </summary>
+public string MessagePlaceholder { get; set; } = "Your message";
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText { get; set; } = "Send Message";
+        /// <summary>
+    /// Gets or sets the Form Action.
+    /// </summary>
+public string FormAction { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

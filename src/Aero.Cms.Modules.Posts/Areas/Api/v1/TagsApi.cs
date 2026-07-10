@@ -20,7 +20,10 @@ namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 /// </summary>
 public static class TagsApi
 {
-    public static void MapTagsApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapTagsApi method.
+    /// </summary>
+public static void MapTagsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/tags")
             .WithTags("Admin - Tags");

@@ -8,21 +8,57 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("aero_auth", "Aero Auth", Category = "Aero")]
 public class AeroAuthBlock : BlockBase
 {
-    public override string BlockType => "aero_auth";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "aero_auth";
 
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public string? FormActionUrl { get; set; }
-    public string? SubmitButtonText { get; set; }
-    public string? AlternativeLinkText { get; set; }
-    public string? AlternativeLinkUrl { get; set; }
-    public string? BackgroundImageUrl { get; set; }
-    public AeroAuthLayout Layout { get; set; } = AeroAuthLayout.Card;
-    public bool ShowSocialLogins { get; set; } = false;
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Form Action Url.
+    /// </summary>
+public string? FormActionUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Submit Button Text.
+    /// </summary>
+public string? SubmitButtonText { get; set; }
+        /// <summary>
+    /// Gets or sets the Alternative Link Text.
+    /// </summary>
+public string? AlternativeLinkText { get; set; }
+        /// <summary>
+    /// Gets or sets the Alternative Link Url.
+    /// </summary>
+public string? AlternativeLinkUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Background Image Url.
+    /// </summary>
+public string? BackgroundImageUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Layout.
+    /// </summary>
+public AeroAuthLayout Layout { get; set; } = AeroAuthLayout.Card;
+        /// <summary>
+    /// Gets or sets the Show Social Logins.
+    /// </summary>
+public bool ShowSocialLogins { get; set; } = false;
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
+/// <summary>
+/// Defines an enumeration for AeroAuthLayout.
+/// </summary>
 public enum AeroAuthLayout
 {
     Card,

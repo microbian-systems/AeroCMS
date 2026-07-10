@@ -3,61 +3,136 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
+/// <summary>
+/// Defines an interface for IFootersHttpClient.
+/// </summary>
 public interface IFootersHttpClient
 {
-    Task<Result<IReadOnlyList<FooterSummary>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    Task<Result<FooterDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
-    Task<Result<FooterDetail, AeroError>> ForkToCultureAsync(long id, ForkFooterCultureRequest request, CancellationToken ct = default);
-    Task<Result<AiTranslateFooterResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateFooterRequest request, CancellationToken ct = default);
-    Task<Result<FooterDetail, AeroError>> CreateAsync(CreateFooterRequest request, CancellationToken ct = default);
-    Task<Result<FooterDetail, AeroError>> UpdateAsync(long id, UpdateFooterRequest request, CancellationToken ct = default);
-    Task<Result<FooterDetail, AeroError>> SaveDraftAsync(long id, UpdateFooterRequest request, long expectedVersion, CancellationToken ct = default);
-    Task<Result<FooterDetail, AeroError>> PublishAsync(long id, long expectedVersion, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> SetDefaultAsync(long id, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<FooterSummary>, AeroError>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+Task<Result<FooterDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+Task<Result<FooterDetail, AeroError>> ForkToCultureAsync(long id, ForkFooterCultureRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// TranslateWithAiAsync method.
+    /// </summary>
+Task<Result<AiTranslateFooterResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateFooterRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<FooterDetail, AeroError>> CreateAsync(CreateFooterRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<FooterDetail, AeroError>> UpdateAsync(long id, UpdateFooterRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// SaveDraftAsync method.
+    /// </summary>
+Task<Result<FooterDetail, AeroError>> SaveDraftAsync(long id, UpdateFooterRequest request, long expectedVersion, CancellationToken ct = default);
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+Task<Result<FooterDetail, AeroError>> PublishAsync(long id, long expectedVersion, CancellationToken ct = default);
+        /// <summary>
+    /// SetDefaultAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> SetDefaultAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Represents a class for FootersHttpClient.
+/// </summary>
 public sealed class FootersHttpClient(HttpClient httpClient, ILogger<FootersHttpClient> logger)
     : AeroCmsClientBase(httpClient, logger), IFootersHttpClient
 {
-    public override string Path => "admin/footers";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/footers";
 
-    public Task<Result<IReadOnlyList<FooterSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<FooterSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)
         => GetAsync<IReadOnlyList<FooterSummary>>(string.Empty, ct);
 
-    public Task<Result<FooterDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public Task<Result<FooterDetail, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
         => GetAsync<FooterDetail>($"details/{id}", ct);
 
-    public Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<FooterDetail>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
         => GetAsync<IReadOnlyList<FooterDetail>>($"{id}/translations", ct);
 
-    public Task<Result<FooterDetail, AeroError>> ForkToCultureAsync(long id, ForkFooterCultureRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+public Task<Result<FooterDetail, AeroError>> ForkToCultureAsync(long id, ForkFooterCultureRequest request, CancellationToken ct = default)
         => PostAsync<ForkFooterCultureRequest, FooterDetail>($"{id}/translations", request, ct);
 
-    public Task<Result<AiTranslateFooterResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateFooterRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// TranslateWithAiAsync method.
+    /// </summary>
+public Task<Result<AiTranslateFooterResult, AeroError>> TranslateWithAiAsync(long id, AiTranslateFooterRequest request, CancellationToken ct = default)
         => PostAsync<AiTranslateFooterRequest, AiTranslateFooterResult>($"{id}/ai-translate", request, ct);
 
-    public Task<Result<FooterDetail, AeroError>> CreateAsync(CreateFooterRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<Result<FooterDetail, AeroError>> CreateAsync(CreateFooterRequest request, CancellationToken ct = default)
         => PostAsync<CreateFooterRequest, FooterDetail>(string.Empty, request, ct);
 
-    public Task<Result<FooterDetail, AeroError>> UpdateAsync(long id, UpdateFooterRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<Result<FooterDetail, AeroError>> UpdateAsync(long id, UpdateFooterRequest request, CancellationToken ct = default)
         => PutAsync<UpdateFooterRequest, FooterDetail>(id.ToString(), request, ct);
 
-    public Task<Result<FooterDetail, AeroError>> SaveDraftAsync(
+        /// <summary>
+    /// SaveDraftAsync method.
+    /// </summary>
+public Task<Result<FooterDetail, AeroError>> SaveDraftAsync(
         long id,
         UpdateFooterRequest request,
         long expectedVersion,
         CancellationToken ct = default)
         => PutAsync<UpdateFooterRequest, FooterDetail>($"{id}/draft?expectedVersion={expectedVersion}", request, ct);
 
-    public Task<Result<FooterDetail, AeroError>> PublishAsync(long id, long expectedVersion, CancellationToken ct = default)
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+public Task<Result<FooterDetail, AeroError>> PublishAsync(long id, long expectedVersion, CancellationToken ct = default)
         => PutAsync<object, FooterDetail>($"{id}/publish?expectedVersion={expectedVersion}", new { }, ct);
 
-    public Task<Result<bool, AeroError>> SetDefaultAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// SetDefaultAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> SetDefaultAsync(long id, CancellationToken ct = default)
         => MapBoolResult(base.PutAsync(CreateUri($"{id}/default"), new { }, ct));
 
-    public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
         => MapBoolResult(base.DeleteAsync(id.ToString(), ct));
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
@@ -75,6 +150,9 @@ public sealed class FootersHttpClient(HttpClient httpClient, ILogger<FootersHttp
 #pragma warning disable SA1402
 #pragma warning disable SA1649
 
+/// <summary>
+/// Represents a record for FooterSummary.
+/// </summary>
 public record FooterSummary(
     long Id,
     string Name,
@@ -86,6 +164,9 @@ public record FooterSummary(
     string Culture = "en-US",
     long? TranslationGroupId = null);
 
+/// <summary>
+/// Represents a record for FooterDetail.
+/// </summary>
 public record FooterDetail(
     long Id,
     string Name,
@@ -107,23 +188,47 @@ public record FooterDetail(
     IReadOnlyList<FooterComponentDetail>? Components = null,
     IReadOnlyList<FooterCanvasRowDetail>? Rows = null)
 {
-    public IReadOnlyList<FooterLinkDetail> LegalLinks { get; init; } = LegalLinks ?? [];
-    public IReadOnlyList<FooterComponentDetail> Components { get; init; } = Components ?? [];
-    public IReadOnlyList<FooterCanvasRowDetail> Rows { get; init; } = Rows ?? [];
+        /// <summary>
+    /// Gets or sets the Legal Links.
+    /// </summary>
+public IReadOnlyList<FooterLinkDetail> LegalLinks { get; init; } = LegalLinks ?? [];
+        /// <summary>
+    /// Gets or sets the Components.
+    /// </summary>
+public IReadOnlyList<FooterComponentDetail> Components { get; init; } = Components ?? [];
+        /// <summary>
+    /// Gets or sets the Rows.
+    /// </summary>
+public IReadOnlyList<FooterCanvasRowDetail> Rows { get; init; } = Rows ?? [];
 }
 
+/// <summary>
+/// Represents a record for ForkFooterCultureRequest.
+/// </summary>
 public sealed record ForkFooterCultureRequest(string Culture);
 
+/// <summary>
+/// Represents a record for AiTranslateFooterRequest.
+/// </summary>
 public sealed record AiTranslateFooterRequest(
     IReadOnlyList<AiTranslateFooterCultureRequest> Targets,
     string? ProviderId = null,
     bool OverwriteExisting = false);
 
+/// <summary>
+/// Represents a record for AiTranslateFooterCultureRequest.
+/// </summary>
 public sealed record AiTranslateFooterCultureRequest(string Culture);
 
+/// <summary>
+/// Represents a record for AiTranslateFooterResult.
+/// </summary>
 public sealed record AiTranslateFooterResult(
     IReadOnlyList<AiTranslateFooterCultureResult> Results);
 
+/// <summary>
+/// Represents a record for AiTranslateFooterCultureResult.
+/// </summary>
 public sealed record AiTranslateFooterCultureResult(
     string Culture,
     bool Succeeded,
@@ -131,6 +236,9 @@ public sealed record AiTranslateFooterCultureResult(
     IReadOnlyList<string> Warnings,
     string? Error);
 
+/// <summary>
+/// Represents a record for CreateFooterRequest.
+/// </summary>
 public record CreateFooterRequest(
     string Name,
     string? Description,
@@ -143,6 +251,9 @@ public record CreateFooterRequest(
     string? CopyrightText = null,
     IReadOnlyList<CreateFooterLinkRequest>? LegalLinks = null);
 
+/// <summary>
+/// Represents a record for UpdateFooterRequest.
+/// </summary>
 public record UpdateFooterRequest(
     string Name,
     string? Description,
@@ -157,22 +268,49 @@ public record UpdateFooterRequest(
     IReadOnlyList<UpdateFooterComponentRequest>? Components = null,
     IReadOnlyList<UpdateFooterCanvasRowRequest>? Rows = null)
 {
-    public IReadOnlyList<UpdateFooterComponentRequest> Components { get; init; } = Components ?? [];
-    public IReadOnlyList<UpdateFooterCanvasRowRequest> Rows { get; init; } = Rows ?? [];
+        /// <summary>
+    /// Gets or sets the Components.
+    /// </summary>
+public IReadOnlyList<UpdateFooterComponentRequest> Components { get; init; } = Components ?? [];
+        /// <summary>
+    /// Gets or sets the Rows.
+    /// </summary>
+public IReadOnlyList<UpdateFooterCanvasRowRequest> Rows { get; init; } = Rows ?? [];
 }
 
+/// <summary>
+/// Represents a record for FooterLinkGroupDetail.
+/// </summary>
 public record FooterLinkGroupDetail(long Id, string Title, IReadOnlyList<FooterLinkDetail> Links, int Order);
 
+/// <summary>
+/// Represents a record for FooterLinkDetail.
+/// </summary>
 public record FooterLinkDetail(long Id, string Label, string Href, int Order, bool OpenInNewTab = false);
 
+/// <summary>
+/// Represents a record for CreateFooterLinkGroupRequest.
+/// </summary>
 public record CreateFooterLinkGroupRequest(string Title, IReadOnlyList<CreateFooterLinkRequest> Links, int Order);
 
+/// <summary>
+/// Represents a record for CreateFooterLinkRequest.
+/// </summary>
 public record CreateFooterLinkRequest(string Label, string Href, int Order, bool OpenInNewTab = false);
 
+/// <summary>
+/// Represents a record for UpdateFooterLinkGroupRequest.
+/// </summary>
 public record UpdateFooterLinkGroupRequest(long Id, string Title, IReadOnlyList<UpdateFooterLinkRequest> Links, int Order);
 
+/// <summary>
+/// Represents a record for UpdateFooterLinkRequest.
+/// </summary>
 public record UpdateFooterLinkRequest(long Id, string Label, string Href, int Order, bool OpenInNewTab = false);
 
+/// <summary>
+/// Represents a record for FooterComponentDetail.
+/// </summary>
 public record FooterComponentDetail(
     long Id,
     string Kind,
@@ -188,12 +326,24 @@ public record FooterComponentDetail(
     string? SearchAction = null,
     string? SizeToken = null)
 {
-    public IReadOnlyList<FooterLinkDetail> Links { get; init; } = Links ?? [];
-    public IReadOnlyList<FooterSocialLinkDetail> SocialLinks { get; init; } = SocialLinks ?? [];
+        /// <summary>
+    /// Gets or sets the Links.
+    /// </summary>
+public IReadOnlyList<FooterLinkDetail> Links { get; init; } = Links ?? [];
+        /// <summary>
+    /// Gets or sets the Social Links.
+    /// </summary>
+public IReadOnlyList<FooterSocialLinkDetail> SocialLinks { get; init; } = SocialLinks ?? [];
 }
 
+/// <summary>
+/// Represents a record for FooterSocialLinkDetail.
+/// </summary>
 public record FooterSocialLinkDetail(string Platform, string Href);
 
+/// <summary>
+/// Represents a record for UpdateFooterComponentRequest.
+/// </summary>
 public record UpdateFooterComponentRequest(
     long Id,
     string Kind,
@@ -209,10 +359,19 @@ public record UpdateFooterComponentRequest(
     string? SearchAction = null,
     string? SizeToken = null)
 {
-    public IReadOnlyList<UpdateFooterLinkRequest> Links { get; init; } = Links ?? [];
-    public IReadOnlyList<FooterSocialLinkDetail> SocialLinks { get; init; } = SocialLinks ?? [];
+        /// <summary>
+    /// Gets or sets the Links.
+    /// </summary>
+public IReadOnlyList<UpdateFooterLinkRequest> Links { get; init; } = Links ?? [];
+        /// <summary>
+    /// Gets or sets the Social Links.
+    /// </summary>
+public IReadOnlyList<FooterSocialLinkDetail> SocialLinks { get; init; } = SocialLinks ?? [];
 }
 
+/// <summary>
+/// Represents a record for FooterCanvasRowDetail.
+/// </summary>
 public record FooterCanvasRowDetail(
     long Id,
     int Order,
@@ -222,9 +381,15 @@ public record FooterCanvasRowDetail(
     string MobileDisplay = "Stack",
     IReadOnlyList<FooterCanvasColumnDetail>? Columns = null)
 {
-    public IReadOnlyList<FooterCanvasColumnDetail> Columns { get; init; } = Columns ?? [];
+        /// <summary>
+    /// Gets or sets the Columns.
+    /// </summary>
+public IReadOnlyList<FooterCanvasColumnDetail> Columns { get; init; } = Columns ?? [];
 }
 
+/// <summary>
+/// Represents a record for FooterCanvasColumnDetail.
+/// </summary>
 public record FooterCanvasColumnDetail(
     long Id,
     int Order,
@@ -233,9 +398,15 @@ public record FooterCanvasColumnDetail(
     int MobileSpan,
     IReadOnlyList<FooterComponentDetail>? Blocks = null)
 {
-    public IReadOnlyList<FooterComponentDetail> Blocks { get; init; } = Blocks ?? [];
+        /// <summary>
+    /// Gets or sets the Blocks.
+    /// </summary>
+public IReadOnlyList<FooterComponentDetail> Blocks { get; init; } = Blocks ?? [];
 }
 
+/// <summary>
+/// Represents a record for UpdateFooterCanvasRowRequest.
+/// </summary>
 public record UpdateFooterCanvasRowRequest(
     long Id,
     int Order,
@@ -245,9 +416,15 @@ public record UpdateFooterCanvasRowRequest(
     string MobileDisplay = "Stack",
     IReadOnlyList<UpdateFooterCanvasColumnRequest>? Columns = null)
 {
-    public IReadOnlyList<UpdateFooterCanvasColumnRequest> Columns { get; init; } = Columns ?? [];
+        /// <summary>
+    /// Gets or sets the Columns.
+    /// </summary>
+public IReadOnlyList<UpdateFooterCanvasColumnRequest> Columns { get; init; } = Columns ?? [];
 }
 
+/// <summary>
+/// Represents a record for UpdateFooterCanvasColumnRequest.
+/// </summary>
 public record UpdateFooterCanvasColumnRequest(
     long Id,
     int Order,
@@ -256,5 +433,8 @@ public record UpdateFooterCanvasColumnRequest(
     int MobileSpan,
     IReadOnlyList<UpdateFooterComponentRequest>? Blocks = null)
 {
-    public IReadOnlyList<UpdateFooterComponentRequest> Blocks { get; init; } = Blocks ?? [];
+        /// <summary>
+    /// Gets or sets the Blocks.
+    /// </summary>
+public IReadOnlyList<UpdateFooterComponentRequest> Blocks { get; init; } = Blocks ?? [];
 }

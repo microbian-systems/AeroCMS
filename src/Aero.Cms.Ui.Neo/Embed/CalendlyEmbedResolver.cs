@@ -11,9 +11,15 @@ public sealed partial class CalendlyEmbedResolver : IEmbedUrlResolver
     [GeneratedRegex(@"calendly\.com/(?<path>.+)", RegexOptions.Compiled)]
     private static partial Regex Pattern();
 
-    public bool CanResolve(Uri uri) => uri.Host.Contains("calendly.com");
+        /// <summary>
+    /// CanResolve method.
+    /// </summary>
+public bool CanResolve(Uri uri) => uri.Host.Contains("calendly.com");
 
-    public EmbedResolvedUrl Resolve(Uri uri) => new(
+        /// <summary>
+    /// Resolve method.
+    /// </summary>
+public EmbedResolvedUrl Resolve(Uri uri) => new(
         EmbedSrc: uri.ToString(),
         DefaultRatio: AspectRatio.Standard,
         DefaultSandbox: SandboxFlags.Form);

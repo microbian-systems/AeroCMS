@@ -3,9 +3,15 @@ using Scriban.Runtime;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
+/// <summary>
+/// Represents a class for JsonToScribanMapper.
+/// </summary>
 public static class JsonToScribanMapper
 {
-    public static ScriptObject CreateGlobals(JsonDocument? data, int maxDepth)
+        /// <summary>
+    /// CreateGlobals method.
+    /// </summary>
+public static ScriptObject CreateGlobals(JsonDocument? data, int maxDepth)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(maxDepth);
 

@@ -28,9 +28,15 @@ internal class UserStore<TUser>(IDocumentSession session) :
     private const string RecoveryCodeTokenName = "RecoveryCodes";
     private readonly IDocumentSession _session = session;
 
-    public IQueryable<TUser> Users => _session.Query<TUser>();
+        /// <summary>
+    /// Gets or sets the Users.
+    /// </summary>
+public IQueryable<TUser> Users => _session.Query<TUser>();
 
-    public Task SetTokenAsync(TUser user, string loginProvider, string name, string value,
+        /// <summary>
+    /// SetTokenAsync method.
+    /// </summary>
+public Task SetTokenAsync(TUser user, string loginProvider, string name, string value,
         CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
@@ -53,7 +59,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task RemoveTokenAsync(TUser user, string loginProvider, string name, CancellationToken cancellationToken)
+        /// <summary>
+    /// RemoveTokenAsync method.
+    /// </summary>
+public Task RemoveTokenAsync(TUser user, string loginProvider, string name, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -67,7 +76,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<string> GetTokenAsync(TUser user, string loginProvider, string name,
+        /// <summary>
+    /// GetTokenAsync method.
+    /// </summary>
+public Task<string> GetTokenAsync(TUser user, string loginProvider, string name,
         CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
@@ -80,17 +92,26 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.FromResult(token)!;
     }
 
-    public Task SetAuthenticatorKeyAsync(TUser user, string key, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetAuthenticatorKeyAsync method.
+    /// </summary>
+public Task SetAuthenticatorKeyAsync(TUser user, string key, CancellationToken cancellationToken)
     {
         return SetTokenAsync(user, InternalLoginProvider, AuthenticatorKeyTokenName, key, cancellationToken);
     }
 
-    public Task<string> GetAuthenticatorKeyAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetAuthenticatorKeyAsync method.
+    /// </summary>
+public Task<string> GetAuthenticatorKeyAsync(TUser user, CancellationToken cancellationToken)
     {
         return GetTokenAsync(user, InternalLoginProvider, AuthenticatorKeyTokenName, cancellationToken);
     }
 
-    public Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetClaimsAsync method.
+    /// </summary>
+public Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -101,7 +122,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.FromResult<IList<Claim>>(claims);
     }
 
-    public Task AddClaimsAsync(TUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken)
+        /// <summary>
+    /// AddClaimsAsync method.
+    /// </summary>
+public Task AddClaimsAsync(TUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -121,7 +145,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task ReplaceClaimAsync(TUser user, Claim claim, Claim newClaim, CancellationToken cancellationToken)
+        /// <summary>
+    /// ReplaceClaimAsync method.
+    /// </summary>
+public Task ReplaceClaimAsync(TUser user, Claim claim, Claim newClaim, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -143,7 +170,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task RemoveClaimsAsync(TUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken)
+        /// <summary>
+    /// RemoveClaimsAsync method.
+    /// </summary>
+public Task RemoveClaimsAsync(TUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -163,7 +193,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public async Task<IList<TUser>> GetUsersForClaimAsync(Claim claim, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetUsersForClaimAsync method.
+    /// </summary>
+public async Task<IList<TUser>> GetUsersForClaimAsync(Claim claim, CancellationToken cancellationToken)
     {
         if (claim == null)
             throw new ArgumentNullException(nameof(claim));
@@ -174,7 +207,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
             .ToListAsync(cancellationToken)).ToList();
     }
 
-    public Task SetEmailAsync(TUser user, string email, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetEmailAsync method.
+    /// </summary>
+public Task SetEmailAsync(TUser user, string email, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -183,21 +219,30 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<string> GetEmailAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetEmailAsync method.
+    /// </summary>
+public Task<string> GetEmailAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.Email)!;
     }
 
-    public Task<bool> GetEmailConfirmedAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetEmailConfirmedAsync method.
+    /// </summary>
+public Task<bool> GetEmailConfirmedAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.EmailConfirmed);
     }
 
-    public Task SetEmailConfirmedAsync(TUser user, bool confirmed, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetEmailConfirmedAsync method.
+    /// </summary>
+public Task SetEmailConfirmedAsync(TUser user, bool confirmed, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -206,19 +251,28 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public async Task<TUser?> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
+        /// <summary>
+    /// FindByEmailAsync method.
+    /// </summary>
+public async Task<TUser?> FindByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
     {
         return await _session.Query<TUser>().FirstOrDefaultAsync(x => x.NormalizedEmail == normalizedEmail, cancellationToken);
     }
 
-    public Task<string> GetNormalizedEmailAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetNormalizedEmailAsync method.
+    /// </summary>
+public Task<string> GetNormalizedEmailAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.NormalizedEmail)!;
     }
 
-    public Task SetNormalizedEmailAsync(TUser user, string normalizedEmail, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetNormalizedEmailAsync method.
+    /// </summary>
+public Task SetNormalizedEmailAsync(TUser user, string normalizedEmail, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -226,14 +280,20 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<DateTimeOffset?> GetLockoutEndDateAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetLockoutEndDateAsync method.
+    /// </summary>
+public Task<DateTimeOffset?> GetLockoutEndDateAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.LockoutEnd);
     }
 
-    public Task SetLockoutEndDateAsync(TUser user, DateTimeOffset? lockoutEnd, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetLockoutEndDateAsync method.
+    /// </summary>
+public Task SetLockoutEndDateAsync(TUser user, DateTimeOffset? lockoutEnd, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -241,7 +301,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<int> IncrementAccessFailedCountAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// IncrementAccessFailedCountAsync method.
+    /// </summary>
+public Task<int> IncrementAccessFailedCountAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -250,7 +313,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.FromResult(user.AccessFailedCount);
     }
 
-    public Task ResetAccessFailedCountAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// ResetAccessFailedCountAsync method.
+    /// </summary>
+public Task ResetAccessFailedCountAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -258,21 +324,30 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<int> GetAccessFailedCountAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetAccessFailedCountAsync method.
+    /// </summary>
+public Task<int> GetAccessFailedCountAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.AccessFailedCount);
     }
 
-    public Task<bool> GetLockoutEnabledAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetLockoutEnabledAsync method.
+    /// </summary>
+public Task<bool> GetLockoutEnabledAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.LockoutEnabled);
     }
 
-    public Task SetLockoutEnabledAsync(TUser user, bool enabled, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetLockoutEnabledAsync method.
+    /// </summary>
+public Task SetLockoutEnabledAsync(TUser user, bool enabled, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -280,26 +355,38 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public void Dispose()
+        /// <summary>
+    /// Dispose method.
+    /// </summary>
+public void Dispose()
     {
         _session.Dispose();
     }
 
-    public Task<string> GetUserIdAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetUserIdAsync method.
+    /// </summary>
+public Task<string> GetUserIdAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.Id.ToString(CultureInfo.InvariantCulture))!;
     }
 
-    public Task<string> GetUserNameAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetUserNameAsync method.
+    /// </summary>
+public Task<string> GetUserNameAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.UserName)!;
     }
 
-    public Task SetUserNameAsync(TUser user, string userName, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetUserNameAsync method.
+    /// </summary>
+public Task SetUserNameAsync(TUser user, string userName, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -307,14 +394,20 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<string> GetNormalizedUserNameAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetNormalizedUserNameAsync method.
+    /// </summary>
+public Task<string> GetNormalizedUserNameAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.NormalizedUserName)!;
     }
 
-    public Task SetNormalizedUserNameAsync(TUser user, string normalizedName, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetNormalizedUserNameAsync method.
+    /// </summary>
+public Task SetNormalizedUserNameAsync(TUser user, string normalizedName, CancellationToken cancellationToken)
     {
         if (normalizedName == null)
             throw new ArgumentNullException(nameof(normalizedName));
@@ -325,7 +418,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public async Task<IdentityResult> CreateAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<IdentityResult> CreateAsync(TUser user, CancellationToken cancellationToken)
     {
         try
         {
@@ -341,7 +437,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         }
     }
 
-    public async Task<IdentityResult> UpdateAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<IdentityResult> UpdateAsync(TUser user, CancellationToken cancellationToken)
     {
         try
         {
@@ -357,7 +456,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         }
     }
 
-    public async Task<IdentityResult> DeleteAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<IdentityResult> DeleteAsync(TUser user, CancellationToken cancellationToken)
     {
         try
         {
@@ -373,24 +475,36 @@ internal class UserStore<TUser>(IDocumentSession session) :
         }
     }
 
-    public Task<TUser?> FindByIdAsync(string userId, CancellationToken cancellationToken)
+        /// <summary>
+    /// FindByIdAsync method.
+    /// </summary>
+public Task<TUser?> FindByIdAsync(string userId, CancellationToken cancellationToken)
     {
         if (!long.TryParse(userId, out var id)) return Task.FromResult<TUser?>(null);
         return FindByIdAsync(id, cancellationToken);
     }
 
-    public Task<TUser?> FindByIdAsync(long userId, CancellationToken cancellationToken)
+        /// <summary>
+    /// FindByIdAsync method.
+    /// </summary>
+public Task<TUser?> FindByIdAsync(long userId, CancellationToken cancellationToken)
     {
         return _session.Query<TUser>().FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
     }
 
-    public Task<TUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
+        /// <summary>
+    /// FindByNameAsync method.
+    /// </summary>
+public Task<TUser?> FindByNameAsync(string normalizedUserName, CancellationToken cancellationToken)
     {
         return _session.Query<TUser>()
             .FirstOrDefaultAsync(x => x.NormalizedUserName == normalizedUserName, cancellationToken);
     }
 
-    public Task AddLoginAsync(TUser user, UserLoginInfo login, CancellationToken cancellationToken)
+        /// <summary>
+    /// AddLoginAsync method.
+    /// </summary>
+public Task AddLoginAsync(TUser user, UserLoginInfo login, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -409,7 +523,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task RemoveLoginAsync(TUser user, string loginProvider, string providerKey,
+        /// <summary>
+    /// RemoveLoginAsync method.
+    /// </summary>
+public Task RemoveLoginAsync(TUser user, string loginProvider, string providerKey,
         CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
@@ -424,7 +541,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<IList<UserLoginInfo>> GetLoginsAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetLoginsAsync method.
+    /// </summary>
+public Task<IList<UserLoginInfo>> GetLoginsAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -433,14 +553,20 @@ internal class UserStore<TUser>(IDocumentSession session) :
             .ToList());
     }
 
-    public Task<TUser?> FindByLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
+        /// <summary>
+    /// FindByLoginAsync method.
+    /// </summary>
+public Task<TUser?> FindByLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return _session.Query<TUser>().FirstOrDefaultAsync(u =>
             u.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey), cancellationToken);
     }
 
-    public Task SetPasswordHashAsync(TUser user, string passwordHash, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetPasswordHashAsync method.
+    /// </summary>
+public Task SetPasswordHashAsync(TUser user, string passwordHash, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -449,21 +575,30 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<string> GetPasswordHashAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetPasswordHashAsync method.
+    /// </summary>
+public Task<string> GetPasswordHashAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.PasswordHash)!;
     }
 
-    public Task<bool> HasPasswordAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// HasPasswordAsync method.
+    /// </summary>
+public Task<bool> HasPasswordAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(!string.IsNullOrEmpty(user.PasswordHash));
     }
 
-    public Task SetPhoneNumberAsync(TUser user, string phoneNumber, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetPhoneNumberAsync method.
+    /// </summary>
+public Task SetPhoneNumberAsync(TUser user, string phoneNumber, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -472,21 +607,30 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<string> GetPhoneNumberAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetPhoneNumberAsync method.
+    /// </summary>
+public Task<string> GetPhoneNumberAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.PhoneNumber)!;
     }
 
-    public Task<bool> GetPhoneNumberConfirmedAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetPhoneNumberConfirmedAsync method.
+    /// </summary>
+public Task<bool> GetPhoneNumberConfirmedAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.PhoneNumberConfirmed);
     }
 
-    public Task SetPhoneNumberConfirmedAsync(TUser user, bool confirmed, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetPhoneNumberConfirmedAsync method.
+    /// </summary>
+public Task SetPhoneNumberConfirmedAsync(TUser user, bool confirmed, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -495,7 +639,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task AddToRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
+        /// <summary>
+    /// AddToRoleAsync method.
+    /// </summary>
+public Task AddToRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -507,7 +654,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public async Task RemoveFromRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
+        /// <summary>
+    /// RemoveFromRoleAsync method.
+    /// </summary>
+public async Task RemoveFromRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -518,14 +668,20 @@ internal class UserStore<TUser>(IDocumentSession session) :
         }
     }
 
-    public Task<IList<string>> GetRolesAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetRolesAsync method.
+    /// </summary>
+public Task<IList<string>> GetRolesAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult<IList<string>>(user.Roles.Select(r => r.Name!).ToList());
     }
 
-    public Task<bool> IsInRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
+        /// <summary>
+    /// IsInRoleAsync method.
+    /// </summary>
+public Task<bool> IsInRoleAsync(TUser user, string roleName, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -533,12 +689,18 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.FromResult(isInRole);
     }
 
-    public async Task<IList<TUser>> GetUsersInRoleAsync(string roleName, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetUsersInRoleAsync method.
+    /// </summary>
+public async Task<IList<TUser>> GetUsersInRoleAsync(string roleName, CancellationToken cancellationToken)
     {
         return (await _session.Query<TUser>().Where(u => u.Roles.Any(r => r.Name == roleName)).ToListAsync(cancellationToken)).ToList();
     }
 
-    public Task SetSecurityStampAsync(TUser user, string stamp, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetSecurityStampAsync method.
+    /// </summary>
+public Task SetSecurityStampAsync(TUser user, string stamp, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -547,14 +709,20 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<string> GetSecurityStampAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetSecurityStampAsync method.
+    /// </summary>
+public Task<string> GetSecurityStampAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
         return Task.FromResult(user.SecurityStamp)!;
     }
 
-    public Task ReplaceCodesAsync(TUser user, IEnumerable<string> recoveryCodes, CancellationToken cancellationToken)
+        /// <summary>
+    /// ReplaceCodesAsync method.
+    /// </summary>
+public Task ReplaceCodesAsync(TUser user, IEnumerable<string> recoveryCodes, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -565,7 +733,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return SetTokenAsync(user, InternalLoginProvider, RecoveryCodeTokenName, mergedCodes, cancellationToken);
     }
 
-    public async Task<bool> RedeemCodeAsync(TUser user, string code, CancellationToken cancellationToken)
+        /// <summary>
+    /// RedeemCodeAsync method.
+    /// </summary>
+public async Task<bool> RedeemCodeAsync(TUser user, string code, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -587,7 +758,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return false;
     }
 
-    public async Task<int> CountCodesAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// CountCodesAsync method.
+    /// </summary>
+public async Task<int> CountCodesAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -599,7 +773,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return mergedCodes.Split(';').Length;
     }
 
-    public Task SetTwoFactorEnabledAsync(TUser user, bool enabled, CancellationToken cancellationToken)
+        /// <summary>
+    /// SetTwoFactorEnabledAsync method.
+    /// </summary>
+public Task SetTwoFactorEnabledAsync(TUser user, bool enabled, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 
@@ -608,7 +785,10 @@ internal class UserStore<TUser>(IDocumentSession session) :
         return Task.CompletedTask;
     }
 
-    public Task<bool> GetTwoFactorEnabledAsync(TUser user, CancellationToken cancellationToken)
+        /// <summary>
+    /// GetTwoFactorEnabledAsync method.
+    /// </summary>
+public Task<bool> GetTwoFactorEnabledAsync(TUser user, CancellationToken cancellationToken)
     {
         ValidateParameters(user, cancellationToken);
 

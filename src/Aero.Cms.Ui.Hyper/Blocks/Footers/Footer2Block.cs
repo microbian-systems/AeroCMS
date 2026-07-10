@@ -16,13 +16,31 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
     SchemaVersion = 1)]
 public sealed class Footer2Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.footers.2";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.footers.2";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public List<FooterSocialLink> SocialLinks { get; set; } = FooterDefaults.DefaultSocialLinks.Select(FooterDefaults.CloneSocialLink).ToList();
-    public List<FooterLinkColumn> LinkColumns { get; set; } = FooterDefaults.DefaultLinkColumns4.Select(FooterDefaults.CloneColumn).ToList();
-    public string Copyright { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
+        /// <summary>
+    /// Gets or sets the Social Links.
+    /// </summary>
+public List<FooterSocialLink> SocialLinks { get; set; } = FooterDefaults.DefaultSocialLinks.Select(FooterDefaults.CloneSocialLink).ToList();
+        /// <summary>
+    /// Gets or sets the Link Columns.
+    /// </summary>
+public List<FooterLinkColumn> LinkColumns { get; set; } = FooterDefaults.DefaultLinkColumns4.Select(FooterDefaults.CloneColumn).ToList();
+        /// <summary>
+    /// Gets or sets the Copyright.
+    /// </summary>
+public string Copyright { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

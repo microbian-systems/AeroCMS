@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Headers;
 
+/// <summary>
+/// Represents a class for Header4BlockMapper.
+/// </summary>
 public static class Header4BlockMapper
 {
-    public static NeoPageNode ToNode(Header4Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Header4Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.headers.4",
@@ -20,7 +26,10 @@ public static class Header4BlockMapper
         }
     };
 
-    public static Header4Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Header4Block FromNode(NeoPageNode node) => new()
     {
         NavLinks = node.Properties.TryGetValue("navLinks", out var element) && element.ValueKind == JsonValueKind.Array
             ? JsonSerializer.Deserialize<List<HyperNavLink>>(element.GetRawText()) ?? Header4Block.DefaultNavLinks.Select(CloneNavLink).ToList()

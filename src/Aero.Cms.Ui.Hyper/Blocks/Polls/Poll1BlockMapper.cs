@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Polls;
 
+/// <summary>
+/// Represents a class for Poll1BlockMapper.
+/// </summary>
 public static class Poll1BlockMapper
 {
-    public static NeoPageNode ToNode(Poll1Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Poll1Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.polls.1",
@@ -20,7 +26,10 @@ public static class Poll1BlockMapper
         }
     };
 
-    public static Poll1Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Poll1Block FromNode(NeoPageNode node) => new()
     {
         Question = GetString(node, "question", "Where should we go for lunch?"),
         Description = GetString(node, "description", "Lorem ipsum dolor sit, amet consectetur adipisicing elit."),

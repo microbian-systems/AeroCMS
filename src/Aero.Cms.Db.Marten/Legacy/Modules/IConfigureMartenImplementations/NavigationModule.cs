@@ -16,17 +16,41 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Navigation;
 
+/// <summary>
+/// Represents a class for NavigationModule.
+/// </summary>
 [Module(nameof(NavigationModule))]
 public sealed class NavigationModule : AeroWebModule, IUiModule, IConfigureMarten
 {
-    public override string Name => nameof(NavigationModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["content", "navigation"];
-    public override IReadOnlyList<string> Tags => ["content", "navigation", "cms"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(NavigationModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["content", "navigation"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["content", "navigation", "cms"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddHttpContextAccessor();
         services.AddScoped<INavMenuService, NavMenuService>();
@@ -36,7 +60,10 @@ public sealed class NavigationModule : AeroWebModule, IUiModule, IConfigureMarte
         services.AddScoped<IValidator<Aero.Cms.Abstractions.Http.Clients.UpdateNavigationRequest>, UpdateNavigationRequestValidator>();
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         opts.Projections.Add(new NavMenuDocumentProjection(), ProjectionLifecycle.Inline);
         opts.Projections.Add(new SiteNavigationSettingsProjection(), ProjectionLifecycle.Inline);
@@ -58,7 +85,10 @@ public sealed class NavigationModule : AeroWebModule, IUiModule, IConfigureMarte
         Configure<SiteNavigationSettingsDocument>(services, opts);
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapNavigationAdminApi();
         return Task.CompletedTask;

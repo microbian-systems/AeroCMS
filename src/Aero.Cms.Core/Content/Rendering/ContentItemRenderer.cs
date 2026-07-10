@@ -6,11 +6,17 @@ using Aero.Core.Railway;
 
 namespace Aero.Cms.Core.Content.Rendering;
 
+/// <summary>
+/// Represents a class for ContentItemRenderer.
+/// </summary>
 public sealed class ContentItemRenderer(
     IContentTypeRenderingBridge bridge,
     ISecureScribanRenderer scribanRenderer) : IContentItemRenderer
 {
-    public async Task<Result<string, AeroError>> RenderAsync(
+        /// <summary>
+    /// RenderAsync method.
+    /// </summary>
+public async Task<Result<string, AeroError>> RenderAsync(
         ContentTypeDefinition typeDefinition,
         ContentItem item,
         CancellationToken ct = default)

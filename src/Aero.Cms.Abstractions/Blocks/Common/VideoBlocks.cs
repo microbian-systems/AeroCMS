@@ -8,8 +8,14 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("youtube_player", "YouTube Video", Category = "Video")]
 public sealed class YouTubeBlock : EmbedBlock
 {
-    public override string BlockType => "youtube_player";
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "youtube_player";
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -18,8 +24,14 @@ public sealed class YouTubeBlock : EmbedBlock
 [BlockMetadata("vimeo_player", "Vimeo Video", Category = "Video")]
 public sealed class VimeoBlock : EmbedBlock
 {
-    public override string BlockType => "vimeo_player";
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "vimeo_player";
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -28,8 +40,14 @@ public sealed class VimeoBlock : EmbedBlock
 [BlockMetadata("twitch_player", "Twitch Video/Clip", Category = "Video")]
 public sealed class TwitchBlock : EmbedBlock
 {
-    public override string BlockType => "twitch_player";
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "twitch_player";
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -38,6 +56,12 @@ public sealed class TwitchBlock : EmbedBlock
 [BlockMetadata("tiktok_player", "TikTok Video", Category = "Video")]
 public sealed class TikTokBlock : EmbedBlock
 {
-    public override string BlockType => "tiktok_player";
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "tiktok_player";
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

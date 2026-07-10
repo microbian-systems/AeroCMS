@@ -29,11 +29,23 @@ public interface ISetupBootstrapHandoffService
 /// </summary>
 public sealed class SetupBootstrapHandoffResult
 {
-    public bool Succeeded { get; init; }
-    public List<string> Errors { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Succeeded.
+    /// </summary>
+public bool Succeeded { get; init; }
+        /// <summary>
+    /// Gets or sets the Errors.
+    /// </summary>
+public List<string> Errors { get; init; } = [];
 
-    public static SetupBootstrapHandoffResult Success() => new() { Succeeded = true };
-    public static SetupBootstrapHandoffResult Failure(params string[] errors) => new() { Succeeded = false, Errors = errors.ToList() };
+        /// <summary>
+    /// Success method.
+    /// </summary>
+public static SetupBootstrapHandoffResult Success() => new() { Succeeded = true };
+        /// <summary>
+    /// Failure method.
+    /// </summary>
+public static SetupBootstrapHandoffResult Failure(params string[] errors) => new() { Succeeded = false, Errors = errors.ToList() };
 }
 
 /// <summary>
@@ -48,7 +60,10 @@ public sealed class SetupBootstrapHandoffService(
     IHostApplicationLifetime hostLifetime,
     ILogger<SetupBootstrapHandoffService> logger) : ISetupBootstrapHandoffService
 {
-    public async Task<SetupBootstrapHandoffResult> CompleteAndHandoffAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// CompleteAndHandoffAsync method.
+    /// </summary>
+public async Task<SetupBootstrapHandoffResult> CompleteAndHandoffAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 

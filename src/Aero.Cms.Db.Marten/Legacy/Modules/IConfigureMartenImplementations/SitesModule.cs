@@ -13,18 +13,45 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Sites;
 
+/// <summary>
+/// Represents a class for SitesModule.
+/// </summary>
 [Module(nameof(SitesModule))]
 public class SitesModule : AeroWebModule, IConfigureMarten
 {
-    public override string Name => nameof(SitesModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override short Order => -9999;
-    public override IReadOnlyList<string> Dependencies => ["TenantModule"];
-    public override IReadOnlyList<string> Category => ["multi-site", "website"];
-    public override IReadOnlyList<string> Tags => ["multi-site", "sites"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(SitesModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public override short Order => -9999;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => ["TenantModule"];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["multi-site", "website"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["multi-site", "sites"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
         services.AddScoped<ISiteRepository, SiteRepository>();
@@ -53,7 +80,10 @@ public class SitesModule : AeroWebModule, IConfigureMarten
         }
     }
 
-    public override void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public override void Configure(IServiceProvider services, StoreOptions opts)
     {
         // SitesModel — no host info stored here; host resolution uses SiteHost.
         opts.Schema.For<SitesModel>().DatabaseSchemaName(Schemas.Database);
@@ -84,7 +114,10 @@ public class SitesModule : AeroWebModule, IConfigureMarten
         // the standard entity indexes (CreatedBy, ModifiedBy, CreatedOn, ModifiedOn).
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder endpoints)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder endpoints)
     {
         endpoints.MapSitesApi();
         return Task.CompletedTask;

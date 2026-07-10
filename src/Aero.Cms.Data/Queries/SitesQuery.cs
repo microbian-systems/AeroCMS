@@ -5,25 +5,49 @@ using System.Linq.Expressions;
 
 namespace Aero.Cms.Data.Queries;
 
+/// <summary>
+/// Represents a class for SiteByHostnameQuery.
+/// </summary>
 public sealed class SiteByHostnameQuery : ICompiledQuery<SiteHost, SiteHost?>
 {
-    public string hostname { get; set; } = null!;
+        /// <summary>
+    /// Gets or sets the hostname.
+    /// </summary>
+public string hostname { get; set; } = null!;
 
-    public Expression<Func<ISurrealDbQueryable<SiteHost>, SiteHost?>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<SiteHost>, SiteHost?>> QueryIs()
     {
         return q => q.FirstOrDefault(x => x.Host == hostname);
     }
 }
 
+/// <summary>
+/// Represents a class for SiteByIdQuery.
+/// </summary>
 public sealed class SiteByIdQuery : EntityByIdQuery<SitesModel>;
 
+/// <summary>
+/// Represents a class for SitesByIdsQuery.
+/// </summary>
 public sealed class SitesByIdsQuery : EntitiesByIdsQuery<SitesModel>;
 
+/// <summary>
+/// Represents a class for SitesByTenantIdQuery.
+/// </summary>
 public sealed class SitesByTenantIdQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public required long TenantId { get; set; }
+        /// <summary>
+    /// Gets or sets the Tenant Id.
+    /// </summary>
+public required long TenantId { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.TenantId == TenantId)
@@ -33,11 +57,20 @@ public sealed class SitesByTenantIdQuery : ICompiledQuery<SitesModel, IList<Site
 }
 
 
+/// <summary>
+/// Represents a class for SitesByNameQuery.
+/// </summary>
 public sealed class SitesByNameQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public required string Name { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public required string Name { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.Name == Name)
@@ -46,9 +79,15 @@ public sealed class SitesByNameQuery : ICompiledQuery<SitesModel, IList<SitesMod
     }
 }
 
+/// <summary>
+/// Represents a class for EnabledSitesQuery.
+/// </summary>
 public sealed class EnabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.IsEnabled)
@@ -57,9 +96,15 @@ public sealed class EnabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesMo
     }
 }
 
+/// <summary>
+/// Represents a class for DisabledSitesQuery.
+/// </summary>
 public sealed class DisabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => !x.IsEnabled)
@@ -68,11 +113,20 @@ public sealed class DisabledSitesQuery : ICompiledQuery<SitesModel, IList<SitesM
     }
 }
 
+/// <summary>
+/// Represents a class for SitesByDefaultCultureQuery.
+/// </summary>
 public sealed class SitesByDefaultCultureQuery : ICompiledQuery<SitesModel, IList<SitesModel>>
 {
-    public required string DefaultCulture { get; set; }
+        /// <summary>
+    /// Gets or sets the Default Culture.
+    /// </summary>
+public required string DefaultCulture { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<SitesModel>, IList<SitesModel>>> QueryIs()
     {
         return q => q
             .Where(x => x.DefaultCulture == DefaultCulture)
@@ -81,6 +135,12 @@ public sealed class SitesByDefaultCultureQuery : ICompiledQuery<SitesModel, ILis
     }
 }
 
+/// <summary>
+/// Represents a class for SitesCreatedInRangeQuery.
+/// </summary>
 public sealed class SitesCreatedInRangeQuery : EntitiesCreatedInRangeQuery<SitesModel>;
 
+/// <summary>
+/// Represents a class for SitesModifiedInRangeQuery.
+/// </summary>
 public sealed class SitesModifiedInRangeQuery : EntitiesModifiedInRangeQuery<SitesModel>;

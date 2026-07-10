@@ -12,7 +12,10 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
 {
     private readonly IDocumentStore _store;
 
-    public AeroSettingGrain(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroSettingGrain"/> class.
+    /// </summary>
+public AeroSettingGrain(
         ILogger<AeroActor> log,
         IDocumentStore store)
         : base(log)
@@ -20,7 +23,10 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
         _store = store;
     }
 
-    public async Task<List<SettingSummary>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<List<SettingSummary>> GetAllAsync(CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var settings = await session.Query<Setting>()
@@ -31,14 +37,20 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
         return settings.Select(s => new SettingSummary(s.Key, s.Category, s.Description)).ToList();
     }
 
-    public async Task<SettingDetail?> GetByKeyAsync(string key, CancellationToken ct = default)
+        /// <summary>
+    /// GetByKeyAsync method.
+    /// </summary>
+public async Task<SettingDetail?> GetByKeyAsync(string key, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var s = await session.LoadAsync<Setting>(key, ct);
         return s is null ? null : ToDetail(s);
     }
 
-    public async Task<List<SettingDetail>> GetByCategoryAsync(string category, CancellationToken ct = default)
+        /// <summary>
+    /// GetByCategoryAsync method.
+    /// </summary>
+public async Task<List<SettingDetail>> GetByCategoryAsync(string category, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var settings = await session.Query<Setting>()
@@ -49,7 +61,10 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
         return settings.Select(ToDetail).ToList();
     }
 
-    public async Task<SettingDetail> SetAsync(string key, string value, string category = "General", string type = "string", CancellationToken ct = default)
+        /// <summary>
+    /// SetAsync method.
+    /// </summary>
+public async Task<SettingDetail> SetAsync(string key, string value, string category = "General", string type = "string", CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var setting = await session.LoadAsync<Setting>(key, ct);
@@ -70,7 +85,10 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
         return ToDetail(setting);
     }
 
-    public async Task<bool> DeleteAsync(string key, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<bool> DeleteAsync(string key, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var setting = await session.LoadAsync<Setting>(key, ct);
@@ -83,7 +101,10 @@ public sealed class AeroSettingGrain : AeroActor, IAeroSettingActor
         return true;
     }
 
-    public async Task<List<SettingCategory>> GetCategoriesAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetCategoriesAsync method.
+    /// </summary>
+public async Task<List<SettingCategory>> GetCategoriesAsync(CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var settings = await session.Query<Setting>().ToListAsync(ct);

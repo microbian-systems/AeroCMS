@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Core;
+using Aero.Cms.Core;
 using Aero.Cms.Modules.Manager.Areas.Api.v1;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
@@ -9,22 +9,49 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Manager;
 
+/// <summary>
+/// Represents a class for ManagerModule.
+/// </summary>
 [Module(nameof(ManagerModule))]
 public class ManagerModule : AeroWebModule
 {
-    public override string Name { get; } = nameof(ManagerModule);
-    public override string Version { get; } = AeroConstants.Version;
-    public override string Author { get; } = AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies { get; } = [];
-    public override IReadOnlyList<string> Category { get; } = [];
-    public override IReadOnlyList<string> Tags { get; } = [];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name { get; } = nameof(ManagerModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version { get; } = AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author { get; } = AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies { get; } = [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category { get; } = [];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags { get; } = [];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapDashboardApi();
         builder.MapPreviewBlockFragmentApi();

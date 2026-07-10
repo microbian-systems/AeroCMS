@@ -1,6 +1,9 @@
-﻿namespace Aero.Cms.Modules.RequestLog
+namespace Aero.Cms.Modules.RequestLog
 {
-    public class Class1
+        /// <summary>
+    /// Represents a class for Class1.
+    /// </summary>
+public class Class1
     {
 
     }

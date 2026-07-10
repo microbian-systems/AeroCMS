@@ -8,10 +8,16 @@ namespace Aero.Cms.Abstractions.Blocks.Rendering;
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class CmsBlockRendererAttribute : Attribute
 {
-    public CmsBlockRendererAttribute(Type modelType)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CmsBlockRendererAttribute"/> class.
+    /// </summary>
+public CmsBlockRendererAttribute(Type modelType)
     {
         ModelType = modelType;
     }
 
-    public Type ModelType { get; }
+        /// <summary>
+    /// Gets or sets the Model Type.
+    /// </summary>
+public Type ModelType { get; }
 }

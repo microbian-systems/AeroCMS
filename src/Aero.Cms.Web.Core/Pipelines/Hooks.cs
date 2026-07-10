@@ -1,19 +1,46 @@
 namespace Aero.Cms.Web.Core.Pipelines;
 
+/// <summary>
+/// Defines an interface for IPageReadHook.
+/// </summary>
 public interface IPageReadHook
 {
-    int Order { get; }
-    Task ExecuteAsync(PageReadContext ctx, CancellationToken ct);
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+int Order { get; }
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+Task ExecuteAsync(PageReadContext ctx, CancellationToken ct);
 }
 
+/// <summary>
+/// Defines an interface for IPageSaveHook.
+/// </summary>
 public interface IPageSaveHook
 {
-    int Order { get; }
-    Task ExecuteAsync(PageSaveContext ctx, CancellationToken ct);
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+int Order { get; }
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+Task ExecuteAsync(PageSaveContext ctx, CancellationToken ct);
 }
 
+/// <summary>
+/// Defines an interface for IBlockRenderHook.
+/// </summary>
 public interface IBlockRenderHook
 {
-    int Order { get; }
-    Task ExecuteAsync(BlockRenderContext ctx, CancellationToken ct);
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+int Order { get; }
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+Task ExecuteAsync(BlockRenderContext ctx, CancellationToken ct);
 }

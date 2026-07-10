@@ -15,7 +15,10 @@ namespace Aero.Cms.Modules.Content.Areas.Api.v1;
 /// </summary>
 public static class ContentTypesApi
 {
-    public static void MapContentTypesApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapContentTypesApi method.
+    /// </summary>
+public static void MapContentTypesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/content-types")
             .WithTags("Admin - Content Types")

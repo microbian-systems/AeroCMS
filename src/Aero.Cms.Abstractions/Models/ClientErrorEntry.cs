@@ -7,10 +7,28 @@ namespace Aero.Cms.Abstractions.Models;
 /// </summary>
 public sealed class ClientErrorEntry
 {
-    public string ErrorType { get; set; } = string.Empty;
-    public string ErrorMessage { get; set; } = string.Empty;
-    public string? ClientUrl { get; set; }
-    public string? UserAgent { get; set; }
-    public string? ClientTimestamp { get; set; }
-    public string? StackTrace { get; set; }
+        /// <summary>
+    /// Gets or sets the Error Type.
+    /// </summary>
+public string ErrorType { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Error Message.
+    /// </summary>
+public string ErrorMessage { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Client Url.
+    /// </summary>
+public string? ClientUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the User Agent.
+    /// </summary>
+public string? UserAgent { get; set; }
+        /// <summary>
+    /// Gets or sets the Client Timestamp.
+    /// </summary>
+public string? ClientTimestamp { get; set; }
+        /// <summary>
+    /// Gets or sets the Stack Trace.
+    /// </summary>
+public string? StackTrace { get; set; }
 }

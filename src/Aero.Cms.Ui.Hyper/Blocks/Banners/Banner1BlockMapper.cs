@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Banners;
 
+/// <summary>
+/// Represents a class for Banner1BlockMapper.
+/// </summary>
 public static class Banner1BlockMapper
 {
-    public static NeoPageNode ToNode(Banner1Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Banner1Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.banners.1",
@@ -22,7 +28,10 @@ public static class Banner1BlockMapper
         }
     };
 
-    public static Banner1Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Banner1Block FromNode(NeoPageNode node) => new()
     {
         Title = GetString(node, "title", "Understand user flow and <strong class=\"text-indigo-600\"> increase </strong> conversions"),
         Highlight = GetString(node, "highlight", "increase"),

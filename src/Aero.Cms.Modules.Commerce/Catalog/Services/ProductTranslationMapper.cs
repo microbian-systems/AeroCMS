@@ -5,7 +5,10 @@ namespace Aero.Cms.Modules.Commerce.Catalog.Services;
 
 internal static class ProductTranslationMapper
 {
-    public static void Apply(ProductDocument product, ProductTranslation translation)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public static void Apply(ProductDocument product, ProductTranslation translation)
     {
         if (!string.IsNullOrWhiteSpace(translation.Name))
             product.Name = translation.Name;

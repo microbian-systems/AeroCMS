@@ -3,9 +3,15 @@ using Microsoft.Extensions.Configuration;
 
 namespace Aero.Cms.Modules.Setup.Configuration;
 
+/// <summary>
+/// Represents a class for InfisicalBootstrapSettingsProvider.
+/// </summary>
 public sealed class InfisicalBootstrapSettingsProvider(IConfiguration configuration)
 {
-    public InfisicalSecretManagerOptions GetSettings()
+        /// <summary>
+    /// GetSettings method.
+    /// </summary>
+public InfisicalSecretManagerOptions GetSettings()
     {
         var host = GetValue("Infisical:HostUri", "INFISICAL__HOST_URI", "http://localhost:8080");
         return new InfisicalSecretManagerOptions

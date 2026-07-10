@@ -8,11 +8,26 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 /// </summary>
 public interface IContentTypesHttpClient
 {
-    Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default);
-    Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default);
-    Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default);
-    Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(string alias, CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default);
+        /// <summary>
+    /// GetByAliasAsync method.
+    /// </summary>
+Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(string alias, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -20,21 +35,39 @@ public interface IContentTypesHttpClient
 /// </summary>
 public class ContentTypesHttpClient(HttpClient httpClient, ILogger<ContentTypesHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IContentTypesHttpClient
 {
-    public override string Path => "admin/content-types";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/content-types";
 
-    public Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<ContentTypeSummary>, AeroError>> GetAllAsync(CancellationToken ct = default)
         => GetAsync<IReadOnlyList<ContentTypeSummary>>(string.Empty, ct);
 
-    public Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default)
+        /// <summary>
+    /// GetByAliasAsync method.
+    /// </summary>
+public Task<Result<ContentTypeDetail, AeroError>> GetByAliasAsync(string alias, CancellationToken ct = default)
         => GetAsync<ContentTypeDetail>(Uri.EscapeDataString(alias), ct);
 
-    public Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<Result<ContentTypeDetail, AeroError>> CreateAsync(CreateContentTypeRequest request, CancellationToken ct = default)
         => PostAsync<CreateContentTypeRequest, ContentTypeDetail>(string.Empty, request, ct);
 
-    public Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<Result<ContentTypeDetail, AeroError>> UpdateAsync(string alias, CreateContentTypeRequest request, CancellationToken ct = default)
         => PutAsync<CreateContentTypeRequest, ContentTypeDetail>(Uri.EscapeDataString(alias), request, ct);
 
-    public Task<Result<bool, AeroError>> DeleteAsync(string alias, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteAsync(string alias, CancellationToken ct = default)
         => MapBoolResult(base.DeleteAsync(Uri.EscapeDataString(alias), ct));
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
@@ -54,15 +87,42 @@ public class ContentTypesHttpClient(HttpClient httpClient, ILogger<ContentTypesH
 /// </summary>
 public interface IContentItemsHttpClient
 {
-    Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> GetByIdAsync(string alias, long id, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> CreateAsync(string alias, CreateContentItemRequest request, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> UpdateAsync(string alias, long id, CreateContentItemRequest request, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> DeleteAsync(string alias, long id, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default);
-    Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslationsAsync(string alias, long id, CancellationToken ct = default);
-    Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default);
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> GetByIdAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> CreateAsync(string alias, CreateContentItemRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> UpdateAsync(string alias, long id, CreateContentItemRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// UnpublishAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetTranslationsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslationsAsync(string alias, long id, CancellationToken ct = default);
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -70,37 +130,67 @@ public interface IContentItemsHttpClient
 /// </summary>
 public class ContentItemsHttpClient(HttpClient httpClient, ILogger<ContentItemsHttpClient> logger) : AeroCmsClientBase(httpClient, logger), IContentItemsHttpClient
 {
-    public override string Path => "admin/content-items";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/content-items";
 
-    public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public Task<Result<PagedResult<ContentItemSummary>, AeroError>> GetAllAsync(string alias, int skip = 0, int take = 10, string? search = null, CancellationToken ct = default)
     {
         var url = $"?contentType={Uri.EscapeDataString(alias)}&skip={skip}&take={take}";
         if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
         return GetAsync<PagedResult<ContentItemSummary>>(url, ct);
     }
 
-    public Task<Result<ContentItemDetail, AeroError>> GetByIdAsync(string alias, long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> GetByIdAsync(string alias, long id, CancellationToken ct = default)
         => GetAsync<ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}", ct);
 
-    public Task<Result<ContentItemDetail, AeroError>> CreateAsync(string alias, CreateContentItemRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> CreateAsync(string alias, CreateContentItemRequest request, CancellationToken ct = default)
         => PostAsync<CreateContentItemRequest, ContentItemDetail>(Uri.EscapeDataString(alias), request, ct);
 
-    public Task<Result<ContentItemDetail, AeroError>> UpdateAsync(string alias, long id, CreateContentItemRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> UpdateAsync(string alias, long id, CreateContentItemRequest request, CancellationToken ct = default)
         => PutAsync<CreateContentItemRequest, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}", request, ct);
 
-    public Task<Result<bool, AeroError>> DeleteAsync(string alias, long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteAsync(string alias, long id, CancellationToken ct = default)
         => MapBoolResult(base.DeleteAsync($"{Uri.EscapeDataString(alias)}/{id}", ct));
 
-    public Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default)
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> PublishAsync(string alias, long id, CancellationToken ct = default)
         => PostAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/publish", new object(), ct);
 
-    public Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default)
+        /// <summary>
+    /// UnpublishAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> UnpublishAsync(string alias, long id, CancellationToken ct = default)
         => PostAsync<object, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/unpublish", new object(), ct);
 
-    public Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslationsAsync(string alias, long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetTranslationsAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<ContentItemDetail>, AeroError>> GetTranslationsAsync(string alias, long id, CancellationToken ct = default)
         => GetAsync<IReadOnlyList<ContentItemDetail>>($"{Uri.EscapeDataString(alias)}/{id}/translations", ct);
 
-    public Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+public Task<Result<ContentItemDetail, AeroError>> ForkToCultureAsync(string alias, long id, ForkContentItemCultureRequest request, CancellationToken ct = default)
         => PostAsync<ForkContentItemCultureRequest, ContentItemDetail>($"{Uri.EscapeDataString(alias)}/{id}/translations", request, ct);
 
     private static async Task<Result<bool, AeroError>> MapBoolResult(Task<Result<HttpResponseMessage, AeroError>> task)
@@ -199,4 +289,7 @@ public record CreateContentItemRequest(
     DateTimeOffset? SchedulePublishUtc,
     DateTimeOffset? ScheduleUnpublishUtc);
 
+/// <summary>
+/// Represents a record for ForkContentItemCultureRequest.
+/// </summary>
 public record ForkContentItemCultureRequest(string Culture, string Slug);

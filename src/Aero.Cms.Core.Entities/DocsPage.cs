@@ -6,21 +6,60 @@ using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Entities;
 
+/// <summary>
+/// Represents a class for DocsPage.
+/// </summary>
 public sealed class DocsPage : Entity, ISiteOwned
 {
-    public long SiteId { get; set; }
-    public long? TranslationGroupId { get; set; }
-    public string Culture { get; set; } = "en-US";
-    public string Slug { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
-    public string? Summary { get; set; }
-    public string? MarkdownContent { get; set; }
-    public string? SeoTitle { get; set; }
-    public string? SeoDescription { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+public long? TranslationGroupId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = "en-US";
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+public string? Summary { get; set; }
+        /// <summary>
+    /// Gets or sets the Markdown Content.
+    /// </summary>
+public string? MarkdownContent { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+public string? SeoTitle { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+public string? SeoDescription { get; set; }
     
-    public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
-    public DateTimeOffset? PublishedOn { get; set; } = null;
-    public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+public DateTimeOffset? PublishedOn { get; set; } = null;
+        /// <summary>
+    /// Gets or sets the Is Publicly Visible.
+    /// </summary>
+public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 
     /// <summary>
     /// Monotonic counter incremented on every publish.

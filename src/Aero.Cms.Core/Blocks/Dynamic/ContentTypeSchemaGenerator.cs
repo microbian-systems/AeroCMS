@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Content;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
+/// <summary>
+/// Represents a class for ContentTypeSchemaGenerator.
+/// </summary>
 public static class ContentTypeSchemaGenerator
 {
-    public static JsonDocument GenerateSchema(ContentTypeDefinition definition)
+        /// <summary>
+    /// GenerateSchema method.
+    /// </summary>
+public static JsonDocument GenerateSchema(ContentTypeDefinition definition)
     {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream);

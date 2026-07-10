@@ -7,9 +7,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Ui.Neo;
 
+/// <summary>
+/// Represents a class for NeoUiServiceCollectionExtensions.
+/// </summary>
 public static class NeoUiServiceCollectionExtensions
 {
-    public static IServiceCollection AddAeroCmsNeoUiBlocks(this IServiceCollection services)
+        /// <summary>
+    /// AddAeroCmsNeoUiBlocks method.
+    /// </summary>
+public static IServiceCollection AddAeroCmsNeoUiBlocks(this IServiceCollection services)
     {
         var provider = new NeoPageEditorBlockProvider();
         services.AddSingleton<IPageEditorBlockProvider>(provider);

@@ -13,7 +13,10 @@ public class AuthorizationHook(IHttpContextAccessor httpContextAccessor, ILogger
     /// </summary>
     public int Order => 0;
 
-    public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
     {
         var httpContext = httpContextAccessor.HttpContext;
         if (httpContext == null)

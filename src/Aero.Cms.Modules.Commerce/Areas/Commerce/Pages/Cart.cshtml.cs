@@ -6,20 +6,38 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
+/// <summary>
+/// Represents a class for CartModel.
+/// </summary>
 public class CartModel : PageModel
 {
     private readonly IBasketService _basketService;
 
-    public CartModel(IBasketService basketService)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CartModel"/> class.
+    /// </summary>
+public CartModel(IBasketService basketService)
     {
         _basketService = basketService;
     }
 
-    public List<BasketItem>? Items { get; set; }
-    public int TotalQuantity => Items?.Sum(i => i.Quantity) ?? 0;
-    public decimal? TotalPrice => Items?.Sum(i => i.TotalPrice);
+        /// <summary>
+    /// Gets or sets the Items.
+    /// </summary>
+public List<BasketItem>? Items { get; set; }
+        /// <summary>
+    /// Gets or sets the Total Quantity.
+    /// </summary>
+public int TotalQuantity => Items?.Sum(i => i.Quantity) ?? 0;
+        /// <summary>
+    /// Gets or sets the Total Price.
+    /// </summary>
+public decimal? TotalPrice => Items?.Sum(i => i.TotalPrice);
 
-    public async Task<IActionResult> OnGetAsync()
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetAsync()
     {
         var customerId = GetCustomerId();
         var result = await _basketService.GetOrCreateBasketAsync(customerId);
@@ -30,7 +48,10 @@ public class CartModel : PageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostUpdateQuantityAsync(long productId, int quantity)
+        /// <summary>
+    /// OnPostUpdateQuantityAsync method.
+    /// </summary>
+public async Task<IActionResult> OnPostUpdateQuantityAsync(long productId, int quantity)
     {
         var customerId = GetCustomerId();
 

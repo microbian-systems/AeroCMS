@@ -1,3 +1,6 @@
 namespace Aero.Cms.Modules.Commerce.Orders.Events;
 
+/// <summary>
+/// Represents a record for OrderStatusChangedToCancelled.
+/// </summary>
 public sealed record OrderStatusChangedToCancelled(long OrderId, string Reason);

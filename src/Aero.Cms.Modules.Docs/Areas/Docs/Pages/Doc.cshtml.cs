@@ -13,6 +13,9 @@ using System.Globalization;
 
 namespace Aero.Cms.Modules.Docs.Areas.Docs.Pages;
 
+/// <summary>
+/// Represents a class for DocModel.
+/// </summary>
 [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any)]
 [OutputCache(PolicyName = "DocsPolicy")]
 public class DocModel : PageModel
@@ -20,28 +23,70 @@ public class DocModel : PageModel
     private readonly IDocsService _docsService;
     private readonly IDocsTreeService _docsTreeService;
 
-    public DocModel(IDocsService docsService, IDocsTreeService docsTreeService)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DocModel"/> class.
+    /// </summary>
+public DocModel(IDocsService docsService, IDocsTreeService docsTreeService)
     {
         _docsService = docsService;
         _docsTreeService = docsTreeService;
     }
 
-    [BindProperty(SupportsGet = true)]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[BindProperty(SupportsGet = true)]
     public string? Slug { get; set; }
 
-    public DocsPage? MarkdownPage { get; private set; }
-    public IReadOnlyList<DocsPage> ChildPages { get; private set; } = [];
-    public List<DocsSidebarNode> SidebarTree { get; private set; } = [];
-    public List<HeadingItem> OnThisPage { get; private set; } = [];
-    public IReadOnlyList<DocsPage> Breadcrumbs { get; private set; } = [];
-    public string RequestedCulture { get; private set; } = SitesModel.DefaultCultureName;
-    public string RenderedCulture { get; private set; } = SitesModel.DefaultCultureName;
-    public bool IsCultureFallback { get; private set; }
-    public string CanonicalUrl { get; private set; } = string.Empty;
-    public IReadOnlyList<AlternateDocLink> AlternateLinks { get; private set; } = [];
-    public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Markdown Page.
+    /// </summary>
+public DocsPage? MarkdownPage { get; private set; }
+        /// <summary>
+    /// Gets or sets the Child Pages.
+    /// </summary>
+public IReadOnlyList<DocsPage> ChildPages { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Sidebar Tree.
+    /// </summary>
+public List<DocsSidebarNode> SidebarTree { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the On This Page.
+    /// </summary>
+public List<HeadingItem> OnThisPage { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Breadcrumbs.
+    /// </summary>
+public IReadOnlyList<DocsPage> Breadcrumbs { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Requested Culture.
+    /// </summary>
+public string RequestedCulture { get; private set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Rendered Culture.
+    /// </summary>
+public string RenderedCulture { get; private set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Is Culture Fallback.
+    /// </summary>
+public bool IsCultureFallback { get; private set; }
+        /// <summary>
+    /// Gets or sets the Canonical Url.
+    /// </summary>
+public string CanonicalUrl { get; private set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alternate Links.
+    /// </summary>
+public IReadOnlyList<AlternateDocLink> AlternateLinks { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Culture Switcher Links.
+    /// </summary>
+public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
-    public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
         var slugWithoutCulture = AeroCultureRoute.StripLeadingCulture(Slug);
@@ -156,5 +201,8 @@ public class DocModel : PageModel
             Request.PathBase,
             AeroCultureRoute.BuildCulturePath(culture, slug));
 
-    public sealed record AlternateDocLink(string Hreflang, string Href);
+        /// <summary>
+    /// Represents a record for AlternateDocLink.
+    /// </summary>
+public sealed record AlternateDocLink(string Hreflang, string Href);
 }

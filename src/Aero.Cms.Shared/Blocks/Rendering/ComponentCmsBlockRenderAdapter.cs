@@ -12,25 +12,40 @@ public sealed class ComponentCmsBlockRenderAdapter<TBlock, TComponent> : ICmsBlo
     where TBlock : BlockBase
     where TComponent : IComponent
 {
-    public ComponentCmsBlockRenderAdapter(string blockType)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="ComponentCmsBlockRenderAdapter"/> class.
+    /// </summary>
+public ComponentCmsBlockRenderAdapter(string blockType)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(blockType);
 
         BlockType = blockType;
     }
 
-    public string BlockType { get; }
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public string BlockType { get; }
 
-    public Type ModelType => typeof(TBlock);
+        /// <summary>
+    /// Gets or sets the Model Type.
+    /// </summary>
+public Type ModelType => typeof(TBlock);
 
-    public RenderFragment Render(TBlock block, BlockRenderContext context) => builder =>
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public RenderFragment Render(TBlock block, BlockRenderContext context) => builder =>
     {
         builder.OpenComponent<TComponent>(0);
         builder.AddAttribute(1, "Block", block);
         builder.CloseComponent();
     };
 
-    public RenderFragment Render(IBlock block, BlockRenderContext context)
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public RenderFragment Render(IBlock block, BlockRenderContext context)
     {
         if (block is not TBlock typedBlock)
         {

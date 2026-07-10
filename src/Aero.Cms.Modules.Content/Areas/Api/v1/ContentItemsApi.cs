@@ -16,7 +16,10 @@ namespace Aero.Cms.Modules.Content.Areas.Api.v1;
 /// </summary>
 public static class ContentItemsApi
 {
-    public static void MapContentItemsApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapContentItemsApi method.
+    /// </summary>
+public static void MapContentItemsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/content-items")
             .WithTags("Admin - Content Items")

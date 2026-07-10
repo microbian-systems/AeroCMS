@@ -12,7 +12,10 @@ public sealed class PageEventArchiveJob(
 {
     private const int DefaultRetentionDays = 90;
 
-    [TickerFunction("pages.archive-events")]
+        /// <summary>
+    /// ArchiveOldEvents method.
+    /// </summary>
+[TickerFunction("pages.archive-events")]
     public async Task ArchiveOldEvents(
         TickerFunctionContext context,
         CancellationToken cancellationToken)

@@ -5,6 +5,9 @@ using System.Globalization;
 
 namespace Aero.Cms.Modules.Pages;
 
+/// <summary>
+/// Defines an enumeration for ContentSlugOwnerType.
+/// </summary>
 public enum ContentSlugOwnerType
 {
     Page = 0,
@@ -13,18 +16,42 @@ public enum ContentSlugOwnerType
     ContentItem = 3
 }
 
+/// <summary>
+/// Represents a class for ContentSlugDocument.
+/// </summary>
 public sealed class ContentSlugDocument : Entity, ISiteOwned
 {
     private const string RootSlugKey = "__root__";
 
-    public long SiteId { get; set; }
-    public string Culture { get; set; } = SitesModel.DefaultCultureName;
-    public string Slug { get; set; } = string.Empty;
-    public string NormalizedSlug { get; set; } = string.Empty;
-    public long OwnerId { get; set; } 
-    public ContentSlugOwnerType OwnerType { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Normalized Slug.
+    /// </summary>
+public string NormalizedSlug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Owner Id.
+    /// </summary>
+public long OwnerId { get; set; } 
+        /// <summary>
+    /// Gets or sets the Owner Type.
+    /// </summary>
+public ContentSlugOwnerType OwnerType { get; set; }
 
-    public static string Normalize(string slug)
+        /// <summary>
+    /// Normalize method.
+    /// </summary>
+public static string Normalize(string slug)
     {
         ArgumentNullException.ThrowIfNull(slug);
 
@@ -36,7 +63,10 @@ public sealed class ContentSlugDocument : Entity, ISiteOwned
     }
 
 
-    public static ContentSlugDocument Create(
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static ContentSlugDocument Create(
         string slug,
         long ownerId,
         ContentSlugOwnerType ownerType,
@@ -57,7 +87,10 @@ public sealed class ContentSlugDocument : Entity, ISiteOwned
         };
     }
 
-    public static string NormalizeCulture(string? culture)
+        /// <summary>
+    /// NormalizeCulture method.
+    /// </summary>
+public static string NormalizeCulture(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
             return SitesModel.DefaultCultureName;
@@ -73,17 +106,35 @@ public sealed class ContentSlugDocument : Entity, ISiteOwned
     }
 }
 
+/// <summary>
+/// Represents a class for SlugConflictException.
+/// </summary>
 public sealed class SlugConflictException(string slug, string existingOwnerId, string attemptedOwnerId)
     : InvalidOperationException($"Slug '{slug}' is already reserved by '{existingOwnerId}'.")
 {
-    public string Slug { get; } = slug;
-    public string ExistingOwnerId { get; } = existingOwnerId;
-    public string AttemptedOwnerId { get; } = attemptedOwnerId;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; } = slug;
+        /// <summary>
+    /// Gets or sets the Existing Owner Id.
+    /// </summary>
+public string ExistingOwnerId { get; } = existingOwnerId;
+        /// <summary>
+    /// Gets or sets the Attempted Owner Id.
+    /// </summary>
+public string AttemptedOwnerId { get; } = attemptedOwnerId;
 }
 
+/// <summary>
+/// Represents a class for ContentSlugReservation.
+/// </summary>
 public static class ContentSlugReservation
 {
-    public static async Task ReserveAsync(
+        /// <summary>
+    /// ReserveAsync method.
+    /// </summary>
+public static async Task ReserveAsync(
         IDocumentSession session,
         long ownerId,
         ContentSlugOwnerType ownerType,
@@ -101,7 +152,10 @@ public static class ContentSlugReservation
             previousSlug,
             cancellationToken);
 
-    public static async Task ReserveAsync(
+        /// <summary>
+    /// ReserveAsync method.
+    /// </summary>
+public static async Task ReserveAsync(
         IDocumentSession session,
         long ownerId,
         ContentSlugOwnerType ownerType,

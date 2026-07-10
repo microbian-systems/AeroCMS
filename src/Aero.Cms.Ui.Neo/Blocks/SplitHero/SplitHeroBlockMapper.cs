@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.SplitHero;
 
+/// <summary>
+/// Represents a class for SplitHeroBlockMapper.
+/// </summary>
 public static class SplitHeroBlockMapper
 {
-    public static NeoPageNode ToNode(SplitHeroBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(SplitHeroBlock block) => new()
     {
         NodeId = string.Empty,
         CatalogId = SplitHeroBlock.BlockTypeId,
@@ -23,7 +29,10 @@ public static class SplitHeroBlockMapper
         }
     };
 
-    public static SplitHeroBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static SplitHeroBlock FromNode(NeoPageNode node) => new()
     {
         Eyebrow       = GetString(node, "eyebrow",       "New — v2.0 is here"),
         Title         = GetString(node, "title",         "Build better products, ship faster"),

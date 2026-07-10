@@ -14,7 +14,10 @@ public sealed class EventStreamBootstrapMigration
     private readonly IDocumentStore _store;
     private readonly ILogger<EventStreamBootstrapMigration> _logger;
 
-    public EventStreamBootstrapMigration(IDocumentStore store, ILogger<EventStreamBootstrapMigration> logger)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="EventStreamBootstrapMigration"/> class.
+    /// </summary>
+public EventStreamBootstrapMigration(IDocumentStore store, ILogger<EventStreamBootstrapMigration> logger)
     {
         _store = store;
         _logger = logger;

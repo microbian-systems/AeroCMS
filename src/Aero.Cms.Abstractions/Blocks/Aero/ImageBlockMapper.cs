@@ -1,8 +1,14 @@
 namespace Aero.Cms.Abstractions.Blocks.Neo;
 
+/// <summary>
+/// Represents a class for ImageBlockMapper.
+/// </summary>
 public static class ImageBlockMapper
 {
-    public static NeoPageNode ToNode(ImageBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(ImageBlock block) => new()
     {
         CatalogId = "media.image", Kind = NeoPageNodeKind.Block,
         Properties = new Dictionary<string, JsonElement>
@@ -14,7 +20,10 @@ public static class ImageBlockMapper
         }
     };
 
-    public static ImageBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static ImageBlock FromNode(NeoPageNode node) => new()
     {
         Src = GetString(node, "src", "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800"),
         Alt = GetString(node, "alt", string.Empty),

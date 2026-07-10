@@ -13,29 +13,68 @@ using System.Globalization;
 
 namespace Aero.Cms.Modules.Posts.Areas.Blog.Pages;
 
+/// <summary>
+/// Represents a class for PostsDetailPageModel.
+/// </summary>
 [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
 [OutputCache(PolicyName = "BlogPolicy")]
 public class PostsDetailPageModel(
     IAeroPostActor postActor,
     ISiteContext siteContext) : PageModel
 {
-    [BindProperty(SupportsGet = true)]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[BindProperty(SupportsGet = true)]
     public string Slug { get; set; } = string.Empty;
 
-    [BindProperty(SupportsGet = true)]
+        /// <summary>
+    /// Gets or sets the Draft Id.
+    /// </summary>
+[BindProperty(SupportsGet = true)]
     public long? DraftId { get; set; }
 
-    public PostViewModel? Post { get; private set; }
-    public Dictionary<long, string> TagNames { get; private set; } = [];
-    public (string? Name, string? Bio, string? AvatarUrl)? PostAuthor { get; private set; }
-    public string RequestedCulture { get; private set; } = "en-US";
-    public string RenderedCulture { get; private set; } = "en-US";
-    public bool IsCultureFallback { get; private set; }
-    public string CanonicalUrl { get; private set; } = string.Empty;
-    public IReadOnlyList<AlternatePostLink> AlternateLinks { get; private set; } = [];
-    public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Post.
+    /// </summary>
+public PostViewModel? Post { get; private set; }
+        /// <summary>
+    /// Gets or sets the Tag Names.
+    /// </summary>
+public Dictionary<long, string> TagNames { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Post Author.
+    /// </summary>
+public (string? Name, string? Bio, string? AvatarUrl)? PostAuthor { get; private set; }
+        /// <summary>
+    /// Gets or sets the Requested Culture.
+    /// </summary>
+public string RequestedCulture { get; private set; } = "en-US";
+        /// <summary>
+    /// Gets or sets the Rendered Culture.
+    /// </summary>
+public string RenderedCulture { get; private set; } = "en-US";
+        /// <summary>
+    /// Gets or sets the Is Culture Fallback.
+    /// </summary>
+public bool IsCultureFallback { get; private set; }
+        /// <summary>
+    /// Gets or sets the Canonical Url.
+    /// </summary>
+public string CanonicalUrl { get; private set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alternate Links.
+    /// </summary>
+public IReadOnlyList<AlternatePostLink> AlternateLinks { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Culture Switcher Links.
+    /// </summary>
+public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private set; } = [];
 
-    public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         PostViewModel? post;
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
@@ -148,5 +187,8 @@ public class PostsDetailPageModel(
         Response.Headers.CacheControl = "public,max-age=300";
     }
 
-    public sealed record AlternatePostLink(string Hreflang, string Href);
+        /// <summary>
+    /// Represents a record for AlternatePostLink.
+    /// </summary>
+public sealed record AlternatePostLink(string Hreflang, string Href);
 }

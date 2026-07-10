@@ -1,6 +1,9 @@
 namespace Aero.Cms.Abstractions.Models;
 
 
+/// <summary>
+/// Represents a record for AliasViewModel.
+/// </summary>
 [Alias("AliasViewModel")]
 [GenerateSerializer]
 public record AliasViewModel : AeroEntityViewModel
@@ -25,6 +28,9 @@ public record AliasViewModel : AeroEntityViewModel
 }
 
 
+/// <summary>
+/// Represents a record for AliasErrorViewModel.
+/// </summary>
 [GenerateSerializer]
 [Alias("AliasErrorViewModel")]
 public record AliasErrorViewModel : AeroErrorViewModel<AliasViewModel>;

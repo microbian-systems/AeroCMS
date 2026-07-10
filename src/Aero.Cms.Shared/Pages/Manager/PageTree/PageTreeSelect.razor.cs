@@ -21,7 +21,10 @@ public partial class PageTreeSelect
     [Parameter]
     public long? SelectedParentId { get; set; }
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Selected Parent Id Changed.
+    /// </summary>
+[Parameter]
     public EventCallback<long?> SelectedParentIdChanged { get; set; }
 
     /// <summary>
@@ -30,13 +33,19 @@ public partial class PageTreeSelect
     [Parameter]
     public long? ExcludePageId { get; set; }
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Placeholder.
+    /// </summary>
+[Parameter]
     public string Placeholder { get; set; } = default!;
 
     private List<TreeOption> _options = [];
     private TreeOption? _selectedOption;
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         await LoadOptionsAsync();
     }
@@ -113,7 +122,16 @@ public partial class PageTreeSelect
 /// </summary>
 internal sealed class TreeOption
 {
-    public long Id { get; set; }
-    public string Label { get; set; } = "";
-    public int Depth { get; set; }
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+public long Id { get; set; }
+        /// <summary>
+    /// Gets or sets the Label.
+    /// </summary>
+public string Label { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Depth.
+    /// </summary>
+public int Depth { get; set; }
 }

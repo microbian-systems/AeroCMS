@@ -6,12 +6,18 @@ using Aero.Secrets.Models;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Represents a class for CacheBootstrapService.
+/// </summary>
 public sealed class CacheBootstrapService(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager,
     InfisicalBootstrapSettingsProvider infisicalSettingsProvider) : ICacheBootstrapService
 {
-    public async Task PersistAsync(CacheBootstrapModel model, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// PersistAsync method.
+    /// </summary>
+public async Task PersistAsync(CacheBootstrapModel model, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(model);
 

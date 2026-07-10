@@ -18,5 +18,8 @@ namespace Aero.Cms.Abstractions.Blocks.Editor;
 /// </summary>
 public abstract class ContainerDefinitionBase : PrimitiveDefinitionBase
 {
-    public override NeoPageNodeKind Kind => NeoPageNodeKind.Container;
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public override NeoPageNodeKind Kind => NeoPageNodeKind.Container;
 }

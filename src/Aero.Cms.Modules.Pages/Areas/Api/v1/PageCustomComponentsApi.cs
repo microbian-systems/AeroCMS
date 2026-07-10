@@ -10,9 +10,15 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Pages.Areas.Api.v1;
 
+/// <summary>
+/// Represents a class for PageCustomComponentsApi.
+/// </summary>
 public static class PageCustomComponentsApi
 {
-    public static void MapPageCustomComponentsApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapPageCustomComponentsApi method.
+    /// </summary>
+public static void MapPageCustomComponentsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup(
                 $"/{HttpConstants.ApiPrefix}admin/pages/custom-components")

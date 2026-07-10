@@ -1,5 +1,8 @@
 namespace Aero.Cms.Abstractions.Content;
 
+/// <summary>
+/// Defines an enumeration for ContentValidationMode.
+/// </summary>
 public enum ContentValidationMode
 {
     /// <summary>Loose validation — allows missing optional/publish-required fields</summary>

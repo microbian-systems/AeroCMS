@@ -5,25 +5,61 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Icon;
 
+/// <summary>
+/// Represents a class for IconPrimitiveDefinition.
+/// </summary>
 public sealed class IconPrimitiveDefinition : PrimitiveDefinitionBase
 {
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new IconPrimitiveDefinition(), new IconPrimitiveDefinition());
 
-    public override string CatalogId => "primitive.icon";
-    public override string DisplayName => "Icon";
-    public override string? Description => "A Lucide icon with an accessible label.";
-    public override string Category => "Primitives";
-    public override string IconName => "circle";
-    public override int SortOrder => 50;
-    public override Type? PreviewComponentType => typeof(IconPrimitivePreview);
-    public override Type? PropertyEditorComponentType => typeof(IconPrimitiveEditor);
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "primitive.icon";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Icon";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "A Lucide icon with an accessible label.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Primitives";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "circle";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 50;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => typeof(IconPrimitivePreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => typeof(IconPrimitiveEditor);
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Leaf(
             NeoPageNodeKind.Section,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component);
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Icon |
         EditorCapabilitySet.Spacing |
         EditorCapabilitySet.Dimensions |
@@ -32,7 +68,10 @@ public sealed class IconPrimitiveDefinition : PrimitiveDefinitionBase
         EditorCapabilitySet.Direction |
         EditorCapabilitySet.Visibility;
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable |
         EditorInteractionCapabilities.Editable |
         EditorInteractionCapabilities.Draggable |
@@ -40,7 +79,10 @@ public sealed class IconPrimitiveDefinition : PrimitiveDefinitionBase
         EditorInteractionCapabilities.Deletable |
         EditorInteractionCapabilities.Copyable;
 
-    public override NeoPageNode CreateDefaultNode() =>
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),

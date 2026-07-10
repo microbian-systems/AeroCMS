@@ -7,10 +7,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Catalog.Services;
 
+/// <summary>
+/// Represents a class for ProductService.
+/// </summary>
 public sealed class ProductService(IDocumentSession session, ILogger<ProductService> log)
     : GenericMartenRepository<ProductDocument>(session, log), IProductService
 {
-    public async Task<Result<ProductDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken ct = default)
+        /// <summary>
+    /// FindBySlugAsync method.
+    /// </summary>
+public async Task<Result<ProductDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken ct = default)
     {
         try
         {
@@ -30,7 +36,10 @@ public sealed class ProductService(IDocumentSession session, ILogger<ProductServ
         }
     }
 
-    public async Task<Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>> SearchAsync(
+        /// <summary>
+    /// SearchAsync method.
+    /// </summary>
+public async Task<Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>> SearchAsync(
         string? search = null,
         string? category = null,
         decimal? minPrice = null,

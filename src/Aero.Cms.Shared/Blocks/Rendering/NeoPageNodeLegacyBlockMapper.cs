@@ -13,7 +13,10 @@ namespace Aero.Cms.Shared.Blocks.Rendering;
 /// </summary>
 internal static class NeoPageNodeLegacyBlockMapper
 {
-    public static bool TryMap(NeoPageNode node, out BlockBase block)
+        /// <summary>
+    /// TryMap method.
+    /// </summary>
+public static bool TryMap(NeoPageNode node, out BlockBase block)
     {
         ArgumentNullException.ThrowIfNull(node);
 

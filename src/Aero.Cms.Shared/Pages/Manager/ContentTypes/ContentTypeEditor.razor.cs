@@ -12,9 +12,15 @@ using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 
+/// <summary>
+/// Represents a class for ContentTypeEditor.
+/// </summary>
 public partial class ContentTypeEditor
 {
-    [Parameter] public string? Alias { get; set; }
+        /// <summary>
+    /// Gets or sets the Alias.
+    /// </summary>
+[Parameter] public string? Alias { get; set; }
 
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
     [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
@@ -74,7 +80,10 @@ public partial class ContentTypeEditor
             ? Fields[index]
             : null;
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         if (IsNew)
         {

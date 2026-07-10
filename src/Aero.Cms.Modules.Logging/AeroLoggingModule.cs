@@ -9,10 +9,28 @@ namespace Aero.Cms.Modules.Logging;
 [Module(nameof(AeroLoggingModule))]
 public class AeroLoggingModule : AeroModuleBase
 {
-    public override string Name => nameof(AeroLoggingModule);
-    public override string Version => "0.0.5-alpha";
-    public override string Author => "Microbians";
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["Infrastructure", "Diagnostics"];
-    public override IReadOnlyList<string> Tags => ["logging", "diagnostics", "tracing", "serilog"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(AeroLoggingModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => "0.0.5-alpha";
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => "Microbians";
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["Infrastructure", "Diagnostics"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["logging", "diagnostics", "tracing", "serilog"];
 }

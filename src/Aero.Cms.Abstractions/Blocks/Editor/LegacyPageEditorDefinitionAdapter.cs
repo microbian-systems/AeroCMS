@@ -23,7 +23,10 @@ public sealed class LegacyPageEditorDefinitionAdapter :
 
     private readonly IPageEditorBlockDefinition _definition;
 
-    public LegacyPageEditorDefinitionAdapter(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="LegacyPageEditorDefinitionAdapter"/> class.
+    /// </summary>
+public LegacyPageEditorDefinitionAdapter(
         IPageEditorBlockDefinition definition,
         EditorCapabilitySet editorCapabilities = default)
     {
@@ -33,22 +36,58 @@ public sealed class LegacyPageEditorDefinitionAdapter :
             : editorCapabilities;
     }
 
-    public string CatalogId => _definition.CatalogId;
-    public string DisplayName => _definition.DisplayName;
-    public string? Description => _definition.Description;
-    public string Category => _definition.Category;
-    public NeoPageNodeKind Kind => ParseKind(_definition.Kind);
-    public string IconName => _definition.IconName;
-    public int SortOrder => _definition.SortOrder;
-    public bool PublicStaticSsrSafe => _definition.PublicStaticSsrSafe;
-    public Type? PreviewComponentType => _definition.PreviewComponentType;
-    public Type? PropertyEditorComponentType => _definition.PropertyEditorComponentType;
-    public ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => _definition.CatalogId;
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => _definition.DisplayName;
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => _definition.Description;
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => _definition.Category;
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public NeoPageNodeKind Kind => ParseKind(_definition.Kind);
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => _definition.IconName;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => _definition.SortOrder;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => _definition.PublicStaticSsrSafe;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => _definition.PreviewComponentType;
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => _definition.PropertyEditorComponentType;
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Leaf(
             NeoPageNodeKind.Section,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component);
-    public EditorCapabilitySet EditorCapabilities { get; }
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public EditorCapabilitySet EditorCapabilities { get; }
 
     /// <summary>
     /// Legacy canned blocks support all canvas interaction capabilities
@@ -62,7 +101,10 @@ public sealed class LegacyPageEditorDefinitionAdapter :
         EditorInteractionCapabilities.Deletable |
         EditorInteractionCapabilities.Copyable;
 
-    public NeoPageNode CreateDefaultNode()
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public NeoPageNode CreateDefaultNode()
     {
         var node = _definition.ToNeoPageNode(_definition.CreateDefaultEditorBlock());
         node.CatalogId = CatalogId;
@@ -70,7 +112,10 @@ public sealed class LegacyPageEditorDefinitionAdapter :
         return node;
     }
 
-    public PageEditorDefinitionDescriptor ToDescriptor() =>
+        /// <summary>
+    /// ToDescriptor method.
+    /// </summary>
+public PageEditorDefinitionDescriptor ToDescriptor() =>
         new(this, this, LegacyDefinition: _definition);
 
     private static NeoPageNodeKind ParseKind(string? kind) =>

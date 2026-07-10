@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.Newsletter;
 
+/// <summary>
+/// Represents a class for NewsletterBlockMapper.
+/// </summary>
 public static class NewsletterBlockMapper
 {
-    public static NeoPageNode ToNode(NewsletterBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(NewsletterBlock block) => new()
     {
         NodeId = string.Empty,
         CatalogId = NewsletterBlock.BlockTypeId,
@@ -20,7 +26,10 @@ public static class NewsletterBlockMapper
         }
     };
 
-    public static NewsletterBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static NewsletterBlock FromNode(NeoPageNode node) => new()
     {
         Title       = GetString(node, "title",       "Stay in the loop"),
         Description = GetString(node, "description",  string.Empty),

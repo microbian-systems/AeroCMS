@@ -16,20 +16,53 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
     SchemaVersion = 1)]
 public sealed class Footer1Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.footers.1";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.footers.1";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string NewsletterTitle { get; set; } = "Get the latest news!";
-    public string NewsletterDescription { get; set; } = "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Esse non cupiditate quae nam molestias.";
-    public string EmailPlaceholder { get; set; } = "john@rhcp.com";
-    public string ButtonText { get; set; } = "Sign Up";
-    public List<FooterLinkColumn> LinkColumns { get; set; } = DefaultLinkColumns.Select(CloneColumn).ToList();
-    public List<FooterSocialLink> SocialLinks { get; set; } = DefaultSocialLinks.Select(CloneSocialLink).ToList();
-    public string Copyright { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
-    public List<FooterLink> BottomLinks { get; set; } = DefaultBottomLinks.Select(CloneLink).ToList();
+        /// <summary>
+    /// Gets or sets the Newsletter Title.
+    /// </summary>
+public string NewsletterTitle { get; set; } = "Get the latest news!";
+        /// <summary>
+    /// Gets or sets the Newsletter Description.
+    /// </summary>
+public string NewsletterDescription { get; set; } = "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Esse non cupiditate quae nam molestias.";
+        /// <summary>
+    /// Gets or sets the Email Placeholder.
+    /// </summary>
+public string EmailPlaceholder { get; set; } = "john@rhcp.com";
+        /// <summary>
+    /// Gets or sets the Button Text.
+    /// </summary>
+public string ButtonText { get; set; } = "Sign Up";
+        /// <summary>
+    /// Gets or sets the Link Columns.
+    /// </summary>
+public List<FooterLinkColumn> LinkColumns { get; set; } = DefaultLinkColumns.Select(CloneColumn).ToList();
+        /// <summary>
+    /// Gets or sets the Social Links.
+    /// </summary>
+public List<FooterSocialLink> SocialLinks { get; set; } = DefaultSocialLinks.Select(CloneSocialLink).ToList();
+        /// <summary>
+    /// Gets or sets the Copyright.
+    /// </summary>
+public string Copyright { get; set; } = "&copy; 2022. Company Name. All rights reserved.";
+        /// <summary>
+    /// Gets or sets the Bottom Links.
+    /// </summary>
+public List<FooterLink> BottomLinks { get; set; } = DefaultBottomLinks.Select(CloneLink).ToList();
 
-    public static readonly List<FooterLinkColumn> DefaultLinkColumns =
+        /// <summary>
+    /// DefaultLinkColumns.
+    /// </summary>
+public static readonly List<FooterLinkColumn> DefaultLinkColumns =
     [
         new()
         {
@@ -85,7 +118,10 @@ public sealed class Footer1Block : BlockBase
         }
     ];
 
-    public static readonly List<FooterSocialLink> DefaultSocialLinks =
+        /// <summary>
+    /// DefaultSocialLinks.
+    /// </summary>
+public static readonly List<FooterSocialLink> DefaultSocialLinks =
     [
         new() { Name = "Facebook" },
         new() { Name = "Instagram" },
@@ -94,14 +130,20 @@ public sealed class Footer1Block : BlockBase
         new() { Name = "Dribbble" }
     ];
 
-    public static readonly List<FooterLink> DefaultBottomLinks =
+        /// <summary>
+    /// DefaultBottomLinks.
+    /// </summary>
+public static readonly List<FooterLink> DefaultBottomLinks =
     [
         new() { Text = "Terms & Conditions" },
         new() { Text = "Privacy Policy" },
         new() { Text = "Cookies" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static FooterLinkColumn CloneColumn(FooterLinkColumn col) => new()
     {
@@ -122,20 +164,47 @@ public sealed class Footer1Block : BlockBase
     };
 }
 
+/// <summary>
+/// Represents a class for FooterLinkColumn.
+/// </summary>
 public sealed class FooterLinkColumn
 {
-    public string Title { get; set; } = "";
-    public List<FooterLink> Links { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Links.
+    /// </summary>
+public List<FooterLink> Links { get; set; } = [];
 }
 
+/// <summary>
+/// Represents a class for FooterLink.
+/// </summary>
 public sealed class FooterLink
 {
-    public string Text { get; set; } = "";
-    public string Url { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Text.
+    /// </summary>
+public string Text { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Url.
+    /// </summary>
+public string Url { get; set; } = "#";
 }
 
+/// <summary>
+/// Represents a class for FooterSocialLink.
+/// </summary>
 public sealed class FooterSocialLink
 {
-    public string Name { get; set; } = "";
-    public string Url { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Url.
+    /// </summary>
+public string Url { get; set; } = "#";
 }

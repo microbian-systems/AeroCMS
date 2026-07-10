@@ -3,6 +3,9 @@ using Aero.Cms.Abstractions.Content;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
+/// <summary>
+/// Represents a class for ContentTypeTemplateGenerator.
+/// </summary>
 public static class ContentTypeTemplateGenerator
 {
     private static readonly Regex SafeName = new("^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.Compiled);
@@ -11,7 +14,10 @@ public static class ContentTypeTemplateGenerator
         RegexOptions.Compiled | RegexOptions.Singleline,
         TimeSpan.FromSeconds(1));
 
-    public static string GenerateTemplate(ContentTypeDefinition definition, IEnumerable<IFieldTemplateSnippet> snippets)
+        /// <summary>
+    /// GenerateTemplate method.
+    /// </summary>
+public static string GenerateTemplate(ContentTypeDefinition definition, IEnumerable<IFieldTemplateSnippet> snippets)
     {
         var sb = new StringBuilder();
         var lookup = snippets.ToDictionary(s => s.FieldType, StringComparer.OrdinalIgnoreCase);
@@ -30,12 +36,18 @@ public static class ContentTypeTemplateGenerator
         return sb.ToString();
     }
 
-    public static string ScribanAccessor(string fieldName)
+        /// <summary>
+    /// ScribanAccessor method.
+    /// </summary>
+public static string ScribanAccessor(string fieldName)
         => SafeName.IsMatch(fieldName)
             ? "block." + fieldName
             : "block[\"" + fieldName + "\"]";
 
-    public static string NormalizeFieldAccessors(
+        /// <summary>
+    /// NormalizeFieldAccessors method.
+    /// </summary>
+public static string NormalizeFieldAccessors(
         string template,
         IEnumerable<ContentFieldDefinition> fields)
     {
@@ -50,7 +62,10 @@ public static class ContentTypeTemplateGenerator
         return template;
     }
 
-    public static string NormalizeTemplate(
+        /// <summary>
+    /// NormalizeTemplate method.
+    /// </summary>
+public static string NormalizeTemplate(
         string template,
         IEnumerable<ContentFieldDefinition> fields)
     {
@@ -61,8 +76,14 @@ public static class ContentTypeTemplateGenerator
 
 internal sealed class DefaultFieldSnippet(string fieldType) : IFieldTemplateSnippet
 {
-    public string FieldType => fieldType;
-    public string Render(ContentFieldDefinition field)
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => fieldType;
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public string Render(ContentFieldDefinition field)
     {
         var a = ContentTypeTemplateGenerator.ScribanAccessor(field.Name);
         return "<div class=\"aero-field aero-field-" + fieldType + "\">{{" + a + "}}</div>";

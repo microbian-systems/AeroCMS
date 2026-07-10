@@ -5,10 +5,28 @@ namespace Aero.Cms.Modules.Posts.Models;
 /// </summary>
 public sealed record ImportablePost
 {
-    public string Title { get; init; } = string.Empty;
-    public string Slug { get; init; } = string.Empty;
-    public string MarkdownContent { get; init; } = string.Empty;
-    public string? CoverImage { get; init; }
-    public DateTimeOffset? PublishedOn { get; init; }
-    public List<string> Tags { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Markdown Content.
+    /// </summary>
+public string MarkdownContent { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Cover Image.
+    /// </summary>
+public string? CoverImage { get; init; }
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+public DateTimeOffset? PublishedOn { get; init; }
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public List<string> Tags { get; init; } = [];
 }

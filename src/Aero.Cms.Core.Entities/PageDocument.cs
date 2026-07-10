@@ -15,18 +15,51 @@ using AeroDB.Sable;
 namespace Aero.Cms.Core.Entities;
 
 
+/// <summary>
+/// Represents a class for PageDocument.
+/// </summary>
 public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableEntity
 {
-    public long SiteId { get; set; }
-    public long? TranslationGroupId { get; set; }
-    public long? SourcePageId { get; set; }
-    public string Culture { get; set; } = SitesModel.DefaultCultureName;
-    public PageKind Kind { get; set; } = PageKind.Standard;
-    public string Slug { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
-    public string? Summary { get; set; }
-    public string? SeoTitle { get; set; }
-    public string? SeoDescription { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+public long? TranslationGroupId { get; set; }
+        /// <summary>
+    /// Gets or sets the Source Page Id.
+    /// </summary>
+public long? SourcePageId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public PageKind Kind { get; set; } = PageKind.Standard;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+public string? Summary { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+public string? SeoTitle { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+public string? SeoDescription { get; set; }
 
     // ── Hierarchy ───────────────────────────────────────────────────────
 
@@ -94,8 +127,14 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
     /// </summary>
     public long ContentRevision { get; set; }
 
-    public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
-    public DateTimeOffset? PublishedOn { get; set; } = null;
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+public DateTimeOffset? PublishedOn { get; set; } = null;
 
     /// <summary>
     /// Monotonic counter incremented on every publish.
@@ -112,7 +151,10 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
     /// </summary>
     public int BlockSchemaVersion { get; set; }
 
-    public bool IsPubliclyVisible =>
+        /// <summary>
+    /// Gets or sets the Is Publicly Visible.
+    /// </summary>
+public bool IsPubliclyVisible =>
         PublicationState == ContentPublicationState.Published && !Deleted;
 
     /// <summary>
@@ -178,7 +220,10 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         Kind = e.Kind
     };
 
-    public void Apply(PageContentUpdated e)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PageContentUpdated e)
     {
         Title = e.Title;
         Slug = e.Slug;
@@ -197,7 +242,10 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         ModifiedOn = DateTimeOffset.UtcNow;
     }
 
-    public void Apply(PageCompositionDraftSaved e)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PageCompositionDraftSaved e)
     {
         DraftCompositionId = e.CompositionId;
         ContentRevision = e.ContentRevision;
@@ -219,7 +267,10 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         ModifiedOn = DateTimeOffset.UtcNow;
     }
 
-    public void Apply(PageCompositionPublished e)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PageCompositionPublished e)
     {
         PublishedCompositionId = e.PublishedCompositionId;
         PublicationState = ContentPublicationState.Published;
@@ -253,7 +304,10 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         // Publish path owns LayoutRegions. Block state lives in PageEditorState.
     }
 
-    public void Apply(PagePublished e)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PagePublished e)
     {
         PublicationState = ContentPublicationState.Published;
         PublishedOn = DateTimeOffset.UtcNow;
@@ -267,10 +321,16 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
             LayoutRegions = e.LayoutRegions.ToList();
     }
 
-    public void Apply(PageArchived _) =>
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PageArchived _) =>
         PublicationState = ContentPublicationState.Archived;
 
-    public void Apply(PageStateChanged e)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PageStateChanged e)
     {
         PublicationState = e.NewState;
         if (e.NewState == ContentPublicationState.Published)
@@ -283,13 +343,22 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         }
     }
 
-    public void Apply(PageDeleted _) =>
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PageDeleted _) =>
         Deleted = true;
 
-    public void Apply(PageRestored _) =>
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PageRestored _) =>
         Deleted = false;
 
-    public void Apply(PageMoved e)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PageMoved e)
     {
         ParentId = e.NewParentId;
         Path = e.NewPath;
@@ -297,7 +366,10 @@ public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableE
         Order = e.NewOrder;
     }
 
-    public void Apply(PageVisibilityChanged e)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(PageVisibilityChanged e)
     {
         IsHidden = e.IsHidden;
         ShowInNavMenu = e.ShowInNavMenu;

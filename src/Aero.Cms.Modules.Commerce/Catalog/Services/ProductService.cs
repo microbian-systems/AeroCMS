@@ -6,10 +6,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Catalog.Services;
 
+/// <summary>
+/// Represents a class for ProductService.
+/// </summary>
 public sealed class ProductService(IDocumentSession docSession, ILogger<ProductService> log)
     : IProductService
 {
-    public async Task<Result<ProductDocument?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<Result<ProductDocument?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -27,7 +33,10 @@ public sealed class ProductService(IDocumentSession docSession, ILogger<ProductS
         }
     }
 
-    public async Task<Result<IReadOnlyList<ProductDocument>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<ProductDocument>, AeroError>> GetAllAsync(CancellationToken ct = default)
     {
         try
         {
@@ -41,7 +50,10 @@ public sealed class ProductService(IDocumentSession docSession, ILogger<ProductS
         }
     }
 
-    public async Task<Result<IReadOnlyList<ProductDocument>, AeroError>> FindAsync(
+        /// <summary>
+    /// FindAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<ProductDocument>, AeroError>> FindAsync(
         Expression<Func<ProductDocument, bool>> predicate, CancellationToken ct = default)
     {
         try
@@ -56,7 +68,10 @@ public sealed class ProductService(IDocumentSession docSession, ILogger<ProductS
         }
     }
 
-    public async Task<Result<ProductDocument, AeroError>> InsertAsync(ProductDocument entity, CancellationToken ct = default)
+        /// <summary>
+    /// InsertAsync method.
+    /// </summary>
+public async Task<Result<ProductDocument, AeroError>> InsertAsync(ProductDocument entity, CancellationToken ct = default)
     {
         try
         {
@@ -70,7 +85,10 @@ public sealed class ProductService(IDocumentSession docSession, ILogger<ProductS
         }
     }
 
-    public async Task<Result<ProductDocument, AeroError>> UpdateAsync(ProductDocument entity, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<Result<ProductDocument, AeroError>> UpdateAsync(ProductDocument entity, CancellationToken ct = default)
     {
         try
         {
@@ -84,7 +102,10 @@ public sealed class ProductService(IDocumentSession docSession, ILogger<ProductS
         }
     }
 
-    public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -98,7 +119,10 @@ public sealed class ProductService(IDocumentSession docSession, ILogger<ProductS
         }
     }
 
-    public async Task<Result<long, AeroError>> CountAsync(CancellationToken ct = default)
+        /// <summary>
+    /// CountAsync method.
+    /// </summary>
+public async Task<Result<long, AeroError>> CountAsync(CancellationToken ct = default)
     {
         try
         {
@@ -111,7 +135,10 @@ public sealed class ProductService(IDocumentSession docSession, ILogger<ProductS
         }
     }
 
-    public async Task<Result<ProductDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken ct = default)
+        /// <summary>
+    /// FindBySlugAsync method.
+    /// </summary>
+public async Task<Result<ProductDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken ct = default)
     {
         try
         {
@@ -131,7 +158,10 @@ public sealed class ProductService(IDocumentSession docSession, ILogger<ProductS
         }
     }
 
-    public async Task<Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>> SearchAsync(
+        /// <summary>
+    /// SearchAsync method.
+    /// </summary>
+public async Task<Result<(IReadOnlyList<ProductDocument> Items, long TotalCount), AeroError>> SearchAsync(
         string? search = null,
         string? category = null,
         decimal? minPrice = null,

@@ -7,10 +7,22 @@ namespace Aero.Cms.Core.Models;
 /// </summary>
 public class CmsFile : Entity
 {
-    public string Name { get; set; } = string.Empty;
-    public string Path { get; set; } = string.Empty;
-    public long Size { get; set; }
-    public string MimeType { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public string Path { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Size.
+    /// </summary>
+public long Size { get; set; }
+        /// <summary>
+    /// Gets or sets the Mime Type.
+    /// </summary>
+public string MimeType { get; set; } = string.Empty;
     
     /// <summary>
     /// Gets or sets the optional base64 encoded content for small files or stubs.

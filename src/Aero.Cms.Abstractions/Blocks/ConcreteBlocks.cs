@@ -174,21 +174,45 @@ public class EmbedBlock : BlockBase
 [BlockMetadata("navigation", "Navigation Menu")]
 public sealed class NavigationBlock : BlockBase
 {
-    public class NavigationBlockItem : Entity
+        /// <summary>
+    /// Represents a class for NavigationBlockItem.
+    /// </summary>
+public class NavigationBlockItem : Entity
     {
-        public long PageId { get; set; }
-        public string? Name { get; set; }
-        public string? Label { get; set; }
-        public string? Url { get; set; }
-        public string? AltText { get; set; }
-        public ushort Order { get; set; }
+                /// <summary>
+        /// Gets or sets the Page Id.
+        /// </summary>
+public long PageId { get; set; }
+                /// <summary>
+        /// Gets or sets the Name.
+        /// </summary>
+public string? Name { get; set; }
+                /// <summary>
+        /// Gets or sets the Label.
+        /// </summary>
+public string? Label { get; set; }
+                /// <summary>
+        /// Gets or sets the Url.
+        /// </summary>
+public string? Url { get; set; }
+                /// <summary>
+        /// Gets or sets the Alt Text.
+        /// </summary>
+public string? AltText { get; set; }
+                /// <summary>
+        /// Gets or sets the Order.
+        /// </summary>
+public ushort Order { get; set; }
     }
 
     /// <summary>
     /// Gets the optional title for the navigation block.
     /// </summary>
     public string? Title { get; set; }
-    public string? Name { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string? Name { get; set; }
 
     /// <inheritdoc />
     public override string BlockType => "navigation";
@@ -196,7 +220,10 @@ public sealed class NavigationBlock : BlockBase
     /// <inheritdoc />
     public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
-    public long NavigationId { get; set; }
+        /// <summary>
+    /// Gets or sets the Navigation Id.
+    /// </summary>
+public long NavigationId { get; set; }
 
     /// <summary>
     /// The list of navigation/menu items in display order

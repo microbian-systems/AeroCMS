@@ -8,9 +8,15 @@ namespace Aero.Cms.Ui.Neo.Embed;
 /// </summary>
 public sealed class GenericIframeResolver : IEmbedUrlResolver
 {
-    public bool CanResolve(Uri uri) => uri.Scheme == Uri.UriSchemeHttps;
+        /// <summary>
+    /// CanResolve method.
+    /// </summary>
+public bool CanResolve(Uri uri) => uri.Scheme == Uri.UriSchemeHttps;
 
-    public EmbedResolvedUrl Resolve(Uri uri) => new(
+        /// <summary>
+    /// Resolve method.
+    /// </summary>
+public EmbedResolvedUrl Resolve(Uri uri) => new(
         EmbedSrc: uri.ToString(),
         DefaultRatio: AspectRatio.Widescreen,
         DefaultSandbox: SandboxFlags.Strict);

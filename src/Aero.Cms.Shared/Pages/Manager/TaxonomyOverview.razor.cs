@@ -15,49 +15,127 @@ using TagUpdateRequest = Aero.Cms.Abstractions.Http.Clients.UpdateTagRequest;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a class for TaxonomyOverview.
+/// </summary>
 public partial class TaxonomyOverview : ComponentBase
 {
-    [SupplyParameterFromQuery(Name = "kind")]
+        /// <summary>
+    /// Gets or sets the Requested Kind.
+    /// </summary>
+[SupplyParameterFromQuery(Name = "kind")]
     protected string? RequestedKind { get; set; }
 
-    [Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
-    [Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
-    [Inject] protected ISeriesHttpClient SeriesClient { get; set; } = default!;
-    [Inject] protected DialogService DialogService { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Categories Client.
+    /// </summary>
+[Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Tags Client.
+    /// </summary>
+[Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Series Client.
+    /// </summary>
+[Inject] protected ISeriesHttpClient SeriesClient { get; set; } = default!;
+        /// <summary>
+    /// Gets or sets the Dialog Service.
+    /// </summary>
+[Inject] protected DialogService DialogService { get; set; } = default!;
 
-    protected TaxonomyKind ActiveKind { get; set; } = TaxonomyKind.Categories;
-    protected List<TaxonomyItem> Items { get; set; } = [];
-    protected bool IsLoading { get; set; }
-    protected bool IsSaving { get; set; }
-    protected string? ErrorMessage { get; set; }
-    protected long? EditingId { get; set; }
-    protected string DraftName { get; set; } = string.Empty;
-    protected string DraftSlug { get; set; } = string.Empty;
-    protected string DraftDescription { get; set; } = string.Empty;
-    protected List<SeriesTranslationSummary> SeriesTranslations { get; set; } = [];
-    protected bool IsLoadingSeriesTranslations { get; set; }
-    protected bool IsSavingSeriesTranslation { get; set; }
-    protected string TranslationCulture { get; set; } = string.Empty;
-    protected string TranslationName { get; set; } = string.Empty;
-    protected string TranslationSlug { get; set; } = string.Empty;
-    protected string TranslationDescription { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Active Kind.
+    /// </summary>
+protected TaxonomyKind ActiveKind { get; set; } = TaxonomyKind.Categories;
+        /// <summary>
+    /// Gets or sets the Items.
+    /// </summary>
+protected List<TaxonomyItem> Items { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Is Loading.
+    /// </summary>
+protected bool IsLoading { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Saving.
+    /// </summary>
+protected bool IsSaving { get; set; }
+        /// <summary>
+    /// Gets or sets the Error Message.
+    /// </summary>
+protected string? ErrorMessage { get; set; }
+        /// <summary>
+    /// Gets or sets the Editing Id.
+    /// </summary>
+protected long? EditingId { get; set; }
+        /// <summary>
+    /// Gets or sets the Draft Name.
+    /// </summary>
+protected string DraftName { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Draft Slug.
+    /// </summary>
+protected string DraftSlug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Draft Description.
+    /// </summary>
+protected string DraftDescription { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Series Translations.
+    /// </summary>
+protected List<SeriesTranslationSummary> SeriesTranslations { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Is Loading Series Translations.
+    /// </summary>
+protected bool IsLoadingSeriesTranslations { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Saving Series Translation.
+    /// </summary>
+protected bool IsSavingSeriesTranslation { get; set; }
+        /// <summary>
+    /// Gets or sets the Translation Culture.
+    /// </summary>
+protected string TranslationCulture { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Translation Name.
+    /// </summary>
+protected string TranslationName { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Translation Slug.
+    /// </summary>
+protected string TranslationSlug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Translation Description.
+    /// </summary>
+protected string TranslationDescription { get; set; } = string.Empty;
 
-    protected IReadOnlyList<TaxonomyOption> TaxonomyOptions { get; } =
+        /// <summary>
+    /// Gets or sets the Taxonomy Options.
+    /// </summary>
+protected IReadOnlyList<TaxonomyOption> TaxonomyOptions { get; } =
     [
         new(TaxonomyKind.Categories, "Categories", "Category", "category", "Organize posts into editorial buckets."),
         new(TaxonomyKind.Tags, "Tags", "Tag", "label", "Label posts with flexible keywords."),
         new(TaxonomyKind.Series, "Series", "Series", "view_list", "Group posts into one editorial sequence.")
     ];
 
-    protected TaxonomyOption ActiveOption => TaxonomyOptions.First(x => x.Key == ActiveKind);
+        /// <summary>
+    /// Gets or sets the Active Option.
+    /// </summary>
+protected TaxonomyOption ActiveOption => TaxonomyOptions.First(x => x.Key == ActiveKind);
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         ActiveKind = ParseKind(RequestedKind);
         await LoadAsync();
     }
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         var requested = ParseKind(RequestedKind);
         if (requested != ActiveKind)
@@ -68,7 +146,10 @@ public partial class TaxonomyOverview : ComponentBase
         }
     }
 
-    protected async Task SelectTaxonomyAsync(TaxonomyKind kind)
+        /// <summary>
+    /// SelectTaxonomyAsync method.
+    /// </summary>
+protected async Task SelectTaxonomyAsync(TaxonomyKind kind)
     {
         if (ActiveKind == kind)
             return;
@@ -78,14 +159,23 @@ public partial class TaxonomyOverview : ComponentBase
         await LoadAsync();
     }
 
-    protected string TaxonomyButtonClass(TaxonomyKind kind)
+        /// <summary>
+    /// TaxonomyButtonClass method.
+    /// </summary>
+protected string TaxonomyButtonClass(TaxonomyKind kind)
         => ActiveKind == kind
             ? "pe-btn pe-btn-primary pe-btn-sm"
             : "pe-btn pe-btn-secondary pe-btn-sm";
 
-    protected void StartCreate() => ResetDraft();
+        /// <summary>
+    /// StartCreate method.
+    /// </summary>
+protected void StartCreate() => ResetDraft();
 
-    protected async Task StartEdit(TaxonomyItem item)
+        /// <summary>
+    /// StartEdit method.
+    /// </summary>
+protected async Task StartEdit(TaxonomyItem item)
     {
         EditingId = item.Id;
         DraftName = item.Name;
@@ -96,7 +186,10 @@ public partial class TaxonomyOverview : ComponentBase
             await LoadSeriesTranslationsAsync(item.Id);
     }
 
-    protected void ResetDraft()
+        /// <summary>
+    /// ResetDraft method.
+    /// </summary>
+protected void ResetDraft()
     {
         EditingId = null;
         DraftName = string.Empty;
@@ -107,14 +200,20 @@ public partial class TaxonomyOverview : ComponentBase
         ResetTranslationDraft();
     }
 
-    protected void OnNameChanged(string name)
+        /// <summary>
+    /// OnNameChanged method.
+    /// </summary>
+protected void OnNameChanged(string name)
     {
         DraftName = name;
         if (string.IsNullOrWhiteSpace(DraftSlug))
             DraftSlug = TitleToSlug(name);
     }
 
-    protected void StartSeriesTranslation(SeriesTranslationSummary translation)
+        /// <summary>
+    /// StartSeriesTranslation method.
+    /// </summary>
+protected void StartSeriesTranslation(SeriesTranslationSummary translation)
     {
         TranslationCulture = translation.Culture;
         TranslationName = translation.Name;
@@ -122,14 +221,20 @@ public partial class TaxonomyOverview : ComponentBase
         TranslationDescription = translation.Description ?? string.Empty;
     }
 
-    protected void OnTranslationNameChanged(string name)
+        /// <summary>
+    /// OnTranslationNameChanged method.
+    /// </summary>
+protected void OnTranslationNameChanged(string name)
     {
         TranslationName = name;
         if (string.IsNullOrWhiteSpace(TranslationSlug))
             TranslationSlug = TitleToSlug(name);
     }
 
-    protected async Task SaveSeriesTranslationAsync()
+        /// <summary>
+    /// SaveSeriesTranslationAsync method.
+    /// </summary>
+protected async Task SaveSeriesTranslationAsync()
     {
         if (EditingId is null || string.IsNullOrWhiteSpace(TranslationCulture))
             return;
@@ -166,7 +271,10 @@ public partial class TaxonomyOverview : ComponentBase
         }
     }
 
-    protected async Task LoadAsync()
+        /// <summary>
+    /// LoadAsync method.
+    /// </summary>
+protected async Task LoadAsync()
     {
         IsLoading = true;
         ErrorMessage = null;
@@ -187,7 +295,10 @@ public partial class TaxonomyOverview : ComponentBase
         }
     }
 
-    protected async Task SaveAsync()
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+protected async Task SaveAsync()
     {
         if (string.IsNullOrWhiteSpace(DraftName))
         {
@@ -224,7 +335,10 @@ public partial class TaxonomyOverview : ComponentBase
         }
     }
 
-    protected async Task DeleteAsync(TaxonomyItem item)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+protected async Task DeleteAsync(TaxonomyItem item)
     {
         var confirmed = await DialogService.Confirm(
             $"Delete '{item.Name}'?",
@@ -349,7 +463,10 @@ public partial class TaxonomyOverview : ComponentBase
             _ => TaxonomyKind.Categories
         };
 
-    protected string FormatCulture(string culture)
+        /// <summary>
+    /// FormatCulture method.
+    /// </summary>
+protected string FormatCulture(string culture)
     {
         try
         {
@@ -387,14 +504,23 @@ public partial class TaxonomyOverview : ComponentBase
         return slug.Trim('-');
     }
 
-    protected enum TaxonomyKind
+        /// <summary>
+    /// Defines an enumeration for TaxonomyKind.
+    /// </summary>
+protected enum TaxonomyKind
     {
         Categories,
         Tags,
         Series
     }
 
-    protected sealed record TaxonomyOption(TaxonomyKind Key, string Label, string SingularLabel, string Icon, string Description);
+        /// <summary>
+    /// Represents a record for TaxonomyOption.
+    /// </summary>
+protected sealed record TaxonomyOption(TaxonomyKind Key, string Label, string SingularLabel, string Icon, string Description);
 
-    protected sealed record TaxonomyItem(long Id, string Name, string Slug, string? Description, int ContentCount);
+        /// <summary>
+    /// Represents a record for TaxonomyItem.
+    /// </summary>
+protected sealed record TaxonomyItem(long Id, string Name, string Slug, string? Description, int ContentCount);
 }

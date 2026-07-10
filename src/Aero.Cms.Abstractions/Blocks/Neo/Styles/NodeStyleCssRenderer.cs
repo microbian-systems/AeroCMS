@@ -7,7 +7,10 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Styles;
 /// </summary>
 public static class NodeStyleCssRenderer
 {
-    public static string Render(
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public static string Render(
         ResponsiveNodeStyle style,
         EditorBreakpoint breakpoint = EditorBreakpoint.Desktop)
     {
@@ -15,7 +18,10 @@ public static class NodeStyleCssRenderer
         return Render(style.Resolve(breakpoint));
     }
 
-    public static string Render(NodeStyle style)
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public static string Render(NodeStyle style)
     {
         ArgumentNullException.ThrowIfNull(style);
 

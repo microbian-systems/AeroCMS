@@ -12,10 +12,16 @@ public sealed partial class GoogleMapsEmbedResolver : IEmbedUrlResolver
     [GeneratedRegex(@"google\.com/maps", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex Pattern();
 
-    public bool CanResolve(Uri uri) =>
+        /// <summary>
+    /// CanResolve method.
+    /// </summary>
+public bool CanResolve(Uri uri) =>
         uri.Host.Contains("google.com") && uri.AbsolutePath.Contains("maps");
 
-    public EmbedResolvedUrl Resolve(Uri uri)
+        /// <summary>
+    /// Resolve method.
+    /// </summary>
+public EmbedResolvedUrl Resolve(Uri uri)
     {
         var encoded = Uri.EscapeDataString(uri.ToString());
         return new EmbedResolvedUrl(

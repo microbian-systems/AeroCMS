@@ -5,24 +5,51 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
+/// <summary>
+/// Represents a class for CatalogModel.
+/// </summary>
 public class CatalogModel : PageModel
 {
     private readonly IProductService _productService;
     private const int PageSize = 9;
 
-    public CatalogModel(IProductService productService)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CatalogModel"/> class.
+    /// </summary>
+public CatalogModel(IProductService productService)
     {
         _productService = productService;
     }
 
-    public IReadOnlyList<ProductDocument>? Products { get; set; }
-    public int CurrentPage { get; set; } = 1;
-    public int TotalPages { get; set; }
-    public string? Search { get; set; }
-    public string? Category { get; set; }
-    public CatalogSearchViewModel SearchViewModel { get; set; } = new([], null);
+        /// <summary>
+    /// Gets or sets the Products.
+    /// </summary>
+public IReadOnlyList<ProductDocument>? Products { get; set; }
+        /// <summary>
+    /// Gets or sets the Current Page.
+    /// </summary>
+public int CurrentPage { get; set; } = 1;
+        /// <summary>
+    /// Gets or sets the Total Pages.
+    /// </summary>
+public int TotalPages { get; set; }
+        /// <summary>
+    /// Gets or sets the Search.
+    /// </summary>
+public string? Search { get; set; }
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string? Category { get; set; }
+        /// <summary>
+    /// Gets or sets the Search View Model.
+    /// </summary>
+public CatalogSearchViewModel SearchViewModel { get; set; } = new([], null);
 
-    public async Task<IActionResult> OnGetAsync(
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetAsync(
         [FromQuery] string? search,
         [FromQuery] string? category,
         [FromQuery] int page = 1)
@@ -53,8 +80,14 @@ public class CatalogModel : PageModel
     }
 }
 
+/// <summary>
+/// Represents a record for CatalogSearchViewModel.
+/// </summary>
 public record CatalogSearchViewModel(IReadOnlyList<string> Categories, string? CurrentCategory)
 {
-    public string? CategoryUri(string? cat)
+        /// <summary>
+    /// CategoryUri method.
+    /// </summary>
+public string? CategoryUri(string? cat)
         => $"/shop/products?category={Uri.EscapeDataString(cat ?? "")}";
 }

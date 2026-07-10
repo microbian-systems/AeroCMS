@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
+/// <summary>
+/// Represents a class for PageRouteHandler.
+/// </summary>
 public static class PageRouteHandler
 {
     /// <summary>

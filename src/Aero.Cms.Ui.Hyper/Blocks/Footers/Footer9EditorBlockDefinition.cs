@@ -4,20 +4,56 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
 
+/// <summary>
+/// Represents a class for Footer9EditorBlockDefinition.
+/// </summary>
 public sealed class Footer9EditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "hyper.footers.9";
-    public string DisplayName => "Footer 9";
-    public string? Description => "Simple footer with logo, description, nav links, and back-to-top button.";
-    public string Category => "Hyper";
-    public string Kind => "Block";
-    public string IconName => "panel-bottom";
-    public int SortOrder => 48;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => typeof(Footer9BlockEditorPreview);
-    public Type? PropertyEditorComponentType => typeof(Footer9BlockEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "hyper.footers.9";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Footer 9";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "Simple footer with logo, description, nav links, and back-to-top button.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Hyper";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "panel-bottom";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 48;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(Footer9BlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(Footer9BlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -26,13 +62,19 @@ public sealed class Footer9EditorBlockDefinition : IPageEditorBlockDefinition
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToFooterBlock(editorBlock);
         return Footer9BlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToFooterBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToFooterBlock(editorBlock);
 
     private static Footer9Block ToFooterBlock(EditorBlock editorBlock)
     {

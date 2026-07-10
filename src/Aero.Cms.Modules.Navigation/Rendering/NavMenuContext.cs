@@ -4,18 +4,45 @@ using static Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Modules.Navigation.Rendering;
 
+/// <summary>
+/// Represents a class for NavMenuContext.
+/// </summary>
 public sealed class NavMenuContext
 {
-    public NavMenuSnapshot? Snapshot { get; private set; }
-    public bool HasSnapshot => Snapshot is not null;
+        /// <summary>
+    /// Gets or sets the Snapshot.
+    /// </summary>
+public NavMenuSnapshot? Snapshot { get; private set; }
+        /// <summary>
+    /// Gets or sets the Has Snapshot.
+    /// </summary>
+public bool HasSnapshot => Snapshot is not null;
 
-    public IReadOnlyList<INavMenuComponent> Left => Snapshot?.Left ?? [];
-    public IReadOnlyList<INavMenuComponent> Center => Snapshot?.Center ?? [];
-    public IReadOnlyList<INavMenuComponent> Right => Snapshot?.Right ?? [];
-    public IReadOnlyList<NavCanvasRow> Rows => Snapshot?.Rows ?? [];
-    public string? SiteLogoUrl => Snapshot?.SiteLogoUrl;
+        /// <summary>
+    /// Gets or sets the Left.
+    /// </summary>
+public IReadOnlyList<INavMenuComponent> Left => Snapshot?.Left ?? [];
+        /// <summary>
+    /// Gets or sets the Center.
+    /// </summary>
+public IReadOnlyList<INavMenuComponent> Center => Snapshot?.Center ?? [];
+        /// <summary>
+    /// Gets or sets the Right.
+    /// </summary>
+public IReadOnlyList<INavMenuComponent> Right => Snapshot?.Right ?? [];
+        /// <summary>
+    /// Gets or sets the Rows.
+    /// </summary>
+public IReadOnlyList<NavCanvasRow> Rows => Snapshot?.Rows ?? [];
+        /// <summary>
+    /// Gets or sets the Site Logo Url.
+    /// </summary>
+public string? SiteLogoUrl => Snapshot?.SiteLogoUrl;
 
-    public async Task<Result<bool, AeroError>> ResolveAsync(
+        /// <summary>
+    /// ResolveAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> ResolveAsync(
         long siteId,
         long? pageOverrideId,
         INavMenuService navMenuService,

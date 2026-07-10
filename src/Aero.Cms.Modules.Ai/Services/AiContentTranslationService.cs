@@ -11,6 +11,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Ai.Services;
 
+/// <summary>
+/// Represents a class for AiContentTranslationService.
+/// </summary>
 public sealed class AiContentTranslationService(
     IAiSettingsProvider settingsProvider,
     IAiChatClientFactory chatClientFactory,
@@ -29,7 +32,10 @@ public sealed class AiContentTranslationService(
         Return only structured JSON matching the requested schema.
         """;
 
-    public async Task<Result<TranslateDocumentResponse>> TranslateAsync(
+        /// <summary>
+    /// TranslateAsync method.
+    /// </summary>
+public async Task<Result<TranslateDocumentResponse>> TranslateAsync(
         TranslateDocumentRequest request,
         CancellationToken cancellationToken = default)
     {

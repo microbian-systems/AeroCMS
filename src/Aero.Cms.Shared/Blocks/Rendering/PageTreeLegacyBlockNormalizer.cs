@@ -29,16 +29,28 @@ public static class PageTreeLegacyNodeMigrator
         "media.video"
     };
 
-    public static bool ContainsLegacyNodes(IEnumerable<NeoPageNode> nodes) =>
+        /// <summary>
+    /// ContainsLegacyNodes method.
+    /// </summary>
+public static bool ContainsLegacyNodes(IEnumerable<NeoPageNode> nodes) =>
         nodes.Any(ContainsLegacyNode);
 
-    public static List<NeoPageNode> CloneTree(IEnumerable<NeoPageNode> nodes) =>
+        /// <summary>
+    /// CloneTree method.
+    /// </summary>
+public static List<NeoPageNode> CloneTree(IEnumerable<NeoPageNode> nodes) =>
         nodes.Select(Clone).ToList();
 
-    public static List<NeoPageNode> MigrateKnownLegacyNodes(IEnumerable<NeoPageNode> nodes) =>
+        /// <summary>
+    /// MigrateKnownLegacyNodes method.
+    /// </summary>
+public static List<NeoPageNode> MigrateKnownLegacyNodes(IEnumerable<NeoPageNode> nodes) =>
         nodes.Select(MigrateKnownLegacyNode).ToList();
 
-    public static List<NeoPageNode> MigrateIfNeeded(IEnumerable<NeoPageNode> nodes)
+        /// <summary>
+    /// MigrateIfNeeded method.
+    /// </summary>
+public static List<NeoPageNode> MigrateIfNeeded(IEnumerable<NeoPageNode> nodes)
     {
         var materialized = nodes.ToList();
         return ContainsLegacyNodes(materialized)
@@ -46,7 +58,10 @@ public static class PageTreeLegacyNodeMigrator
             : CloneTree(materialized);
     }
 
-    public static NeoPageNode MigrateKnownLegacyNode(NeoPageNode node)
+        /// <summary>
+    /// MigrateKnownLegacyNode method.
+    /// </summary>
+public static NeoPageNode MigrateKnownLegacyNode(NeoPageNode node)
     {
         ArgumentNullException.ThrowIfNull(node);
 
@@ -252,6 +267,9 @@ public static class PageTreeLegacyNodeMigrator
 [Obsolete("Use PageTreeLegacyNodeMigrator for explicit legacy migration.")]
 public static class PageTreeLegacyBlockNormalizer
 {
-    public static NeoPageNode Normalize(NeoPageNode node) =>
+        /// <summary>
+    /// Normalize method.
+    /// </summary>
+public static NeoPageNode Normalize(NeoPageNode node) =>
         PageTreeLegacyNodeMigrator.MigrateKnownLegacyNode(node);
 }

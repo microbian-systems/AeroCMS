@@ -6,25 +6,43 @@ using Aero.Core.Railway;
 
 namespace Aero.Cms.Modules.Pages.CustomComponents;
 
+/// <summary>
+/// Defines an interface for IPageCustomComponentService.
+/// </summary>
 public interface IPageCustomComponentService
 {
-    Task<Result<IReadOnlyList<PageCustomComponent>, AeroError>> GetAllAsync(
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<PageCustomComponent>, AeroError>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
-    Task<Result<PageCustomComponent, AeroError>> SaveAsync(
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+Task<Result<PageCustomComponent, AeroError>> SaveAsync(
         SavePageCustomComponentRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Result<PageCustomComponent, AeroError>> UpdateAsync(
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<PageCustomComponent, AeroError>> UpdateAsync(
         long componentId,
         SavePageCustomComponentRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Result<NeoPageNode, AeroError>> CreateInstanceAsync(
+        /// <summary>
+    /// CreateInstanceAsync method.
+    /// </summary>
+Task<Result<NeoPageNode, AeroError>> CreateInstanceAsync(
         long componentId,
         CancellationToken cancellationToken = default);
 
-    Task<Result<bool, AeroError>> DeleteAsync(
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(
         long componentId,
         CancellationToken cancellationToken = default);
 }

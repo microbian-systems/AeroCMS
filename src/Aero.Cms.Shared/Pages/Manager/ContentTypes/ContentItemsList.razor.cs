@@ -8,9 +8,15 @@ using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 
+/// <summary>
+/// Represents a class for ContentItemsList.
+/// </summary>
 public partial class ContentItemsList
 {
-    [Parameter] public string Alias { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alias.
+    /// </summary>
+[Parameter] public string Alias { get; set; } = string.Empty;
 
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
     [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
@@ -30,7 +36,10 @@ public partial class ContentItemsList
         ? L["Managing {0} {1} entries with optional public pages.", _count, _typeName.ToLowerInvariant()]
         : L["Managing {0} {1} entries for embedding in pages and blocks.", _count, _typeName.ToLowerInvariant()];
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         var result = await ContentTypesApi.GetByAliasAsync(Alias);
         if (result is Result<ContentTypeDetail, AeroError>.Ok ok)

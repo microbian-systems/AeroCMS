@@ -15,7 +15,10 @@ public sealed class PageEditorDefinitionRegistry : IPageEditorDefinitionRegistry
     private readonly IReadOnlyCollection<PageEditorDefinitionDescriptor> _allDescriptors;
     private readonly IReadOnlyCollection<IPageEditorBlockDefinition> _legacyDefinitions;
 
-    public PageEditorDefinitionRegistry(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PageEditorDefinitionRegistry"/> class.
+    /// </summary>
+public PageEditorDefinitionRegistry(
         IEnumerable<IPageEditorBlockProvider> blockProviders,
         IEnumerable<IPageEditorDefinitionProvider> nativeProviders)
     {
@@ -28,11 +31,20 @@ public sealed class PageEditorDefinitionRegistry : IPageEditorDefinitionRegistry
 
     }
 
-    public IReadOnlyCollection<PageEditorDefinitionDescriptor> AllDescriptors => _allDescriptors;
+        /// <summary>
+    /// Gets or sets the All Descriptors.
+    /// </summary>
+public IReadOnlyCollection<PageEditorDefinitionDescriptor> AllDescriptors => _allDescriptors;
 
-    public IReadOnlyCollection<IPageEditorBlockDefinition> LegacyDefinitions => _legacyDefinitions;
+        /// <summary>
+    /// Gets or sets the Legacy Definitions.
+    /// </summary>
+public IReadOnlyCollection<IPageEditorBlockDefinition> LegacyDefinitions => _legacyDefinitions;
 
-    public bool TryGetDescriptor(
+        /// <summary>
+    /// TryGetDescriptor method.
+    /// </summary>
+public bool TryGetDescriptor(
         string? catalogId,
         out PageEditorDefinitionDescriptor descriptor)
     {

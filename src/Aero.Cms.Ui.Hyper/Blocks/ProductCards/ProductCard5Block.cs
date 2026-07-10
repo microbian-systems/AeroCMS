@@ -16,18 +16,45 @@ namespace Aero.Cms.Ui.Hyper.Blocks.ProductCards;
     SchemaVersion = 1)]
 public sealed class ProductCard5Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.product-cards.5";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.product-cards.5";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Small Headphones";
-    public string Price { get; set; } = "$299";
-    public string Subtitle { get; set; } = "Space Grey";
-    public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1592921870789-04563d55041c?auto=format&fit=crop&q=80&w=1160";
-    public List<ProductCard5Color> Colors { get; set; } = DefaultColors.Select(CloneColor).ToList();
-    public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Small Headphones";
+        /// <summary>
+    /// Gets or sets the Price.
+    /// </summary>
+public string Price { get; set; } = "$299";
+        /// <summary>
+    /// Gets or sets the Subtitle.
+    /// </summary>
+public string Subtitle { get; set; } = "Space Grey";
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1592921870789-04563d55041c?auto=format&fit=crop&q=80&w=1160";
+        /// <summary>
+    /// Gets or sets the Colors.
+    /// </summary>
+public List<ProductCard5Color> Colors { get; set; } = DefaultColors.Select(CloneColor).ToList();
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
 
-    public static readonly List<ProductCard5Color> DefaultColors =
+        /// <summary>
+    /// DefaultColors.
+    /// </summary>
+public static readonly List<ProductCard5Color> DefaultColors =
     [
         new() { Hex = "#595759", Name = "Space Gray" },
         new() { Hex = "#d2d3d4", Name = "Silver" },
@@ -36,7 +63,10 @@ public sealed class ProductCard5Block : BlockBase
         new() { Hex = "#91a5bb", Name = "Blue" }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static ProductCard5Color CloneColor(ProductCard5Color c) => new()
     {
@@ -45,8 +75,17 @@ public sealed class ProductCard5Block : BlockBase
     };
 }
 
+/// <summary>
+/// Represents a class for ProductCard5Color.
+/// </summary>
 public sealed class ProductCard5Color
 {
-    public string Hex { get; set; } = "";
-    public string Name { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Hex.
+    /// </summary>
+public string Hex { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = "";
 }

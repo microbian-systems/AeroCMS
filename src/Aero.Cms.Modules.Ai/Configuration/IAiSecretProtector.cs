@@ -1,8 +1,17 @@
 namespace Aero.Cms.Modules.Ai.Configuration;
 
+/// <summary>
+/// Defines an interface for IAiSecretProtector.
+/// </summary>
 public interface IAiSecretProtector
 {
-    string Protect(string secret);
+        /// <summary>
+    /// Protect method.
+    /// </summary>
+string Protect(string secret);
 
-    string Unprotect(string protectedSecret);
+        /// <summary>
+    /// Unprotect method.
+    /// </summary>
+string Unprotect(string protectedSecret);
 }

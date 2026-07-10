@@ -3,16 +3,25 @@ using Aero.Cms.Abstractions.Blocks.Serialization;
 
 namespace Aero.Cms.Abstractions.Content;
 
+/// <summary>
+/// Represents a class for ContentItemExtensions.
+/// </summary>
 public static class ContentItemExtensions
 {
-    public static T? Get<T>(this ContentItem item, string field)
+        /// <summary>
+    /// Get method.
+    /// </summary>
+public static T? Get<T>(this ContentItem item, string field)
     {
         if (!item.Fields.TryGetValue(field, out var element))
             return default;
         return JsonSerializer.Deserialize<T>(element.GetRawText(), BlockJsonContext.Default.Options);
     }
 
-    public static T? Get<T>(this ContentItem item, string field, JsonSerializerContext context)
+        /// <summary>
+    /// Get method.
+    /// </summary>
+public static T? Get<T>(this ContentItem item, string field, JsonSerializerContext context)
     {
         if (!item.Fields.TryGetValue(field, out var element))
             return default;

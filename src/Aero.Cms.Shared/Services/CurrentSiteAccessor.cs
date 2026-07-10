@@ -14,11 +14,17 @@ namespace Aero.Cms.Shared.Services;
 /// </summary>
 public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor, CICurrentSiteAccessor
 {
-    public event Action? SiteChanged;
+        /// <summary>
+    /// Event raised for SiteChanged.
+    /// </summary>
+public event Action? SiteChanged;
 
     private long? _cachedSiteId;
 
-    public async Task<SiteViewModel?> GetCurrentSiteAsync()
+        /// <summary>
+    /// GetCurrentSiteAsync method.
+    /// </summary>
+public async Task<SiteViewModel?> GetCurrentSiteAsync()
     {
         try
         {
@@ -39,7 +45,10 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor,
         return vm is null ? null : MapToSiteInfo(vm);
     }
 
-    public async Task<long?> GetCurrentSiteIdAsync()
+        /// <summary>
+    /// GetCurrentSiteIdAsync method.
+    /// </summary>
+public async Task<long?> GetCurrentSiteIdAsync()
     {
         var site = await GetCurrentSiteAsync();
         if (site is not null)
@@ -51,7 +60,10 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor,
         return _cachedSiteId;
     }
 
-    public async Task SetCurrentSiteAsync(long siteId)
+        /// <summary>
+    /// SetCurrentSiteAsync method.
+    /// </summary>
+public async Task SetCurrentSiteAsync(long siteId)
     {
         try
         {
@@ -68,7 +80,10 @@ public sealed class CurrentSiteAccessor(HttpClient http) : ICurrentSiteAccessor,
         }
     }
 
-    public async Task ClearCurrentSiteAsync()
+        /// <summary>
+    /// ClearCurrentSiteAsync method.
+    /// </summary>
+public async Task ClearCurrentSiteAsync()
     {
         try
         {

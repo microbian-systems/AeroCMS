@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Pricing;
 
+/// <summary>
+/// Represents a class for Pricing2BlockMapper.
+/// </summary>
 public static class Pricing2BlockMapper
 {
-    public static NeoPageNode ToNode(Pricing2Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Pricing2Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.pricing.2",
@@ -16,7 +22,10 @@ public static class Pricing2BlockMapper
         }
     };
 
-    public static Pricing2Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Pricing2Block FromNode(NeoPageNode node) => new()
     {
         Plans = node.Properties.TryGetValue("plans", out var element) && element.ValueKind == JsonValueKind.Array
             ? JsonSerializer.Deserialize<List<Pricing2Plan>>(element.GetRawText()) ?? Pricing2Block.DefaultPlans.Select(ClonePlan).ToList()

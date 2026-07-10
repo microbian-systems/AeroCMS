@@ -1,8 +1,14 @@
 namespace Aero.Cms.Abstractions.Blocks.Neo;
 
+/// <summary>
+/// Represents a class for BasicHeroBlockMapper.
+/// </summary>
 public static class BasicHeroBlockMapper
 {
-    public static NeoPageNode ToNode(BasicHeroBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(BasicHeroBlock block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "aero.hero.basic",
@@ -17,7 +23,10 @@ public static class BasicHeroBlockMapper
         }
     };
 
-    public static BasicHeroBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static BasicHeroBlock FromNode(NeoPageNode node) => new()
     {
         Title = GetString(node, "title", "Welcome"),
         Subtitle = GetString(node, "subtitle", "Your message goes here."),

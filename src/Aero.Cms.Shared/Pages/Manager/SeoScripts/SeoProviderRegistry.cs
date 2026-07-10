@@ -1,8 +1,14 @@
 namespace Aero.Cms.Shared.Pages.Manager.SeoScripts;
 
+/// <summary>
+/// Represents a class for SeoProviderRegistry.
+/// </summary>
 public static class SeoProviderRegistry
 {
-    public static IReadOnlyList<SeoProviderDefinition> Definitions { get; } =
+        /// <summary>
+    /// Gets or sets the Definitions.
+    /// </summary>
+public static IReadOnlyList<SeoProviderDefinition> Definitions { get; } =
     [
         new(
             "google-analytics",
@@ -39,6 +45,9 @@ public static class SeoProviderRegistry
             "Microsoft Clarity session insights and heatmaps.")
     ];
 
-    public static SeoProviderDefinition? Find(string key)
+        /// <summary>
+    /// Find method.
+    /// </summary>
+public static SeoProviderDefinition? Find(string key)
         => Definitions.FirstOrDefault(provider => string.Equals(provider.Key, key, StringComparison.OrdinalIgnoreCase));
 }

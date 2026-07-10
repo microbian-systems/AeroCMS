@@ -11,7 +11,10 @@ namespace Aero.Cms.Modules.Settings.Areas.Api.v1;
 /// </summary>
 public static class SettingsApi
 {
-    public static void MapSettingsApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapSettingsApi method.
+    /// </summary>
+public static void MapSettingsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/settings")
             .WithTags("Admin - Settings");

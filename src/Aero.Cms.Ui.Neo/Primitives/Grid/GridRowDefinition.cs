@@ -6,6 +6,9 @@ using System.Text.Json;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Grid;
 
+/// <summary>
+/// Represents a class for GridRowDefinition.
+/// </summary>
 public sealed class GridRowDefinition : ContainerDefinitionBase, ISlotted
 {
     private static readonly IReadOnlySet<NeoPageNodeKind> RowChildKinds =
@@ -17,19 +20,49 @@ public sealed class GridRowDefinition : ContainerDefinitionBase, ISlotted
             NeoPageNodeKind.Container
         };
 
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new GridRowDefinition(), new GridRowDefinition());
 
-    public override string CatalogId => "primitive.grid-row";
-    public override string DisplayName => "Grid Row";
-    public override string? Description => "A row inside a grid. Contains grid cells.";
-    public override string Category => "Primitives";
-    public override string IconName => "rows-2";
-    public override int SortOrder => 2;
-    public override Type? PreviewComponentType => typeof(GridRowPrimitivePreview);
-    public override Type? PropertyEditorComponentType => typeof(GridRowPrimitiveEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "primitive.grid-row";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Grid Row";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "A row inside a grid. Contains grid cells.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Primitives";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "rows-2";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 2;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => typeof(GridRowPrimitivePreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => typeof(GridRowPrimitiveEditor);
 
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             RowChildKinds,
             RowParentKinds,
@@ -39,13 +72,19 @@ public sealed class GridRowDefinition : ContainerDefinitionBase, ISlotted
             ],
             allowedParentCatalogIds: new HashSet<string> { "primitive.grid" });
 
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Spacing |
         EditorCapabilitySet.Dimensions |
         EditorCapabilitySet.Alignment |
         EditorCapabilitySet.Visibility;
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable |
         EditorInteractionCapabilities.Editable |
         EditorInteractionCapabilities.Draggable |
@@ -54,7 +93,10 @@ public sealed class GridRowDefinition : ContainerDefinitionBase, ISlotted
         EditorInteractionCapabilities.Copyable |
         EditorInteractionCapabilities.PasteTarget;
 
-    public override NeoPageNode CreateDefaultNode() =>
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),
@@ -77,6 +119,9 @@ public sealed class GridRowDefinition : ContainerDefinitionBase, ISlotted
         ),
     };
 
-    public ISlotDefinition? GetSlot(string slotId) =>
+        /// <summary>
+    /// GetSlot method.
+    /// </summary>
+public ISlotDefinition? GetSlot(string slotId) =>
         _slots.FirstOrDefault(s => s.Id == slotId);
 }

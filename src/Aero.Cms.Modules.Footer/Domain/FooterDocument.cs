@@ -4,21 +4,60 @@ using Aero.Core.Entities;
 
 namespace Aero.Cms.Modules.Footer.Domain;
 
+/// <summary>
+/// Represents a class for FooterDocument.
+/// </summary>
 public sealed class FooterDocument : Entity, ISiteOwned
 {
-    public long SiteId { get; set; }
-    public long? TranslationGroupId { get; set; }
-    public string Culture { get; set; } = Aero.Cms.Core.Entities.SitesModel.DefaultCultureName;
-    public string Name { get; set; } = string.Empty;
-    public string Key { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public FooterLifecycleState State { get; set; } = FooterLifecycleState.Draft;
-    public bool HasPublishedSnapshot { get; set; }
-    public DateTimeOffset? ArchivedOn { get; set; }
-    public long? CreatedByUserId { get; set; }
-    public long? ModifiedByUserId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+public long? TranslationGroupId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = Aero.Cms.Core.Entities.SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the State.
+    /// </summary>
+public FooterLifecycleState State { get; set; } = FooterLifecycleState.Draft;
+        /// <summary>
+    /// Gets or sets the Has Published Snapshot.
+    /// </summary>
+public bool HasPublishedSnapshot { get; set; }
+        /// <summary>
+    /// Gets or sets the Archived On.
+    /// </summary>
+public DateTimeOffset? ArchivedOn { get; set; }
+        /// <summary>
+    /// Gets or sets the Created By User Id.
+    /// </summary>
+public long? CreatedByUserId { get; set; }
+        /// <summary>
+    /// Gets or sets the Modified By User Id.
+    /// </summary>
+public long? ModifiedByUserId { get; set; }
 
-    public static FooterDocument Create(long id, FooterCreated @event) => new()
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static FooterDocument Create(long id, FooterCreated @event) => new()
     {
         Id = id,
         SiteId = @event.SiteId,
@@ -32,7 +71,10 @@ public sealed class FooterDocument : Entity, ISiteOwned
         CreatedOn = @event.CreatedOn
     };
 
-    public void Apply(FooterDraftSaved @event)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(FooterDraftSaved @event)
     {
         Name = @event.Name.Trim();
         Key = NormalizeKey(@event.Key);
@@ -43,21 +85,30 @@ public sealed class FooterDocument : Entity, ISiteOwned
         Touch(@event.UserId, @event.SavedOn);
     }
 
-    public void Apply(FooterPublished @event)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(FooterPublished @event)
     {
         HasPublishedSnapshot = true;
         State = FooterLifecycleState.Published;
         Touch(@event.UserId, @event.PublishedOn);
     }
 
-    public void Apply(FooterArchived @event)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(FooterArchived @event)
     {
         State = FooterLifecycleState.Archived;
         ArchivedOn = @event.ArchivedOn;
         Touch(@event.UserId, @event.ArchivedOn);
     }
 
-    public static string NormalizeKey(string key)
+        /// <summary>
+    /// NormalizeKey method.
+    /// </summary>
+public static string NormalizeKey(string key)
         => key.Trim().ToLowerInvariant().Replace(' ', '-');
 
     private static string? Clean(string? value)
@@ -70,13 +121,28 @@ public sealed class FooterDocument : Entity, ISiteOwned
     }
 }
 
+/// <summary>
+/// Represents a class for SiteFooterSettingsDocument.
+/// </summary>
 public sealed class SiteFooterSettingsDocument : Entity, ISiteOwned
 {
-    public long SiteId { get; set; }
-    public long? DefaultFooterId { get; set; }
-    public long? ModifiedByUserId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Default Footer Id.
+    /// </summary>
+public long? DefaultFooterId { get; set; }
+        /// <summary>
+    /// Gets or sets the Modified By User Id.
+    /// </summary>
+public long? ModifiedByUserId { get; set; }
 
-    public static SiteFooterSettingsDocument Create(long siteId, SiteDefaultFooterChanged @event) => new()
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static SiteFooterSettingsDocument Create(long siteId, SiteDefaultFooterChanged @event) => new()
     {
         Id = siteId,
         SiteId = siteId,
@@ -86,7 +152,10 @@ public sealed class SiteFooterSettingsDocument : Entity, ISiteOwned
         ModifiedByUserId = @event.UserId
     };
 
-    public void Apply(SiteDefaultFooterChanged @event)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(SiteDefaultFooterChanged @event)
     {
         DefaultFooterId = @event.FooterId;
         ModifiedOn = @event.ChangedOn;
@@ -94,6 +163,9 @@ public sealed class SiteFooterSettingsDocument : Entity, ISiteOwned
     }
 }
 
+/// <summary>
+/// Defines an enumeration for FooterLifecycleState.
+/// </summary>
 public enum FooterLifecycleState
 {
     Draft,

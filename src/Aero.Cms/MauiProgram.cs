@@ -12,9 +12,15 @@ using NeoUI.Blazor.Extensions;
 
 namespace Aero.Cms;
 
+/// <summary>
+/// Represents a class for MauiProgram.
+/// </summary>
 public static class MauiProgram
 {
-    public static MauiApp CreateMauiApp()
+        /// <summary>
+    /// CreateMauiApp method.
+    /// </summary>
+public static MauiApp CreateMauiApp()
     {
         var builder = MauiApp.CreateBuilder();
         builder

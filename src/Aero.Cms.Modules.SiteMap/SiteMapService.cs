@@ -16,6 +16,9 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.SiteMap;
 
+/// <summary>
+/// Represents a class for SiteMapService.
+/// </summary>
 public sealed class SiteMapService : ISiteMapService
 {
     private readonly IFusionCache _cache;
@@ -25,7 +28,10 @@ public sealed class SiteMapService : ISiteMapService
     private readonly ISiteContext _siteContext;
     private readonly IHostEnvironment _environment;
 
-    public SiteMapService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="SiteMapService"/> class.
+    /// </summary>
+public SiteMapService(
         IFusionCache cache,
         IDocsService docsService,
         IQuerySession session,
@@ -41,10 +47,16 @@ public sealed class SiteMapService : ISiteMapService
         _environment = environment;
     }
 
-    public async Task<Result<string, AeroError>> BuildSitemapAsync(CancellationToken ct)
+        /// <summary>
+    /// BuildSitemapAsync method.
+    /// </summary>
+public async Task<Result<string, AeroError>> BuildSitemapAsync(CancellationToken ct)
         => await BuildSitemapAsync(GetDefaultCulture(), ct);
 
-    public async Task<Result<string, AeroError>> BuildSitemapAsync(string? culture, CancellationToken ct)
+        /// <summary>
+    /// BuildSitemapAsync method.
+    /// </summary>
+public async Task<Result<string, AeroError>> BuildSitemapAsync(string? culture, CancellationToken ct)
     {
         var siteId = _siteContext.SiteId;
         var normalizedCulture = NormalizeCultureOrDefault(culture, GetDefaultCulture());
@@ -74,7 +86,10 @@ public sealed class SiteMapService : ISiteMapService
         return Fail<string, AeroError>(((Result<List<SitemapEntry>, AeroError>.Failure)entriesResult).Error);
     }
 
-    public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(CancellationToken ct)
+        /// <summary>
+    /// BuildSitemapIndexAsync method.
+    /// </summary>
+public async Task<Result<string, AeroError>> BuildSitemapIndexAsync(CancellationToken ct)
     {
         var baseUrl = GetBaseUrl();
         if (baseUrl is null)

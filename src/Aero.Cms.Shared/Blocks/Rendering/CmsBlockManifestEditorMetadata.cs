@@ -8,7 +8,10 @@ namespace Aero.Cms.Shared.Blocks.Rendering;
 /// </summary>
 public static class CmsBlockManifestEditorMetadata
 {
-    public static IReadOnlyList<BlockTypeInfo> GetAvailableBlockTypes()
+        /// <summary>
+    /// GetAvailableBlockTypes method.
+    /// </summary>
+public static IReadOnlyList<BlockTypeInfo> GetAvailableBlockTypes()
     {
         return CmsBlockManifest.Blocks.Values
             .OrderBy(descriptor => descriptor.SortOrder)
@@ -17,7 +20,10 @@ public static class CmsBlockManifestEditorMetadata
             .ToArray();
     }
 
-    public static Option<BlockTypeInfo> GetBlockTypeInfo(string blockType)
+        /// <summary>
+    /// GetBlockTypeInfo method.
+    /// </summary>
+public static Option<BlockTypeInfo> GetBlockTypeInfo(string blockType)
     {
         return CmsBlockManifest.TryGet(blockType, out var descriptor)
             ? ToBlockTypeInfo(descriptor)

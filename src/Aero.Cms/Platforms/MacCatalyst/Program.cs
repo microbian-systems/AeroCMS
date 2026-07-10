@@ -1,7 +1,10 @@
-﻿using UIKit;
+using UIKit;
 
 namespace Aero.Cms;
 
+/// <summary>
+/// Represents a class for Program.
+/// </summary>
 public class Program
 {
     // This is the main entry point of the application.

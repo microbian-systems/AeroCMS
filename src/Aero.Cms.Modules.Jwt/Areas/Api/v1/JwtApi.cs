@@ -9,12 +9,24 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Jwt.Areas.Api.v1;
 
+/// <summary>
+/// Represents a record for HeadlessRefreshTokenRequest.
+/// </summary>
 public sealed record HeadlessRefreshTokenRequest(string RefreshToken);
+/// <summary>
+/// Represents a record for HeadlessJwtResponse.
+/// </summary>
 public sealed record HeadlessJwtResponse(string AccessToken, string RefreshToken, DateTimeOffset ExpiresAt);
 
+/// <summary>
+/// Represents a class for JwtApi.
+/// </summary>
 public static class JwtApi
 {
-    public static void MapJwtApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapJwtApi method.
+    /// </summary>
+public static void MapJwtApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}jwt")
             .WithTags("Headless - Bearer Auth");

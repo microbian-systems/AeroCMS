@@ -6,17 +6,26 @@ using Ef = Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Services;
 
+/// <summary>
+/// Represents a class for OrderService.
+/// </summary>
 public sealed class OrderService : GenericEntityFrameworkRepository<OrderEntity>, IOrderService
 {
     private readonly CommerceDbContext _commerceContext;
 
-    public OrderService(CommerceDbContext context, ILogger<OrderService> log)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="OrderService"/> class.
+    /// </summary>
+public OrderService(CommerceDbContext context, ILogger<OrderService> log)
         : base(context, log)
     {
         _commerceContext = context;
     }
 
-    public async Task<Result<OrderEntity?, AeroError>> FindByCustomerAsync(string customerId, CancellationToken ct = default)
+        /// <summary>
+    /// FindByCustomerAsync method.
+    /// </summary>
+public async Task<Result<OrderEntity?, AeroError>> FindByCustomerAsync(string customerId, CancellationToken ct = default)
     {
         try
         {

@@ -4,9 +4,15 @@ using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
+/// <summary>
+/// Represents a class for AeroDynamicBlockDefinitionService.
+/// </summary>
 public sealed class AeroDynamicBlockDefinitionService(IDocumentSession session) : IDynamicBlockDefinitionService
 {
-    public async Task<Result<DynamicBlockDefinition, AeroError>> GetAsync(
+        /// <summary>
+    /// GetAsync method.
+    /// </summary>
+public async Task<Result<DynamicBlockDefinition, AeroError>> GetAsync(
         long definitionId,
         int version,
         CancellationToken cancellationToken = default)

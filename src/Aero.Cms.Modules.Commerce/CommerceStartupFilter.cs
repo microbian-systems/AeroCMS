@@ -6,9 +6,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Aero.Cms.Modules.Commerce;
 
+/// <summary>
+/// Represents a class for CommerceStartupFilter.
+/// </summary>
 public sealed class CommerceStartupFilter : IStartupFilter
 {
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
     {
         return app =>
         {

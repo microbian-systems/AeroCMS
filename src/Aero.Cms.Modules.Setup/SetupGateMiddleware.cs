@@ -3,11 +3,17 @@ using Microsoft.AspNetCore.Http;
 
 namespace Aero.Cms.Modules.Setup;
 
+/// <summary>
+/// Represents a class for SetupGateMiddleware.
+/// </summary>
 public sealed class SetupGateMiddleware(
     ISetupInitializationService setupInitializationService,
     SetupPathAllowlist allowlist) : IMiddleware
 {
-    public async Task InvokeAsync(HttpContext context, RequestDelegate next)
+        /// <summary>
+    /// InvokeAsync method.
+    /// </summary>
+public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         if (allowlist.IsAllowed(context.Request.Path) || await setupInitializationService.IsSetupCompleteAsync(context.RequestAborted))
         {
@@ -26,8 +32,14 @@ public sealed class SetupGateMiddleware(
     }
 }
 
+/// <summary>
+/// Represents a class for SetupApplicationBuilderExtensions.
+/// </summary>
 public static class SetupApplicationBuilderExtensions
 {
-    public static IApplicationBuilder UseCmsSetupGate(this IApplicationBuilder app)
+        /// <summary>
+    /// UseCmsSetupGate method.
+    /// </summary>
+public static IApplicationBuilder UseCmsSetupGate(this IApplicationBuilder app)
         => app.UseMiddleware<SetupGateMiddleware>();
 }

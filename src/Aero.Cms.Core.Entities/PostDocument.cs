@@ -6,20 +6,59 @@ using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Entities;
 
+/// <summary>
+/// Represents a class for PostDocument.
+/// </summary>
 public sealed class PostDocument : Entity, ISiteOwned
 {
-    public long SiteId { get; set; }
-    public long? TranslationGroupId { get; set; }
-    public long? SourcePostId { get; set; }
-    public long? SeriesId { get; set; }
-    public string Culture { get; set; } = SitesModel.DefaultCultureName;
-    public string Slug { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
-    public string? Excerpt { get; set; }
-    public string? SeoTitle { get; set; }
-    public string? SeoDescription { get; set; }
-    public DateTimeOffset? PublishedOn { get; set; } = null;
-    public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+public long? TranslationGroupId { get; set; }
+        /// <summary>
+    /// Gets or sets the Source Post Id.
+    /// </summary>
+public long? SourcePostId { get; set; }
+        /// <summary>
+    /// Gets or sets the Series Id.
+    /// </summary>
+public long? SeriesId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Excerpt.
+    /// </summary>
+public string? Excerpt { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+public string? SeoTitle { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+public string? SeoDescription { get; set; }
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+public DateTimeOffset? PublishedOn { get; set; } = null;
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
 
     /// <summary>
     /// Gets or sets the block-based content for this blog post.
@@ -51,5 +90,8 @@ public sealed class PostDocument : Entity, ISiteOwned
     /// </summary>
     public int Likes { get; set; }
 
-    public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+        /// <summary>
+    /// Gets or sets the Is Publicly Visible.
+    /// </summary>
+public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 }

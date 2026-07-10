@@ -4,29 +4,65 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.SplitHero;
 
+/// <summary>
+/// Represents a class for SplitHeroEditorBlockDefinition.
+/// </summary>
 public sealed class SplitHeroEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => SplitHeroBlock.BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => SplitHeroBlock.BlockTypeId;
 
-    public string DisplayName => "Hero Split Layout";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Hero Split Layout";
 
-    public string? Description => "A NeoUI split hero section with eyebrow, title, description, dual CTAs, and decorative card panel.";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "A NeoUI split hero section with eyebrow, title, description, dual CTAs, and decorative card panel.";
 
-    public string Category => "Neo";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Neo";
 
-    public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
 
-    public string IconName => "layout-dashboard";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "layout-dashboard";
 
-    public int SortOrder => 20;
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 20;
 
-    public bool PublicStaticSsrSafe => false;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => false;
 
-    public Type? PreviewComponentType => typeof(SplitHeroBlockEditorPreview);
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => typeof(SplitHeroBlockEditorPreview);
 
-    public Type? PropertyEditorComponentType => typeof(SplitHeroBlockEditor);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(SplitHeroBlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock()
     {
         return new EditorBlock
         {
@@ -42,13 +78,19 @@ public sealed class SplitHeroEditorBlockDefinition : IPageEditorBlockDefinition
         };
     }
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlock(editorBlock);
         return SplitHeroBlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
 
     private static SplitHeroBlock ToBlock(EditorBlock editor) => new()
     {

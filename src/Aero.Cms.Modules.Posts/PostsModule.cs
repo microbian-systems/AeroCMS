@@ -18,17 +18,41 @@ using ActorUpdateSeriesRequest = Aero.Cms.Abstractions.Requests.UpdateSeriesRequ
 
 namespace Aero.Cms.Modules.Posts;
 
+/// <summary>
+/// Represents a class for PostsModule.
+/// </summary>
 [Module(nameof(PostsModule))]
 public sealed class PostsModule : AeroWebModule, IUiModule, IConfigureAeroDB
 {
-    public override string Name => nameof(PostsModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [nameof(Pages.PagesModule)];
-    public override IReadOnlyList<string> Category => ["content", "blog"];
-    public override IReadOnlyList<string> Tags => ["content", "blog", "cms"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(PostsModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [nameof(Pages.PagesModule)];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["content", "blog"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["content", "blog", "cms"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IPostContentService, PostContentService>();
         services.AddScoped<IAuditService, AuditService>();
@@ -83,7 +107,10 @@ public sealed class PostsModule : AeroWebModule, IUiModule, IConfigureAeroDB
         });
     }
 
-    public void Configure(StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions opts)
     {
         opts.Schema.For<PostDocument>().Identity(x => x.Id);
         opts.Schema.For<PostDocument>().Index(x => x.SiteId);
@@ -113,12 +140,18 @@ public sealed class PostsModule : AeroWebModule, IUiModule, IConfigureAeroDB
         opts.Schema.For<SeriesTranslation>().UniqueIndex(x => new { x.SeriesId, x.Culture });
     }
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapCategoriesApi();
         builder.MapTagsApi();

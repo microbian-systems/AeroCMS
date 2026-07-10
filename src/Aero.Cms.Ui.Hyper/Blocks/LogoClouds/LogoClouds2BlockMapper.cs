@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.LogoClouds;
 
+/// <summary>
+/// Represents a class for LogoClouds2BlockMapper.
+/// </summary>
 public static class LogoClouds2BlockMapper
 {
-    public static NeoPageNode ToNode(LogoClouds2Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(LogoClouds2Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.logo-clouds.2",
@@ -18,7 +24,10 @@ public static class LogoClouds2BlockMapper
         }
     };
 
-    public static LogoClouds2Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static LogoClouds2Block FromNode(NeoPageNode node) => new()
     {
         Title = GetString(node, "title", "Trusted by many"),
         Description = GetString(node, "description", "Lorem, ipsum dolor sit amet consectetur adipisicing elit."),

@@ -16,7 +16,10 @@ public sealed class SitemapCacheListener : DocumentSessionListenerBase
     private readonly IHostEnvironment _environment;
     private readonly ILogger<SitemapCacheListener> _logger;
 
-    public SitemapCacheListener(IFusionCache cache, IHostEnvironment environment, ILogger<SitemapCacheListener> logger)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="SitemapCacheListener"/> class.
+    /// </summary>
+public SitemapCacheListener(IFusionCache cache, IHostEnvironment environment, ILogger<SitemapCacheListener> logger)
     {
         _cache = cache;
         _environment = environment;

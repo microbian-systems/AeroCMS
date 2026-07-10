@@ -50,7 +50,10 @@ public class UserSiteService(
     ISiteLookupService siteLookup,
     ILogger<UserSiteService> log) : IUserSiteService
 {
-    public async Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForUserAsync(long userId, CancellationToken ct = default)
+        /// <summary>
+    /// GetAssignmentsForUserAsync method.
+    /// </summary>
+public async Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForUserAsync(long userId, CancellationToken ct = default)
     {
         return await querySession.Query<UserSiteAssignment>()
             .Where(x => x.UserId == userId)
@@ -58,7 +61,10 @@ public class UserSiteService(
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForSiteAsync(long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// GetAssignmentsForSiteAsync method.
+    /// </summary>
+public async Task<IReadOnlyList<UserSiteAssignment>> GetAssignmentsForSiteAsync(long siteId, CancellationToken ct = default)
     {
         return await querySession.Query<UserSiteAssignment>()
             .Where(x => x.SiteId == siteId)
@@ -66,7 +72,10 @@ public class UserSiteService(
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<SiteViewModel>> GetAccessibleSitesAsync(long userId, IReadOnlyList<string> roles, CancellationToken ct = default)
+        /// <summary>
+    /// GetAccessibleSitesAsync method.
+    /// </summary>
+public async Task<IReadOnlyList<SiteViewModel>> GetAccessibleSitesAsync(long userId, IReadOnlyList<string> roles, CancellationToken ct = default)
     {
         // Admin users can access all sites
         if (roles.Contains("Admin", StringComparer.OrdinalIgnoreCase))
@@ -87,7 +96,10 @@ public class UserSiteService(
         return allSites.Where(s => assignmentSiteIds.Contains(s.Id)).ToList();
     }
 
-    public async Task<bool> HasPermissionAsync(long userId, long siteId, string permission, CancellationToken ct = default)
+        /// <summary>
+    /// HasPermissionAsync method.
+    /// </summary>
+public async Task<bool> HasPermissionAsync(long userId, long siteId, string permission, CancellationToken ct = default)
     {
         var assignment = await querySession.Query<UserSiteAssignment>()
             .FirstOrDefaultAsync(x => x.UserId == userId && x.SiteId == siteId, ct);
@@ -98,7 +110,10 @@ public class UserSiteService(
         return assignment.Permissions.Contains(permission, StringComparer.OrdinalIgnoreCase);
     }
 
-    public async Task<Result<UserSiteAssignment, AeroError>> AssignUserToSiteAsync(long userId, long siteId, List<string> permissions, CancellationToken ct = default)
+        /// <summary>
+    /// AssignUserToSiteAsync method.
+    /// </summary>
+public async Task<Result<UserSiteAssignment, AeroError>> AssignUserToSiteAsync(long userId, long siteId, List<string> permissions, CancellationToken ct = default)
     {
         try
         {
@@ -135,7 +150,10 @@ public class UserSiteService(
         }
     }
 
-    public async Task<Result<UserSiteAssignment, AeroError>> UpdatePermissionsAsync(long assignmentId, List<string> permissions, CancellationToken ct = default)
+        /// <summary>
+    /// UpdatePermissionsAsync method.
+    /// </summary>
+public async Task<Result<UserSiteAssignment, AeroError>> UpdatePermissionsAsync(long assignmentId, List<string> permissions, CancellationToken ct = default)
     {
         try
         {
@@ -156,7 +174,10 @@ public class UserSiteService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> RemoveAssignmentAsync(long assignmentId, CancellationToken ct = default)
+        /// <summary>
+    /// RemoveAssignmentAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> RemoveAssignmentAsync(long assignmentId, CancellationToken ct = default)
     {
         try
         {
@@ -172,7 +193,10 @@ public class UserSiteService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> RemoveUserFromSiteAsync(long userId, long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// RemoveUserFromSiteAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> RemoveUserFromSiteAsync(long userId, long siteId, CancellationToken ct = default)
     {
         try
         {

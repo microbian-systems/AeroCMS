@@ -11,17 +11,41 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Identity;
 
+/// <summary>
+/// Represents a class for IdentityModule.
+/// </summary>
 [Module(nameof(IdentityModule))]
 public class IdentityModule : AeroWebModule
 {
-    public override string Name => nameof(IdentityModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["Identity", "Security"];
-    public override IReadOnlyList<string> Tags => ["auth", "identity", "users", "roles"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(IdentityModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["Identity", "Security"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["auth", "identity", "users", "roles"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddIdentityCore<AeroUser>()
             .AddRoles<AeroRole>()

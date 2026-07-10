@@ -9,7 +9,10 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("carousel", "Carousel", Category = "Media")]
 public sealed class CarouselBlock : BlockBase
 {
-    public override string BlockType => "carousel";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "carousel";
 
     /// <summary>
     /// The list of images and captions in the carousel.
@@ -36,7 +39,10 @@ public sealed class CarouselBlock : BlockBase
     /// </summary>
     public int Interval { get; set; } = 5000;
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -71,7 +77,10 @@ public class CarouselItem : Entity
 [BlockMetadata("content_link", "Content Link", Category = "Navigation")]
 public sealed class ContentLinkBlock : BlockBase
 {
-    public override string BlockType => "content_link";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "content_link";
 
     /// <summary>
     /// The target page ID to link to.
@@ -88,7 +97,10 @@ public sealed class ContentLinkBlock : BlockBase
     /// </summary>
     public string? IconClass { get; set; }
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -97,7 +109,10 @@ public sealed class ContentLinkBlock : BlockBase
 [BlockMetadata("boring_hero", "Boring Hero", Category = "UI")]
 public sealed class BoringHeroBlock : BlockBase
 {
-    public override string BlockType => "boring_hero";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "boring_hero";
 
     /// <summary>
     /// Gets or sets whether the hero should break out to the full viewport width.
@@ -120,7 +135,10 @@ public sealed class BoringHeroBlock : BlockBase
     /// </summary>
     public string? BackgroundImageUrl { get; set; }
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
 /// <summary>
@@ -129,7 +147,10 @@ public sealed class BoringHeroBlock : BlockBase
 [BlockMetadata("hero", "Hero Section", Category = "Media")]
 public sealed class HeroBlock : BlockBase
 {
-    public override string BlockType => "hero";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "hero";
 
     /// <summary>
     /// Gets or sets the media asset ID for the background image.
@@ -191,5 +212,8 @@ public sealed class HeroBlock : BlockBase
     /// </summary>
     public string TextAlignment { get; set; } = "center";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

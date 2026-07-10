@@ -5,9 +5,15 @@ using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Pages;
 
+/// <summary>
+/// Represents a class for PageCultureForker.
+/// </summary>
 public static class PageCultureForker
 {
-    public static PageDocument Fork(PageDocument source, long targetPageId, string targetCulture, string targetSlug)
+        /// <summary>
+    /// Fork method.
+    /// </summary>
+public static PageDocument Fork(PageDocument source, long targetPageId, string targetCulture, string targetSlug)
     {
         ArgumentNullException.ThrowIfNull(source);
 

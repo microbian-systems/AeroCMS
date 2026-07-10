@@ -1,5 +1,8 @@
 namespace Aero.Cms.Abstractions.Requests;
 
+/// <summary>
+/// Represents a record for CreateCategoryRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("CreateCategoryRequest")]
 public record CreateCategoryRequest(
@@ -9,6 +12,9 @@ public record CreateCategoryRequest(
     string? Description = null
 ) : IRequest;
 
+/// <summary>
+/// Represents a record for UpdateCategoryRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("UpdateCategoryRequest")]
 public record UpdateCategoryRequest(
@@ -19,6 +25,9 @@ public record UpdateCategoryRequest(
 ) : IRequest;
 
 
+/// <summary>
+/// Represents a record for DeleteCategoryRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("DeleteCategoryRequest")]
 public record DeleteCategoryRequest(

@@ -16,17 +16,41 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Ai;
 
+/// <summary>
+/// Represents a class for AiModule.
+/// </summary>
 [Module(nameof(AiModule))]
 public sealed class AiModule : AeroWebModule, IUiModule
 {
-    public override string Name => nameof(AiModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["admin", "ai"];
-    public override IReadOnlyList<string> Tags => ["ai", "manager", "content"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(AiModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["admin", "ai"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["ai", "manager", "content"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddDataProtection();
         services.TryAddSingleton<IAiSecretProtector, DataProtectionAiSecretProtector>();
@@ -56,13 +80,19 @@ public sealed class AiModule : AeroWebModule, IUiModule
         });
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapAiApi();
         return Task.CompletedTask;
     }
 
-    public override async Task RunAsync(IServiceProvider sp)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override async Task RunAsync(IServiceProvider sp)
     {
         await using var scope = sp.CreateAsyncScope();
         var settingsStore = scope.ServiceProvider.GetRequiredService<IAiSettingsStore>();

@@ -24,7 +24,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
     private readonly IServiceProvider _services;
     private DocViewModel _state = new();
 
-    public AeroDocsGrain(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroDocsGrain"/> class.
+    /// </summary>
+public AeroDocsGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
         IServiceProvider services)
@@ -61,10 +64,16 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     // ── IHaveState<DocViewModel> ────────────────────────────────────────
 
-    public Task<DocViewModel> GetStateAsync(CancellationToken ct)
+        /// <summary>
+    /// GetStateAsync method.
+    /// </summary>
+public Task<DocViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-    public Task UpdateStateAsync(DocViewModel state, CancellationToken ct)
+        /// <summary>
+    /// UpdateStateAsync method.
+    /// </summary>
+public Task UpdateStateAsync(DocViewModel state, CancellationToken ct)
     {
         _state = state;
         return Task.CompletedTask;
@@ -86,7 +95,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
             : NotFound($"Doc {id} not found");
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+        /// <summary>
+    /// GetByIdsAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         // ICruddable doesn't provide siteId; the service queries by IDs
@@ -104,7 +116,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Ok(new DocViewModel());
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not CreateDocRequest create)
             return Fail("Expected CreateDocRequest");
@@ -120,7 +135,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Fail("Unexpected result");
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not UpdateDocRequest update)
             return Fail("Expected UpdateDocRequest");
@@ -145,7 +163,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Fail("Unexpected result");
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not DeleteDocRequest delete)
             return Fail("Expected DeleteDocRequest");
@@ -173,7 +194,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     // ── ICanFindBySite<DocViewModel, long> ──────────────────────────────
 
-    public async Task<AeroRequestResponse<DocViewModel>> GetBySiteIdAsync(
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -194,7 +218,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     // ── ICanFindBySlug ──────────────────────────────────────────────────
 
-    public Task<AeroRequestResponse<DocViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<DocViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, ct);
 
     Task<AeroRequestResponse<DocViewModel>> ICanFindBySlug<DocViewModel, string>.GetBySlugAsync(
@@ -223,7 +250,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     // ── IAeroDocsActor doc-specific methods ───────────────────────────────
 
-    public async Task<List<DocViewModel>> GetAllBySiteAsync(long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// GetAllBySiteAsync method.
+    /// </summary>
+public async Task<List<DocViewModel>> GetAllBySiteAsync(long siteId, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
@@ -234,7 +264,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return [];
     }
 
-    public async Task<List<DocViewModel>> GetChildrenAsync(long parentId, long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// GetChildrenAsync method.
+    /// </summary>
+public async Task<List<DocViewModel>> GetChildrenAsync(long parentId, long siteId, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
@@ -245,7 +278,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return [];
     }
 
-    public async Task<List<DocViewModel>> GetTopLevelCategoriesAsync(long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// GetTopLevelCategoriesAsync method.
+    /// </summary>
+public async Task<List<DocViewModel>> GetTopLevelCategoriesAsync(long siteId, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, siteId);
@@ -256,7 +292,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return [];
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, CancellationToken ct = default)
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> SaveAsync(DocViewModel vm, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var docsService = CreateDocsService(session, vm.SiteId);
@@ -269,7 +308,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Fail("Unexpected result");
     }
 
-    public async Task<List<DocViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+public async Task<List<DocViewModel>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
     {
         var siteIdResult = await ResolveSiteIdAsync(id, ct);
         if (siteIdResult is null)
@@ -284,7 +326,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return [];
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long id, string culture, string slug, CancellationToken ct = default)
+        /// <summary>
+    /// ForkDocForCultureAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> ForkDocForCultureAsync(long id, string culture, string slug, CancellationToken ct = default)
     {
         var siteIdResult = await ResolveSiteIdAsync(id, ct);
         if (siteIdResult is null)
@@ -301,7 +346,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Fail("Unexpected result");
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> PublishAsync(long id, CancellationToken ct = default)
     {
         var siteIdResult = await ResolveSiteIdAsync(id, ct);
         if (siteIdResult is null)
@@ -318,7 +366,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Fail("Unexpected result");
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> UnpublishAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// UnpublishAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> UnpublishAsync(long id, CancellationToken ct = default)
     {
         var siteIdResult = await ResolveSiteIdAsync(id, ct);
         if (siteIdResult is null)
@@ -335,7 +386,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Fail("Unexpected result");
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> CreateChildSectionAsync(
+        /// <summary>
+    /// CreateChildSectionAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> CreateChildSectionAsync(
         long siteId,
         long spaceId,
         long parentId,
@@ -354,7 +408,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Fail("Unexpected result");
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> MoveSectionAsync(
+        /// <summary>
+    /// MoveSectionAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> MoveSectionAsync(
         long siteId,
         long spaceId,
         long sectionId,
@@ -374,7 +431,10 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
         return Fail("Unexpected result");
     }
 
-    public async Task<AeroRequestResponse<DocViewModel>> ReorderSectionsAsync(
+        /// <summary>
+    /// ReorderSectionsAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<DocViewModel>> ReorderSectionsAsync(
         long siteId,
         long spaceId,
         long parentId,
@@ -414,7 +474,13 @@ public sealed class AeroDocsGrain : AeroActor, IAeroDocsActor
 
     private sealed class FixedSiteContext(long siteId) : ISiteContext
     {
-        public long SiteId { get; } = siteId;
-        public long TenantId { get; } = siteId;
+                /// <summary>
+        /// Gets or sets the Site Id.
+        /// </summary>
+public long SiteId { get; } = siteId;
+                /// <summary>
+        /// Gets or sets the Tenant Id.
+        /// </summary>
+public long TenantId { get; } = siteId;
     }
 }

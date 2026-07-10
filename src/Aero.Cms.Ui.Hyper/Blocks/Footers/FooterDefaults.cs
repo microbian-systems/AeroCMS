@@ -5,7 +5,10 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
 /// </summary>
 internal static class FooterDefaults
 {
-    public static readonly List<FooterLinkColumn> DefaultLinkColumns4 =
+        /// <summary>
+    /// DefaultLinkColumns4.
+    /// </summary>
+public static readonly List<FooterLinkColumn> DefaultLinkColumns4 =
     [
         new()
         {
@@ -52,7 +55,10 @@ internal static class FooterDefaults
         }
     ];
 
-    public static readonly List<FooterSocialLink> DefaultSocialLinks =
+        /// <summary>
+    /// DefaultSocialLinks.
+    /// </summary>
+public static readonly List<FooterSocialLink> DefaultSocialLinks =
     [
         new() { Name = "Facebook" },
         new() { Name = "Instagram" },
@@ -61,13 +67,19 @@ internal static class FooterDefaults
         new() { Name = "Dribbble" }
     ];
 
-    public static FooterLinkColumn CloneColumn(FooterLinkColumn col) => new()
+        /// <summary>
+    /// CloneColumn method.
+    /// </summary>
+public static FooterLinkColumn CloneColumn(FooterLinkColumn col) => new()
     {
         Title = col.Title,
         Links = col.Links.Select(l => new FooterLink { Text = l.Text, Url = l.Url }).ToList()
     };
 
-    public static FooterSocialLink CloneSocialLink(FooterSocialLink link) => new()
+        /// <summary>
+    /// CloneSocialLink method.
+    /// </summary>
+public static FooterSocialLink CloneSocialLink(FooterSocialLink link) => new()
     {
         Name = link.Name,
         Url = link.Url

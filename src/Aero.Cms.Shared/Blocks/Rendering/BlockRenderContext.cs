@@ -22,5 +22,8 @@ public sealed record BlockRenderContext(
     int NestingDepth = 0,
     int MaxNestingDepth = 5)
 {
-    public CultureInfo Culture { get; init; } = Culture ?? CultureInfo.CurrentCulture;
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public CultureInfo Culture { get; init; } = Culture ?? CultureInfo.CurrentCulture;
 }

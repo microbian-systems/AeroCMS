@@ -11,10 +11,19 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.DocsEditor;
 
+/// <summary>
+/// Represents a class for DocsEditor.
+/// </summary>
 public partial class DocsEditor
 {
-    [Parameter] public long SpaceId { get; set; }
-    [Parameter] public long? SectionId { get; set; }
+        /// <summary>
+    /// Gets or sets the Space Id.
+    /// </summary>
+[Parameter] public long SpaceId { get; set; }
+        /// <summary>
+    /// Gets or sets the Section Id.
+    /// </summary>
+[Parameter] public long? SectionId { get; set; }
 
     [Inject] private IDocsHttpClient DocsClient { get; set; } = default!;
     [Inject] private ISitesHttpClient SitesClient { get; set; } = default!;
@@ -23,29 +32,86 @@ public partial class DocsEditor
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
-    protected DocsDetail? Space { get; private set; }
-    protected DocsDetail? Current { get; private set; }
-    protected IReadOnlyList<OutlineNode> Outline { get; private set; } = [];
-    protected IReadOnlyList<OutlineNode> VisibleOutline => GetVisibleOutline();
-    protected IReadOnlyList<ParentOption> ParentOptions { get; private set; } = [];
-    protected OutlineNode? SelectedNode { get; private set; }
-    protected string ActiveTab { get; set; } = "content";
-    protected bool PreviewMode { get; set; }
-    protected bool HasUnpublishedChanges { get; private set; }
-    protected bool IsEditingSpaceRoot => Current?.Id == Space?.Id;
-    protected string ParentSelectValue => Current?.ParentId?.ToString() ?? string.Empty;
-    protected SiteViewModel? CurrentSite { get; private set; }
-    protected IReadOnlyList<DocsDetail> DocCultureVariants { get; private set; } = [];
-    protected string SelectedTranslationCulture { get; set; } = string.Empty;
-    protected string TranslationSlug { get; set; } = string.Empty;
-    protected bool IsLoadingTranslations { get; private set; }
-    protected bool IsCreatingTranslation { get; private set; }
-    protected IReadOnlyList<string> SupportedCultures =>
+        /// <summary>
+    /// Gets or sets the Space.
+    /// </summary>
+protected DocsDetail? Space { get; private set; }
+        /// <summary>
+    /// Gets or sets the Current.
+    /// </summary>
+protected DocsDetail? Current { get; private set; }
+        /// <summary>
+    /// Gets or sets the Outline.
+    /// </summary>
+protected IReadOnlyList<OutlineNode> Outline { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Visible Outline.
+    /// </summary>
+protected IReadOnlyList<OutlineNode> VisibleOutline => GetVisibleOutline();
+        /// <summary>
+    /// Gets or sets the Parent Options.
+    /// </summary>
+protected IReadOnlyList<ParentOption> ParentOptions { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Selected Node.
+    /// </summary>
+protected OutlineNode? SelectedNode { get; private set; }
+        /// <summary>
+    /// Gets or sets the Active Tab.
+    /// </summary>
+protected string ActiveTab { get; set; } = "content";
+        /// <summary>
+    /// Gets or sets the Preview Mode.
+    /// </summary>
+protected bool PreviewMode { get; set; }
+        /// <summary>
+    /// Gets or sets the Has Unpublished Changes.
+    /// </summary>
+protected bool HasUnpublishedChanges { get; private set; }
+        /// <summary>
+    /// Gets or sets the Is Editing Space Root.
+    /// </summary>
+protected bool IsEditingSpaceRoot => Current?.Id == Space?.Id;
+        /// <summary>
+    /// Gets or sets the Parent Select Value.
+    /// </summary>
+protected string ParentSelectValue => Current?.ParentId?.ToString() ?? string.Empty;
+        /// <summary>
+    /// Gets or sets the Current Site.
+    /// </summary>
+protected SiteViewModel? CurrentSite { get; private set; }
+        /// <summary>
+    /// Gets or sets the Doc Culture Variants.
+    /// </summary>
+protected IReadOnlyList<DocsDetail> DocCultureVariants { get; private set; } = [];
+        /// <summary>
+    /// Gets or sets the Selected Translation Culture.
+    /// </summary>
+protected string SelectedTranslationCulture { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Translation Slug.
+    /// </summary>
+protected string TranslationSlug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Is Loading Translations.
+    /// </summary>
+protected bool IsLoadingTranslations { get; private set; }
+        /// <summary>
+    /// Gets or sets the Is Creating Translation.
+    /// </summary>
+protected bool IsCreatingTranslation { get; private set; }
+        /// <summary>
+    /// Gets or sets the Supported Cultures.
+    /// </summary>
+protected IReadOnlyList<string> SupportedCultures =>
         CurrentSite?.SupportedCultures is { Count: > 0 } cultures
             ? cultures
             : [Current?.Culture ?? Space?.Culture ?? CurrentSite?.DefaultCulture ?? "en-US"];
 
-    protected IEnumerable<string> AvailableTranslationCultures =>
+        /// <summary>
+    /// Gets or sets the Available Translation Cultures.
+    /// </summary>
+protected IEnumerable<string> AvailableTranslationCultures =>
         SupportedCultures
             .Select(NormalizeCultureName)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -62,7 +128,10 @@ public partial class DocsEditor
     private long? _loadedParentId;
     private readonly HashSet<long> _selectedIds = [];
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         await LoadAsync();
     }
@@ -364,7 +433,10 @@ public partial class DocsEditor
         }
     }
 
-    protected async Task CreateTranslationAsync()
+        /// <summary>
+    /// CreateTranslationAsync method.
+    /// </summary>
+protected async Task CreateTranslationAsync()
     {
         if (Current is null || IsCreatingTranslation)
         {
@@ -416,7 +488,10 @@ public partial class DocsEditor
         }
     }
 
-    protected void OpenTranslation(long docId)
+        /// <summary>
+    /// OpenTranslation method.
+    /// </summary>
+protected void OpenTranslation(long docId)
         => Navigation.NavigateTo($"/manager/docs/{SpaceId}/sections/{docId}");
 
     private async Task PublishCurrentAsync()
@@ -910,7 +985,10 @@ public partial class DocsEditor
         ActiveTab = "content";
     }
 
-    protected string NodeClass(OutlineNode node)
+        /// <summary>
+    /// NodeClass method.
+    /// </summary>
+protected string NodeClass(OutlineNode node)
     {
         var classes = "pe-doc-tree-node";
         if (node.Id == Current?.Id)
@@ -926,18 +1004,30 @@ public partial class DocsEditor
         return classes;
     }
 
-    protected string TabClass(string tab)
+        /// <summary>
+    /// TabClass method.
+    /// </summary>
+protected string TabClass(string tab)
         => ActiveTab == tab ? "active" : string.Empty;
 
-    protected string StatusClass(ContentPublicationState state)
+        /// <summary>
+    /// StatusClass method.
+    /// </summary>
+protected string StatusClass(ContentPublicationState state)
         => state == ContentPublicationState.Published
             ? "pe-doc-status published"
             : "pe-doc-status draft";
 
-    protected bool IsSpaceNode(OutlineNode node)
+        /// <summary>
+    /// IsSpaceNode method.
+    /// </summary>
+protected bool IsSpaceNode(OutlineNode node)
         => node.Id == SpaceId;
 
-    protected string PublicUrl(DocsDetail doc)
+        /// <summary>
+    /// PublicUrl method.
+    /// </summary>
+protected string PublicUrl(DocsDetail doc)
         => $"/docs/{doc.Slug}";
 
     private async Task<SiteViewModel?> ResolveCurrentSiteAsync()
@@ -958,7 +1048,10 @@ public partial class DocsEditor
         TranslationSlug = string.Empty;
     }
 
-    protected static string FormatCulture(string? culture)
+        /// <summary>
+    /// FormatCulture method.
+    /// </summary>
+protected static string FormatCulture(string? culture)
     {
         var normalized = NormalizeCultureName(culture);
         try
@@ -1074,32 +1167,98 @@ public partial class DocsEditor
         });
     }
 
-    protected sealed record OutlineNode(long Id, string Title, string Slug, int Depth, int ChildCount);
-    protected sealed record ParentOption(string Id, string Label);
+        /// <summary>
+    /// Represents a record for OutlineNode.
+    /// </summary>
+protected sealed record OutlineNode(long Id, string Title, string Slug, int Depth, int ChildCount);
+        /// <summary>
+    /// Represents a record for ParentOption.
+    /// </summary>
+protected sealed record ParentOption(string Id, string Label);
 
     private sealed class MutableDoc
     {
-        public long Id { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string Slug { get; set; } = string.Empty;
-        public string? Summary { get; set; }
-        public string? MarkdownContent { get; set; }
-        public string? SeoTitle { get; set; }
-        public string? SeoDescription { get; set; }
-        public long? ParentId { get; set; }
-        public int Order { get; set; }
-        public ContentPublicationState PublicationState { get; set; }
-        public DateTimeOffset? PublishedOn { get; set; }
-        public bool ShowHeaderNavigation { get; set; }
-        public string? HeaderImageUrl { get; set; }
-        public DateTimeOffset CreatedOn { get; set; }
-        public DateTimeOffset? ModifiedOn { get; set; }
-        public long PublishedVersion { get; set; }
-        public long DraftVersion { get; set; }
-        public string Culture { get; set; } = "en-US";
-        public long? TranslationGroupId { get; set; }
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+public long Id { get; set; }
+                /// <summary>
+        /// Gets or sets the Title.
+        /// </summary>
+public string Title { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Slug.
+        /// </summary>
+public string Slug { get; set; } = string.Empty;
+                /// <summary>
+        /// Gets or sets the Summary.
+        /// </summary>
+public string? Summary { get; set; }
+                /// <summary>
+        /// Gets or sets the Markdown Content.
+        /// </summary>
+public string? MarkdownContent { get; set; }
+                /// <summary>
+        /// Gets or sets the Seo Title.
+        /// </summary>
+public string? SeoTitle { get; set; }
+                /// <summary>
+        /// Gets or sets the Seo Description.
+        /// </summary>
+public string? SeoDescription { get; set; }
+                /// <summary>
+        /// Gets or sets the Parent Id.
+        /// </summary>
+public long? ParentId { get; set; }
+                /// <summary>
+        /// Gets or sets the Order.
+        /// </summary>
+public int Order { get; set; }
+                /// <summary>
+        /// Gets or sets the Publication State.
+        /// </summary>
+public ContentPublicationState PublicationState { get; set; }
+                /// <summary>
+        /// Gets or sets the Published On.
+        /// </summary>
+public DateTimeOffset? PublishedOn { get; set; }
+                /// <summary>
+        /// Gets or sets the Show Header Navigation.
+        /// </summary>
+public bool ShowHeaderNavigation { get; set; }
+                /// <summary>
+        /// Gets or sets the Header Image Url.
+        /// </summary>
+public string? HeaderImageUrl { get; set; }
+                /// <summary>
+        /// Gets or sets the Created On.
+        /// </summary>
+public DateTimeOffset CreatedOn { get; set; }
+                /// <summary>
+        /// Gets or sets the Modified On.
+        /// </summary>
+public DateTimeOffset? ModifiedOn { get; set; }
+                /// <summary>
+        /// Gets or sets the Published Version.
+        /// </summary>
+public long PublishedVersion { get; set; }
+                /// <summary>
+        /// Gets or sets the Draft Version.
+        /// </summary>
+public long DraftVersion { get; set; }
+                /// <summary>
+        /// Gets or sets the Culture.
+        /// </summary>
+public string Culture { get; set; } = "en-US";
+                /// <summary>
+        /// Gets or sets the Translation Group Id.
+        /// </summary>
+public long? TranslationGroupId { get; set; }
 
-        public static MutableDoc From(DocsDetail detail)
+                /// <summary>
+        /// From method.
+        /// </summary>
+public static MutableDoc From(DocsDetail detail)
             => new()
             {
                 Id = detail.Id,
@@ -1123,7 +1282,10 @@ public partial class DocsEditor
                 TranslationGroupId = detail.TranslationGroupId
             };
 
-        public DocsDetail ToDetail()
+                /// <summary>
+        /// ToDetail method.
+        /// </summary>
+public DocsDetail ToDetail()
             => new(
                 Id,
                 Title,

@@ -13,7 +13,10 @@ internal static class ScribanFieldHelper
 {
     private static readonly Regex SafeName = new("^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.Compiled);
 
-    public static string Accessor(string fieldName)
+        /// <summary>
+    /// Accessor method.
+    /// </summary>
+public static string Accessor(string fieldName)
         => SafeName.IsMatch(fieldName)
             ? "block." + fieldName
             : "block[\"" + fieldName + "\"]";
@@ -21,8 +24,14 @@ internal static class ScribanFieldHelper
 
 internal sealed class TextFieldSnippet : IFieldTemplateSnippet
 {
-    public string FieldType => "text";
-    public string Render(ContentFieldDefinition field)
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => "text";
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public string Render(ContentFieldDefinition field)
     {
         var a = ScribanFieldHelper.Accessor(field.Name);
         return "<div class=\"aero-field aero-field-text\">{{" + a + "}}</div>";
@@ -31,8 +40,14 @@ internal sealed class TextFieldSnippet : IFieldTemplateSnippet
 
 internal sealed class ImageFieldSnippet : IFieldTemplateSnippet
 {
-    public string FieldType => "image";
-    public string Render(ContentFieldDefinition field)
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => "image";
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public string Render(ContentFieldDefinition field)
     {
         var a = ScribanFieldHelper.Accessor(field.Name);
         return "{{if " + a + "}}<div class=\"aero-field aero-field-image\"><img src=\"{{" + a + "}}\" alt=\"\" /></div>{{end}}";
@@ -41,8 +56,14 @@ internal sealed class ImageFieldSnippet : IFieldTemplateSnippet
 
 internal sealed class RichtextFieldSnippet : IFieldTemplateSnippet
 {
-    public string FieldType => "richtext";
-    public string Render(ContentFieldDefinition field)
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => "richtext";
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public string Render(ContentFieldDefinition field)
     {
         var a = ScribanFieldHelper.Accessor(field.Name);
         return "<div class=\"aero-field aero-field-richtext\">{{" + a + "}}</div>";
@@ -51,8 +72,14 @@ internal sealed class RichtextFieldSnippet : IFieldTemplateSnippet
 
 internal sealed class UrlFieldSnippet : IFieldTemplateSnippet
 {
-    public string FieldType => "url";
-    public string Render(ContentFieldDefinition field)
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => "url";
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public string Render(ContentFieldDefinition field)
     {
         var a = ScribanFieldHelper.Accessor(field.Name);
         return "{{if " + a + "}}<div class=\"aero-field aero-field-url\"><a href=\"{{" + a + "}}\">{{" + (field.Label ?? field.Name) + "}}</a></div>{{end}}";
@@ -61,8 +88,14 @@ internal sealed class UrlFieldSnippet : IFieldTemplateSnippet
 
 internal sealed class NumberFieldSnippet : IFieldTemplateSnippet
 {
-    public string FieldType => "number";
-    public string Render(ContentFieldDefinition field)
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => "number";
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public string Render(ContentFieldDefinition field)
     {
         var a = ScribanFieldHelper.Accessor(field.Name);
         return "<div class=\"aero-field aero-field-number\">{{" + a + "}}</div>";
@@ -71,8 +104,14 @@ internal sealed class NumberFieldSnippet : IFieldTemplateSnippet
 
 internal sealed class BooleanFieldSnippet : IFieldTemplateSnippet
 {
-    public string FieldType => "boolean";
-    public string Render(ContentFieldDefinition field)
+        /// <summary>
+    /// Gets or sets the Field Type.
+    /// </summary>
+public string FieldType => "boolean";
+        /// <summary>
+    /// Render method.
+    /// </summary>
+public string Render(ContentFieldDefinition field)
     {
         var a = ScribanFieldHelper.Accessor(field.Name);
         return "{{if " + a + "}}<div class=\"aero-field aero-field-boolean\">\u2713 " + (field.Label ?? field.Name) + "</div>{{end}}";

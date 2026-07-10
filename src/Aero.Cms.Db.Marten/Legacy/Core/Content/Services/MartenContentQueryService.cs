@@ -6,9 +6,15 @@ using Marten;
 
 namespace Aero.Cms.Core.Content.Services;
 
+/// <summary>
+/// Represents a class for MartenContentQueryService.
+/// </summary>
 public sealed class MartenContentQueryService(IDocumentSession session) : IContentQueryService
 {
-    public async Task<Result<(IReadOnlyList<ContentItem> Items, long TotalCount), AeroError>> GetByTypeAsync(
+        /// <summary>
+    /// GetByTypeAsync method.
+    /// </summary>
+public async Task<Result<(IReadOnlyList<ContentItem> Items, long TotalCount), AeroError>> GetByTypeAsync(
         long siteId, string alias, int skip, int take, CancellationToken ct)
     {
         var query = session.Query<ContentItem>().Where(x => x.SiteId == siteId && x.ContentTypeAlias == alias);
@@ -17,7 +23,10 @@ public sealed class MartenContentQueryService(IDocumentSession session) : IConte
         return Prelude.Ok<(IReadOnlyList<ContentItem> Items, long TotalCount), AeroError>((items, total));
     }
 
-    public async Task<Result<long, AeroError>> CountByTypeAsync(
+        /// <summary>
+    /// CountByTypeAsync method.
+    /// </summary>
+public async Task<Result<long, AeroError>> CountByTypeAsync(
         long siteId, string alias, CancellationToken ct = default)
     {
         var count = await session.Query<ContentItem>()
@@ -27,7 +36,10 @@ public sealed class MartenContentQueryService(IDocumentSession session) : IConte
         return Prelude.Ok<long, AeroError>(count);
     }
 
-    public async Task<Result<IReadOnlyList<ContentItem>, AeroError>> SearchAsync(
+        /// <summary>
+    /// SearchAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<ContentItem>, AeroError>> SearchAsync(
         long siteId, string alias, Dictionary<string, string> filters, CancellationToken ct)
     {
         var query = session.Query<ContentItem>().Where(x => x.SiteId == siteId && x.ContentTypeAlias == alias);
@@ -45,7 +57,10 @@ public sealed class MartenContentQueryService(IDocumentSession session) : IConte
         return Prelude.Ok<IReadOnlyList<ContentItem>, AeroError>((IReadOnlyList<ContentItem>)items);
     }
 
-    public async Task<Result<IReadOnlyList<ContentItem>, AeroError>> ListCultureVariantsAsync(
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<ContentItem>, AeroError>> ListCultureVariantsAsync(
         long siteId, string alias, long translationGroupId, CancellationToken ct = default)
     {
         var items = await session.Query<ContentItem>()

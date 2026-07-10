@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Routing;
 using Aero.Modular;
 
 namespace Aero.Cms.Web.Core.Modules;
@@ -12,8 +12,14 @@ namespace Aero.Cms.Web.Core.Modules;
 /// endpoint configuration logic.</remarks>
 public interface IAeroWebModule : IAeroModule
 {
-    void Run(IEndpointRouteBuilder builder);
-    Task RunAsync(IEndpointRouteBuilder builder);
+        /// <summary>
+    /// Run method.
+    /// </summary>
+void Run(IEndpointRouteBuilder builder);
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+Task RunAsync(IEndpointRouteBuilder builder);
 }
 
 /// <summary>
@@ -23,7 +29,10 @@ public interface IAeroWebModule : IAeroModule
 /// the RunAsync method to configure endpoints or perform additional setup during application startup.</remarks>
 public abstract class AeroWebModule : AeroModuleBase, IAeroWebModule
 {
-    public virtual void Run(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// Run method.
+    /// </summary>
+public virtual void Run(IEndpointRouteBuilder builder)
         => RunAsync(builder).GetAwaiter().GetResult();
 
     /// <summary>

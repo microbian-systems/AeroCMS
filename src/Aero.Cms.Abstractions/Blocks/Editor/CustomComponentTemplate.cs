@@ -7,20 +7,29 @@ namespace Aero.Cms.Abstractions.Blocks.Editor;
 /// </summary>
 public static class CustomComponentTemplate
 {
-    public static NeoPageNode Capture(NeoPageNode root)
+        /// <summary>
+    /// Capture method.
+    /// </summary>
+public static NeoPageNode Capture(NeoPageNode root)
     {
         ArgumentNullException.ThrowIfNull(root);
         return EditorNodeMemento.Capture(root).Restore();
     }
 
-    public static NeoPageNode CreateInstance(NeoPageNode root)
+        /// <summary>
+    /// CreateInstance method.
+    /// </summary>
+public static NeoPageNode CreateInstance(NeoPageNode root)
     {
         var instance = Capture(root);
         AssignFreshIds(instance);
         return instance;
     }
 
-    public static IReadOnlyList<string> GetReferencedCatalogIds(NeoPageNode root)
+        /// <summary>
+    /// GetReferencedCatalogIds method.
+    /// </summary>
+public static IReadOnlyList<string> GetReferencedCatalogIds(NeoPageNode root)
     {
         ArgumentNullException.ThrowIfNull(root);
 

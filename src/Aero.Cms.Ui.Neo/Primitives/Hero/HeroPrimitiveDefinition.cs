@@ -6,6 +6,9 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Hero;
 
+/// <summary>
+/// Represents a class for HeroPrimitiveDefinition.
+/// </summary>
 public sealed class HeroPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 {
     private static readonly IReadOnlySet<NeoPageNodeKind> ChildKinds =
@@ -58,20 +61,53 @@ public sealed class HeroPrimitiveDefinition : ContainerDefinitionBase, ISlotted
         ),
     };
 
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new HeroPrimitiveDefinition(), new HeroPrimitiveDefinition());
 
-    public override string CatalogId => "hero";
-    public override string DisplayName => "Hero";
-    public override string? Description => "Full-width hero section with background media, headline, subtitle, and call-to-action buttons.";
-    public override string Category => "Components";
-    public override string IconName => "layout";
-    public override int SortOrder => 200;
-    public override NeoPageNodeKind Kind => NeoPageNodeKind.Component;
-    public override Type? PreviewComponentType => null; // TODO: add preview later
-    public override Type? PropertyEditorComponentType => null; // TODO: add editor later
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "hero";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Hero";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "Full-width hero section with background media, headline, subtitle, and call-to-action buttons.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Components";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "layout";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 200;
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public override NeoPageNodeKind Kind => NeoPageNodeKind.Component;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => null; // TODO: add preview later
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => null; // TODO: add editor later
 
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             ChildKinds,
             ParentKinds,
@@ -79,7 +115,10 @@ public sealed class HeroPrimitiveDefinition : ContainerDefinitionBase, ISlotted
                 new NeoDropZoneDefinition(s.Id, s.AllowedChildKinds, s.MaxChildren)).ToArray(),
             isSlotted: true);
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable
         | EditorInteractionCapabilities.Editable
         | EditorInteractionCapabilities.Draggable
@@ -88,7 +127,10 @@ public sealed class HeroPrimitiveDefinition : ContainerDefinitionBase, ISlotted
         | EditorInteractionCapabilities.Copyable
         | EditorInteractionCapabilities.PasteTarget;
 
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Spacing
         | EditorCapabilitySet.Dimensions
         | EditorCapabilitySet.Layout
@@ -99,7 +141,10 @@ public sealed class HeroPrimitiveDefinition : ContainerDefinitionBase, ISlotted
         | EditorCapabilitySet.Visibility
         | EditorCapabilitySet.Direction;
 
-    public override NeoPageNode CreateDefaultNode() => new()
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() => new()
     {
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
@@ -114,6 +159,9 @@ public sealed class HeroPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 
     IReadOnlyList<ISlotDefinition> ISlotted.Slots => _slots;
 
-    public ISlotDefinition? GetSlot(string slotId) =>
+        /// <summary>
+    /// GetSlot method.
+    /// </summary>
+public ISlotDefinition? GetSlot(string slotId) =>
         _slots.FirstOrDefault(s => s.Id == slotId);
 }

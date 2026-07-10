@@ -10,7 +10,10 @@ namespace Aero.Cms.Modules.Pages;
 /// </summary>
 internal sealed class PageLayoutManifestBuilder : IPageLayoutManifestBuilder
 {
-    public Task<IReadOnlyList<LayoutRegion>> BuildAsync(
+        /// <summary>
+    /// BuildAsync method.
+    /// </summary>
+public Task<IReadOnlyList<LayoutRegion>> BuildAsync(
         PageEditorState? editor,
         IReadOnlyDictionary<long, BlockBase> blocks,
         CancellationToken ct = default)

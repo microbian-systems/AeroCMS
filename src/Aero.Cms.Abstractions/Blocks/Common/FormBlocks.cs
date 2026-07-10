@@ -60,7 +60,10 @@ public sealed class FormFieldDefinition
 [BlockMetadata("form_editor", "Form Editor", Category = "Forms")]
 public sealed class FormEditorBlock : BlockBase
 {
-    public override string BlockType => "form_editor";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "form_editor";
 
     /// <summary>
     /// Gets or sets the name/ID of the form to differentiate submissions in the database.
@@ -95,5 +98,8 @@ public sealed class FormEditorBlock : BlockBase
     /// </summary>
     public OrderedDictionary<ushort, FormFieldDefinition> Fields { get; set; } = [];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

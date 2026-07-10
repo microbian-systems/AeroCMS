@@ -6,6 +6,9 @@ using System.Text.Json;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Grid;
 
+/// <summary>
+/// Represents a class for GridCellDefinition.
+/// </summary>
 public sealed class GridCellDefinition : ContainerDefinitionBase
 {
     private static readonly IReadOnlySet<NeoPageNodeKind> CellChildKinds =
@@ -23,19 +26,49 @@ public sealed class GridCellDefinition : ContainerDefinitionBase
             NeoPageNodeKind.Container
         };
 
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new GridCellDefinition(), new GridCellDefinition());
 
-    public override string CatalogId => "primitive.grid-cell";
-    public override string DisplayName => "Grid Cell";
-    public override string? Description => "A cell inside a grid row. Accepts primitives, containers, and components.";
-    public override string Category => "Primitives";
-    public override string IconName => "grid-2x2";
-    public override int SortOrder => 3;
-    public override Type? PreviewComponentType => typeof(GridCellPrimitivePreview);
-    public override Type? PropertyEditorComponentType => typeof(GridCellPrimitiveEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "primitive.grid-cell";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Grid Cell";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "A cell inside a grid row. Accepts primitives, containers, and components.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Primitives";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "grid-2x2";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 3;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => typeof(GridCellPrimitivePreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => typeof(GridCellPrimitiveEditor);
 
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             CellChildKinds,
             CellParentKinds,
@@ -45,7 +78,10 @@ public sealed class GridCellDefinition : ContainerDefinitionBase
             ],
             allowedParentCatalogIds: new HashSet<string> { "primitive.grid-row" });
 
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Spacing |
         EditorCapabilitySet.Dimensions |
         EditorCapabilitySet.Layout |
@@ -55,7 +91,10 @@ public sealed class GridCellDefinition : ContainerDefinitionBase
         EditorCapabilitySet.Effects |
         EditorCapabilitySet.Visibility;
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable |
         EditorInteractionCapabilities.Editable |
         EditorInteractionCapabilities.Duplicatable |
@@ -63,7 +102,10 @@ public sealed class GridCellDefinition : ContainerDefinitionBase
         EditorInteractionCapabilities.Copyable |
         EditorInteractionCapabilities.PasteTarget;
 
-    public override NeoPageNode CreateDefaultNode() =>
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),

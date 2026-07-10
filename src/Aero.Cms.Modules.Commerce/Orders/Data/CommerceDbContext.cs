@@ -4,14 +4,29 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Data;
 
+/// <summary>
+/// Represents a class for CommerceDbContext.
+/// </summary>
 public sealed class CommerceDbContext : DbContext
 {
-    public DbSet<OrderEntity> Orders => Set<OrderEntity>();
-    public DbSet<Buyer> Buyers => Set<Buyer>();
+        /// <summary>
+    /// Gets or sets the Orders.
+    /// </summary>
+public DbSet<OrderEntity> Orders => Set<OrderEntity>();
+        /// <summary>
+    /// Gets or sets the Buyers.
+    /// </summary>
+public DbSet<Buyer> Buyers => Set<Buyer>();
 
-    public CommerceDbContext(DbContextOptions<CommerceDbContext> options) : base(options) { }
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CommerceDbContext"/> class.
+    /// </summary>
+public CommerceDbContext(DbContextOptions<CommerceDbContext> options) : base(options) { }
 
-    protected override void OnModelCreating(ModelBuilder mb)
+        /// <summary>
+    /// OnModelCreating method.
+    /// </summary>
+protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);
 
@@ -69,13 +84,19 @@ public sealed class CommerceDbContext : DbContext
         });
     }
 
-    public override int SaveChanges()
+        /// <summary>
+    /// SaveChanges method.
+    /// </summary>
+public override int SaveChanges()
     {
         AssignSnowflakeIds();
         return base.SaveChanges();
     }
 
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// SaveChangesAsync method.
+    /// </summary>
+public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         AssignSnowflakeIds();
         return await base.SaveChangesAsync(cancellationToken);

@@ -20,7 +20,10 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
     private readonly IMessageBus _bus;
     private TagViewModel _state = new();
 
-    public AeroTagGrain(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroTagGrain"/> class.
+    /// </summary>
+public AeroTagGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
         IMessageBus bus)
@@ -32,10 +35,16 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
 
     // ── IHaveState<TagViewModel> ──────────────────────────────────────
 
-    public Task<TagViewModel> GetStateAsync(CancellationToken ct)
+        /// <summary>
+    /// GetStateAsync method.
+    /// </summary>
+public Task<TagViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-    public Task UpdateStateAsync(TagViewModel state, CancellationToken ct)
+        /// <summary>
+    /// UpdateStateAsync method.
+    /// </summary>
+public Task UpdateStateAsync(TagViewModel state, CancellationToken ct)
     {
         _state = state;
         return Task.CompletedTask;
@@ -43,7 +52,10 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
 
     // ── ICruddable<TagViewModel, long> ────────────────────────────────
 
-    public async Task<AeroRequestResponse<TagViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<TagViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         var tag = await session.LoadAsync<Models.Tag>(id, ct);
@@ -56,7 +68,10 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
             : NotFound($"Tag {id} not found");
     }
 
-    public async Task<AeroRequestResponse<TagViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+        /// <summary>
+    /// GetByIdsAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<TagViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         var tags = await session.Query<Models.Tag>()
@@ -68,7 +83,10 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         return Ok(results);
     }
 
-    public async Task<AeroRequestResponse<TagViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<TagViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not CreateTagRequest create)
             return Fail("Expected CreateTagRequest");
@@ -91,7 +109,10 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         return Ok(PostTaxonomyTranslationMapper.MapTag(tag));
     }
 
-    public async Task<AeroRequestResponse<TagViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<TagViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not UpdateTagRequest update)
             return Fail("Expected UpdateTagRequest");
@@ -114,7 +135,10 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
         return Ok(PostTaxonomyTranslationMapper.MapTag(tag));
     }
 
-    public async Task<AeroRequestResponse<TagViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<TagViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not DeleteTagRequest delete)
             return Fail("Expected DeleteTagRequest");
@@ -135,7 +159,10 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
 
     // ── ICanFindBySite<TagViewModel, long> ────────────────────────────
 
-    public async Task<AeroRequestResponse<TagViewModel>> GetBySiteIdAsync(
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<TagViewModel>> GetBySiteIdAsync(
         long siteId,
         int page = 1,
         int rows = 10,
@@ -156,7 +183,10 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
 
     // ── ICanFindBySlug ────────────────────────────────────────────────
 
-    public Task<AeroRequestResponse<TagViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<TagViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, ct);
 
     Task<AeroRequestResponse<TagViewModel>> ICanFindBySlug<TagViewModel, string>.GetBySlugAsync(string siteId, string slug, CancellationToken ct)
@@ -180,7 +210,10 @@ public sealed class AeroTagGrain : AeroActor, IAeroTagActor
 
     // ── IAeroTagActor.GetAllAsync ─────────────────────────────────────
 
-    public async Task<List<TagViewModel>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<List<TagViewModel>> GetAllAsync(CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var tags = await session.Query<Models.Tag>()

@@ -14,24 +14,78 @@ namespace Aero.Cms.Core.Entities;
 /// </summary>
 public sealed class PageCompositionDocument : Entity, ISiteOwned, IAuditableEntity
 {
-    public long SiteId { get; set; }
-    public long PageId { get; set; }
-    public string Culture { get; set; } = SitesModel.DefaultCultureName;
-    public PageCompositionState State { get; set; } = PageCompositionState.Draft;
-    public long ContentRevision { get; set; }
-    public long PublishedVersion { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Summary { get; set; }
-    public string? SeoTitle { get; set; }
-    public string? SeoDescription { get; set; }
-    public PageKind Kind { get; set; } = PageKind.Standard;
-    public bool ShowHeaderNavigation { get; set; } = true;
-    public string? HeaderImageUrl { get; set; }
-    public bool HideHeader { get; set; }
-    public bool HideFooter { get; set; }
-    public bool ShowChatAgent { get; set; } = true;
-    public List<NeoPageNode> RootNodes { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Page Id.
+    /// </summary>
+public long PageId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the State.
+    /// </summary>
+public PageCompositionState State { get; set; } = PageCompositionState.Draft;
+        /// <summary>
+    /// Gets or sets the Content Revision.
+    /// </summary>
+public long ContentRevision { get; set; }
+        /// <summary>
+    /// Gets or sets the Published Version.
+    /// </summary>
+public long PublishedVersion { get; set; }
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Summary.
+    /// </summary>
+public string? Summary { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Title.
+    /// </summary>
+public string? SeoTitle { get; set; }
+        /// <summary>
+    /// Gets or sets the Seo Description.
+    /// </summary>
+public string? SeoDescription { get; set; }
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public PageKind Kind { get; set; } = PageKind.Standard;
+        /// <summary>
+    /// Gets or sets the Show Header Navigation.
+    /// </summary>
+public bool ShowHeaderNavigation { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Header Image Url.
+    /// </summary>
+public string? HeaderImageUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Hide Header.
+    /// </summary>
+public bool HideHeader { get; set; }
+        /// <summary>
+    /// Gets or sets the Hide Footer.
+    /// </summary>
+public bool HideFooter { get; set; }
+        /// <summary>
+    /// Gets or sets the Show Chat Agent.
+    /// </summary>
+public bool ShowChatAgent { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Root Nodes.
+    /// </summary>
+public List<NeoPageNode> RootNodes { get; set; } = [];
 
     /// <summary>
     /// Temporary compatibility bridge for legacy render surfaces. New code should
@@ -39,9 +93,15 @@ public sealed class PageCompositionDocument : Entity, ISiteOwned, IAuditableEnti
     /// </summary>
     public List<LayoutRegion> LayoutRegions { get; set; } = [];
 
-    public Dictionary<string, long> BlockIdMap { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Block Id Map.
+    /// </summary>
+public Dictionary<string, long> BlockIdMap { get; set; } = [];
 }
 
+/// <summary>
+/// Defines an enumeration for PageCompositionState.
+/// </summary>
 public enum PageCompositionState
 {
     Draft = 0,

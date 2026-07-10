@@ -27,6 +27,9 @@ public sealed partial class CannedBlockDefinitionProvider : IPageEditorBlockProv
     /// <summary>Implemented in CannedBlockDefinitionProvider.Aliases.cs</summary>
     static partial void AddAliasDefinitions(List<IPageEditorBlockDefinition> definitions);
 
-    public IReadOnlyCollection<IPageEditorBlockDefinition> GetDefinitions() =>
+        /// <summary>
+    /// GetDefinitions method.
+    /// </summary>
+public IReadOnlyCollection<IPageEditorBlockDefinition> GetDefinitions() =>
         _definitions.AsReadOnly();
 }

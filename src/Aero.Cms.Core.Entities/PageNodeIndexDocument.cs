@@ -12,13 +12,40 @@ namespace Aero.Cms.Core.Entities;
 /// </summary>
 public sealed class PageNodeIndexDocument : Entity<string>, ISiteOwned
 {
-    public long SiteId { get; set; }
-    public long PageId { get; set; }
-    public long CompositionId { get; set; }
-    public string Culture { get; set; } = SitesModel.DefaultCultureName;
-    public string NodeId { get; set; } = string.Empty;
-    public string CatalogId { get; set; } = string.Empty;
-    public NeoPageNodeKind Kind { get; set; }
-    public string Path { get; set; } = string.Empty;
-    public int Depth { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Page Id.
+    /// </summary>
+public long PageId { get; set; }
+        /// <summary>
+    /// Gets or sets the Composition Id.
+    /// </summary>
+public long CompositionId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Node Id.
+    /// </summary>
+public string NodeId { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public NeoPageNodeKind Kind { get; set; }
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public string Path { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Depth.
+    /// </summary>
+public int Depth { get; set; }
 }

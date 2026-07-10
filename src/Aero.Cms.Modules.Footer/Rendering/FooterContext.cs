@@ -4,12 +4,24 @@ using static Aero.Core.Railway.Prelude;
 
 namespace Aero.Cms.Modules.Footer.Rendering;
 
+/// <summary>
+/// Represents a class for FooterContext.
+/// </summary>
 public sealed class FooterContext
 {
-    public FooterSnapshot? Snapshot { get; private set; }
-    public bool HasSnapshot => Snapshot is not null;
+        /// <summary>
+    /// Gets or sets the Snapshot.
+    /// </summary>
+public FooterSnapshot? Snapshot { get; private set; }
+        /// <summary>
+    /// Gets or sets the Has Snapshot.
+    /// </summary>
+public bool HasSnapshot => Snapshot is not null;
 
-    public async Task<Result<bool, AeroError>> ResolveAsync(
+        /// <summary>
+    /// ResolveAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> ResolveAsync(
         long siteId,
         IFooterService footerService,
         CancellationToken cancellationToken = default)

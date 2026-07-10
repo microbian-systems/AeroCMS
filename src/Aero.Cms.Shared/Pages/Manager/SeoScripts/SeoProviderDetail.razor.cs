@@ -7,9 +7,15 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.SeoScripts;
 
+/// <summary>
+/// Represents a class for SeoProviderDetail.
+/// </summary>
 public partial class SeoProviderDetail
 {
-    [Parameter] public string ProviderKey { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Provider Key.
+    /// </summary>
+[Parameter] public string ProviderKey { get; set; } = string.Empty;
 
     [Inject] private ISettingsHttpClient SettingsClient { get; set; } = default!;
     [Inject] private DialogService DialogService { get; set; } = default!;
@@ -23,7 +29,10 @@ public partial class SeoProviderDetail
 
     private bool IsEnabled => !string.IsNullOrWhiteSpace(_model.TrackingId);
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         _provider = SeoProviderRegistry.Find(ProviderKey);
         if (_provider is null)

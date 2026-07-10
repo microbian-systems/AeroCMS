@@ -5,7 +5,10 @@ namespace Aero.Cms.Modules.Posts.Grains;
 
 internal static class PostTaxonomyTranslationMapper
 {
-    public static CategoryViewModel MapCategory(Models.Category category, CategoryTranslation? translation = null) => new()
+        /// <summary>
+    /// MapCategory method.
+    /// </summary>
+public static CategoryViewModel MapCategory(Models.Category category, CategoryTranslation? translation = null) => new()
     {
         Id = category.Id,
         SiteId = category.SiteId,
@@ -19,7 +22,10 @@ internal static class PostTaxonomyTranslationMapper
         ModifiedBy = category.ModifiedBy
     };
 
-    public static TagViewModel MapTag(Models.Tag tag, TagTranslation? translation = null) => new()
+        /// <summary>
+    /// MapTag method.
+    /// </summary>
+public static TagViewModel MapTag(Models.Tag tag, TagTranslation? translation = null) => new()
     {
         Id = tag.Id,
         SiteId = tag.SiteId,
@@ -32,7 +38,10 @@ internal static class PostTaxonomyTranslationMapper
         ModifiedBy = tag.ModifiedBy
     };
 
-    public static SeriesViewModel MapSeries(Models.Series series, SeriesTranslation? translation = null) => new()
+        /// <summary>
+    /// MapSeries method.
+    /// </summary>
+public static SeriesViewModel MapSeries(Models.Series series, SeriesTranslation? translation = null) => new()
     {
         Id = series.Id,
         SiteId = series.SiteId,

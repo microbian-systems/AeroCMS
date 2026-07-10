@@ -6,6 +6,9 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.Pages;
 
+/// <summary>
+/// Represents a record for NavigationNode.
+/// </summary>
 public record NavigationNode(
     long Id,
     string Title,
@@ -17,12 +20,18 @@ public record NavigationNode(
     long? ParentId,
     bool HasChildren);
 
+/// <summary>
+/// Represents a record for BreadcrumbItem.
+/// </summary>
 public record BreadcrumbItem(
     long Id,
     string Title,
     string Slug,
     string Path);
 
+/// <summary>
+/// Defines an interface for INavigationService.
+/// </summary>
 public interface INavigationService
 {
     /// <summary>
@@ -56,6 +65,9 @@ public interface INavigationService
         long parentId, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Represents a class for NavigationService.
+/// </summary>
 public sealed class NavigationService : INavigationService
 {
     private readonly IDocumentSession _session;
@@ -64,7 +76,10 @@ public sealed class NavigationService : INavigationService
     private readonly IFusionCache? _cache;
     private static readonly TimeSpan NavCacheDuration = TimeSpan.FromMinutes(5);
 
-    public NavigationService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="NavigationService"/> class.
+    /// </summary>
+public NavigationService(
         IDocumentSession session,
         ISiteContext siteContext,
         ILogger<NavigationService> logger,
@@ -78,7 +93,10 @@ public sealed class NavigationService : INavigationService
 
     // ── Navigation Tree ───────────────────────────────────────────────────
 
-    public async Task<Result<IReadOnlyList<NavigationNode>, AeroError>> GetNavigationTreeAsync(
+        /// <summary>
+    /// GetNavigationTreeAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<NavigationNode>, AeroError>> GetNavigationTreeAsync(
         CancellationToken ct = default)
     {
         if (_cache is not null)
@@ -184,7 +202,10 @@ public sealed class NavigationService : INavigationService
 
     // ── Breadcrumb ────────────────────────────────────────────────────────
 
-    public async Task<Result<BreadcrumbItem[], AeroError>> GetBreadcrumbAsync(
+        /// <summary>
+    /// GetBreadcrumbAsync method.
+    /// </summary>
+public async Task<Result<BreadcrumbItem[], AeroError>> GetBreadcrumbAsync(
         long pageId, CancellationToken ct = default)
     {
         try
@@ -244,7 +265,10 @@ public sealed class NavigationService : INavigationService
 
     // ── Hide / Cascade ────────────────────────────────────────────────────
 
-    public async Task<Result<bool, AeroError>> SetHiddenAsync(
+        /// <summary>
+    /// SetHiddenAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> SetHiddenAsync(
         long pageId, bool isHidden, CancellationToken ct = default)
     {
         try
@@ -284,7 +308,10 @@ public sealed class NavigationService : INavigationService
     }
 
 
-    public async Task<Result<bool, AeroError>> MarkHiddenDescendantsAsync(
+        /// <summary>
+    /// MarkHiddenDescendantsAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> MarkHiddenDescendantsAsync(
         long parentId, CancellationToken ct = default)
     {
         try

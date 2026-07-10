@@ -6,13 +6,22 @@ namespace Aero.Cms.Modules.Analytics;
 
 
 // todo - use view components here. StringBuilder is absolute wrong way to do this
+/// <summary>
+/// Represents a class for AnalyticsInjectionHook.
+/// </summary>
 public class AnalyticsInjectionHook(IOptions<AnalyticsSettings> settings) : IPageReadHook
 {
     private readonly AnalyticsSettings _settings = settings.Value;
 
-    public int Order => 100; // Run late to inject scripts
+        /// <summary>
+    /// Gets or sets the Order.
+    /// </summary>
+public int Order => 100; // Run late to inject scripts
 
-    public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
+        /// <summary>
+    /// ExecuteAsync method.
+    /// </summary>
+public Task ExecuteAsync(PageReadContext ctx, CancellationToken ct)
     {
         var sb = new StringBuilder();
 

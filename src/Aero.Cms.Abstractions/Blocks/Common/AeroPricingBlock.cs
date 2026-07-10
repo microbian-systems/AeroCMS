@@ -8,24 +8,69 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("aero_pricing", "Aero Pricing", Category = "Aero")]
 public class AeroPricingBlock : BlockBase
 {
-    public override string BlockType => "aero_pricing";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "aero_pricing";
 
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public List<AeroPricingPlan> Plans { get; set; } = new();
-    public string? AeroLayout { get; set; } = "Monthly"; // Monthly, Yearly, Comparisons
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Plans.
+    /// </summary>
+public List<AeroPricingPlan> Plans { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Aero Layout.
+    /// </summary>
+public string? AeroLayout { get; set; } = "Monthly"; // Monthly, Yearly, Comparisons
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
+/// <summary>
+/// Represents a class for AeroPricingPlan.
+/// </summary>
 public class AeroPricingPlan
 {
-    public string? Name { get; set; }
-    public string? Price { get; set; }
-    public string? Period { get; set; }
-    public string? Description { get; set; }
-    public List<string> Features { get; set; } = new();
-    public string? CtaText { get; set; }
-    public string? CtaUrl { get; set; }
-    public bool IsPopular { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string? Name { get; set; }
+        /// <summary>
+    /// Gets or sets the Price.
+    /// </summary>
+public string? Price { get; set; }
+        /// <summary>
+    /// Gets or sets the Period.
+    /// </summary>
+public string? Period { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Features.
+    /// </summary>
+public List<string> Features { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string? CtaText { get; set; }
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string? CtaUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Popular.
+    /// </summary>
+public bool IsPopular { get; set; }
 }

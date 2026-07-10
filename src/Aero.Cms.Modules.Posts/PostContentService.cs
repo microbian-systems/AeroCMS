@@ -11,25 +11,76 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.Posts;
 
+/// <summary>
+/// Defines an interface for IPostContentService.
+/// </summary>
 public interface IPostContentService
 {
-    Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
-    Task<Result<PostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
-    Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
-    Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
-    Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(long TranslationGroupId, CancellationToken cancellationToken = default);
-    Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(long sourcePostId, string targetCulture, string targetSlug, CancellationToken cancellationToken = default);
-    Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default);
-    Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default);
-    Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default);
-    Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default);
-    Task<Result<IReadOnlyList<Tag>, AeroError>> GetAllTagsAsync(CancellationToken cancellationToken = default);
-    Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAsync(CancellationToken cancellationToken = default);
-    Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default);
-    Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
-    Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetAllPostsAsync method.
+    /// </summary>
+Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// LoadAsync method.
+    /// </summary>
+Task<Result<PostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// FindBySlugAsync method.
+    /// </summary>
+Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetLatestPostsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(long TranslationGroupId, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// ForkPostForCultureAsync method.
+    /// </summary>
+Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(long sourcePostId, string targetCulture, string targetSlug, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByTagAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetByCategoryAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetPagedPostsAsync method.
+    /// </summary>
+Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetAllTagsAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<Tag>, AeroError>> GetAllTagsAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetAllCategoriesAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+    /// GetAuthorAsync method.
+    /// </summary>
+Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// DeleteTranslationGroupAsync method.
+    /// </summary>
+Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for PostContentService.
+/// </summary>
 public sealed class PostContentService(
     IDocumentSession session,
     ISiteContext siteContext,
@@ -40,10 +91,16 @@ public sealed class PostContentService(
     private const string BlogCacheTag = "blog-index";
     private readonly ISiteContext _siteContext = siteContext;
 
-    public Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetAllPostsAsync method.
+    /// </summary>
+public Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip = 0, int take = 10, string? search = null, CancellationToken cancellationToken = default)
         => GetAllPostsAsync(skip, take, search, culture: null, cancellationToken);
 
-    public async Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip, int take, string? search, string? culture, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetAllPostsAsync method.
+    /// </summary>
+public async Task<Result<(IReadOnlyList<PostDocument> Items, long TotalCount), AeroError>> GetAllPostsAsync(int skip, int take, string? search, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -82,7 +139,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -110,7 +170,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<PostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// LoadAsync method.
+    /// </summary>
+public async Task<Result<PostDocument?, AeroError>> LoadAsync(long id, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -137,10 +200,16 @@ public sealed class PostContentService(
         }
     }
 
-    public Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// FindBySlugAsync method.
+    /// </summary>
+public Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, CancellationToken cancellationToken = default)
         => FindBySlugAsync(slug, culture: null, cancellationToken);
 
-    public async Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// FindBySlugAsync method.
+    /// </summary>
+public async Task<Result<PostDocument?, AeroError>> FindBySlugAsync(string slug, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -179,10 +248,16 @@ public sealed class PostContentService(
         }
     }
 
-    public Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetLatestPostsAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, CancellationToken cancellationToken = default)
         => GetLatestPostsAsync(count, culture: null, cancellationToken);
 
-    public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, string? culture, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetLatestPostsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetLatestPostsAsync(int count, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -210,7 +285,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+public async Task<Result<PostDocument, AeroError>> SaveAsync(PostDocument post, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -258,7 +336,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByTagAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByTagAsync(long tagId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -276,7 +357,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetByCategoryAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> GetByCategoryAsync(long categoryId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -294,10 +378,16 @@ public sealed class PostContentService(
         }
     }
 
-    public Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetPagedPostsAsync method.
+    /// </summary>
+public Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip = 0, CancellationToken cancellationToken = default)
         => GetPagedPostsAsync(pageNumber, pageSize, skip, culture: null, cancellationToken);
 
-    public async Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip, string? culture, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetPagedPostsAsync method.
+    /// </summary>
+public async Task<Result<IPagedList<PostDocument>, AeroError>> GetPagedPostsAsync(int pageNumber, int pageSize, int skip, string? culture, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -319,7 +409,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<IReadOnlyList<Tag>, AeroError>> GetAllTagsAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetAllTagsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<Tag>, AeroError>> GetAllTagsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -336,7 +429,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetAllCategoriesAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<Category>, AeroError>> GetAllCategoriesAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -353,7 +449,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetAuthorAsync method.
+    /// </summary>
+public async Task<Result<PostAuthor?, AeroError>> GetAuthorAsync(long authorId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -400,7 +499,10 @@ public sealed class PostContentService(
         return await FindSlugReservationAsync(normalizedSlug, defaultCulture, cancellationToken);
     }
 
-    public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// DeleteTranslationGroupAsync method.
+    /// </summary>
+public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -438,7 +540,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<PostDocument>, AeroError>> ListCultureVariantsAsync(
         long TranslationGroupId,
         CancellationToken cancellationToken = default)
     {
@@ -457,7 +562,10 @@ public sealed class PostContentService(
         }
     }
 
-    public async Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(
+        /// <summary>
+    /// ForkPostForCultureAsync method.
+    /// </summary>
+public async Task<Result<PostDocument, AeroError>> ForkPostForCultureAsync(
         long sourcePostId,
         string targetCulture,
         string targetSlug,

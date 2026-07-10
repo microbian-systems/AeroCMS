@@ -20,6 +20,9 @@ using UpdatePostRequest = Aero.Cms.Modules.Posts.Requests.UpdatePostRequest;
 
 namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 
+/// <summary>
+/// Represents a class for PostsApi.
+/// </summary>
 public static class PostsApi
 {
     /// <summary>
@@ -1029,12 +1032,21 @@ public static class PostsApi
         TranslateDocumentResponse? Response,
         string? Error)
     {
-        public string Culture => Plan.Culture;
+                /// <summary>
+        /// Gets or sets the Culture.
+        /// </summary>
+public string Culture => Plan.Culture;
 
-        public static AiTranslatedPostPlan Success(AiTranslatePostPlan plan, TranslateDocumentResponse response)
+                /// <summary>
+        /// Success method.
+        /// </summary>
+public static AiTranslatedPostPlan Success(AiTranslatePostPlan plan, TranslateDocumentResponse response)
             => new(plan, true, response, null);
 
-        public static AiTranslatedPostPlan Failed(AiTranslatePostPlan plan, string error)
+                /// <summary>
+        /// Failed method.
+        /// </summary>
+public static AiTranslatedPostPlan Failed(AiTranslatePostPlan plan, string error)
             => new(plan, false, null, error);
     }
 }

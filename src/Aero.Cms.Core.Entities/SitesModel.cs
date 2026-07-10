@@ -1,4 +1,4 @@
-﻿using Aero.Core.Entities;
+using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Entities;
 
@@ -8,14 +8,35 @@ namespace Aero.Cms.Core.Entities;
 /// </summary>
 public class SitesModel : Entity
 {
-    public const string DefaultCultureName = "en-US";
+        /// <summary>
+    /// DefaultCultureName.
+    /// </summary>
+public const string DefaultCultureName = "en-US";
 
-    public long TenantId { get; set; }
-    public string? Name { get; set; }
-    public string? Description { get; set; }
-    public bool IsEnabled { get; set; }
-    public string? DefaultCulture { get; set; } = DefaultCultureName;
-    public List<string> SupportedCultures { get; set; } = [DefaultCultureName];
+        /// <summary>
+    /// Gets or sets the Tenant Id.
+    /// </summary>
+public long TenantId { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string? Name { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Enabled.
+    /// </summary>
+public bool IsEnabled { get; set; }
+        /// <summary>
+    /// Gets or sets the Default Culture.
+    /// </summary>
+public string? DefaultCulture { get; set; } = DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Supported Cultures.
+    /// </summary>
+public List<string> SupportedCultures { get; set; } = [DefaultCultureName];
 }
 
 

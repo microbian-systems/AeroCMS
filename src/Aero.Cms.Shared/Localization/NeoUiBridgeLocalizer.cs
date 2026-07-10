@@ -13,7 +13,10 @@ public sealed class NeoUiBridgeLocalizer : DefaultLocalizer, NeoUI.Blazor.ILocal
 {
     private readonly IStringLocalizer<NeoUiSharedResource> _localizer;
 
-    public NeoUiBridgeLocalizer(IStringLocalizer<NeoUiSharedResource> localizer)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="NeoUiBridgeLocalizer"/> class.
+    /// </summary>
+public NeoUiBridgeLocalizer(IStringLocalizer<NeoUiSharedResource> localizer)
     {
         _localizer = localizer;
     }

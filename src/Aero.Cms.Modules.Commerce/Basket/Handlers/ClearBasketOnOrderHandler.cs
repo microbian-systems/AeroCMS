@@ -15,7 +15,10 @@ public sealed class ClearBasketOnOrderHandler(
     IBasketService basketService,
     ILogger<ClearBasketOnOrderHandler> log) : IWolverineHandler
 {
-    public async Task Handle(OrderStarted @event)
+        /// <summary>
+    /// Handle method.
+    /// </summary>
+public async Task Handle(OrderStarted @event)
     {
         var result = await basketService.ClearBasketAsync(@event.CustomerId);
 

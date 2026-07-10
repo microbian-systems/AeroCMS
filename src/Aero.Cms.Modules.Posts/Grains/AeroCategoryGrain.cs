@@ -20,7 +20,10 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
     private readonly IMessageBus _bus;
     private CategoryViewModel _state = new();
 
-    public AeroCategoryGrain(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroCategoryGrain"/> class.
+    /// </summary>
+public AeroCategoryGrain(
         ILogger<AeroCategoryGrain> log,
         IDocumentStore store,
         IMessageBus bus)
@@ -32,10 +35,16 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 
     // ── IHaveState<CategoryViewModel> ──────────────────────────────────
 
-    public Task<CategoryViewModel> GetStateAsync(CancellationToken ct)
+        /// <summary>
+    /// GetStateAsync method.
+    /// </summary>
+public Task<CategoryViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-    public Task UpdateStateAsync(CategoryViewModel state, CancellationToken ct)
+        /// <summary>
+    /// UpdateStateAsync method.
+    /// </summary>
+public Task UpdateStateAsync(CategoryViewModel state, CancellationToken ct)
     {
         _state = state;
         return Task.CompletedTask;
@@ -43,7 +52,10 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 
     // ── ICruddable<CategoryViewModel, long> ────────────────────────────
 
-    public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         var category = await session.LoadAsync<Models.Category>(id, ct);
@@ -56,7 +68,10 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
             : NotFound($"Category {id} not found");
     }
 
-    public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+        /// <summary>
+    /// GetByIdsAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<CategoryViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         var categories = await session.Query<Models.Category>()
@@ -68,7 +83,10 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         return Ok(results);
     }
 
-    public async Task<AeroRequestResponse<CategoryViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<CategoryViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not CreateCategoryRequest create)
             return Fail("Expected CreateCategoryRequest");
@@ -92,7 +110,10 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         return Ok(PostTaxonomyTranslationMapper.MapCategory(category));
     }
 
-    public async Task<AeroRequestResponse<CategoryViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<CategoryViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not UpdateCategoryRequest update)
             return Fail("Expected UpdateCategoryRequest");
@@ -116,7 +137,10 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
         return Ok(PostTaxonomyTranslationMapper.MapCategory(category));
     }
 
-    public async Task<AeroRequestResponse<CategoryViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<CategoryViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not DeleteCategoryRequest delete)
             return Fail("Expected DeleteCategoryRequest");
@@ -137,7 +161,10 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 
     // ── ICanFindBySite<CategoryViewModel, long> ────────────────────────
 
-    public async Task<AeroRequestResponse<CategoryViewModel>> GetBySiteIdAsync(
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<CategoryViewModel>> GetBySiteIdAsync(
         long siteId,
         int page = 1,
         int rows = 10,
@@ -158,7 +185,10 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 
     // ── ICanFindBySlug ────────────────────────────────────────────────
 
-    public Task<AeroRequestResponse<CategoryViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<CategoryViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, ct);
 
     Task<AeroRequestResponse<CategoryViewModel>> ICanFindBySlug<CategoryViewModel, string>.GetBySlugAsync(string siteId, string slug, CancellationToken ct)
@@ -188,7 +218,10 @@ public sealed class AeroCategoryGrain : AeroActor, IAeroCategoryActor
 
     // ── IAeroCategoryActor.GetAllAsync ─────────────────────────────────
 
-    public async Task<List<CategoryViewModel>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<List<CategoryViewModel>> GetAllAsync(CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var categories = await session.Query<Models.Category>()

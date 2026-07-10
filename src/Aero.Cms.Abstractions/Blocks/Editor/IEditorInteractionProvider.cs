@@ -12,5 +12,8 @@ namespace Aero.Cms.Abstractions.Blocks.Editor;
 /// </summary>
 public interface IEditorInteractionProvider
 {
-    EditorInteractionCapabilities Interaction { get; }
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+EditorInteractionCapabilities Interaction { get; }
 }

@@ -33,10 +33,16 @@ public sealed class Aero002WolverineHandlerRequired : DiagnosticAnalyzer
                      "with [WolverineHandler]. Source generation uses ForAttributeWithMetadataName for " +
                      "performance — it does not scan for IWolverineHandler through AllInterfaces.");
 
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
+        /// <summary>
+    /// Gets or sets the Supported Diagnostics.
+    /// </summary>
+public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         [MissingWolverineHandlerAttribute];
 
-    public override void Initialize(AnalysisContext context)
+        /// <summary>
+    /// Initialize method.
+    /// </summary>
+public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();

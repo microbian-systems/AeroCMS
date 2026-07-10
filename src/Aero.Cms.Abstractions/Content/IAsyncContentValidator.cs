@@ -7,7 +7,10 @@ namespace Aero.Cms.Abstractions.Content;
 /// </summary>
 public interface IAsyncContentValidator
 {
-    Task<IReadOnlyList<ValidationFailure>> ValidateAsync(
+        /// <summary>
+    /// ValidateAsync method.
+    /// </summary>
+Task<IReadOnlyList<ValidationFailure>> ValidateAsync(
         ContentItem item,
         ContentTypeDefinition type,
         CancellationToken ct);

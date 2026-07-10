@@ -9,22 +9,49 @@ using Aero.Modular;
 
 namespace Aero.Cms.Modules.Health;
 
+/// <summary>
+/// Represents a class for HealthModule.
+/// </summary>
 [Module(nameof(HealthModule))]
 public sealed class HealthModule : AeroWebModule
 {
-    public override string Name => nameof(HealthModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["Infrastructure", "Monitoring"];
-    public override IReadOnlyList<string> Tags => ["health", "monitoring", "diagnostics"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(HealthModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["Infrastructure", "Monitoring"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["health", "monitoring", "diagnostics"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddHealthChecks();
     }
 
-    public override async Task RunAsync(IEndpointRouteBuilder app)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override async Task RunAsync(IEndpointRouteBuilder app)
     {
         await base.RunAsync(app);
 

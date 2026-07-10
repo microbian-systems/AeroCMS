@@ -23,15 +23,39 @@ namespace Aero.Cms.Modules.Cache;
 [Module(nameof(CacheModule))]
 public class CacheModule : AeroModuleBase, IAeroPipelineModule
 {
-    public override string Name => nameof(CacheModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [nameof(OutputCacheModule)];
-    public override IReadOnlyList<string> Category => ["Infrastructure", "Performance"];
-    public override IReadOnlyList<string> Tags => ["cache", "memory", "performance"];
-    public int PipelineOrder => 100;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(CacheModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [nameof(OutputCacheModule)];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["Infrastructure", "Performance"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["cache", "memory", "performance"];
+        /// <summary>
+    /// Gets or sets the Pipeline Order.
+    /// </summary>
+public int PipelineOrder => 100;
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddResponseCaching();
 
@@ -85,7 +109,10 @@ public class CacheModule : AeroModuleBase, IAeroPipelineModule
         services.AddScoped<PageCacheInvalidatorHook>();
     }
 
-    public void ConfigurePipeline(IApplicationBuilder app)
+        /// <summary>
+    /// ConfigurePipeline method.
+    /// </summary>
+public void ConfigurePipeline(IApplicationBuilder app)
     {
         app.Use(async (context, next) =>
         {
@@ -106,7 +133,10 @@ public class CacheModule : AeroModuleBase, IAeroPipelineModule
         app.UseResponseCaching();
     }
 
-    public override void Configure(IAeroModuleBuilder builder)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public override void Configure(IAeroModuleBuilder builder)
     {
         // todo - Registration with the global hook system will happen here
 

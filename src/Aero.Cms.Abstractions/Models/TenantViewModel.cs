@@ -1,21 +1,39 @@
-﻿namespace Aero.Cms.Abstractions.Models;
+namespace Aero.Cms.Abstractions.Models;
 
 
+/// <summary>
+/// Represents a record for TenantViewModel.
+/// </summary>
 [Alias("TenantViewModel")]
 [GenerateSerializer]
 public record TenantViewModel : AeroEntityViewModel
 {
-    [Id(0)]
+        /// <summary>
+    /// Gets or sets the Account Id.
+    /// </summary>
+[Id(0)]
     public long AccountId { get; set; }
-    [Id(1)]
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+[Id(1)]
     public string? Name { get; set; }
-    [Id(2)]
+        /// <summary>
+    /// Gets or sets the Host.
+    /// </summary>
+[Id(2)]
     public string? Host { get; set; }
-    [Id(3)]
+        /// <summary>
+    /// Gets or sets the Settings.
+    /// </summary>
+[Id(3)]
     public List<(long siteId, string siteName)> Settings { get; } = [];
 }
 
 
+/// <summary>
+/// Represents a record for TenantErrorViewModel.
+/// </summary>
 [GenerateSerializer]
 [Alias("TenantErrorViewModel")]
 public record TenantErrorViewModel : AeroErrorViewModel<TenantViewModel>;

@@ -3,9 +3,15 @@ using FluentValidation;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Validation;
 
+/// <summary>
+/// Represents a class for OrderItemValidator.
+/// </summary>
 public sealed class OrderItemValidator : AbstractValidator<OrderItem>
 {
-    public OrderItemValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="OrderItemValidator"/> class.
+    /// </summary>
+public OrderItemValidator()
     {
         RuleFor(x => x.ProductId)
             .GreaterThan(0)

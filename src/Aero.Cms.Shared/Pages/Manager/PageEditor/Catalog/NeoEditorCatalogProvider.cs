@@ -3,6 +3,9 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 
+/// <summary>
+/// Represents a class for NeoEditorCatalogProvider.
+/// </summary>
 public partial class NeoEditorCatalogProvider : INeoEditorCatalogProvider
 {
     private readonly Dictionary<string, NeoEditorCatalogItem> _items;
@@ -16,7 +19,10 @@ public partial class NeoEditorCatalogProvider : INeoEditorCatalogProvider
     /// </summary>
     partial void PopulateGeneratedCatalog(List<NeoEditorCatalogItem> items);
 
-    public NeoEditorCatalogProvider(IPageEditorDefinitionRegistry? definitionRegistry = null)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="NeoEditorCatalogProvider"/> class.
+    /// </summary>
+public NeoEditorCatalogProvider(IPageEditorDefinitionRegistry? definitionRegistry = null)
     {
         var items = new List<NeoEditorCatalogItem>();
         PopulateGeneratedCatalog(items);
@@ -42,9 +48,15 @@ public partial class NeoEditorCatalogProvider : INeoEditorCatalogProvider
         }
     }
 
-    public IReadOnlyList<NeoEditorCatalogItem> GetCatalogItems() => _items.Values.ToList();
+        /// <summary>
+    /// GetCatalogItems method.
+    /// </summary>
+public IReadOnlyList<NeoEditorCatalogItem> GetCatalogItems() => _items.Values.ToList();
 
-    public bool TryGet(string catalogId, out NeoEditorCatalogItem item) =>
+        /// <summary>
+    /// TryGet method.
+    /// </summary>
+public bool TryGet(string catalogId, out NeoEditorCatalogItem item) =>
         _items.TryGetValue(catalogId, out item!);
 
     private static NeoEditorCatalogItem ToCatalogItem(PageEditorDefinitionDescriptor definition) =>

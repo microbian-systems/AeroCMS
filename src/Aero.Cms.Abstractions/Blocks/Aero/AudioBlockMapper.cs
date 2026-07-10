@@ -1,8 +1,14 @@
 namespace Aero.Cms.Abstractions.Blocks.Neo;
 
+/// <summary>
+/// Represents a class for AudioBlockMapper.
+/// </summary>
 public static class AudioBlockMapper
 {
-    public static NeoPageNode ToNode(AudioBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(AudioBlock block) => new()
     {
         CatalogId = "media.audio", Kind = NeoPageNodeKind.Block,
         Properties = new Dictionary<string, JsonElement>
@@ -14,7 +20,10 @@ public static class AudioBlockMapper
         }
     };
 
-    public static AudioBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static AudioBlock FromNode(NeoPageNode node) => new()
     {
         Src = node.Properties.TryGetValue("src", out var v) ? v.GetString() ?? string.Empty : string.Empty,
         Caption = node.Properties.TryGetValue("caption", out var c) ? c.GetString() : null,

@@ -6,14 +6,35 @@ using Wolverine;
 
 namespace Aero.Cms.Modules.Aliases;
 
+/// <summary>
+/// Defines an interface for IAliasService.
+/// </summary>
 public interface IAliasService
 {
-    Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken ct = default);
-    Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken ct = default);
-    Task<AliasDocument> CreateAsync(AliasDocument document, CancellationToken ct = default);
-    AliasDocument Update(AliasDocument document);
-    void Delete(AliasDocument document);
-    Task DeleteAsync(long id, CancellationToken ct = default);
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken ct = default);
+        /// <summary>
+    /// GetByOldPathAsync method.
+    /// </summary>
+Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken ct = default);
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<AliasDocument> CreateAsync(AliasDocument document, CancellationToken ct = default);
+        /// <summary>
+    /// Update method.
+    /// </summary>
+AliasDocument Update(AliasDocument document);
+        /// <summary>
+    /// Delete method.
+    /// </summary>
+void Delete(AliasDocument document);
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task DeleteAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -27,20 +48,32 @@ public class AliasService : IAliasService
     private readonly IDocumentSession _session;
     private readonly IMessageBus _bus;
 
-    public AliasService(IAliasRepository repo, IDocumentSession session, IMessageBus bus)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AliasService"/> class.
+    /// </summary>
+public AliasService(IAliasRepository repo, IDocumentSession session, IMessageBus bus)
     {
         _repo = repo;
         _session = session;
         _bus = bus;
     }
 
-    public Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public Task<IList<AliasDocument>> GetBySiteIdAsync(long siteId, CancellationToken ct = default)
         => _repo.GetBySiteIdAsync(siteId, ct);
 
-    public Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken ct = default)
+        /// <summary>
+    /// GetByOldPathAsync method.
+    /// </summary>
+public Task<AliasDocument?> GetByOldPathAsync(string oldPath, CancellationToken ct = default)
         => _repo.GetByOldPathAsync(oldPath, ct);
 
-    public async Task<AliasDocument> CreateAsync(AliasDocument document, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<AliasDocument> CreateAsync(AliasDocument document, CancellationToken ct = default)
     {
         await _repo.AddAsync(document, ct);
         await _session.SaveChangesAsync(ct);
@@ -48,7 +81,10 @@ public class AliasService : IAliasService
         return document;
     }
 
-    public AliasDocument Update(AliasDocument document)
+        /// <summary>
+    /// Update method.
+    /// </summary>
+public AliasDocument Update(AliasDocument document)
     {
         _repo.Update(document);
         _session.SaveChangesAsync().GetAwaiter().GetResult();
@@ -56,14 +92,20 @@ public class AliasService : IAliasService
         return document;
     }
 
-    public void Delete(AliasDocument document)
+        /// <summary>
+    /// Delete method.
+    /// </summary>
+public void Delete(AliasDocument document)
     {
         _repo.Delete(document);
         _session.SaveChangesAsync().GetAwaiter().GetResult();
         _bus.PublishAsync(new AliasDeleted(document));
     }
 
-    public async Task DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task DeleteAsync(long id, CancellationToken ct = default)
     {
         var existing = await _repo.GetByIdAsync(id, ct);
         if (existing is not null)

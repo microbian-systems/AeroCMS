@@ -6,15 +6,30 @@ using System.Linq.Expressions;
 namespace Aero.Cms.Data.Queries;
 
 
+/// <summary>
+/// Represents a class for AliasByIdQuery.
+/// </summary>
 public sealed class AliasByIdQuery : EntityByIdQuery<AliasDocument>;
 
+/// <summary>
+/// Represents a class for AliasesByIdsQuery.
+/// </summary>
 public sealed class AliasesByIdsQuery : EntitiesByIdsQuery<AliasDocument>;
 
+/// <summary>
+/// Represents a class for AliasesBySiteIdQuery.
+/// </summary>
 public sealed class AliasesBySiteIdQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-    public required long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public required long SiteId { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.SiteId == SiteId)
@@ -23,11 +38,20 @@ public sealed class AliasesBySiteIdQuery : ICompiledQuery<AliasDocument, IList<A
     }
 }
 
+/// <summary>
+/// Represents a class for AliasesByOldPathContainsQuery.
+/// </summary>
 public sealed class AliasesByOldPathContainsQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-    public required string OldPath { get; set; }
+        /// <summary>
+    /// Gets or sets the Old Path.
+    /// </summary>
+public required string OldPath { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.OldPath.Contains(OldPath))
@@ -36,11 +60,20 @@ public sealed class AliasesByOldPathContainsQuery : ICompiledQuery<AliasDocument
     }
 }
 
+/// <summary>
+/// Represents a class for AliasByOldPathQuery.
+/// </summary>
 public sealed class AliasByOldPathQuery : ICompiledQuery<AliasDocument, AliasDocument?>
 {
-    public required string OldPath { get; set; }
+        /// <summary>
+    /// Gets or sets the Old Path.
+    /// </summary>
+public required string OldPath { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.OldPath == OldPath);
@@ -48,23 +81,44 @@ public sealed class AliasByOldPathQuery : ICompiledQuery<AliasDocument, AliasDoc
 }
 
 
+/// <summary>
+/// Represents a class for AliasByOldPathAndSiteIdQuery.
+/// </summary>
 public sealed class AliasByOldPathAndSiteIdQuery : ICompiledQuery<AliasDocument, AliasDocument?>
 {
-    public required long SiteId { get; set; }
-    public required string OldPath { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public required long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Old Path.
+    /// </summary>
+public required string OldPath { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<AliasDocument>, AliasDocument?>> QueryIs()
     {
         return q => q
             .FirstOrDefault(x => x.SiteId == SiteId && x.OldPath == OldPath);
     }
 }
 
+/// <summary>
+/// Represents a class for AliasesByNewPathQuery.
+/// </summary>
 public sealed class AliasesByNewPathQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-    public required string NewPath { get; set; }
+        /// <summary>
+    /// Gets or sets the New Path.
+    /// </summary>
+public required string NewPath { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.NewPath == NewPath)
@@ -73,12 +127,24 @@ public sealed class AliasesByNewPathQuery : ICompiledQuery<AliasDocument, IList<
     }
 }
 
+/// <summary>
+/// Represents a class for AliasesBySiteIdAndNewPathQuery.
+/// </summary>
 public sealed class AliasesBySiteIdAndNewPathQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-    public required long SiteId { get; set; }
-    public required string NewPath { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public required long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the New Path.
+    /// </summary>
+public required string NewPath { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.SiteId == SiteId && x.NewPath == NewPath)
@@ -87,11 +153,20 @@ public sealed class AliasesBySiteIdAndNewPathQuery : ICompiledQuery<AliasDocumen
     }
 }
 
+/// <summary>
+/// Represents a class for AliasesByNotesQuery.
+/// </summary>
 public sealed class AliasesByNotesQuery : ICompiledQuery<AliasDocument, IList<AliasDocument>>
 {
-    public required string Notes { get; set; }
+        /// <summary>
+    /// Gets or sets the Notes.
+    /// </summary>
+public required string Notes { get; set; }
 
-    public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
+        /// <summary>
+    /// QueryIs method.
+    /// </summary>
+public Expression<Func<ISurrealDbQueryable<AliasDocument>, IList<AliasDocument>>> QueryIs()
     {
         return q => q
             .Where(x => x.Notes == Notes)
@@ -100,6 +175,12 @@ public sealed class AliasesByNotesQuery : ICompiledQuery<AliasDocument, IList<Al
     }
 }
 
+/// <summary>
+/// Represents a class for AliasesCreatedInRangeQuery.
+/// </summary>
 public sealed class AliasesCreatedInRangeQuery : EntitiesCreatedInRangeQuery<AliasDocument>;
 
+/// <summary>
+/// Represents a class for AliasesModifiedInRangeQuery.
+/// </summary>
 public sealed class AliasesModifiedInRangeQuery : EntitiesModifiedInRangeQuery<AliasDocument>;

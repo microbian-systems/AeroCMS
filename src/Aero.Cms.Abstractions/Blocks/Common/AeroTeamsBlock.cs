@@ -8,22 +8,61 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("aero_teams", "Aero Teams", Category = "Aero")]
 public class AeroTeamsBlock : BlockBase
 {
-    public override string BlockType => "aero_teams";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "aero_teams";
 
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public List<AeroTeamMember> Members { get; set; } = new();
-    public string? AeroLayout { get; set; } = "Grid"; // Grid, List, Bordered
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Members.
+    /// </summary>
+public List<AeroTeamMember> Members { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Aero Layout.
+    /// </summary>
+public string? AeroLayout { get; set; } = "Grid"; // Grid, List, Bordered
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
+/// <summary>
+/// Represents a class for AeroTeamMember.
+/// </summary>
 public class AeroTeamMember
 {
-    public string? Name { get; set; }
-    public string? Role { get; set; }
-    public string? AvatarUrl { get; set; }
-    public string? Description { get; set; }
-    public string? LinkedInUrl { get; set; }
-    public string? TwitterUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string? Name { get; set; }
+        /// <summary>
+    /// Gets or sets the Role.
+    /// </summary>
+public string? Role { get; set; }
+        /// <summary>
+    /// Gets or sets the Avatar Url.
+    /// </summary>
+public string? AvatarUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Linked In Url.
+    /// </summary>
+public string? LinkedInUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Twitter Url.
+    /// </summary>
+public string? TwitterUrl { get; set; }
 }

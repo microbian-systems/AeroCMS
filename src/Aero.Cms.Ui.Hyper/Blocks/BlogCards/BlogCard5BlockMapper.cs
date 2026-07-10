@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.BlogCards;
 
+/// <summary>
+/// Represents a class for BlogCard5BlockMapper.
+/// </summary>
 public static class BlogCard5BlockMapper
 {
-    public static NeoPageNode ToNode(BlogCard5Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(BlogCard5Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.blog-cards.5",
@@ -20,7 +26,10 @@ public static class BlogCard5BlockMapper
         }
     };
 
-    public static BlogCard5Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static BlogCard5Block FromNode(NeoPageNode node) => new()
     {
         ImageUrl = GetString(node, "imageUrl", ""),
         MainText = GetString(node, "mainText", "Lorem ipsum dolor sit, amet consectetur adipisicing elit."),

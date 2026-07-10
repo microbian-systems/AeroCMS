@@ -1,6 +1,9 @@
-﻿namespace Aero.Cms.Jobs
+namespace Aero.Cms.Jobs
 {
-    public class Class1
+        /// <summary>
+    /// Represents a class for Class1.
+    /// </summary>
+public class Class1
     {
 
     }

@@ -14,7 +14,10 @@ namespace Aero.Cms.Modules.Docs.Areas.Api.v1;
 /// </summary>
 public static class DocsApi
 {
-    public static void MapDocsApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapDocsApi method.
+    /// </summary>
+public static void MapDocsApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/docs")
             .WithTags("Admin - Docs");

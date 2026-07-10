@@ -5,5 +5,8 @@ namespace Aero.Cms.Abstractions.Blocks.Editor;
 /// </summary>
 public interface IPageEditorDefinitionProvider
 {
-    IReadOnlyCollection<PageEditorDefinitionDescriptor> GetEditorDefinitions();
+        /// <summary>
+    /// GetEditorDefinitions method.
+    /// </summary>
+IReadOnlyCollection<PageEditorDefinitionDescriptor> GetEditorDefinitions();
 }

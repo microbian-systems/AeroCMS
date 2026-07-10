@@ -5,10 +5,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Modules.Commerce.Basket.Services;
 
+/// <summary>
+/// Represents a class for BasketService.
+/// </summary>
 public sealed class BasketService(IDocumentSession docSession, ILogger<BasketService> log)
     : IBasketService
 {
-    public async Task<Result<BasketDocument?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -23,7 +29,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<IReadOnlyList<BasketDocument>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<BasketDocument>, AeroError>> GetAllAsync(CancellationToken ct = default)
     {
         try
         {
@@ -36,7 +45,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<IReadOnlyList<BasketDocument>, AeroError>> FindAsync(
+        /// <summary>
+    /// FindAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<BasketDocument>, AeroError>> FindAsync(
         Expression<Func<BasketDocument, bool>> predicate, CancellationToken ct = default)
     {
         try
@@ -50,7 +62,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<BasketDocument, AeroError>> InsertAsync(BasketDocument entity, CancellationToken ct = default)
+        /// <summary>
+    /// InsertAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> InsertAsync(BasketDocument entity, CancellationToken ct = default)
     {
         try
         {
@@ -64,7 +79,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<BasketDocument, AeroError>> UpdateAsync(BasketDocument entity, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> UpdateAsync(BasketDocument entity, CancellationToken ct = default)
     {
         try
         {
@@ -78,7 +96,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -92,7 +113,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<long, AeroError>> CountAsync(CancellationToken ct = default)
+        /// <summary>
+    /// CountAsync method.
+    /// </summary>
+public async Task<Result<long, AeroError>> CountAsync(CancellationToken ct = default)
     {
         try
         {
@@ -105,7 +129,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<BasketDocument, AeroError>> GetOrCreateBasketAsync(string customerId, CancellationToken ct = default)
+        /// <summary>
+    /// GetOrCreateBasketAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> GetOrCreateBasketAsync(string customerId, CancellationToken ct = default)
     {
         try
         {
@@ -133,7 +160,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<BasketDocument, AeroError>> AddItemAsync(string customerId, BasketItem item, CancellationToken ct = default)
+        /// <summary>
+    /// AddItemAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> AddItemAsync(string customerId, BasketItem item, CancellationToken ct = default)
     {
         try
         {
@@ -166,7 +196,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<BasketDocument, AeroError>> RemoveItemAsync(string customerId, long productId, CancellationToken ct = default)
+        /// <summary>
+    /// RemoveItemAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> RemoveItemAsync(string customerId, long productId, CancellationToken ct = default)
     {
         try
         {
@@ -188,7 +221,10 @@ public sealed class BasketService(IDocumentSession docSession, ILogger<BasketSer
         }
     }
 
-    public async Task<Result<BasketDocument, AeroError>> ClearBasketAsync(string customerId, CancellationToken ct = default)
+        /// <summary>
+    /// ClearBasketAsync method.
+    /// </summary>
+public async Task<Result<BasketDocument, AeroError>> ClearBasketAsync(string customerId, CancellationToken ct = default)
     {
         try
         {

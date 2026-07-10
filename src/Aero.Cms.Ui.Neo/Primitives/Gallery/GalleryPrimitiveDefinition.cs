@@ -5,9 +5,15 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Gallery;
 
+/// <summary>
+/// Represents a class for GalleryPrimitiveDefinition.
+/// </summary>
 public sealed class GalleryPrimitiveDefinition : ContainerDefinitionBase, ISlotted
 {
-    public const string ContentDropZone = "content";
+        /// <summary>
+    /// ContentDropZone.
+    /// </summary>
+public const string ContentDropZone = "content";
 
     private static readonly IReadOnlySet<NeoPageNodeKind> ChildKinds =
         new HashSet<NeoPageNodeKind>
@@ -18,19 +24,49 @@ public sealed class GalleryPrimitiveDefinition : ContainerDefinitionBase, ISlott
             NeoPageNodeKind.Component
         };
 
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new GalleryPrimitiveDefinition(), new GalleryPrimitiveDefinition());
 
-    public override string CatalogId => "gallery";
-    public override string DisplayName => "Gallery";
-    public override string? Description => "An image gallery with grid layout.";
-    public override string Category => "Primitives";
-    public override string IconName => "layout-grid";
-    public override int SortOrder => 96;
-    public override Type? PreviewComponentType => null;
-    public override Type? PropertyEditorComponentType => null;
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "gallery";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Gallery";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "An image gallery with grid layout.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Primitives";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "layout-grid";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 96;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => null;
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => null;
 
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Container(
             ChildKinds,
             [
@@ -43,7 +79,10 @@ public sealed class GalleryPrimitiveDefinition : ContainerDefinitionBase, ISlott
                 new NeoDropZoneDefinition(ContentDropZone, ChildKinds)
             ]);
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable
         | EditorInteractionCapabilities.Editable
         | EditorInteractionCapabilities.Draggable
@@ -52,7 +91,10 @@ public sealed class GalleryPrimitiveDefinition : ContainerDefinitionBase, ISlott
         | EditorInteractionCapabilities.Copyable
         | EditorInteractionCapabilities.PasteTarget;
 
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Content
         | EditorCapabilitySet.Media
         | EditorCapabilitySet.Spacing
@@ -61,7 +103,10 @@ public sealed class GalleryPrimitiveDefinition : ContainerDefinitionBase, ISlott
         | EditorCapabilitySet.Effects
         | EditorCapabilitySet.Visibility;
 
-    public override NeoPageNode CreateDefaultNode() => new()
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() => new()
     {
         NodeId = Guid.NewGuid().ToString("N"),
         CatalogId = CatalogId,
@@ -84,6 +129,9 @@ public sealed class GalleryPrimitiveDefinition : ContainerDefinitionBase, ISlott
             MinChildren: 0)
     ];
 
-    public ISlotDefinition? GetSlot(string slotId) =>
+        /// <summary>
+    /// GetSlot method.
+    /// </summary>
+public ISlotDefinition? GetSlot(string slotId) =>
         _slots.FirstOrDefault(s => s.Id == slotId);
 }

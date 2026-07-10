@@ -54,10 +54,16 @@ public sealed class ReflectionDiscoveryAnalyzers : DiagnosticAnalyzer
     // See the existing AERO001-AERO006 block-renderer diagnostics for the recommended
     // pattern (marker attributes + ForAttributeWithMetadataName).
 
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
+        /// <summary>
+    /// Gets or sets the Supported Diagnostics.
+    /// </summary>
+public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         [Aero010, Aero011, Aero012];
 
-    public override void Initialize(AnalysisContext context)
+        /// <summary>
+    /// Initialize method.
+    /// </summary>
+public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();

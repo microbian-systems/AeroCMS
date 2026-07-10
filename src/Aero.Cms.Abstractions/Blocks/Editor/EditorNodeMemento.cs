@@ -15,13 +15,19 @@ public sealed class EditorNodeMemento
         _snapshot = snapshot;
     }
 
-    public static EditorNodeMemento Capture(NeoPageNode node)
+        /// <summary>
+    /// Capture method.
+    /// </summary>
+public static EditorNodeMemento Capture(NeoPageNode node)
     {
         ArgumentNullException.ThrowIfNull(node);
         return new EditorNodeMemento(Clone(node));
     }
 
-    public NeoPageNode Restore() => Clone(_snapshot);
+        /// <summary>
+    /// Restore method.
+    /// </summary>
+public NeoPageNode Restore() => Clone(_snapshot);
 
     internal static NeoPageNode Clone(NeoPageNode node) =>
         new()

@@ -16,7 +16,10 @@ internal sealed class PagePreviewService : IPagePreviewService
     private readonly IBlockService _blockService;
     private readonly ILogger<PagePreviewService> _logger;
 
-    public PagePreviewService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PagePreviewService"/> class.
+    /// </summary>
+public PagePreviewService(
         IDocumentSession session,
         IPageLayoutManifestBuilder builder,
         IBlockService blockService,
@@ -28,7 +31,10 @@ internal sealed class PagePreviewService : IPagePreviewService
         _logger = logger;
     }
 
-    public async Task<Result<PreviewRenderModel, Aero.Core.AeroError>> BuildPreviewAsync(
+        /// <summary>
+    /// BuildPreviewAsync method.
+    /// </summary>
+public async Task<Result<PreviewRenderModel, Aero.Core.AeroError>> BuildPreviewAsync(
         long pageId,
         CancellationToken ct = default)
     {

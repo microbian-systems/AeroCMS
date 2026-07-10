@@ -16,13 +16,31 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Announcements;
     SchemaVersion = 1)]
 public sealed class Announcement3Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.announcements.3";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.announcements.3";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string MainText { get; set; } = "Lorem, ipsum dolor";
-    public string CtaText { get; set; } = "sit amet consectetur";
-    public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Main Text.
+    /// </summary>
+public string MainText { get; set; } = "Lorem, ipsum dolor";
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText { get; set; } = "sit amet consectetur";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

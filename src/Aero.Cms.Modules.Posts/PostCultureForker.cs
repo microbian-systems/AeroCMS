@@ -5,9 +5,15 @@ using Aero.Cms.Core.Entities;
 
 namespace Aero.Cms.Modules.Posts;
 
+/// <summary>
+/// Represents a class for PostCultureForker.
+/// </summary>
 public static class PostCultureForker
 {
-    public static PostDocument Fork(PostDocument source, long targetPostId, string targetCulture, string targetSlug)
+        /// <summary>
+    /// Fork method.
+    /// </summary>
+public static PostDocument Fork(PostDocument source, long targetPostId, string targetCulture, string targetSlug)
     {
         ArgumentNullException.ThrowIfNull(source);
 

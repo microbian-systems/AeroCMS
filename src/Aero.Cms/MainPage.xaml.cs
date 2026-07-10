@@ -1,8 +1,14 @@
-﻿namespace Aero.Cms;
+namespace Aero.Cms;
 
+/// <summary>
+/// Represents a class for MainPage.
+/// </summary>
 public partial class MainPage : ContentPage
 {
-    public MainPage()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="MainPage"/> class.
+    /// </summary>
+public MainPage()
     {
         InitializeComponent();
     }

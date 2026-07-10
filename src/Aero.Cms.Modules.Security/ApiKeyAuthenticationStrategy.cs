@@ -13,15 +13,24 @@ public sealed class ApiKeyAuthenticationStrategy : IAuthenticationStrategy
     private readonly IApiKeyService _apiKeyService;
     private readonly UserManager<AeroUser> _userManager;
 
-    public ApiKeyAuthenticationStrategy(IApiKeyService apiKeyService, UserManager<AeroUser> userManager)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="ApiKeyAuthenticationStrategy"/> class.
+    /// </summary>
+public ApiKeyAuthenticationStrategy(IApiKeyService apiKeyService, UserManager<AeroUser> userManager)
     {
         _apiKeyService = apiKeyService;
         _userManager = userManager;
     }
 
-    public string AuthType => "ApiKey";
+        /// <summary>
+    /// Gets or sets the Auth Type.
+    /// </summary>
+public string AuthType => "ApiKey";
 
-    public async Task<AeroUser?> AuthenticateAsync(ApiKeyAuthRequest request, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// AuthenticateAsync method.
+    /// </summary>
+public async Task<AeroUser?> AuthenticateAsync(ApiKeyAuthRequest request, CancellationToken cancellationToken = default)
     {
         if (request is not ApiKeyAuthRequest apiKeyRequest)
         {

@@ -6,15 +6,30 @@ using Aero.Secrets.Models;
 
 namespace Aero.Cms.Modules.Setup.Bootstrap;
 
+/// <summary>
+/// Defines an interface for IBootstrapPendingSetupRequestStore.
+/// </summary>
 public interface IBootstrapPendingSetupRequestStore
 {
-    Task SaveAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+Task SaveAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default);
 
-    Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+    /// LoadAsync method.
+    /// </summary>
+Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellationToken = default);
 
-    Task ClearAsync(CancellationToken cancellationToken = default);
+        /// <summary>
+    /// ClearAsync method.
+    /// </summary>
+Task ClearAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for BootstrapPendingSetupRequestStore.
+/// </summary>
 public sealed class BootstrapPendingSetupRequestStore(
     IEnvironmentAppSettingsWriter appSettingsWriter,
     ISecretManager secretManager) : IBootstrapPendingSetupRequestStore
@@ -22,7 +37,10 @@ public sealed class BootstrapPendingSetupRequestStore(
     private const string PendingSeedKey = "PendingSeedPayload";
     private const string PendingSeedName = "AeroCms:Bootstrap:PendingSeed";
 
-    public async Task SaveAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+public async Task SaveAsync(SeedDatabaseRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -36,7 +54,10 @@ public sealed class BootstrapPendingSetupRequestStore(
         await appSettingsWriter.WriteAsync(env, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), cancellationToken);
     }
 
-    public async Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// LoadAsync method.
+    /// </summary>
+public async Task<SeedDatabaseRequest?> LoadAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var root = await ReadOrCreateAsync(env, cancellationToken);
@@ -50,7 +71,10 @@ public sealed class BootstrapPendingSetupRequestStore(
         return JsonSerializer.Deserialize<SeedDatabaseRequest>(json);
     }
 
-    public async Task ClearAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// ClearAsync method.
+    /// </summary>
+public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
         var root = await ReadOrCreateAsync(env, cancellationToken);

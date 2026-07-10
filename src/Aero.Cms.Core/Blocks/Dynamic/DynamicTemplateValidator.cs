@@ -7,21 +7,33 @@ using Scriban.Syntax;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
+/// <summary>
+/// Represents a class for DynamicTemplateValidator.
+/// </summary>
 public sealed partial class DynamicTemplateValidator
 {
     private readonly SecureScribanTemplateOptions options;
 
-    public DynamicTemplateValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DynamicTemplateValidator"/> class.
+    /// </summary>
+public DynamicTemplateValidator()
         : this(new SecureScribanTemplateOptions())
     {
     }
 
-    public DynamicTemplateValidator(SecureScribanTemplateOptions options)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DynamicTemplateValidator"/> class.
+    /// </summary>
+public DynamicTemplateValidator(SecureScribanTemplateOptions options)
     {
         this.options = options;
     }
 
-    public Result<NoneType, AeroError> Validate(string template, JsonDocument? schema = null)
+        /// <summary>
+    /// Validate method.
+    /// </summary>
+public Result<NoneType, AeroError> Validate(string template, JsonDocument? schema = null)
     {
         var errors = ValidateTemplateText(template);
         if (errors.Count > 0)
@@ -45,7 +57,10 @@ public sealed partial class DynamicTemplateValidator
         return Prelude.Ok<NoneType, AeroError>(Prelude.None);
     }
 
-    public Result<NoneType, AeroError> ValidateData(JsonDocument? data, JsonDocument? schema)
+        /// <summary>
+    /// ValidateData method.
+    /// </summary>
+public Result<NoneType, AeroError> ValidateData(JsonDocument? data, JsonDocument? schema)
     {
         if (schema is null)
             return Prelude.Ok<NoneType, AeroError>(Prelude.None);
@@ -126,19 +141,31 @@ public sealed partial class DynamicTemplateValidator
 
     private sealed class ScribanSecurityVisitor(SecureScribanTemplateOptions options) : ScriptVisitor
     {
-        public List<string> Errors { get; } = [];
+                /// <summary>
+        /// Gets or sets the Errors.
+        /// </summary>
+public List<string> Errors { get; } = [];
 
-        public override void Visit(ScriptFunction node)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public override void Visit(ScriptFunction node)
         {
             Errors.Add("Template function declarations are not allowed.");
         }
 
-        public override void Visit(ScriptImportStatement node)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public override void Visit(ScriptImportStatement node)
         {
             Errors.Add("Template imports are not allowed.");
         }
 
-        public override void Visit(ScriptFunctionCall node)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public override void Visit(ScriptFunctionCall node)
         {
             var functionName = GetFunctionName(node.Target);
             if (!IsAllowed(functionName))
@@ -149,7 +176,10 @@ public sealed partial class DynamicTemplateValidator
             base.Visit(node);
         }
 
-        public override void Visit(ScriptPipeCall node)
+                /// <summary>
+        /// Visit method.
+        /// </summary>
+public override void Visit(ScriptPipeCall node)
         {
             var functionName = GetFunctionName(node.To);
             if (!IsAllowed(functionName))

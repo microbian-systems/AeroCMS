@@ -29,7 +29,10 @@ namespace Aero.Cms.Modules.Pages.Areas.Api.v1;
 /// </summary>
 public static class PagesApi
 {
-    public static void MapPagesApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapPagesApi method.
+    /// </summary>
+public static void MapPagesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/pages")
             .WithTags("Admin - Pages");
@@ -994,12 +997,21 @@ public static class PagesApi
         TranslateDocumentResponse? Response,
         string? Error)
     {
-        public string Culture => Plan.Culture;
+                /// <summary>
+        /// Gets or sets the Culture.
+        /// </summary>
+public string Culture => Plan.Culture;
 
-        public static AiTranslatedPagePlan Success(AiTranslatePagePlan plan, TranslateDocumentResponse response)
+                /// <summary>
+        /// Success method.
+        /// </summary>
+public static AiTranslatedPagePlan Success(AiTranslatePagePlan plan, TranslateDocumentResponse response)
             => new(plan, true, response, null);
 
-        public static AiTranslatedPagePlan Failed(AiTranslatePagePlan plan, string error)
+                /// <summary>
+        /// Failed method.
+        /// </summary>
+public static AiTranslatedPagePlan Failed(AiTranslatePagePlan plan, string error)
             => new(plan, false, null, error);
     }
 }

@@ -1,8 +1,14 @@
 namespace Aero.Cms.Abstractions.Content;
 
+/// <summary>
+/// Represents a class for FieldBlockInstance.
+/// </summary>
 public sealed class FieldBlockInstance
 {
-    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
     /// <summary>The field name from ContentTypeDefinition.Fields</summary>
     public string FieldName { get; set; } = string.Empty;

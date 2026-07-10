@@ -16,15 +16,39 @@ namespace Aero.Cms.Ui.Hyper.Blocks.ProductCards;
     SchemaVersion = 1)]
 public sealed class ProductCard1Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.product-cards.1";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.product-cards.1";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Limited Edition Sports Trainer";
-    public string Price { get; set; } = "$189.99";
-    public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=1160";
-    public string ImageHoverUrl { get; set; } = "https://images.unsplash.com/photo-1523381140794-a1eef18a37c7?auto=format&fit=crop&q=80&w=1160";
-    public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Limited Edition Sports Trainer";
+        /// <summary>
+    /// Gets or sets the Price.
+    /// </summary>
+public string Price { get; set; } = "$189.99";
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string ImageUrl { get; set; } = "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=1160";
+        /// <summary>
+    /// Gets or sets the Image Hover Url.
+    /// </summary>
+public string ImageHoverUrl { get; set; } = "https://images.unsplash.com/photo-1523381140794-a1eef18a37c7?auto=format&fit=crop&q=80&w=1160";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

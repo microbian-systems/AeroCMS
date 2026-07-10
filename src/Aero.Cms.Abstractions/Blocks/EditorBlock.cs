@@ -14,80 +14,248 @@ public class EditorBlock
 {
     // Note: EditorId is a client-side in-memory identifier for the editor canvas.
     // Guid is sufficient here — avoids AOT issues with Process.GetCurrentProcess() in Snowflake.
-    public string EditorId { get; set; } = Guid.NewGuid().ToString();
-    public string Type     { get; set; } = string.Empty;
-    public ResponsiveNodeStyle Style { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Editor Id.
+    /// </summary>
+public string EditorId { get; set; } = Guid.NewGuid().ToString();
+        /// <summary>
+    /// Gets or sets the Type.
+    /// </summary>
+public string Type     { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Style.
+    /// </summary>
+public ResponsiveNodeStyle Style { get; set; } = new();
 
     // Hero / Aero Hero
-    public string Title           { get; set; } = string.Empty;
-    public string MainText        { get; set; } = string.Empty;
-    public string SubText         { get; set; } = string.Empty;
-    public string CtaText         { get; set; } = string.Empty;
-    public string CtaUrl          { get; set; } = string.Empty;
-    public string CtaText2        { get; set; } = string.Empty;
-    public string CtaUrl2         { get; set; } = string.Empty;
-    public string Eyebrow         { get; set; } = string.Empty;
-    public string Highlight       { get; set; } = string.Empty;
-    public List<string> TrustMarkers { get; set; } = [];
-    public string AlternativeLinkText { get; set; } = string.Empty;
-    public string AlternativeLinkUrl  { get; set; } = string.Empty;
-    public string BackgroundImage { get; set; } = string.Empty;
-    public int    Height          { get; set; } = 512;
-    public bool   FullScreen      { get; set; }
-    public bool   FullWidth       { get; set; }
-    public string AeroLayout      { get; set; } = "side_image";
-    public string Button1Style    { get; set; } = "primary";
-    public string Button2Style    { get; set; } = "secondary";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title           { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Main Text.
+    /// </summary>
+public string MainText        { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Sub Text.
+    /// </summary>
+public string SubText         { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText         { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl          { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Cta Text2.
+    /// </summary>
+public string CtaText2        { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Cta Url2.
+    /// </summary>
+public string CtaUrl2         { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Eyebrow.
+    /// </summary>
+public string Eyebrow         { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Highlight.
+    /// </summary>
+public string Highlight       { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Trust Markers.
+    /// </summary>
+public List<string> TrustMarkers { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Alternative Link Text.
+    /// </summary>
+public string AlternativeLinkText { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alternative Link Url.
+    /// </summary>
+public string AlternativeLinkUrl  { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Background Image.
+    /// </summary>
+public string BackgroundImage { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Height.
+    /// </summary>
+public int    Height          { get; set; } = 512;
+        /// <summary>
+    /// Gets or sets the Full Screen.
+    /// </summary>
+public bool   FullScreen      { get; set; }
+        /// <summary>
+    /// Gets or sets the Full Width.
+    /// </summary>
+public bool   FullWidth       { get; set; }
+        /// <summary>
+    /// Gets or sets the Aero Layout.
+    /// </summary>
+public string AeroLayout      { get; set; } = "side_image";
+        /// <summary>
+    /// Gets or sets the Button1Style.
+    /// </summary>
+public string Button1Style    { get; set; } = "primary";
+        /// <summary>
+    /// Gets or sets the Button2Style.
+    /// </summary>
+public string Button2Style    { get; set; } = "secondary";
 
     // Generic Titles/Descriptions for Aero Blocks
-    public string SectionTitle     { get; set; } = string.Empty;
-    public string PageTitle        { get; set; } = string.Empty;
-    public string Description      { get; set; } = string.Empty;
-    public string PageDescription  { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Section Title.
+    /// </summary>
+public string SectionTitle     { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Page Title.
+    /// </summary>
+public string PageTitle        { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description      { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Page Description.
+    /// </summary>
+public string PageDescription  { get; set; } = string.Empty;
 
     // Text / Quote / Markdown / Rich Text
-    public string Content      { get; set; } = string.Empty;
-    public string Author       { get; set; } = string.Empty;
-    public string MarkdownView { get; set; } = "edit";  // "edit" | "preview"
-    public string ScribanTemplate { get; set; } = string.Empty;
-    public string ScribanDataJson { get; set; } = "{}";
-    public string ScribanView     { get; set; } = "code";  // "code" | "preview"
+        /// <summary>
+    /// Gets or sets the Content.
+    /// </summary>
+public string Content      { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public string Author       { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Markdown View.
+    /// </summary>
+public string MarkdownView { get; set; } = "edit";  // "edit" | "preview"
+        /// <summary>
+    /// Gets or sets the Scriban Template.
+    /// </summary>
+public string ScribanTemplate { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Scriban Data Json.
+    /// </summary>
+public string ScribanDataJson { get; set; } = "{}";
+        /// <summary>
+    /// Gets or sets the Scriban View.
+    /// </summary>
+public string ScribanView     { get; set; } = "code";  // "code" | "preview"
 
     // Columns
-    public int                ColumnCount   { get; set; } = 2;
-    public int                RowCount      { get; set; } = 1;
-    public int                Gap           { get; set; } = 16;
-    public List<EditorColumn> EditorColumns { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Column Count.
+    /// </summary>
+public int                ColumnCount   { get; set; } = 2;
+        /// <summary>
+    /// Gets or sets the Row Count.
+    /// </summary>
+public int                RowCount      { get; set; } = 1;
+        /// <summary>
+    /// Gets or sets the Gap.
+    /// </summary>
+public int                Gap           { get; set; } = 16;
+        /// <summary>
+    /// Gets or sets the Editor Columns.
+    /// </summary>
+public List<EditorColumn> EditorColumns { get; set; } = [];
 
     // Image / Audio / Nested
-    public string Src     { get; set; } = string.Empty;
-    public string Alt     { get; set; } = string.Empty;
-    public string Caption { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Src.
+    /// </summary>
+public string Src     { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Alt.
+    /// </summary>
+public string Alt     { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Caption.
+    /// </summary>
+public string Caption { get; set; } = string.Empty;
 
     // Video
-    public string Url { get; set; } = string.Empty;
-    public bool AutoPlay { get; set; }
+        /// <summary>
+    /// Gets or sets the Url.
+    /// </summary>
+public string Url { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Auto Play.
+    /// </summary>
+public bool AutoPlay { get; set; }
 
     // Carousel
-    public bool   ShowArrows      { get; set; } = true;
-    public int    CarouselInterval { get; set; } = 5000;
-    public string ControlLocation  { get; set; } = "bottom";
+        /// <summary>
+    /// Gets or sets the Show Arrows.
+    /// </summary>
+public bool   ShowArrows      { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Carousel Interval.
+    /// </summary>
+public int    CarouselInterval { get; set; } = 5000;
+        /// <summary>
+    /// Gets or sets the Control Location.
+    /// </summary>
+public string ControlLocation  { get; set; } = "bottom";
 
     // Gallery / Features / Blog / Pricing / Teams / Testimonials
-    public List<GalleryImage>   GalleryImages { get; set; } = [];
-    public List<AeroFeatureItem> FeatureItems  { get; set; } = [];
-    public List<AeroBlogItem>    BlogPosts     { get; set; } = [];
-    public List<AeroPricingPlan> PricingPlans  { get; set; } = [];
-    public List<AeroTeamMember> TeamMembers { get; set; } = new();
-    public List<AeroTestimonialItem> Testimonials { get; set; } = new();
-    public List<AeroFaqItem> FaqItems { get; set; } = new();
-    public List<AeroPortfolioItem> PortfolioItems { get; set; } = new();
-    public List<AeroContactDetail> ContactDetails { get; set; } = new();
-    public List<AeroTableHeader> TableHeaders { get; set; } = new();
-    public List<AeroTableRow> TableRows { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Gallery Images.
+    /// </summary>
+public List<GalleryImage>   GalleryImages { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Feature Items.
+    /// </summary>
+public List<AeroFeatureItem> FeatureItems  { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Blog Posts.
+    /// </summary>
+public List<AeroBlogItem>    BlogPosts     { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Pricing Plans.
+    /// </summary>
+public List<AeroPricingPlan> PricingPlans  { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Team Members.
+    /// </summary>
+public List<AeroTeamMember> TeamMembers { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Testimonials.
+    /// </summary>
+public List<AeroTestimonialItem> Testimonials { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Faq Items.
+    /// </summary>
+public List<AeroFaqItem> FaqItems { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Portfolio Items.
+    /// </summary>
+public List<AeroPortfolioItem> PortfolioItems { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Contact Details.
+    /// </summary>
+public List<AeroContactDetail> ContactDetails { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Table Headers.
+    /// </summary>
+public List<AeroTableHeader> TableHeaders { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Table Rows.
+    /// </summary>
+public List<AeroTableRow> TableRows { get; set; } = new();
 
     // Reference blocks
-    public string SelectedReferenceId { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Selected Reference Id.
+    /// </summary>
+public string SelectedReferenceId { get; set; } = string.Empty;
 
     /// <summary>
     /// Node-native composition content transported by the legacy top-level canvas.
@@ -95,7 +263,10 @@ public class EditorBlock
     /// </summary>
     public List<NeoPageNode> CompositionNodes { get; set; } = [];
 
-    public EditorBlock DeepClone()
+        /// <summary>
+    /// DeepClone method.
+    /// </summary>
+public EditorBlock DeepClone()
     {
         var copy = (EditorBlock)MemberwiseClone();
         copy.EditorId = Guid.NewGuid().ToString();
@@ -128,7 +299,10 @@ public class EditorBlock
         return copy;
     }
 
-    public EditorBlock CreateClipboardClone()
+        /// <summary>
+    /// CreateClipboardClone method.
+    /// </summary>
+public EditorBlock CreateClipboardClone()
     {
         var copy = DeepClone();
         copy.CompositionNodes = CompositionNodes

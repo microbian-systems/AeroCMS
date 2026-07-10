@@ -3,6 +3,9 @@ using Aero.Cms.Abstractions.Ai;
 
 namespace Aero.Cms.Modules.Ai.Services;
 
+/// <summary>
+/// Represents a class for EnhanceContentPromptBuilder.
+/// </summary>
 public sealed class EnhanceContentPromptBuilder : IEnhanceContentPromptBuilder
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -10,7 +13,10 @@ public sealed class EnhanceContentPromptBuilder : IEnhanceContentPromptBuilder
         WriteIndented = true
     };
 
-    public string Build(EnhanceContentRequest request)
+        /// <summary>
+    /// Build method.
+    /// </summary>
+public string Build(EnhanceContentRequest request)
     {
         var payload = JsonSerializer.Serialize(new
         {

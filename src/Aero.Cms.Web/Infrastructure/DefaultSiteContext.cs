@@ -20,12 +20,18 @@ public sealed class DefaultSiteContext : ISiteContext
 
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public DefaultSiteContext(IHttpContextAccessor httpContextAccessor)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DefaultSiteContext"/> class.
+    /// </summary>
+public DefaultSiteContext(IHttpContextAccessor httpContextAccessor)
     {
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public long SiteId
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId
     {
         get
         {
@@ -52,7 +58,10 @@ public sealed class DefaultSiteContext : ISiteContext
         }
     }
 
-    public long TenantId
+        /// <summary>
+    /// Gets or sets the Tenant Id.
+    /// </summary>
+public long TenantId
     {
         get
         {

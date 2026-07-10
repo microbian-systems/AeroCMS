@@ -10,5 +10,8 @@ namespace Aero.Cms.Abstractions.Blocks.Editor;
 /// </summary>
 public abstract class CannedBlockDefinitionBase : PageEditorCatalogDefinitionBase
 {
-    public override NeoPageNodeKind Kind => NeoPageNodeKind.Block;
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public override NeoPageNodeKind Kind => NeoPageNodeKind.Block;
 }

@@ -1,4 +1,4 @@
-﻿using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Models;
 using Aero.Cms.Modules.Media.Areas.Api.v1;
@@ -13,17 +13,41 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Media;
 
+/// <summary>
+/// Represents a class for MediaModule.
+/// </summary>
 [Module(nameof(MediaModule))]
 public class MediaModule : AeroWebModule, IConfigureAeroDB
 {
-    public override string Name => nameof(MediaModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["content", "media"];
-    public override IReadOnlyList<string> Tags => ["media", "assets", "cms"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(MediaModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["content", "media"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["media", "assets", "cms"];
 
-    public void Configure(StoreOptions options)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions options)
     {
         options.Schema.For<MediaAsset>()
             .Identity(x => x.Id)
@@ -35,12 +59,18 @@ public class MediaModule : AeroWebModule, IConfigureAeroDB
             .Index(x => x.MimeType);
     }
 
-    public void Configure(IServiceProvider services, StoreOptions options)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions options)
     {
         Configure(options);
     }
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         base.ConfigureServices(services, config, env);
 
@@ -53,7 +83,10 @@ public class MediaModule : AeroWebModule, IConfigureAeroDB
             sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroMediaActor>(0, "aero"));
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapMediaApi();
         builder.MapFilesApi();

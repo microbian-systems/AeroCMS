@@ -3,6 +3,9 @@ using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Requests;
 
+/// <summary>
+/// Represents a record for CreatePageRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("CreatePageRequest")]
 public record CreatePageRequest(
@@ -25,6 +28,9 @@ public record CreatePageRequest(
     string? RootNodeJson = null
 ) : IRequest;
 
+/// <summary>
+/// Represents a record for UpdatePageRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("UpdatePageRequest")]
 public record UpdatePageRequest(
@@ -47,6 +53,9 @@ public record UpdatePageRequest(
     string? RootNodeJson = null
 ) : IRequest;
 
+/// <summary>
+/// Represents a record for DeletePageRequest.
+/// </summary>
 [GenerateSerializer]
 [Alias("DeletePageRequest")]
 public record DeletePageRequest(

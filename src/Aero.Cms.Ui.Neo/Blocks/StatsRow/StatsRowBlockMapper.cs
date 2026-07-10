@@ -3,6 +3,9 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Neo.Blocks.StatsRow;
 
+/// <summary>
+/// Represents a class for StatsRowBlockMapper.
+/// </summary>
 public static class StatsRowBlockMapper
 {
     private static readonly List<StatItem> DefaultStats =
@@ -13,7 +16,10 @@ public static class StatsRowBlockMapper
         new("4.9/5", "Average Rating"),
     ];
 
-    public static NeoPageNode ToNode(StatsRowBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(StatsRowBlock block) => new()
     {
         NodeId = string.Empty,
         CatalogId = StatsRowBlock.BlockTypeId,
@@ -24,7 +30,10 @@ public static class StatsRowBlockMapper
         }
     };
 
-    public static StatsRowBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static StatsRowBlock FromNode(NeoPageNode node) => new()
     {
         Stats = node.Properties.TryGetValue("stats", out var element)
             && element.ValueKind == JsonValueKind.Array

@@ -9,32 +9,71 @@ namespace Aero.Cms.Abstractions.Models;
 [GenerateSerializer]
 public sealed record ContentItemViewModel : AeroEntityViewModel
 {
-    [Id(0)]
+        /// <summary>
+    /// Gets or sets the Content Type Alias.
+    /// </summary>
+[Id(0)]
     public string ContentTypeAlias { get; set; } = string.Empty;
-    [Id(1)]
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+[Id(1)]
     public string Slug { get; set; } = string.Empty;
-    [Id(2)]
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+[Id(2)]
     public string? Title { get; set; }
-    [Id(3)]
+        /// <summary>
+    /// Gets or sets the Fields Json.
+    /// </summary>
+[Id(3)]
     public string FieldsJson { get; set; } = "{}";
-    [Id(4)]
+        /// <summary>
+    /// Gets or sets the Publication State.
+    /// </summary>
+[Id(4)]
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
-    [Id(5)]
+        /// <summary>
+    /// Gets or sets the Published On.
+    /// </summary>
+[Id(5)]
     public DateTimeOffset? PublishedOn { get; set; }
-    [Id(6)]
+        /// <summary>
+    /// Gets or sets the Version Number.
+    /// </summary>
+[Id(6)]
     public int VersionNumber { get; set; }
-    [Id(7)]
+        /// <summary>
+    /// Gets or sets the Schedule Publish Utc.
+    /// </summary>
+[Id(7)]
     public DateTimeOffset? SchedulePublishUtc { get; set; }
-    [Id(8)]
+        /// <summary>
+    /// Gets or sets the Schedule Unpublish Utc.
+    /// </summary>
+[Id(8)]
     public DateTimeOffset? ScheduleUnpublishUtc { get; set; }
-    [Id(9)]
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+[Id(9)]
     public long? TranslationGroupId { get; set; }
-    [Id(10)]
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+[Id(10)]
     public string Culture { get; set; } = string.Empty;
-    [Id(11)]
+        /// <summary>
+    /// Gets or sets the Source Item Id.
+    /// </summary>
+[Id(11)]
     public long? SourceItemId { get; set; }
 }
 
+/// <summary>
+/// Represents a record for ContentItemErrorViewModel.
+/// </summary>
 [GenerateSerializer]
 [Alias("ContentItemErrorViewModel")]
 public record ContentItemErrorViewModel : AeroErrorViewModel<ContentItemViewModel>;

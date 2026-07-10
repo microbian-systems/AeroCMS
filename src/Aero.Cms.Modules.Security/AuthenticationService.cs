@@ -11,12 +11,18 @@ public sealed class AuthenticationService : IAuthenticationService
 {
     private readonly IEnumerable<IAuthenticationStrategy> _strategies;
 
-    public AuthenticationService(IEnumerable<IAuthenticationStrategy> strategies)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AuthenticationService"/> class.
+    /// </summary>
+public AuthenticationService(IEnumerable<IAuthenticationStrategy> strategies)
     {
         _strategies = strategies;
     }
 
-    public async Task<AeroUser?> AuthenticateAsync(ApiKeyAuthRequest request, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// AuthenticateAsync method.
+    /// </summary>
+public async Task<AeroUser?> AuthenticateAsync(ApiKeyAuthRequest request, CancellationToken cancellationToken = default)
     {
         // Try each strategy in order
         foreach (var strategy in _strategies)

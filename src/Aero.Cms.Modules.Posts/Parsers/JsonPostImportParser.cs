@@ -99,12 +99,33 @@ public sealed class JsonPostImportParser : IPostImportParser
     // Internal DTO matching the import JSON format
     private sealed class ImportEntry
     {
-        [JsonPropertyName("id")] public int Id { get; set; }
-        [JsonPropertyName("title")] public string? Title { get; set; }
-        [JsonPropertyName("date")] public string? Date { get; set; }
-        [JsonPropertyName("slug")] public string? Slug { get; set; }
-        [JsonPropertyName("coverImage")] public string? CoverImage { get; set; }
-        [JsonPropertyName("content")] public string? Content { get; set; }
-        [JsonPropertyName("tags")] public List<string>? Tags { get; set; }
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+[JsonPropertyName("id")] public int Id { get; set; }
+                /// <summary>
+        /// Gets or sets the Title.
+        /// </summary>
+[JsonPropertyName("title")] public string? Title { get; set; }
+                /// <summary>
+        /// Gets or sets the Date.
+        /// </summary>
+[JsonPropertyName("date")] public string? Date { get; set; }
+                /// <summary>
+        /// Gets or sets the Slug.
+        /// </summary>
+[JsonPropertyName("slug")] public string? Slug { get; set; }
+                /// <summary>
+        /// Gets or sets the Cover Image.
+        /// </summary>
+[JsonPropertyName("coverImage")] public string? CoverImage { get; set; }
+                /// <summary>
+        /// Gets or sets the Content.
+        /// </summary>
+[JsonPropertyName("content")] public string? Content { get; set; }
+                /// <summary>
+        /// Gets or sets the Tags.
+        /// </summary>
+[JsonPropertyName("tags")] public List<string>? Tags { get; set; }
     }
 }

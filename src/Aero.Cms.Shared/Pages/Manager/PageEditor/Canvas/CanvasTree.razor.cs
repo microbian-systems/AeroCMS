@@ -19,7 +19,10 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Canvas;
 /// </summary>
 public sealed partial class CanvasTree : ComponentBase
 {
-    [Parameter, EditorRequired]
+        /// <summary>
+    /// Gets or sets the Root Node.
+    /// </summary>
+[Parameter, EditorRequired]
     public NeoPageNode RootNode { get; set; } = default!;
 
     /// <summary>

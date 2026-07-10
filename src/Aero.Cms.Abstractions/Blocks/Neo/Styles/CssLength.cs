@@ -8,9 +8,15 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Styles;
 /// </summary>
 public readonly record struct CssLength(decimal? Value, CssLengthUnit Unit)
 {
-    public static CssLength Auto => new(null, CssLengthUnit.Auto);
+        /// <summary>
+    /// Gets or sets the Auto.
+    /// </summary>
+public static CssLength Auto => new(null, CssLengthUnit.Auto);
 
-    public override string ToString()
+        /// <summary>
+    /// ToString method.
+    /// </summary>
+public override string ToString()
     {
         if (Unit == CssLengthUnit.Auto)
         {
@@ -38,9 +44,15 @@ public enum CssLengthUnit
     Auto
 }
 
+/// <summary>
+/// Represents a class for CssLengthUnitExtensions.
+/// </summary>
 public static class CssLengthUnitExtensions
 {
-    public static string ToCssSuffix(this CssLengthUnit unit) =>
+        /// <summary>
+    /// ToCssSuffix method.
+    /// </summary>
+public static string ToCssSuffix(this CssLengthUnit unit) =>
         unit switch
         {
             CssLengthUnit.Pixels => "px",

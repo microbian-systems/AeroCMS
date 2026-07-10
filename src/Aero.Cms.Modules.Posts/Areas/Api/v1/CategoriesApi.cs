@@ -20,7 +20,10 @@ namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 /// </summary>
 public static class CategoriesApi
 {
-    public static void MapCategoriesApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapCategoriesApi method.
+    /// </summary>
+public static void MapCategoriesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/categories")
             .WithTags("Admin - Categories");

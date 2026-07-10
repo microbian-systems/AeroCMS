@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Content.Areas.Content.Pages;
 
+/// <summary>
+/// Represents a class for PublicContentModel.
+/// </summary>
 public sealed class PublicContentModel(
     ISiteContext siteContext,
     ContentTypeUrlRenderer renderer,
@@ -19,11 +22,20 @@ public sealed class PublicContentModel(
         "register", "health", "swagger", "scalar", "favicon.ico"
     };
 
-    public string Title { get; private set; } = "Content";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; private set; } = "Content";
 
-    public string RenderedHtml { get; private set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Rendered Html.
+    /// </summary>
+public string RenderedHtml { get; private set; } = string.Empty;
 
-    public async Task<IActionResult> OnGetAsync(
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetAsync(
         string typeAlias,
         string entrySlug,
         CancellationToken cancellationToken)

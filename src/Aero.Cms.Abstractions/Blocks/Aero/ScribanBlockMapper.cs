@@ -1,8 +1,14 @@
 namespace Aero.Cms.Abstractions.Blocks.Neo;
 
+/// <summary>
+/// Represents a class for ScribanBlockMapper.
+/// </summary>
 public static class ScribanBlockMapper
 {
-    public static NeoPageNode ToNode(ScribanBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(ScribanBlock block) => new()
     {
         CatalogId = "neo.template.scriban", Kind = NeoPageNodeKind.Block,
         Properties = new Dictionary<string, JsonElement>
@@ -15,7 +21,10 @@ public static class ScribanBlockMapper
         }
     };
 
-    public static ScribanBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static ScribanBlock FromNode(NeoPageNode node) => new()
     {
         Name = node.Properties.TryGetValue("name", out var n) ? n.GetString() ?? "Scriban Block" : "Scriban Block",
         Template = node.Properties.TryGetValue("template", out var t) ? t.GetString() ?? string.Empty : string.Empty,

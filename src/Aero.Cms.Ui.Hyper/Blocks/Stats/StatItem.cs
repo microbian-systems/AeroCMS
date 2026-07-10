@@ -5,6 +5,12 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Stats;
 /// </summary>
 public sealed class StatItem
 {
-    public string Label { get; set; } = string.Empty;
-    public string Value { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Label.
+    /// </summary>
+public string Label { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Value.
+    /// </summary>
+public string Value { get; set; } = string.Empty;
 }

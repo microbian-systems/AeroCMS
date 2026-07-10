@@ -2,11 +2,20 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Web.Pages;
 
+/// <summary>
+/// Represents a class for NoSiteExistsModel.
+/// </summary>
 public class NoSiteExistsModel : PageModel
 {
-    public string RequestedHost { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Requested Host.
+    /// </summary>
+public string RequestedHost { get; set; } = "";
 
-    public void OnGet()
+        /// <summary>
+    /// OnGet method.
+    /// </summary>
+public void OnGet()
     {
         RequestedHost = HttpContext.Request.Host.Host;
     }

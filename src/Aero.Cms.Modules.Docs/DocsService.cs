@@ -30,7 +30,10 @@ public sealed class DocsContentService : IDocsService
     private readonly IFusionCache? _cache;
     private const string DocsCacheTag = "docs-index";
 
-    public DocsContentService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DocsContentService"/> class.
+    /// </summary>
+public DocsContentService(
         IDocumentSession session,
         IBlockService blockService,
         IMessageBus bus,
@@ -50,7 +53,10 @@ public sealed class DocsContentService : IDocsService
 
     // ── CRUD ─────────────────────────────────────────────────────────────
 
-    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetAllAsync(CancellationToken ct = default)
     {
         try
         {
@@ -76,10 +82,16 @@ public sealed class DocsContentService : IDocsService
 
     // ─────────── Published (compiled queries) ───────────────────────────
 
-    public Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetPublishedAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(CancellationToken ct = default)
         => GetPublishedAsync(null, ct);
 
-    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(string? culture, CancellationToken ct = default)
+        /// <summary>
+    /// GetPublishedAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetPublishedAsync(string? culture, CancellationToken ct = default)
     {
         try
         {
@@ -107,7 +119,10 @@ public sealed class DocsContentService : IDocsService
         }
     }
 
-    public async Task<Result<(IReadOnlyList<DocsPage> Items, long TotalCount), AeroError>> GetPagedAsync(int skip, int take, CancellationToken ct = default)
+        /// <summary>
+    /// GetPagedAsync method.
+    /// </summary>
+public async Task<Result<(IReadOnlyList<DocsPage> Items, long TotalCount), AeroError>> GetPagedAsync(int skip, int take, CancellationToken ct = default)
     {
         try
         {
@@ -135,7 +150,10 @@ public sealed class DocsContentService : IDocsService
 
     // ── Slug lookup ─────────────────────────────────────────────────────
 
-    public async Task<Result<DocsPage?, AeroError>> GetBySlugAsync(string slug, CancellationToken ct = default)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public async Task<Result<DocsPage?, AeroError>> GetBySlugAsync(string slug, CancellationToken ct = default)
     {
         try
         {
@@ -159,10 +177,16 @@ public sealed class DocsContentService : IDocsService
         }
     }
 
-    public Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string slug, CancellationToken ct = default)
+        /// <summary>
+    /// GetPublishedBySlugAsync method.
+    /// </summary>
+public Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string slug, CancellationToken ct = default)
         => GetPublishedBySlugAsync(slug, null, ct);
 
-    public async Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string slug, string? culture, CancellationToken ct = default)
+        /// <summary>
+    /// GetPublishedBySlugAsync method.
+    /// </summary>
+public async Task<Result<DocsPage?, AeroError>> GetPublishedBySlugAsync(string slug, string? culture, CancellationToken ct = default)
     {
         try
         {
@@ -192,7 +216,10 @@ public sealed class DocsContentService : IDocsService
         }
     }
 
-    public async Task<Result<DocsPage?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<Result<DocsPage?, AeroError>> GetByIdAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -254,7 +281,10 @@ public sealed class DocsContentService : IDocsService
         }
     }
 
-    public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -281,7 +311,10 @@ public sealed class DocsContentService : IDocsService
 
     // ── Batch load ─────────────────────────────────────────────────────────
 
-    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetByIdsAsync(long[] ids, CancellationToken ct = default)
+        /// <summary>
+    /// GetByIdsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetByIdsAsync(long[] ids, CancellationToken ct = default)
     {
         try
         {
@@ -297,7 +330,10 @@ public sealed class DocsContentService : IDocsService
         }
     }
 
-    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// ListCultureVariantsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> ListCultureVariantsAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -320,7 +356,10 @@ public sealed class DocsContentService : IDocsService
         }
     }
 
-    public async Task<Result<DocsPage, AeroError>> ForkToCultureAsync(long id, string targetCulture, string slug, CancellationToken ct = default)
+        /// <summary>
+    /// ForkToCultureAsync method.
+    /// </summary>
+public async Task<Result<DocsPage, AeroError>> ForkToCultureAsync(long id, string targetCulture, string slug, CancellationToken ct = default)
     {
         try
         {
@@ -383,7 +422,10 @@ public sealed class DocsContentService : IDocsService
 
     // ── Request-based CRUD (thin mapping, delegates to SaveAsync) ──────────
 
-    public async Task<Result<DocsPage, AeroError>> CreateAsync(CreateDocRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<Result<DocsPage, AeroError>> CreateAsync(CreateDocRequest request, CancellationToken ct = default)
     {
         try
         {
@@ -413,7 +455,10 @@ public sealed class DocsContentService : IDocsService
         }
     }
 
-    public async Task<Result<DocsPage, AeroError>> UpdateAsync(long id, UpdateDocRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<Result<DocsPage, AeroError>> UpdateAsync(long id, UpdateDocRequest request, CancellationToken ct = default)
     {
         try
         {
@@ -440,10 +485,16 @@ public sealed class DocsContentService : IDocsService
 
     // ── Tree ──────────────────────────────────────────────────────────────
 
-    public Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, CancellationToken ct = default)
+        /// <summary>
+    /// GetChildrenAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, CancellationToken ct = default)
         => GetChildrenAsync(parentId, null, ct);
 
-    public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, string? culture, CancellationToken ct = default)
+        /// <summary>
+    /// GetChildrenAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(long parentId, string? culture, CancellationToken ct = default)
     {
         try
         {

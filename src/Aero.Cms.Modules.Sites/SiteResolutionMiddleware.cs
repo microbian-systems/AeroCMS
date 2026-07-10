@@ -18,7 +18,10 @@ public sealed class SiteResolutionMiddleware(RequestDelegate next)
     private static readonly PathString AdminApiPathPrefix = "/api/v1/admin";
     private static readonly PathString NoSitePathPrefix = "/nosite";
 
-    public async Task InvokeAsync(
+        /// <summary>
+    /// InvokeAsync method.
+    /// </summary>
+public async Task InvokeAsync(
         HttpContext context,
         ISiteLookupService siteLookup)
     {

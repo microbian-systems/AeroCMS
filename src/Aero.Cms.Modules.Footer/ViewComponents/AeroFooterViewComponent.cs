@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Mvc.ViewComponents;
 
 namespace Aero.Cms.Modules.Footer.ViewComponents;
 
+/// <summary>
+/// Represents a class for AeroFooterViewComponent.
+/// </summary>
 public sealed class AeroFooterViewComponent(
     ISiteContext siteContext,
     IFooterService footerService,
@@ -12,7 +15,10 @@ public sealed class AeroFooterViewComponent(
     IFooterHtmlRenderer footerRenderer,
     ILogger<AeroFooterViewComponent> logger) : ViewComponent
 {
-    public async Task<IViewComponentResult> InvokeAsync()
+        /// <summary>
+    /// InvokeAsync method.
+    /// </summary>
+public async Task<IViewComponentResult> InvokeAsync()
     {
         var result = await footerContext.ResolveAsync(siteContext.SiteId, footerService, HttpContext.RequestAborted);
         if (result is Result<bool, AeroError>.Failure failure)

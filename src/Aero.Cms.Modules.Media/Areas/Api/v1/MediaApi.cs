@@ -22,7 +22,10 @@ public static class MediaApi
             ["image/webp"] = ".webp", ["image/gif"] = ".gif"
         };
 
-    public static void MapMediaApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapMediaApi method.
+    /// </summary>
+public static void MapMediaApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/media")
             .WithTags("Admin - Media");

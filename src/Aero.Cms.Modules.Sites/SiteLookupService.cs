@@ -5,9 +5,15 @@ using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Sites;
 
+/// <summary>
+/// Represents a class for SiteLookupService.
+/// </summary>
 public sealed class SiteLookupService(IQuerySession session) : ISiteLookupService
 {
-    public async Task<SiteViewModel?> ResolveByHostAsync(
+        /// <summary>
+    /// ResolveByHostAsync method.
+    /// </summary>
+public async Task<SiteViewModel?> ResolveByHostAsync(
         string host,
         CancellationToken cancellationToken = default)
     {
@@ -33,7 +39,10 @@ public sealed class SiteLookupService(IQuerySession session) : ISiteLookupServic
         return MapToViewModel(site, allHosts);
     }
 
-    public async Task<IReadOnlyList<SiteViewModel>> GetAllAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<IReadOnlyList<SiteViewModel>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var sites = await session.Query<SitesModel>()
             .OrderBy(x => x.Name)

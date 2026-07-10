@@ -17,25 +17,46 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Canvas;
 /// </summary>
 public sealed partial class CanvasNode : ComponentBase
 {
-    [Parameter, EditorRequired]
+        /// <summary>
+    /// Gets or sets the Node.
+    /// </summary>
+[Parameter, EditorRequired]
     public NeoPageNode Node { get; set; } = default!;
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Root Node.
+    /// </summary>
+[Parameter]
     public NeoPageNode? RootNode { get; set; }
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Is Selected.
+    /// </summary>
+[Parameter]
     public bool IsSelected { get; set; }
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the Depth.
+    /// </summary>
+[Parameter]
     public int Depth { get; set; }
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the On Select.
+    /// </summary>
+[Parameter]
     public EventCallback<string> OnSelect { get; set; }
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the On Edit.
+    /// </summary>
+[Parameter]
     public EventCallback<string> OnEdit { get; set; }
 
-    [Parameter]
+        /// <summary>
+    /// Gets or sets the On Node Changed.
+    /// </summary>
+[Parameter]
     public EventCallback<CompositionMutation> OnNodeChanged { get; set; }
 
     /// <summary>
@@ -86,10 +107,16 @@ public sealed partial class CanvasNode : ComponentBase
     [Parameter]
     public int TotalSiblings { get; set; }
 
-    [CascadingParameter]
+        /// <summary>
+    /// Gets or sets the Definition Registry.
+    /// </summary>
+[CascadingParameter]
     public IPageEditorDefinitionRegistry? DefinitionRegistry { get; set; }
 
-    [CascadingParameter]
+        /// <summary>
+    /// Gets or sets the Editor.
+    /// </summary>
+[CascadingParameter]
     public IBlockEditorCallbacks? Editor { get; set; }
 
     [Inject]
@@ -178,7 +205,10 @@ public sealed partial class CanvasNode : ComponentBase
                 HasNonEmptyStringProperty("text", "content", "title", "code", "html", "markdown", "name", "quote")
         };
 
-    protected override void OnParametersSet()
+        /// <summary>
+    /// OnParametersSet method.
+    /// </summary>
+protected override void OnParametersSet()
     {
         ResolvePreviewType();
         BuildPreviewParameters();

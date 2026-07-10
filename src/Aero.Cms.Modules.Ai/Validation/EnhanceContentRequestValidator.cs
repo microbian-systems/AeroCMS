@@ -3,6 +3,9 @@ using FluentValidation;
 
 namespace Aero.Cms.Modules.Ai.Validation;
 
+/// <summary>
+/// Represents a class for EnhanceContentRequestValidator.
+/// </summary>
 public sealed class EnhanceContentRequestValidator : AbstractValidator<EnhanceContentRequest>
 {
     private static readonly HashSet<string> ContentKinds = new(StringComparer.OrdinalIgnoreCase)
@@ -21,7 +24,10 @@ public sealed class EnhanceContentRequestValidator : AbstractValidator<EnhanceCo
         "seoDescription"
     };
 
-    public EnhanceContentRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="EnhanceContentRequestValidator"/> class.
+    /// </summary>
+public EnhanceContentRequestValidator()
     {
         // todo - get ai provider settings/options from the database config
         RuleFor(x => x.ContentKind)

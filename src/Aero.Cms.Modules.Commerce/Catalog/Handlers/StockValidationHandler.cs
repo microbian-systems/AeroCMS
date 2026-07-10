@@ -22,7 +22,10 @@ public sealed class StockValidationHandler(
     IMessageBus bus,
     ILogger<StockValidationHandler> log) : IWolverineHandler
 {
-    public async Task Handle(OrderStatusChangedToAwaitingValidation @event)
+        /// <summary>
+    /// Handle method.
+    /// </summary>
+public async Task Handle(OrderStatusChangedToAwaitingValidation @event)
     {
         try
         {

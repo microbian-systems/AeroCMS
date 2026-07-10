@@ -6,15 +6,36 @@ using Wolverine;
 
 namespace Aero.Cms.Modules.Pages;
 
+/// <summary>
+/// Defines an interface for IPagePublishingWorkflowService.
+/// </summary>
 public interface IPagePublishingWorkflowService
 {
-    Task<Result<bool, AeroError>> SubmitForReviewAsync(long pageId, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> ApproveAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> RejectAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> PublishNowAsync(long pageId, CancellationToken ct = default);
-    Task<Result<bool, AeroError>> ArchiveAsync(long pageId, CancellationToken ct = default);
+        /// <summary>
+    /// SubmitForReviewAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> SubmitForReviewAsync(long pageId, CancellationToken ct = default);
+        /// <summary>
+    /// ApproveAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> ApproveAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default);
+        /// <summary>
+    /// RejectAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> RejectAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default);
+        /// <summary>
+    /// PublishNowAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> PublishNowAsync(long pageId, CancellationToken ct = default);
+        /// <summary>
+    /// ArchiveAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> ArchiveAsync(long pageId, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Represents a class for PagePublishingWorkflowService.
+/// </summary>
 public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowService
 {
     private readonly IDocumentSession _session;
@@ -22,7 +43,10 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
     private readonly IPageLayoutManifestBuilder _layoutBuilder;
     private readonly ILogger<PagePublishingWorkflowService> _logger;
 
-    public PagePublishingWorkflowService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PagePublishingWorkflowService"/> class.
+    /// </summary>
+public PagePublishingWorkflowService(
         IDocumentSession session,
         IMessageBus bus,
         IPageLayoutManifestBuilder layoutBuilder,
@@ -34,7 +58,10 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         _logger = logger;
     }
 
-    public async Task<Result<bool, AeroError>> SubmitForReviewAsync(long pageId, CancellationToken ct = default)
+        /// <summary>
+    /// SubmitForReviewAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> SubmitForReviewAsync(long pageId, CancellationToken ct = default)
     {
         try
         {
@@ -59,7 +86,10 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         }
     }
 
-    public async Task<Result<bool, AeroError>> ApproveAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default)
+        /// <summary>
+    /// ApproveAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> ApproveAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default)
     {
         try
         {
@@ -84,7 +114,10 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         }
     }
 
-    public async Task<Result<bool, AeroError>> RejectAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default)
+        /// <summary>
+    /// RejectAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> RejectAsync(long pageId, string reviewerId, string? notes, CancellationToken ct = default)
     {
         try
         {
@@ -109,7 +142,10 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         }
     }
 
-    public async Task<Result<bool, AeroError>> PublishNowAsync(long pageId, CancellationToken ct = default)
+        /// <summary>
+    /// PublishNowAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> PublishNowAsync(long pageId, CancellationToken ct = default)
     {
         try
         {
@@ -218,7 +254,10 @@ public sealed class PagePublishingWorkflowService : IPagePublishingWorkflowServi
         }
     }
 
-    public async Task<Result<bool, AeroError>> ArchiveAsync(long pageId, CancellationToken ct = default)
+        /// <summary>
+    /// ArchiveAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> ArchiveAsync(long pageId, CancellationToken ct = default)
     {
         try
         {

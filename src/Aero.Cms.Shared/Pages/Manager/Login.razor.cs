@@ -9,6 +9,9 @@ using Microsoft.Extensions.Localization;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a class for LoginBase.
+/// </summary>
 public abstract class LoginBase : ComponentBase
 {
     [Inject]
@@ -20,24 +23,48 @@ public abstract class LoginBase : ComponentBase
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
-    [Inject]
+        /// <summary>
+    /// Gets or sets the Configuration.
+    /// </summary>
+[Inject]
     protected IConfiguration Configuration { get; set; } = default!;
 
     [Inject]
     private IHttpClientFactory HttpClientFactory { get; set; } = default!;
 
-    [Inject]
+        /// <summary>
+    /// Gets or sets the L.
+    /// </summary>
+[Inject]
     protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
-    [SupplyParameterFromQuery(Name = "returnUrl")]
+        /// <summary>
+    /// Gets or sets the Return Url.
+    /// </summary>
+[SupplyParameterFromQuery(Name = "returnUrl")]
     protected string? ReturnUrl { get; set; }
 
-    protected readonly LoginModel Model = new();
-    protected string? ErrorMessage;
-    protected bool IsSubmitting { get; set; }
-    protected bool ShowPassword { get; set; }
+        /// <summary>
+    /// Model.
+    /// </summary>
+protected readonly LoginModel Model = new();
+        /// <summary>
+    /// ErrorMessage.
+    /// </summary>
+protected string? ErrorMessage;
+        /// <summary>
+    /// Gets or sets the Is Submitting.
+    /// </summary>
+protected bool IsSubmitting { get; set; }
+        /// <summary>
+    /// Gets or sets the Show Password.
+    /// </summary>
+protected bool ShowPassword { get; set; }
 
-    protected override void OnInitialized()
+        /// <summary>
+    /// OnInitialized method.
+    /// </summary>
+protected override void OnInitialized()
     {
         var env = Configuration["ASPNETCORE_ENVIRONMENT"] ?? Configuration["Environment"];
         var isDev = env == "Development" || Navigation.BaseUri.Contains("localhost") || Navigation.BaseUri.Contains("127.0.0.1");
@@ -49,9 +76,15 @@ public abstract class LoginBase : ComponentBase
         }
     }
 
-    protected void TogglePasswordVisibility() => ShowPassword = !ShowPassword;
+        /// <summary>
+    /// TogglePasswordVisibility method.
+    /// </summary>
+protected void TogglePasswordVisibility() => ShowPassword = !ShowPassword;
 
-    protected async Task HandleSubmit()
+        /// <summary>
+    /// HandleSubmit method.
+    /// </summary>
+protected async Task HandleSubmit()
     {
         ErrorMessage = null;
         IsSubmitting = true;
@@ -122,14 +155,26 @@ public abstract class LoginBase : ComponentBase
         }
     }
 
-    protected sealed class LoginModel
+        /// <summary>
+    /// Represents a class for LoginModel.
+    /// </summary>
+protected sealed class LoginModel
     {
-        [Required]
+                /// <summary>
+        /// Gets or sets the Email Or User Name.
+        /// </summary>
+[Required]
         public string EmailOrUserName { get; set; } = string.Empty;
 
-        [Required]
+                /// <summary>
+        /// Gets or sets the Password.
+        /// </summary>
+[Required]
         public string Password { get; set; } = string.Empty;
 
-        public bool RememberMe { get; set; }
+                /// <summary>
+        /// Gets or sets the Remember Me.
+        /// </summary>
+public bool RememberMe { get; set; }
     }
 }

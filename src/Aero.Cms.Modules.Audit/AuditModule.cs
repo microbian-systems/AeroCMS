@@ -15,24 +15,48 @@ namespace Aero.Cms.Modules.Audit;
 [Module(nameof(AuditModule))]
 public sealed class AuditModule : AeroWebModule
 {
-    public override string Name => nameof(AuditModule);
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(AuditModule);
 
-    public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
 
-    public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
 
-    public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
 
-    public override IReadOnlyList<string> Category => ["admin", "audit"];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["admin", "audit"];
 
-    public override IReadOnlyList<string> Tags => ["admin", "audit", "cms"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["admin", "audit", "cms"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         services.AddScoped<IAuditService, AuditService>();
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapAuditApi();
 

@@ -16,17 +16,47 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Cards;
     SchemaVersion = 1)]
 public sealed class Card9Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.cards.9";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.cards.9";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Question about Rendering";
-    public string Description { get; set; } = "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Accusamus, accusantium temporibus iure delectus ut totam natus nesciunt ex? Ducimus, enim.";
-    public string AvatarUrl { get; set; } = "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=1160";
-    public int CommentCount { get; set; } = 14;
-    public string PostedBy { get; set; } = "John";
-    public bool Solved { get; set; } = true;
-    public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Question about Rendering";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Accusamus, accusantium temporibus iure delectus ut totam natus nesciunt ex? Ducimus, enim.";
+        /// <summary>
+    /// Gets or sets the Avatar Url.
+    /// </summary>
+public string AvatarUrl { get; set; } = "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=1160";
+        /// <summary>
+    /// Gets or sets the Comment Count.
+    /// </summary>
+public int CommentCount { get; set; } = 14;
+        /// <summary>
+    /// Gets or sets the Posted By.
+    /// </summary>
+public string PostedBy { get; set; } = "John";
+        /// <summary>
+    /// Gets or sets the Solved.
+    /// </summary>
+public bool Solved { get; set; } = true;
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

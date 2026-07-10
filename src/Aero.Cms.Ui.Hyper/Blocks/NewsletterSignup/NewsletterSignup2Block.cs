@@ -16,15 +16,39 @@ namespace Aero.Cms.Ui.Hyper.Blocks.NewsletterSignup;
     SchemaVersion = 1)]
 public sealed class NewsletterSignup2Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.newsletter-signup.2";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.newsletter-signup.2";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Sign up for our newsletter";
-    public string Description { get; set; } = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Tenetur doloremque saepe architecto maiores repudiandae amet perferendis repellendus, reprehenderit voluptas sequi.";
-    public string Placeholder { get; set; } = "Enter your email";
-    public string CtaText { get; set; } = "Sign Up";
-    public string FormAction { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Sign up for our newsletter";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "Lorem ipsum dolor sit amet consectetur adipisicing elit. Tenetur doloremque saepe architecto maiores repudiandae amet perferendis repellendus, reprehenderit voluptas sequi.";
+        /// <summary>
+    /// Gets or sets the Placeholder.
+    /// </summary>
+public string Placeholder { get; set; } = "Enter your email";
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText { get; set; } = "Sign Up";
+        /// <summary>
+    /// Gets or sets the Form Action.
+    /// </summary>
+public string FormAction { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

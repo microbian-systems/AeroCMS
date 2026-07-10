@@ -23,7 +23,10 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
     private readonly IServiceScopeFactory _scopeFactory;
     private ContentItemViewModel _state = new();
 
-    public AeroContentItemGrain(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroContentItemGrain"/> class.
+    /// </summary>
+public AeroContentItemGrain(
         ILogger<AeroActor> log,
         IServiceScopeFactory scopeFactory)
         : base(log)
@@ -33,10 +36,16 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
 
     // ── IHaveState<ContentItemViewModel> ─────────────────────────────
 
-    public Task<ContentItemViewModel> GetStateAsync(CancellationToken ct)
+        /// <summary>
+    /// GetStateAsync method.
+    /// </summary>
+public Task<ContentItemViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-    public Task UpdateStateAsync(ContentItemViewModel state, CancellationToken ct)
+        /// <summary>
+    /// UpdateStateAsync method.
+    /// </summary>
+public Task UpdateStateAsync(ContentItemViewModel state, CancellationToken ct)
     {
         _state = state;
         return Task.CompletedTask;
@@ -44,7 +53,10 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
 
     // ── ICruddable<ContentItemViewModel, long> ───────────────────────
 
-    public async Task<AeroRequestResponse<ContentItemViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<ContentItemViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
@@ -57,27 +69,42 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
         };
     }
 
-    public Task<AeroRequestResponse<ContentItemViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+        /// <summary>
+    /// GetByIdsAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<ContentItemViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
         => Task.FromResult(Fail("GetByIdsAsync not supported for content items"));
 
-    public async Task<AeroRequestResponse<ContentItemViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<ContentItemViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         // Content items don't use the standard IRequest pattern — Create is handled
         // via SaveDraftAsync with a fully constructed ContentItem.
         return Fail("Use CreateContentItemAsync instead of CreateAsync for content items");
     }
 
-    public Task<AeroRequestResponse<ContentItemViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<ContentItemViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
         => Task.FromResult(Fail("Use SaveDraftAsync directly for content items"));
 
-    public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         // Content items use DeleteAsync(long id) instead of the IRequest pattern.
         // This overload exists to satisfy ICruddable<ContentItemViewModel, long>.
         return Fail("Use DeleteAsync(long id) for content items");
     }
 
-    public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<ContentItemViewModel>> DeleteAsync(long id, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
@@ -101,10 +128,16 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
 
     // ── ICanFindBySite / ICanFindBySlug — stubbed ────────────────────
 
-    public Task<AeroRequestResponse<ContentItemViewModel>> GetBySiteIdAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<ContentItemViewModel>> GetBySiteIdAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
         => Task.FromResult(Fail("Not supported"));
 
-    public Task<AeroRequestResponse<ContentItemViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<ContentItemViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => Task.FromResult(Fail("Not supported"));
 
     Task<AeroRequestResponse<ContentItemViewModel>> ICanFindBySlug<ContentItemViewModel, string>.GetBySlugAsync(string siteId, string slug, CancellationToken ct)
@@ -112,7 +145,10 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
 
     // ── IAeroContentItemActor content-specific methods ────────────────
 
-    public async Task<(List<ContentItemViewModel> Items, long TotalCount)> GetByTypeAsync(
+        /// <summary>
+    /// GetByTypeAsync method.
+    /// </summary>
+public async Task<(List<ContentItemViewModel> Items, long TotalCount)> GetByTypeAsync(
         long siteId, string contentTypeAlias, int skip, int take, CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -127,7 +163,10 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
         };
     }
 
-    public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(ContentItemViewModel vm, CancellationToken ct)
+        /// <summary>
+    /// SaveDraftAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<ContentItemViewModel>> SaveDraftAsync(ContentItemViewModel vm, CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var commandService = scope.ServiceProvider.GetRequiredService<ContentCommandService>();
@@ -154,7 +193,10 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
         };
     }
 
-    public async Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// PublishAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<ContentItemViewModel>> PublishAsync(long id, CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
@@ -172,7 +214,10 @@ public sealed class AeroContentItemGrain : AeroActor, IAeroContentItemActor
         };
     }
 
-    public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// UnpublishAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long id, CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();

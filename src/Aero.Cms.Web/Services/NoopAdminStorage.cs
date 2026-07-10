@@ -9,6 +9,12 @@ namespace Aero.Cms.Web.Services;
 /// </summary>
 internal sealed class NoopAdminStorage : IAdminStorage
 {
-    public T? GetItem<T>(string key) => default;
-    public void SetItem<T>(string key, T value) { }
+        /// <summary>
+    /// GetItem method.
+    /// </summary>
+public T? GetItem<T>(string key) => default;
+        /// <summary>
+    /// SetItem method.
+    /// </summary>
+public void SetItem<T>(string key, T value) { }
 }

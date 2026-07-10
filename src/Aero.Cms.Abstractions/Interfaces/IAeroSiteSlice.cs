@@ -7,10 +7,22 @@ namespace Aero.Cms.Abstractions.Interfaces;
 /// </summary>
 public interface IAeroSiteSlice
 {
-    long SiteId { get; }
-    long TenantId { get; }
-    string? DefaultCulture { get; }
-    IReadOnlyList<string> SupportedCultures { get; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+long SiteId { get; }
+        /// <summary>
+    /// Gets or sets the Tenant Id.
+    /// </summary>
+long TenantId { get; }
+        /// <summary>
+    /// Gets or sets the Default Culture.
+    /// </summary>
+string? DefaultCulture { get; }
+        /// <summary>
+    /// Gets or sets the Supported Cultures.
+    /// </summary>
+IReadOnlyList<string> SupportedCultures { get; }
 }
 
 /// <summary>
@@ -18,8 +30,20 @@ public interface IAeroSiteSlice
 /// </summary>
 public sealed class AeroSiteSlice : IAeroSiteSlice
 {
-    public long SiteId { get; init; }
-    public long TenantId { get; init; }
-    public string? DefaultCulture { get; init; }
-    public IReadOnlyList<string> SupportedCultures { get; init; } = [];
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; init; }
+        /// <summary>
+    /// Gets or sets the Tenant Id.
+    /// </summary>
+public long TenantId { get; init; }
+        /// <summary>
+    /// Gets or sets the Default Culture.
+    /// </summary>
+public string? DefaultCulture { get; init; }
+        /// <summary>
+    /// Gets or sets the Supported Cultures.
+    /// </summary>
+public IReadOnlyList<string> SupportedCultures { get; init; } = [];
 }

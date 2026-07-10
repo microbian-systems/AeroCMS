@@ -22,7 +22,10 @@ public sealed class SitePermissionHandler(
 {
     private const string SiteCookieName = "AeroCms.SiteId";
 
-    protected override async Task HandleRequirementAsync(
+        /// <summary>
+    /// HandleRequirementAsync method.
+    /// </summary>
+protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context,
         SitePermissionRequirement requirement)
     {

@@ -3,6 +3,9 @@ using Aero.Cms.Modules.Navigation.Domain;
 
 namespace Aero.Cms.Modules.Navigation.Serialization;
 
+/// <summary>
+/// Represents a class for NavMenuJsonContext.
+/// </summary>
 [JsonSerializable(typeof(NavMenuDocument))]
 [JsonSerializable(typeof(SiteNavigationSettingsDocument))]
 [JsonSerializable(typeof(NavMenuSnapshot))]

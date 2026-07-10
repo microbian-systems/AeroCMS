@@ -16,11 +16,23 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Footers;
     SchemaVersion = 1)]
 public sealed class Footer11Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.footers.11";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.footers.11";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Copyright { get; set; } = "Copyright &copy; 2022. All rights reserved.";
+        /// <summary>
+    /// Gets or sets the Copyright.
+    /// </summary>
+public string Copyright { get; set; } = "Copyright &copy; 2022. All rights reserved.";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

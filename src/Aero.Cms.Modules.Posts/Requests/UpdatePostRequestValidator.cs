@@ -2,7 +2,10 @@ namespace Aero.Cms.Modules.Posts.Requests;
 
 internal class UpdatePostRequestValidator : AbstractValidator<UpdatePostRequest>
 {
-    public UpdatePostRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdatePostRequestValidator"/> class.
+    /// </summary>
+public UpdatePostRequestValidator()
     {
         RuleFor(x => x.Id).NotNull().GreaterThan(0);
         RuleFor(x => x.Title).NotNull().NotEmpty().MaximumLength(200);

@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Sections;
 
+/// <summary>
+/// Represents a class for Sections1BlockMapper.
+/// </summary>
 public static class Sections1BlockMapper
 {
-    public static NeoPageNode ToNode(Sections1Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Sections1Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.sections.1",
@@ -18,7 +24,10 @@ public static class Sections1BlockMapper
         }
     };
 
-    public static Sections1Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Sections1Block FromNode(NeoPageNode node) => new()
     {
         Title = GetString(node, "title", "Lorem ipsum dolor sit amet consectetur adipisicing elit."),
         Description = GetString(node, "description", "Lorem ipsum dolor sit amet consectetur adipisicing elit."),

@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Ctas;
 
+/// <summary>
+/// Represents a class for Cta2BlockMapper.
+/// </summary>
 public static class Cta2BlockMapper
 {
-    public static NeoPageNode ToNode(Cta2Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Cta2Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.ctas.2",
@@ -20,7 +26,10 @@ public static class Cta2BlockMapper
         }
     };
 
-    public static Cta2Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Cta2Block FromNode(NeoPageNode node) => new()
     {
         Title = GetString(node, "title", "Lorem, ipsum dolor sit amet consectetur adipisicing elit"),
         Description = GetString(node, "description", "Lorem ipsum dolor sit amet, consectetur adipisicing elit."),

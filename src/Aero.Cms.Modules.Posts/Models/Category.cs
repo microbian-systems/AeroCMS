@@ -8,7 +8,10 @@ namespace Aero.Cms.Modules.Posts.Models;
 /// </summary>
 public class Category : Entity, ISiteOwned
 {
-    public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
 
     /// <summary>
     /// Gets or sets the name of the category.

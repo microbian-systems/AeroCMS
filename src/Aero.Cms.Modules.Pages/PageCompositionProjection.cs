@@ -13,7 +13,10 @@ namespace Aero.Cms.Modules.Pages;
 /// </summary>
 public sealed class PageCompositionProjection : IProjection
 {
-    public void Apply(IDocumentOperations operations, IReadOnlyList<IEvent> events)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(IDocumentOperations operations, IReadOnlyList<IEvent> events)
     {
         foreach (var @event in CompositionEvents(events))
         {
@@ -21,7 +24,10 @@ public sealed class PageCompositionProjection : IProjection
         }
     }
 
-    public Task ApplyAsync(IDocumentOperations operations, IReadOnlyList<IEvent> events, CancellationToken ct)
+        /// <summary>
+    /// ApplyAsync method.
+    /// </summary>
+public Task ApplyAsync(IDocumentOperations operations, IReadOnlyList<IEvent> events, CancellationToken ct)
     {
         Apply(operations, events);
         return Task.CompletedTask;

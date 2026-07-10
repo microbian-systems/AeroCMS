@@ -8,17 +8,41 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.RateLimiting;
 
+/// <summary>
+/// Represents a class for RateLimitingModule.
+/// </summary>
 [Module(nameof(RateLimitingModule))]
 public class RateLimitingModule : AeroModuleBase
 {
-    public override string Name => nameof(RateLimitingModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["Security", "Infrastructure"];
-    public override IReadOnlyList<string> Tags => ["ratelimit", "security", "throttling"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(RateLimitingModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["Security", "Infrastructure"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["ratelimit", "security", "throttling"];
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // todo - enable database config to supply the type of rate limiting (sliding window, fixed, etc)
         services.AddRateLimiter(options =>

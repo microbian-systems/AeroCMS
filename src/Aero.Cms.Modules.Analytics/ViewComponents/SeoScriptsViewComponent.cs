@@ -4,9 +4,15 @@ using Microsoft.AspNetCore.Mvc.ViewComponents;
 
 namespace Aero.Cms.Modules.Analytics.ViewComponents;
 
+/// <summary>
+/// Represents a class for SeoScriptsViewComponent.
+/// </summary>
 public sealed class SeoScriptsViewComponent(ISeoScriptRenderer renderer) : ViewComponent
 {
-    public async Task<IViewComponentResult> InvokeAsync(string placement)
+        /// <summary>
+    /// InvokeAsync method.
+    /// </summary>
+public async Task<IViewComponentResult> InvokeAsync(string placement)
     {
         if (!Enum.TryParse<SeoScriptPlacement>(placement, ignoreCase: true, out var parsed))
         {

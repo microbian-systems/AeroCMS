@@ -6,5 +6,8 @@ namespace Aero.Cms.Abstractions.Interfaces;
 /// </summary>
 public interface ISiteOwned
 {
-    long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+long SiteId { get; set; }
 }

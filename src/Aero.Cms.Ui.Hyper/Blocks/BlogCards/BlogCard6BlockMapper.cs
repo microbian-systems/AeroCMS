@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.BlogCards;
 
+/// <summary>
+/// Represents a class for BlogCard6BlockMapper.
+/// </summary>
 public static class BlogCard6BlockMapper
 {
-    public static NeoPageNode ToNode(BlogCard6Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(BlogCard6Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.blog-cards.6",
@@ -22,7 +28,10 @@ public static class BlogCard6BlockMapper
         }
     };
 
-    public static BlogCard6Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static BlogCard6Block FromNode(NeoPageNode node) => new()
     {
         ImageUrl = GetString(node, "imageUrl", "https://images.unsplash.com/photo-1609557927087-f9cf8e88de18?auto=format&fit=crop&q=80&w=1160"),
         MainText = GetString(node, "mainText", "Finding the right guitar for your style - 5 tips"),

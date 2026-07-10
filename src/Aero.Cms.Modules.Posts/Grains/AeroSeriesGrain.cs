@@ -11,6 +11,9 @@ using IRequest = Aero.Core.Commands.IRequest;
 
 namespace Aero.Cms.Modules.Posts.Grains;
 
+/// <summary>
+/// Represents a class for AeroSeriesGrain.
+/// </summary>
 public sealed class AeroSeriesGrain(
     ILogger<AeroSeriesGrain> log,
     IDocumentStore store)
@@ -18,15 +21,24 @@ public sealed class AeroSeriesGrain(
 {
     private SeriesViewModel _state = new();
 
-    public Task<SeriesViewModel> GetStateAsync(CancellationToken ct) => Task.FromResult(_state);
+        /// <summary>
+    /// GetStateAsync method.
+    /// </summary>
+public Task<SeriesViewModel> GetStateAsync(CancellationToken ct) => Task.FromResult(_state);
 
-    public Task UpdateStateAsync(SeriesViewModel state, CancellationToken ct)
+        /// <summary>
+    /// UpdateStateAsync method.
+    /// </summary>
+public Task UpdateStateAsync(SeriesViewModel state, CancellationToken ct)
     {
         _state = state;
         return Task.CompletedTask;
     }
 
-    public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await store.LightweightSessionAsync();
         var series = await session.LoadAsync<Models.Series>(id, ct);
@@ -39,7 +51,10 @@ public sealed class AeroSeriesGrain(
             : Ok(PostTaxonomyTranslationMapper.MapSeries(series, translation));
     }
 
-    public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+        /// <summary>
+    /// GetByIdsAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<SeriesViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await store.LightweightSessionAsync();
         var series = await session.Query<Models.Series>()
@@ -50,7 +65,10 @@ public sealed class AeroSeriesGrain(
         return Ok(series.Select(x => PostTaxonomyTranslationMapper.MapSeries(x)).ToList());
     }
 
-    public async Task<AeroRequestResponse<SeriesViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<SeriesViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not ActorCreateSeriesRequest create)
             return Fail("Expected CreateSeriesRequest");
@@ -71,7 +89,10 @@ public sealed class AeroSeriesGrain(
         return Ok(PostTaxonomyTranslationMapper.MapSeries(series));
     }
 
-    public async Task<AeroRequestResponse<SeriesViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<SeriesViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not ActorUpdateSeriesRequest update)
             return Fail("Expected UpdateSeriesRequest");
@@ -92,7 +113,10 @@ public sealed class AeroSeriesGrain(
         return Ok(PostTaxonomyTranslationMapper.MapSeries(series));
     }
 
-    public async Task<AeroRequestResponse<SeriesViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<SeriesViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not ActorDeleteSeriesRequest delete)
             return Fail("Expected DeleteSeriesRequest");
@@ -108,7 +132,10 @@ public sealed class AeroSeriesGrain(
         return Ok(PostTaxonomyTranslationMapper.MapSeries(series));
     }
 
-    public async Task<AeroRequestResponse<SeriesViewModel>> GetBySiteIdAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<SeriesViewModel>> GetBySiteIdAsync(long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
         await using var session = await store.LightweightSessionAsync();
         var series = await session.Query<Models.Series>()
@@ -121,7 +148,10 @@ public sealed class AeroSeriesGrain(
         return Ok(series.Select(x => PostTaxonomyTranslationMapper.MapSeries(x)).ToList());
     }
 
-    public async Task<AeroRequestResponse<SeriesViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<SeriesViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
     {
         await using var session = await store.LightweightSessionAsync();
         var series = await session.Query<Models.Series>()
@@ -138,7 +168,10 @@ public sealed class AeroSeriesGrain(
             ? GetBySlugAsync(id, slug, ct)
             : Task.FromResult(Fail($"Invalid site ID: {siteId}"));
 
-    public async Task<List<SeriesViewModel>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<List<SeriesViewModel>> GetAllAsync(CancellationToken ct = default)
     {
         await using var session = await store.LightweightSessionAsync();
         var series = await session.Query<Models.Series>()
@@ -148,7 +181,10 @@ public sealed class AeroSeriesGrain(
         return series.Select(x => PostTaxonomyTranslationMapper.MapSeries(x)).ToList();
     }
 
-    public async Task<SeriesViewModel> EnsureGeneralAsync(long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// EnsureGeneralAsync method.
+    /// </summary>
+public async Task<SeriesViewModel> EnsureGeneralAsync(long siteId, CancellationToken ct = default)
     {
         await using var session = await store.LightweightSessionAsync();
         var general = await session.Query<Models.Series>()

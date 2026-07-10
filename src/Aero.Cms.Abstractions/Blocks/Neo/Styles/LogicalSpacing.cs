@@ -5,13 +5,25 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Styles;
 /// </summary>
 public sealed record LogicalSpacing
 {
-    public CssLength? BlockStart { get; init; }
+        /// <summary>
+    /// Gets or sets the Block Start.
+    /// </summary>
+public CssLength? BlockStart { get; init; }
 
-    public CssLength? BlockEnd { get; init; }
+        /// <summary>
+    /// Gets or sets the Block End.
+    /// </summary>
+public CssLength? BlockEnd { get; init; }
 
-    public CssLength? InlineStart { get; init; }
+        /// <summary>
+    /// Gets or sets the Inline Start.
+    /// </summary>
+public CssLength? InlineStart { get; init; }
 
-    public CssLength? InlineEnd { get; init; }
+        /// <summary>
+    /// Gets or sets the Inline End.
+    /// </summary>
+public CssLength? InlineEnd { get; init; }
 
     internal LogicalSpacing Apply(LogicalSpacingOverride? value) =>
         value is null
@@ -30,11 +42,23 @@ public sealed record LogicalSpacing
 /// </summary>
 public sealed record LogicalSpacingOverride
 {
-    public CssLength? BlockStart { get; init; }
+        /// <summary>
+    /// Gets or sets the Block Start.
+    /// </summary>
+public CssLength? BlockStart { get; init; }
 
-    public CssLength? BlockEnd { get; init; }
+        /// <summary>
+    /// Gets or sets the Block End.
+    /// </summary>
+public CssLength? BlockEnd { get; init; }
 
-    public CssLength? InlineStart { get; init; }
+        /// <summary>
+    /// Gets or sets the Inline Start.
+    /// </summary>
+public CssLength? InlineStart { get; init; }
 
-    public CssLength? InlineEnd { get; init; }
+        /// <summary>
+    /// Gets or sets the Inline End.
+    /// </summary>
+public CssLength? InlineEnd { get; init; }
 }

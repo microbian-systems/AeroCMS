@@ -4,9 +4,15 @@ using System.Text.RegularExpressions;
 
 namespace Aero.Cms.Abstractions.Blocks.Neo.Styles;
 
+/// <summary>
+/// Represents a class for CssLengthValidator.
+/// </summary>
 public sealed class CssLengthValidator : AbstractValidator<CssLength>
 {
-    public CssLengthValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="CssLengthValidator"/> class.
+    /// </summary>
+public CssLengthValidator()
     {
         RuleFor(length => length)
             .Must(length => length.Unit == CssLengthUnit.Auto
@@ -21,9 +27,15 @@ public sealed class CssLengthValidator : AbstractValidator<CssLength>
     }
 }
 
+/// <summary>
+/// Represents a class for ResponsiveNodeStyleValidator.
+/// </summary>
 public sealed class ResponsiveNodeStyleValidator : AbstractValidator<ResponsiveNodeStyle>
 {
-    public ResponsiveNodeStyleValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="ResponsiveNodeStyleValidator"/> class.
+    /// </summary>
+public ResponsiveNodeStyleValidator()
     {
         RuleFor(style => style.Base).SetValidator(new NodeStyleValidator());
         RuleFor(style => style.Tablet).SetValidator(new NodeStyleOverrideValidator()!);
@@ -31,9 +43,15 @@ public sealed class ResponsiveNodeStyleValidator : AbstractValidator<ResponsiveN
     }
 }
 
+/// <summary>
+/// Represents a class for NodeStyleValidator.
+/// </summary>
 public sealed class NodeStyleValidator : AbstractValidator<NodeStyle>
 {
-    public NodeStyleValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="NodeStyleValidator"/> class.
+    /// </summary>
+public NodeStyleValidator()
     {
         RuleFor(style => style.Opacity)
             .InclusiveBetween(0, 1)
@@ -80,9 +98,15 @@ public sealed class NodeStyleValidator : AbstractValidator<NodeStyle>
         color is null || CssColorValidator.IsValid(color.Value);
 }
 
+/// <summary>
+/// Represents a class for NodeStyleOverrideValidator.
+/// </summary>
 public sealed class NodeStyleOverrideValidator : AbstractValidator<NodeStyleOverride>
 {
-    public NodeStyleOverrideValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="NodeStyleOverrideValidator"/> class.
+    /// </summary>
+public NodeStyleOverrideValidator()
     {
         RuleFor(style => style.Opacity)
             .InclusiveBetween(0, 1)
@@ -128,6 +152,9 @@ public sealed class NodeStyleOverrideValidator : AbstractValidator<NodeStyleOver
         color is null || CssColorValidator.IsValid(color.Value);
 }
 
+/// <summary>
+/// Represents a class for CssColorValidator.
+/// </summary>
 public static class CssColorValidator
 {
     private static readonly Regex RgbPattern = new(
@@ -138,7 +165,10 @@ public static class CssColorValidator
         @"^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(0(?:\.\d+)?|1(?:\.0+)?)\s*\)$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
-    public static bool IsValid(CssColor color)
+        /// <summary>
+    /// IsValid method.
+    /// </summary>
+public static bool IsValid(CssColor color)
     {
         var value = color.Value;
         if (value.Length is 4 or 7 or 9 &&
@@ -174,7 +204,10 @@ public static class CssColorValidator
 
 internal sealed class LinearGradientValidator : AbstractValidator<LinearGradient>
 {
-    public LinearGradientValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="LinearGradientValidator"/> class.
+    /// </summary>
+public LinearGradientValidator()
     {
         RuleFor(gradient => gradient.Type).IsInEnum();
         RuleFor(gradient => gradient.Angle).InclusiveBetween(0m, 360m);
@@ -191,7 +224,10 @@ internal sealed class LinearGradientValidator : AbstractValidator<LinearGradient
 
 internal sealed class BoxShadowValidator : AbstractValidator<BoxShadow>
 {
-    public BoxShadowValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="BoxShadowValidator"/> class.
+    /// </summary>
+public BoxShadowValidator()
     {
         RuleFor(shadow => shadow.OffsetX).InclusiveBetween(-200m, 200m);
         RuleFor(shadow => shadow.OffsetY).InclusiveBetween(-200m, 200m);
@@ -204,7 +240,10 @@ internal sealed class BoxShadowValidator : AbstractValidator<BoxShadow>
 internal sealed class BackgroundImageStyleValidator :
     AbstractValidator<BackgroundImageStyle>
 {
-    public BackgroundImageStyleValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="BackgroundImageStyleValidator"/> class.
+    /// </summary>
+public BackgroundImageStyleValidator()
     {
         RuleFor(image => image.MediaId).GreaterThanOrEqualTo(0);
         RuleFor(image => image.Url)
@@ -220,7 +259,10 @@ internal sealed class BackgroundImageStyleValidator :
 internal sealed class BackgroundVideoStyleValidator :
     AbstractValidator<BackgroundVideoStyle>
 {
-    public BackgroundVideoStyleValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="BackgroundVideoStyleValidator"/> class.
+    /// </summary>
+public BackgroundVideoStyleValidator()
     {
         RuleFor(video => video.MediaId).GreaterThanOrEqualTo(0);
         RuleFor(video => video.Url)
@@ -235,7 +277,10 @@ internal sealed class BackgroundVideoStyleValidator :
 
 internal sealed class NullableCssLengthValidator : AbstractValidator<CssLength?>
 {
-    public NullableCssLengthValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="NullableCssLengthValidator"/> class.
+    /// </summary>
+public NullableCssLengthValidator()
     {
         RuleFor(length => length!.Value)
             .SetValidator(new CssLengthValidator())
@@ -245,7 +290,10 @@ internal sealed class NullableCssLengthValidator : AbstractValidator<CssLength?>
 
 internal sealed class LogicalSpacingValidator : AbstractValidator<LogicalSpacing>
 {
-    public LogicalSpacingValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="LogicalSpacingValidator"/> class.
+    /// </summary>
+public LogicalSpacingValidator()
     {
         RuleFor(spacing => spacing.BlockStart).SetValidator(new NullableCssLengthValidator());
         RuleFor(spacing => spacing.BlockEnd).SetValidator(new NullableCssLengthValidator());
@@ -256,7 +304,10 @@ internal sealed class LogicalSpacingValidator : AbstractValidator<LogicalSpacing
 
 internal sealed class LogicalSpacingOverrideValidator : AbstractValidator<LogicalSpacingOverride>
 {
-    public LogicalSpacingOverrideValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="LogicalSpacingOverrideValidator"/> class.
+    /// </summary>
+public LogicalSpacingOverrideValidator()
     {
         RuleFor(spacing => spacing.BlockStart).SetValidator(new NullableCssLengthValidator());
         RuleFor(spacing => spacing.BlockEnd).SetValidator(new NullableCssLengthValidator());

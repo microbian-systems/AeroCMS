@@ -3,11 +3,29 @@ using Aero.Core.Entities;
 
 namespace Aero.Cms.Core.Entities;
 
+/// <summary>
+/// Represents a class for SeriesTranslation.
+/// </summary>
 public sealed class SeriesTranslation : Entity, ICultureAware
 {
-    public long SeriesId { get; set; }
-    public string Culture { get; set; } = SitesModel.DefaultCultureName;
-    public string Name { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Series Id.
+    /// </summary>
+public long SeriesId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Slug.
+    /// </summary>
+public string Slug { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
 }

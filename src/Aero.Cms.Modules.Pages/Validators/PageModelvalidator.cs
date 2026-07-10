@@ -1,11 +1,17 @@
-﻿using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Enums;
 using FluentValidation;
 
 namespace Aero.Cms.Modules.Pages.Validators;
 
+/// <summary>
+/// Represents a class for PageDocumentValidator.
+/// </summary>
 public class PageDocumentValidator : AbstractValidator<PageDocument>
 {
-    public PageDocumentValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PageDocumentValidator"/> class.
+    /// </summary>
+public PageDocumentValidator()
     {
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.SiteId).GreaterThan(0);

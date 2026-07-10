@@ -2,6 +2,9 @@ using Aero.Cms.Modules.Navigation.Domain;
 
 namespace Aero.Cms.Modules.Navigation.Events;
 
+/// <summary>
+/// Represents a record for NavMenuCreated.
+/// </summary>
 public sealed record NavMenuCreated(
     long SiteId,
     string Name,
@@ -11,6 +14,9 @@ public sealed record NavMenuCreated(
     string Culture = "en-US",
     long? TranslationGroupId = null);
 
+/// <summary>
+/// Represents a record for NavMenuDraftSaved.
+/// </summary>
 public sealed record NavMenuDraftSaved(
     long SiteId,
     string Name,
@@ -20,6 +26,9 @@ public sealed record NavMenuDraftSaved(
     DateTimeOffset SavedOn,
     string? ChangeNote);
 
+/// <summary>
+/// Represents a record for NavMenuPublished.
+/// </summary>
 public sealed record NavMenuPublished(
     long SiteId,
     NavMenuSnapshot Snapshot,
@@ -27,32 +36,59 @@ public sealed record NavMenuPublished(
     DateTimeOffset PublishedOn,
     string? ChangeNote);
 
+/// <summary>
+/// Represents a record for NavMenuArchived.
+/// </summary>
 public sealed record NavMenuArchived(
     long SiteId,
     long? UserId,
     DateTimeOffset ArchivedOn);
 
+/// <summary>
+/// Represents a record for SiteDefaultNavMenuChanged.
+/// </summary>
 public sealed record SiteDefaultNavMenuChanged(
     long SiteId,
     long? NavMenuId,
     long? UserId,
     DateTimeOffset ChangedOn);
 
+/// <summary>
+/// Represents a class for NavMenuStreams.
+/// </summary>
 public static class NavMenuStreams
 {
-    public static string Menu(long id) => $"nav-menu-{id}";
-    public static string SiteSettings(long siteId) => $"site-nav-settings-{siteId}";
+        /// <summary>
+    /// Menu method.
+    /// </summary>
+public static string Menu(long id) => $"nav-menu-{id}";
+        /// <summary>
+    /// SiteSettings method.
+    /// </summary>
+public static string SiteSettings(long siteId) => $"site-nav-settings-{siteId}";
 
-    public static bool IsMenuStream(string? streamKey)
+        /// <summary>
+    /// IsMenuStream method.
+    /// </summary>
+public static bool IsMenuStream(string? streamKey)
         => streamKey?.StartsWith("nav-menu-", StringComparison.OrdinalIgnoreCase) == true;
 
-    public static bool IsSiteSettingsStream(string? streamKey)
+        /// <summary>
+    /// IsSiteSettingsStream method.
+    /// </summary>
+public static bool IsSiteSettingsStream(string? streamKey)
         => streamKey?.StartsWith("site-nav-settings-", StringComparison.OrdinalIgnoreCase) == true;
 
-    public static long ExtractMenuId(string streamKey)
+        /// <summary>
+    /// ExtractMenuId method.
+    /// </summary>
+public static long ExtractMenuId(string streamKey)
         => ExtractLongId(streamKey, "nav-menu-");
 
-    public static long ExtractSiteId(string streamKey)
+        /// <summary>
+    /// ExtractSiteId method.
+    /// </summary>
+public static long ExtractSiteId(string streamKey)
         => ExtractLongId(streamKey, "site-nav-settings-");
 
     private static long ExtractLongId(string streamKey, string prefix)

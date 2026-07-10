@@ -4,9 +4,15 @@ using System.Globalization;
 
 namespace Aero.Cms.Abstractions.Validators;
 
+/// <summary>
+/// Represents a class for SiteRequestValidator.
+/// </summary>
 public class SiteRequestValidator : AbstractValidator<CreateSiteRequest>
 {
-    public SiteRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="SiteRequestValidator"/> class.
+    /// </summary>
+public SiteRequestValidator()
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Name is required.")
@@ -24,9 +30,15 @@ public class SiteRequestValidator : AbstractValidator<CreateSiteRequest>
     }
 }
 
+/// <summary>
+/// Represents a class for UpdateSiteRequestValidator.
+/// </summary>
 public class UpdateSiteRequestValidator : AbstractValidator<UpdateSiteRequest>
 {
-    public UpdateSiteRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateSiteRequestValidator"/> class.
+    /// </summary>
+public UpdateSiteRequestValidator()
     {
         RuleFor(x => x.Id)
             .GreaterThan(0).WithMessage("Id must be a positive integer.");
@@ -46,9 +58,15 @@ public class UpdateSiteRequestValidator : AbstractValidator<UpdateSiteRequest>
     }
 }
 
+/// <summary>
+/// Represents a class for DeleteSiteRequestValidator.
+/// </summary>
 public class DeleteSiteRequestValidator : AbstractValidator<DeleteSiteRequest>
 {
-    public DeleteSiteRequestValidator()
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DeleteSiteRequestValidator"/> class.
+    /// </summary>
+public DeleteSiteRequestValidator()
     {
         RuleFor(x => x.Id)
             .GreaterThan(0).WithMessage("Id must be a positive integer.");
@@ -57,7 +75,10 @@ public class DeleteSiteRequestValidator : AbstractValidator<DeleteSiteRequest>
 
 file static class SiteCultureValidation
 {
-    public static bool BeKnownCultureWhenProvided(string? culture)
+        /// <summary>
+    /// BeKnownCultureWhenProvided method.
+    /// </summary>
+public static bool BeKnownCultureWhenProvided(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))
             return true;

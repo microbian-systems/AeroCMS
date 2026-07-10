@@ -6,7 +6,10 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Composition;
 public sealed class CompositionPolicy(ICompositionCapabilityResolver capabilityResolver)
     : ICompositionPolicy
 {
-    public Result<bool, AeroError> ValidatePlacement(
+        /// <summary>
+    /// ValidatePlacement method.
+    /// </summary>
+public Result<bool, AeroError> ValidatePlacement(
         NeoPageNode child,
         NeoPageNode? parent,
         string dropZoneId,

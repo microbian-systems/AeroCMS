@@ -16,9 +16,15 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Buttons;
     SchemaVersion = 1)]
 public sealed class Button6Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.buttons.6";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.buttons.6";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
     /// <summary>Button label text.</summary>
     public string Text { get; set; } = "Download";
@@ -32,5 +38,8 @@ public sealed class Button6Block : BlockBase
     /// <summary>Icon position: "start" (left side, slides in from left) or "end" (right side, slides in from right).</summary>
     public string IconPosition { get; set; } = "start";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

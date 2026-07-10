@@ -16,21 +16,42 @@ namespace Aero.Cms.Ui.Hyper.Blocks.Pricing;
     SchemaVersion = 1)]
 public sealed class Pricing1Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.pricing.1";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.pricing.1";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Pricing Plans";
-    public string Description { get; set; } = "Choose the right plan for your team.";
-    public List<Pricing1Plan> Plans { get; set; } = DefaultPlans.Select(ClonePlan).ToList();
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Pricing Plans";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "Choose the right plan for your team.";
+        /// <summary>
+    /// Gets or sets the Plans.
+    /// </summary>
+public List<Pricing1Plan> Plans { get; set; } = DefaultPlans.Select(ClonePlan).ToList();
 
-    public static readonly List<Pricing1Plan> DefaultPlans =
+        /// <summary>
+    /// DefaultPlans.
+    /// </summary>
+public static readonly List<Pricing1Plan> DefaultPlans =
     [
         new() { Name = "Starter", Price = "20$", Features = ["10 users included", "2GB of storage", "Email support", "Help center access"], Highlighted = false },
         new() { Name = "Pro", Price = "30$", Features = ["20 users included", "5GB of storage", "Email support", "Help center access", "Phone support", "Community access"], Highlighted = true }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static Pricing1Plan ClonePlan(Pricing1Plan plan) => new()
     {
@@ -44,13 +65,37 @@ public sealed class Pricing1Block : BlockBase
     };
 }
 
+/// <summary>
+/// Represents a class for Pricing1Plan.
+/// </summary>
 public sealed class Pricing1Plan
 {
-    public string Name { get; set; } = "";
-    public string Price { get; set; } = "";
-    public string Period { get; set; } = "/month";
-    public List<string> Features { get; set; } = [];
-    public string CtaText { get; set; } = "Get Started";
-    public string CtaUrl { get; set; } = "#";
-    public bool Highlighted { get; set; }
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Price.
+    /// </summary>
+public string Price { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Period.
+    /// </summary>
+public string Period { get; set; } = "/month";
+        /// <summary>
+    /// Gets or sets the Features.
+    /// </summary>
+public List<string> Features { get; set; } = [];
+        /// <summary>
+    /// Gets or sets the Cta Text.
+    /// </summary>
+public string CtaText { get; set; } = "Get Started";
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Highlighted.
+    /// </summary>
+public bool Highlighted { get; set; }
 }

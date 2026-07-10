@@ -12,7 +12,10 @@ public sealed class PageEditorRegistryCompositionCapabilityResolver(
     IPageEditorDefinitionRegistry registry)
     : ICompositionCapabilityResolver
 {
-    public bool TryGet(
+        /// <summary>
+    /// TryGet method.
+    /// </summary>
+public bool TryGet(
         string catalogId,
         out ICompositionCapabilities capabilities)
     {

@@ -10,7 +10,10 @@ namespace Aero.Cms.Shared.Blocks.Rendering;
 /// </summary>
 internal static class NeoPageNodeEditorBlockMapper
 {
-    public static EditorBlock ToEditorBlock(NeoPageNode node, EditorBlock? defaults = null)
+        /// <summary>
+    /// ToEditorBlock method.
+    /// </summary>
+public static EditorBlock ToEditorBlock(NeoPageNode node, EditorBlock? defaults = null)
     {
         ArgumentNullException.ThrowIfNull(node);
 

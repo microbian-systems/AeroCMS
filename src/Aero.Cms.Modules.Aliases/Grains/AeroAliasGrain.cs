@@ -31,7 +31,10 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
     private readonly IMessageBus _bus;
     private AliasViewModel _state = new();
 
-    public AeroAliasGrain(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroAliasGrain"/> class.
+    /// </summary>
+public AeroAliasGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
         IMessageBus bus)
@@ -43,10 +46,16 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
 
     // ── IHaveState<AliasViewModel> ────────────────────────────────────
 
-    public Task<AliasViewModel> GetStateAsync(CancellationToken ct)
+        /// <summary>
+    /// GetStateAsync method.
+    /// </summary>
+public Task<AliasViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-    public Task UpdateStateAsync(AliasViewModel state, CancellationToken ct)
+        /// <summary>
+    /// UpdateStateAsync method.
+    /// </summary>
+public Task UpdateStateAsync(AliasViewModel state, CancellationToken ct)
     {
         _state = state;
         return Task.CompletedTask;
@@ -54,7 +63,10 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
 
     // ── ICruddable<AliasViewModel, long> ──────────────────────────────
 
-    public async Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<AliasViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         var doc = await session.LoadAsync<AliasDocument>(id, ct);
@@ -64,7 +76,10 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
             : NotFound($"Alias {id} not found");
     }
 
-    public async Task<AeroRequestResponse<AliasViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+        /// <summary>
+    /// GetByIdsAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<AliasViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         var docs = await session.Query<AliasDocument>()
@@ -75,7 +90,10 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
         return Ok(results);
     }
 
-    public async Task<AeroRequestResponse<AliasViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<AliasViewModel>> CreateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not CreateAliasRequest create)
             return Fail("Expected CreateAliasRequest");
@@ -99,7 +117,10 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
         return Ok(MapToViewModel(doc));
     }
 
-    public async Task<AeroRequestResponse<AliasViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<AliasViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
     {
         if (request is not UpdateAliasRequest update)
             return Fail("Expected UpdateAliasRequest");
@@ -123,7 +144,10 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
         return Ok(MapToViewModel(doc));
     }
 
-    public async Task<AeroRequestResponse<AliasViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<AliasViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
     {
         if (request is not DeleteAliasRequest delete)
             return Fail("Expected DeleteAliasRequest");
@@ -144,7 +168,10 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
 
     // ── ICanFindBySite<AliasViewModel, long> ──────────────────────────
 
-    public async Task<AeroRequestResponse<AliasViewModel>> GetBySiteIdAsync(
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<AliasViewModel>> GetBySiteIdAsync(
         long siteId,
         int page = 1,
         int rows = 10,
@@ -165,7 +192,10 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
 
     // ── ICanFindBySlug (long key + string key overloads) ──────────────
 
-    public Task<AeroRequestResponse<AliasViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<AliasViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, ct);
 
     Task<AeroRequestResponse<AliasViewModel>> ICanFindBySlug<AliasViewModel, string>.GetBySlugAsync(string siteId, string slug, CancellationToken ct)
@@ -190,7 +220,10 @@ public sealed class AeroAliasGrain : AeroActor, IAeroAliasActor
 
     // ── IAeroAliasActor.GetAllAliasesAsync ────────────────────────────
 
-    public async Task<List<AliasViewModel>> GetAllAliasesAsync(
+        /// <summary>
+    /// GetAllAliasesAsync method.
+    /// </summary>
+public async Task<List<AliasViewModel>> GetAllAliasesAsync(
         long? siteId = null,
         CancellationToken ct = default)
     {

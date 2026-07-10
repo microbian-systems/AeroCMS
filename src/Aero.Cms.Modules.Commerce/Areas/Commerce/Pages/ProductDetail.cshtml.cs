@@ -8,21 +8,36 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Aero.Cms.Modules.Commerce.Areas.Commerce.Pages;
 
+/// <summary>
+/// Represents a class for ProductDetailModel.
+/// </summary>
 public class ProductDetailModel : PageModel
 {
     private readonly IProductService _productService;
     private readonly IBasketService _basketService;
 
-    public ProductDetailModel(IProductService productService, IBasketService basketService)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="ProductDetailModel"/> class.
+    /// </summary>
+public ProductDetailModel(IProductService productService, IBasketService basketService)
     {
         _productService = productService;
         _basketService = basketService;
     }
 
-    public ProductDocument? Product { get; set; }
-    public int ItemCount { get; set; }
+        /// <summary>
+    /// Gets or sets the Product.
+    /// </summary>
+public ProductDocument? Product { get; set; }
+        /// <summary>
+    /// Gets or sets the Item Count.
+    /// </summary>
+public int ItemCount { get; set; }
 
-    public async Task<IActionResult> OnGetAsync(string slug)
+        /// <summary>
+    /// OnGetAsync method.
+    /// </summary>
+public async Task<IActionResult> OnGetAsync(string slug)
     {
         var result = await _productService.FindBySlugAsync(slug);
         if (result is Result<ProductDocument?, AeroError>.Ok(var product) && product is not null)
@@ -35,7 +50,10 @@ public class ProductDetailModel : PageModel
         return NotFound();
     }
 
-    public async Task<IActionResult> OnPostAddToCartAsync(long productId)
+        /// <summary>
+    /// OnPostAddToCartAsync method.
+    /// </summary>
+public async Task<IActionResult> OnPostAddToCartAsync(long productId)
     {
         var customerId = GetCustomerId();
         var productResult = await _productService.GetByIdAsync(productId);

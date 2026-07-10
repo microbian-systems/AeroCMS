@@ -2,23 +2,47 @@ using System.Text.Json.Serialization;
 
 namespace Aero.Cms.Abstractions.Blocks.Neo.Styles;
 
+/// <summary>
+/// Represents a record for BackgroundImageStyle.
+/// </summary>
 public sealed record BackgroundImageStyle
 {
-    public bool Enabled { get; init; } = true;
+        /// <summary>
+    /// Gets or sets the Enabled.
+    /// </summary>
+public bool Enabled { get; init; } = true;
 
-    public long MediaId { get; init; }
+        /// <summary>
+    /// Gets or sets the Media Id.
+    /// </summary>
+public long MediaId { get; init; }
 
-    public string Url { get; init; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Url.
+    /// </summary>
+public string Url { get; init; } = string.Empty;
 
-    public BackgroundImageSize Size { get; init; } = BackgroundImageSize.Cover;
+        /// <summary>
+    /// Gets or sets the Size.
+    /// </summary>
+public BackgroundImageSize Size { get; init; } = BackgroundImageSize.Cover;
 
-    public BackgroundImageRepeat Repeat { get; init; } =
+        /// <summary>
+    /// Gets or sets the Repeat.
+    /// </summary>
+public BackgroundImageRepeat Repeat { get; init; } =
         BackgroundImageRepeat.NoRepeat;
 
-    public BackgroundImagePosition Position { get; init; } =
+        /// <summary>
+    /// Gets or sets the Position.
+    /// </summary>
+public BackgroundImagePosition Position { get; init; } =
         BackgroundImagePosition.Center;
 }
 
+/// <summary>
+/// Defines an enumeration for BackgroundImageSize.
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<BackgroundImageSize>))]
 public enum BackgroundImageSize
 {
@@ -26,6 +50,9 @@ public enum BackgroundImageSize
     Contain
 }
 
+/// <summary>
+/// Defines an enumeration for BackgroundImageRepeat.
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<BackgroundImageRepeat>))]
 public enum BackgroundImageRepeat
 {
@@ -35,6 +62,9 @@ public enum BackgroundImageRepeat
     RepeatY
 }
 
+/// <summary>
+/// Defines an enumeration for BackgroundImagePosition.
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<BackgroundImagePosition>))]
 public enum BackgroundImagePosition
 {

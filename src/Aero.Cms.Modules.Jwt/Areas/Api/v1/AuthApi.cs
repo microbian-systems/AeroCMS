@@ -9,9 +9,15 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Jwt.Areas.Api.v1;
 
+/// <summary>
+/// Represents a class for AuthApi.
+/// </summary>
 public static class AuthApi
 {
-    public static void MapAuthApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapAuthApi method.
+    /// </summary>
+public static void MapAuthApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}auth")
             .WithTags("Headless - Auth");

@@ -5,6 +5,9 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Modules.Cache.Services;
 
+/// <summary>
+/// Represents a class for FusionCacheInvalidationService.
+/// </summary>
 public sealed class FusionCacheInvalidationService(
     IFusionCache cache,
     IOutputCacheStore outputCacheStore,
@@ -31,7 +34,10 @@ public sealed class FusionCacheInvalidationService(
         new("docs-index")
     ];
 
-    public async Task InvalidateContentAsync(ContentUpdatedEvent @event, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// InvalidateContentAsync method.
+    /// </summary>
+public async Task InvalidateContentAsync(ContentUpdatedEvent @event, CancellationToken cancellationToken = default)
     {
         // ── Slug-based cache key eviction (always) ──────────────────────
         // Works for any content type even if not in CacheTags
@@ -81,7 +87,10 @@ public sealed class FusionCacheInvalidationService(
             tags.FusionCacheTag);
     }
 
-    public async Task InvalidateNavigationAsync(NavigationMenuChangedEvent @event, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// InvalidateNavigationAsync method.
+    /// </summary>
+public async Task InvalidateNavigationAsync(NavigationMenuChangedEvent @event, CancellationToken cancellationToken = default)
     {
         foreach (var tags in NavigationAffectedTags)
         {
@@ -96,7 +105,10 @@ public sealed class FusionCacheInvalidationService(
             @event.ChangeKind);
     }
 
-    public async Task InvalidateFooterAsync(FooterChangedEvent @event, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// InvalidateFooterAsync method.
+    /// </summary>
+public async Task InvalidateFooterAsync(FooterChangedEvent @event, CancellationToken cancellationToken = default)
     {
         foreach (var tags in FooterAffectedTags)
         {
@@ -139,6 +151,9 @@ public sealed class FusionCacheInvalidationService(
 
     private sealed record CacheTagSet(string OutputCacheTag)
     {
-        public string FusionCacheTag => OutputCacheTag;
+                /// <summary>
+        /// Gets or sets the Fusion Cache Tag.
+        /// </summary>
+public string FusionCacheTag => OutputCacheTag;
     }
 }

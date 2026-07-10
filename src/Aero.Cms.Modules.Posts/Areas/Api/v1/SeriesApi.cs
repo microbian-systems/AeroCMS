@@ -19,7 +19,10 @@ namespace Aero.Cms.Modules.Posts.Areas.Api.v1;
 /// </summary>
 public static class SeriesApi
 {
-    public static void MapSeriesApi(this IEndpointRouteBuilder app)
+        /// <summary>
+    /// MapSeriesApi method.
+    /// </summary>
+public static void MapSeriesApi(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup($"/{HttpConstants.ApiPrefix}admin/series")
             .WithTags("Admin - Series");

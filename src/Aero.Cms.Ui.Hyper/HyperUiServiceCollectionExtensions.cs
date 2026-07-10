@@ -5,9 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aero.Cms.Ui.Hyper;
 
+/// <summary>
+/// Represents a class for HyperUiServiceCollectionExtensions.
+/// </summary>
 public static class HyperUiServiceCollectionExtensions
 {
-    public static IServiceCollection AddAeroCmsHyperUiBlocks(this IServiceCollection services)
+        /// <summary>
+    /// AddAeroCmsHyperUiBlocks method.
+    /// </summary>
+public static IServiceCollection AddAeroCmsHyperUiBlocks(this IServiceCollection services)
     {
         var provider = new HyperPageEditorBlockProvider();
         services.AddSingleton<IPageEditorBlockProvider>(provider);

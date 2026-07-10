@@ -19,7 +19,10 @@ public sealed class ApiKeyService(
     IApiKeyGenerator apiKeyGenerator,
     ILogger<ApiKeyService> log) : IApiKeyService
 {
-    public async Task<long?> ValidateAsync(string apiKey, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// ValidateAsync method.
+    /// </summary>
+public async Task<long?> ValidateAsync(string apiKey, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(apiKey)) return null;
 
@@ -37,7 +40,10 @@ public sealed class ApiKeyService(
         return null;
     }
 
-    public async Task<string> CreateKeyAsync(long userId, string email, string? apiKey = null, CancellationToken ct = default)
+        /// <summary>
+    /// CreateKeyAsync method.
+    /// </summary>
+public async Task<string> CreateKeyAsync(long userId, string email, string? apiKey = null, CancellationToken ct = default)
     {
         string finalApiKey;
         string secretHash;

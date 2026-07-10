@@ -75,7 +75,10 @@ public class SiteService(
     IDocumentSession session,
     ILogger<SiteService> log) : ISiteService
 {
-    public async Task<Result<SitesModel, AeroError>> CreateSiteAsync(SitesModel site, CancellationToken ct = default)
+        /// <summary>
+    /// CreateSiteAsync method.
+    /// </summary>
+public async Task<Result<SitesModel, AeroError>> CreateSiteAsync(SitesModel site, CancellationToken ct = default)
     {
         var validator = new SiteModelValidator();
         var result = await validator.ValidateAsync(site);
@@ -101,7 +104,10 @@ public class SiteService(
         }
     }
 
-    public async Task<Result<SitesModel, AeroError>> UpdateSiteAsync(SitesModel site, CancellationToken ct = default)
+        /// <summary>
+    /// UpdateSiteAsync method.
+    /// </summary>
+public async Task<Result<SitesModel, AeroError>> UpdateSiteAsync(SitesModel site, CancellationToken ct = default)
     {
         var validator = new SiteModelValidator();
         var result = await validator.ValidateAsync(site);
@@ -126,7 +132,10 @@ public class SiteService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> DeleteSiteAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteSiteAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> DeleteSiteAsync(long id, CancellationToken ct = default)
     {
         try
         {
@@ -147,13 +156,19 @@ public class SiteService(
         }
     }
 
-    public async Task<Option<SitesModel>> GetSiteByIdAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetSiteByIdAsync method.
+    /// </summary>
+public async Task<Option<SitesModel>> GetSiteByIdAsync(long id, CancellationToken ct = default)
     {
         var site = await repo.FindByIdAsync(id, ct);
         return site;
     }
 
-    public async Task<Result<IEnumerable<SitesModel>, AeroError>> GetAllSitesAsync(int page = 1, int num = 10, CancellationToken ct = default)
+        /// <summary>
+    /// GetAllSitesAsync method.
+    /// </summary>
+public async Task<Result<IEnumerable<SitesModel>, AeroError>> GetAllSitesAsync(int page = 1, int num = 10, CancellationToken ct = default)
     {
         try
         {
@@ -167,7 +182,10 @@ public class SiteService(
         }
     }
 
-    public async Task<Option<SitesModel>> GetSiteByHostnameAsync(string hostname, CancellationToken ct = default)
+        /// <summary>
+    /// GetSiteByHostnameAsync method.
+    /// </summary>
+public async Task<Option<SitesModel>> GetSiteByHostnameAsync(string hostname, CancellationToken ct = default)
     {
         var normalized = HostNormalizer.Normalize(hostname);
         var site = await repo.GetByHostnameAsync(normalized, ct);
@@ -176,7 +194,10 @@ public class SiteService(
 
     // --- Host/Domain management ---
 
-    public async Task<Result<SiteHost, AeroError>> AddHostAsync(long siteId, string host, bool isPrimary = false, CancellationToken ct = default)
+        /// <summary>
+    /// AddHostAsync method.
+    /// </summary>
+public async Task<Result<SiteHost, AeroError>> AddHostAsync(long siteId, string host, bool isPrimary = false, CancellationToken ct = default)
     {
         try
         {
@@ -205,7 +226,10 @@ public class SiteService(
         }
     }
 
-    public async Task<Result<bool, AeroError>> RemoveHostAsync(long hostId, CancellationToken ct = default)
+        /// <summary>
+    /// RemoveHostAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> RemoveHostAsync(long hostId, CancellationToken ct = default)
     {
         try
         {
@@ -221,7 +245,10 @@ public class SiteService(
         }
     }
 
-    public async Task<Result<IReadOnlyList<SiteHost>, AeroError>> GetHostsAsync(long siteId, CancellationToken ct = default)
+        /// <summary>
+    /// GetHostsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<SiteHost>, AeroError>> GetHostsAsync(long siteId, CancellationToken ct = default)
     {
         try
         {
@@ -240,7 +267,10 @@ public class SiteService(
         }
     }
 
-    public async Task<Result<IReadOnlyList<SiteHost>, AeroError>> ReplaceHostsAsync(long siteId, List<(string host, bool isPrimary)> hosts, CancellationToken ct = default)
+        /// <summary>
+    /// ReplaceHostsAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<SiteHost>, AeroError>> ReplaceHostsAsync(long siteId, List<(string host, bool isPrimary)> hosts, CancellationToken ct = default)
     {
         try
         {

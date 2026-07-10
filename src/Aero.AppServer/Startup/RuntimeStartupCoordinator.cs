@@ -1,15 +1,27 @@
 namespace Aero.AppServer.Startup;
 
+/// <summary>
+/// Defines an interface for IRuntimeStartupCoordinator.
+/// </summary>
 public interface IRuntimeStartupCoordinator
 {
-    Task WaitForInfrastructureAsync(ResolvedInfrastructureSettings settings, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// WaitForInfrastructureAsync method.
+    /// </summary>
+Task WaitForInfrastructureAsync(ResolvedInfrastructureSettings settings, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for RuntimeStartupCoordinator.
+/// </summary>
 public sealed class RuntimeStartupCoordinator(
     IMultiStartupSignal startupSignal,
     IInfrastructureReadinessSnapshot readinessSnapshot) : IRuntimeStartupCoordinator
 {
-    public async Task WaitForInfrastructureAsync(ResolvedInfrastructureSettings settings, CancellationToken cancellationToken = default)
+        /// <summary>
+    /// WaitForInfrastructureAsync method.
+    /// </summary>
+public async Task WaitForInfrastructureAsync(ResolvedInfrastructureSettings settings, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(settings);
 

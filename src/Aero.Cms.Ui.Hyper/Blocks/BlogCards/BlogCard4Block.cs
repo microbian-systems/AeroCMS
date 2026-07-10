@@ -16,14 +16,35 @@ namespace Aero.Cms.Ui.Hyper.Blocks.BlogCards;
     SchemaVersion = 1)]
 public sealed class BlogCard4Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.blog-cards.4";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.blog-cards.4";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string MainText { get; set; } = "How to center an element using JavaScript and jQuery";
-    public string PublishedAt { get; set; } = "10th Oct 2022";
-    public List<string> Tags { get; set; } = ["Snippet", "JavaScript"];
-    public string CtaUrl { get; set; } = "#";
+        /// <summary>
+    /// Gets or sets the Main Text.
+    /// </summary>
+public string MainText { get; set; } = "How to center an element using JavaScript and jQuery";
+        /// <summary>
+    /// Gets or sets the Published At.
+    /// </summary>
+public string PublishedAt { get; set; } = "10th Oct 2022";
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public List<string> Tags { get; set; } = ["Snippet", "JavaScript"];
+        /// <summary>
+    /// Gets or sets the Cta Url.
+    /// </summary>
+public string CtaUrl { get; set; } = "#";
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

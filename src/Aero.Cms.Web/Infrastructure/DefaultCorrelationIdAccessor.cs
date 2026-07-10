@@ -10,12 +10,18 @@ public sealed class DefaultCorrelationIdAccessor : ICorrelationIdAccessor
     private readonly IHttpContextAccessor _httpContextAccessor;
     private const string CorrelationIdHeader = "X-Correlation-Id";
 
-    public DefaultCorrelationIdAccessor(IHttpContextAccessor httpContextAccessor)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="DefaultCorrelationIdAccessor"/> class.
+    /// </summary>
+public DefaultCorrelationIdAccessor(IHttpContextAccessor httpContextAccessor)
     {
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public string? CorrelationId
+        /// <summary>
+    /// Gets or sets the Correlation Id.
+    /// </summary>
+public string? CorrelationId
     {
         get
         {

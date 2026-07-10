@@ -20,7 +20,10 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
     private readonly IMessageBus _bus;
     private MediaViewModel _state = new();
 
-    public AeroMediaGrain(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="AeroMediaGrain"/> class.
+    /// </summary>
+public AeroMediaGrain(
         ILogger<AeroActor> log,
         IDocumentStore store,
         IMessageBus bus)
@@ -32,10 +35,16 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     // ── IHaveState<MediaViewModel> ────────────────────────────────────
 
-    public Task<MediaViewModel> GetStateAsync(CancellationToken ct)
+        /// <summary>
+    /// GetStateAsync method.
+    /// </summary>
+public Task<MediaViewModel> GetStateAsync(CancellationToken ct)
         => Task.FromResult(_state);
 
-    public Task UpdateStateAsync(MediaViewModel state, CancellationToken ct)
+        /// <summary>
+    /// UpdateStateAsync method.
+    /// </summary>
+public Task UpdateStateAsync(MediaViewModel state, CancellationToken ct)
     {
         _state = state;
         return Task.CompletedTask;
@@ -43,7 +52,10 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     // ── ICruddable<MediaViewModel, long> ──────────────────────────────
 
-    public async Task<AeroRequestResponse<MediaViewModel>> GetByIdAsync(long id, CancellationToken ct)
+        /// <summary>
+    /// GetByIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<MediaViewModel>> GetByIdAsync(long id, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         var asset = await session.LoadAsync<MediaAsset>(id, ct);
@@ -52,7 +64,10 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
             : NotFound($"Media {id} not found");
     }
 
-    public async Task<AeroRequestResponse<MediaViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
+        /// <summary>
+    /// GetByIdsAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<MediaViewModel>> GetByIdsAsync(long[] ids, CancellationToken ct)
     {
         await using var session = await _store.LightweightSessionAsync();
         var assets = await session.Query<MediaAsset>()
@@ -63,16 +78,28 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
     }
 
     // ICruddable stubs — use SaveMediaAsync / DeleteMediaAsync instead
-    public Task<AeroRequestResponse<MediaViewModel>> CreateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<MediaViewModel>> CreateAsync(IRequest request, CancellationToken ct)
         => Task.FromResult(Fail("Use SaveMediaAsync"));
-    public Task<AeroRequestResponse<MediaViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<MediaViewModel>> UpdateAsync(IRequest request, CancellationToken ct)
         => Task.FromResult(Fail("Use SaveMediaAsync"));
-    public Task<AeroRequestResponse<MediaViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<MediaViewModel>> DeleteAsync(IRequest request, CancellationToken ct)
         => Task.FromResult(Fail("Use DeleteMediaAsync"));
 
     // ── ICanFindBySite ────────────────────────────────────────────────
 
-    public async Task<AeroRequestResponse<MediaViewModel>> GetBySiteIdAsync(
+        /// <summary>
+    /// GetBySiteIdAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<MediaViewModel>> GetBySiteIdAsync(
         long siteId, int page = 1, int rows = 10, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -87,7 +114,10 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     // ── ICanFindBySlug ────────────────────────────────────────────────
 
-    public Task<AeroRequestResponse<MediaViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
+        /// <summary>
+    /// GetBySlugAsync method.
+    /// </summary>
+public Task<AeroRequestResponse<MediaViewModel>> GetBySlugAsync(long siteId, string slug, CancellationToken ct)
         => GetBySlugCoreAsync(siteId, slug, ct);
 
     Task<AeroRequestResponse<MediaViewModel>> ICanFindBySlug<MediaViewModel, string>.GetBySlugAsync(string siteId, string slug, CancellationToken ct)
@@ -109,7 +139,10 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
 
     // ── IAeroMediaActor custom methods ────────────────────────────────
 
-    public async Task<List<MediaViewModel>> GetAllAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<List<MediaViewModel>> GetAllAsync(CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var assets = await session.Query<MediaAsset>()
@@ -118,7 +151,10 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
         return assets.Select(MapToViewModel).ToList();
     }
 
-    public async Task<(List<MediaViewModel> Items, long TotalCount)> GetPagedAsync(
+        /// <summary>
+    /// GetPagedAsync method.
+    /// </summary>
+public async Task<(List<MediaViewModel> Items, long TotalCount)> GetPagedAsync(
         long? parentId, int skip, int take, string? search, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
@@ -137,7 +173,10 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
         return (items.Select(MapToViewModel).ToList(), totalCount);
     }
 
-    public async Task<AeroRequestResponse<MediaViewModel>> SaveMediaAsync(MediaViewModel vm, CancellationToken ct = default)
+        /// <summary>
+    /// SaveMediaAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<MediaViewModel>> SaveMediaAsync(MediaViewModel vm, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var existing = await session.LoadAsync<MediaAsset>(vm.Id, ct);
@@ -178,7 +217,10 @@ public sealed class AeroMediaGrain : AeroActor, IAeroMediaActor
         }
     }
 
-    public async Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteMediaAsync method.
+    /// </summary>
+public async Task<AeroRequestResponse<MediaViewModel>> DeleteMediaAsync(long id, CancellationToken ct = default)
     {
         await using var session = await _store.LightweightSessionAsync();
         var existing = await session.LoadAsync<MediaAsset>(id, ct);

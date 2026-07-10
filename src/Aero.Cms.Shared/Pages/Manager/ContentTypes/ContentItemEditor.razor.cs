@@ -13,11 +13,23 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager.ContentTypes;
 
+/// <summary>
+/// Represents a class for ContentItemEditor.
+/// </summary>
 public partial class ContentItemEditor
 {
-    [Parameter] public string Alias { get; set; } = string.Empty;
-    [Parameter] public long? Id { get; set; }
-    [SupplyParameterFromQuery(Name = "tab")] public string? RequestedTab { get; set; }
+        /// <summary>
+    /// Gets or sets the Alias.
+    /// </summary>
+[Parameter] public string Alias { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+[Parameter] public long? Id { get; set; }
+        /// <summary>
+    /// Gets or sets the Requested Tab.
+    /// </summary>
+[SupplyParameterFromQuery(Name = "tab")] public string? RequestedTab { get; set; }
 
     [Inject] private IContentTypesHttpClient ContentTypesApi { get; set; } = default!;
     [Inject] private IContentItemsHttpClient ContentItemsApi { get; set; } = default!;
@@ -66,7 +78,10 @@ public partial class ContentItemEditor
         ? BadgeStyle.Success
         : BadgeStyle.Info;
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
     {
         _activeTab = string.Equals(RequestedTab, "translations", StringComparison.OrdinalIgnoreCase)
             ? "translations"

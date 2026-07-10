@@ -1,8 +1,14 @@
 namespace Aero.Cms.Abstractions.Blocks.Neo;
 
+/// <summary>
+/// Represents a class for GalleryBlockMapper.
+/// </summary>
 public static class GalleryBlockMapper
 {
-    public static NeoPageNode ToNode(GalleryBlock block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(GalleryBlock block) => new()
     {
         CatalogId = "media.gallery", Kind = NeoPageNodeKind.Block,
         Properties = new Dictionary<string, JsonElement>
@@ -12,7 +18,10 @@ public static class GalleryBlockMapper
         }
     };
 
-    public static GalleryBlock FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static GalleryBlock FromNode(NeoPageNode node) => new()
     {
         Images = node.Properties.TryGetValue("images", out var v) && v.ValueKind == JsonValueKind.Array
             ? JsonSerializer.Deserialize<List<string>>(v.GetRawText()) ?? [] : [],

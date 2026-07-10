@@ -5,26 +5,65 @@ using Aero.Cms.Abstractions.Blocks.Neo.Composition;
 
 namespace Aero.Cms.Ui.Neo.Primitives.Image;
 
+/// <summary>
+/// Represents a class for ImagePrimitiveDefinition.
+/// </summary>
 public sealed class ImagePrimitiveDefinition : PrimitiveDefinitionBase
 {
-    public static PageEditorDefinitionDescriptor Descriptor { get; } =
+        /// <summary>
+    /// Gets or sets the Descriptor.
+    /// </summary>
+public static PageEditorDefinitionDescriptor Descriptor { get; } =
         new(new ImagePrimitiveDefinition(), new ImagePrimitiveDefinition());
 
-    public override string CatalogId => "primitive.image";
-    public override string DisplayName => "Image";
-    public override string? Description => "A responsive image with alternative text and caption.";
-    public override string Category => "Primitives";
-    public override string IconName => "image";
-    public override int SortOrder => 30;
-    public override bool PublicStaticSsrSafe => true;
-    public override Type? PreviewComponentType => typeof(ImagePrimitivePreview);
-    public override Type? PropertyEditorComponentType => typeof(ImagePrimitiveEditor);
-    public override ICompositionCapabilities Composition { get; } =
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public override string CatalogId => "primitive.image";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public override string DisplayName => "Image";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public override string? Description => "A responsive image with alternative text and caption.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override string Category => "Primitives";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public override string IconName => "image";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public override int SortOrder => 30;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public override bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public override Type? PreviewComponentType => typeof(ImagePrimitivePreview);
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public override Type? PropertyEditorComponentType => typeof(ImagePrimitiveEditor);
+        /// <summary>
+    /// Gets or sets the Composition.
+    /// </summary>
+public override ICompositionCapabilities Composition { get; } =
         CompositionCapabilities.Leaf(
             NeoPageNodeKind.Section,
             NeoPageNodeKind.Container,
             NeoPageNodeKind.Component);
-    public override EditorCapabilitySet EditorCapabilities =>
+        /// <summary>
+    /// Gets or sets the Editor Capabilities.
+    /// </summary>
+public override EditorCapabilitySet EditorCapabilities =>
         EditorCapabilitySet.Content |
         EditorCapabilitySet.Media |
         EditorCapabilitySet.Spacing |
@@ -34,7 +73,10 @@ public sealed class ImagePrimitiveDefinition : PrimitiveDefinitionBase
         EditorCapabilitySet.Visibility |
         EditorCapabilitySet.Direction;
 
-    public override EditorInteractionCapabilities Interaction =>
+        /// <summary>
+    /// Gets or sets the Interaction.
+    /// </summary>
+public override EditorInteractionCapabilities Interaction =>
         EditorInteractionCapabilities.Selectable |
         EditorInteractionCapabilities.Editable |
         EditorInteractionCapabilities.Draggable |
@@ -43,7 +85,10 @@ public sealed class ImagePrimitiveDefinition : PrimitiveDefinitionBase
         EditorInteractionCapabilities.Copyable |
         EditorInteractionCapabilities.MediaSelectable;
 
-    public override NeoPageNode CreateDefaultNode() =>
+        /// <summary>
+    /// CreateDefaultNode method.
+    /// </summary>
+public override NeoPageNode CreateDefaultNode() =>
         new()
         {
             NodeId = Guid.NewGuid().ToString("N"),

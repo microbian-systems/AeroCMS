@@ -9,9 +9,15 @@ using Microsoft.Extensions.Configuration;
 
 namespace Aero.Cms.Modules.Identity;
 
+/// <summary>
+/// Represents a class for IdentityApi.
+/// </summary>
 public static class IdentityApi
 {
-    public static void MapIdentityApi(this IEndpointRouteBuilder endpoints)
+        /// <summary>
+    /// MapIdentityApi method.
+    /// </summary>
+public static void MapIdentityApi(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup($"/{HttpConstants.ApiPrefix}admin/auth").WithTags("Admin - Identity");
 
@@ -118,9 +124,15 @@ public static class IdentityApi
         return Results.NoContent();
     }
 
-    public sealed record AuthenticationConfigResponse(string AuthenticationMode);
+        /// <summary>
+    /// Represents a record for AuthenticationConfigResponse.
+    /// </summary>
+public sealed record AuthenticationConfigResponse(string AuthenticationMode);
 
-    public sealed record CurrentUserResponse(
+        /// <summary>
+    /// Represents a record for CurrentUserResponse.
+    /// </summary>
+public sealed record CurrentUserResponse(
         long UserId,
         string UserName,
         string? Email,
@@ -129,7 +141,13 @@ public static class IdentityApi
         string? Nickname,
         IReadOnlyList<string> Permissions);
 
-    public sealed record LocalLoginRequest(string EmailOrUserName, string Password, bool RememberMe);
+        /// <summary>
+    /// Represents a record for LocalLoginRequest.
+    /// </summary>
+public sealed record LocalLoginRequest(string EmailOrUserName, string Password, bool RememberMe);
 
-    public sealed record LocalLoginResponse(bool Succeeded, string Message);
+        /// <summary>
+    /// Represents a record for LocalLoginResponse.
+    /// </summary>
+public sealed record LocalLoginResponse(bool Succeeded, string Message);
 }

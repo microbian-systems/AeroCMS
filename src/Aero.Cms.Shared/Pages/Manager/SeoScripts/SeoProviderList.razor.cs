@@ -8,6 +8,9 @@ using Radzen.Blazor;
 
 namespace Aero.Cms.Shared.Pages.Manager.SeoScripts;
 
+/// <summary>
+/// Represents a class for SeoProviderList.
+/// </summary>
 public partial class SeoProviderList
 {
     [Inject] private ISettingsHttpClient SettingsClient { get; set; } = default!;
@@ -21,7 +24,10 @@ public partial class SeoProviderList
 
     private static IReadOnlyList<SeoProviderDefinition> ProviderDefinitions => SeoProviderRegistry.Definitions;
 
-    protected override async Task OnInitializedAsync()
+        /// <summary>
+    /// OnInitializedAsync method.
+    /// </summary>
+protected override async Task OnInitializedAsync()
         => await LoadAsync();
 
     private async Task LoadAsync()

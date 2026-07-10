@@ -87,11 +87,20 @@ public interface IPagesHttpClient
     /// </summary>
     Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
-    Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+        /// <summary>
+    /// PublishTranslationGroupAsync method.
+    /// </summary>
+Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
-    Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
+        /// <summary>
+    /// UnpublishTranslationGroupAsync method.
+    /// </summary>
+Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default);
 
-    Task<Result<AiTranslatePageResult, AeroError>> TranslateWithAiAsync(long id, AiTranslatePageRequest request, CancellationToken ct = default);
+        /// <summary>
+    /// TranslateWithAiAsync method.
+    /// </summary>
+Task<Result<AiTranslatePageResult, AeroError>> TranslateWithAiAsync(long id, AiTranslatePageRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Publishes a page.
@@ -219,12 +228,18 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
         return MapBoolResult(base.DeleteAsync(id.ToString(), ct));
     }
 
-    public Task<Result<bool, AeroError>> DeleteCascadeAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteCascadeAsync method.
+    /// </summary>
+public Task<Result<bool, AeroError>> DeleteCascadeAsync(long id, CancellationToken ct = default)
     {
         return MapBoolResult(base.DeleteAsync($"{id}/cascade", ct));
     }
 
-    public async Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants = false, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteMultipleAsync method.
+    /// </summary>
+public async Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long> ids, bool deleteDescendants = false, CancellationToken ct = default)
     {
         var result = await base.PostAsync<DeleteMultiplePagesRequest, DeleteMultipleResult>(
             "delete-multiple",
@@ -239,7 +254,10 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
         };
     }
 
-    public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+        /// <summary>
+    /// DeleteTranslationGroupAsync method.
+    /// </summary>
+public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
     {
         var result = await base.DeleteAsync($"translation-groups/{translationGroupId}", ct);
         return result switch
@@ -264,17 +282,26 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
         }
     }
 
-    public Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+        /// <summary>
+    /// PublishTranslationGroupAsync method.
+    /// </summary>
+public Task<Result<PublicationBulkResult, AeroError>> PublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
     {
         return PutAsync<object, PublicationBulkResult>($"translation-groups/{translationGroupId}/publish", new object(), ct);
     }
 
-    public Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
+        /// <summary>
+    /// UnpublishTranslationGroupAsync method.
+    /// </summary>
+public Task<Result<PublicationBulkResult, AeroError>> UnpublishTranslationGroupAsync(long translationGroupId, CancellationToken ct = default)
     {
         return PutAsync<object, PublicationBulkResult>($"translation-groups/{translationGroupId}/unpublish", new object(), ct);
     }
 
-    public Task<Result<AiTranslatePageResult, AeroError>> TranslateWithAiAsync(long id, AiTranslatePageRequest request, CancellationToken ct = default)
+        /// <summary>
+    /// TranslateWithAiAsync method.
+    /// </summary>
+public Task<Result<AiTranslatePageResult, AeroError>> TranslateWithAiAsync(long id, AiTranslatePageRequest request, CancellationToken ct = default)
     {
         return PostAsync<AiTranslatePageRequest, AiTranslatePageResult>($"{id}/ai-translate", request, ct);
     }
@@ -334,19 +361,28 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
 
     // ── Tree / Hierarchy implementations ──────────────────────────────
 
-    public Task<Result<IReadOnlyList<PageTreeItem>, AeroError>> GetTreeAsync(CancellationToken ct = default)
+        /// <summary>
+    /// GetTreeAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<PageTreeItem>, AeroError>> GetTreeAsync(CancellationToken ct = default)
     {
         return GetAsync<IReadOnlyList<PageTreeItem>>("tree", ct);
     }
 
-    public Task<Result<IReadOnlyList<PageTreeItem>, AeroError>> GetChildrenAsync(long? parentId, CancellationToken ct = default)
+        /// <summary>
+    /// GetChildrenAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<PageTreeItem>, AeroError>> GetChildrenAsync(long? parentId, CancellationToken ct = default)
     {
         var url = "tree/children";
         if (parentId.HasValue) url += $"?parentId={parentId}";
         return GetAsync<IReadOnlyList<PageTreeItem>>(url, ct);
     }
 
-    public Task<Result<IReadOnlyList<PageTranslationGroupTreeItem>, AeroError>> GetTranslationGroupChildrenAsync(
+        /// <summary>
+    /// GetTranslationGroupChildrenAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<PageTranslationGroupTreeItem>, AeroError>> GetTranslationGroupChildrenAsync(
         long? parentTranslationGroupId,
         string? culture = null,
         string? search = null,
@@ -377,12 +413,18 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
         return GetAsync<IReadOnlyList<PageTranslationGroupTreeItem>>(url, ct);
     }
 
-    public Task<Result<IReadOnlyList<TreeBreadcrumbItem>, AeroError>> GetBreadcrumbAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetBreadcrumbAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<TreeBreadcrumbItem>, AeroError>> GetBreadcrumbAsync(long id, CancellationToken ct = default)
     {
         return GetAsync<IReadOnlyList<TreeBreadcrumbItem>>($"tree/breadcrumb/{id}", ct);
     }
 
-    public Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, long? excludePageId = null, CancellationToken ct = default)
+        /// <summary>
+    /// ComputePathAsync method.
+    /// </summary>
+public Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, long? excludePageId = null, CancellationToken ct = default)
     {
         var url = $"tree/compute-path?slug={Uri.EscapeDataString(slug)}";
         if (parentId.HasValue) url += $"&parentId={parentId}";
@@ -392,7 +434,10 @@ public class PagesHttpClient(HttpClient httpClient, ILogger<PagesHttpClient> log
 
     // ── Event sourcing / version history ────────────────────────────
 
-    public Task<Result<PageEventHistory, AeroError>> GetEventHistoryAsync(long id, CancellationToken ct = default)
+        /// <summary>
+    /// GetEventHistoryAsync method.
+    /// </summary>
+public Task<Result<PageEventHistory, AeroError>> GetEventHistoryAsync(long id, CancellationToken ct = default)
     {
         return GetAsync<PageEventHistory>($"{id}/events", ct);
     }
@@ -595,18 +640,30 @@ public sealed record DeleteMultiplePagesRequest(
 /// </summary>
 public sealed record DeleteMultipleResult(int Deleted);
 
+/// <summary>
+/// Represents a record for AiTranslatePageRequest.
+/// </summary>
 public sealed record AiTranslatePageRequest(
     IReadOnlyList<AiTranslatePageCultureRequest> Targets,
     string? ProviderId = null,
     bool OverwriteExisting = false);
 
+/// <summary>
+/// Represents a record for AiTranslatePageCultureRequest.
+/// </summary>
 public sealed record AiTranslatePageCultureRequest(
     string Culture,
     string? Slug = null);
 
+/// <summary>
+/// Represents a record for AiTranslatePageResult.
+/// </summary>
 public sealed record AiTranslatePageResult(
     IReadOnlyList<AiTranslatePageCultureResult> Results);
 
+/// <summary>
+/// Represents a record for AiTranslatePageCultureResult.
+/// </summary>
 public sealed record AiTranslatePageCultureResult(
     string Culture,
     bool Succeeded,

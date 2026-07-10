@@ -8,25 +8,64 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("aero_contact", "Aero Contact", Category = "Aero")]
 public class AeroContactBlock : BlockBase
 {
-    public override string BlockType => "aero_contact";
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => "aero_contact";
 
-    public string? Title { get; set; }
-    public string? Description { get; set; }
-    public List<AeroContactDetail>? Details { get; set; } = new();
-    public string? FormActionUrl { get; set; }
-    public string? ImageUrl { get; set; }
-    public AeroContactLayout Layout { get; set; } = AeroContactLayout.Card;
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string? Title { get; set; }
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description { get; set; }
+        /// <summary>
+    /// Gets or sets the Details.
+    /// </summary>
+public List<AeroContactDetail>? Details { get; set; } = new();
+        /// <summary>
+    /// Gets or sets the Form Action Url.
+    /// </summary>
+public string? FormActionUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Image Url.
+    /// </summary>
+public string? ImageUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Layout.
+    /// </summary>
+public AeroContactLayout Layout { get; set; } = AeroContactLayout.Card;
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }
 
+/// <summary>
+/// Represents a class for AeroContactDetail.
+/// </summary>
 public class AeroContactDetail
 {
-    public string? Icon { get; set; } // svg path or simple identifier
-    public string? Label { get; set; }
-    public string? Value { get; set; }
+        /// <summary>
+    /// Gets or sets the Icon.
+    /// </summary>
+public string? Icon { get; set; } // svg path or simple identifier
+        /// <summary>
+    /// Gets or sets the Label.
+    /// </summary>
+public string? Label { get; set; }
+        /// <summary>
+    /// Gets or sets the Value.
+    /// </summary>
+public string? Value { get; set; }
 }
 
+/// <summary>
+/// Defines an enumeration for AeroContactLayout.
+/// </summary>
 public enum AeroContactLayout
 {
     Simple,

@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.BlogCards;
 
+/// <summary>
+/// Represents a class for BlogCard4BlockMapper.
+/// </summary>
 public static class BlogCard4BlockMapper
 {
-    public static NeoPageNode ToNode(BlogCard4Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(BlogCard4Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.blog-cards.4",
@@ -19,7 +25,10 @@ public static class BlogCard4BlockMapper
         }
     };
 
-    public static BlogCard4Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static BlogCard4Block FromNode(NeoPageNode node) => new()
     {
         MainText = GetString(node, "mainText", "How to center an element using JavaScript and jQuery"),
         PublishedAt = GetString(node, "publishedAt", "10th Oct 2022"),

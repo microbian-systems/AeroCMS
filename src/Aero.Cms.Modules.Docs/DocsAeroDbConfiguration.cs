@@ -1,8 +1,14 @@
 namespace Aero.Cms.Modules.Docs;
 
+/// <summary>
+/// Represents a class for DocsAeroDbConfiguration.
+/// </summary>
 public sealed class DocsAeroDbConfiguration : IConfigureAeroDB
 {
-    public void Configure(StoreOptions options)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions options)
     {
         // AeroDB will manage MarkdownPage in its own table.
         options.Schema.For<DocsPage>().Index(x => x.Slug);
@@ -10,7 +16,10 @@ public sealed class DocsAeroDbConfiguration : IConfigureAeroDB
         options.Schema.For<DocsPage>().Index(x => x.TranslationGroupId);
     }
 
-    public void Configure(IServiceProvider services, StoreOptions options)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions options)
     {
         Configure(options);
     }

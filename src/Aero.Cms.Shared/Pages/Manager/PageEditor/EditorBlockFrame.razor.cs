@@ -4,31 +4,97 @@ using Microsoft.AspNetCore.Components.Web;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
+/// <summary>
+/// Represents a class for EditorBlockFrame.
+/// </summary>
 public sealed partial class EditorBlockFrame : ComponentBase
 {
-    [Parameter] public string BlockEditorId { get; set; } = string.Empty;
-    [Parameter] public string BlockType { get; set; } = string.Empty;
-    [Parameter] public int Index { get; set; }
-    [Parameter] public int TotalCount { get; set; }
-    [Parameter] public bool IsSelected { get; set; }
-    [Parameter] public bool Dragging { get; set; }
-    [Parameter] public bool IsDragOver { get; set; }
+        /// <summary>
+    /// Gets or sets the Block Editor Id.
+    /// </summary>
+[Parameter] public string BlockEditorId { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+[Parameter] public string BlockType { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Index.
+    /// </summary>
+[Parameter] public int Index { get; set; }
+        /// <summary>
+    /// Gets or sets the Total Count.
+    /// </summary>
+[Parameter] public int TotalCount { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Selected.
+    /// </summary>
+[Parameter] public bool IsSelected { get; set; }
+        /// <summary>
+    /// Gets or sets the Dragging.
+    /// </summary>
+[Parameter] public bool Dragging { get; set; }
+        /// <summary>
+    /// Gets or sets the Is Drag Over.
+    /// </summary>
+[Parameter] public bool IsDragOver { get; set; }
 
-    [Parameter] public RenderFragment? ToolbarActions { get; set; }
-    [Parameter] public RenderFragment? ChildContent { get; set; }
+        /// <summary>
+    /// Gets or sets the Toolbar Actions.
+    /// </summary>
+[Parameter] public RenderFragment? ToolbarActions { get; set; }
+        /// <summary>
+    /// Gets or sets the Child Content.
+    /// </summary>
+[Parameter] public RenderFragment? ChildContent { get; set; }
 
-    [Parameter] public EventCallback OnSelect { get; set; }
-    [Parameter] public EventCallback OnOpenEditor { get; set; }
-    [Parameter] public EventCallback<int> OnMoveUp { get; set; }
-    [Parameter] public EventCallback<int> OnMoveDown { get; set; }
-    [Parameter] public EventCallback<int> OnDuplicate { get; set; }
-    [Parameter] public EventCallback<int> OnDelete { get; set; }
-    [Parameter] public EventCallback<int> OnCopy { get; set; }
-    [Parameter] public EventCallback<int> OnPaste { get; set; }
-    [Parameter] public EventCallback<int> OnSaveAsCustom { get; set; }
-    [Parameter] public EventCallback<DragStartEventArgs> OnDragStart { get; set; }
-    [Parameter] public EventCallback<int> OnDragOver { get; set; }
-    [Parameter] public EventCallback<int> OnDrop { get; set; }
+        /// <summary>
+    /// Gets or sets the On Select.
+    /// </summary>
+[Parameter] public EventCallback OnSelect { get; set; }
+        /// <summary>
+    /// Gets or sets the On Open Editor.
+    /// </summary>
+[Parameter] public EventCallback OnOpenEditor { get; set; }
+        /// <summary>
+    /// Gets or sets the On Move Up.
+    /// </summary>
+[Parameter] public EventCallback<int> OnMoveUp { get; set; }
+        /// <summary>
+    /// Gets or sets the On Move Down.
+    /// </summary>
+[Parameter] public EventCallback<int> OnMoveDown { get; set; }
+        /// <summary>
+    /// Gets or sets the On Duplicate.
+    /// </summary>
+[Parameter] public EventCallback<int> OnDuplicate { get; set; }
+        /// <summary>
+    /// Gets or sets the On Delete.
+    /// </summary>
+[Parameter] public EventCallback<int> OnDelete { get; set; }
+        /// <summary>
+    /// Gets or sets the On Copy.
+    /// </summary>
+[Parameter] public EventCallback<int> OnCopy { get; set; }
+        /// <summary>
+    /// Gets or sets the On Paste.
+    /// </summary>
+[Parameter] public EventCallback<int> OnPaste { get; set; }
+        /// <summary>
+    /// Gets or sets the On Save As Custom.
+    /// </summary>
+[Parameter] public EventCallback<int> OnSaveAsCustom { get; set; }
+        /// <summary>
+    /// Gets or sets the On Drag Start.
+    /// </summary>
+[Parameter] public EventCallback<DragStartEventArgs> OnDragStart { get; set; }
+        /// <summary>
+    /// Gets or sets the On Drag Over.
+    /// </summary>
+[Parameter] public EventCallback<int> OnDragOver { get; set; }
+        /// <summary>
+    /// Gets or sets the On Drop.
+    /// </summary>
+[Parameter] public EventCallback<int> OnDrop { get; set; }
 
     [Inject] private IPageEditorDefinitionRegistry DefinitionRegistry { get; set; } = default!;
 
@@ -117,8 +183,17 @@ public sealed partial class EditorBlockFrame : ComponentBase
     };
 }
 
+/// <summary>
+/// Represents a class for DragStartEventArgs.
+/// </summary>
 public sealed class DragStartEventArgs
 {
-    public string EditorId { get; set; } = string.Empty;
-    public int Index { get; set; }
+        /// <summary>
+    /// Gets or sets the Editor Id.
+    /// </summary>
+public string EditorId { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Index.
+    /// </summary>
+public int Index { get; set; }
 }

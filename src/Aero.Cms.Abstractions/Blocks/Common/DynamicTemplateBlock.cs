@@ -8,9 +8,15 @@ namespace Aero.Cms.Abstractions.Blocks.Common;
 [BlockMetadata("dynamic_template", "Dynamic Template", Category = "Dynamic")]
 public sealed class DynamicTemplateBlock : BlockBase
 {
-    public const string Discriminator = "dynamic_template";
+        /// <summary>
+    /// Discriminator.
+    /// </summary>
+public const string Discriminator = "dynamic_template";
 
-    public override string BlockType => Discriminator;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => Discriminator;
 
     /// <summary>
     /// Gets or sets the dynamic template definition id.
@@ -33,5 +39,8 @@ public sealed class DynamicTemplateBlock : BlockBase
     /// </summary>
     public JsonDocument? Data { get; set; }
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 }

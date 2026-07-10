@@ -3,6 +3,9 @@ using Aero.Cms.Abstractions.Ai;
 
 namespace Aero.Cms.Modules.Ai.Services;
 
+/// <summary>
+/// Represents a class for TranslateDocumentPromptBuilder.
+/// </summary>
 public sealed class TranslateDocumentPromptBuilder : ITranslateDocumentPromptBuilder
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -10,7 +13,10 @@ public sealed class TranslateDocumentPromptBuilder : ITranslateDocumentPromptBui
         WriteIndented = true
     };
 
-    public string Build(TranslateDocumentRequest request)
+        /// <summary>
+    /// Build method.
+    /// </summary>
+public string Build(TranslateDocumentRequest request)
     {
         var payload = JsonSerializer.Serialize(new
         {

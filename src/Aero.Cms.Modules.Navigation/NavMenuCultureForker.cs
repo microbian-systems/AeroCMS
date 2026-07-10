@@ -4,13 +4,22 @@ using Aero.Cms.Modules.Navigation.Events;
 
 namespace Aero.Cms.Modules.Navigation;
 
+/// <summary>
+/// Represents a record for NavMenuCultureFork.
+/// </summary>
 public sealed record NavMenuCultureFork(
     NavMenuCreated Created,
     NavMenuDraftSaved DraftSaved);
 
+/// <summary>
+/// Represents a class for NavMenuCultureForker.
+/// </summary>
 public static class NavMenuCultureForker
 {
-    public static NavMenuCultureFork Fork(
+        /// <summary>
+    /// Fork method.
+    /// </summary>
+public static NavMenuCultureFork Fork(
         NavMenuDocument source,
         NavMenuSnapshot sourceSnapshot,
         long targetMenuId,

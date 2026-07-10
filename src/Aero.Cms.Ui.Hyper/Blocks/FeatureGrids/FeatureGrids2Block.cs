@@ -16,15 +16,33 @@ namespace Aero.Cms.Ui.Hyper.Blocks.FeatureGrids;
     SchemaVersion = 1)]
 public sealed class FeatureGrids2Block : BlockBase
 {
-    public const string BlockTypeId = "hyper.feature-grids.2";
+        /// <summary>
+    /// BlockTypeId.
+    /// </summary>
+public const string BlockTypeId = "hyper.feature-grids.2";
 
-    public override string BlockType => BlockTypeId;
+        /// <summary>
+    /// Gets or sets the Block Type.
+    /// </summary>
+public override string BlockType => BlockTypeId;
 
-    public string Title { get; set; } = "Features for growth";
-    public string Description { get; set; } = "Lorem ipsum dolor sit, amet consectetur adipisicing elit. Veritatis tenetur, nemo quam voluptas sunt impedit dolorem asperiores aliquid doloribus fugit.";
-    public List<FeatureGrids2Item> Items { get; set; } = DefaultItems.Select(CloneItem).ToList();
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "Features for growth";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "Lorem ipsum dolor sit, amet consectetur adipisicing elit. Veritatis tenetur, nemo quam voluptas sunt impedit dolorem asperiores aliquid doloribus fugit.";
+        /// <summary>
+    /// Gets or sets the Items.
+    /// </summary>
+public List<FeatureGrids2Item> Items { get; set; } = DefaultItems.Select(CloneItem).ToList();
 
-    public static readonly List<FeatureGrids2Item> DefaultItems =
+        /// <summary>
+    /// DefaultItems.
+    /// </summary>
+public static readonly List<FeatureGrids2Item> DefaultItems =
     [
         new()
         {
@@ -46,7 +64,10 @@ public sealed class FeatureGrids2Block : BlockBase
         }
     ];
 
-    public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
+        /// <summary>
+    /// Accept method.
+    /// </summary>
+public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
     private static FeatureGrids2Item CloneItem(FeatureGrids2Item item) => new()
     {
@@ -57,10 +78,25 @@ public sealed class FeatureGrids2Block : BlockBase
     };
 }
 
+/// <summary>
+/// Represents a class for FeatureGrids2Item.
+/// </summary>
 public sealed class FeatureGrids2Item
 {
-    public string Icon { get; set; } = "";
-    public string Title { get; set; } = "";
-    public string Description { get; set; } = "";
-    public string? LinkUrl { get; set; }
+        /// <summary>
+    /// Gets or sets the Icon.
+    /// </summary>
+public string Icon { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Title.
+    /// </summary>
+public string Title { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string Description { get; set; } = "";
+        /// <summary>
+    /// Gets or sets the Link Url.
+    /// </summary>
+public string? LinkUrl { get; set; }
 }

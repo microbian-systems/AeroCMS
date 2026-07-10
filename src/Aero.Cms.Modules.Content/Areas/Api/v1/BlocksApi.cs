@@ -2,6 +2,9 @@ using Aero.Cms.Abstractions.Blocks;
 
 namespace Aero.Cms.Modules.Content.Areas.Api.v1;
 
+/// <summary>
+/// Represents a class for BlocksApi.
+/// </summary>
 public static class BlocksApi
 {
     /// <summary>

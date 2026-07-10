@@ -3,13 +3,28 @@ using Microsoft.AspNetCore.Http;
 
 namespace Aero.Cms.Shared.Localization;
 
+/// <summary>
+/// Represents a class for AeroCultureRoute.
+/// </summary>
 public static class AeroCultureRoute
 {
-    public const string CultureItemKey = "AeroCms.Culture";
-    public const string CulturePrefixItemKey = "AeroCms.CulturePrefix";
-    public const string IsFallbackCultureItemKey = "AeroCms.IsFallbackCulture";
+        /// <summary>
+    /// CultureItemKey.
+    /// </summary>
+public const string CultureItemKey = "AeroCms.Culture";
+        /// <summary>
+    /// CulturePrefixItemKey.
+    /// </summary>
+public const string CulturePrefixItemKey = "AeroCms.CulturePrefix";
+        /// <summary>
+    /// IsFallbackCultureItemKey.
+    /// </summary>
+public const string IsFallbackCultureItemKey = "AeroCms.IsFallbackCulture";
 
-    public static string NormalizeCultureOrDefault(string? culture, string fallback = "en-US")
+        /// <summary>
+    /// NormalizeCultureOrDefault method.
+    /// </summary>
+public static string NormalizeCultureOrDefault(string? culture, string fallback = "en-US")
     {
         if (string.IsNullOrWhiteSpace(culture))
             return fallback;
@@ -24,7 +39,10 @@ public static class AeroCultureRoute
         }
     }
 
-    public static IReadOnlyList<string> NormalizeSupportedCultures(IEnumerable<string>? cultures, string defaultCulture)
+        /// <summary>
+    /// NormalizeSupportedCultures method.
+    /// </summary>
+public static IReadOnlyList<string> NormalizeSupportedCultures(IEnumerable<string>? cultures, string defaultCulture)
     {
         var normalized = (cultures ?? [])
             .Select(x => NormalizeCultureOrDefault(x, defaultCulture))
@@ -37,7 +55,10 @@ public static class AeroCultureRoute
         return normalized;
     }
 
-    public static string? GetLeadingSupportedCulture(PathString path, IEnumerable<string> supportedCultures)
+        /// <summary>
+    /// GetLeadingSupportedCulture method.
+    /// </summary>
+public static string? GetLeadingSupportedCulture(PathString path, IEnumerable<string> supportedCultures)
     {
         var segment = GetLeadingSegment(path.Value);
         if (segment is null)
@@ -52,7 +73,10 @@ public static class AeroCultureRoute
             : null;
     }
 
-    public static string ResolveRequestCulture(
+        /// <summary>
+    /// ResolveRequestCulture method.
+    /// </summary>
+public static string ResolveRequestCulture(
         PathString path,
         string? defaultCulture,
         IEnumerable<string>? supportedCultures,
@@ -65,7 +89,10 @@ public static class AeroCultureRoute
         return pathCulture ?? normalizedDefault;
     }
 
-    public static string StripLeadingCulture(string? slug, IEnumerable<string>? supportedCultures = null)
+        /// <summary>
+    /// StripLeadingCulture method.
+    /// </summary>
+public static string StripLeadingCulture(string? slug, IEnumerable<string>? supportedCultures = null)
     {
         if (string.IsNullOrWhiteSpace(slug))
             return string.Empty;
@@ -86,7 +113,10 @@ public static class AeroCultureRoute
         return slashIndex < 0 ? string.Empty : trimmed[(slashIndex + 1)..];
     }
 
-    public static string BuildCulturePath(string culture, string? slug)
+        /// <summary>
+    /// BuildCulturePath method.
+    /// </summary>
+public static string BuildCulturePath(string culture, string? slug)
     {
         var normalizedCulture = NormalizeCultureOrDefault(culture).ToLowerInvariant();
         var normalizedSlug = (slug ?? string.Empty).Trim().Trim('/');
@@ -96,7 +126,10 @@ public static class AeroCultureRoute
             : $"/{normalizedCulture}/{normalizedSlug}";
     }
 
-    public static string BuildCulturePathForCurrentRequest(HttpContext httpContext, string culture, string? slug)
+        /// <summary>
+    /// BuildCulturePathForCurrentRequest method.
+    /// </summary>
+public static string BuildCulturePathForCurrentRequest(HttpContext httpContext, string culture, string? slug)
     {
         var pathBase = httpContext.Request.PathBase.Value?.TrimEnd('/') ?? string.Empty;
         return pathBase + BuildCulturePath(culture, slug);

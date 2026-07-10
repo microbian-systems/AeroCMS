@@ -1,5 +1,8 @@
 namespace Aero.Cms.Abstractions.Blocks.Editor;
 
+/// <summary>
+/// Represents a class for PageCanvasHistory.
+/// </summary>
 public sealed class PageCanvasHistory
 {
     private readonly int _capacity;
@@ -7,7 +10,10 @@ public sealed class PageCanvasHistory
     private readonly List<HistoryEntry> _redo = [];
     private EditorBlockListMemento _current;
 
-    public PageCanvasHistory(IReadOnlyList<EditorBlock> initialState, int capacity = 100)
+        /// <summary>
+    /// Initializes a new instance of the <see cref="PageCanvasHistory"/> class.
+    /// </summary>
+public PageCanvasHistory(IReadOnlyList<EditorBlock> initialState, int capacity = 100)
     {
         ArgumentNullException.ThrowIfNull(initialState);
         ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
@@ -16,11 +22,20 @@ public sealed class PageCanvasHistory
         _current = EditorBlockListMemento.Capture(initialState);
     }
 
-    public bool CanUndo => _undo.Count > 0;
+        /// <summary>
+    /// Gets or sets the Can Undo.
+    /// </summary>
+public bool CanUndo => _undo.Count > 0;
 
-    public bool CanRedo => _redo.Count > 0;
+        /// <summary>
+    /// Gets or sets the Can Redo.
+    /// </summary>
+public bool CanRedo => _redo.Count > 0;
 
-    public void Record(IReadOnlyList<EditorBlock> nextState)
+        /// <summary>
+    /// Record method.
+    /// </summary>
+public void Record(IReadOnlyList<EditorBlock> nextState)
     {
         ArgumentNullException.ThrowIfNull(nextState);
 
@@ -35,7 +50,10 @@ public sealed class PageCanvasHistory
         _current = next;
     }
 
-    public List<EditorBlock> Undo()
+        /// <summary>
+    /// Undo method.
+    /// </summary>
+public List<EditorBlock> Undo()
     {
         if (!CanUndo)
         {
@@ -49,7 +67,10 @@ public sealed class PageCanvasHistory
         return _current.Restore();
     }
 
-    public List<EditorBlock> Redo()
+        /// <summary>
+    /// Redo method.
+    /// </summary>
+public List<EditorBlock> Redo()
     {
         if (!CanRedo)
         {

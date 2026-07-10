@@ -14,9 +14,15 @@ using Radzen;
 
 namespace Aero.Cms.Shared.Pages.Manager;
 
+/// <summary>
+/// Represents a class for NavMenuEditor.
+/// </summary>
 public partial class NavMenuEditor
 {
-    [Parameter] public long Id { get; set; }
+        /// <summary>
+    /// Gets or sets the Id.
+    /// </summary>
+[Parameter] public long Id { get; set; }
 
     [Inject] private INavigationsHttpClient NavigationsClient { get; set; } = default!;
     [Inject] private ISitesHttpClient SitesClient { get; set; } = default!;
@@ -37,7 +43,10 @@ public partial class NavMenuEditor
     private bool _isCreatingTranslation;
     private bool _isTranslatingAll;
     private bool _overwriteExistingTranslations;
-    protected bool PreviewMode { get; set; }
+        /// <summary>
+    /// Gets or sets the Preview Mode.
+    /// </summary>
+protected bool PreviewMode { get; set; }
     private bool RightSidebarCollapsed { get; set; }
     private bool CategoryHeader { get; set; } = true;
     private string SelectedBlockId { get; set; } = string.Empty;
@@ -58,7 +67,10 @@ public partial class NavMenuEditor
             .Where(culture => !_cultureVariants.Any(variant =>
                 string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
             .ToList();
-    protected string PreviewFrameDocument => BuildPreviewFrameDocument(BuildPreviewHtml(), Navigation.BaseUri, _editName);
+        /// <summary>
+    /// Gets or sets the Preview Frame Document.
+    /// </summary>
+protected string PreviewFrameDocument => BuildPreviewFrameDocument(BuildPreviewHtml(), Navigation.BaseUri, _editName);
     private static IReadOnlyList<PaletteBlock> HeaderPalette { get; } =
     [
         new("link", "Link"),
@@ -70,7 +82,10 @@ public partial class NavMenuEditor
         new("html", "Rich Menu")
     ];
 
-    protected override async Task OnParametersSetAsync()
+        /// <summary>
+    /// OnParametersSetAsync method.
+    /// </summary>
+protected override async Task OnParametersSetAsync()
     {
         await LoadMenuAsync();
     }
@@ -1232,26 +1247,83 @@ public partial class NavMenuEditor
 
     private sealed record PaletteBlock(string Kind, string Label);
 
-    protected sealed record NavComponentEditorModel
+        /// <summary>
+    /// Represents a record for NavComponentEditorModel.
+    /// </summary>
+protected sealed record NavComponentEditorModel
     {
-        public string ClientId { get; } = Guid.NewGuid().ToString("N");
-        public long Id { get; set; }
-        public string Kind { get; set; } = "link";
-        public string Alignment { get; set; } = "Left";
-        public string? Label { get; set; }
-        public string? Url { get; set; }
-        public long? PageId { get; set; }
-        public string? AltText { get; set; }
-        public bool IsExternal { get; set; }
-        public string Target { get; set; } = "_self";
-        public string? Html { get; set; }
-        public string? Placeholder { get; set; }
-        public string? SearchAction { get; set; }
-        public string? ButtonLabel { get; set; }
-        public string Visibility { get; set; } = "Always";
-        public int Order { get; set; }
-        public List<NavComponentEditorModel> Children { get; set; } = [];
-        public string DisplayName => Kind.Trim().ToLowerInvariant() switch
+                /// <summary>
+        /// Gets or sets the Client Id.
+        /// </summary>
+public string ClientId { get; } = Guid.NewGuid().ToString("N");
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+public long Id { get; set; }
+                /// <summary>
+        /// Gets or sets the Kind.
+        /// </summary>
+public string Kind { get; set; } = "link";
+                /// <summary>
+        /// Gets or sets the Alignment.
+        /// </summary>
+public string Alignment { get; set; } = "Left";
+                /// <summary>
+        /// Gets or sets the Label.
+        /// </summary>
+public string? Label { get; set; }
+                /// <summary>
+        /// Gets or sets the Url.
+        /// </summary>
+public string? Url { get; set; }
+                /// <summary>
+        /// Gets or sets the Page Id.
+        /// </summary>
+public long? PageId { get; set; }
+                /// <summary>
+        /// Gets or sets the Alt Text.
+        /// </summary>
+public string? AltText { get; set; }
+                /// <summary>
+        /// Gets or sets the Is External.
+        /// </summary>
+public bool IsExternal { get; set; }
+                /// <summary>
+        /// Gets or sets the Target.
+        /// </summary>
+public string Target { get; set; } = "_self";
+                /// <summary>
+        /// Gets or sets the Html.
+        /// </summary>
+public string? Html { get; set; }
+                /// <summary>
+        /// Gets or sets the Placeholder.
+        /// </summary>
+public string? Placeholder { get; set; }
+                /// <summary>
+        /// Gets or sets the Search Action.
+        /// </summary>
+public string? SearchAction { get; set; }
+                /// <summary>
+        /// Gets or sets the Button Label.
+        /// </summary>
+public string? ButtonLabel { get; set; }
+                /// <summary>
+        /// Gets or sets the Visibility.
+        /// </summary>
+public string Visibility { get; set; } = "Always";
+                /// <summary>
+        /// Gets or sets the Order.
+        /// </summary>
+public int Order { get; set; }
+                /// <summary>
+        /// Gets or sets the Children.
+        /// </summary>
+public List<NavComponentEditorModel> Children { get; set; } = [];
+                /// <summary>
+        /// Gets or sets the Display Name.
+        /// </summary>
+public string DisplayName => Kind.Trim().ToLowerInvariant() switch
         {
             "menu" => Label ?? "Menu",
             "html" => Label ?? "Rich menu",
@@ -1264,26 +1336,77 @@ public partial class NavMenuEditor
         };
     }
 
-    protected sealed class NavCanvasRowEditorModel
+        /// <summary>
+    /// Represents a class for NavCanvasRowEditorModel.
+    /// </summary>
+protected sealed class NavCanvasRowEditorModel
     {
-        public string ClientId { get; } = Guid.NewGuid().ToString("N");
-        public long Id { get; set; }
-        public int Order { get; set; }
-        public string? Label { get; set; }
-        public string DesktopDisplay { get; set; } = "Flex";
-        public string TabletDisplay { get; set; } = "Flex";
-        public string MobileDisplay { get; set; } = "Stack";
-        public List<NavCanvasColumnEditorModel> Columns { get; set; } = [];
+                /// <summary>
+        /// Gets or sets the Client Id.
+        /// </summary>
+public string ClientId { get; } = Guid.NewGuid().ToString("N");
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+public long Id { get; set; }
+                /// <summary>
+        /// Gets or sets the Order.
+        /// </summary>
+public int Order { get; set; }
+                /// <summary>
+        /// Gets or sets the Label.
+        /// </summary>
+public string? Label { get; set; }
+                /// <summary>
+        /// Gets or sets the Desktop Display.
+        /// </summary>
+public string DesktopDisplay { get; set; } = "Flex";
+                /// <summary>
+        /// Gets or sets the Tablet Display.
+        /// </summary>
+public string TabletDisplay { get; set; } = "Flex";
+                /// <summary>
+        /// Gets or sets the Mobile Display.
+        /// </summary>
+public string MobileDisplay { get; set; } = "Stack";
+                /// <summary>
+        /// Gets or sets the Columns.
+        /// </summary>
+public List<NavCanvasColumnEditorModel> Columns { get; set; } = [];
     }
 
-    protected sealed class NavCanvasColumnEditorModel
+        /// <summary>
+    /// Represents a class for NavCanvasColumnEditorModel.
+    /// </summary>
+protected sealed class NavCanvasColumnEditorModel
     {
-        public string ClientId { get; } = Guid.NewGuid().ToString("N");
-        public long Id { get; set; }
-        public int Order { get; set; }
-        public int DesktopSpan { get; set; } = 4;
-        public int TabletSpan { get; set; } = 6;
-        public int MobileSpan { get; set; } = 12;
-        public List<NavComponentEditorModel> Blocks { get; set; } = [];
+                /// <summary>
+        /// Gets or sets the Client Id.
+        /// </summary>
+public string ClientId { get; } = Guid.NewGuid().ToString("N");
+                /// <summary>
+        /// Gets or sets the Id.
+        /// </summary>
+public long Id { get; set; }
+                /// <summary>
+        /// Gets or sets the Order.
+        /// </summary>
+public int Order { get; set; }
+                /// <summary>
+        /// Gets or sets the Desktop Span.
+        /// </summary>
+public int DesktopSpan { get; set; } = 4;
+                /// <summary>
+        /// Gets or sets the Tablet Span.
+        /// </summary>
+public int TabletSpan { get; set; } = 6;
+                /// <summary>
+        /// Gets or sets the Mobile Span.
+        /// </summary>
+public int MobileSpan { get; set; } = 12;
+                /// <summary>
+        /// Gets or sets the Blocks.
+        /// </summary>
+public List<NavComponentEditorModel> Blocks { get; set; } = [];
     }
 }

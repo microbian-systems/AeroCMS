@@ -10,13 +10,19 @@ using FluentValidation;
 
 namespace Aero.Cms.Modules.Pages.CustomComponents;
 
+/// <summary>
+/// Represents a class for PageCustomComponentService.
+/// </summary>
 public sealed class PageCustomComponentService(
     IDocumentSession session,
     ISiteContext siteContext,
     IValidator<SavePageCustomComponentRequest> validator)
     : IPageCustomComponentService
 {
-    public async Task<Result<IReadOnlyList<PageCustomComponent>, AeroError>> GetAllAsync(
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public async Task<Result<IReadOnlyList<PageCustomComponent>, AeroError>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
         var components = await session.Query<PageCustomComponent>()
@@ -26,7 +32,10 @@ public sealed class PageCustomComponentService(
         return Prelude.Ok<IReadOnlyList<PageCustomComponent>, AeroError>(components);
     }
 
-    public async Task<Result<PageCustomComponent, AeroError>> SaveAsync(
+        /// <summary>
+    /// SaveAsync method.
+    /// </summary>
+public async Task<Result<PageCustomComponent, AeroError>> SaveAsync(
         SavePageCustomComponentRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -68,7 +77,10 @@ public sealed class PageCustomComponentService(
         return component;
     }
 
-    public async Task<Result<NeoPageNode, AeroError>> CreateInstanceAsync(
+        /// <summary>
+    /// CreateInstanceAsync method.
+    /// </summary>
+public async Task<Result<NeoPageNode, AeroError>> CreateInstanceAsync(
         long componentId,
         CancellationToken cancellationToken = default)
     {
@@ -82,7 +94,10 @@ public sealed class PageCustomComponentService(
         return CustomComponentTemplate.CreateInstance(component.Root);
     }
 
-    public async Task<Result<PageCustomComponent, AeroError>> UpdateAsync(
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public async Task<Result<PageCustomComponent, AeroError>> UpdateAsync(
         long componentId,
         SavePageCustomComponentRequest request,
         CancellationToken cancellationToken = default)
@@ -114,7 +129,10 @@ public sealed class PageCustomComponentService(
         return component;
     }
 
-    public async Task<Result<bool, AeroError>> DeleteAsync(
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> DeleteAsync(
         long componentId,
         CancellationToken cancellationToken = default)
     {

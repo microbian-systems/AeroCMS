@@ -5,20 +5,56 @@ using Aero.Cms.Shared.Pages.Manager.PageEditor.AeroUi.Layout;
 
 namespace Aero.Cms.Ui.Neo.Definitions;
 
+/// <summary>
+/// Represents a class for NeoColumnsEditorBlockDefinition.
+/// </summary>
 public sealed class NeoColumnsEditorBlockDefinition : IPageEditorBlockDefinition
 {
-    public string CatalogId => "neo.layout.columns";
-    public string DisplayName => "Columns";
-    public string? Description => "A multi-column layout section.";
-    public string Category => "Layout";
-    public string Kind => "Block";
-    public string IconName => "columns-2";
-    public int SortOrder => 90;
-    public bool PublicStaticSsrSafe => true;
-    public Type? PreviewComponentType => null;
-    public Type? PropertyEditorComponentType => typeof(NeoColumnsBlockEditor);
+        /// <summary>
+    /// Gets or sets the Catalog Id.
+    /// </summary>
+public string CatalogId => "neo.layout.columns";
+        /// <summary>
+    /// Gets or sets the Display Name.
+    /// </summary>
+public string DisplayName => "Columns";
+        /// <summary>
+    /// Gets or sets the Description.
+    /// </summary>
+public string? Description => "A multi-column layout section.";
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public string Category => "Layout";
+        /// <summary>
+    /// Gets or sets the Kind.
+    /// </summary>
+public string Kind => "Block";
+        /// <summary>
+    /// Gets or sets the Icon Name.
+    /// </summary>
+public string IconName => "columns-2";
+        /// <summary>
+    /// Gets or sets the Sort Order.
+    /// </summary>
+public int SortOrder => 90;
+        /// <summary>
+    /// Gets or sets the Public Static Ssr Safe.
+    /// </summary>
+public bool PublicStaticSsrSafe => true;
+        /// <summary>
+    /// Gets or sets the Preview Component Type.
+    /// </summary>
+public Type? PreviewComponentType => null;
+        /// <summary>
+    /// Gets or sets the Property Editor Component Type.
+    /// </summary>
+public Type? PropertyEditorComponentType => typeof(NeoColumnsBlockEditor);
 
-    public EditorBlock CreateDefaultEditorBlock() => new()
+        /// <summary>
+    /// CreateDefaultEditorBlock method.
+    /// </summary>
+public EditorBlock CreateDefaultEditorBlock() => new()
     {
         Type = CatalogId,
         ColumnCount = 2,
@@ -31,13 +67,19 @@ public sealed class NeoColumnsEditorBlockDefinition : IPageEditorBlockDefinition
         ]
     };
 
-    public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+        /// <summary>
+    /// ToNeoPageNode method.
+    /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
     {
         var block = ToBlock(editorBlock);
         return NeoColumnsBlockMapper.ToNode(block);
     }
 
-    public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
+        /// <summary>
+    /// ToBlockBase method.
+    /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock) => ToBlock(editorBlock);
 
     private static NeoColumnsBlock ToBlock(EditorBlock editor) => new()
     {

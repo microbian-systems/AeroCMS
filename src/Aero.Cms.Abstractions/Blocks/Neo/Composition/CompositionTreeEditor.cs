@@ -7,7 +7,10 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Composition;
 /// </summary>
 public sealed class CompositionTreeEditor(ICompositionPolicy policy) : ICompositionTreeEditor
 {
-    public Result<IReadOnlyList<NeoPageNode>, AeroError> Drop(
+        /// <summary>
+    /// Drop method.
+    /// </summary>
+public Result<IReadOnlyList<NeoPageNode>, AeroError> Drop(
         IReadOnlyList<NeoPageNode> roots,
         CompositionDropRequest request)
     {
@@ -55,7 +58,10 @@ public sealed class CompositionTreeEditor(ICompositionPolicy policy) : IComposit
         return workingRoots;
     }
 
-    public Result<IReadOnlyList<NeoPageNode>, AeroError> Remove(
+        /// <summary>
+    /// Remove method.
+    /// </summary>
+public Result<IReadOnlyList<NeoPageNode>, AeroError> Remove(
         IReadOnlyList<NeoPageNode> roots,
         string nodeId)
     {

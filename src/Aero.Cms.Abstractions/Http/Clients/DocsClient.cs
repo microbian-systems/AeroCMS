@@ -251,7 +251,10 @@ public record DocsDetail(
     string Culture = "en-US",
     long? TranslationGroupId = null)
 {
-    public static DocsDetail Create(
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static DocsDetail Create(
         string title,
         string slug,
         long? parentId,

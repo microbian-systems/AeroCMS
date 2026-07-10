@@ -236,7 +236,10 @@ public sealed class LegacyPageEditorBlockProvider : IPageEditorBlockProvider
         Define("columns", "Columns", "Layout", "columns-3", 600, MapColumnsBlock)
     ];
 
-    public IReadOnlyCollection<IPageEditorBlockDefinition> GetDefinitions() => Definitions;
+        /// <summary>
+    /// GetDefinitions method.
+    /// </summary>
+public IReadOnlyCollection<IPageEditorBlockDefinition> GetDefinitions() => Definitions;
 
     private static IPageEditorBlockDefinition Define(
         string catalogId,
@@ -326,18 +329,51 @@ public sealed class LegacyPageEditorBlockProvider : IPageEditorBlockProvider
         int sortOrder,
         Func<EditorBlock, BlockBase?> toBlockBase) : IPageEditorBlockDefinition
     {
-        public string CatalogId { get; } = catalogId;
-        public string DisplayName { get; } = displayName;
-        public string? Description => "Legacy canned block registered through the unified page-editor catalog.";
-        public string Category { get; } = category;
-        public string Kind => "Block";
-        public string IconName { get; } = iconName;
-        public int SortOrder { get; } = sortOrder;
-        public bool PublicStaticSsrSafe => true;
-        public Type? PreviewComponentType => null;
-        public Type? PropertyEditorComponentType => null;
+                /// <summary>
+        /// Gets or sets the Catalog Id.
+        /// </summary>
+public string CatalogId { get; } = catalogId;
+                /// <summary>
+        /// Gets or sets the Display Name.
+        /// </summary>
+public string DisplayName { get; } = displayName;
+                /// <summary>
+        /// Gets or sets the Description.
+        /// </summary>
+public string? Description => "Legacy canned block registered through the unified page-editor catalog.";
+                /// <summary>
+        /// Gets or sets the Category.
+        /// </summary>
+public string Category { get; } = category;
+                /// <summary>
+        /// Gets or sets the Kind.
+        /// </summary>
+public string Kind => "Block";
+                /// <summary>
+        /// Gets or sets the Icon Name.
+        /// </summary>
+public string IconName { get; } = iconName;
+                /// <summary>
+        /// Gets or sets the Sort Order.
+        /// </summary>
+public int SortOrder { get; } = sortOrder;
+                /// <summary>
+        /// Gets or sets the Public Static Ssr Safe.
+        /// </summary>
+public bool PublicStaticSsrSafe => true;
+                /// <summary>
+        /// Gets or sets the Preview Component Type.
+        /// </summary>
+public Type? PreviewComponentType => null;
+                /// <summary>
+        /// Gets or sets the Property Editor Component Type.
+        /// </summary>
+public Type? PropertyEditorComponentType => null;
 
-        public EditorBlock CreateDefaultEditorBlock() => new()
+                /// <summary>
+        /// CreateDefaultEditorBlock method.
+        /// </summary>
+public EditorBlock CreateDefaultEditorBlock() => new()
         {
             Type = CatalogId,
             Title = DisplayName,
@@ -347,7 +383,10 @@ public sealed class LegacyPageEditorBlockProvider : IPageEditorBlockProvider
             RowCount = 1
         };
 
-        public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
+                /// <summary>
+        /// ToNeoPageNode method.
+        /// </summary>
+public NeoPageNode ToNeoPageNode(EditorBlock editorBlock)
         {
             ArgumentNullException.ThrowIfNull(editorBlock);
 
@@ -367,7 +406,10 @@ public sealed class LegacyPageEditorBlockProvider : IPageEditorBlockProvider
             };
         }
 
-        public BlockBase? ToBlockBase(EditorBlock editorBlock)
+                /// <summary>
+        /// ToBlockBase method.
+        /// </summary>
+public BlockBase? ToBlockBase(EditorBlock editorBlock)
         {
             ArgumentNullException.ThrowIfNull(editorBlock);
             return toBlockBase(editorBlock);

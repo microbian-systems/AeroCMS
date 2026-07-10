@@ -4,6 +4,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
 
+/// <summary>
+/// Represents a record for SavePageCustomComponentRequest.
+/// </summary>
 public sealed record SavePageCustomComponentRequest(
     string Name,
     NeoPageNode Root,
@@ -11,6 +14,9 @@ public sealed record SavePageCustomComponentRequest(
     string Category = "Custom",
     IReadOnlyList<string>? Tags = null);
 
+/// <summary>
+/// Represents a record for PageCustomComponentDetail.
+/// </summary>
 public sealed record PageCustomComponentDetail(
     long Id,
     string Name,
@@ -23,41 +29,71 @@ public sealed record PageCustomComponentDetail(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+/// <summary>
+/// Defines an interface for IPageCustomComponentsHttpClient.
+/// </summary>
 public interface IPageCustomComponentsHttpClient
 {
-    Task<Result<IReadOnlyList<PageCustomComponentDetail>, AeroError>> GetAllAsync(
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+Task<Result<IReadOnlyList<PageCustomComponentDetail>, AeroError>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
-    Task<Result<PageCustomComponentDetail, AeroError>> CreateAsync(
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+Task<Result<PageCustomComponentDetail, AeroError>> CreateAsync(
         SavePageCustomComponentRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Result<PageCustomComponentDetail, AeroError>> UpdateAsync(
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+Task<Result<PageCustomComponentDetail, AeroError>> UpdateAsync(
         long id,
         SavePageCustomComponentRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Result<NeoPageNode, AeroError>> CreateInstanceAsync(
+        /// <summary>
+    /// CreateInstanceAsync method.
+    /// </summary>
+Task<Result<NeoPageNode, AeroError>> CreateInstanceAsync(
         long id,
         CancellationToken cancellationToken = default);
 
-    Task<Result<bool, AeroError>> DeleteAsync(
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+Task<Result<bool, AeroError>> DeleteAsync(
         long id,
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Represents a class for PageCustomComponentsHttpClient.
+/// </summary>
 public sealed class PageCustomComponentsHttpClient(
     HttpClient httpClient,
     ILogger<PageCustomComponentsHttpClient> logger)
     : AeroCmsClientBase(httpClient, logger), IPageCustomComponentsHttpClient
 {
-    public override string Path => "admin/pages/custom-components";
+        /// <summary>
+    /// Gets or sets the Path.
+    /// </summary>
+public override string Path => "admin/pages/custom-components";
 
-    public Task<Result<IReadOnlyList<PageCustomComponentDetail>, AeroError>> GetAllAsync(
+        /// <summary>
+    /// GetAllAsync method.
+    /// </summary>
+public Task<Result<IReadOnlyList<PageCustomComponentDetail>, AeroError>> GetAllAsync(
         CancellationToken cancellationToken = default) =>
         GetAsync<IReadOnlyList<PageCustomComponentDetail>>(string.Empty, cancellationToken);
 
-    public Task<Result<PageCustomComponentDetail, AeroError>> CreateAsync(
+        /// <summary>
+    /// CreateAsync method.
+    /// </summary>
+public Task<Result<PageCustomComponentDetail, AeroError>> CreateAsync(
         SavePageCustomComponentRequest request,
         CancellationToken cancellationToken = default) =>
         PostAsync<SavePageCustomComponentRequest, PageCustomComponentDetail>(
@@ -65,7 +101,10 @@ public sealed class PageCustomComponentsHttpClient(
             request,
             cancellationToken);
 
-    public Task<Result<PageCustomComponentDetail, AeroError>> UpdateAsync(
+        /// <summary>
+    /// UpdateAsync method.
+    /// </summary>
+public Task<Result<PageCustomComponentDetail, AeroError>> UpdateAsync(
         long id,
         SavePageCustomComponentRequest request,
         CancellationToken cancellationToken = default) =>
@@ -74,12 +113,18 @@ public sealed class PageCustomComponentsHttpClient(
             request,
             cancellationToken);
 
-    public Task<Result<NeoPageNode, AeroError>> CreateInstanceAsync(
+        /// <summary>
+    /// CreateInstanceAsync method.
+    /// </summary>
+public Task<Result<NeoPageNode, AeroError>> CreateInstanceAsync(
         long id,
         CancellationToken cancellationToken = default) =>
         PostAsync<object, NeoPageNode>($"{id}/instance", new object(), cancellationToken);
 
-    public async Task<Result<bool, AeroError>> DeleteAsync(
+        /// <summary>
+    /// DeleteAsync method.
+    /// </summary>
+public async Task<Result<bool, AeroError>> DeleteAsync(
         long id,
         CancellationToken cancellationToken = default)
     {

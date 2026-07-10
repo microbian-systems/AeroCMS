@@ -23,18 +23,42 @@ using Microsoft.Extensions.Hosting;
 
 namespace Aero.Cms.Modules.Pages;
 
+/// <summary>
+/// Represents a class for PagesModule.
+/// </summary>
 [Module(nameof(PagesModule))]
 public sealed class PagesModule : AeroWebModule, IConfigureAeroDB
 {
-    public override string Name => nameof(PagesModule);
-    public override string Version => AeroConstants.Version;
-    public override string Author => AeroConstants.Author;
-    public override IReadOnlyList<string> Dependencies => [];
-    public override IReadOnlyList<string> Category => ["content", "pages"];
-    public override IReadOnlyList<string> Tags => ["content", "pages", "cms"];
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public override string Name => nameof(PagesModule);
+        /// <summary>
+    /// Gets or sets the Version.
+    /// </summary>
+public override string Version => AeroConstants.Version;
+        /// <summary>
+    /// Gets or sets the Author.
+    /// </summary>
+public override string Author => AeroConstants.Author;
+        /// <summary>
+    /// Gets or sets the Dependencies.
+    /// </summary>
+public override IReadOnlyList<string> Dependencies => [];
+        /// <summary>
+    /// Gets or sets the Category.
+    /// </summary>
+public override IReadOnlyList<string> Category => ["content", "pages"];
+        /// <summary>
+    /// Gets or sets the Tags.
+    /// </summary>
+public override IReadOnlyList<string> Tags => ["content", "pages", "cms"];
 
 
-    public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
+        /// <summary>
+    /// ConfigureServices method.
+    /// </summary>
+public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
         // Content service — factory resolves ISiteContext + IHttpContextAccessor
         // at the boundary and converts them to explicit primitives so the service
@@ -104,7 +128,10 @@ public sealed class PagesModule : AeroWebModule, IConfigureAeroDB
         });
     }
 
-    public void Configure(StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(StoreOptions opts)
     {
         // ── Event Store ──────────────────────────────────────────────────
         // Custom IProjection registers inline.
@@ -181,12 +208,18 @@ public sealed class PagesModule : AeroWebModule, IConfigureAeroDB
             .UniqueIndex(x => new { x.SiteId, x.Name });
     }
 
-    public void Configure(IServiceProvider services, StoreOptions opts)
+        /// <summary>
+    /// Configure method.
+    /// </summary>
+public void Configure(IServiceProvider services, StoreOptions opts)
     {
         Configure(opts);
     }
 
-    public override Task RunAsync(IEndpointRouteBuilder builder)
+        /// <summary>
+    /// RunAsync method.
+    /// </summary>
+public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         using var scope = builder.ServiceProvider.CreateScope();
         builder.MapPagesApi();

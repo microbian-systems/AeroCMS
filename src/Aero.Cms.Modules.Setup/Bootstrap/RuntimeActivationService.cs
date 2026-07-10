@@ -21,11 +21,23 @@ public sealed class RuntimeActivationService : IRuntimeActivationService, IDispo
     private bool _isActivating;
     private string? _activationError;
 
-    public bool IsActivated => _isActivated;
-    public bool IsActivating => _isActivating;
-    public string? ActivationError => _activationError;
+        /// <summary>
+    /// Gets or sets the Is Activated.
+    /// </summary>
+public bool IsActivated => _isActivated;
+        /// <summary>
+    /// Gets or sets the Is Activating.
+    /// </summary>
+public bool IsActivating => _isActivating;
+        /// <summary>
+    /// Gets or sets the Activation Error.
+    /// </summary>
+public string? ActivationError => _activationError;
 
-    public RuntimeActivationService(
+        /// <summary>
+    /// Initializes a new instance of the <see cref="RuntimeActivationService"/> class.
+    /// </summary>
+public RuntimeActivationService(
         ISetupInitializationService setupInitializationService,
         ISetupCompletionService setupCompletionService,
         IBootstrapPendingSetupRequestStore pendingSetupRequestStore,
@@ -39,7 +51,10 @@ public sealed class RuntimeActivationService : IRuntimeActivationService, IDispo
         _logger = logger;
     }
 
-    public async Task<RuntimeActivationResult> ActivateAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// ActivateAsync method.
+    /// </summary>
+public async Task<RuntimeActivationResult> ActivateAsync(CancellationToken cancellationToken = default)
     {
         lock (_lock)
         {
@@ -118,7 +133,10 @@ public sealed class RuntimeActivationService : IRuntimeActivationService, IDispo
         }
     }
 
-    public async Task WaitForActivationAsync(CancellationToken cancellationToken = default)
+        /// <summary>
+    /// WaitForActivationAsync method.
+    /// </summary>
+public async Task WaitForActivationAsync(CancellationToken cancellationToken = default)
     {
         if (_isActivated)
             return;
@@ -126,7 +144,10 @@ public sealed class RuntimeActivationService : IRuntimeActivationService, IDispo
         await _activationChannel.Reader.ReadAsync(cancellationToken);
     }
 
-    public void Dispose()
+        /// <summary>
+    /// Dispose method.
+    /// </summary>
+public void Dispose()
     {
         _activationChannel.Writer.TryComplete();
     }

@@ -4,20 +4,56 @@ using Aero.Core.Entities;
 
 namespace Aero.Cms.Modules.Navigation.Domain;
 
+/// <summary>
+/// Represents a class for NavMenuDocument.
+/// </summary>
 public sealed class NavMenuDocument : Entity, ISiteOwned
 {
-    public long SiteId { get; set; }
-    public long? TranslationGroupId { get; set; }
-    public string Culture { get; set; } = Aero.Cms.Core.Entities.SitesModel.DefaultCultureName;
-    public string Name { get; set; } = string.Empty;
-    public string Key { get; set; } = string.Empty;
-    public NavMenuLifecycleState State { get; set; } = NavMenuLifecycleState.Draft;
-    public bool HasPublishedSnapshot { get; set; }
-    public DateTimeOffset? ArchivedOn { get; set; }
-    public long? CreatedByUserId { get; set; }
-    public long? ModifiedByUserId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Translation Group Id.
+    /// </summary>
+public long? TranslationGroupId { get; set; }
+        /// <summary>
+    /// Gets or sets the Culture.
+    /// </summary>
+public string Culture { get; set; } = Aero.Cms.Core.Entities.SitesModel.DefaultCultureName;
+        /// <summary>
+    /// Gets or sets the Name.
+    /// </summary>
+public string Name { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the Key.
+    /// </summary>
+public string Key { get; set; } = string.Empty;
+        /// <summary>
+    /// Gets or sets the State.
+    /// </summary>
+public NavMenuLifecycleState State { get; set; } = NavMenuLifecycleState.Draft;
+        /// <summary>
+    /// Gets or sets the Has Published Snapshot.
+    /// </summary>
+public bool HasPublishedSnapshot { get; set; }
+        /// <summary>
+    /// Gets or sets the Archived On.
+    /// </summary>
+public DateTimeOffset? ArchivedOn { get; set; }
+        /// <summary>
+    /// Gets or sets the Created By User Id.
+    /// </summary>
+public long? CreatedByUserId { get; set; }
+        /// <summary>
+    /// Gets or sets the Modified By User Id.
+    /// </summary>
+public long? ModifiedByUserId { get; set; }
 
-    public static NavMenuDocument Create(long id, NavMenuCreated @event) => new()
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static NavMenuDocument Create(long id, NavMenuCreated @event) => new()
     {
         Id = id,
         SiteId = @event.SiteId,
@@ -30,7 +66,10 @@ public sealed class NavMenuDocument : Entity, ISiteOwned
         CreatedOn = @event.CreatedOn
     };
 
-    public void Apply(NavMenuDraftSaved @event)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(NavMenuDraftSaved @event)
     {
         Name = @event.Name.Trim();
         Key = NormalizeKey(@event.Key);
@@ -40,21 +79,30 @@ public sealed class NavMenuDocument : Entity, ISiteOwned
         Touch(@event.UserId, @event.SavedOn);
     }
 
-    public void Apply(NavMenuPublished @event)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(NavMenuPublished @event)
     {
         HasPublishedSnapshot = true;
         State = NavMenuLifecycleState.Published;
         Touch(@event.UserId, @event.PublishedOn);
     }
 
-    public void Apply(NavMenuArchived @event)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(NavMenuArchived @event)
     {
         State = NavMenuLifecycleState.Archived;
         ArchivedOn = @event.ArchivedOn;
         Touch(@event.UserId, @event.ArchivedOn);
     }
 
-    public static string NormalizeKey(string key)
+        /// <summary>
+    /// NormalizeKey method.
+    /// </summary>
+public static string NormalizeKey(string key)
         => key.Trim().ToLowerInvariant();
 
     private void Touch(long? userId, DateTimeOffset timestamp)
@@ -64,13 +112,28 @@ public sealed class NavMenuDocument : Entity, ISiteOwned
     }
 }
 
+/// <summary>
+/// Represents a class for SiteNavigationSettingsDocument.
+/// </summary>
 public sealed class SiteNavigationSettingsDocument : Entity, ISiteOwned
 {
-    public long SiteId { get; set; }
-    public long? DefaultNavMenuId { get; set; }
-    public long? ModifiedByUserId { get; set; }
+        /// <summary>
+    /// Gets or sets the Site Id.
+    /// </summary>
+public long SiteId { get; set; }
+        /// <summary>
+    /// Gets or sets the Default Nav Menu Id.
+    /// </summary>
+public long? DefaultNavMenuId { get; set; }
+        /// <summary>
+    /// Gets or sets the Modified By User Id.
+    /// </summary>
+public long? ModifiedByUserId { get; set; }
 
-    public static SiteNavigationSettingsDocument Create(long siteId, SiteDefaultNavMenuChanged @event) => new()
+        /// <summary>
+    /// Create method.
+    /// </summary>
+public static SiteNavigationSettingsDocument Create(long siteId, SiteDefaultNavMenuChanged @event) => new()
     {
         Id = siteId,
         SiteId = siteId,
@@ -80,7 +143,10 @@ public sealed class SiteNavigationSettingsDocument : Entity, ISiteOwned
         ModifiedByUserId = @event.UserId
     };
 
-    public void Apply(SiteDefaultNavMenuChanged @event)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(SiteDefaultNavMenuChanged @event)
     {
         DefaultNavMenuId = @event.NavMenuId;
         ModifiedOn = @event.ChangedOn;

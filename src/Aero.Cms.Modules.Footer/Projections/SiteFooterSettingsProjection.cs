@@ -4,9 +4,15 @@ using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Footer.Projections;
 
+/// <summary>
+/// Represents a class for SiteFooterSettingsProjection.
+/// </summary>
 public sealed class SiteFooterSettingsProjection : IProjection
 {
-    public void Apply(IDocumentOperations operations, IReadOnlyList<IEvent> events)
+        /// <summary>
+    /// Apply method.
+    /// </summary>
+public void Apply(IDocumentOperations operations, IReadOnlyList<IEvent> events)
     {
         foreach (var group in SiteSettingsEvents(events).GroupBy(e => e.StreamId.Value!))
         {
@@ -14,7 +20,10 @@ public sealed class SiteFooterSettingsProjection : IProjection
         }
     }
 
-    public async Task ApplyAsync(IDocumentOperations operations, IReadOnlyList<IEvent> events, CancellationToken ct)
+        /// <summary>
+    /// ApplyAsync method.
+    /// </summary>
+public async Task ApplyAsync(IDocumentOperations operations, IReadOnlyList<IEvent> events, CancellationToken ct)
     {
         foreach (var group in SiteSettingsEvents(events).GroupBy(e => e.StreamId.Value!))
         {

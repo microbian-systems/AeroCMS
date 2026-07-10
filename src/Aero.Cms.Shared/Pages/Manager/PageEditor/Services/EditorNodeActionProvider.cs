@@ -9,7 +9,10 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor.Services;
 /// </summary>
 public sealed class EditorNodeActionProvider : IEditorNodeActionProvider
 {
-    public IReadOnlyList<EditorNodeAction> GetAvailableActions(
+        /// <summary>
+    /// GetAvailableActions method.
+    /// </summary>
+public IReadOnlyList<EditorNodeAction> GetAvailableActions(
         EditorInteractionCapabilities caps,
         EditorNodeActionContext ctx)
     {

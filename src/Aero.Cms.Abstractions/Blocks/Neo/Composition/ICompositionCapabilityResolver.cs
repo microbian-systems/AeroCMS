@@ -5,5 +5,8 @@ namespace Aero.Cms.Abstractions.Blocks.Neo.Composition;
 /// </summary>
 public interface ICompositionCapabilityResolver
 {
-    bool TryGet(string catalogId, out ICompositionCapabilities capabilities);
+        /// <summary>
+    /// TryGet method.
+    /// </summary>
+bool TryGet(string catalogId, out ICompositionCapabilities capabilities);
 }

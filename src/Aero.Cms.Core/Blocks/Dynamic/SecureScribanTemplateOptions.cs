@@ -36,23 +36,50 @@ public sealed record SecureScribanTemplateOptions
         "string.upcase"
     ];
 
-    public int MaxTemplateLengthBytes { get; init; } = 50_000;
+        /// <summary>
+    /// Gets or sets the Max Template Length Bytes.
+    /// </summary>
+public int MaxTemplateLengthBytes { get; init; } = 50_000;
 
-    public int LoopLimit { get; init; } = 1_000;
+        /// <summary>
+    /// Gets or sets the Loop Limit.
+    /// </summary>
+public int LoopLimit { get; init; } = 1_000;
 
-    public int RecursiveLimit { get; init; } = 50;
+        /// <summary>
+    /// Gets or sets the Recursive Limit.
+    /// </summary>
+public int RecursiveLimit { get; init; } = 50;
 
-    public bool StrictVariables { get; init; } = true;
+        /// <summary>
+    /// Gets or sets the Strict Variables.
+    /// </summary>
+public bool StrictVariables { get; init; } = true;
 
-    public TimeSpan RegexTimeout { get; init; } = TimeSpan.FromSeconds(2);
+        /// <summary>
+    /// Gets or sets the Regex Timeout.
+    /// </summary>
+public TimeSpan RegexTimeout { get; init; } = TimeSpan.FromSeconds(2);
 
-    public TimeSpan RenderTimeout { get; init; } = TimeSpan.FromSeconds(30);
+        /// <summary>
+    /// Gets or sets the Render Timeout.
+    /// </summary>
+public TimeSpan RenderTimeout { get; init; } = TimeSpan.FromSeconds(30);
 
-    public int MaxInputDepth { get; init; } = 10;
+        /// <summary>
+    /// Gets or sets the Max Input Depth.
+    /// </summary>
+public int MaxInputDepth { get; init; } = 10;
 
-    public int MaxOutputLength { get; init; } = 1_048_576;
+        /// <summary>
+    /// Gets or sets the Max Output Length.
+    /// </summary>
+public int MaxOutputLength { get; init; } = 1_048_576;
 
-    public bool AllowAllFunctions { get; init; }
+        /// <summary>
+    /// Gets or sets the Allow All Functions.
+    /// </summary>
+public bool AllowAllFunctions { get; init; }
 
     /// <summary>
     /// Fully qualified Scriban function names that user-authored templates may call.

@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.ContactForms;
 
+/// <summary>
+/// Represents a class for ContactForm1BlockMapper.
+/// </summary>
 public static class ContactForm1BlockMapper
 {
-    public static NeoPageNode ToNode(ContactForm1Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(ContactForm1Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.contact-forms.1",
@@ -23,7 +29,10 @@ public static class ContactForm1BlockMapper
         }
     };
 
-    public static ContactForm1Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static ContactForm1Block FromNode(NeoPageNode node) => new()
     {
         NameLabel = GetString(node, "nameLabel", "Name"),
         NamePlaceholder = GetString(node, "namePlaceholder", "Your name"),

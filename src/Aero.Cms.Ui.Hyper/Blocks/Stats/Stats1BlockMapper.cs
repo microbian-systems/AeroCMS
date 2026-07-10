@@ -3,9 +3,15 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 
 namespace Aero.Cms.Ui.Hyper.Blocks.Stats;
 
+/// <summary>
+/// Represents a class for Stats1BlockMapper.
+/// </summary>
 public static class Stats1BlockMapper
 {
-    public static NeoPageNode ToNode(Stats1Block block) => new()
+        /// <summary>
+    /// ToNode method.
+    /// </summary>
+public static NeoPageNode ToNode(Stats1Block block) => new()
     {
         NodeId = string.Empty,
         CatalogId = "hyper.stats.1",
@@ -18,7 +24,10 @@ public static class Stats1BlockMapper
         }
     };
 
-    public static Stats1Block FromNode(NeoPageNode node) => new()
+        /// <summary>
+    /// FromNode method.
+    /// </summary>
+public static Stats1Block FromNode(NeoPageNode node) => new()
     {
         Title = GetString(node, "title", "Trusted by eCommerce Businesses"),
         Description = GetString(node, "description", "Lorem ipsum dolor sit amet consectetur adipisicing elit. Ratione dolores laborum labore provident impedit esse recusandae facere libero harum sequi."),

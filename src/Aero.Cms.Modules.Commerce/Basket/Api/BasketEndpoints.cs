@@ -6,9 +6,15 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Aero.Cms.Modules.Commerce.Basket.Api;
 
+/// <summary>
+/// Represents a class for BasketEndpoints.
+/// </summary>
 public static class BasketEndpoints
 {
-    public static IEndpointRouteBuilder MapBasketApi(this IEndpointRouteBuilder builder)
+        /// <summary>
+    /// MapBasketApi method.
+    /// </summary>
+public static IEndpointRouteBuilder MapBasketApi(this IEndpointRouteBuilder builder)
     {
         var group = builder
             .MapGroup("/api/commerce/basket")
