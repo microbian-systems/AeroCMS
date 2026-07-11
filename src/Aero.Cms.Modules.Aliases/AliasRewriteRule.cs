@@ -68,27 +68,34 @@ public void ApplyRule(RewriteContext context)
         // Cache miss — fall back to DB query (site-scoped)
         _log.LogDebug("Cache miss for SiteId={SiteId} Path='{Path}' — querying AeroDB", slice.SiteId, path);
 
-        using var scope = _serviceProvider.CreateScope();
-        var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
-        var aliases = session.Query<AliasDocument>()
-            .Where(x => x.SiteId == slice.SiteId)  // site-scoped
-            .ToList();
-
-        foreach (var alias in aliases)
+        var scope = _serviceProvider.CreateAsyncScope();
+        try
         {
-            var aliasPath = NormalizePath(alias.OldPath);
-            if (string.Equals(aliasPath, path, StringComparison.OrdinalIgnoreCase))
-            {
-                _log.LogDebug("DB fallback matched '{OldPath}' → '{NewPath}' for SiteId={SiteId} Path='{Path}'",
-                    alias.OldPath, alias.NewPath, slice.SiteId, path);
+            var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            var aliases = session.Query<AliasDocument>()
+                .Where(x => x.SiteId == slice.SiteId)  // site-scoped
+                .ToList();
 
-                ApplyEntry(http, new AliasRuleEntry(
-                    alias.SiteId,
-                    aliasPath,
-                    alias.NewPath),
-                    context);
-                return;
+            foreach (var alias in aliases)
+            {
+                var aliasPath = NormalizePath(alias.OldPath);
+                if (string.Equals(aliasPath, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    _log.LogDebug("DB fallback matched '{OldPath}' → '{NewPath}' for SiteId={SiteId} Path='{Path}'",
+                        alias.OldPath, alias.NewPath, slice.SiteId, path);
+
+                    ApplyEntry(http, new AliasRuleEntry(
+                        alias.SiteId,
+                        aliasPath,
+                        alias.NewPath),
+                        context);
+                    return;
+                }
             }
+        }
+        finally
+        {
+            scope.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
 
         // No match in cache or DB

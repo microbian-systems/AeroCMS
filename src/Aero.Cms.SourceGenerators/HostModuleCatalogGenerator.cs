@@ -20,6 +20,13 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
     private const string HostAssemblyName = "Aero.Cms.Web";
     private const string ModuleManifestProviderAttributeName = "Aero.Modular.ModuleManifestProviderAttribute";
     private const string WolverineHandlersRegistrationAttributeName = "Aero.Modular.WolverineHandlersRegistrationAttribute";
+    private static readonly DiagnosticDescriptor EmptyHostModuleCatalog = new(
+        "AERO050",
+        "Generated host module catalog is empty",
+        "Host project '{0}' did not discover any generated module manifest providers. Ensure module projects reference Aero.Cms.SourceGenerators as an analyzer and the host references the module projects.",
+        "AeroCMS.ModuleManifest",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -95,6 +102,14 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
 
             if (catalog.HasAeroModular)
             {
+                if (catalog.ModuleProviders.IsDefaultOrEmpty)
+                {
+                    productionContext.ReportDiagnostic(Diagnostic.Create(
+                        EmptyHostModuleCatalog,
+                        Location.None,
+                        catalog.AssemblyName));
+                }
+
                 productionContext.AddSource(
                     "GeneratedAeroModuleCatalog.g.cs",
                     SourceText.From(RenderModuleCatalogSource(catalog.ModuleProviders), Encoding.UTF8));
@@ -135,7 +150,7 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
         source.AppendLine("/// </summary>");
         source.AppendLine("public static partial class GeneratedAeroModuleCatalog");
         source.AppendLine("{");
-        source.AppendLine("    static partial void PopulateProviders(List<IModuleManifestProvider> providers)");
+        source.AppendLine("    private static partial void PopulateProviders(List<IModuleManifestProvider> providers)");
         source.AppendLine("    {");
 
         foreach (var provider in moduleProviders)
@@ -165,7 +180,7 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
         source.AppendLine("/// </summary>");
         source.AppendLine("public static partial class GeneratedWolverineHandlerCatalog");
         source.AppendLine("{");
-        source.AppendLine("    static partial void RegisterGenerated(WolverineOptions opts)");
+        source.AppendLine("    private static partial void RegisterGenerated(WolverineOptions opts)");
         source.AppendLine("    {");
 
         foreach (var registration in handlerRegistrations)

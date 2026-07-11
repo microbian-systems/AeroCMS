@@ -434,3 +434,6 @@ openobserve_data/db/metadata.sqlite-wal
 openobserve_data/db/metadata.sqlite-shm
 
 .fake
+
+# Local Aero CMS embedded runtime data
+src/Aero.Cms.Web/App_Data/

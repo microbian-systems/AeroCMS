@@ -53,7 +53,7 @@ public async Task RefreshAsync(CancellationToken ct = default)
     {
         try
         {
-            using var scope = _serviceProvider.CreateScope();
+            await using var scope = _serviceProvider.CreateAsyncScope();
             var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
 
             var aliases = await session.Query<AliasDocument>().ToListAsync(ct);

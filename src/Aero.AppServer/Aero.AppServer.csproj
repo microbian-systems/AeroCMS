@@ -30,6 +30,7 @@
     <PackageReference Include="MysticMind.PostgresEmbed" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="SurrealDb.Embedded.SurrealKv" />
     <PackageReference Include="System.Numerics.Tensors" />
     <PackageReference Include="TickerQ" />
     <PackageReference Include="TickerQ.Caching.StackExchangeRedis" />
@@ -39,6 +40,7 @@
     <PackageReference Include="TickerQ.SDK" />
     <PackageReference Include="TickerQ.Utilities" />
     <PackageReference Include="Weasel.Postgresql" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
     <PackageReference Include="ZiggyCreatures.FusionCache" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.Memory" />
     <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" />

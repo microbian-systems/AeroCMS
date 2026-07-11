@@ -19,5 +19,5 @@ public static partial class GeneratedAeroModuleCatalog
         return providers;
     }
 
-    static partial void PopulateProviders(List<IModuleManifestProvider> providers);
+    private static partial void PopulateProviders(List<IModuleManifestProvider> providers);
 }

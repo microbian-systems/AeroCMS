@@ -121,6 +121,7 @@
     <PackageVersion Include="Serilog.Sinks.OpenObserve" Version="2.0.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="Scriban" Version="7.2.5" />
+    <PackageVersion Include="SurrealDb.Embedded.SurrealKv" Version="0.10.2" />
     <PackageVersion Include="SurrealDb.Net" Version="0.10.2" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
     <PackageVersion Include="System.Numerics.Tensors" Version="10.0.9" />
@@ -134,12 +135,13 @@
     <PackageVersion Include="TickerQ.SDK" Version="10.4.0" />
     <PackageVersion Include="TickerQ.Utilities" Version="10.4.0" />
     <PackageVersion Include="Weasel.Postgresql" Version="9.16.3" />
-    <PackageVersion Include="WolverineFx" Version="6.17.0" />
-    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.17.0" />
-    <PackageVersion Include="WolverineFx.FluentValidation" Version="6.17.0" />
-    <PackageVersion Include="WolverineFx.Marten" Version="6.17.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="6.17.0" />
-    <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.17.0" />
+    <PackageVersion Include="WolverineFx" Version="6.17.1" />
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.17.1" />
+    <PackageVersion Include="WolverineFx.FluentValidation" Version="6.17.1" />
+    <PackageVersion Include="WolverineFx.Marten" Version="6.17.1" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.17.1" />
+    <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.17.1" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.17.1" />
     <PackageVersion Include="WorkOS.net" Version="5.5.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache" Version="2.6.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache.Backplane.Memory" Version="2.6.0" />

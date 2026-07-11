@@ -7,6 +7,7 @@ using AeroDB.Sable;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using SurrealDb.Embedded.SurrealKv;
 using TickerQ.Dashboard.DependencyInjection;
 using TickerQ.DependencyInjection;
 using Wolverine;
@@ -69,6 +70,11 @@ public static class AeroAppServerExtensions
         var resolved = resolver.Resolve();
         services.AddSingleton(resolved);
 
+        if (resolved.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHostedService<AeroEmbeddedDbService>();
+        }
+
         if (resolved.CacheMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
         {
             services.AddHostedService<AeroCacheService>();
@@ -94,11 +100,23 @@ public static class AeroAppServerExtensions
         // Register AeroDB (SurrealDB) document store
         services.AddAeroDB(opts =>
         {
-            opts.Endpoint = "ws://localhost:8000/rpc";
             opts.Namespace = "aero";
             opts.Database = "aero";
-            opts.Username = "root";
-            opts.Password = "root";
+
+            if (resolved.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
+            {
+                var dataPath = Path.Combine(env.ContentRootPath, "App_Data", "aerodb-surrealkv")
+                    .Replace(Path.DirectorySeparatorChar, '/');
+                Directory.CreateDirectory(dataPath);
+                opts.ClientFactory = () => new SurrealDbKvClient(dataPath);
+            }
+            else
+            {
+                opts.Endpoint = "ws://localhost:8000/rpc";
+                opts.Username = "root";
+                opts.Password = "root";
+            }
+
             // Schema configuration
             opts.Schema.For<AeroRole>().Identity(x => x.Id);
             opts.Schema.For<AeroUser>().Identity(x => x.Id);
@@ -113,6 +131,7 @@ public static class AeroAppServerExtensions
         // and no handler scanning occurs (safe default: empty handler set).
         services.AddWolverine(ExtensionDiscovery.ManualOnly, opts =>
         {
+            opts.UseRuntimeCompilation();
             opts.Discovery.DisableConventionalDiscovery();
             configureWolverine?.Invoke(opts);
         });
