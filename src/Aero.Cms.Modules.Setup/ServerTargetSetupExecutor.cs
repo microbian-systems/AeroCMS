@@ -7,13 +7,11 @@ using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Core.Http;
-using Aero.EfCore;
 using Aero.Models.Entities;
 using Aero.Core.Identity;
 using AeroDB.Sable;
 using AeroDB.AspNetIdentity;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
@@ -122,6 +120,7 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
             pageContentService,
             blogPostContentService,
             mediaService,
+            //commerceSeedService,
             commerceSeedService,
             moduleInitializationService,
             bootstrapCompletionWriter,
@@ -151,14 +150,11 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         return result;
     }
 
-    private async Task MigrateAsync(string connectionString, CancellationToken cancellationToken)
+    private Task MigrateAsync(string connectionString, CancellationToken cancellationToken)
     {
-        var dbOptions = new DbContextOptionsBuilder<AeroDbContext>().UseNpgsql(connectionString).Options;
-
-        await using (var dbContext = new AeroDbContext(dbOptions))
-        {
-            await dbContext.Database.MigrateAsync(cancellationToken);
-        }
+        // EF Core Npgsql migrations removed.
+        // All persistence now handled by AeroDB.Sable (IDocumentSession).
+        return Task.CompletedTask;
     }
 
     private static IUserStore<AeroUser> CreateUserStore(IDocumentStore store, IServiceProvider services)

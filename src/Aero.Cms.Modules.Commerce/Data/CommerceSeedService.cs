@@ -12,10 +12,10 @@ namespace Aero.Cms.Modules.Commerce.Data;
 /// </summary>
 public interface ICommerceSeedService
 {
-        /// <summary>
+    /// <summary>
     /// SeedAsync method.
     /// </summary>
-Task SeedAsync(long siteId, CancellationToken ct = default);
+    Task SeedAsync(long siteId, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -29,10 +29,10 @@ public sealed class CommerceSeedService(
 {
     private static readonly string[] Categories = ["Clothing", "Equipment", "Accessories", "Footwear"];
 
-        /// <summary>
+    /// <summary>
     /// SeedAsync method.
     /// </summary>
-public async Task SeedAsync(long siteId, CancellationToken ct = default)
+    public async Task SeedAsync(long siteId, CancellationToken ct = default)
     {
         log.LogInformation("Commerce seed: starting product seeding with Pexels images...");
 

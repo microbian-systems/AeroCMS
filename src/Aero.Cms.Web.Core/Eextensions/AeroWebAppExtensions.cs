@@ -1,13 +1,11 @@
 using Aero.Cms.Web.Core.Modules;
-using Aero.EfCore;
+using Aero.EfCore.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog.Extensions.Hosting;
-using Aero.EfCore.Extensions;
 using Aero.Core.Extensions;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Modules.Services;
@@ -102,15 +100,8 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
             return endpoints;
         }
 
-        var factory = services.GetRequiredService<ILoggerFactory>();
-        var logger = factory.CreateLogger<AeroDbContext>();
-        var aeroContext = services.GetRequiredService<AeroDbContext>();
-
-        await aeroContext.Database.MigrateAsync();
-
-        // Optional: Log success
-
-        logger.LogInformation("Database migrations applied successfully");
+        // EF Core Npgsql migrations removed.
+        // All persistence now handled by AeroDB.Sable (IDocumentSession).
 
         return endpoints;
     }

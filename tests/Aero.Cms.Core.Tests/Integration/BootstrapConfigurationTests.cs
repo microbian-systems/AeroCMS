@@ -69,7 +69,7 @@ public class BootstrapConfigurationTests
 
         var resolved = new InfrastructureConnectionStringResolver(config).Resolve();
 
-        resolved.DatabaseConnectionString.Should().Be(AeroAppServerConstants.EmbedConnString);
+        resolved.DatabaseConnectionString.Should().BeNull();
         resolved.CacheConnectionString.Should().BeNull();
         resolved.DatabaseMode.Should().Be("Embedded");
         resolved.CacheMode.Should().Be("Memory");

@@ -12,25 +12,37 @@
 - [x] `Setup.razor` — connection string placeholder updated to SurrealDB endpoint
 - [x] `Aero.AppServer.csproj` — `MysticMind.PostgresEmbed` removed
 - [x] `Setup.razor.cs` — `JSRuntime.InvokeVoidAsync("aero.setup.clearStorage")` removed
+- [x] `RefreshTokenService` — already uses `IDocumentSession` (Sable)
+- [x] `AeroDbContext` — removed unused DbSets, then **deleted entirely**
+- [x] `ApiAuthRepository.cs` — deleted (zero consumers)
+- [x] `AiUsageLogsRepository.cs` — deleted (zero consumers)
+- [x] `AuthInitializationExtensions.cs` (EfCore) — deleted (zero callers)
+- [x] `ApiAuthContextFactory.cs` — deleted (migrations factory)
+- [x] `AeroDbExtensions.cs` — stripped of all EF Core Npgsql registrations
+- [x] `PrepareAeroAppAsync` — removed `aeroContext.Database.MigrateAsync()`
+- [x] `ServerTargetSetupExecutor.MigrateAsync` — returns `Task.CompletedTask`
+- [x] `ApiKeyService` — ported from `AeroDbContext` to `IDocumentSession` (Sable)
 
-## Pending Modules (EF Core Npgsql → Sable)
-These modules still use EF Core Npgsql for their relational data and need porting to AeroDB.Sable:
+### Commerce (`Aero.Cms.Modules.Commerce`) — **ported to Sable, re-enabled**
+- [x] `IOrderService` — removed `IGenericEntityFrameworkRepository` inheritance, defined Sable contract
+- [x] `OrderService` — rewritten to use `IDocumentSession`
+- [x] `CommerceModule` — removed `AddDbContext<CommerceDbContext>(UseNpgsql...)` and `IStartupFilter`
+- [x] `CommerceDbContext.cs`, `CommerceDbContextFactory.cs`, `CommerceStartupFilter.cs` — deleted
+- [x] Migration files (5 files) — deleted
+- [x] `CommerceModule.csproj` — removed `Npgsql.EntityFrameworkCore.PostgreSQL`, `Microsoft.EntityFrameworkCore.Design`, `Aero.EfCore` reference; module re-enabled for compilation
+- [x] `SeedDatabaseService` — re-enabled `ICommerceSeedService` parameter and `commerceSeedService.SeedAsync()` call
+- [x] `ServerTargetSetupExecutor` — uncommented `commerceSeedService` parameter
+- [x] **Catalog** (ProductDocument, ProductTranslation) — already Sable ✓
+- [x] **Basket** (BasketDocument) — already Sable ✓
+- [x] Full build passes
 
-### Commerce (`Aero.Cms.Modules.Commerce`)
-- **Currently disabled from compilation** (marked as None in csproj)
-- `CommerceModule.cs:79-82` — `CommerceDbContext` uses `UseNpgsql(ConnectionStrings:aero)` for Orders
-- `CommerceStartupFilter` — calls `db.Database.Migrate()` on startup
-- `ICommerceSeedService` — required by `SeedDatabaseService` (DI failure if Commerce module excluded)
-- Models to port:
-  - `CommerceDbContext` → `IDocumentStore` / `IDocumentSession`
-  - `OrderEntity` → document model
-  - Catalog: `ProductDocument`, `ProductTranslation` (already Sable via `IConfigureAeroDB`)
-  - Basket: `BasketDocument` (already Sable via `IConfigureAeroDB`)
+**EF Core Npgsql is fully removed from the active AeroCMS application. All persistence uses AeroDB.Sable.**
+
+## Remaining (disabled / not active)
 
 ### Sites (`Aero.Cms.Modules.Sites`)
 - `SiteStartupFilter` — calls `db.Database.Migrate()` via EF Core
-- Likely uses EF Core for site/host data
+- Likely uses EF Core for site/host data — needs investigation
 
-### Other EF Core Consumers
-- `AeroDbContext` (Identity — `AeroDBUserStore` already migrated)
-- `ServerTargetSetupExecutor.MigrateAsync` — uses `UseNpgsql` for Identity migrations
+### Legacy (not compiled)
+- `src/Aero.Cms.Db.Marten/Legacy/` — entire folder is legacy Marten code, not part of build

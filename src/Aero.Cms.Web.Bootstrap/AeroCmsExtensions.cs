@@ -353,6 +353,7 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
             }
             finally
             {
+                log.Information("Stopping main Aero application host due to error...");
                 await app.StopAsync();
             }
         }

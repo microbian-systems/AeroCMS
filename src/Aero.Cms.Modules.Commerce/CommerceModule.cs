@@ -9,7 +9,6 @@ using Aero.Cms.Modules.Commerce.Catalog.Models;
 using Aero.Cms.Modules.Commerce.Catalog.Services;
 using Aero.Cms.Modules.Commerce.Catalog.Validation;
 using Aero.Cms.Modules.Commerce.Orders.Api;
-using Aero.Cms.Modules.Commerce.Orders.Data;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
 using Aero.Cms.Modules.Commerce.Orders.Services;
 using Aero.Cms.Modules.Commerce.Data;
@@ -27,7 +26,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.EntityFrameworkCore;
 
 namespace Aero.Cms.Modules.Commerce;
 
@@ -67,19 +65,13 @@ public override IReadOnlyList<string> Tags => ["commerce", "catalog", "orders", 
     /// </summary>
 public override void ConfigureServices(IServiceCollection services, IConfiguration? config = null, IHostEnvironment? env = null)
     {
-        services.Insert(0, ServiceDescriptor.Transient<IStartupFilter, CommerceStartupFilter>());
-
-        // Catalog (AeroDB)
+        // Catalog (AeroDB Sable)
         services.AddScoped<IProductService, ProductService>();
 
-        // Basket (AeroDB)
+        // Basket (AeroDB Sable)
         services.AddScoped<IBasketService, BasketService>();
 
-        // Orders (EF Core)
-        var connString = config?.GetConnectionString("aero")
-                         ?? throw new InvalidOperationException("Connection string 'aero' is required for CommerceDbContext.");
-        services.AddDbContext<CommerceDbContext>(o => o.UseNpgsql(connString,
-            x => x.MigrationsHistoryTable(Aero.Core.Data.Schemas.MigrationTableName, Schemas.Database)));
+        // Orders (AeroDB Sable — ported from EF Core Npgsql)
         services.AddScoped<IOrderService, OrderService>();
 
         // Validation

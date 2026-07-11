@@ -125,6 +125,8 @@ Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request, Cancellation
 /// </summary>
 public interface ISetupCompletionService : ISeedDatabaseService { }
 
+// todo - each module should have its own seeding service via SRP and Verticle Slices 
+
 /// <summary>
 /// Represents a class for SeedDatabaseService.
 /// </summary>

@@ -1,36 +1,66 @@
-using Aero.Cms.Modules.Commerce.Orders.Data;
+using System.Linq.Expressions;
 using Aero.Cms.Modules.Commerce.Orders.Domain;
-using Microsoft.EntityFrameworkCore;
+using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
-using Ef = Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions;
 
 namespace Aero.Cms.Modules.Commerce.Orders.Services;
 
 /// <summary>
-/// Represents a class for OrderService.
+/// Order persistence via AeroDB.Sable document store (ported from EF Core Npgsql).
 /// </summary>
-public sealed class OrderService : GenericEntityFrameworkRepository<OrderEntity>, IOrderService
+public sealed class OrderService : IOrderService
 {
-    private readonly CommerceDbContext _commerceContext;
+    private readonly IDocumentSession _session;
+    private readonly ILogger<OrderService> _log;
 
-        /// <summary>
+    /// <summary>
     /// Initializes a new instance of the <see cref="OrderService"/> class.
     /// </summary>
-public OrderService(CommerceDbContext context, ILogger<OrderService> log)
-        : base(context, log)
+    public OrderService(IDocumentSession session, ILogger<OrderService> log)
     {
-        _commerceContext = context;
+        _session = session;
+        _log = log;
     }
 
-        /// <summary>
-    /// FindByCustomerAsync method.
-    /// </summary>
-public async Task<Result<OrderEntity?, AeroError>> FindByCustomerAsync(string customerId, CancellationToken ct = default)
+    /// <inheritdoc />
+    public async Task<OrderEntity?> FindByIdAsync(long id)
+    {
+        return await _session.LoadAsync<OrderEntity>(id);
+    }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<OrderEntity>> FindAsync(Expression<Func<OrderEntity, bool>> predicate)
+    {
+        return await _session.Query<OrderEntity>().Where(predicate).ToListAsync();
+    }
+
+    /// <inheritdoc />
+    public Task InsertAsync(OrderEntity order)
+    {
+        _session.Store(order);
+        return _session.SaveChangesAsync();
+    }
+
+    /// <inheritdoc />
+    public Task UpdateAsync(OrderEntity order)
+    {
+        _session.Store(order);
+        return _session.SaveChangesAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<OrderEntity>> GetAllAsync()
+    {
+        return await _session.Query<OrderEntity>().ToListAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<OrderEntity?, AeroError>> FindByCustomerAsync(string customerId, CancellationToken ct = default)
     {
         try
         {
-            var query = _commerceContext.Orders.Include(o => o.Items).Where(o => o.CustomerId == customerId);
-            var order = await Ef.FirstOrDefaultAsync(query, ct);
+            var order = await _session.Query<OrderEntity>()
+                .FirstOrDefaultAsync(o => o.CustomerId == customerId, ct);
 
             return order is null
                 ? Prelude.Fail<OrderEntity?, AeroError>(AeroError.CreateError($"Order for customer '{customerId}' not found"))

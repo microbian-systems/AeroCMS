@@ -1,16 +1,18 @@
 ﻿using Aero.Cms.Modules.Security;
-using Aero.EfCore;
 using Aero.Models.Entities;
-using Microsoft.EntityFrameworkCore;
 using Aero.Auth.Services;
-using FluentAssertions;
+using AeroDB.Sable;
 using NSubstitute;
 using Microsoft.Extensions.Logging;
+using SurrealDb.Embedded.InMemory;
+using Shouldly;
+
 namespace Aero.Cms.Core.Tests.Services;
 
 public class ApiKeyServiceTests
 {
-    private AeroDbContext _dbContext = null!;
+    private IDocumentStore _store = null!;
+    private IDocumentSession _session = null!;
     private IApiKeyFactory _apiKeyFactory = null!;
     private IApiKeyGenerator _apiKeyGenerator = null!;
     private ApiKeyService _service = null!;
@@ -18,25 +20,33 @@ public class ApiKeyServiceTests
     [Before(Test)]
     public async Task Setup()
     {
-        var options = new DbContextOptionsBuilder<AeroDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
+        _store = Documents.For(o =>
+        {
+            o.ClientFactory = () => new SurrealDbMemoryClient();
+            o.Namespace = "test";
+            o.Database = Guid.NewGuid().ToString();
+        });
+        await _store.InitializeAsync();
 
         var factory = new LoggerFactory();
         var log = factory.CreateLogger<ApiKeyService>();
 
-        _dbContext = new AeroDbContext(options);
+        _session = await _store.OpenSessionAsync(new SessionOptions());
         _apiKeyFactory = Substitute.For<IApiKeyFactory>();
         _apiKeyGenerator = Substitute.For<IApiKeyGenerator>();
-        _service = new ApiKeyService(_dbContext, _apiKeyFactory, _apiKeyGenerator, log);
+        _service = new ApiKeyService(_session, _apiKeyFactory, _apiKeyGenerator, log);
     }
 
     [After(Test)]
     public async Task TearDown()
     {
-        if (_dbContext != null)
+        if (_session != null)
         {
-            await _dbContext.DisposeAsync();
+            await _session.DisposeAsync();
+        }
+        if (_store != null)
+        {
+            await _store.DisposeAsync();
         }
     }
 
@@ -53,12 +63,12 @@ public class ApiKeyServiceTests
         var result = await _service.CreateKeyAsync(userId, email, apiKey);
 
         // Assert
-        result.Should().Be(apiKey);
-        var account = await _dbContext.ApiAccounts.FirstOrDefaultAsync(x => x.Id == userId);
-        account.Should().NotBeNull();
-        account!.ApiKey.Should().Be(expectedHash);
-        account.Email.Should().Be(email);
-        account.Enabled.Should().BeTrue();
+        result.ShouldBe(apiKey);
+        var account = await _session.Query<ApiAccountModel>().FirstOrDefaultAsync(x => x.Id == userId);
+        account.ShouldNotBeNull();
+        account.ApiKey.ShouldBe(expectedHash);
+        account.Email.ShouldBe(email);
+        account.Enabled.ShouldBeTrue();
     }
 
     [Test]
@@ -77,10 +87,10 @@ public class ApiKeyServiceTests
         var result = await _service.CreateKeyAsync(userId, email, null);
 
         // Assert
-        result.Should().Be(generatedKey);
-        var account = await _dbContext.ApiAccounts.FirstOrDefaultAsync(x => x.Id == userId);
-        account.Should().NotBeNull();
-        account!.ApiKey.Should().Be(generatedHash);
+        result.ShouldBe(generatedKey);
+        var account = await _session.Query<ApiAccountModel>().FirstOrDefaultAsync(x => x.Id == userId);
+        account.ShouldNotBeNull();
+        account.ApiKey.ShouldBe(generatedHash);
     }
 
     [Test]
@@ -91,10 +101,10 @@ public class ApiKeyServiceTests
         string apiKey = "valid-key";
         string hash = HashKey(apiKey);
         
-        _dbContext.ApiAccounts.Add(new ApiAccountModel
+        _session.Store(new ApiAccountModel
         {
             Id = userId,
-            ApiKey = hash, // Store hash
+            ApiKey = hash,
             Email = "test@test.com",
             Enabled = true,
             CreatedBy = "test",
@@ -102,13 +112,13 @@ public class ApiKeyServiceTests
             RefreshToken = "token",
             RefreshTokenExpiry = DateTimeOffset.UtcNow.AddDays(1)
         });
-        await _dbContext.SaveChangesAsync();
+        await _session.SaveChangesAsync();
 
         // Act
         var result = await _service.ValidateAsync(apiKey);
 
         // Assert
-        result.Should().Be(userId);
+        result.ShouldBe(userId);
     }
 
     private static string HashKey(string apiKey)
@@ -127,7 +137,7 @@ public class ApiKeyServiceTests
         var result = await _service.ValidateAsync(apiKey);
 
         // Assert
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 
     [Test]
@@ -136,10 +146,12 @@ public class ApiKeyServiceTests
         // Arrange
         long userId = 4;
         string apiKey = "disabled-key";
-        _dbContext.ApiAccounts.Add(new ApiAccountModel
+        string hash = HashKey(apiKey);
+
+        _session.Store(new ApiAccountModel
         {
             Id = userId,
-            ApiKey = apiKey,
+            ApiKey = hash,
             Email = "disabled@test.com",
             Enabled = false,
             CreatedBy = "test",
@@ -147,12 +159,12 @@ public class ApiKeyServiceTests
             RefreshToken = "token",
             RefreshTokenExpiry = DateTimeOffset.UtcNow.AddDays(1)
         });
-        await _dbContext.SaveChangesAsync();
+        await _session.SaveChangesAsync();
 
         // Act
         var result = await _service.ValidateAsync(apiKey);
 
         // Assert
-        result.Should().BeNull();
+        result.ShouldBeNull();
     }
 }

@@ -1,8 +1,7 @@
 using Aero.Cms.Abstractions.Services;
-using Aero.EfCore;
 using Aero.Models.Entities;
-using Microsoft.EntityFrameworkCore;
 using Aero.Auth.Services;
+using AeroDB.Sable;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -11,10 +10,10 @@ using Aero.Core.Extensions;
 namespace Aero.Cms.Modules.Security;
 
 /// <summary>
-/// Implementation of IApiKeyService using EF Core for persistence and hashed keys for security.
+/// Implementation of IApiKeyService using AeroDB.Sable for persistence and hashed keys for security.
 /// </summary>
 public sealed class ApiKeyService(
-    AeroDbContext dbContext, 
+    IDocumentSession session,
     IApiKeyFactory apiKeyFactory,
     IApiKeyGenerator apiKeyGenerator,
     ILogger<ApiKeyService> log) : IApiKeyService
@@ -29,7 +28,7 @@ public async Task<long?> ValidateAsync(string apiKey, CancellationToken cancella
         // We store the SHA256 hash of the API key for security.
         var hash = HashKey(apiKey);
         
-        var account = await dbContext.ApiAccounts
+        var account = await session.Query<ApiAccountModel>()
             .FirstOrDefaultAsync(x => x.ApiKey == hash && x.Enabled, cancellationToken);
 
         if (account != null)
@@ -77,20 +76,20 @@ public async Task<string> CreateKeyAsync(long userId, string email, string? apiK
         };
 
         // Check if account already exists to avoid unique constraint violations during re-seeding
-        var existing = await dbContext.ApiAccounts.FindAsync([userId], ct);
+        var existing = await session.LoadAsync<ApiAccountModel>(userId, ct);
         if (existing != null)
         {
             existing.ApiKey = secretHash;
             existing.ModifiedOn = DateTimeOffset.UtcNow;
-            dbContext.ApiAccounts.Update(existing);
+            session.Store(existing);
         }
         else
         {
             log.LogDebug("creating new api account: {a}", account.ToJson());
-            dbContext.ApiAccounts.Add(account);
+            session.Store(account);
         }
 
-        await dbContext.SaveChangesAsync(ct);
+        await session.SaveChangesAsync(ct);
 
         // Return the RAW key only once
         return finalApiKey;
