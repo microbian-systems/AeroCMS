@@ -6,39 +6,41 @@ namespace Aero.AppServer;
 public static class AeroAppServerConstants
 {
         /// <summary>
-    /// CacheName.
-    /// </summary>
-public const string CacheName = "aero-cache";
+        /// CacheName.
+        /// </summary>
+        public const string CacheName = "aero-cache";
         /// <summary>
-    /// CacheUrl.
-    /// </summary>
-public const string CacheUrl = "localhost:33333";
+        /// CacheUrl.
+        /// </summary>
+        public const string CacheUrl = "localhost:33333";
         /// <summary>
-    /// CacheHost.
-    /// </summary>
-public const string CacheHost = "localhost";
+        /// CacheHost.
+        /// </summary>
+        public const string CacheHost = "localhost";
         /// <summary>
-    /// CachePort.
-    /// </summary>
-public const int CachePort = 33333;
+        /// CachePort.
+        /// </summary>
+        public const int CachePort = 33333;
+
+        // SurrealDB embedded (Sable) defaults
         /// <summary>
-    /// PgVersion.
-    /// </summary>
-public const string PgVersion = "18.3.0";
+        /// Default data path for SurrealDB KV embedded store.
+        /// </summary>
+        public const string SableKvDataPath = "App_Data/aerodb-surrealkv";
         /// <summary>
-    /// PgPort.
-    /// </summary>
-public const int PgPort = 5433;
+        /// Default SurrealDB server endpoint (websocket).
+        /// </summary>
+        public const string SableEndpoint = "ws://localhost:8000/rpc";
         /// <summary>
-    /// EmbedConnString.
-    /// </summary>
-public const string EmbedConnString = "Host=localhost;Port=5433;Username=aero;Database=aero;";
+        /// Default SurrealDB server username.
+        /// </summary>
+        public const string SableUser = "root";
         /// <summary>
-    /// EmbeddedDbUser.
-    /// </summary>
-public const string EmbeddedDbUser = "aero";
+        /// Default SurrealDB namespace.
+        /// </summary>
+        public const string SableNamespace = "aero";
         /// <summary>
-    /// EmbeddedDbName.
-    /// </summary>
-public const string EmbeddedDbName = "aero";
+        /// Default SurrealDB database name.
+        /// </summary>
+        public const string SableDatabase = "aero";
 }

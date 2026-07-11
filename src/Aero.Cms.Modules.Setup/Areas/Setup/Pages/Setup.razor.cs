@@ -4,7 +4,6 @@ using Aero.Cms.Modules.Setup.Bootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
-using Microsoft.JSInterop;
 
 namespace Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 
@@ -17,9 +16,6 @@ public partial class Setup : ComponentBase
 
     [Inject]
     private ISetupBootstrapHandoffService SetupBootstrapHandoffService { get; set; } = default!;
-
-    [Inject]
-    private IJSRuntime JSRuntime { get; set; } = default!;
 
     [Inject]
     private ILogger<Setup> Logger { get; set; } = default!;
@@ -57,9 +53,9 @@ public bool ShowConfirmPassword { get; set; }
 
     // Service readiness status
         /// <summary>
-    /// Gets or sets the Postgres Ready.
+    /// Gets or sets the AeroDb Ready.
     /// </summary>
-public bool PostgresReady { get; set; }
+public bool AeroDbReady { get; set; }
         /// <summary>
     /// Gets or sets the Garnet Ready.
     /// </summary>
@@ -80,9 +76,9 @@ public bool ShowCacheConnectionString => Input.CacheMode == "Server";
 public bool ShowInfisicalFields => Input.SecretProvider == "Infisical";
 
         /// <summary>
-    /// Gets or sets the Requires Postgres.
+    /// Gets or sets the Requires AeroDb.
     /// </summary>
-public bool RequiresPostgres => Input.DatabaseMode == "Embedded";
+public bool RequiresAeroDb => Input.DatabaseMode == "Embedded";
         /// <summary>
     /// Gets or sets the Requires Garnet.
     /// </summary>
@@ -349,9 +345,6 @@ protected async Task HandleSubmit()
         // Force UI update to show the message before the async operation
         await InvokeAsync(StateHasChanged);
 
-        // Clear browser storage so the fresh app starts clean
-        await JSRuntime.InvokeVoidAsync("aero.setup.clearStorage");
-
         // Create the seed request with all setup configuration
         var seedRequest = new SeedDatabaseRequest(
             databaseMode,
@@ -512,17 +505,17 @@ public string GetStepSummary(int step) => step switch
 public sealed class SetupStatusResponse
 {
         /// <summary>
-    /// Gets or sets the Postgres Ready.
+    /// Gets or sets the AeroDb Ready.
     /// </summary>
-public bool PostgresReady { get; set; }
+public bool AeroDbReady { get; set; }
         /// <summary>
     /// Gets or sets the Garnet Ready.
     /// </summary>
 public bool GarnetReady { get; set; }
         /// <summary>
-    /// Gets or sets the Requires Postgres.
+    /// Gets or sets the Requires AeroDb.
     /// </summary>
-public bool RequiresPostgres { get; set; }
+public bool RequiresAeroDb { get; set; }
         /// <summary>
     /// Gets or sets the Requires Garnet.
     /// </summary>

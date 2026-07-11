@@ -22,9 +22,9 @@ public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteB
             var setup = sp.GetRequiredService<ISetupInitializationService>();
             var bootstrap = setup.GetBootstrapState();
             var readiness = sp.GetService<IInfrastructureReadinessSnapshot>();
-            var postgresReady = readiness?.PostgresReady ?? false;
+            var aeroDbReady = readiness?.AeroDbReady ?? false;
             var garnetReady = readiness?.GarnetReady ?? false;
-            var requiresPostgres = string.Equals(bootstrap.DatabaseMode, "Embedded", StringComparison.OrdinalIgnoreCase);
+            var requiresAeroDb = string.Equals(bootstrap.DatabaseMode, "Embedded", StringComparison.OrdinalIgnoreCase);
             var requiresGarnet = string.Equals(bootstrap.CacheMode, "Embedded", StringComparison.OrdinalIgnoreCase);
 
             return Results.Ok(new
@@ -36,11 +36,11 @@ public static IEndpointRouteBuilder MapSetupStatusEndpoints(this IEndpointRouteB
                 bootstrap.CacheMode,
                 bootstrap.SecretProvider,
                 bootstrap.HasBootstrapConfig,
-                PostgresReady = postgresReady,
+                AeroDbReady = aeroDbReady,
                 GarnetReady = garnetReady,
-                RequiresPostgres = requiresPostgres,
+                RequiresAeroDb = requiresAeroDb,
                 RequiresGarnet = requiresGarnet,
-                IsReady = (!requiresPostgres || postgresReady) && (!requiresGarnet || garnetReady)
+                IsReady = (!requiresAeroDb || aeroDbReady) && (!requiresGarnet || garnetReady)
             });
         });
 

@@ -44,7 +44,8 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
         if (model.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
         {
             bootstrap.Remove("DatabaseConnectionStringReference");
-            SetConnectionString(root, "aero", embeddedOptions.CurrentValue.ConnectionString);
+            // Sable embedded (SurrealDB KV) requires no connection string.
+            // The data path is derived from env.ContentRootPath at DI registration time.
         }
         else if (!string.IsNullOrWhiteSpace(model.ConnectionString) && model.DatabaseMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
         {

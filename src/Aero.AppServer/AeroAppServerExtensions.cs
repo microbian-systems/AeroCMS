@@ -80,7 +80,6 @@ public static class AeroAppServerExtensions
             services.AddHostedService<AeroCacheService>();
         }
 
-        var connString = resolved.DatabaseConnectionString;
 
         services.AddOrleans(opts =>
         {

@@ -29,7 +29,7 @@ public async Task WaitForInfrastructureAsync(ResolvedInfrastructureSettings sett
 
         if (settings.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
         {
-            requiredServices.Add(StartupServiceNames.Postgres);
+            requiredServices.Add(StartupServiceNames.AeroDb);
         }
 
         if (settings.CacheMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))

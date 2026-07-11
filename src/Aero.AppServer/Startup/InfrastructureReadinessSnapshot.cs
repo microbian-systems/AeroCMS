@@ -30,9 +30,9 @@ public string? CacheMode { get; set; }
     /// </summary>
 public string? SecretProvider { get; set; }
         /// <summary>
-    /// Gets or sets the Postgres Ready.
-    /// </summary>
-public bool PostgresReady { get; set; }
+        /// Gets or sets the AeroDb Ready.
+        /// </summary>
+        public bool AeroDbReady { get; set; }
         /// <summary>
     /// Gets or sets the Garnet Ready.
     /// </summary>
