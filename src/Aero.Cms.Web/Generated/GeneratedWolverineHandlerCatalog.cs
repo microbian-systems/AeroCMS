@@ -13,5 +13,5 @@ public static partial class GeneratedWolverineHandlerCatalog
         RegisterGenerated(opts);
     }
 
-    private static partial void RegisterGenerated(WolverineOptions opts);
+    static partial void RegisterGenerated(WolverineOptions opts);
 }

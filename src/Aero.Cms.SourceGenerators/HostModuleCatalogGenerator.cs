@@ -150,7 +150,7 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
         source.AppendLine("/// </summary>");
         source.AppendLine("public static partial class GeneratedAeroModuleCatalog");
         source.AppendLine("{");
-        source.AppendLine("    private static partial void PopulateProviders(List<IModuleManifestProvider> providers)");
+        source.AppendLine("    static partial void PopulateProviders(List<IModuleManifestProvider> providers)");
         source.AppendLine("    {");
 
         foreach (var provider in moduleProviders)
@@ -180,7 +180,7 @@ public sealed class HostModuleCatalogGenerator : IIncrementalGenerator
         source.AppendLine("/// </summary>");
         source.AppendLine("public static partial class GeneratedWolverineHandlerCatalog");
         source.AppendLine("{");
-        source.AppendLine("    private static partial void RegisterGenerated(WolverineOptions opts)");
+        source.AppendLine("    static partial void RegisterGenerated(WolverineOptions opts)");
         source.AppendLine("    {");
 
         foreach (var registration in handlerRegistrations)
