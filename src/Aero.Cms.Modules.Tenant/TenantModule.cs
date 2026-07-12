@@ -42,9 +42,9 @@ public override IReadOnlyList<string> Tags => [];
         /// <summary>
     /// Configure method.
     /// </summary>
-public void Configure(StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
-        // DocumentAlias not available in AeroDB
+        opts.Schema.For<TenantModel>();
     }
 
         /// <summary>

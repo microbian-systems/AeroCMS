@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Aero.Auth.Services;
+using Aero.Models.Entities;
 using Aero.Modular;
 using AeroDB.Sable;
 
@@ -76,10 +77,15 @@ public override void Configure(IAeroModuleBuilder builder)
         /// <summary>
     /// Configure method.
     /// </summary>
-public void Configure(StoreOptions opts)
+    public void Configure(StoreOptions opts)
     {
-        opts.Schema.For<ApiKeyDocument>().Index(x => x.SecretHash);
-        opts.Schema.For<ApiKeyDocument>().Index(x => x.UserId);
+        // todo - Goes through the runtime reflection fallback in SchemaManager - move ApiAccountModel so we can inherit from ISableDocument<TId>
+        opts.Schema.For<ApiAccountModel>()
+            .Index(x => x.ApiKey);
+        opts.Schema.For<ApiKeyDocument>()
+            .Index(x => x.SecretHash);
+        opts.Schema.For<ApiKeyDocument>()
+            .Index(x => x.UserId);
     }
 
         /// <summary>

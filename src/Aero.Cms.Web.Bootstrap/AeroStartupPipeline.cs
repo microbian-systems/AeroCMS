@@ -212,7 +212,6 @@ public static class AeroStartupPipeline
             if (writer is not null)
             {
                 await writer.MarkFailedAsync();
-                log.Warning("Bootstrap state marked as Failed.");
             }
         }
         catch (Exception markFailedEx)

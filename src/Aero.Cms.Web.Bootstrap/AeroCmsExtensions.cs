@@ -346,15 +346,23 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
 
                 await app.WaitForShutdownAsync();
             }
-            catch (Exception) when (bootstrapState.IsConfiguredMode)
+            catch (Exception ex) when (bootstrapState.IsConfiguredMode)
             {
+                log.Error(ex, "Bootstrap initialization failed: {Message}", ex.Message);
                 await AeroStartupPipeline.TryMarkBootstrapFailedAsync(app, log);
                 throw;
             }
             finally
             {
-                log.Information("Stopping main Aero application host due to error...");
-                await app.StopAsync();
+                try
+                {
+                    log.Information("Stopping main Aero application host...");
+                    await app.StopAsync();
+                }
+                catch (Exception stopEx)
+                {
+                    log.Warning(stopEx, "Error shutting down host (non-fatal)");
+                }
             }
         }
         catch (Exception ex)
