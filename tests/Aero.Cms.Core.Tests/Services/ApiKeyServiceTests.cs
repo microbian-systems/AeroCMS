@@ -25,6 +25,7 @@ public class ApiKeyServiceTests
             o.ClientFactory = () => new SurrealDbMemoryClient();
             o.Namespace = "test";
             o.Database = Guid.NewGuid().ToString();
+            o.Schema.For<ApiAccountModel>();
         });
         await _store.InitializeAsync();
 

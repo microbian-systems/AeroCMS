@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Aero.Cms.Modules.Footer.Domain;
 using Aero.Cms.Modules.Footer.Serialization;
-using FluentAssertions;
+using Shouldly;
 
 namespace Aero.Cms.Modules.Footer.Tests;
 
@@ -19,10 +19,8 @@ public sealed class FooterSnapshotTests
             ]
         };
 
-        var act = () => snapshot.Validate();
-
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Duplicate footer component key 'company'*");
+        var ex = Should.Throw<InvalidOperationException>(() => snapshot.Validate());
+        ex.Message.ShouldContain("Duplicate footer component key 'company'");
     }
 
     [Test]
@@ -33,10 +31,8 @@ public sealed class FooterSnapshotTests
             Style = FooterStyleSettings.Default with { BackgroundImageUrl = "javascript:alert(1)" }
         };
 
-        var act = () => snapshot.Validate();
-
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*background image URL must be a relative URL or absolute HTTP/HTTPS URL*");
+        var ex = Should.Throw<InvalidOperationException>(() => snapshot.Validate());
+        ex.Message.ShouldContain("background image URL must be a relative URL or absolute HTTP/HTTPS URL");
     }
 
     [Test]
@@ -67,10 +63,10 @@ public sealed class FooterSnapshotTests
         var json = JsonSerializer.Serialize(snapshot, FooterJsonContext.Default.FooterSnapshot);
         var roundTripped = JsonSerializer.Deserialize(json, FooterJsonContext.Default.FooterSnapshot);
 
-        roundTripped.Should().NotBeNull();
-        roundTripped!.Style.BackgroundImageUrl.Should().Be("/media/footer.jpg");
-        roundTripped.Sections.Should().Contain(x => x is FooterLinkGroup);
-        roundTripped.Sections.Should().Contain(x => x is FooterTextBlock);
-        roundTripped.Sections.Should().Contain(x => x is FooterSocialLinks);
+        roundTripped.ShouldNotBeNull();
+        roundTripped!.Style.BackgroundImageUrl.ShouldBe("/media/footer.jpg");
+        roundTripped.Sections.ShouldContain(x => x is FooterLinkGroup);
+        roundTripped.Sections.ShouldContain(x => x is FooterTextBlock);
+        roundTripped.Sections.ShouldContain(x => x is FooterSocialLinks);
     }
 }

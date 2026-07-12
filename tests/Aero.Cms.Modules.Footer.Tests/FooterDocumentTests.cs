@@ -1,6 +1,6 @@
 using Aero.Cms.Modules.Footer.Domain;
 using Aero.Cms.Modules.Footer.Events;
-using FluentAssertions;
+using Shouldly;
 
 namespace Aero.Cms.Modules.Footer.Tests;
 
@@ -16,8 +16,8 @@ public sealed class FooterDocumentTests
         footer.Apply(new FooterDraftSaved(10, "Footer", "footer", null, snapshot, null, DateTimeOffset.UtcNow, null));
         footer.Apply(new FooterPublished(10, snapshot, null, DateTimeOffset.UtcNow, null));
 
-        footer.State.Should().Be(FooterLifecycleState.Published);
-        footer.HasPublishedSnapshot.Should().BeTrue();
+        footer.State.ShouldBe(FooterLifecycleState.Published);
+        footer.HasPublishedSnapshot.ShouldBeTrue();
     }
 
     [Test]
@@ -35,8 +35,8 @@ public sealed class FooterDocumentTests
 
         var footer = FooterDocument.Create(100, created);
 
-        footer.Culture.Should().Be("es-MX");
-        footer.TranslationGroupId.Should().Be(42);
+        footer.Culture.ShouldBe("es-MX");
+        footer.TranslationGroupId.ShouldBe(42);
     }
 
     [Test]
@@ -50,7 +50,7 @@ public sealed class FooterDocumentTests
         footer.Apply(new FooterPublished(10, snapshot, null, DateTimeOffset.UtcNow, null));
         footer.Apply(new FooterDraftSaved(10, "Footer revised", "footer", null, snapshot, null, DateTimeOffset.UtcNow, null));
 
-        footer.State.Should().Be(FooterLifecycleState.PublishedWithDraft);
-        footer.HasPublishedSnapshot.Should().BeTrue();
+        footer.State.ShouldBe(FooterLifecycleState.PublishedWithDraft);
+        footer.HasPublishedSnapshot.ShouldBeTrue();
     }
 }

@@ -4,19 +4,38 @@ using Aero.Cms.Modules.Aliases;
 using Aero.Cms.Modules.Aliases.Events;
 using AeroDB.Sable;
 using NSubstitute;
+using Shouldly;
 using Wolverine;
 
 namespace Aero.Cms.Core.Tests.Services;
 
 public sealed class AliasServiceTests
 {
+    private SableTestHarness _harness = null!;
+    private IAliasRepository _repository = null!;
+    private IMessageBus _bus = null!;
+
+    [Before(Test)]
+    public async Task Setup()
+    {
+        _harness = new SableTestHarness()
+            .WithSchema<AliasDocument>();
+        await _harness.InitializeAsync();
+        _repository = Substitute.For<IAliasRepository>();
+        _bus = Substitute.For<IMessageBus>();
+    }
+
+    [After(Test)]
+    public async Task TearDown()
+    {
+        await _harness.DisposeAsync();
+    }
+
     [Test]
     public async Task CreateAsync_CommitsAliasBeforePublishingInvalidation()
     {
-        var repository = Substitute.For<IAliasRepository>();
-        var session = Substitute.For<IDocumentSession>();
-        var bus = Substitute.For<IMessageBus>();
-        var service = new AliasService(repository, session, bus);
+        var session = _harness.Session;
+        var service = new AliasService(_repository, session, _bus);
         var alias = new AliasDocument
         {
             Id = 1501688860171780096,
@@ -25,31 +44,26 @@ public sealed class AliasServiceTests
             NewPath = "/new"
         };
 
-        session.SaveChangesAsync(Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        var calls = new List<string>();
-        repository.AddAsync(alias, Arg.Any<CancellationToken>())
-            .Returns(_ =>
+        // Make the mock repository store into the real session
+        _repository.AddAsync(Arg.Any<AliasDocument>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
             {
-                calls.Add("add");
+                var doc = callInfo.Arg<AliasDocument>();
+                session.Store(doc);
                 return Task.CompletedTask;
-            });
-        session.SaveChangesAsync(Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                calls.Add("save");
-                return Task.CompletedTask;
-            });
-        bus.PublishAsync(Arg.Is<AliasCreated>(e => e.Document == alias))
-            .Returns(_ =>
-            {
-                calls.Add("publish");
-                return ValueTask.CompletedTask;
             });
 
         await service.CreateAsync(alias, CancellationToken.None);
 
-        await Assert.That(calls).IsEqualTo(["add", "save", "publish"]);
+        // Verify alias was stored in the real DB (proves SaveChangesAsync was called after AddAsync)
+        var stored = await session.Query<AliasDocument>()
+            .FirstOrDefaultAsync(x => x.Id == 1501688860171780096);
+        stored.ShouldNotBeNull();
+        stored!.OldPath.ShouldBe("/old");
+        stored.NewPath.ShouldBe("/new");
+
+        // Verify bus published the event (proves PublishAsync was called after SaveChangesAsync)
+        await _bus.Received(1).PublishAsync(
+            Arg.Is<AliasCreated>(e => e.Document == alias));
     }
 }

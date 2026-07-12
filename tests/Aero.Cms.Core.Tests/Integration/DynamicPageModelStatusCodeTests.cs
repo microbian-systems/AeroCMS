@@ -20,7 +20,11 @@ public class DynamicPageModelStatusCodeTests
     [Test]
     public async Task ReExecutedStatusCodePage_preserves_original_status_code()
     {
-        var model = CreateModel(new PageDocument { Slug = "oops", Title = "Oops" });
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var model = CreateModel(harness, new PageDocument { Slug = "oops", Title = "Oops" });
         model.Slug = "oops";
         model.PageContext.HttpContext.Features.Set<IStatusCodeReExecuteFeature>(
             new TestStatusCodeReExecuteFeature(404, "/missing-page"));
@@ -34,7 +38,11 @@ public class DynamicPageModelStatusCodeTests
     [Test]
     public async Task DirectPageRequest_keeps_success_status_code()
     {
-        var model = CreateModel(new PageDocument { Slug = "oops", Title = "Oops" });
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>();
+        await harness.InitializeAsync();
+
+        var model = CreateModel(harness, new PageDocument { Slug = "oops", Title = "Oops" });
         model.Slug = "oops";
 
         var result = await model.OnGetAsync();
@@ -43,7 +51,7 @@ public class DynamicPageModelStatusCodeTests
         model.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
     }
 
-    private static DynamicPageModel CreateModel(PageDocument page)
+    private static DynamicPageModel CreateModel(SableTestHarness harness, PageDocument page)
     {
         var vm = new PageViewModel
         {
@@ -66,9 +74,8 @@ public class DynamicPageModelStatusCodeTests
 
         var blockService = Substitute.For<IBlockService>();
         var blockCache = new BlockRenderCache();
-        var documentStore = Substitute.For<IDocumentStore>();
 
-        return new DynamicPageModel(pageActor, blockService, blockCache, siteContext, documentStore)
+        return new DynamicPageModel(pageActor, blockService, blockCache, siteContext, harness.Store)
         {
             PageContext = new PageContext
             {

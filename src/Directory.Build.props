@@ -60,4 +60,5 @@
 			OutputItemType="Analyzer"
 			ReferenceOutputAssembly="false" />
 	</ItemGroup>
+
 </Project>

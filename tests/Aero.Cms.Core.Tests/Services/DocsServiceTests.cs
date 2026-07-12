@@ -1,19 +1,22 @@
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Docs;
+using Aero.Cms.Modules.Pages;
 using Aero.Core;
 using Aero.Core.Http;
-using FluentAssertions;
 using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using Shouldly;
 using Wolverine;
 
 namespace Aero.Cms.Core.Tests.Services;
 
 public sealed class DocsServiceTests
 {
+    private SableTestHarness _harness = null!;
     private IDocumentSession _session = null!;
     private IMessageBus _bus = null!;
     private ISiteContext _siteContext = null!;
@@ -24,7 +27,12 @@ public sealed class DocsServiceTests
     [Before(Test)]
     public async Task Setup()
     {
-        _session = Substitute.For<IDocumentSession>();
+        _harness = new SableTestHarness()
+            .WithSchema<DocsPage>()
+            .WithSchema<ContentSlugDocument>();
+        await _harness.InitializeAsync();
+        _session = _harness.Session;
+
         _bus = Substitute.For<IMessageBus>();
         _siteContext = Substitute.For<ISiteContext>();
         _blockService = Substitute.For<IBlockService>();
@@ -32,16 +40,13 @@ public sealed class DocsServiceTests
 
         _siteContext.SiteId.Returns(42);
 
-        // Configure SaveChangesAsync to succeed (called at end of SaveAsync / DeleteAsync)
-        _session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
-
         _service = new DocsContentService(_session, _blockService, _bus, _siteContext, _logger);
     }
 
     [After(Test)]
     public async Task TearDown()
     {
-        // No-op cleanup
+        await _harness.DisposeAsync();
     }
 
     // -----------------------------------------------------------------------
@@ -50,25 +55,26 @@ public sealed class DocsServiceTests
     [Test]
     public async Task SaveAsync_StampsSiteId_FromContext()
     {
-        var session = Substitute.For<IDocumentSession>();
-        session.LoadAsync<DocsPage>(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns((DocsPage?)null);
-
-        var page = new DocsPage { Id = Snowflake.NewId(), Title = "Test Doc", Slug = "test-doc" };
+        // Use a fresh session for isolation (avoids any in-memory state from other tests)
+        await using var freshSession = await _harness.OpenSessionAsync();
+        var page = new DocsPage
+        {
+            Id = Snowflake.NewId(),
+            Title = "Test Doc",
+            Slug = "test-doc",
+            PublicationState = ContentPublicationState.Published,
+            CreatedBy = "system",
+            ModifiedBy = "system"
+        };
         var service = new DocsContentService(
-            session, _blockService, Substitute.For<IMessageBus>(), CreateSiteContext(42), _logger);
+            freshSession, _blockService, Substitute.For<IMessageBus>(), CreateSiteContext(42), _logger);
 
         var result = await service.SaveAsync(page, CancellationToken.None);
 
-        // SiteId should be stamped regardless
-        if (result.IsFailure)
-        {
-            await Assert.That(page.SiteId).IsEqualTo(42);
-        }
-        else
-        {
-            session.Received(1).Store(Arg.Is<DocsPage>(p => p.SiteId == 42));
-        }
+        result.IsSuccess.ShouldBeTrue();
+        var stored = await freshSession.LoadAsync<DocsPage>(page.Id);
+        stored.ShouldNotBeNull();
+        stored.SiteId.ShouldBe(42);
     }
 
     // -----------------------------------------------------------------------
@@ -84,7 +90,10 @@ public sealed class DocsServiceTests
             Id = pageId,
             Title = "Test Doc",
             Slug = "test-doc",
-            SiteId = 0
+            SiteId = 0,
+            PublicationState = ContentPublicationState.Published,
+            CreatedBy = "system",
+            ModifiedBy = "system"
         };
 
         // Capture the message that gets published via bus
@@ -92,19 +101,15 @@ public sealed class DocsServiceTests
         _bus.When(x => x.PublishAsync(Arg.Any<object>()))
             .Do(callInfo => { publishedMessage = callInfo.Arg<object>(); });
 
-        // LoadAsync returns null → treated as new page → DocCreated event published
-        _session.LoadAsync<DocsPage>(pageId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<DocsPage?>(null));
-
-        // Act
+        // Act — real session has no data, LoadAsync returns null => treated as new page
         await _service.SaveAsync(page, CancellationToken.None);
 
         // Assert — the event published via bus contains a DocViewModel with SiteId=42,
         // proving that the private ToViewModel method correctly mapped the property.
-        publishedMessage.Should().NotBeNull();
-        publishedMessage.Should().BeOfType<DocViewModelCreated>();
+        publishedMessage.ShouldNotBeNull();
+        publishedMessage.ShouldBeOfType<DocViewModelCreated>();
         var docCreated = (DocViewModelCreated)publishedMessage!;
-        docCreated.doc.SiteId.Should().Be(42);
+        docCreated.doc.SiteId.ShouldBe(42);
     }
 
     // -----------------------------------------------------------------------
@@ -113,29 +118,28 @@ public sealed class DocsServiceTests
     [Test]
     public async Task DeleteAsync_OwnSite_Succeeds()
     {
-        // Arrange
+        // Arrange — seed a DocsPage in the real session
         const long pageId = 100;
         var existingPage = new DocsPage
         {
             Id = pageId,
             Title = "Own Doc",
             Slug = "own-doc",
-            SiteId = 42 // matches context
+            SiteId = 42, // matches context
+            PublicationState = ContentPublicationState.Published,
+            CreatedBy = "system",
+            ModifiedBy = "system"
         };
-
-        _session.LoadAsync<DocsPage>(pageId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<DocsPage?>(existingPage));
+        _session.Store(existingPage);
+        await _session.SaveChangesAsync();
 
         // Act
         var result = await _service.DeleteAsync(pageId, CancellationToken.None);
 
-        // Assert
-        existingPage.SiteId.Should().Be(42, "loaded page should have matching SiteId");
-        if (result.IsSuccess)
-        {
-            _session.Received(1).Delete<DocsPage>(pageId);
-        }
-        // If ReserveAsync-like internals cause failure, ownership check still passed
+        // Assert — page should be deleted from DB
+        result.IsSuccess.ShouldBeTrue();
+        var stored = await _session.LoadAsync<DocsPage>(pageId);
+        stored.ShouldBeNull();
     }
 
     // -----------------------------------------------------------------------
@@ -144,25 +148,31 @@ public sealed class DocsServiceTests
     [Test]
     public async Task DeleteAsync_CrossSite_Rejected()
     {
-        // Arrange
+        // Arrange — seed a DocsPage with a different SiteId
         const long pageId = 200;
         var existingPage = new DocsPage
         {
             Id = pageId,
             Title = "Other Site Doc",
             Slug = "other-doc",
-            SiteId = 99 // different site
+            SiteId = 99, // different site
+            PublicationState = ContentPublicationState.Published,
+            CreatedBy = "system",
+            ModifiedBy = "system"
         };
-
-        _session.LoadAsync<DocsPage>(pageId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<DocsPage?>(existingPage));
+        _session.Store(existingPage);
+        await _session.SaveChangesAsync();
 
         // Act
         var result = await _service.DeleteAsync(pageId, CancellationToken.None);
 
-        // Assert
-        _session.DidNotReceive().Delete<DocsPage>(Arg.Any<long>());
-        result.IsFailure.Should().BeTrue();
+        // Assert — deletion should be rejected
+        result.IsFailure.ShouldBeTrue();
+
+        // Page should still exist in DB
+        var stored = await _session.LoadAsync<DocsPage>(pageId);
+        stored.ShouldNotBeNull();
+        stored.SiteId.ShouldBe(99);
     }
 
     private static ISiteContext CreateSiteContext(long siteId)

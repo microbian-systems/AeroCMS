@@ -2,7 +2,6 @@ using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Posts;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.ServiceDefaults;
-using FluentAssertions;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -12,18 +11,29 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Aero.Cms.Abstractions.Blocks;
+using Aero.Cms.Core.Blocks;
+using Aero.Cms.Core.Entities;
+using Aero.Core.Http;
+using Aero.Services.Images;
 using NSubstitute;
+using Shouldly;
 using System.Text.RegularExpressions;
+using Orleans;
+using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
-public class SetupGateIntegrationTests
+public sealed class SetupGateIntegrationTests
 {
     [Test]
     public async Task Fresh_start_requests_redirect_to_setup_while_allowlisted_routes_stay_reachable()
     {
-        await using var app = await CreateAppAsync();
+        await using var harness = new SableTestHarness()
+            .WithSchema<SetupStateDocument>().WithSchema<PageDocument>()
+            .WithSchema<PostDocument>().WithSchema<ContentSlugDocument>();
+        await harness.InitializeAsync();
+        await using var app = await CreateAppAsync(harness);
         using var client = app.GetTestClient();
 
         var setupResponse = await client.GetAsync("/setup");
@@ -34,45 +44,53 @@ public class SetupGateIntegrationTests
         var frameworkResponse = await client.GetAsync("/_framework/test.js");
         var errorResponse = await client.GetAsync("/error");
 
-        setupResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
-        homeResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.TemporaryRedirect);
-        homeResponse.Headers.Location.Should().NotBeNull();
-        homeResponse.Headers.Location!.OriginalString.Should().Be(SetupPathAllowlist.SetupPath);
-        adminResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.TemporaryRedirect);
-        adminResponse.Headers.Location.Should().NotBeNull();
-        adminResponse.Headers.Location!.OriginalString.Should().Be(SetupPathAllowlist.SetupPath);
-        healthResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
-        aliveResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
-        frameworkResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
-        errorResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        setupResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        homeResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.TemporaryRedirect);
+        homeResponse.Headers.Location.ShouldNotBeNull();
+        homeResponse.Headers.Location!.OriginalString.ShouldBe(SetupPathAllowlist.SetupPath);
+        adminResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.TemporaryRedirect);
+        adminResponse.Headers.Location.ShouldNotBeNull();
+        adminResponse.Headers.Location!.OriginalString.ShouldBe(SetupPathAllowlist.SetupPath);
+        healthResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        aliveResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        frameworkResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        errorResponse.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
     }
 
     [Test]
     public async Task Setup_page_renders_the_setup_wizard_surface()
     {
-        await using var app = await CreateAppAsync();
+        await using var harness = new SableTestHarness()
+            .WithSchema<SetupStateDocument>().WithSchema<PageDocument>()
+            .WithSchema<PostDocument>().WithSchema<ContentSlugDocument>();
+        await harness.InitializeAsync();
+        await using var app = await CreateAppAsync(harness);
         using var client = app.GetTestClient();
 
         var response = await client.GetAsync("/setup");
         var html = await response.Content.ReadAsStringAsync();
 
-        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
-        html.Should().Contain("Aero CMS Setup");
-        html.Should().Contain("Administrator access");
-        html.Should().Contain("Starter site metadata");
-        html.Should().Contain("name=\"Input.AdminUserName\"");
-        html.Should().Contain("name=\"Input.AdminEmail\"");
-        html.Should().Contain("name=\"Input.Password\"");
-        html.Should().Contain("name=\"Input.ConfirmPassword\"");
-        html.Should().Contain("name=\"Input.SiteName\"");
-        html.Should().Contain("name=\"Input.HomepageTitle\"");
-        html.Should().Contain("name=\"Input.BlogName\"");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        html.ShouldContain("Aero CMS Setup");
+        html.ShouldContain("Administrator access");
+        html.ShouldContain("Starter site metadata");
+        html.ShouldContain("name=\"Input.AdminUserName\"");
+        html.ShouldContain("name=\"Input.AdminEmail\"");
+        html.ShouldContain("name=\"Input.Password\"");
+        html.ShouldContain("name=\"Input.ConfirmPassword\"");
+        html.ShouldContain("name=\"Input.SiteName\"");
+        html.ShouldContain("name=\"Input.HomepageTitle\"");
+        html.ShouldContain("name=\"Input.BlogName\"");
     }
 
     [Test]
     public async Task Setup_submit_reaches_the_running_page_model_and_redirects_after_bootstrap()
     {
-        var harness = new InMemoryCmsDocumentSessionHarness();
+        await using var harness = new SableTestHarness()
+            .WithSchema<SetupStateDocument>().WithSchema<PageDocument>()
+            .WithSchema<PostDocument>().WithSchema<ContentSlugDocument>();
+        await harness.InitializeAsync();
+
         var bootstrapper = Substitute.For<ISetupIdentityBootstrapper>();
         bootstrapper.BootstrapAsync(Arg.Any<SetupIdentityBootstrapRequest>(), Arg.Any<CancellationToken>())
             .Returns(new SetupIdentityBootstrapResult { CreatedAdmin = true });
@@ -89,7 +107,7 @@ public class SetupGateIntegrationTests
             .Select(value => value.Split(';', 2)[0])
             .First(cookie => cookie.StartsWith(".AspNetCore.Antiforgery.", StringComparison.Ordinal));
 
-        token.Should().NotBeNullOrWhiteSpace();
+        token.ShouldNotBeNullOrWhiteSpace();
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/setup?returnUrl=%2Fadmin")
         {
@@ -109,14 +127,23 @@ public class SetupGateIntegrationTests
 
         using var response = await client.SendAsync(request);
 
-        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Redirect);
-        response.Headers.Location.Should().NotBeNull();
-        response.Headers.Location!.OriginalString.Should().Be("/admin");
-        harness.SetupStates.Should().ContainKey(SetupStateDocument.FixedId);
-        harness.SetupStates[SetupStateDocument.FixedId].IsComplete.Should().BeTrue();
-        harness.Pages.Values.Any(p => p.Slug == "/").Should().BeTrue();
-        harness.Pages.Values.Any(p => p.Slug == "blog").Should().BeTrue();
-        harness.BlogPosts.Should().HaveCount(3);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Redirect);
+        response.Headers.Location.ShouldNotBeNull();
+        response.Headers.Location!.OriginalString.ShouldBe("/admin");
+
+        // Verify setup state was persisted in the real DB
+        var state = await harness.Session.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId);
+        state.ShouldNotBeNull();
+        state!.IsComplete.ShouldBeTrue();
+
+        // Verify pages were created
+        (await harness.Session.Query<PageDocument>().Where(p => p.Slug == "/").AnyAsync()).ShouldBeTrue();
+        (await harness.Session.Query<PageDocument>().Where(p => p.Slug == "blog").AnyAsync()).ShouldBeTrue();
+
+        // Verify blog posts were created
+        var postCount = await harness.Session.Query<PostDocument>().CountAsync();
+        postCount.ShouldBe(3);
+
         await bootstrapper.Received(1)
             .BootstrapAsync(Arg.Is<SetupIdentityBootstrapRequest>(request =>
                 request.AdminUserName == "admin.user" &&
@@ -126,37 +153,45 @@ public class SetupGateIntegrationTests
     [Test]
     public async Task Fresh_start_non_get_requests_are_blocked_without_redirecting()
     {
-        await using var app = await CreateAppAsync();
+        await using var harness = new SableTestHarness()
+            .WithSchema<SetupStateDocument>().WithSchema<PageDocument>()
+            .WithSchema<PostDocument>().WithSchema<ContentSlugDocument>();
+        await harness.InitializeAsync();
+        await using var app = await CreateAppAsync(harness);
         using var client = app.GetTestClient();
 
         using var response = await client.PostAsync("/admin", new StringContent(string.Empty));
 
-        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
-        response.Headers.Location.Should().BeNull();
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.NotFound);
+        response.Headers.Location.ShouldBeNull();
     }
 
     [Test]
     public async Task Marten_setup_state_store_loads_the_fixed_singleton_id()
     {
-        var harness = new InMemoryCmsDocumentSessionHarness();
+        await using var harness = new SableTestHarness()
+            .WithSchema<SetupStateDocument>().WithSchema<PageDocument>()
+            .WithSchema<PostDocument>().WithSchema<ContentSlugDocument>();
+        await harness.InitializeAsync();
+
         harness.Session.Store(new SetupStateDocument
         {
             Id = SetupStateDocument.FixedId,
             IsComplete = true
         });
+        await harness.Session.SaveChangesAsync();
 
         var store = new AeroSetupStateStore(harness.Session);
 
         var state = await store.LoadAsync();
 
-        state.Should().NotBeNull();
-        state!.Id.Should().Be(SetupStateDocument.FixedId);
-        state.IsComplete.Should().BeTrue();
-        await harness.Session.Received(1).LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId, Arg.Any<CancellationToken>());
+        state.ShouldNotBeNull();
+        state!.Id.ShouldBe(SetupStateDocument.FixedId);
+        state.IsComplete.ShouldBeTrue();
     }
 
     private static async Task<WebApplication> CreateAppAsync(
-        InMemoryCmsDocumentSessionHarness? harness = null,
+        SableTestHarness? harness = null,
         ISetupIdentityBootstrapper? bootstrapper = null,
         bool enableAntiforgery = true)
     {
@@ -175,13 +210,22 @@ public class SetupGateIntegrationTests
         builder.Services.AddRazorPages()
             .AddApplicationPart(typeof(SetupModule).Assembly);
 
-        harness ??= new InMemoryCmsDocumentSessionHarness();
+        harness ??= new SableTestHarness()
+            .WithSchema<SetupStateDocument>().WithSchema<PageDocument>()
+            .WithSchema<PostDocument>().WithSchema<ContentSlugDocument>();
+        await harness.InitializeAsync();
 
         builder.Services.AddScoped(_ => harness.Session);
         builder.Services.AddScoped<IDocumentSession>(_ => harness.Session);
         builder.Services.AddScoped<IQuerySession>(_ => harness.Session);
         builder.Services.AddSingleton(Substitute.For<IBlockService>());
         builder.Services.AddSingleton(Substitute.For<IFusionCache>());
+        builder.Services.AddSingleton(Substitute.For<ISiteContext>());
+        builder.Services.AddSingleton(Substitute.For<IMessageBus>());
+        builder.Services.AddSingleton(Substitute.For<IPexelsService>());
+        builder.Services.AddSingleton(Substitute.For<IGrainFactory>());
+        builder.Services.AddScoped<BlockRenderCache>();
+        builder.Services.AddScoped(_ => harness.Store);
 
         bootstrapper ??= Substitute.For<ISetupIdentityBootstrapper>();
         bootstrapper.BootstrapAsync(Arg.Any<SetupIdentityBootstrapRequest>(), Arg.Any<CancellationToken>())
@@ -222,5 +266,5 @@ public class SetupGateIntegrationTests
         await app.StartAsync();
 
         return app;
-}
+    }
 }

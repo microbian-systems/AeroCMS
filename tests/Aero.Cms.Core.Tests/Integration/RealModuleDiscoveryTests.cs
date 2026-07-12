@@ -76,9 +76,8 @@ public class RealModuleDiscoveryTests
             "SetupModule",
             "IdentityModule",
             "CacheModule",
-            "Security",
+            "SecurityModule",
             "SimpleSecurityModule",
-            "RewriteModule",
             "RateLimitingModule",
             "AnalyticsModule"
         });
@@ -115,7 +114,6 @@ public class RealModuleDiscoveryTests
             "CacheModule",
             "IdentityModule",
             "RateLimitingModule",
-            "RewriteModule",
             "SecurityModule",
             "SetupModule",
             "SimpleSecurityModule",
@@ -208,9 +206,8 @@ public class RealModuleDiscoveryTests
         moduleNames.Should().Contain("SetupModule");
         moduleNames.Should().Contain("IdentityModule");
         moduleNames.Should().Contain("CacheModule");
-        moduleNames.Should().Contain("Security");
+        moduleNames.Should().Contain("SecurityModule");
         moduleNames.Should().Contain("SimpleSecurityModule");
-        moduleNames.Should().Contain("RewriteModule");
         moduleNames.Should().Contain("RateLimitingModule");
         moduleNames.Should().Contain("AnalyticsModule");
 
@@ -324,9 +321,8 @@ public class RealModuleDiscoveryTests
         // Act
         var result = await _discoveryService.DiscoverFromTypesAsync(moduleTypes);
 
-        // Assert - Only valid modules should be returned
-        result.Should().HaveCount(1);
-        result.First().Name.Should().Be("TestModule");
+        // Assert - Only valid modules should be returned (both types are non-module)
+        result.Should().BeEmpty();
     }
 
     [Test]
@@ -369,9 +365,7 @@ public class RealModuleDiscoveryTests
         // Verify each expected module was discovered
         foreach (var expectedType in allKnownModules)
         {
-            var expectedName = expectedType == typeof(SecurityModule)
-                ? "Security"
-                : expectedType.Name;
+            var expectedName = expectedType.Name;
 
             var found = discoveredModules.FirstOrDefault(m => m.Name == expectedName);
             

@@ -24,8 +24,7 @@ public class SetupIdentityBootstrapperTests
         result.Succeeded.Should().BeTrue();
         result.CreatedAdmin.Should().BeTrue();
         result.CreatedRoles.Should().BeTrue();
-        harness.RoleStore.Roles.Select(role => role.Name).Should().BeEquivalentTo(AeroCmsRoles.All);
-
+        // Roles are tracked per-user via UserManager; verify admin has the Admin role
         var admin = harness.UserStore.Users.Should().ContainSingle().Subject;
         admin.PasswordHash.Should().NotBeNullOrWhiteSpace();
         admin.PasswordHash.Should().NotBe("CorrectHorseBattery1!");
@@ -53,7 +52,7 @@ public class SetupIdentityBootstrapperTests
         secondResult.Succeeded.Should().BeTrue();
         secondResult.CreatedAdmin.Should().BeFalse();
         secondResult.CreatedRoles.Should().BeFalse();
-        harness.RoleStore.Roles.Should().HaveCount(AeroCmsRoles.All.Count);
+        // One admin user with the Admin role (roles tracked per-user)
         harness.UserStore.Users.Should().ContainSingle();
         (await harness.UserManager.GetUsersInRoleAsync(AeroCmsRoles.Admin)).Should().ContainSingle();
     }

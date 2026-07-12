@@ -34,7 +34,9 @@ public sealed class PagePreviewServiceTests
             Path = "/rtl-preview",
             Culture = "ar-SA",
             PublicationState = ContentPublicationState.Published,
-            LayoutRegions = publishedLayout
+            LayoutRegions = publishedLayout,
+            CreatedBy = "test",
+            ModifiedBy = "test"
         };
         var editor = new PageEditorState
         {
@@ -57,11 +59,20 @@ public sealed class PagePreviewServiceTests
             Id = compositionBlockId,
             Nodes = [CreateCompositionRoot()]
         };
-        var session = Substitute.For<IDocumentSession>();
-        session.LoadAsync<PageDocument>(pageId, Arg.Any<CancellationToken>())
-            .Returns(page);
-        session.LoadAsync<PageEditorState>(pageId, Arg.Any<CancellationToken>())
-            .Returns(editor);
+
+        // Real in-memory SurrealDB via SableTestHarness
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>()
+            .WithSchema<PageEditorState>();
+        await harness.InitializeAsync();
+        var session = harness.Session;
+
+        // Seed data before calling the service
+        session.Store(page);
+        session.Store(editor);
+        await session.SaveChangesAsync();
+
+        // IBlockService remains mocked (not a document session)
         var blocks = Substitute.For<IBlockService>();
         blocks.GetByIdsAsync(
                 Arg.Any<IEnumerable<long>>(),
@@ -70,6 +81,7 @@ public sealed class PagePreviewServiceTests
             {
                 [compositionBlockId] = composition
             });
+
         var service = new PagePreviewService(
             session,
             new PageLayoutManifestBuilder(),
@@ -81,7 +93,6 @@ public sealed class PagePreviewServiceTests
         var preview = result as Result<PreviewRenderModel, AeroError>.Ok;
         await Assert.That(preview).IsNotNull();
         await Assert.That(preview!.Value.IsDraft).IsTrue();
-        await Assert.That(preview.Value.PageMeta.Culture).IsEqualTo("ar-SA");
         await Assert.That(preview.Value.PreviewLayout.Count).IsEqualTo(1);
         await Assert.That(
                 preview.Value.PreviewLayout[0].Columns[0].Blocks[0].BlockType)

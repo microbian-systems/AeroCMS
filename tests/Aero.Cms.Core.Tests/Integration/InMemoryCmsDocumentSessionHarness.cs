@@ -93,7 +93,7 @@ internal sealed class InMemoryCmsDocumentSessionHarness
                 _slugDocuments.Remove(slugDocument.Id.ToString());
             });
 
-        Session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        Session.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(1));
     }
 
     public IDocumentSession Session { get; }
