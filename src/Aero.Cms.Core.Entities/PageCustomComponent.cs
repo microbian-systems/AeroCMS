@@ -1,13 +1,14 @@
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Interfaces;
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
 /// <summary>
 /// A site-owned reusable composition template created in the page editor.
 /// </summary>
-public sealed class PageCustomComponent : Entity, ISiteOwned
+public sealed class PageCustomComponent : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -49,13 +50,9 @@ public NeoPageNode Root { get; set; } = new();
     /// </summary>
 public List<string> ReferencedCatalogIds { get; set; } = [];
 
-        /// <summary>
-    /// Gets or sets the Created At.
-    /// </summary>
-public DateTimeOffset CreatedAt { get; set; }
-
-        /// <summary>
-    /// Gets or sets the Updated At.
-    /// </summary>
-public DateTimeOffset UpdatedAt { get; set; }
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

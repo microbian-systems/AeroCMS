@@ -1,5 +1,5 @@
 using Aero.Cms.Data.Queries.Base;
-using Aero.Core.Entities;
+using AeroDB.Sable;
 using Marten;
 
 namespace Aero.Cms.Data.Repositories;
@@ -9,7 +9,7 @@ namespace Aero.Cms.Data.Repositories;
 /// Defines an interface for IMartenCompiledRepository.
 /// </summary>
 public interface IMartenCompiledRepository<T>
-    where T : IEntity<long>
+    where T : class, ISableDocument<long>
 {
         /// <summary>
     /// GetByIdAsync method.
@@ -39,7 +39,7 @@ void Delete(T entity);
 /// Represents a class for MartenCompiledRepository.
 /// </summary>
 public abstract class MartenCompiledRepository<T>(IDocumentSession session) : IMartenCompiledRepository<T>
-    where T : Entity
+    where T : class, ISableDocument<long>
 {
         /// <summary>
     /// Session.

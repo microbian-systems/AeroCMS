@@ -203,7 +203,7 @@ public void Configure(StoreOptions opts)
         // ── PageCustomComponent ────────────────────────────────────────────
         opts.Schema.For<PageCustomComponent>().Index(x => x.SiteId);
         opts.Schema.For<PageCustomComponent>().Index(x => x.Name);
-        opts.Schema.For<PageCustomComponent>().Index(x => x.UpdatedAt);
+        opts.Schema.For<PageCustomComponent>().Index(x => x.ModifiedOn);
         opts.Schema.For<PageCustomComponent>()
             .UniqueIndex(x => new { x.SiteId, x.Name });
     }

@@ -68,8 +68,8 @@ public async Task<Result<PageCustomComponent, AeroError>> SaveAsync(
                 .ToList(),
             Root = root,
             ReferencedCatalogIds = CustomComponentTemplate.GetReferencedCatalogIds(root).ToList(),
-            CreatedAt = now,
-            UpdatedAt = now
+            CreatedOn = now,
+            ModifiedOn = now
         };
 
         session.Store(component);
@@ -123,7 +123,7 @@ public async Task<Result<PageCustomComponent, AeroError>> UpdateAsync(
         }
 
         ApplyRequest(component, request);
-        component.UpdatedAt = DateTimeOffset.UtcNow;
+        component.ModifiedOn = DateTimeOffset.UtcNow;
         session.Store(component);
         await session.SaveChangesAsync(cancellationToken);
         return component;

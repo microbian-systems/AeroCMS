@@ -1,4 +1,5 @@
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
@@ -6,7 +7,7 @@ namespace Aero.Cms.Core.Entities;
 /// Represents a single host/domain assigned to a site.
 /// Enables unique-indexed multi-domain support at the database level.
 /// </summary>
-public class SiteHost : Entity
+public class SiteHost : SableDocument, IAuditable
 {
     /// <summary>The site that owns this host.</summary>
     public long SiteId { get; set; }
@@ -22,4 +23,10 @@ public class SiteHost : Entity
     /// Exactly one <see cref="SiteHost"/> per site should be primary.
     /// </summary>
     public bool IsPrimary { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

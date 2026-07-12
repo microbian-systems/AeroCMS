@@ -2,14 +2,15 @@ using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
 /// <summary>
 /// Represents a class for PostDocument.
 /// </summary>
-public sealed class PostDocument : Entity, ISiteOwned
+public sealed class PostDocument : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -93,5 +94,11 @@ public ContentPublicationState PublicationState { get; set; } = ContentPublicati
         /// <summary>
     /// Gets or sets the Is Publicly Visible.
     /// </summary>
-public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+    public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

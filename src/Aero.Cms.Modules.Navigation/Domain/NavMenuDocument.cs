@@ -1,13 +1,14 @@
+using Aero.Core.Data;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Modules.Navigation.Events;
-using Aero.Core.Entities;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Navigation.Domain;
 
 /// <summary>
 /// Represents a class for NavMenuDocument.
 /// </summary>
-public sealed class NavMenuDocument : Entity, ISiteOwned
+public sealed class NavMenuDocument : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -41,19 +42,16 @@ public bool HasPublishedSnapshot { get; set; }
     /// Gets or sets the Archived On.
     /// </summary>
 public DateTimeOffset? ArchivedOn { get; set; }
-        /// <summary>
-    /// Gets or sets the Created By User Id.
-    /// </summary>
-public long? CreatedByUserId { get; set; }
-        /// <summary>
-    /// Gets or sets the Modified By User Id.
-    /// </summary>
-public long? ModifiedByUserId { get; set; }
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 
         /// <summary>
     /// Create method.
     /// </summary>
-public static NavMenuDocument Create(long id, NavMenuCreated @event) => new()
+    public static NavMenuDocument Create(long id, NavMenuCreated @event) => new()
     {
         Id = id,
         SiteId = @event.SiteId,
@@ -62,7 +60,7 @@ public static NavMenuDocument Create(long id, NavMenuCreated @event) => new()
         Name = @event.Name.Trim(),
         Key = NormalizeKey(@event.Key),
         State = NavMenuLifecycleState.Draft,
-        CreatedByUserId = @event.UserId,
+        CreatedBy = @event.UserId.ToString(),
         CreatedOn = @event.CreatedOn
     };
 
@@ -107,7 +105,7 @@ public static string NormalizeKey(string key)
 
     private void Touch(long? userId, DateTimeOffset timestamp)
     {
-        ModifiedByUserId = userId;
+        ModifiedBy = userId?.ToString();
         ModifiedOn = timestamp;
     }
 }
@@ -115,7 +113,7 @@ public static string NormalizeKey(string key)
 /// <summary>
 /// Represents a class for SiteNavigationSettingsDocument.
 /// </summary>
-public sealed class SiteNavigationSettingsDocument : Entity, ISiteOwned
+public sealed class SiteNavigationSettingsDocument : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -125,31 +123,32 @@ public long SiteId { get; set; }
     /// Gets or sets the Default Nav Menu Id.
     /// </summary>
 public long? DefaultNavMenuId { get; set; }
-        /// <summary>
-    /// Gets or sets the Modified By User Id.
-    /// </summary>
-public long? ModifiedByUserId { get; set; }
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 
         /// <summary>
     /// Create method.
     /// </summary>
-public static SiteNavigationSettingsDocument Create(long siteId, SiteDefaultNavMenuChanged @event) => new()
+    public static SiteNavigationSettingsDocument Create(long siteId, SiteDefaultNavMenuChanged @event) => new()
     {
         Id = siteId,
         SiteId = siteId,
         DefaultNavMenuId = @event.NavMenuId,
         CreatedOn = @event.ChangedOn,
         ModifiedOn = @event.ChangedOn,
-        ModifiedByUserId = @event.UserId
+        ModifiedBy = @event.UserId.ToString()
     };
 
         /// <summary>
     /// Apply method.
     /// </summary>
-public void Apply(SiteDefaultNavMenuChanged @event)
+    public void Apply(SiteDefaultNavMenuChanged @event)
     {
         DefaultNavMenuId = @event.NavMenuId;
         ModifiedOn = @event.ChangedOn;
-        ModifiedByUserId = @event.UserId;
+        ModifiedBy = @event.UserId.ToString();
     }
 }

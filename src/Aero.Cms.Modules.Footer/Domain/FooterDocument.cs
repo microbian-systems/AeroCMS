@@ -1,13 +1,14 @@
+using Aero.Core.Data;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Modules.Footer.Events;
-using Aero.Core.Entities;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Footer.Domain;
 
 /// <summary>
 /// Represents a class for FooterDocument.
 /// </summary>
-public sealed class FooterDocument : Entity, ISiteOwned
+public sealed class FooterDocument : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -45,19 +46,16 @@ public bool HasPublishedSnapshot { get; set; }
     /// Gets or sets the Archived On.
     /// </summary>
 public DateTimeOffset? ArchivedOn { get; set; }
-        /// <summary>
-    /// Gets or sets the Created By User Id.
-    /// </summary>
-public long? CreatedByUserId { get; set; }
-        /// <summary>
-    /// Gets or sets the Modified By User Id.
-    /// </summary>
-public long? ModifiedByUserId { get; set; }
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 
         /// <summary>
     /// Create method.
     /// </summary>
-public static FooterDocument Create(long id, FooterCreated @event) => new()
+    public static FooterDocument Create(long id, FooterCreated @event) => new()
     {
         Id = id,
         SiteId = @event.SiteId,
@@ -67,7 +65,7 @@ public static FooterDocument Create(long id, FooterCreated @event) => new()
         Key = NormalizeKey(@event.Key),
         Description = Clean(@event.Description),
         State = FooterLifecycleState.Draft,
-        CreatedByUserId = @event.UserId,
+        CreatedBy = @event.UserId.ToString(),
         CreatedOn = @event.CreatedOn
     };
 
@@ -116,7 +114,7 @@ public static string NormalizeKey(string key)
 
     private void Touch(long? userId, DateTimeOffset timestamp)
     {
-        ModifiedByUserId = userId;
+        ModifiedBy = userId?.ToString();
         ModifiedOn = timestamp;
     }
 }
@@ -124,7 +122,7 @@ public static string NormalizeKey(string key)
 /// <summary>
 /// Represents a class for SiteFooterSettingsDocument.
 /// </summary>
-public sealed class SiteFooterSettingsDocument : Entity, ISiteOwned
+public sealed class SiteFooterSettingsDocument : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -134,32 +132,33 @@ public long SiteId { get; set; }
     /// Gets or sets the Default Footer Id.
     /// </summary>
 public long? DefaultFooterId { get; set; }
-        /// <summary>
-    /// Gets or sets the Modified By User Id.
-    /// </summary>
-public long? ModifiedByUserId { get; set; }
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 
         /// <summary>
     /// Create method.
     /// </summary>
-public static SiteFooterSettingsDocument Create(long siteId, SiteDefaultFooterChanged @event) => new()
+    public static SiteFooterSettingsDocument Create(long siteId, SiteDefaultFooterChanged @event) => new()
     {
         Id = siteId,
         SiteId = siteId,
         DefaultFooterId = @event.FooterId,
         CreatedOn = @event.ChangedOn,
         ModifiedOn = @event.ChangedOn,
-        ModifiedByUserId = @event.UserId
+        ModifiedBy = @event.UserId.ToString()
     };
 
         /// <summary>
     /// Apply method.
     /// </summary>
-public void Apply(SiteDefaultFooterChanged @event)
+    public void Apply(SiteDefaultFooterChanged @event)
     {
         DefaultFooterId = @event.FooterId;
         ModifiedOn = @event.ChangedOn;
-        ModifiedByUserId = @event.UserId;
+        ModifiedBy = @event.UserId.ToString();
     }
 }
 

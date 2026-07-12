@@ -1,4 +1,5 @@
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
@@ -7,7 +8,7 @@ namespace Aero.Cms.Core.Entities;
 /// Each record grants a user a set of permissions on a specific site.
 /// Admins bypass this check entirely (they have access to all sites).
 /// </summary>
-public class UserSiteAssignment : Entity // todo - rename UserSiteAssignment -> UserSitePerms
+public class UserSiteAssignment : SableDocument, IAuditable // todo - rename UserSiteAssignment -> UserSitePerms
 {
     /// <summary>The user's ID (ASP.NET Identity user ID, stored as long).</summary>
     public long UserId { get; set; }
@@ -21,4 +22,10 @@ public class UserSiteAssignment : Entity // todo - rename UserSiteAssignment -> 
     /// Custom permission strings may be added by modules.
     /// </summary>
     public List<string> Permissions { get; set; } = [];
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

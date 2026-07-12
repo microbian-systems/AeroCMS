@@ -1,4 +1,5 @@
-﻿using Aero.Core.Entities;
+﻿using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
@@ -8,7 +9,7 @@ namespace Aero.Cms.Core.Entities;
 /// <remarks>Use this class to store or retrieve information about path redirections or rewrites within a site.
 /// Each instance associates an old path with a new path for a specific site, which can be useful for managing legacy
 /// URLs or implementing custom routing.</remarks>
-public class AliasDocument : Entity
+public class AliasDocument : SableDocument, IAuditable
 {
     /// <summary>
     /// Gets or sets the unique identifier for the site.
@@ -26,4 +27,10 @@ public class AliasDocument : Entity
     /// Gets or sets optional notes or comments associated with the object.
     /// </summary>
     public string? Notes { get; set; } = null!;
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

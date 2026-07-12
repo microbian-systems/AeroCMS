@@ -1,12 +1,13 @@
+using Aero.Core.Data;
 using Aero.Cms.Abstractions.Interfaces;
-using Aero.Core.Entities;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Posts.Models;
 
 /// <summary>
 /// Represents a tag that can be applied to blog posts for categorization.
 /// </summary>
-public class Tag : Entity, ISiteOwned
+public class Tag : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -22,4 +23,10 @@ public long SiteId { get; set; }
     /// Gets or sets the URL-friendly slug for this tag.
     /// </summary>
     public string Slug { get; set; } = string.Empty;
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

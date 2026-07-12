@@ -1,4 +1,3 @@
-using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
 namespace Aero.Cms.Abstractions.Blocks;
@@ -177,8 +176,12 @@ public sealed class NavigationBlock : BlockBase
         /// <summary>
     /// Represents a class for NavigationBlockItem.
     /// </summary>
-public class NavigationBlockItem : Entity
+public class NavigationBlockItem
     {
+        /// <summary>
+        /// Gets or sets the unique identifier of the navigation block item.
+        /// </summary>
+        public long Id { get; set; }
                 /// <summary>
         /// Gets or sets the Page Id.
         /// </summary>

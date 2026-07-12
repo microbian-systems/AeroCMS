@@ -1,5 +1,5 @@
+using Aero.Core.Data;
 using Aero.Cms.Data.Queries.Base;
-using Aero.Core.Entities;
 using AeroDB.Sable;
 
 namespace Aero.Cms.Data.Repositories;
@@ -9,7 +9,7 @@ namespace Aero.Cms.Data.Repositories;
 /// Defines an interface for IAeroCompiledRepository.
 /// </summary>
 public interface IAeroCompiledRepository<T>
-    where T : global::Aero.Core.Entities.IEntity<long>
+    where T : class, ISableDocument<long>, IAuditable
 {
         /// <summary>
     /// GetByIdAsync method.
@@ -39,7 +39,7 @@ void Delete(T entity);
 /// Represents a class for AeroCompiledRepository.
 /// </summary>
 public abstract class AeroCompiledRepository<T>(IDocumentSession session) : IAeroCompiledRepository<T>
-    where T : global::Aero.Core.Entities.Entity
+    where T : class, ISableDocument<long>, IAuditable
 {
         /// <summary>
     /// Session.

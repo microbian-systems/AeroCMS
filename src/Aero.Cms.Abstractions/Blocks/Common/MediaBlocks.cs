@@ -1,4 +1,3 @@
-using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
 namespace Aero.Cms.Abstractions.Blocks.Common;
@@ -48,8 +47,13 @@ public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this
 /// <summary>
 /// A single item in a <see cref="CarouselBlock"/>.
 /// </summary>
-public class CarouselItem : Entity
+public class CarouselItem
 {
+    /// <summary>
+    /// Gets or sets the unique identifier of the carousel item.
+    /// </summary>
+    public long Id { get; set; }
+
     /// <summary>
     /// Media asset ID for the image.
     /// </summary>

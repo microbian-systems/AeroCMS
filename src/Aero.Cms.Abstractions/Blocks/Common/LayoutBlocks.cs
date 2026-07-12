@@ -1,4 +1,3 @@
-using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
 namespace Aero.Cms.Abstractions.Blocks.Common;
@@ -48,8 +47,13 @@ public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this
 /// <summary>
 /// A column within a <see cref="ColumnsBlock"/>.
 /// </summary>
-public class ColumnItem : Entity
+public class ColumnItem
 {
+    /// <summary>
+    /// Gets or sets the unique identifier of the column item.
+    /// </summary>
+    public long Id { get; set; }
+
     /// <summary>
     /// Grid span for this column (typical 1-12 scale).
     /// </summary>

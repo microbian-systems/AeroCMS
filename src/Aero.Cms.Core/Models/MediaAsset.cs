@@ -1,12 +1,13 @@
+using Aero.Core.Data;
 using Aero.Cms.Abstractions.Interfaces;
-using Aero.Core.Entities;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Models;
 
 /// <summary>
 /// Represents a media asset (image, video, etc.) in the CMS.
 /// </summary>
-public class MediaAsset : Entity, ISiteOwned
+public class MediaAsset : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -58,6 +59,12 @@ public long? ParentId { get; set; }
     /// (e.g. Pexels, Unsplash). Used to display credit on public pages.
     /// </summary>
     public MediaAttribution? Attribution { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }
 
 /// <summary>

@@ -1,13 +1,14 @@
 using System.Text.Json;
+using Aero.Core.Data;
 using Aero.Cms.Abstractions.Blocks.Common;
-using Aero.Core.Entities;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Blocks.Dynamic;
 
 /// <summary>
 /// Stores a user-authored dynamic block template definition.
 /// </summary>
-public sealed class DynamicBlockDefinition : Entity
+public sealed class DynamicBlockDefinition : SableDocument, IAuditable
 {
         /// <summary>
     /// Gets or sets the Content Type Id.
@@ -47,5 +48,11 @@ public int Version { get; set; } = 1;
         /// <summary>
     /// Gets or sets the Is Published.
     /// </summary>
-public bool IsPublished { get; set; }
+    public bool IsPublished { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

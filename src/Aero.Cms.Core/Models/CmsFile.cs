@@ -1,11 +1,12 @@
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Models;
 
 /// <summary>
 /// Represents a general file stored in the CMS.
 /// </summary>
-public class CmsFile : Entity
+public class CmsFile : SableDocument, IAuditable
 {
         /// <summary>
     /// Gets or sets the Name.
@@ -28,4 +29,10 @@ public string MimeType { get; set; } = string.Empty;
     /// Gets or sets the optional base64 encoded content for small files or stubs.
     /// </summary>
     public string? Content { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

@@ -1,4 +1,3 @@
-using Aero.Core.Entities;
 using Aero.Core.Railway;
 using AeroDB.Sable;
 using Microsoft.Extensions.Logging;
@@ -31,21 +30,21 @@ public interface IAeroCmsDb
     /// <typeparam name="T">The type of the entity to add. Must inherit from Entity.</typeparam>
     /// <param name="entity">The entity instance to add to the data store. Cannot be null.</param>
     /// <returns>A task that represents the asynchronous add operation.</returns>
-    public Task AddAsync<T>(T entity) where T : Entity;
+    public Task AddAsync<T>(T entity) where T : class;
     /// <summary>
     /// Asynchronously deletes the specified entity from the data store.
     /// </summary>
     /// <typeparam name="T">The type of the entity to delete. Must inherit from Entity.</typeparam>
     /// <param name="entity">The entity instance to delete. Cannot be null.</param>
     /// <returns>A task that represents the asynchronous delete operation.</returns>
-    public Task DeleteAsync<T>(T entity) where T : Entity;
+    public Task DeleteAsync<T>(T entity) where T : class;
     /// <summary>
     /// Asynchronously updates the specified entity in the data store.
     /// </summary>
     /// <typeparam name="T">The type of the entity to update. Must inherit from Entity.</typeparam>
     /// <param name="entity">The entity instance to update. Cannot be null.</param>
     /// <returns>A task that represents the asynchronous update operation.</returns>
-    public Task UpdateAsync<T>(T entity) where T : Entity;
+    public Task UpdateAsync<T>(T entity) where T : class;
     /// <summary>
     /// Asynchronously retrieves an entity of the specified type by its unique identifier.
     /// </summary>
@@ -53,7 +52,7 @@ public interface IAeroCmsDb
     /// <param name="id">The unique identifier of the entity to retrieve.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains an Option<T> with the entity if
     /// found; otherwise, an empty Option<T>.</returns>
-    public Task<Option<T>> GetByIdAsync<T>(long id) where T : Entity;
+    public Task<Option<T>> GetByIdAsync<T>(long id) where T : class;
     /// <summary>
     /// Asynchronously retrieves a collection of entities of type T that match the specified identifiers.
     /// </summary>
@@ -61,7 +60,7 @@ public interface IAeroCmsDb
     /// <param name="ids">A collection of unique identifiers for the entities to retrieve. Cannot be null.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains an enumerable collection of entities
     /// of type T that correspond to the specified identifiers. If no entities are found, the collection is empty.</returns>
-    public Task<IEnumerable<T>> GetByIdsAsync<T>(IEnumerable<long> ids) where T : Entity;
+    public Task<IEnumerable<T>> GetByIdsAsync<T>(IEnumerable<long> ids) where T : class;
     /// <summary>
     /// Asynchronously determines whether any entities of type T satisfy the specified condition.
     /// </summary>
@@ -69,7 +68,7 @@ public interface IAeroCmsDb
     /// <param name="predicate">An expression that defines the condition to test for each entity.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains <see langword="true"/> if any
     /// entities satisfy the condition; otherwise, <see langword="false"/>.</returns>
-    public Task<bool> ExistsAsync<T>(Expression<Func<T, bool>> predicate) where T : Entity;
+    public Task<bool> ExistsAsync<T>(Expression<Func<T, bool>> predicate) where T : class;
     /// <summary>
     /// Asynchronously retrieves a collection of entities that satisfy the specified predicate, with support for paging.
     /// </summary>
@@ -81,7 +80,7 @@ public interface IAeroCmsDb
     /// <param name="rows">The maximum number of entities to return per page. Must be greater than 0.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains an enumerable collection of entities
     /// that match the predicate for the specified page.</returns>
-    public Task<IEnumerable<T>> FindAsync<T>(Expression<Func<T, bool>> predicate, int page=1, int rows=10) where T : Entity;
+    public Task<IEnumerable<T>> FindAsync<T>(Expression<Func<T, bool>> predicate, int page=1, int rows=10) where T : class;
     /// <summary>
     /// Creates a queryable collection of entities of the specified type for LINQ operations.
     /// </summary>
@@ -89,7 +88,7 @@ public interface IAeroCmsDb
     /// projected using standard LINQ methods.</remarks>
     /// <typeparam name="T">The type of entity to query. Must inherit from Entity.</typeparam>
     /// <returns>An IQueryable<T> that can be used to query entities of type T.</returns>
-    public IQueryable<T> Query<T>() where T : Entity;
+    public IQueryable<T> Query<T>() where T : class;
 }
 
 /// <inheritdoc />
@@ -100,21 +99,21 @@ public class AeroCmsDB(IDocumentSession sesh, ILogger<AeroCmsDB> log)
     public IDocumentSession session => sesh;
 
     /// <inheritdoc />
-    public Task AddAsync<T>(T entity) where T : Entity
+    public Task AddAsync<T>(T entity) where T : class
     {
         session.Store(entity);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task DeleteAsync<T>(T entity) where T : Entity
+    public Task DeleteAsync<T>(T entity) where T : class
     {
         session.Delete(entity);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public async Task<bool> ExistsAsync<T>(Expression<Func<T, bool>> predicate) where T : Entity
+    public async Task<bool> ExistsAsync<T>(Expression<Func<T, bool>> predicate) where T : class
     {
         var exists = await session.Query<T>()
             .Where(predicate)
@@ -123,7 +122,7 @@ public class AeroCmsDB(IDocumentSession sesh, ILogger<AeroCmsDB> log)
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<T>> FindAsync<T>(Expression<Func<T, bool>> predicate, int page=1, int rows=10) where T : Entity
+    public async Task<IEnumerable<T>> FindAsync<T>(Expression<Func<T, bool>> predicate, int page=1, int rows=10) where T : class
     {
         var documents = await session.Query<T>()
             .Where(predicate)
@@ -134,7 +133,7 @@ public class AeroCmsDB(IDocumentSession sesh, ILogger<AeroCmsDB> log)
     }
 
     /// <inheritdoc />
-    public async Task<Option<T>> GetByIdAsync<T>(long id) where T : Entity
+    public async Task<Option<T>> GetByIdAsync<T>(long id) where T : class
     {
         var document = await session.LoadAsync<T>(id);
         return document switch
@@ -145,7 +144,7 @@ public class AeroCmsDB(IDocumentSession sesh, ILogger<AeroCmsDB> log)
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<T>> GetByIdsAsync<T>(IEnumerable<long> ids) where T : Entity
+    public async Task<IEnumerable<T>> GetByIdsAsync<T>(IEnumerable<long> ids) where T : class
     {
         var documents = await session.LoadManyAsync<T>(ids)
             ;
@@ -153,13 +152,13 @@ public class AeroCmsDB(IDocumentSession sesh, ILogger<AeroCmsDB> log)
     }
 
     /// <inheritdoc />
-    public IQueryable<T> Query<T>() where T : Entity
+    public IQueryable<T> Query<T>() where T : class
     {
         return session.Query<T>();
     }
 
     /// <inheritdoc />
-    public Task UpdateAsync<T>(T entity) where T : Entity
+    public Task UpdateAsync<T>(T entity) where T : class
     {
         session.Store(entity);
         return Task.CompletedTask;

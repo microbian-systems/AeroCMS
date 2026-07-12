@@ -9,7 +9,7 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
-using Aero.Core.Entities;
+using Aero.Core.Data;
 using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
@@ -18,7 +18,7 @@ namespace Aero.Cms.Core.Entities;
 /// <summary>
 /// Represents a class for PageDocument.
 /// </summary>
-public sealed class PageDocument : Entity, ISiteOwned, ISoftDeleted, IAuditableEntity
+public sealed class PageDocument : SableDocument, IAuditable, ISiteOwned, ISoftDeleted, IAuditableEntity
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -198,6 +198,12 @@ public bool IsPubliclyVisible =>
     /// Timestamp of soft deletion. Managed automatically by AeroDB.
     /// </summary>
     public DateTimeOffset? DeletedAt { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 
     // ── Event Sourcing: Self-Aggregating Snapshot ─────────────────────
 

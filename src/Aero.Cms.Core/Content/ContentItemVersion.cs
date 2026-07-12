@@ -1,11 +1,12 @@
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Content;
 
 /// <summary>
 /// Represents a class for ContentItemVersion.
 /// </summary>
-public sealed class ContentItemVersion : Entity
+public sealed class ContentItemVersion : SableDocument, IAuditable
 {
         /// <summary>
     /// Gets or sets the Content Item Id.
@@ -22,5 +23,11 @@ public string FieldsJson { get; set; } = "{}";
         /// <summary>
     /// Gets or sets the Created Utc.
     /// </summary>
-public DateTimeOffset CreatedUtc { get; set; }
+    public DateTimeOffset CreatedUtc { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

@@ -1,7 +1,8 @@
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
@@ -10,7 +11,7 @@ namespace Aero.Cms.Core.Entities;
 /// One per page — upsert replaces the entire draft atomically.
 /// Cleaned up when the page is manually saved or published.
 /// </summary>
-public sealed class PageDraft : Entity, ISiteOwned
+public sealed class PageDraft : SableDocument, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -43,5 +44,11 @@ public ContentPublicationState PublicationState { get; set; } = ContentPublicati
         /// <summary>
     /// Gets or sets the Drafted At.
     /// </summary>
-public DateTimeOffset DraftedAt { get; set; }
+    public DateTimeOffset DraftedAt { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

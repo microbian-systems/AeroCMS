@@ -3,7 +3,8 @@ using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
@@ -12,7 +13,7 @@ namespace Aero.Cms.Core.Entities;
 /// PageDocument remains the route/status aggregate; this document owns the nested
 /// authoring tree used by the visual editor and public renderer.
 /// </summary>
-public sealed class PageCompositionDocument : Entity, ISiteOwned, IAuditableEntity
+public sealed class PageCompositionDocument : SableDocument, IAuditable, ISiteOwned, IAuditableEntity
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -96,7 +97,13 @@ public List<NeoPageNode> RootNodes { get; set; } = [];
         /// <summary>
     /// Gets or sets the Block Id Map.
     /// </summary>
-public Dictionary<string, long> BlockIdMap { get; set; } = [];
+    public Dictionary<string, long> BlockIdMap { get; set; } = [];
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }
 
 /// <summary>

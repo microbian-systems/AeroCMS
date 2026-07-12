@@ -1,10 +1,13 @@
+using Aero.Core.Data;
+using AeroDB.Sable;
+
 namespace Aero.Cms.Modules.Commerce.Catalog.Models;
 
 /// <summary>
 /// Catalog product stored as an AeroDB document.
 /// Content type integration for product catalog.
 /// </summary>
-public sealed class ProductDocument : Entity
+public sealed class ProductDocument : SableDocument, IAuditable
 {
         /// <summary>
     /// Gets or sets the Name.
@@ -65,5 +68,11 @@ public Dictionary<string, string> Attributes { get; set; } = [];
         /// <summary>
     /// Gets or sets the Tags.
     /// </summary>
-public List<string> Tags { get; set; } = [];
+    public List<string> Tags { get; set; } = [];
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

@@ -109,8 +109,8 @@ public static void MapPageCustomComponentsApi(this IEndpointRouteBuilder app)
             component.Root,
             component.ReferencedCatalogIds,
             component.SchemaVersion,
-            component.CreatedAt,
-            component.UpdatedAt);
+            component.CreatedOn,
+            component.ModifiedOn);
 
     private static IResult ToMinimalApiResult<T>(
         this Result<T, AeroError>.Failure failure) =>

@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
-using Aero.Core.Entities;
 using Microsoft.AspNetCore.Html;
 
 namespace Aero.Cms.Abstractions.Blocks;
@@ -13,8 +12,14 @@ namespace Aero.Cms.Abstractions.Blocks;
 /// are now emitted by <c>BlockRendererGenerator</c> as <c>BlockBase.Polymorphic.g.cs</c>,
 /// replacing the previously hand-maintained list on this class.
 /// </remarks>
-public abstract partial class BlockBase : Entity, IBlock
+public abstract partial class BlockBase : IBlock
 {
+    /// <summary>
+    /// Gets or sets the unique identifier of the block.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public long Id { get; set; } = global::Aero.Core.Snowflake.NewId();
+
     /// <summary>
     /// Gets the type discriminator of the block.
     /// </summary>

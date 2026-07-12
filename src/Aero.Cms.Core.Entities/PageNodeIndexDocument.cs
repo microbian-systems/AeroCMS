@@ -1,7 +1,8 @@
 using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
@@ -10,7 +11,7 @@ namespace Aero.Cms.Core.Entities;
 /// search, and component-usage analysis a queryable model instead of spelunking
 /// through nested JSON trees.
 /// </summary>
-public sealed class PageNodeIndexDocument : Entity<string>, ISiteOwned
+public sealed class PageNodeIndexDocument : SableDocument<string>, IAuditable, ISiteOwned
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -47,5 +48,11 @@ public string Path { get; set; } = string.Empty;
         /// <summary>
     /// Gets or sets the Depth.
     /// </summary>
-public int Depth { get; set; }
+    public int Depth { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

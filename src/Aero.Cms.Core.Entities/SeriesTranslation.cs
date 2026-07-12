@@ -1,12 +1,13 @@
 using Aero.Cms.Abstractions.Interfaces;
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
 /// <summary>
 /// Represents a class for SeriesTranslation.
 /// </summary>
-public sealed class SeriesTranslation : Entity, ICultureAware
+public sealed class SeriesTranslation : SableDocument, IAuditable, ICultureAware
 {
         /// <summary>
     /// Gets or sets the Series Id.
@@ -27,5 +28,11 @@ public string Slug { get; set; } = string.Empty;
         /// <summary>
     /// Gets or sets the Description.
     /// </summary>
-public string? Description { get; set; }
+    public string? Description { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

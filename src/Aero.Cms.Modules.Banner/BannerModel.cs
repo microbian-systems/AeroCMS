@@ -1,11 +1,12 @@
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Modules.Banner;
 
 /// <summary>
 /// Represents a class for BannerModel.
 /// </summary>
-public class BannerModel : Entity
+public class BannerModel : SableDocument, IAuditable
 {
         /// <summary>
     /// Gets or sets the Name.
@@ -30,5 +31,11 @@ public DateTimeOffset? EndDate { get; set; }
         /// <summary>
     /// Gets or sets the Disable Close.
     /// </summary>
-public bool DisableClose { get; set; }
+    public bool DisableClose { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

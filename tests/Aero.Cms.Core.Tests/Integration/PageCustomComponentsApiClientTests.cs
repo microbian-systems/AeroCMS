@@ -149,7 +149,7 @@ public sealed class PageCustomComponentsApiClientTests
             Tags = ["feature", "card"],
             Root = root,
             ReferencedCatalogIds = [.. referencedCatalogIds],
-            CreatedAt = new DateTimeOffset(
+            CreatedOn = new DateTimeOffset(
                 2026,
                 6,
                 14,
@@ -157,12 +157,13 @@ public sealed class PageCustomComponentsApiClientTests
                 0,
                 0,
                 TimeSpan.Zero),
-            UpdatedAt = new DateTimeOffset(
+            ModifiedOn = new DateTimeOffset(
                 2026,
                 6,
                 14,
                 12,
                 30,
+                0,
                 0,
                 TimeSpan.Zero)
         };

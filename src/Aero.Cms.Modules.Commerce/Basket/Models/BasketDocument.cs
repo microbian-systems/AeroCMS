@@ -1,10 +1,13 @@
+using Aero.Core.Data;
+using AeroDB.Sable;
+
 namespace Aero.Cms.Modules.Commerce.Basket.Models;
 
 /// <summary>
 /// Shopping cart stored as an AeroDB document.
 /// One basket per customer — keyed by customer identity ID.
 /// </summary>
-public sealed class BasketDocument : Entity
+public sealed class BasketDocument : SableDocument, IAuditable
 {
     /// <summary>
     /// The identity ID of the customer who owns this basket.
@@ -25,4 +28,10 @@ public sealed class BasketDocument : Entity
     /// ISO currency code (e.g. USD, EUR).
     /// </summary>
     public string Currency { get; set; } = "USD";
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

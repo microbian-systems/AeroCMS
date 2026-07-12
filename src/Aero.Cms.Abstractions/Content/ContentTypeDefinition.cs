@@ -1,11 +1,12 @@
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Abstractions.Content;
 
 /// <summary>
 /// Represents a class for ContentTypeDefinition.
 /// </summary>
-public sealed class ContentTypeDefinition : Entity
+public sealed class ContentTypeDefinition : SableDocument, IAuditable
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -37,6 +38,18 @@ public string? Icon { get; set; }
     /// Content types are embedded-first by default to avoid accidental public pages.
     /// </summary>
     public bool AllowPublicUrl { get; set; }
+
+    /// <inheritdoc />
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <inheritdoc />
+    public DateTimeOffset? ModifiedOn { get; set; }
+
+    /// <inheritdoc />
+    public string? CreatedBy { get; set; }
+
+    /// <inheritdoc />
+    public string? ModifiedBy { get; set; }
 
     /// <summary>
     /// When true, entries of this type are not contributed to the site-wide search index.

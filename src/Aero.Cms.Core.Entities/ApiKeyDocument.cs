@@ -1,4 +1,5 @@
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 using Aero.Auth.Services;
 
 namespace Aero.Cms.Core.Entities;
@@ -6,7 +7,7 @@ namespace Aero.Cms.Core.Entities;
 /// <summary>
 /// Represents a persisted API key document in AeroDB.
 /// </summary>
-public sealed class ApiKeyDocument : Entity
+public sealed class ApiKeyDocument : SableDocument, IAuditable
 {
     /// <summary>
     /// Gets or sets the unique identifier of the user this API key belongs to.
@@ -43,4 +44,10 @@ public sealed class ApiKeyDocument : Entity
     /// Gets a value indicating whether the API key is active.
     /// </summary>
     public bool IsActive => RevokedAt == null && (ExpiresAt == null || ExpiresAt > DateTimeOffset.UtcNow);
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

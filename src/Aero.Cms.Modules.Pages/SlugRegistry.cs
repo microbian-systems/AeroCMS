@@ -1,6 +1,7 @@
+using Aero.Core.Data;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core.Entities;
-using Aero.Core.Entities;
+using AeroDB.Sable;
 using System.Globalization;
 
 namespace Aero.Cms.Modules.Pages;
@@ -19,7 +20,7 @@ public enum ContentSlugOwnerType
 /// <summary>
 /// Represents a class for ContentSlugDocument.
 /// </summary>
-public sealed class ContentSlugDocument : Entity, ISiteOwned
+public sealed class ContentSlugDocument : SableDocument, IAuditable, ISiteOwned
 {
     private const string RootSlugKey = "__root__";
 
@@ -46,12 +47,18 @@ public long OwnerId { get; set; }
         /// <summary>
     /// Gets or sets the Owner Type.
     /// </summary>
-public ContentSlugOwnerType OwnerType { get; set; }
+    public ContentSlugOwnerType OwnerType { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 
         /// <summary>
     /// Normalize method.
     /// </summary>
-public static string Normalize(string slug)
+    public static string Normalize(string slug)
     {
         ArgumentNullException.ThrowIfNull(slug);
 

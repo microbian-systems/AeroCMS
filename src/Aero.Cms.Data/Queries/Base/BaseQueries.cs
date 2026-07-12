@@ -1,4 +1,4 @@
-using Aero.Core.Entities;
+using Aero.Core.Data;
 using AeroDB.Sable;
 using System.Linq.Expressions;
 
@@ -10,7 +10,7 @@ namespace Aero.Cms.Data.Queries.Base;
 /// provider can translate it to SQL.
 /// </summary>
 public class EntityByIdQuery<T> : ICompiledQuery<T, T?>
-    where T : class, global::Aero.Core.Entities.IEntity<long>
+    where T : class, ISableDocument<long>
 {
         /// <summary>
     /// Gets or sets the Id.
@@ -31,7 +31,7 @@ public Expression<Func<ISurrealDbQueryable<T>, T?>> QueryIs()
 /// Uses <c>==</c> for AeroDB-compatible SQL translation.
 /// </summary>
 public abstract class EntityByIdQueryList<T> : ICompiledQuery<T, IList<T>>
-    where T : class, global::Aero.Core.Entities.IEntity<long>
+    where T : class, ISableDocument<long>
 {
         /// <summary>
     /// Gets or sets the Id.
@@ -51,13 +51,13 @@ public Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesByIdsQuery.
 /// </summary>
 public class EntitiesByIdsQuery<T> : EntitiesByIdsQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : class, ISableDocument<long>, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesByIdsQuery.
 /// </summary>
 public class EntitiesByIdsQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : class, global::Aero.Core.Entities.IEntity<TKey>
+    where T : class, ISableDocument<TKey>
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -77,13 +77,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesByCreatedByQuery.
 /// </summary>
 public abstract class EntitiesByCreatedByQuery<T> : EntitiesByCreatedByQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesByCreatedByQuery.
 /// </summary>
 public abstract class EntitiesByCreatedByQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -104,13 +104,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesByModifiedByQuery.
 /// </summary>
 public abstract class EntitiesByModifiedByQuery<T> : EntitiesByModifiedByQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesByModifiedByQuery.
 /// </summary>
 public abstract class EntitiesByModifiedByQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -131,13 +131,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesCreatedInRangeQuery.
 /// </summary>
 public abstract class EntitiesCreatedInRangeQuery<T> : EntitiesCreatedInRangeQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesCreatedInRangeQuery.
 /// </summary>
 public abstract class EntitiesCreatedInRangeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -164,13 +164,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesModifiedInRangeQuery.
 /// </summary>
 public abstract class EntitiesModifiedInRangeQuery<T> : EntitiesModifiedInRangeQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesModifiedInRangeQuery.
 /// </summary>
 public abstract class EntitiesModifiedInRangeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -200,13 +200,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesCreatedSinceQuery.
 /// </summary>
 public abstract class EntitiesCreatedSinceQuery<T> : EntitiesCreatedSinceQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesCreatedSinceQuery.
 /// </summary>
 public abstract class EntitiesCreatedSinceQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -227,13 +227,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesCreatedBeforeQuery.
 /// </summary>
 public abstract class EntitiesCreatedBeforeQuery<T> : EntitiesCreatedBeforeQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesCreatedBeforeQuery.
 /// </summary>
 public abstract class EntitiesCreatedBeforeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -254,13 +254,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesModifiedSinceQuery.
 /// </summary>
 public abstract class EntitiesModifiedSinceQuery<T> : EntitiesModifiedSinceQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesModifiedSinceQuery.
 /// </summary>
 public abstract class EntitiesModifiedSinceQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -283,13 +283,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesModifiedBeforeQuery.
 /// </summary>
 public abstract class EntitiesModifiedBeforeQuery<T> : EntitiesModifiedBeforeQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesModifiedBeforeQuery.
 /// </summary>
 public abstract class EntitiesModifiedBeforeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -312,13 +312,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesByCreatedByInDateRangeQuery.
 /// </summary>
 public abstract class EntitiesByCreatedByInDateRangeQuery<T> : EntitiesByCreatedByInDateRangeQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesByCreatedByInDateRangeQuery.
 /// </summary>
 public abstract class EntitiesByCreatedByInDateRangeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -351,13 +351,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesByModifiedByInDateRangeQuery.
 /// </summary>
 public abstract class EntitiesByModifiedByInDateRangeQuery<T> : EntitiesByModifiedByInDateRangeQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for EntitiesByModifiedByInDateRangeQuery.
 /// </summary>
 public abstract class EntitiesByModifiedByInDateRangeQuery<T, TKey> : ICompiledQuery<T, IList<T>>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -392,13 +392,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for LatestCreatedByQuery.
 /// </summary>
 public abstract class LatestCreatedByQuery<T> : LatestCreatedByQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for LatestCreatedByQuery.
 /// </summary>
 public abstract class LatestCreatedByQuery<T, TKey> : ICompiledQuery<T, T?>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -422,13 +422,13 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, T?>> QueryIs()
 /// Represents a class for LatestModifiedByQuery.
 /// </summary>
 public abstract class LatestModifiedByQuery<T> : LatestModifiedByQuery<T, long>
-    where T : global::Aero.Core.Entities.Entity;
+    where T : SableDocument, IAuditable;
 
 /// <summary>
 /// Represents a class for LatestModifiedByQuery.
 /// </summary>
 public abstract class LatestModifiedByQuery<T, TKey> : ICompiledQuery<T, T?>
-    where T : EntityBase<TKey>
+    where T : SableDocument<TKey>, IAuditable
     where TKey : notnull, IEquatable<TKey>, IComparable<TKey>
 {
         /// <summary>
@@ -452,7 +452,7 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, T?>> QueryIs()
 /// Represents a class for TouchedInRangeQuery.
 /// </summary>
 public abstract class TouchedInRangeQuery<T> : ICompiledQuery<T, IList<T>>
-    where T : global::Aero.Core.Entities.Entity
+    where T : class, IAuditable
     {
         /// <summary>
     /// Gets or sets the From.
@@ -480,7 +480,7 @@ public virtual Expression<Func<ISurrealDbQueryable<T>, IList<T>>> QueryIs()
 /// Represents a class for EntitiesCreatedInRangePagedQuery.
 /// </summary>
 public abstract class EntitiesCreatedInRangePagedQuery<T> : ICompiledQuery<T, IList<T>>
-    where T : global::Aero.Core.Entities.Entity
+    where T : class, IAuditable
     {
         /// <summary>
     /// Gets or sets the From.

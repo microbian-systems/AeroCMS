@@ -1,12 +1,13 @@
+using Aero.Core.Data;
 using Aero.Cms.Abstractions.Content;
-using Aero.Core.Entities;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Content;
 
 /// <summary>
 /// Represents a class for ContentTypeDocument.
 /// </summary>
-public sealed class ContentTypeDocument : Entity
+public sealed class ContentTypeDocument : SableDocument, IAuditable
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -55,5 +56,11 @@ public ContentTypeRenderMode RenderMode { get; set; }
         /// <summary>
     /// Gets or sets the Schedule Config.
     /// </summary>
-public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
+    public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }

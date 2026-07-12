@@ -1,12 +1,13 @@
 using Aero.Cms.Abstractions.Enums;
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Abstractions.Content;
 
 /// <summary>
 /// Represents a class for ContentItem.
 /// </summary>
-public sealed class ContentItem : Entity
+public sealed class ContentItem : SableDocument, IAuditable
 {
         /// <summary>
     /// Gets or sets the Site Id.
@@ -59,4 +60,16 @@ public DateTimeOffset? PublishedOn { get; set; }
 
     /// <summary>If set, schedule this item for unpublishing at the given time.</summary>
     public DateTimeOffset? ScheduleUnpublishUtc { get; set; }
+
+    /// <inheritdoc />
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <inheritdoc />
+    public DateTimeOffset? ModifiedOn { get; set; }
+
+    /// <inheritdoc />
+    public string? CreatedBy { get; set; }
+
+    /// <inheritdoc />
+    public string? ModifiedBy { get; set; }
 }

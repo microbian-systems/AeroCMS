@@ -26,8 +26,8 @@ public sealed record PageCustomComponentDetail(
     NeoPageNode Root,
     IReadOnlyList<string> ReferencedCatalogIds,
     int SchemaVersion,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset CreatedOn,
+    DateTimeOffset? ModifiedOn);
 
 /// <summary>
 /// Defines an interface for IPageCustomComponentsHttpClient.

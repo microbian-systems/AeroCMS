@@ -8,6 +8,7 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
     <ProjectReference Include="..\..\AeroDB\src\AeroDB.Sable\AeroDB.Sable.csproj" />
     <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" />
   </ItemGroup>
 
 </Project>

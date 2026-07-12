@@ -1,4 +1,5 @@
-using Aero.Core.Entities;
+using Aero.Core.Data;
+using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
 
@@ -6,7 +7,7 @@ namespace Aero.Cms.Core.Entities;
 /// Represents a hosted site within Aero CMS.
 /// Multi-domain/CNAME support is managed via the separate <see cref="SiteHost"/> entity.
 /// </summary>
-public class SitesModel : Entity
+public class SitesModel : SableDocument, IAuditable
 {
         /// <summary>
     /// DefaultCultureName.
@@ -36,7 +37,13 @@ public string? DefaultCulture { get; set; } = DefaultCultureName;
         /// <summary>
     /// Gets or sets the Supported Cultures.
     /// </summary>
-public List<string> SupportedCultures { get; set; } = [DefaultCultureName];
+    public List<string> SupportedCultures { get; set; } = [DefaultCultureName];
+
+    // IAuditable
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ModifiedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? ModifiedBy { get; set; }
 }
 
 
