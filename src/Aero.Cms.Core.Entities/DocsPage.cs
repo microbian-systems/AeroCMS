@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
@@ -60,7 +61,8 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
         /// <summary>
     /// Gets or sets the Is Publicly Visible.
     /// </summary>
-public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
+    [JsonIgnore]
+    public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 
     /// <summary>
     /// Monotonic counter incremented on every publish.

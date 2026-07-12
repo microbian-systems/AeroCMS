@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
@@ -94,6 +95,7 @@ public ContentPublicationState PublicationState { get; set; } = ContentPublicati
         /// <summary>
     /// Gets or sets the Is Publicly Visible.
     /// </summary>
+    [JsonIgnore]
     public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Published;
 
     // IAuditable

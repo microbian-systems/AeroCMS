@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Aero.Core.Data;
 using AeroDB.Sable;
 using Aero.Auth.Services;
@@ -43,6 +44,7 @@ public sealed class ApiKeyDocument : SableDocument, IAuditable
     /// <summary>
     /// Gets a value indicating whether the API key is active.
     /// </summary>
+    [JsonIgnore]
     public bool IsActive => RevokedAt == null && (ExpiresAt == null || ExpiresAt > DateTimeOffset.UtcNow);
 
     // IAuditable
