@@ -140,6 +140,7 @@ public void Configure(StoreOptions opts)
 
         // ── PageDocument ──────────────────────────────────────────────────
         opts.Schema.For<PageDocument>().Identity(x => x.Id);
+        opts.Schema.For<PageDocument>().SetSchemaMode(SchemaMode.Flexible);
         opts.Schema.For<PageDocument>().UseOptimisticConcurrency = true;
 
         // Scalar indexes
@@ -174,6 +175,7 @@ public void Configure(StoreOptions opts)
 
         // ── PageCompositionDocument ──────────────────────────────────────
         opts.Schema.For<PageCompositionDocument>().Identity(x => x.Id);
+        opts.Schema.For<PageCompositionDocument>().SetSchemaMode(SchemaMode.Flexible);
         opts.Schema.For<PageCompositionDocument>().Index(x => x.SiteId);
         opts.Schema.For<PageCompositionDocument>().Index(x => x.PageId);
         opts.Schema.For<PageCompositionDocument>().Index(x => x.Culture);

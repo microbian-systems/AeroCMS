@@ -173,49 +173,49 @@ public class EmbedBlock : BlockBase
 [BlockMetadata("navigation", "Navigation Menu")]
 public sealed class NavigationBlock : BlockBase
 {
-        /// <summary>
+    /// <summary>
     /// Represents a class for NavigationBlockItem.
     /// </summary>
-public class NavigationBlockItem
+    public class NavigationBlockItem
     {
         /// <summary>
         /// Gets or sets the unique identifier of the navigation block item.
         /// </summary>
         public long Id { get; set; }
-                /// <summary>
+        /// <summary>
         /// Gets or sets the Page Id.
         /// </summary>
-public long PageId { get; set; }
-                /// <summary>
+        public long PageId { get; set; }
+        /// <summary>
         /// Gets or sets the Name.
         /// </summary>
-public string? Name { get; set; }
-                /// <summary>
+        public string? Name { get; set; }
+        /// <summary>
         /// Gets or sets the Label.
         /// </summary>
-public string? Label { get; set; }
-                /// <summary>
+        public string? Label { get; set; }
+        /// <summary>
         /// Gets or sets the Url.
         /// </summary>
-public string? Url { get; set; }
-                /// <summary>
+        public string? Url { get; set; }
+        /// <summary>
         /// Gets or sets the Alt Text.
         /// </summary>
-public string? AltText { get; set; }
-                /// <summary>
+        public string? AltText { get; set; }
+        /// <summary>
         /// Gets or sets the Order.
         /// </summary>
-public ushort Order { get; set; }
+        public ushort Order { get; set; }
     }
 
     /// <summary>
     /// Gets the optional title for the navigation block.
     /// </summary>
     public string? Title { get; set; }
-        /// <summary>
+    /// <summary>
     /// Gets or sets the Name.
     /// </summary>
-public string? Name { get; set; }
+    public string? Name { get; set; }
 
     /// <inheritdoc />
     public override string BlockType => "navigation";
@@ -223,10 +223,10 @@ public string? Name { get; set; }
     /// <inheritdoc />
     public override IHtmlContent Accept(IBlockVisitor visitor) => visitor.Visit(this);
 
-        /// <summary>
+    /// <summary>
     /// Gets or sets the Navigation Id.
     /// </summary>
-public long NavigationId { get; set; }
+    public long NavigationId { get; set; }
 
     /// <summary>
     /// The list of navigation/menu items in display order

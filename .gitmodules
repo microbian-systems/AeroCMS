@@ -13,3 +13,6 @@
 [submodule "AeroDB"]
 	path = AeroDB
 	url = git@github.com:microbian-systems/AeroDB.git
+[submodule "tiptap-dotnet"]
+	path = tiptap-dotnet
+	url = git@github.com:microbian-systems/tiptap-dotnet.git

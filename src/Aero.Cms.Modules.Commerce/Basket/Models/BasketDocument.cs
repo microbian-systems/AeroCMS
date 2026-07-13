@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Aero.Core.Data;
 using AeroDB.Sable;
 
@@ -22,6 +23,7 @@ public sealed class BasketDocument : SableDocument, IAuditable
     /// <summary>
     /// Computed total price of all items.
     /// </summary>
+    [JsonIgnore]
     public decimal TotalAmount => Items.Sum(i => i.TotalPrice);
 
     /// <summary>

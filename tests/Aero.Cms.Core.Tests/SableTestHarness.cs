@@ -22,11 +22,17 @@ public sealed class SableTestHarness : IAsyncDisposable
     public IDocumentSession Session => _session ?? throw new InvalidOperationException("Call InitializeAsync first.");
 
     /// <summary>Register a document type with identity and SCHEMALESS mode.</summary>
-    public SableTestHarness WithSchema<T>() where T : class
+    public SableTestHarness WithSchema<T>(SchemaMode? mode = null) where T : class
     {
         _configureActions.Add(o =>
         {
             var mapping = o.Schema.For<T>();
+
+            if(mode is not null)
+                mapping.SetSchemaMode(mode.Value);
+            else
+                mapping.SetSchemaMode(SchemaMode.Flexible);
+
             var idProp = typeof(T).GetProperty("Id");
             if (idProp is not null)
             {
@@ -39,7 +45,6 @@ public sealed class SableTestHarness : IAsyncDisposable
                     .MakeGenericMethod(idProp.PropertyType)
                     .Invoke(mapping, [lambda]);
             }
-            mapping.SetSchemaMode(SchemaMode.Flexible);
         });
         return this;
     }
