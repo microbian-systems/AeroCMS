@@ -10,6 +10,7 @@ using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Html;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
@@ -52,11 +53,17 @@ public AeroPageGrain(
         var logger = _services.GetRequiredService<ILogger<AeroPageContentService>>();
         var cache = _services.GetService<IFusionCache>();
         var pageTreeService = _services.GetService<IPageTreeService>();
+        var contentValidator = _services.GetRequiredService<IHtmlContentValidator>();
+        var styleCompiler = _services.GetRequiredService<IStyleCompiler>();
+        var styleProfile = _services.GetRequiredService<IStyleProfile>();
         return new AeroPageContentService(
             session,
             bus,
             new FixedSiteContext(siteId),
             logger,
+            contentValidator,
+            styleCompiler,
+            styleProfile,
             "system",
             cache,
             pageTreeService);

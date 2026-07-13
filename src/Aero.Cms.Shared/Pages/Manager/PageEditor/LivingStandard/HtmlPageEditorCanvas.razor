@@ -1,0 +1,28 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<section class="aero-page-canvas" aria-label="Page canvas">
+    @if (!string.IsNullOrWhiteSpace(CompiledStyles?.CssText))
+    {
+        <style>@((MarkupString)CompiledStyles.CssText)</style>
+    }
+
+    <div class="aero-page-canvas__surface" @onclick="ClearSelectionAsync">
+        @if (Content.Root.Children.Count == 0)
+        {
+            <div class="aero-page-canvas__empty">
+                <span class="aero-page-canvas__empty-icon" aria-hidden="true">＋</span>
+                <h2>Build your page</h2>
+                <p>Choose a layout or element from the left panel to get started.</p>
+                <button type="button" @onclick="RequestFirstSectionAsync">Add a section</button>
+            </div>
+        }
+        else
+        {
+            <HtmlNodePreview Node="Content.Root"
+                             SelectedNodeId="SelectedNodeId"
+                             CompiledStyles="CompiledStyles"
+                             PreviewMode="PreviewMode"
+                             NodeSelected="SelectNodeAsync" />
+        }
+    </div>
+</section>

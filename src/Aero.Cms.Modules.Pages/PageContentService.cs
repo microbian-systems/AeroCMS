@@ -11,6 +11,7 @@ using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Html;
 using Aero.Cms.Shared.Blocks.Rendering;
 using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
@@ -97,6 +98,9 @@ public sealed class AeroPageContentService(
     IMessageBus bus,
     ISiteContext siteContext,
     ILogger<AeroPageContentService> logger,
+    IHtmlContentValidator contentValidator,
+    IStyleCompiler styleCompiler,
+    IStyleProfile styleProfile,
     string? actor = null,
     IFusionCache? cache = null,
     IPageTreeService? pageTreeService = null) : IPageContentService
@@ -378,19 +382,21 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 Summary = request.Summary,
                 SeoTitle = request.SeoTitle,
                 SeoDescription = request.SeoDescription,
-                PublicationState = request.PublicationState,
+                PublicationState = ContentPublicationState.Draft,
                 ShowInNavMenu = request.ShowInNavMenu,
                 ShowHeaderNavigation = request.ShowHeaderNavigation,
                 HideFooter = request.HideFooter,
                 ShowChatAgent = request.ShowChatAgent
             };
-            page.TranslationGroupId = page.Id;
-            page.RootNodes = DeserializeRootNodes(request.RootNodeJson);
 
-            if (page.RootNodes is not { Count: > 0 })
+            var draftContentResult = DeserializeDraftContent(request.DraftContentJson);
+            if (draftContentResult is Result<HtmlPageContent, AeroError>.Failure draftFailure)
             {
-                page.LayoutRegions = request.LayoutRegions?.ToList() ?? [];
+                return Prelude.Fail<PageDocument, AeroError>(draftFailure.Error);
             }
+
+            page.DraftContent = ((Result<HtmlPageContent, AeroError>.Ok)draftContentResult).Value;
+            page.TranslationGroupId = page.Id;
 
             // Compute hierarchy fields (Path, Depth, Order) BEFORE validation
             // so Path is available for both the validator and slug reservation.
@@ -427,6 +433,12 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
             }
 
+            var htmlValidation = ValidateHtmlDraft(page);
+            if (htmlValidation is Result<bool, AeroError>.Failure htmlFailure)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(htmlFailure.Error);
+            }
+
             // Reserve slug for public URL routing — use the full Path for
             // hierarchical pages so /parent/child resolves correctly.
             var publicSlug = page.Path.TrimStart('/'); // "/about/team" → "about/team"
@@ -440,34 +452,12 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 previousSlug: null,
                 cancellationToken: cancellationToken);
 
-            // Start an event stream for versioning (projection handles document persistence).
-            // PageCreated establishes metadata; composition pages use a coarse page-tree
-            // snapshot event, while older pages can still flow through PageContentUpdated.
-            session.Events.StartStream($"page-{page.Id}",
-                new object[] { new PageCreated(siteId, page.Title, page.Slug, parentId, order, path, depth, page.PublicationState, page.Kind, page.Culture, page.TranslationGroupId) });
-
-            if (page.RootNodes is { Count: > 0 })
-            {
-                session.Events.Append($"page-{page.Id}", new object[] { CreateCompositionDraftSaved(page) });
-            }
-            else
-            {
-                session.Events.Append($"page-{page.Id}", new object[] { new PageContentUpdated(
-                    page.Title,
-                    page.Slug,
-                    page.Summary,
-                    page.SeoTitle,
-                    page.SeoDescription,
-                    page.LayoutRegions,
-                    null,
-                    Kind: page.Kind,
-                    ShowHeaderNavigation: page.ShowHeaderNavigation,
-                    HeaderImageUrl: page.HeaderImageUrl,
-                    HideHeader: page.HideHeader,
-                    HideFooter: page.HideFooter,
-                    ShowChatAgent: page.ShowChatAgent,
-                    BlockIdMap: page.BlockIdMap) });
-            }
+            var now = DateTimeOffset.UtcNow;
+            page.ReplaceDraftContent(page.DraftContent, now);
+            page.CreatedOn = now;
+            page.CreatedBy = actor ?? "system";
+            page.ModifiedBy = actor ?? "system";
+            session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish events via Wolverine outbox
@@ -502,13 +492,21 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
 
             var oldSlug = page.Slug;
 
+            if (request.DraftContentJson is not null)
+            {
+                var draftContentResult = DeserializeDraftContent(request.DraftContentJson);
+                if (draftContentResult is Result<HtmlPageContent, AeroError>.Failure draftFailure)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(draftFailure.Error);
+                }
+
+                page.ReplaceDraftContent(
+                    ((Result<HtmlPageContent, AeroError>.Ok)draftContentResult).Value,
+                    DateTimeOffset.UtcNow);
+            }
+
             // Apply metadata update to the document
             ApplyUpdateRequest(page, request);
-
-            if (page.RootNodes is not { Count: > 0 } && request.LayoutRegions is { Count: > 0 })
-            {
-                page.LayoutRegions = request.LayoutRegions.ToList();
-            }
 
             // Validate the updated page
             var validationResult = await ValidatePage(page);
@@ -516,6 +514,12 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
             {
                 logger.LogWarning("Validation failed updating page {PageId}: {Errors}", id, vf.Error);
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
+            }
+
+            var htmlValidation = ValidateHtmlDraft(page);
+            if (htmlValidation is Result<bool, AeroError>.Failure htmlFailure)
+            {
+                return Prelude.Fail<PageDocument, AeroError>(htmlFailure.Error);
             }
 
             // Reserve the new slug path (if changed) — uses full Path so
@@ -538,31 +542,9 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                     cancellationToken);
             }
 
-            // Append update event for version history. Native composition pages use
-            // the page-tree snapshot event; legacy pages retain PageContentUpdated.
-            if (page.RootNodes is { Count: > 0 })
-            {
-                session.Events.Append($"page-{id}", new object[] { CreateCompositionDraftSaved(page) });
-            }
-            else
-            {
-                session.Events.Append($"page-{id}", new object[] { new PageContentUpdated(
-                    Title: page.Title,
-                    Slug: page.Slug,
-                    Summary: page.Summary,
-                    SeoTitle: page.SeoTitle,
-                    SeoDescription: page.SeoDescription,
-                    LayoutRegions: page.LayoutRegions,
-                    null,
-                    Kind: page.Kind,
-                    ShowHeaderNavigation: page.ShowHeaderNavigation,
-                    HeaderImageUrl: page.HeaderImageUrl,
-                    HideHeader: page.HideHeader,
-                    HideFooter: page.HideFooter,
-                    ShowChatAgent: page.ShowChatAgent,
-                    BlockIdMap: page.BlockIdMap) });
-            }
-
+            page.ModifiedOn = DateTimeOffset.UtcNow;
+            page.ModifiedBy = actor ?? "system";
+            session.Store(page);
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish events via Wolverine outbox
@@ -812,6 +794,13 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
             }
 
+            var htmlValidation = ValidateHtmlDraft(page);
+            if (htmlValidation is Result<bool, AeroError>.Failure htmlFailure)
+            {
+                logger.LogWarning("HTML draft validation failed saving page {PageId}: {Errors}", page.Id, htmlFailure.Error);
+                return Prelude.Fail<PageDocument, AeroError>(htmlFailure.Error);
+            }
+
             var existingPage = await session.LoadAsync<PageDocument>(page.Id, cancellationToken);
             if (existingPage is not null && existingPage.SiteId != _siteContext.SiteId)
             {
@@ -822,19 +811,14 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
             var oldSlug = existingPage?.Slug;
             if (existingPage is not null && !ReferenceEquals(page, existingPage))
             {
-                ApplyPersistedValues(page, existingPage);
+                ApplyDraftMetadata(page, existingPage);
             }
+
+            var now = DateTimeOffset.UtcNow;
+            targetPage.ReplaceDraftContent(page.DraftContent, now);
 
             targetPage.Culture = ContentSlugDocument.NormalizeCulture(targetPage.Culture);
             targetPage.TranslationGroupId ??= targetPage.Id;
-
-            // Native composition is the source of truth when present. Do not
-            // generate synthetic LayoutRegions for tree-backed pages; the old
-            // layout manifest is only for legacy block pages.
-            if (targetPage.RootNodes is { Count: > 0 })
-            {
-                targetPage.LayoutRegions = [];
-            }
 
             var targetPublicSlug = targetPage.Path.TrimStart('/');
             await ContentSlugReservation.ReserveAsync(
@@ -847,48 +831,21 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
                 oldSlug,  // oldSlug is the leaf; reservation handles full-path matching
                 cancellationToken);
 
-            var now = DateTimeOffset.UtcNow;
             var existingCreatedOn = existingPage?.CreatedOn;
             targetPage.CreatedOn = existingCreatedOn is null || existingCreatedOn == default ? now : existingCreatedOn.Value;
-            targetPage.ModifiedOn = now;
             targetPage.ModifiedBy = actor ?? "system";
-            targetPage.PublishedOn = targetPage.PublicationState == ContentPublicationState.Published
-                ? existingPage?.PublishedOn ?? now
-                : null;
 
-            // Append events so the inline projection persists the page document.
-            // Native composition pages use coarse page-tree snapshot events.
+            // Saving edits only the draft. Publication is an explicit workflow
+            // operation that owns PublishedContent and publication versioning.
             if (existingPage is null)
             {
-                session.Events.StartStream($"page-{targetPage.Id}",
-                    new object[] { new PageCreated(targetPage.SiteId, targetPage.Title, targetPage.Slug,
-                                    targetPage.ParentId, targetPage.Order, targetPage.Path, targetPage.Depth,
-                                    targetPage.PublicationState, targetPage.Kind, targetPage.Culture, targetPage.TranslationGroupId) });
+                targetPage.PublicationState = ContentPublicationState.Draft;
+                targetPage.PublishedContent = null;
+                targetPage.PublishedOn = null;
+                targetPage.PublishedVersion = 0;
             }
 
-            if (targetPage.RootNodes is { Count: > 0 })
-            {
-                session.Events.Append($"page-{targetPage.Id}", new object[] { CreateCompositionDraftSaved(targetPage) });
-            }
-            else
-            {
-                session.Events.Append($"page-{targetPage.Id}", new object[] { new PageContentUpdated(
-                    targetPage.Title,
-                    targetPage.Slug,
-                    targetPage.Summary,
-                    targetPage.SeoTitle,
-                    targetPage.SeoDescription,
-                    targetPage.LayoutRegions,
-                    null,
-                    Kind: targetPage.Kind,
-                    ShowHeaderNavigation: targetPage.ShowHeaderNavigation,
-                    HeaderImageUrl: targetPage.HeaderImageUrl,
-                    HideHeader: targetPage.HideHeader,
-                    HideFooter: targetPage.HideFooter,
-                    ShowChatAgent: targetPage.ShowChatAgent,
-                    BlockIdMap: targetPage.BlockIdMap) });
-            }
-
+            session.Store(targetPage);
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish rich event + keep lean events for existing subscribers
@@ -917,38 +874,6 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
         }
     }
 
-    /// <summary>
-    /// Processes a NeoPageNode tree directly into a single NeoCompositionBlock for persistence.
-    /// Replaces ProcessEditorBlocks in Phase 2b.
-    /// </summary>
-    private static PageCompositionDraftSaved CreateCompositionDraftSaved(PageDocument page)
-        => new(
-            PageId: page.Id,
-            SiteId: page.SiteId,
-            CompositionId: Snowflake.NewId(),
-            Culture: page.Culture,
-            ContentRevision: Snowflake.NewId(),
-            Title: page.Title,
-            Slug: page.Slug,
-            Summary: page.Summary,
-            SeoTitle: page.SeoTitle,
-            SeoDescription: page.SeoDescription,
-            RootNodes: page.RootNodes.Select(n => EditorNodeMemento.Capture(n).Restore()).ToList(),
-            LayoutRegions: [],
-            Kind: page.Kind,
-            ShowHeaderNavigation: page.ShowHeaderNavigation,
-            HeaderImageUrl: page.HeaderImageUrl,
-            HideHeader: page.HideHeader,
-            HideFooter: page.HideFooter,
-            ShowChatAgent: page.ShowChatAgent,
-            BlockIdMap: page.BlockIdMap);
-
-    private static NeoPageNode DeepCloneNode(NeoPageNode source)
-    {
-        // Use EditorNodeMemento for deep cloning via public Capture/Restore API
-        return EditorNodeMemento.Capture(source).Restore();
-    }
-
     private static async Task<Result<bool, AeroError>> ValidatePage(PageDocument page)
     {
         var validator = new PageDocumentValidator();
@@ -960,6 +885,20 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
         return Prelude.Ok<bool, AeroError>(true);
     }
 
+    private Result<bool, AeroError> ValidateHtmlDraft(PageDocument page)
+    {
+        var contentValidation = contentValidator.Validate(page.DraftContent);
+        if (contentValidation is Result<bool>.Failure contentFailure)
+        {
+            return Prelude.Fail<bool, AeroError>(contentFailure.Error);
+        }
+
+        var styleCompilation = styleCompiler.Compile(page.DraftContent, styleProfile);
+        return styleCompilation is Result<CompiledPageStyles>.Failure styleFailure
+            ? Prelude.Fail<bool, AeroError>(styleFailure.Error)
+            : Prelude.Ok<bool, AeroError>(true);
+    }
+
     private static void ApplyUpdateRequest(PageDocument page, UpdatePageRequest request)
     {
         page.Title = request.Title;
@@ -967,36 +906,35 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
         page.Summary = request.Summary;
         page.SeoTitle = request.SeoTitle;
         page.SeoDescription = request.SeoDescription;
-        page.PublicationState = request.PublicationState;
         page.ShowInNavMenu = request.ShowInNavMenu;
         page.ShowHeaderNavigation = request.ShowHeaderNavigation;
         page.HideFooter = request.HideFooter;
         page.ShowChatAgent = request.ShowChatAgent;
-        page.RootNodes = DeserializeRootNodes(request.RootNodeJson);
     }
 
-    private static List<NeoPageNode> DeserializeRootNodes(string? rootNodeJson)
+    private static Result<HtmlPageContent, AeroError> DeserializeDraftContent(string? json)
     {
-        if (string.IsNullOrWhiteSpace(rootNodeJson))
+        if (string.IsNullOrWhiteSpace(json))
         {
-            return [];
+            return Prelude.Ok<HtmlPageContent, AeroError>(new HtmlPageContent());
         }
 
-        var root = JsonSerializer.Deserialize<NeoPageNode>(rootNodeJson, BlockJsonContext.Default.Options);
-        if (root is null)
+        try
         {
-            return [];
+            var content = JsonSerializer.Deserialize(json, HtmlJsonContext.Default.HtmlPageContent);
+            return content is null
+                ? Prelude.Fail<HtmlPageContent, AeroError>(
+                    AeroError.ValidationError(["The page draft content payload was empty."]))
+                : Prelude.Ok<HtmlPageContent, AeroError>(content);
         }
-
-        var nodes = string.Equals(root.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase) ||
-                    root.Kind == NeoPageNodeKind.Page
-            ? root.Children
-            : [root];
-
-        return PageTreeLegacyNodeMigrator.CloneTree(nodes);
+        catch (JsonException exception)
+        {
+            return Prelude.Fail<HtmlPageContent, AeroError>(
+                AeroError.ValidationError([$"The page draft content payload is invalid: {exception.Message}"]));
+        }
     }
 
-    private static void ApplyPersistedValues(PageDocument source, PageDocument target)
+    private static void ApplyDraftMetadata(PageDocument source, PageDocument target)
     {
         target.Kind = source.Kind;
         target.Slug = source.Slug;
@@ -1004,12 +942,6 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
         target.Summary = source.Summary;
         target.SeoTitle = source.SeoTitle;
         target.SeoDescription = source.SeoDescription;
-        target.LayoutRegions = source.LayoutRegions;
-        target.RootNodes = source.RootNodes?
-            .Select(n => DeepCloneNode(n))
-            .ToList() ?? [];
-        target.BlockIdMap = source.BlockIdMap;
-        target.PublicationState = source.PublicationState;
         target.ShowInNavMenu = source.ShowInNavMenu;
         target.ShowHeaderNavigation = source.ShowHeaderNavigation;
         target.HeaderImageUrl = source.HeaderImageUrl;

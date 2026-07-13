@@ -1,16 +1,12 @@
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
-using Aero.Cms.Core.Blocks;
-using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Shared.Localization;
 using Aero.Cms.Shared.Components;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Html;
 using Aero.Core.Http;
-using Aero.Cms.Abstractions.Blocks.Neo;
-using Aero.Cms.Abstractions.Blocks.Serialization;
-using Aero.Cms.Shared.Blocks.Rendering;
+using Aero.Core.Railway;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -27,10 +23,12 @@ namespace Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 [OutputCache(PolicyName = "PagesPolicy")]
 public class DynamicPageModel(
     IAeroPageActor pageActor,
-    IBlockService blockService,
-    BlockRenderCache blockCache,
     ISiteContext siteContext,
-    IDocumentStore documentStore) : PageModel
+    IDocumentStore documentStore,
+    HtmlStaticRenderer htmlRenderer,
+    IStyleCompiler styleCompiler,
+    IStyleProfile styleProfile,
+    ILogger<DynamicPageModel> logger) : PageModel
 {
         /// <summary>
     /// Gets or sets the Slug.
@@ -67,11 +65,12 @@ public bool ShowChatAgent { get; private set; } = true;
         /// <summary>
     /// Gets or sets the Layout Regions.
     /// </summary>
-public List<LayoutRegion> LayoutRegions { get; private set; } = [];
-        /// <summary>
-    /// Gets or sets the Root Node.
+public string RenderedMarkup { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the validated, page-scoped native CSS emitted for the rendered snapshot.
     /// </summary>
-public NeoPageNode? RootNode { get; private set; }
+public string RenderedCss { get; private set; } = string.Empty;
         /// <summary>
     /// Gets or sets the Page Id.
     /// </summary>
@@ -149,7 +148,49 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         IsCultureFallback = !string.Equals(RequestedCulture, RenderedCulture, StringComparison.OrdinalIgnoreCase);
         CanonicalUrl = BuildCultureUrl(RenderedCulture, vm.Slug);
 
-        await LoadCompositionAsync(vm, cancellationToken);
+        await using (var session = await documentStore.QuerySessionAsync())
+        {
+            var document = await session.LoadAsync<PageDocument>(vm.Id, cancellationToken);
+            if (document is null)
+            {
+                return NotFound();
+            }
+
+            var content = DraftId is not null
+                ? document.DraftContent
+                : document.PublishedContent;
+
+            if (content is null)
+            {
+                return NotFound();
+            }
+
+            var compiled = styleCompiler.Compile(content, styleProfile);
+            if (compiled is Result<CompiledPageStyles>.Failure styleFailure)
+            {
+                logger.LogError(
+                    "Published HTML style compilation failed for page {PageId}: {Error}",
+                    vm.Id,
+                    styleFailure.Error);
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
+
+            var rendered = htmlRenderer.RenderPage(
+                content,
+                ((Result<CompiledPageStyles>.Ok)compiled).Value);
+            if (rendered is Result<RenderedHtmlPage>.Failure renderFailure)
+            {
+                logger.LogError(
+                    "Published HTML rendering failed for page {PageId}: {Error}",
+                    vm.Id,
+                    renderFailure.Error);
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
+
+            var renderedPage = ((Result<RenderedHtmlPage>.Ok)rendered).Value;
+            RenderedMarkup = renderedPage.Markup;
+            RenderedCss = renderedPage.CssText;
+        }
 
         // Store page ID + slug for output cache tagging
         HttpContext.Items["AeroCms.PageId"] = vm.Id;
@@ -160,12 +201,6 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         AlternateLinks = await BuildAlternateLinksAsync(vm, cancellationToken);
         CultureSwitcherLinks = BuildCultureSwitcherLinks(AlternateLinks);
         ViewData["CultureSwitcherLinks"] = CultureSwitcherLinks;
-
-        // Preload legacy block cache only when the page is still rendered from LayoutRegions.
-        if (RootNode is null)
-        {
-            await PreloadBlockCacheAsync(LayoutRegions, cancellationToken);
-        }
 
         PreserveReExecutedStatusCode();
         ApplyResponseCacheHeaders();
@@ -210,52 +245,6 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
         return links;
     }
 
-    private async Task LoadCompositionAsync(PageViewModel page, CancellationToken cancellationToken)
-    {
-        var compositionId = DraftId is not null
-            ? page.DraftCompositionId ?? page.PublishedCompositionId
-            : page.PublishedCompositionId ?? page.DraftCompositionId;
-
-        if (compositionId is { } id)
-        {
-            await using var session = await documentStore.QuerySessionAsync();
-            var composition = await session.LoadAsync<PageCompositionDocument>(id, cancellationToken);
-
-            if (composition is not null)
-            {
-                RootNode = BuildRootNode(composition.RootNodes);
-                LayoutRegions = composition.LayoutRegions;
-                return;
-            }
-        }
-
-        LayoutRegions = page.LayoutRegionsJson is not null
-            ? System.Text.Json.JsonSerializer.Deserialize<List<LayoutRegion>>(
-                page.LayoutRegionsJson, BlockJsonContext.Default.Options) ?? []
-            : [];
-
-        RootNode = page.RootNodeJson is not null
-            ? System.Text.Json.JsonSerializer.Deserialize<NeoPageNode>(
-                page.RootNodeJson, BlockJsonContext.Default.Options)
-            : null;
-    }
-
-    private static NeoPageNode? BuildRootNode(IReadOnlyList<NeoPageNode> rootNodes)
-    {
-        if (rootNodes.Count == 0)
-        {
-            return null;
-        }
-
-        return new NeoPageNode
-        {
-            NodeId = "page-root",
-            CatalogId = "page.root",
-            Kind = NeoPageNodeKind.Page,
-            Children = PageTreeLegacyNodeMigrator.MigrateIfNeeded(rootNodes)
-        };
-    }
-
     private IReadOnlyList<CultureSwitcherLink> BuildCultureSwitcherLinks(IReadOnlyList<AlternatePageLink> alternateLinks)
         => alternateLinks
             .Where(link => !string.Equals(link.Hreflang, "x-default", StringComparison.OrdinalIgnoreCase))
@@ -276,22 +265,6 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
             : $"/{culture.ToLowerInvariant()}/{normalizedSlug}";
 
         return UriHelper.BuildAbsolute(Request.Scheme, Request.Host, Request.PathBase, path);
-    }
-
-    private async Task PreloadBlockCacheAsync(List<LayoutRegion> layoutRegions, CancellationToken ct)
-    {
-        var blockIds = layoutRegions
-            .SelectMany(r => r.Columns)
-            .SelectMany(c => c.Blocks)
-            .Where(p => p.BlockId > 0)
-            .Select(p => p.BlockId)
-            .Distinct()
-            .ToList();
-
-        if (blockIds.Count == 0)
-            return;
-
-        await blockCache.PreloadAsync(blockIds, blockService, ct);
     }
 
     private void PreserveReExecutedStatusCode()

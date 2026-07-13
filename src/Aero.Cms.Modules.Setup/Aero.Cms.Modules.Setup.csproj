@@ -30,6 +30,7 @@
     <ProjectReference Include="..\Aero.Cms.Modules.Commerce\Aero.Cms.Modules.Commerce.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Pages\Aero.Cms.Modules.Pages.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Media\Aero.Cms.Modules.Media.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Navigation\Aero.Cms.Modules.Navigation.csproj" />
     <ProjectReference Include="..\Aero.Cms.Modules.Footer\Aero.Cms.Modules.Footer.csproj" />

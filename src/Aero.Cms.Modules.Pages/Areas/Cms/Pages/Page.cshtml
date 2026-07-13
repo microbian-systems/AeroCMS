@@ -9,6 +9,10 @@
     {
         <link rel="alternate" hreflang="@link.Hreflang" href="@link.Href" />
     }
+    @if (!string.IsNullOrWhiteSpace(Model.RenderedCss))
+    {
+        <style data-aero-page-styles>@Html.Raw(Model.RenderedCss)</style>
+    }
 }
 @{
     ViewBag.Title = Model.SeoTitle ?? Model.Title ?? "Page";
@@ -33,20 +37,9 @@ else
 {
     <div class="aero-page-shell">
         <div class="aero-page-content">
-            @if (Model.RootNode is not null)
+            @if (!string.IsNullOrWhiteSpace(Model.RenderedMarkup))
             {
-                <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.NeoNodeRenderer)"
-                           render-mode="Static"
-                           param-Node="@Model.RootNode"
-                           param-NestingDepth="0"
-                           param-MaxDepth="8" />
-            }
-            else if (Model.LayoutRegions.Count > 0)
-            {
-                foreach (var region in Model.LayoutRegions.OrderBy(r => r.Order))
-                {
-                    <component type="typeof(Aero.Cms.Shared.Blocks.Rendering.LayoutRegionRenderer)" render-mode="Static" param-Region="@region" />
-                }
+                @Html.Raw(Model.RenderedMarkup)
             }
             else
             {

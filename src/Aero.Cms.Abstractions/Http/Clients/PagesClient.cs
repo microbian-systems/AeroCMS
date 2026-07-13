@@ -3,6 +3,7 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Html;
 
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
@@ -475,7 +476,9 @@ public record PageDetail(
     int Depth = 0,
     string Culture = "en-US",
     long? TranslationGroupId = null,
-    string? RootNodeJson = null);
+    string? RootNodeJson = null,
+    HtmlPageContent? DraftContent = null,
+    HtmlPageContent? PublishedContent = null);
 
 /// <summary>
 /// Request to create a new page.
@@ -493,7 +496,8 @@ public record CreatePageRequest(
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
-    string? RootNodeJson = null);
+    string? RootNodeJson = null,
+    HtmlPageContent? DraftContent = null);
 
 /// <summary>
 /// Request to update an existing page.
@@ -511,7 +515,8 @@ public record UpdatePageRequest(
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
-    string? RootNodeJson = null);
+    string? RootNodeJson = null,
+    HtmlPageContent? DraftContent = null);
 
 /// <summary>
 /// Request to create a draft culture variant for a page.

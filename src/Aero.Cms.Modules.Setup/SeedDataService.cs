@@ -10,7 +10,9 @@ using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Html;
 using Aero.Core;
+using Aero.Core.Railway;
 using Aero.Modular;
 using AeroDB.Sable;
 using Aero.Cms.Core.Models;
@@ -135,6 +137,7 @@ public sealed class SeedDatabaseService(
     IWebHostEnvironment env,
     ISetupIdentityBootstrapper identityBootstrapper,
     IPageContentService pageContentService,
+    IPagePublishingWorkflowService pagePublishingWorkflowService,
     IPostContentService blogPostContentService,
     IMediaService mediaService,
     ICommerceSeedService commerceSeedService,
@@ -306,19 +309,60 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
     {
         // Build pages first to get their IDs for navigation items
         var homepage = BuildHomepage(request);
-        homepage.RootNodes = BuildHomepageRootNodes(request);
+        homepage.DraftContent = LivingStandardSeedPageFactory.Create(
+            Normalize(request.HomepageTitle),
+            homepage.Summary!,
+            [
+                ("Performance First", "Built on .NET 10 with a document-oriented content model designed for fast, predictable publishing."),
+                ("Editor Friendly", "Compose semantic HTML sections, layouts, text, media, lists, and calls to action without framework lock-in.")
+            ],
+            backgroundImageUrl: "/media/data-center.png");
         var blogListing = BuildBlogListingPage(request);
-        blogListing.RootNodes = BuildBlogListingPageRootNodes(request);
+        blogListing.DraftContent = LivingStandardSeedPageFactory.Create(
+            blogListing.Title,
+            blogListing.Summary!,
+            [("Latest Articles", "Ten example posts are already published so the site is useful immediately.")]);
         var aboutPage = BuildAboutPage();
-        aboutPage.RootNodes = BuildAboutPageRootNodes();
+        aboutPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            aboutPage.Title,
+            aboutPage.Summary!,
+            [
+                ("Our Mission", "We build tools that help teams publish clear, accessible content without unnecessary technical friction."),
+                ("Our Values", "Integrity, innovation, and inclusivity guide how we design and ship Aero CMS.")
+            ]);
         var contactPage = BuildContactPage();
-        contactPage.RootNodes = BuildContactPageRootNodes();
+        contactPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            contactPage.Title,
+            contactPage.Summary!,
+            [
+                ("Get In Touch", "Our team typically responds within one business day."),
+                ("Visit Us", "123 Main Street, Suite 100, Anytown, USA")
+            ],
+            callToAction: ("Send Us a Message", "mailto:hello@example.com"));
         var privacyPage = BuildPrivacyPage();
-        privacyPage.RootNodes = BuildPrivacyPageRootNodes();
+        privacyPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            privacyPage.Title,
+            privacyPage.Summary!,
+            [
+                ("Information We Collect", "We collect only the information needed to provide and improve the site."),
+                ("Your Rights", "You may request access, correction, or deletion of your personal information.")
+            ]);
         var termsPage = BuildTermsPage();
-        termsPage.RootNodes = BuildTermsPageRootNodes();
+        termsPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            termsPage.Title,
+            termsPage.Summary!,
+            [
+                ("Use of the Site", "Use this site only for lawful purposes and do not interfere with its operation."),
+                ("Intellectual Property", "Site content remains the property of Aero CMS or its respective licensors.")
+            ]);
         var cookiesPage = BuildCookiesPage();
-        cookiesPage.RootNodes = BuildCookiesPageRootNodes();
+        cookiesPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            cookiesPage.Title,
+            cookiesPage.Summary!,
+            [
+                ("What Are Cookies?", "Cookies are small files that help sites remember preferences and improve performance."),
+                ("Managing Cookies", "You can control or remove cookies through your browser settings.")
+            ]);
         var docs = BuildStarterDocsContent();
         var rootDoc = docs.First(d => d.Slug == "docs");
 
@@ -347,31 +391,31 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
 
         // Store pages and their blocks
         homepage.SiteId = siteId;
-        var homeR = await pageContentService.SaveAsync(homepage, cancellationToken);
+        var homeR = await SavePublishedPageAsync(homepage, cancellationToken);
         if (homeR.IsFailure) Log.Warning("Failed to seed homepage: {Error}", ErrMsg(homeR));
 
         blogListing.SiteId = siteId;
-        var blogR = await pageContentService.SaveAsync(blogListing, cancellationToken);
+        var blogR = await SavePublishedPageAsync(blogListing, cancellationToken);
         if (blogR.IsFailure) Log.Warning("Failed to seed blog listing page: {Error}", ErrMsg(blogR));
 
         aboutPage.SiteId = siteId;
-        var aboutR = await pageContentService.SaveAsync(aboutPage, cancellationToken);
+        var aboutR = await SavePublishedPageAsync(aboutPage, cancellationToken);
         if (aboutR.IsFailure) Log.Warning("Failed to seed about page: {Error}", ErrMsg(aboutR));
 
         contactPage.SiteId = siteId;
-        var contactR = await pageContentService.SaveAsync(contactPage, cancellationToken);
+        var contactR = await SavePublishedPageAsync(contactPage, cancellationToken);
         if (contactR.IsFailure) Log.Warning("Failed to seed contact page: {Error}", ErrMsg(contactR));
 
         privacyPage.SiteId = siteId;
-        var privacyR = await pageContentService.SaveAsync(privacyPage, cancellationToken);
+        var privacyR = await SavePublishedPageAsync(privacyPage, cancellationToken);
         if (privacyR.IsFailure) Log.Warning("Failed to seed privacy page: {Error}", ErrMsg(privacyR));
 
         termsPage.SiteId = siteId;
-        var termsR = await pageContentService.SaveAsync(termsPage, cancellationToken);
+        var termsR = await SavePublishedPageAsync(termsPage, cancellationToken);
         if (termsR.IsFailure) Log.Warning("Failed to seed terms page: {Error}", ErrMsg(termsR));
 
         cookiesPage.SiteId = siteId;
-        var cookiesR = await pageContentService.SaveAsync(cookiesPage, cancellationToken);
+        var cookiesR = await SavePublishedPageAsync(cookiesPage, cancellationToken);
         if (cookiesR.IsFailure) Log.Warning("Failed to seed cookies page: {Error}", ErrMsg(cookiesR));
         
         foreach (var doc in docs)
@@ -623,28 +667,45 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         CancellationToken cancellationToken)
     {
         var homepage = BuildSpanishHomepage(request, homepageTranslationGroupId);
-        homepage.RootNodes = BuildSpanishHomepageRootNodes(request);
+        homepage.DraftContent = LivingStandardSeedPageFactory.Create(
+            homepage.Title,
+            homepage.Summary!,
+            [
+                ("Bienvenidos", "Crea sitios claros y atractivos con un CMS moderno y rapido."),
+                ("Contenido Flexible", "Organiza y publica paginas semanticas con un flujo sencillo para todo el equipo.")
+            ],
+            backgroundImageUrl: "/media/data-center.png");
         var blogListing = BuildSpanishBlogListingPage(request, blogTranslationGroupId);
-        blogListing.RootNodes = BuildSpanishBlogListingPageRootNodes();
+        blogListing.DraftContent = LivingStandardSeedPageFactory.Create(
+            blogListing.Title,
+            blogListing.Summary!,
+            [("Articulos Recientes", "Notas, novedades y articulos publicados por el equipo.")]);
         var aboutPage = BuildSpanishAboutPage(aboutTranslationGroupId);
-        aboutPage.RootNodes = BuildSpanishAboutPageRootNodes();
+        aboutPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            aboutPage.Title,
+            aboutPage.Summary!,
+            [("Nuestra Mision", "Creamos herramientas que ayudan a los equipos a publicar con claridad y confianza.")]);
         var contactPage = BuildSpanishContactPage(contactTranslationGroupId);
-        contactPage.RootNodes = BuildSpanishContactPageRootNodes();
+        contactPage.DraftContent = LivingStandardSeedPageFactory.Create(
+            contactPage.Title,
+            contactPage.Summary!,
+            [("Comunicate", "Envianos un mensaje y te responderemos a la brevedad.")],
+            callToAction: ("Enviar un mensaje", "mailto:hello@example.com"));
 
         homepage.SiteId = siteId;
-        var homeR = await pageContentService.SaveAsync(homepage, cancellationToken);
+        var homeR = await SavePublishedPageAsync(homepage, cancellationToken);
         if (homeR.IsFailure) Log.Warning("Failed to seed es-MX homepage: {Error}", ErrMsg(homeR));
 
         blogListing.SiteId = siteId;
-        var blogR = await pageContentService.SaveAsync(blogListing, cancellationToken);
+        var blogR = await SavePublishedPageAsync(blogListing, cancellationToken);
         if (blogR.IsFailure) Log.Warning("Failed to seed es-MX blog listing page: {Error}", ErrMsg(blogR));
 
         aboutPage.SiteId = siteId;
-        var aboutR = await pageContentService.SaveAsync(aboutPage, cancellationToken);
+        var aboutR = await SavePublishedPageAsync(aboutPage, cancellationToken);
         if (aboutR.IsFailure) Log.Warning("Failed to seed es-MX about page: {Error}", ErrMsg(aboutR));
 
         contactPage.SiteId = siteId;
-        var contactR = await pageContentService.SaveAsync(contactPage, cancellationToken);
+        var contactR = await SavePublishedPageAsync(contactPage, cancellationToken);
         if (contactR.IsFailure) Log.Warning("Failed to seed es-MX contact page: {Error}", ErrMsg(contactR));
 
         await SeedSpanishMexicoNavMenuAsync(
@@ -912,8 +973,12 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             Title = "Page Not Found",
             Summary = "The page you're looking for doesn't exist or has been moved.",
             SeoTitle = "Page Not Found",
-            RootNodes = BuildOopsPageRootNodes(),
-            PublicationState = ContentPublicationState.Published,
+            DraftContent = LivingStandardSeedPageFactory.Create(
+                "Page Not Found",
+                "The page you're looking for doesn't exist or has been moved.",
+                [("Let's get you back on track", "Check the address or return to the homepage and continue browsing.")],
+                callToAction: ("Return Home", "/")),
+            PublicationState = ContentPublicationState.Draft,
             Culture = defaultCulture,
             CreatedBy = "seed",
             ModifiedBy = "seed"
@@ -924,7 +989,7 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         oopsPage.TranslationGroupId = oopsPage.Id;
 
         // Use SaveAsync for proper slug reservation
-        await pageContentService.SaveAsync(oopsPage, ct);
+        await SavePublishedPageAsync(oopsPage, ct);
 
         // Create alias /404 → /oops
         var alias404 = new AliasDocument
@@ -1640,6 +1705,22 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
 
     private static string ErrMsg(Result<PageDocument, AeroError> r) =>
         r is Result<PageDocument, AeroError>.Failure f && f.Error is AeroError.Error e ? e.msg : "seed save failed";
+
+    private async Task<Result<PageDocument, AeroError>> SavePublishedPageAsync(
+        PageDocument page,
+        CancellationToken cancellationToken)
+    {
+        var saved = await pageContentService.SaveAsync(page, cancellationToken);
+        if (saved is Result<PageDocument, AeroError>.Failure saveFailure)
+        {
+            return saveFailure;
+        }
+
+        var published = await pagePublishingWorkflowService.PublishNowAsync(page.Id, cancellationToken);
+        return published is Result<bool, AeroError>.Failure publishFailure
+            ? Prelude.Fail<PageDocument, AeroError>(publishFailure.Error)
+            : saved;
+    }
 
     private static void StampPageCulture(PageDocument page, string culture)
     {

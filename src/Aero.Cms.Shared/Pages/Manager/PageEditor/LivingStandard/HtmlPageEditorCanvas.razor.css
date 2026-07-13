@@ -1,0 +1,78 @@
+.aero-page-canvas {
+    min-height: 100%;
+    padding: clamp(1rem, 3vw, 2.5rem);
+    background:
+        radial-gradient(circle at top left, rgb(124 58 237 / 7%), transparent 28rem),
+        #eef2f7;
+}
+
+.aero-page-canvas__surface {
+    min-height: 42rem;
+    overflow: hidden;
+    border: 1px solid #dbe3ef;
+    border-radius: 0.875rem;
+    background: #fff;
+    box-shadow: 0 18px 50px rgb(15 23 42 / 10%);
+}
+
+.aero-page-canvas__empty {
+    display: grid;
+    min-height: 42rem;
+    place-content: center;
+    justify-items: center;
+    padding: 2rem;
+    color: #64748b;
+    text-align: center;
+}
+
+.aero-page-canvas__empty-icon {
+    display: grid;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-bottom: 1rem;
+    place-items: center;
+    border-radius: 1rem;
+    color: #6d28d9;
+    background: #ede9fe;
+    font-size: 1.75rem;
+}
+
+.aero-page-canvas__empty h2 {
+    margin: 0;
+    color: #172033;
+    font-size: 1.25rem;
+}
+
+.aero-page-canvas__empty p {
+    max-width: 24rem;
+    margin: 0.5rem 0 1.25rem;
+}
+
+.aero-page-canvas__empty button {
+    border: 0;
+    border-radius: 0.625rem;
+    padding: 0.7rem 1rem;
+    color: #fff;
+    background: #6d28d9;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.aero-page-canvas__surface ::deep .aero-editor-node {
+    position: relative;
+    min-height: 1.25rem;
+    outline: 1px dashed transparent;
+    outline-offset: -1px;
+    transition: outline-color 100ms ease, box-shadow 100ms ease;
+}
+
+.aero-page-canvas__surface ::deep .aero-editor-node:hover {
+    outline-color: #c4b5fd;
+}
+
+.aero-page-canvas__surface ::deep .aero-editor-node-selected {
+    z-index: 1;
+    outline: 2px solid #7c3aed;
+    outline-offset: -2px;
+    box-shadow: 0 0 0 3px rgb(124 58 237 / 12%);
+}

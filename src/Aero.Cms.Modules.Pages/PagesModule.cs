@@ -15,6 +15,7 @@ using Aero.Core.Http;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
 using FluentValidation;
+using Aero.Cms.Html;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -72,8 +73,21 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             var httpContextAccessor = sp.GetService<IHttpContextAccessor>();
             var cache = sp.GetService<IFusionCache>();
             var pageTreeService = sp.GetService<IPageTreeService>();
+            var contentValidator = sp.GetRequiredService<IHtmlContentValidator>();
+            var styleCompiler = sp.GetRequiredService<IStyleCompiler>();
+            var styleProfile = sp.GetRequiredService<IStyleProfile>();
             var actor = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
-            return new AeroPageContentService(session, bus, siteContext, logger, actor, cache, pageTreeService);
+            return new AeroPageContentService(
+                session,
+                bus,
+                siteContext,
+                logger,
+                contentValidator,
+                styleCompiler,
+                styleProfile,
+                actor,
+                cache,
+                pageTreeService);
         });
         services.AddSingleton<BlockEditingService>();
 
@@ -85,8 +99,20 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<IPageTreeService, PageTreeService>();
         services.AddScoped<INavigationService, NavigationService>();
 
-        // Publishing workflow (event sourcing)
+        // Publishing workflow over the tracked PageDocument aggregate.
         services.AddScoped<IPagePublishingWorkflowService, PagePublishingWorkflowService>();
+
+        // HTML page model, validation, and native style compilation.
+        services.AddSingleton(_ => HtmlElementCatalog.CreateDefault());
+        services.AddSingleton<IHtmlContentModelPolicy, HtmlContentModelPolicy>();
+        services.AddSingleton<IHtmlAttributePolicy, HtmlAttributePolicy>();
+        services.AddSingleton<IHtmlContentValidator>(sp => new HtmlContentValidator(
+            sp.GetRequiredService<HtmlElementCatalog>(),
+            sp.GetRequiredService<IHtmlContentModelPolicy>(),
+            sp.GetRequiredService<IHtmlAttributePolicy>()));
+        services.AddSingleton<IStyleCompiler, NativeCssStyleCompiler>();
+        services.AddSingleton<IStyleProfile, NativeStyleProfile>();
+        services.AddSingleton<HtmlStaticRenderer>();
 
         // Admin status (read-model comparing published vs draft versions)
         services.AddSingleton<PageAdminStatusService>();

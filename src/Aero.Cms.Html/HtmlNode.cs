@@ -38,6 +38,11 @@ public sealed class HtmlNode
     public List<string> ThemeClasses { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets constrained, framework-neutral style intent for this element.
+    /// </summary>
+    public HtmlStyle? Style { get; set; }
+
+    /// <summary>
     /// Gets or sets ordered child nodes. Text and void-element validation requires this to be empty.
     /// </summary>
     public List<HtmlNode> Children { get; set; } = [];

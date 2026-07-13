@@ -1,6 +1,7 @@
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages;
+using Aero.Cms.Html;
 using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
@@ -26,7 +27,7 @@ public sealed class PageContentServiceTests
     public async Task Setup()
     {
         _harness = new SableTestHarness();
-        _harness.WithSchema<PageDocument>();
+        _harness.WithSchema<PageDocument>(SchemaMode.Flexible);
         _harness.WithSchema<ContentSlugDocument>();
         _harness.WithConfiguration(o =>
             o.Projections.Add(new PageDocumentProjection(), ProjectionLifecycle.Inline));
@@ -41,7 +42,10 @@ public sealed class PageContentServiceTests
             _harness.Session,
             _bus,
             _siteContext,
-            NullLogger
+            NullLogger,
+            CreateContentValidator(),
+            new NativeCssStyleCompiler(),
+            new NativeStyleProfile()
         );
     }
 
@@ -139,7 +143,10 @@ public sealed class PageContentServiceTests
             _harness.Session,
             Substitute.For<IMessageBus>(),
             CreateSiteContext(99),
-            NullLogger);
+            NullLogger,
+            CreateContentValidator(),
+            new NativeCssStyleCompiler(),
+            new NativeStyleProfile());
 
         var otherPage = new PageDocument
         {
@@ -167,5 +174,14 @@ public sealed class PageContentServiceTests
         ctx.SiteId.Returns(siteId);
         ctx.TenantId.Returns(siteId * 10);
         return ctx;
+    }
+
+    private static IHtmlContentValidator CreateContentValidator()
+    {
+        var catalog = HtmlElementCatalog.CreateDefault();
+        return new HtmlContentValidator(
+            catalog,
+            new HtmlContentModelPolicy(catalog),
+            new HtmlAttributePolicy());
     }
 }

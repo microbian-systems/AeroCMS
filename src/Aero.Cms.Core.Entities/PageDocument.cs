@@ -10,6 +10,7 @@ using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
+using Aero.Cms.Html;
 using Aero.Core.Data;
 using AeroDB.Sable;
 
@@ -90,6 +91,51 @@ public string? SeoDescription { get; set; }
     public bool IsHidden { get; set; }
 
     // ── Layout ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Gets or sets the editable HTML fragment owned by this page aggregate.
+    /// </summary>
+    public HtmlPageContent DraftContent { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the immutable-at-rest HTML snapshot currently available to public rendering.
+    /// </summary>
+    public HtmlPageContent? PublishedContent { get; set; }
+
+    /// <summary>
+    /// Replaces the editable draft with an independent validated snapshot.
+    /// Validation is performed by the Pages application boundary before this mutation.
+    /// </summary>
+    public void ReplaceDraftContent(HtmlPageContent content, DateTimeOffset modifiedOn)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        DraftContent = HtmlTreeOperations.ClonePreservingNodeIds(content);
+        ContentRevision = checked(ContentRevision + 1);
+        ModifiedOn = modifiedOn;
+    }
+
+    /// <summary>
+    /// Publishes an independent snapshot of the current validated draft.
+    /// </summary>
+    public void PublishDraftContent(DateTimeOffset publishedOn)
+    {
+        PublishedContent = HtmlTreeOperations.ClonePreservingNodeIds(DraftContent);
+        PublicationState = ContentPublicationState.Published;
+        PublishedOn = publishedOn;
+        PublishedVersion = checked(PublishedVersion + 1);
+        ModifiedOn = publishedOn;
+    }
+
+    /// <summary>
+    /// Removes public availability while preserving the last published snapshot.
+    /// </summary>
+    public void UnpublishContent(DateTimeOffset modifiedOn)
+    {
+        PublicationState = ContentPublicationState.Draft;
+        PublishedOn = null;
+        ModifiedOn = modifiedOn;
+    }
 
     /// <summary>
     /// Gets or sets the block-based layout regions for this page.
@@ -415,6 +461,10 @@ public void Apply(PageVisibilityChanged e)
         DraftCompositionId = DraftCompositionId,
         PublishedCompositionId = PublishedCompositionId,
         ContentRevision = ContentRevision,
+        DraftContentJson = JsonSerializer.Serialize(DraftContent, HtmlJsonContext.Default.HtmlPageContent),
+        PublishedContentJson = PublishedContent is null
+            ? null
+            : JsonSerializer.Serialize(PublishedContent, HtmlJsonContext.Default.HtmlPageContent),
         LayoutRegionsJson = LayoutRegions is { Count: > 0 }
             ? JsonSerializer.Serialize(LayoutRegions, BlockJsonContext.Default.Options)
             : null,

@@ -6,45 +6,10 @@ using SurrealDb.Net.Models;
 namespace Aero.Cms.Core.Tests.Integration;
 
 /// <summary>
-/// A persistence spike for the proposed HTML Living Standard page model.
-/// Each primitive derives from <see cref="SableDocument"/>, which implements
-/// <see cref="ISableDocument{TId}"/> with a Snowflake-style long identity.
+/// Persistence spikes retained for the accepted flat, recursive HTML value-object model.
 /// </summary>
 public sealed class HtmlLivingStandardSablePersistenceTests
 {
-    [Test]
-    public async Task Deeply_nested_html_primitives_round_trip_through_surrealdb()
-    {
-        await using var harness = new SableTestHarness()
-            .WithSchema<HtmlPageDocument>(SchemaMode.Flexible);
-        await harness.InitializeAsync();
-
-        var page = CreatePage();
-        harness.Session.Store(page);
-        await harness.Session.SaveChangesAsync();
-
-        await using var verificationSession = await harness.OpenSessionAsync();
-        var restored = await verificationSession.LoadAsync<HtmlPageDocument>(page.Id);
-
-        await Assert.That(restored).IsNotNull();
-        await Assert.That(restored!.Html.TagName).IsEqualTo("html");
-        await Assert.That(restored.Html.Body.TagName).IsEqualTo("body");
-        await Assert.That(restored.Html.Body.Sections).Count().IsEqualTo(1);
-
-        var section = restored.Html.Body.Sections[0];
-        await Assert.That(section.TagName).IsEqualTo("section");
-        await Assert.That(section.Divs).Count().IsEqualTo(1);
-
-        var content = section.Divs[0];
-        await Assert.That(content.Classes).IsEqualTo("mx-auto max-w-4xl px-6 py-12");
-        await Assert.That(content.Button.Text).IsEqualTo("Save changes");
-        await Assert.That(content.Button.Attributes["type"]).IsEqualTo("button");
-        await Assert.That(content.OrderedList.Items.Select(item => item.Text))
-            .IsEquivalentTo(["Choose a section", "Add content", "Publish"]);
-        await Assert.That(content.UnorderedList.Items.Select(item => item.Text))
-            .IsEquivalentTo(["Tailwind classes", "Accessible markup", "No scripts"]);
-    }
-
     [Test]
     public async Task Sable_schemaless_root_document_with_plain_nested_html_nodes_round_trips()
     {
@@ -74,6 +39,24 @@ public sealed class HtmlLivingStandardSablePersistenceTests
         await Assert.That(restored.Content.Root.Children[0].Children[0].Children[0].Children[0].Children[2].Children
             .Select(item => item.Children[0].Text!))
             .IsEquivalentTo(["Tailwind classes", "No scripts"]);
+        var restoredSection = restored.Content.Root.Children[0].Children[0].Children[0];
+        await Assert.That(restoredSection.Style!.Display).IsEqualTo(CssDisplay.Grid);
+        await Assert.That(restoredSection.Style.GridColumns).IsEqualTo(2);
+        await Assert.That(restoredSection.Style.StackOnSmallScreens).IsTrue();
+        await Assert.That(restoredSection.Style.Gap!.Value).IsEqualTo(1.5m);
+        await Assert.That(restoredSection.Style.Gap.Unit).IsEqualTo(CssLengthUnit.Rem);
+        await Assert.That(restoredSection.Style.Padding!.InlineStart!.Value).IsEqualTo(2m);
+        await Assert.That(restoredSection.Style.Surface!.BackgroundColor!.Kind).IsEqualTo(CssColorKind.ThemeToken);
+        await Assert.That(restoredSection.Style.Surface.BackgroundColor.Value).IsEqualTo("surface.brand");
+        await Assert.That(restoredSection.Style.Surface.BackgroundImageUrl).IsEqualTo("/media/page-hero.jpg");
+        await Assert.That(restoredSection.Style.Surface.OverlayOpacity).IsEqualTo(0.35m);
+        await Assert.That(restoredSection.Style.Surface.BorderRadius!.Value).IsEqualTo(1.25m);
+        var restoredButton = restoredSection.Children[0].Children[0];
+        await Assert.That(restoredButton.Style!.Typography!.FontWeight).IsEqualTo(700);
+        await Assert.That(restoredButton.Style.Typography.Alignment).IsEqualTo(CssTextAlignment.Center);
+        await Assert.That(restoredButton.Style.Typography.Gradient!.StartColor.Value).IsEqualTo("text.hero.start");
+        await Assert.That(restoredButton.Style.Typography.Gradient.EndColor.Value).IsEqualTo("#ffffff");
+        await Assert.That(restoredButton.Style.Typography.Gradient.AngleDegrees).IsEqualTo(120m);
     }
 
     [Test]
@@ -159,89 +142,6 @@ public sealed class HtmlLivingStandardSablePersistenceTests
             .IsEquivalentTo(["Choose a section", "Add content", "Publish"]);
     }
 
-    [Test]
-    public async Task Direct_surrealdb_net_schemafull_record_with_flexible_html_field_round_trips()
-    {
-        await using var client = new SurrealDbMemoryClient();
-        await client.Use("html_primitives_schemafull", "html_primitives_schemafull");
-        await client.RawQuery("""
-            DEFINE TABLE html_page SCHEMAFULL;
-            DEFINE FIELD title ON TABLE html_page TYPE string;
-            DEFINE FIELD html ON TABLE html_page TYPE object FLEXIBLE;
-            """);
-
-        var page = new SdkHtmlPageRecord
-        {
-            Id = new RecordIdOf<long>("html_page", 9_003),
-            Title = "Schemafull direct SDK HTML primitive persistence spike",
-            Html = new SdkHtmlNode
-            {
-                TagName = "html",
-                Children =
-                [
-                    new SdkHtmlNode
-                    {
-                        TagName = "body",
-                        Children =
-                        [
-                            new SdkHtmlNode
-                            {
-                                TagName = "section",
-                                Children =
-                                [
-                                    new SdkHtmlNode
-                                    {
-                                        TagName = "div",
-                                        Children =
-                                        [
-                                            new SdkHtmlNode
-                                            {
-                                                TagName = "button",
-                                                Text = "Save changes",
-                                                Attributes = new Dictionary<string, string> { ["type"] = "button" }
-                                            },
-                                            new SdkHtmlNode
-                                            {
-                                                TagName = "ol",
-                                                Children =
-                                                [
-                                                    new SdkHtmlNode { TagName = "li", Text = "Choose a section" },
-                                                    new SdkHtmlNode { TagName = "li", Text = "Add content" }
-                                                ]
-                                            },
-                                            new SdkHtmlNode
-                                            {
-                                                TagName = "ul",
-                                                Children =
-                                                [
-                                                    new SdkHtmlNode { TagName = "li", Text = "Tailwind classes" },
-                                                    new SdkHtmlNode { TagName = "li", Text = "No scripts" }
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            }
-        };
-
-        await client.Create(page);
-        var restored = await client.Select<SdkHtmlPageRecord>(page.Id!);
-
-        await Assert.That(restored).IsNotNull();
-        await Assert.That(restored!.Html.Children[0].Children[0].Children[0].Children[0].Text)
-            .IsEqualTo("Save changes");
-        await Assert.That(restored.Html.Children[0].Children[0].Children[0].Children[1].Children
-            .Select(item => item.Text!))
-            .IsEquivalentTo(["Choose a section", "Add content"]);
-        await Assert.That(restored.Html.Children[0].Children[0].Children[0].Children[2].Children
-            .Select(item => item.Text!))
-            .IsEquivalentTo(["Tailwind classes", "No scripts"]);
-    }
-
     private static HtmlPageDocument CreatePage() => new()
     {
         Id = 9_001,
@@ -309,11 +209,46 @@ public sealed class HtmlLivingStandardSablePersistenceTests
         var body = HtmlNode.CreateElement("body");
         body.ThemeClasses.AddRange(["bg-slate-50", "text-slate-900"]);
         var section = HtmlNode.CreateElement("section");
+        section.Style = new HtmlStyle
+        {
+            Display = CssDisplay.Grid,
+            GridColumns = 2,
+            StackOnSmallScreens = true,
+            Gap = CssLength.Rem(1.5m),
+            Padding = new CssLogicalSpacing { InlineStart = CssLength.Rem(2) },
+            Surface = new CssSurfaceStyle
+            {
+                BackgroundColor = CssColor.Token("surface.brand"),
+                BackgroundImageUrl = "/media/page-hero.jpg",
+                OverlayColor = CssColor.Hex("#000000"),
+                OverlayOpacity = 0.35m,
+                BackgroundFit = CssBackgroundFit.Cover,
+                BackgroundPosition = CssBackgroundPosition.Center,
+                BackgroundRepeat = CssBackgroundRepeat.NoRepeat,
+                BorderRadius = CssLength.Rem(1.25m)
+            }
+        };
         var content = HtmlNode.CreateElement("div");
         content.ThemeClasses.AddRange(["mx-auto", "max-w-4xl", "px-6", "py-12"]);
 
         var button = HtmlNode.CreateElement("button");
         button.Attributes["type"] = "button";
+        button.Style = new HtmlStyle
+        {
+            Typography = new CssTypographyStyle
+            {
+                FontSize = CssLength.Rem(3),
+                FontWeight = 700,
+                LineHeight = 1.1m,
+                Alignment = CssTextAlignment.Center,
+                Gradient = new CssTextGradient
+                {
+                    StartColor = CssColor.Token("text.hero.start"),
+                    EndColor = CssColor.Hex("#ffffff"),
+                    AngleDegrees = 120
+                }
+            }
+        };
         button.Children.Add(HtmlNode.CreateText("Save changes"));
 
         var orderedList = HtmlNode.CreateElement("ol");

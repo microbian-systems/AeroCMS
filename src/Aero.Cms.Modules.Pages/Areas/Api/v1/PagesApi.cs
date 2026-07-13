@@ -10,6 +10,7 @@ using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Html;
 using Aero.Core.Http;
 using Aero.Cms.Shared.Blocks.Rendering;
 using Aero.Cms.Web.Core.Blocks.Rendering;
@@ -199,7 +200,8 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 request.ShowChatAgent,
                 siteContext.SiteId,
                 LayoutRegionsJson: layoutsJson,
-                RootNodeJson: request.RootNodeJson);
+                RootNodeJson: request.RootNodeJson,
+                DraftContentJson: SerializeDraftContent(request.DraftContent));
 
             var result = await pagesActor.CreateAsync(grainRequest, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -244,7 +246,8 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 request.HideFooter,
                 request.ShowChatAgent,
                 LayoutRegionsJson: layoutsJson,
-                RootNodeJson: request.RootNodeJson);
+                RootNodeJson: request.RootNodeJson,
+                DraftContentJson: SerializeDraftContent(request.DraftContent));
 
             var result = await pagesActor.UpdateAsync(grainRequest, ct);
             return !string.IsNullOrWhiteSpace(result.error.Message)
@@ -701,7 +704,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             vm.Depth,
             vm.Culture,
             vm.TranslationGroupId,
-            vm.RootNodeJson
+            vm.RootNodeJson,
+            DeserializeDraftContent(vm.DraftContentJson),
+            DeserializeDraftContent(vm.PublishedContentJson)
         );
     }
 
@@ -726,7 +731,18 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             document.Path ?? "",
             document.Depth,
             document.Culture,
-            document.TranslationGroupId);
+            document.TranslationGroupId,
+            null,
+            document.DraftContent,
+            document.PublishedContent);
+
+    private static string? SerializeDraftContent(HtmlPageContent? content) => content is null
+        ? null
+        : System.Text.Json.JsonSerializer.Serialize(content, HtmlJsonContext.Default.HtmlPageContent);
+
+    private static HtmlPageContent? DeserializeDraftContent(string? json) => string.IsNullOrWhiteSpace(json)
+        ? null
+        : System.Text.Json.JsonSerializer.Deserialize(json, HtmlJsonContext.Default.HtmlPageContent);
 
     private static IReadOnlySet<string> GetSupportedCultures(SitesModel? site)
     {

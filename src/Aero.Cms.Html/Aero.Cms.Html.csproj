@@ -4,4 +4,8 @@
     <ProjectReference Include="..\..\Aero\src\Aero.Core\Aero.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="HtmlElementManifest.json" />
+  </ItemGroup>
+
 </Project>

@@ -30,6 +30,8 @@ using Radzen;
 using NeoUI.Blazor.Primitives;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.Canvas;
 using PageEditorCatalog = Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
+using Aero.Cms.Html;
+using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -152,6 +154,25 @@ protected NeoPageNode RootNode { get; set; } = CreateDefaultRootNode();
         Kind = NeoPageNodeKind.Page,
         Children = []
     };
+
+    private static readonly HtmlElementCatalog HtmlCatalog = HtmlElementCatalog.CreateDefault();
+
+    protected IReadOnlyList<HtmlElementDefinition> HtmlElementDefinitions { get; }
+        = HtmlCatalog.Definitions
+            .OrderBy(definition => definition.PaletteCategory, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(definition => definition.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    protected HtmlPageEditorSession HtmlEditor { get; private set; }
+        = CreateHtmlEditorSession(new HtmlPageContent());
+
+    private static HtmlPageEditorSession CreateHtmlEditorSession(HtmlPageContent content) => new(
+        content,
+        HtmlCatalog,
+        new HtmlContentModelPolicy(HtmlCatalog),
+        new HtmlLayoutStarterFactory(HtmlCatalog),
+        new NativeCssStyleCompiler(),
+        new NativeStyleProfile());
 
     // Selection / drag state
         /// <summary>
@@ -579,27 +600,8 @@ protected override async Task OnInitializedAsync()
             ShowChatAgent = page.ShowChatAgent;
             ParentId = page.ParentId;
             
-            // Load blocks from RootNodeJson
-            if (page.RootNodeJson is { Length: > 0 } rootJson)
-            {
-                RootNode = JsonSerializer.Deserialize<NeoPageNode>(rootJson, BlockJsonContext.Default.Options)
-                           ?? CreateDefaultRootNode();
-            }
-
-            // Check for a newer draft — if one exists, use it as the in-progress state
-            var draftResult = await PagesClient.GetDraftAsync(id);
-            if (draftResult is Result<PageDraftSummary?, AeroError>.Ok { Value: not null } draftOk)
-            {
-                var draft = draftOk.Value;
-                PageTitle = draft.Title;
-                PageSlug = draft.Slug;
-                Summary = draft.Summary ?? string.Empty;
-                if (draft.RootNodeJson is { Length: > 0 } draftRootJson)
-                {
-                    RootNode = JsonSerializer.Deserialize<NeoPageNode>(draftRootJson, BlockJsonContext.Default.Options)
-                               ?? CreateDefaultRootNode();
-                }
-            }
+            HtmlEditor = CreateHtmlEditorSession(
+                page.DraftContent ?? new HtmlPageContent());
 
             _compositionHistory.Clear();
             _treeUndoStack.Clear();
@@ -2522,8 +2524,67 @@ protected async Task TogglePreview()
         if (PreviewMode)
         {
             SelectedBlockId = null;
-            _previewRefreshVersion++;
-            await RefreshPreviewAsync();
+            HtmlEditor.Select(null);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    protected Task SelectHtmlNodeAsync(long? nodeId)
+    {
+        HtmlEditor.Select(nodeId);
+        return Task.CompletedTask;
+    }
+
+    protected Task AddHtmlElementAsync(string tagName)
+    {
+        var result = HtmlEditor.AddElement(tagName);
+        HandleHtmlEditorResult(result, $"Added <{tagName}>.");
+        return Task.CompletedTask;
+    }
+
+    protected Task AddHtmlLayoutAsync(HtmlLayoutStarterKind kind)
+    {
+        var result = HtmlEditor.AddLayout(kind);
+        HandleHtmlEditorResult(result, "Layout added.");
+        return Task.CompletedTask;
+    }
+
+    protected Task RemoveSelectedHtmlNodeAsync()
+    {
+        var result = HtmlEditor.RemoveSelected();
+        HandleHtmlEditorResult(result, "Element removed.");
+        return Task.CompletedTask;
+    }
+
+    protected Task UndoHtmlChangeAsync()
+    {
+        var result = HtmlEditor.Undo();
+        HandleHtmlEditorResult(result, null);
+        return Task.CompletedTask;
+    }
+
+    protected Task RedoHtmlChangeAsync()
+    {
+        var result = HtmlEditor.Redo();
+        HandleHtmlEditorResult(result, null);
+        return Task.CompletedTask;
+    }
+
+    private void HandleHtmlEditorResult<T>(Result<T> result, string? successMessage)
+    {
+        switch (result)
+        {
+            case Result<T>.Ok:
+                MarkDirty();
+                if (!string.IsNullOrWhiteSpace(successMessage))
+                {
+                    ShowToast(L[successMessage], "success");
+                }
+                break;
+            case Result<T>.Failure failure:
+                ShowToast(FormatError(failure.Error), "error");
+                break;
         }
     }
 
@@ -3161,34 +3222,19 @@ protected string FormatCulture(string? culture)
         if (Id == 0 || Id is null)
         {
             // New page: only auto-create if there's actual content
-            if (RootNode.Children.Count == 0 && string.IsNullOrWhiteSpace(PageTitle))
+            if (HtmlEditor.Content.Root.Children.Count == 0 && string.IsNullOrWhiteSpace(PageTitle))
                 return;
 
-            await SavePage();  // creates the page via API, sets Id
+            await SavePageCore(showSuccessToast: false);
             return;
         }
 
-        // Existing page: upsert draft (not PageDocument — that's for manual save/publish)
-        try
-        {
-            var rootJson = JsonSerializer.Serialize(RootNode, BlockJsonContext.Default.Options);
-            var request = new PageDraftRequest(
-                PageTitle,
-                PageSlug,
-                Summary,
-                rootJson
-            );
-            var result = await PagesClient.SaveDraftAsync(Id.Value, request);
-            if (result is Result<bool, AeroError>.Ok)
-                _pageState = PageState.Clean;
-        }
-        catch
-        {
-            // Auto-save failures are non-critical — will retry on next interval
-        }
+        await SavePageCore(showSuccessToast: false);
     }
 
-    private async Task SavePage()
+    private Task SavePage() => SavePageCore(showSuccessToast: true);
+
+    private async Task SavePageCore(bool showSuccessToast)
     {
         if (IsSaving) return;
         IsSaving = true;
@@ -3205,7 +3251,6 @@ protected string FormatCulture(string? culture)
         {
             if (Id.HasValue)
             {
-                var rootJson = JsonSerializer.Serialize(RootNode, BlockJsonContext.Default.Options);
                 var request = new UpdatePageRequest(
                     PageTitle,
                     PageSlug,
@@ -3219,7 +3264,7 @@ protected string FormatCulture(string? culture)
                     ShowHeaderNavigation,
                     HideFooter,
                     ShowChatAgent,
-                    rootJson
+                    DraftContent: HtmlEditor.Content
                 );
 
                 var result = await PagesClient.UpdateAsync(Id.Value, request);
@@ -3228,9 +3273,11 @@ protected string FormatCulture(string? culture)
                     LoadedPage = ok.Value;
                     UpdateLastSaved();
                     _pageState = PageState.Clean;
-                    await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
                     await LoadPageTranslationsAsync();
-                    ShowToast(L["Page saved successfully"], "success");
+                    if (showSuccessToast)
+                    {
+                        ShowToast(L["Page saved successfully"], "success");
+                    }
                 }
                 else if (result is Result<CmsPageDetail, AeroError>.Failure err)
                 {
@@ -3239,7 +3286,6 @@ protected string FormatCulture(string? culture)
             }
             else
             {
-                var rootJson = JsonSerializer.Serialize(RootNode, BlockJsonContext.Default.Options);
                 var request = new CreatePageRequest(
                     PageTitle,
                     PageSlug,
@@ -3253,7 +3299,7 @@ protected string FormatCulture(string? culture)
                     ShowHeaderNavigation,
                     HideFooter,
                     ShowChatAgent,
-                    rootJson
+                    DraftContent: HtmlEditor.Content
                 );
 
                 var result = await PagesClient.CreateAsync(request);
@@ -3265,7 +3311,10 @@ protected string FormatCulture(string? culture)
                     _pageState = PageState.Clean;
                     UpdateLastSaved();
                     await LoadPageTranslationsAsync();
-                    ShowToast(L["Page created successfully"], "success");
+                    if (showSuccessToast)
+                    {
+                        ShowToast(L["Page created successfully"], "success");
+                    }
                     // Update URL without refreshing
                     // NavManager.NavigateTo($"/manager/page/editor/{Id}", false); 
                 }

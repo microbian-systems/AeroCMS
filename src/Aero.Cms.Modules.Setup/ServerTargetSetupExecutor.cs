@@ -3,6 +3,7 @@ using Aero.Cms.Modules.Posts;
 using Aero.Cms.Modules.Commerce.Data;
 using Aero.Cms.Modules.Media;
 using Aero.Cms.Modules.Pages;
+using Aero.Cms.Html;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Modules.Modules.Services;
@@ -92,7 +93,17 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         var bus = rootServiceProvider.GetRequiredService<IMessageBus>();
         var noopSiteContext = new NoopSiteContext();
         var pageContentService = new AeroPageContentService(session, bus, noopSiteContext,
-            rootServiceProvider.GetRequiredService<ILogger<AeroPageContentService>>());
+            rootServiceProvider.GetRequiredService<ILogger<AeroPageContentService>>(),
+            rootServiceProvider.GetRequiredService<IHtmlContentValidator>(),
+            rootServiceProvider.GetRequiredService<IStyleCompiler>(),
+            rootServiceProvider.GetRequiredService<IStyleProfile>());
+        var pagePublishingWorkflowService = new PagePublishingWorkflowService(
+            session,
+            bus,
+            rootServiceProvider.GetRequiredService<IHtmlContentValidator>(),
+            rootServiceProvider.GetRequiredService<IStyleCompiler>(),
+            rootServiceProvider.GetRequiredService<IStyleProfile>(),
+            rootServiceProvider.GetRequiredService<ILogger<PagePublishingWorkflowService>>());
         var blogPostContentService = new PostContentService(session, noopSiteContext);
         var userStore = CreateUserStore(store, rootServiceProvider);
         var userManager = CreateUserManager(userStore, rootServiceProvider);
@@ -118,6 +129,7 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
             env,
             identityBootstrapper,
             pageContentService,
+            pagePublishingWorkflowService,
             blogPostContentService,
             mediaService,
             //commerceSeedService,

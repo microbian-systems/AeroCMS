@@ -165,6 +165,16 @@ public record PageViewModel : AeroEntityViewModel
     /// </summary>
 [Id(30)]
     public long ContentRevision { get; init; }
+        /// <summary>
+    /// Gets the source-generated JSON transport for living-standard draft content.
+    /// </summary>
+[Id(31)]
+    public string? DraftContentJson { get; init; }
+        /// <summary>
+    /// Gets the source-generated JSON transport for the published content snapshot.
+    /// </summary>
+[Id(32)]
+    public string? PublishedContentJson { get; init; }
 }
 
 /// <summary>

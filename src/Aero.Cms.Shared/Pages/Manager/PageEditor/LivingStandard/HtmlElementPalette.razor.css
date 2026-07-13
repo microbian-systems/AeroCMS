@@ -1,0 +1,96 @@
+.aero-element-palette {
+    display: grid;
+    gap: 1.25rem;
+    padding: 1rem;
+    color: #172033;
+}
+
+.aero-element-palette__search {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.aero-element-palette__search label,
+.aero-element-palette__section h3 {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.aero-element-palette__search input {
+    width: 100%;
+    border: 1px solid #dbe3ef;
+    border-radius: 0.625rem;
+    padding: 0.65rem 0.75rem;
+    color: inherit;
+    background: #fff;
+}
+
+.aero-element-palette__search input:focus {
+    border-color: #7c3aed;
+    outline: 3px solid rgb(124 58 237 / 12%);
+}
+
+.aero-element-palette__section {
+    display: grid;
+    gap: 0.625rem;
+}
+
+.aero-element-palette__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.aero-element-palette__item {
+    display: grid;
+    min-height: 4.5rem;
+    align-content: center;
+    justify-items: center;
+    gap: 0.35rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 0.625rem;
+    color: #334155;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.aero-element-palette__item:hover {
+    border-color: #a78bfa;
+    box-shadow: 0 6px 16px rgb(76 29 149 / 10%);
+    transform: translateY(-1px);
+}
+
+.aero-element-palette__item:focus-visible {
+    outline: 3px solid rgb(124 58 237 / 20%);
+    outline-offset: 1px;
+}
+
+.aero-element-palette__item--layout {
+    color: #5b21b6;
+    background: #faf8ff;
+}
+
+.aero-element-palette__tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.72rem;
+    color: #7c3aed;
+}
+
+.aero-element-palette__layout-icon {
+    font-size: 1.1rem;
+    letter-spacing: -0.14em;
+}
+
+.aero-element-palette__empty {
+    border: 1px dashed #cbd5e1;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    color: #64748b;
+    text-align: center;
+}

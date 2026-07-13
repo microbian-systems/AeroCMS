@@ -1,17 +1,19 @@
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Models;
-using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Html;
 using Aero.Core.Http;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
 using FluentAssertions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
 using AeroDB.Sable;
 using NSubstitute;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -24,7 +26,10 @@ public class DynamicPageModelStatusCodeTests
             .WithSchema<PageDocument>();
         await harness.InitializeAsync();
 
-        var model = CreateModel(harness, new PageDocument { Slug = "oops", Title = "Oops" });
+        var page = CreatePublishedPage(9_401);
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var model = CreateModel(harness, page);
         model.Slug = "oops";
         model.PageContext.HttpContext.Features.Set<IStatusCodeReExecuteFeature>(
             new TestStatusCodeReExecuteFeature(404, "/missing-page"));
@@ -42,7 +47,10 @@ public class DynamicPageModelStatusCodeTests
             .WithSchema<PageDocument>();
         await harness.InitializeAsync();
 
-        var model = CreateModel(harness, new PageDocument { Slug = "oops", Title = "Oops" });
+        var page = CreatePublishedPage(9_402);
+        harness.Session.Store(page);
+        await harness.Session.SaveChangesAsync();
+        var model = CreateModel(harness, page);
         model.Slug = "oops";
 
         var result = await model.OnGetAsync();
@@ -59,6 +67,8 @@ public class DynamicPageModelStatusCodeTests
             SiteId = page.SiteId,
             Title = page.Title,
             Slug = page.Slug,
+            Culture = page.Culture,
+            IsPublished = true,
             ShowHeaderNavigation = true,
         };
 
@@ -66,21 +76,57 @@ public class DynamicPageModelStatusCodeTests
 
         var pageActor = Substitute.For<IAeroPageActor>();
         pageActor
-            .GetBySlugAsync(Arg.Any<long>(), page.Slug, Arg.Any<CancellationToken>())
+            .GetBySlugAsync(Arg.Any<long>(), page.Slug, Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(response);
+        pageActor.ListCultureVariantsAsync(page.Id, Arg.Any<CancellationToken>())
+            .Returns([vm]);
 
         var siteContext = Substitute.For<ISiteContext>();
         siteContext.SiteId.Returns(1L);
 
-        var blockService = Substitute.For<IBlockService>();
-        var blockCache = new BlockRenderCache();
+        var catalog = HtmlElementCatalog.CreateDefault();
+        var contentPolicy = new HtmlContentModelPolicy(catalog);
+        var attributePolicy = new HtmlAttributePolicy();
+        var validator = new HtmlContentValidator(catalog, contentPolicy, attributePolicy);
+        var renderer = new HtmlStaticRenderer(catalog, contentPolicy, attributePolicy, validator);
 
-        return new DynamicPageModel(pageActor, blockService, blockCache, siteContext, harness.Store)
+        return new DynamicPageModel(
+            pageActor,
+            siteContext,
+            harness.Store,
+            renderer,
+            new NativeCssStyleCompiler(),
+            new NativeStyleProfile(),
+            NullLogger<DynamicPageModel>.Instance)
         {
             PageContext = new PageContext
             {
-                HttpContext = new DefaultHttpContext()
+                HttpContext = new DefaultHttpContext(),
+                ViewData = new ViewDataDictionary(
+                    new EmptyModelMetadataProvider(),
+                    new ModelStateDictionary())
             }
+        };
+    }
+
+    private static PageDocument CreatePublishedPage(long id)
+    {
+        var paragraph = HtmlNode.CreateElement("p");
+        paragraph.Children.Add(HtmlNode.CreateText("Rendered content"));
+        var content = new HtmlPageContent();
+        content.Root.Children.Add(paragraph);
+
+        return new PageDocument
+        {
+            Id = id,
+            SiteId = 1,
+            Slug = "oops",
+            Path = "/oops",
+            Title = "Oops",
+            Culture = "en-US",
+            PublicationState = Aero.Cms.Abstractions.Enums.ContentPublicationState.Published,
+            DraftContent = HtmlTreeOperations.ClonePreservingNodeIds(content),
+            PublishedContent = content
         };
     }
 

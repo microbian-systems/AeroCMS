@@ -25,7 +25,9 @@ public record CreatePageRequest(
     /// <summary>JSON-serialized LayoutRegions for Orleans-safe grain transport.</summary>
     string? LayoutRegionsJson = null,
     /// <summary>JSON-serialized NeoPageNode root tree.</summary>
-    string? RootNodeJson = null
+    string? RootNodeJson = null,
+    /// <summary>Source-generated JSON transport for living-standard draft content.</summary>
+    string? DraftContentJson = null
 ) : IRequest;
 
 /// <summary>
@@ -50,7 +52,9 @@ public record UpdatePageRequest(
     /// <summary>JSON-serialized LayoutRegions for Orleans-safe grain transport.</summary>
     string? LayoutRegionsJson = null,
     /// <summary>JSON-serialized NeoPageNode root tree.</summary>
-    string? RootNodeJson = null
+    string? RootNodeJson = null,
+    /// <summary>Source-generated JSON transport for living-standard draft content.</summary>
+    string? DraftContentJson = null
 ) : IRequest;
 
 /// <summary>

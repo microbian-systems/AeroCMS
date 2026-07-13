@@ -1,0 +1,56 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<section class="aero-element-palette" aria-label="Page elements">
+    <div class="aero-element-palette__search">
+        <label for="aero-element-search">Add content</label>
+        <input id="aero-element-search"
+               type="search"
+               placeholder="Find an element"
+               @bind="SearchText"
+               @bind:event="oninput" />
+    </div>
+
+    <div class="aero-element-palette__section">
+        <h3>Layouts</h3>
+        <div class="aero-element-palette__grid">
+            @foreach (var option in LayoutOptions)
+            {
+                <button @key="option.Kind"
+                        type="button"
+                        class="aero-element-palette__item aero-element-palette__item--layout"
+                        title="@option.Description"
+                        @onclick="() => RequestLayoutAsync(option.Kind)">
+                    <span class="aero-element-palette__layout-icon" aria-hidden="true">@option.Icon</span>
+                    <span>@option.Label</span>
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (FilteredGroups.Count == 0)
+    {
+        <div class="aero-element-palette__empty">No elements match “@SearchText”.</div>
+    }
+    else
+    {
+        @foreach (var group in FilteredGroups)
+        {
+            <div @key="group.Category" class="aero-element-palette__section">
+                <h3>@group.Category</h3>
+                <div class="aero-element-palette__grid">
+                    @foreach (var element in group.Elements)
+                    {
+                        <button @key="element.Tag"
+                                type="button"
+                                class="aero-element-palette__item"
+                                title="Add @element.DisplayName"
+                                @onclick="() => RequestElementAsync(element.Tag)">
+                            <span class="aero-element-palette__tag" aria-hidden="true">&lt;@element.Tag&gt;</span>
+                            <span>@element.DisplayName</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    }
+</section>

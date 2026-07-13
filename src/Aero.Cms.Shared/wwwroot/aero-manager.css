@@ -233,6 +233,22 @@
 .pe-btn:disabled { opacity: .5; cursor: not-allowed; }
 .pe-btn svg { flex-shrink: 0; }
 
+.pe-living-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--pe-border);
+    background: var(--pe-bg-secondary);
+}
+
+.pe-living-toolbar__divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 6px;
+    background: var(--pe-border);
+}
+
 .pe-root-drop-target {
     display: flex;
     align-items: center;

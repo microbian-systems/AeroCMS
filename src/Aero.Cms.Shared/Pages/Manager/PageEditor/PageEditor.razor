@@ -9,6 +9,8 @@
 @using Microsoft.AspNetCore.Components.Sections
 @using Aero.Cms.Shared.Components
 @using Aero.Cms.Shared.Pages.Manager.PageEditor.Palette
+@using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@using Aero.Cms.Html
 
 @* ── Orchestrator: composes sub-components and owns page-level state ── *@
 <CascadingValue Value="this">
@@ -29,72 +31,48 @@
 
 @if (ActiveTab == "editor")
 {
-    @* Inline preview icon *@
-    <button class="pe-btn pe-btn-ghost pe-btn-sm absolute top-3 left-3 z-10" @onclick="TogglePreview" title="@L["Preview page"]">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-            <circle cx="12" cy="12" r="3"/>
-        </svg>
-    </button>
-
-    @if (!PreviewMode)
+    @if (HtmlEditor is not null)
     {
-        <div class="absolute top-3 left-14 z-10 flex gap-1">
-            <button class="pe-btn pe-btn-ghost pe-btn-sm"
-                    disabled="@(!CanUndoComposition)"
-                    @onclick="UndoComposition"
-                    title="@L["Undo composition change"]">
-                @L["Undo"]
-            </button>
-            <button class="pe-btn pe-btn-ghost pe-btn-sm"
-                    disabled="@(!CanRedoComposition)"
-                    @onclick="RedoComposition"
-                    title="@L["Redo composition change"]">
-                @L["Redo"]
-            </button>
-        </div>
-
-        <PageEditorHeader Title="@PageTitle"
-                          LastSaved="@LastSaved"
-                          Author="@Author"
-                          IsSaving="@IsSaving"
-                          PublicationState="@PublicationState"
-                          OnTitleChanged="OnTitleChanged"
-                          OnTogglePreview="TogglePreview"
-                          OnSave="SavePage"
-                          OnPublish="PublishPage"
-                          OnUnpublish="UnpublishPage" />
-
-        @if (!string.IsNullOrWhiteSpace(CompositionDropError))
+        @if (!PreviewMode)
         {
-            <div class="pe-drop-error" role="alert">
-                <span>@L["Cannot place item here: {0}", CompositionDropError]</span>
-                <button type="button"
-                        class="pe-drop-error-dismiss"
-                        @onclick="ClearCompositionDropError"
-                        aria-label="@L["Dismiss"]">×</button>
+            <PageEditorHeader Title="@PageTitle"
+                              LastSaved="@LastSaved"
+                              Author="@Author"
+                              IsSaving="@IsSaving"
+                              PublicationState="@PublicationState"
+                              OnTitleChanged="OnTitleChanged"
+                              OnTogglePreview="TogglePreview"
+                              OnSave="SavePage"
+                              OnPublish="PublishPage"
+                              OnUnpublish="UnpublishPage" />
+
+            <div class="pe-living-toolbar" role="toolbar" aria-label="Page editing commands">
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                        disabled="@(!HtmlEditor.CanUndo)" @onclick="UndoHtmlChangeAsync">
+                    @L["Undo"]
+                </button>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                        disabled="@(!HtmlEditor.CanRedo)" @onclick="RedoHtmlChangeAsync">
+                    @L["Redo"]
+                </button>
+                <span class="pe-living-toolbar__divider" aria-hidden="true"></span>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                        disabled="@(HtmlEditor.SelectedNodeId is null)" @onclick="RemoveSelectedHtmlNodeAsync">
+                    @L["Delete element"]
+                </button>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="TogglePreview">
+                    @L["Preview"]
+                </button>
             </div>
         }
-    }
 
-    <CascadingValue Value="PaletteDragState">
-        <PageEditorCanvas RootNode="@RootNode"
-                          SelectedNodeId="@SelectedBlockId"
-                          PreviewMode="@PreviewMode"
-                          OnToggleSidebar="ToggleSidebarPanels"
-                          OnNodeSelected="OnNodeSelected"
-                          OnNodeEditRequested="OnNodeEditRequested"
-                          OnCanvasDrop="OnCanvasDrop"
-                          OnNodeChanged="OnRootCompositionChanged"
-                          OnDropRejected="OnRootCompositionDropRejected"
-                          OnNodeCopy="OnNodeCopy"
-                          OnNodePaste="OnNodePaste"
-                          OnNodeSaveAsCustom="OnNodeSaveAsCustom"
-                          OnNodeDuplicate="OnNodeDuplicate"
-                          OnNodeDelete="OnNodeDelete"
-                          OnNodeMoveUp="OnNodeMoveUp"
-                          OnNodeMoveDown="OnNodeMoveDown" />
-    </CascadingValue>
+        <HtmlPageEditorCanvas Content="HtmlEditor.Content"
+                              SelectedNodeId="HtmlEditor.SelectedNodeId"
+                              CompiledStyles="HtmlEditor.CompiledStyles"
+                              PreviewMode="PreviewMode"
+                              SelectionChanged="SelectHtmlNodeAsync"
+                              ElementRequested="AddHtmlElementAsync" />
+    }
 }
 else if (ActiveTab == "metadata")
 {
@@ -437,11 +415,17 @@ else if (ActiveTab == "translations")
 
 @* Right sidebar content *@
 <SectionContent SectionName="RightSidebar">
-    <AeroSidebar Title="@L["Blocks"]"
+    <AeroSidebar Title="@L["Elements"]"
                  Side="SidebarSide.Right"
                  IsCollapsed="RightSidebarCollapsed"
                  IsCollapsedChanged="OnRightSidebarCollapsedChanged">
-        <div class="pe-blocks-sidebar">
+        @if (ActiveTab == "editor")
+        {
+            <HtmlElementPalette Elements="HtmlElementDefinitions"
+                                ElementRequested="AddHtmlElementAsync"
+                                LayoutRequested="AddHtmlLayoutAsync" />
+        }
+        <div class="pe-blocks-sidebar" hidden>
             @if (!RightSidebarCollapsed)
             {
                 <PageEditorPaletteSearch Query="@PaletteSearch"
