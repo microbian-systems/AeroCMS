@@ -1,4 +1,5 @@
 using AeroDB.Sable;
+using Aero.Cms.Html;
 using SurrealDb.Embedded.InMemory;
 using SurrealDb.Net.Models;
 
@@ -55,61 +56,7 @@ public sealed class HtmlLivingStandardSablePersistenceTests
         {
             Id = 9_015,
             Title = "Sable HTML value-object persistence spike",
-            Html = new GeneratedSableHtmlNode
-            {
-                TagName = "html",
-                Attributes = new Dictionary<string, string> { ["lang"] = "en" },
-                Children =
-                [
-                    new GeneratedSableHtmlNode
-                    {
-                        TagName = "body",
-                        Classes = "bg-slate-50 text-slate-900",
-                        Children =
-                        [
-                            new GeneratedSableHtmlNode
-                            {
-                                TagName = "section",
-                                Children =
-                                [
-                                    new GeneratedSableHtmlNode
-                                    {
-                                        TagName = "div",
-                                        Classes = "mx-auto max-w-4xl px-6 py-12",
-                                        Children =
-                                        [
-                                            new GeneratedSableHtmlNode
-                                            {
-                                                TagName = "button",
-                                                Text = "Save changes",
-                                                Attributes = new Dictionary<string, string> { ["type"] = "button" }
-                                            },
-                                            new GeneratedSableHtmlNode
-                                            {
-                                                TagName = "ol",
-                                                Children =
-                                                [
-                                                    new GeneratedSableHtmlNode { TagName = "li", Text = "Choose a section" },
-                                                    new GeneratedSableHtmlNode { TagName = "li", Text = "Add content" }
-                                                ]
-                                            },
-                                            new GeneratedSableHtmlNode
-                                            {
-                                                TagName = "ul",
-                                                Children =
-                                                [
-                                                    new GeneratedSableHtmlNode { TagName = "li", Text = "Tailwind classes" },
-                                                    new GeneratedSableHtmlNode { TagName = "li", Text = "No scripts" }
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            }
+            Content = CreateSharedHtmlContent()
         };
 
         harness.Session.Store(page);
@@ -119,13 +66,13 @@ public sealed class HtmlLivingStandardSablePersistenceTests
         var restored = await verificationSession.LoadAsync<GeneratedSableHtmlPageDocument>(page.Id);
 
         await Assert.That(restored).IsNotNull();
-        await Assert.That(restored!.Html.Children[0].Children[0].Children[0].Children[0].Text)
+        await Assert.That(restored!.Content.Root.Children[0].Children[0].Children[0].Children[0].Children[0].Children[0].Text)
             .IsEqualTo("Save changes");
-        await Assert.That(restored.Html.Children[0].Children[0].Children[0].Children[1].Children
-            .Select(item => item.Text!))
+        await Assert.That(restored.Content.Root.Children[0].Children[0].Children[0].Children[0].Children[1].Children
+            .Select(item => item.Children[0].Text!))
             .IsEquivalentTo(["Choose a section", "Add content"]);
-        await Assert.That(restored.Html.Children[0].Children[0].Children[0].Children[2].Children
-            .Select(item => item.Text!))
+        await Assert.That(restored.Content.Root.Children[0].Children[0].Children[0].Children[0].Children[2].Children
+            .Select(item => item.Children[0].Text!))
             .IsEquivalentTo(["Tailwind classes", "No scripts"]);
     }
 
@@ -354,6 +301,45 @@ public sealed class HtmlLivingStandardSablePersistenceTests
         }
     };
 
+    private static HtmlPageContent CreateSharedHtmlContent()
+    {
+        var root = HtmlNode.CreateFragment();
+        var html = HtmlNode.CreateElement("html");
+        html.Attributes["lang"] = "en";
+        var body = HtmlNode.CreateElement("body");
+        body.ThemeClasses.AddRange(["bg-slate-50", "text-slate-900"]);
+        var section = HtmlNode.CreateElement("section");
+        var content = HtmlNode.CreateElement("div");
+        content.ThemeClasses.AddRange(["mx-auto", "max-w-4xl", "px-6", "py-12"]);
+
+        var button = HtmlNode.CreateElement("button");
+        button.Attributes["type"] = "button";
+        button.Children.Add(HtmlNode.CreateText("Save changes"));
+
+        var orderedList = HtmlNode.CreateElement("ol");
+        orderedList.Children.Add(CreateListItem("Choose a section"));
+        orderedList.Children.Add(CreateListItem("Add content"));
+
+        var unorderedList = HtmlNode.CreateElement("ul");
+        unorderedList.Children.Add(CreateListItem("Tailwind classes"));
+        unorderedList.Children.Add(CreateListItem("No scripts"));
+
+        content.Children.AddRange([button, orderedList, unorderedList]);
+        section.Children.Add(content);
+        body.Children.Add(section);
+        html.Children.Add(body);
+        root.Children.Add(html);
+
+        return new HtmlPageContent { Root = root };
+    }
+
+    private static HtmlNode CreateListItem(string text)
+    {
+        var item = HtmlNode.CreateElement("li");
+        item.Children.Add(HtmlNode.CreateText(text));
+        return item;
+    }
+
     private abstract class HtmlPrimitiveDocument : SableDocument
     {
         public abstract string TagName { get; }
@@ -443,15 +429,5 @@ public sealed class HtmlLivingStandardSablePersistenceTests
 public sealed class GeneratedSableHtmlPageDocument : SableDocument
 {
     public string Title { get; set; } = string.Empty;
-    public GeneratedSableHtmlNode Html { get; set; } = new();
-}
-
-/// <summary>A nested value object, not an independently persisted record.</summary>
-public sealed class GeneratedSableHtmlNode
-{
-    public string TagName { get; set; } = string.Empty;
-    public string? Classes { get; set; }
-    public string? Text { get; set; }
-    public Dictionary<string, string> Attributes { get; set; } = [];
-    public List<GeneratedSableHtmlNode> Children { get; set; } = [];
+    public HtmlPageContent Content { get; set; } = new();
 }

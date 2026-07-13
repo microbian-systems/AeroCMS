@@ -78,9 +78,11 @@ This prevents a circular dependency: Pages already references Shared, so the
 PageEditor cannot consume implementations placed only in Pages.
 
 The HTML foundation remains CMS-specific and does not belong in the generic
-`Aero` submodule. It is deliberately separate from the Pages module because
-both the browser editor and the server page module require the same model,
-catalog, tree operations, content rules, and style contracts.
+`Aero` submodule or in `Aero.Cms.Abstractions`: the manifest, tree operations,
+content-model policy, and style contracts are concrete CMS behavior. It is
+deliberately separate from the Pages module because both the browser editor and
+the server page module require the same model, catalog, tree operations,
+content rules, and style contracts.
 
 ```text
 Aero.Cms.Html/
@@ -177,7 +179,9 @@ HtmlNode structure
   `ThemeClasses`, persisted with the profile ID and version it targets. It is
   not the normal editor experience.
 - Advanced custom declarations use a property/value allow list, safe value and
-  URL checks, and generated scoped CSS. Do not persist an unrestricted inline
+  URL checks, and generated scoped CSS. If introduced, they live in a scoped
+  `PageStyleSheet` value with validation status, not an unrestricted
+  `CustomCss` string on `PageDocument`. Do not persist an unrestricted inline
   `style` string. This panel remains unavailable until that validator exists.
 - Allow global safe attributes, element-specific safe attributes, `data-*`,
   and `aria-*`. Do not allow event-handler attributes (`onclick`, etc.),
@@ -213,7 +217,10 @@ Render(HtmlPageContent, CompiledPageStyles)
 
 The page-level pass deduplicates generated rules and produces stable scoped
 class names. Public rendering and manager preview use the same validated
-catalog, style compiler, and renderer semantics. The render host owns safe
+catalog and style compiler semantics. Public SSR uses an encoded static HTML
+writer; the manager preview uses a small recursive Blazor renderer. Both are
+covered by shared rendering conformance tests so that they cannot diverge on
+tags, attributes, void elements, or compiled styles. The render host owns safe
 stylesheet placement and CSP integration.
 
 The property panel exposes semantic controls to ordinary users and reserves
@@ -285,7 +292,9 @@ serialization. Every persisted page still uses the one concrete recursive
 After the manifest schema and first catalog stabilize, a source generator may
 produce the static `HtmlElementCatalog` and repetitive tests. Until then, a
 small manifest loader and direct tests are preferable to prematurely adding
-generator complexity. SVG and MathML are separate later manifest namespaces.
+generator complexity. The editor property panel reads the manifest directly;
+it does not depend on source generation. SVG and MathML are separate later
+manifest namespaces.
 
 ### First Shippable Catalog
 
@@ -377,6 +386,10 @@ PageDocument
   `PageRevisionDocument` snapshots on explicit save or publish actions. Do not
   introduce replayable content events for that purpose.
 
+The page builder introduces no replacement page-content event stream. A small
+non-replayable integration notification such as `PagePublished` may be added
+later if another module needs it, but it must not contain or project content.
+
 Publish is one optimistic-concurrency-protected document mutation: validate the
 current draft, deep-copy it to `PublishedContent`, increment versions, and
 update publication/audit metadata. Unpublish clears public availability without
@@ -405,6 +418,45 @@ PageEditor shell, toolbar, preview overlay, and modal workflow are preserved.
 AngleSharp is a later import/conversion tool for approved static HTML
 fragments. It parses a fragment into the manifest-validated node model; it is
 not the persisted model, renderer, or editor state.
+
+### Rich-Text Editing with Tiptap.Core
+
+The visible rich-text UI is an Aero-owned `RichTextEditor` component in
+`Aero.Cms.Shared`, not a stock Tiptap toolbar or a separate editor product. The
+local `tiptap-dotnet/` submodule (`Tiptap.Core`) supplies the ProseMirror
+document model, schema, parsing, serialization, and sanitization underneath
+that UI.
+
+A small TypeScript DOM adapter handles browser-only concerns—selection/ranges,
+composition/IME, clipboard, and `contenteditable` events—while C# owns the
+toolbar, dialogs, editor commands, schema, validation, and conversion. The
+adapter is not a direct dependency on the Tiptap JavaScript editor.
+
+```text
+Selected text-capable HtmlNode subtree
+  → HtmlNode-to-Tiptap.Core bridge
+  → transient ProseMirror document/editor session
+  → browser selection/input intent
+  → C# editor command + Tiptap.Core schema validation
+  → Tiptap.Core-to-HtmlNode bridge
+  → manifest/content-model validation
+  → one coalesced PageContentCommand + Memento
+```
+
+`HtmlPageContent`/`HtmlNode` remains the only persisted page-content model.
+Tiptap JSON is transient editor state, never a second persisted document or
+parallel source of truth. The initial schema is deliberately small:
+paragraphs, headings, lists, links, and basic inline marks. Native browser undo
+is scoped to an active text-editing session; PageEditor Memento records one
+coalesced completed edit. The editor rejects scripts, event attributes,
+arbitrary raw styles, and unsupported nodes before the tree is saved or
+rendered.
+
+An HTML `<textarea>` is a literal form-control element: its `value`,
+`placeholder`, and related attributes are edited through the normal property
+panel, not with a rich-text editor inside the control. Markdown import/export
+is a later explicit conversion feature; it must not become another persisted
+page format.
 
 ### Localization, Direction, and Accessibility
 
@@ -459,33 +511,39 @@ only `li` as direct children of `ul`/`ol`, rejects children of `img`/`br`/
 `input`, and applies context-sensitive rules such as preventing nested anchors.
 The UI uses the same policy to show only valid drop zones.
 
-### RCL Packaging of the TypeScript Adapter
+### RCL Packaging of Browser Editor Modules
 
 `Aero.Cms.Shared` is already a Razor Class Library and owns the PageEditor, so
-no new RCL is needed. The sortable adapter is packaged as an RCL static web
-asset:
+no new RCL is needed. The sortable and rich-text DOM adapters are packaged as
+RCL static web assets:
 
 ```text
 src/Aero.Cms.Shared/
   ts/PageEditor/page-editor-sortable.ts
+  ts/PageEditor/page-editor-rich-text.ts
   wwwroot/js/page-editor-sortable.js
+  wwwroot/js/page-editor-rich-text.js
   Pages/Manager/PageEditor/
     IPageEditorSortable.cs
     PageEditorSortableInterop.cs
+    RichTextEditor.razor
+    RichTextEditor.razor.cs
 ```
 
-`Microsoft.TypeScript.MSBuild` compiles TypeScript outside `wwwroot` into
-`wwwroot/js`. The RCL static-web-assets manifest makes the module available to
-every consuming ASP.NET Core app at:
+`Microsoft.TypeScript.MSBuild` compiles the project TypeScript outside
+`wwwroot` into `wwwroot/js`. No runtime CDN, npm dependency, or direct Tiptap
+JavaScript bundle is required. The RCL static-web-assets manifest makes the
+modules available to every consuming ASP.NET Core app at:
 
 ```text
 /_content/Aero.Cms.Shared/js/page-editor-sortable.js
+/_content/Aero.Cms.Shared/js/page-editor-rich-text.js
 ```
 
-The PageEditor dynamically imports this module through `IJSRuntime`; consumers
-do not copy it or add a script tag. `dotnet pack` includes RCL `wwwroot` assets
-in the package. The consuming host needs its normal static-assets/static-files
-pipeline enabled.
+The PageEditor dynamically imports these modules through `IJSRuntime`;
+consumers do not copy them or add script tags. `dotnet pack` includes RCL
+`wwwroot` assets in the package. The consuming host needs its normal
+static-assets/static-files pipeline enabled.
 
 ## GoF and SOLID Boundaries
 
@@ -496,7 +554,8 @@ pipeline enabled.
 | Undo/redo | One Memento history for the complete HTML tree |
 | Rendering, validation, and child rules | Strategy interfaces (`IHtmlRenderer`, `IHtmlContentValidator`, `IHtmlContentModelPolicy`) |
 | CSS/profile translation | Strategy interface (`IStyleCompiler`) |
-| Browser integration | Adapter (`PageEditorSortableInterop`) |
+| Browser integration | Adapters (`PageEditorSortableInterop`, `RichTextEditor` interop) |
+| Rich-text document/schema/sanitization | `Tiptap.Core` behind the owned `RichTextEditor` |
 | Editor orchestration | Facade over selection, commands, history, and preview refresh |
 
 No pattern should be added merely to represent a single HTML tag. The model is
@@ -535,12 +594,23 @@ this checkout is pre-production.
    curated component templates, and layout-starter factories.
 6. Replace the PageEditor canvas and property panel while retaining its shell,
    preview, toolbar, and modal layout.
-7. Add the owned TypeScript sortable adapter in `Aero.Cms.Shared` and verify
-   RCL static-asset consumption from the web host.
+7. Add the owned TypeScript sortable and rich-text DOM adapters in
+   `Aero.Cms.Shared`; add the owned `RichTextEditor` over `Tiptap.Core` and
+   verify RCL static-asset consumption from the web host.
 8. Deliver the first catalog and layout starters; then tables, static forms,
    and later catalog phases.
 9. Remove Neo dependencies, registrations, tests, legacy seed data, and unused page
    composition infrastructure.
+
+### Cutover Strategy
+
+Work occurs on `feature/html-page-builder`. Build and verify the new vertical
+slice alongside the legacy implementation on that branch, but do not create
+compatibility adapters, upcasters, or old-data migration paths. Once the new
+save, render, and editor path is complete, remove the PageEditor-specific Neo,
+composition, block, and event-projection infrastructure in the same cutover.
+The branch may use incremental commits for review and verification; the
+product does not carry two page architectures after the cutover.
 
 ## Non-Goals for the First Release
 
