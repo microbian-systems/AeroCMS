@@ -43,14 +43,19 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
             state.Errors.Add("Page content must begin with a fragment root.");
         }
 
-        ValidateNode(content.Root, parent: null, depth: 0, state);
+        ValidateNode(content.Root, parent: null, depth: 0, insideForm: false, state);
 
         return state.Errors.Count == 0
             ? new Result<bool>.Ok(true)
             : AeroError.ValidationError(state.Errors);
     }
 
-    private void ValidateNode(HtmlNode node, HtmlNode? parent, int depth, ValidationState state)
+    private void ValidateNode(
+        HtmlNode node,
+        HtmlNode? parent,
+        int depth,
+        bool insideForm,
+        ValidationState state)
     {
         if (depth > _limits.MaximumDepth)
         {
@@ -114,6 +119,13 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
                 return;
         }
 
+        var isForm = node.Kind is HtmlNodeKind.Element
+            && node.TagName?.Equals("form", StringComparison.OrdinalIgnoreCase) == true;
+        if (isForm && insideForm)
+        {
+            state.Errors.Add("Forms cannot be nested inside forms.");
+        }
+
         foreach (var child in node.Children)
         {
             if (child is null)
@@ -122,7 +134,7 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
                 continue;
             }
 
-            ValidateNode(child, node, depth + 1, state);
+            ValidateNode(child, node, depth + 1, insideForm || isForm, state);
         }
     }
 

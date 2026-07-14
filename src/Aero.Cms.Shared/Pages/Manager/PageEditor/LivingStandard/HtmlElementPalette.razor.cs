@@ -44,7 +44,8 @@ public partial class HtmlElementPalette
     protected override void OnParametersSet()
     {
         _groups = Elements
-            .Where(element => !element.Tag.Equals("li", StringComparison.OrdinalIgnoreCase))
+            .Where(element => element.IsPaletteVisible
+                && !element.Tag.Equals("li", StringComparison.OrdinalIgnoreCase))
             .GroupBy(element => element.PaletteCategory, StringComparer.OrdinalIgnoreCase)
             .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
             .Select(group => new ElementGroup(

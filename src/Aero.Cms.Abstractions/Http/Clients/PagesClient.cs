@@ -2,7 +2,6 @@ namespace Aero.Cms.Abstractions.Http.Clients;
 
 using System.Net.Http.Json;
 using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Html;
 
 using Aero.Core.Railway;
@@ -169,12 +168,6 @@ Task<Result<AiTranslatePageResult, AeroError>> TranslateWithAiAsync(long id, AiT
     /// </summary>
     Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parentId, string slug, long? excludePageId = null, CancellationToken ct = default);
 
-    // ── Event sourcing / version history ────────────────────────────
-
-    /// <summary>
-    /// Gets the full event history (version timeline) for a page.
-    /// </summary>
-    Task<Result<PageEventHistory, AeroError>> GetEventHistoryAsync(long id, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -433,15 +426,6 @@ public Task<Result<ComputedPathResult, AeroError>> ComputePathAsync(long? parent
         return PostAsync<object, ComputedPathResult>(url, new {}, ct);
     }
 
-    // ── Event sourcing / version history ────────────────────────────
-
-        /// <summary>
-    /// GetEventHistoryAsync method.
-    /// </summary>
-public Task<Result<PageEventHistory, AeroError>> GetEventHistoryAsync(long id, CancellationToken ct = default)
-    {
-        return GetAsync<PageEventHistory>($"{id}/events", ct);
-    }
 }
 
 #pragma warning disable SA1402 // File may only contain a single type
@@ -476,7 +460,6 @@ public record PageDetail(
     int Depth = 0,
     string Culture = "en-US",
     long? TranslationGroupId = null,
-    string? RootNodeJson = null,
     HtmlPageContent? DraftContent = null,
     HtmlPageContent? PublishedContent = null);
 
@@ -491,12 +474,10 @@ public record CreatePageRequest(
     string? SeoDescription, 
     ContentPublicationState PublicationState,
     long? ParentId = null,
-    IReadOnlyList<LayoutRegion>? LayoutRegions = null, 
     bool ShowInNavMenu = false, 
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
-    string? RootNodeJson = null,
     HtmlPageContent? DraftContent = null);
 
 /// <summary>
@@ -510,12 +491,10 @@ public record UpdatePageRequest(
     string? SeoDescription,
     ContentPublicationState PublicationState,
     long? ParentId = null,
-    IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
-    string? RootNodeJson = null,
     HtmlPageContent? DraftContent = null);
 
 /// <summary>
@@ -536,7 +515,7 @@ public record PageDraftSummary(
     string Slug,
     string? Summary,
     DateTimeOffset DraftedAt,
-    string? RootNodeJson = null);
+    HtmlPageContent? DraftContent = null);
 
 /// <summary>
 /// Request to upsert a page draft (used by auto-save).
@@ -545,7 +524,7 @@ public record PageDraftRequest(
     string Title,
     string Slug,
     string? Summary,
-    string? RootNodeJson = null);
+    HtmlPageContent? DraftContent = null);
 
 /// <summary>
 /// Flat tree node model for page hierarchy display.
@@ -613,25 +592,6 @@ public record ComputedPathResult(
     int Depth,
     bool IsValid,
     string? ErrorMessage);
-
-/// <summary>
-/// A single event in a page's version history timeline.
-/// </summary>
-public record PageEventItem(
-    long Version,
-    string EventType,
-    DateTime Timestamp,
-    string StreamKey,
-    bool IsArchived);
-
-/// <summary>
-/// Full version history for a page, returned by the event sourcing API.
-/// </summary>
-public record PageEventHistory(
-    long PageId,
-    string PageTitle,
-    int TotalEvents,
-    IReadOnlyList<PageEventItem> Events);
 
 /// <summary>
 /// Request body for bulk page deletion.

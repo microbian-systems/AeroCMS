@@ -1,5 +1,3 @@
-using Aero.Cms.Abstractions.Blocks.Common;
-using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Http.Clients;
@@ -8,6 +6,7 @@ using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Core.Infrastructure;
 using Aero.Cms.Modules.Sites.Events;
+using Aero.Cms.Html;
 using Aero.Core;
 using Aero.Core.Railway;
 using AeroDB.Sable;
@@ -368,16 +367,15 @@ public static class SitesApi
     {
         var now = DateTimeOffset.UtcNow;
 
-        var heroBlock = new BoringHeroBlock
-        {
-            Id = Snowflake.NewId(),
-            Title = "Page Not Found",
-            Summary = "The page you're looking for doesn't exist or has been moved.",
-            FullWidth = true,
-            Order = 0
-        };
-
-        session.Store(heroBlock);
+        var content = new HtmlPageContent();
+        var section = HtmlNode.CreateElement("section");
+        var heading = HtmlNode.CreateElement("h1");
+        heading.Children.Add(HtmlNode.CreateText("Page Not Found"));
+        var summary = HtmlNode.CreateElement("p");
+        summary.Children.Add(HtmlNode.CreateText("The page you're looking for doesn't exist or has been moved."));
+        section.Children.Add(heading);
+        section.Children.Add(summary);
+        content.Root.Children.Add(section);
 
         var page = new PageDocument
         {
@@ -394,30 +392,10 @@ public static class SitesApi
             ModifiedOn = now,
             CreatedBy = createdBy,
             ModifiedBy = createdBy,
-            LayoutRegions =
-            [
-                new LayoutRegion
-                {
-                    Name = "Main",
-                    Order = 0,
-                    Columns =
-                    [
-                        new LayoutColumn
-                        {
-                            Width = 12,
-                            Blocks =
-                            [
-                                new BlockPlacement
-                                {
-                                    BlockId = heroBlock.Id,
-                                    BlockType = heroBlock.BlockType,
-                                    Order = 0
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
+            DraftContent = content,
+            PublishedContent = HtmlTreeOperations.ClonePreservingNodeIds(content),
+            ContentRevision = 1,
+            PublishedVersion = 1
         };
 
         page.TranslationGroupId = page.Id;

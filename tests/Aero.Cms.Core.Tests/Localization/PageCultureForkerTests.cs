@@ -1,8 +1,7 @@
-using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
-using System.Text.Json;
 
 namespace Aero.Cms.Core.Tests.Localization;
 
@@ -11,6 +10,11 @@ public sealed class PageCultureForkerTests
     [Test]
     public async Task Fork_CreatesDraftCultureVariant_WithSameTranslationSet()
     {
+        var content = new HtmlPageContent();
+        var paragraph = HtmlNode.CreateElement("p");
+        paragraph.Children.Add(HtmlNode.CreateText("Welcome"));
+        content.Root.Children.Add(paragraph);
+
         var source = new PageDocument
         {
             Id = 100,
@@ -23,19 +27,9 @@ public sealed class PageCultureForkerTests
             PublicationState = ContentPublicationState.Published,
             PublishedOn = DateTimeOffset.UtcNow,
             PublishedVersion = 7,
-            RootNodes =
-            [
-                new NeoPageNode
-                {
-                    NodeId = "hero-source",
-                    CatalogId = "hero",
-                    Properties = new Dictionary<string, JsonElement>
-                    {
-                        ["title"] = JsonSerializer.SerializeToElement("Welcome")
-                    }
-                }
-            ],
-            BlockIdMap = new Dictionary<string, long> { ["hero-source"] = 1234 }
+            DraftContent = content,
+            PublishedContent = HtmlTreeOperations.ClonePreservingNodeIds(content),
+            ContentRevision = 3
         };
 
         var fork = PageCultureForker.Fork(source, 200, "es-mx", "acerca-de");
@@ -49,11 +43,12 @@ public sealed class PageCultureForkerTests
         await Assert.That(fork.PublicationState).IsEqualTo(ContentPublicationState.Draft);
         await Assert.That(fork.PublishedOn).IsNull();
         await Assert.That(fork.PublishedVersion).IsEqualTo(0);
-        await Assert.That(fork.BlockIdMap.Count).IsEqualTo(0);
-        await Assert.That(fork.LayoutRegions.Count).IsEqualTo(0);
-        await Assert.That(fork.RootNodes.Count).IsEqualTo(1);
-        await Assert.That(fork.RootNodes[0].Properties["title"].GetString()).IsEqualTo("Welcome");
-        await Assert.That(fork.RootNodes[0].NodeId).IsNotEqualTo("hero-source");
+        await Assert.That(fork.PublishedContent).IsNull();
+        await Assert.That(fork.ContentRevision).IsEqualTo(3);
+        await Assert.That(fork.DraftContent.Root.Children[0].Children[0].Text).IsEqualTo("Welcome");
+        await Assert.That(fork.DraftContent).IsNotSameReferenceAs(source.DraftContent);
+        await Assert.That(fork.DraftContent.Root.Children[0].NodeId)
+            .IsEqualTo(source.DraftContent.Root.Children[0].NodeId);
     }
 
     [Test]

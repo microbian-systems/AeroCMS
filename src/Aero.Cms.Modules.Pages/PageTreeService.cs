@@ -236,8 +236,12 @@ public async Task<Result<PageDocument, AeroError>> MoveAsync(
                 newDepth = 0;
             }
 
-            // Append PageMoved event for version history (projection handles document update)
-            _session.Events.Append($"page-{pageId}", new object[] { new PageMoved(newParentId, newPath, newDepth, order ?? 0) });
+            page.ParentId = newParentId;
+            page.Path = newPath;
+            page.Depth = newDepth;
+            page.Order = order ?? 0;
+            page.ModifiedOn = DateTimeOffset.UtcNow;
+            _session.Store(page);
 
             // Update descendant paths directly (derived fields, not historical events)
             if (oldPath != newPath)

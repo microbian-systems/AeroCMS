@@ -903,23 +903,6 @@
     {
         block = default!;
 
-        var definitionRegistry = Services.GetService<IPageEditorDefinitionRegistry>();
-        if (definitionRegistry is null ||
-            !definitionRegistry.TryGetDescriptor(Node.CatalogId, out var descriptor) ||
-            descriptor.LegacyDefinition is null)
-        {
-            return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
-        }
-
-        var editorBlock = NeoPageNodeEditorBlockMapper.ToEditorBlock(
-            Node,
-            descriptor.LegacyDefinition.CreateDefaultEditorBlock());
-        if (descriptor.LegacyDefinition.ToBlockBase(editorBlock) is not { } mapped)
-        {
-            return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
-        }
-
-        block = mapped;
-        return true;
+        return NeoPageNodeLegacyBlockMapper.TryMap(Node, out block);
     }
 }

@@ -1,0 +1,56 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@implements IAsyncDisposable
+
+<div class="aero-rich-text-overlay" @onclick="CloseAsync">
+    <section class="aero-rich-text-dialog"
+             tabindex="-1"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="aero-rich-text-title"
+             @onclick:stopPropagation="true"
+             @onkeydown="HandleKeyDownAsync"
+             @onkeydown:stopPropagation="true">
+        <header class="aero-rich-text-dialog__header">
+            <div>
+                <span>Text editor</span>
+                <h2 id="aero-rich-text-title">Edit @DisplayName</h2>
+            </div>
+            <button type="button" class="aero-rich-text-dialog__close" @ref="_closeButton" @onclick="CloseAsync" aria-label="Close">×</button>
+        </header>
+
+        <div class="aero-rich-text-toolbar" role="toolbar" aria-label="Text formatting">
+            <button type="button" disabled="@(!_isReady)" title="Undo" aria-label="Undo text change" @onclick='() => ExecuteAsync("undo")'>↶</button>
+            <button type="button" disabled="@(!_isReady)" title="Redo" aria-label="Redo text change" @onclick='() => ExecuteAsync("redo")'>↷</button>
+            <span aria-hidden="true"></span>
+            <button type="button" disabled="@(!_isReady)" class="aero-rich-text-toolbar__bold" title="Bold" @onclick='() => ExecuteAsync("bold")'>B</button>
+            <button type="button" disabled="@(!_isReady)" class="aero-rich-text-toolbar__italic" title="Italic" @onclick='() => ExecuteAsync("italic")'>I</button>
+            <label>
+                <span class="sr-only">Link destination</span>
+                <input type="url" placeholder="Link URL" @bind="_linkUrl" @bind:event="oninput" />
+            </label>
+            <button type="button" disabled="@(!_isReady)" title="Apply link" @onclick='() => ExecuteAsync("link", _linkUrl)'>Link</button>
+            <button type="button" disabled="@(!_isReady)" title="Remove link" @onclick='() => ExecuteAsync("unlink")'>Unlink</button>
+        </div>
+
+        <div class="aero-rich-text-dialog__body">
+            @if (!_isReady && string.IsNullOrWhiteSpace(EffectiveError))
+            {
+                <div class="aero-rich-text-dialog__loading">Loading text editor…</div>
+            }
+            <div @ref="_editorElement" class="aero-rich-text-editor"></div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(EffectiveError))
+        {
+            <div class="aero-rich-text-dialog__error" role="alert">@EffectiveError</div>
+        }
+
+        <footer class="aero-rich-text-dialog__footer">
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseAsync">Cancel</button>
+            <button type="button" class="pe-btn pe-btn-primary pe-btn-sm"
+                    disabled="@(!_isReady || _isSaving)" @onclick="SaveAsync">
+                @(_isSaving ? "Applying…" : "Apply text")
+            </button>
+        </footer>
+    </section>
+</div>

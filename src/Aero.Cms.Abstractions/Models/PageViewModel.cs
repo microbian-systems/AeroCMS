@@ -126,11 +126,6 @@ public record PageViewModel : AeroEntityViewModel
 [Id(22)]
     public bool ShowChatAgent { get; init; } = true;
         /// <summary>
-    /// Gets or sets the Layout Regions Json.
-    /// </summary>
-[Id(23)]
-    public string? LayoutRegionsJson { get; init; }
-        /// <summary>
     /// Gets or sets the Culture.
     /// </summary>
 [Id(24)]
@@ -145,21 +140,6 @@ public record PageViewModel : AeroEntityViewModel
     /// </summary>
 [Id(26)]
     public ContentPublicationState PublicationState { get; init; } = ContentPublicationState.Draft;
-        /// <summary>
-    /// Gets or sets the Root Node Json.
-    /// </summary>
-[Id(27)]
-    public string? RootNodeJson { get; init; }
-        /// <summary>
-    /// Gets or sets the Draft Composition Id.
-    /// </summary>
-[Id(28)]
-    public long? DraftCompositionId { get; init; }
-        /// <summary>
-    /// Gets or sets the Published Composition Id.
-    /// </summary>
-[Id(29)]
-    public long? PublishedCompositionId { get; init; }
         /// <summary>
     /// Gets or sets the Content Revision.
     /// </summary>

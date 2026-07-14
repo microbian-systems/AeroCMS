@@ -1,16 +1,12 @@
 using System.Reflection;
 using System.Net.Http.Json;
-using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Neo;
-using Aero.Cms.Abstractions.Blocks.Neo.Styles;
-using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages.Areas.Api.v1;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Builder;
@@ -53,7 +49,7 @@ public sealed class PagesApiTests
     }
 
     [Test]
-    public async Task UpdateRoutePreservesNestedCompositionThroughOrleansTransport()
+    public async Task UpdateRoutePreservesNestedHtmlContentThroughOrleansTransport()
     {
         const long pageId = 601;
         GrainUpdatePageRequest? captured = null;
@@ -72,23 +68,14 @@ public sealed class PagesApiTests
                         Title = captured.Title,
                         Slug = captured.Slug,
                         PublicationState = captured.PublicationState,
-                        RootNodeJson = captured.RootNodeJson
+                        DraftContentJson = captured.DraftContentJson
                     },
                     new PageErrorViewModel());
             });
 
         await using var app = await CreateAppAsync(actor);
         using var client = app.GetTestClient();
-        var compositionRoot = CreateCompositionRoot();
-        var rootNodeJson = JsonSerializer.Serialize(
-            new NeoPageNode
-            {
-                NodeId = "page-root",
-                CatalogId = "page.root",
-                Kind = NeoPageNodeKind.Page,
-                Children = [compositionRoot]
-            },
-            BlockJsonContext.Default.Options);
+        var content = CreateHtmlContent();
 
         var request = new HttpUpdatePageRequest(
             "RTL composition",
@@ -97,7 +84,7 @@ public sealed class PagesApiTests
             null,
             null,
             ContentPublicationState.Draft,
-            RootNodeJson: rootNodeJson);
+            DraftContent: content);
 
         using var response = await client.PutAsJsonAsync(
             $"/{HttpConstants.ApiPrefix}admin/pages/{pageId}",
@@ -105,19 +92,19 @@ public sealed class PagesApiTests
 
         await Assert.That(response.IsSuccessStatusCode).IsTrue();
         await Assert.That(captured).IsNotNull();
-        await Assert.That(captured!.RootNodeJson).IsNotNull();
+        await Assert.That(captured!.DraftContentJson).IsNotNull();
 
-        var deserialized = JsonSerializer.Deserialize<NeoPageNode>(
-            captured.RootNodeJson!,
-            BlockJsonContext.Default.Options);
+        var deserialized = System.Text.Json.JsonSerializer.Deserialize(
+            captured.DraftContentJson!,
+            HtmlJsonContext.Default.HtmlPageContent);
         await Assert.That(deserialized).IsNotNull();
-        var root = deserialized!.Children.Single();
+        var section = deserialized!.Root.Children.Single();
+        var paragraph = section.Children.Single().Children.Single();
 
-        await Assert.That(root.Style.Base.Direction)
-            .IsEqualTo(ContentDirection.RightToLeft);
-        await Assert.That(root.Style.Mobile!.Hidden).IsTrue();
-        await Assert.That(root.Children.Single().Properties["text"].GetString())
-            .IsEqualTo("مرحبا");
+        await Assert.That(section.Attributes["dir"]).IsEqualTo("rtl");
+        await Assert.That(section.Style!.Display).IsEqualTo(CssDisplay.Grid);
+        await Assert.That(section.Style.GridColumns).IsEqualTo(2);
+        await Assert.That(paragraph.Children.Single().Text).IsEqualTo("مرحبا");
     }
 
     private static async Task<WebApplication> CreateAppAsync(IAeroPageActor actor)
@@ -134,32 +121,25 @@ public sealed class PagesApiTests
         return app;
     }
 
-    private static NeoPageNode CreateCompositionRoot() =>
-        new()
+    private static HtmlPageContent CreateHtmlContent()
+    {
+        var paragraph = HtmlNode.CreateElement("p");
+        paragraph.Children.Add(HtmlNode.CreateText("مرحبا"));
+
+        var container = HtmlNode.CreateElement("div");
+        container.Children.Add(paragraph);
+
+        var section = HtmlNode.CreateElement("section");
+        section.Attributes["dir"] = "rtl";
+        section.Style = new HtmlStyle
         {
-            NodeId = "root",
-            CatalogId = "primitive.container",
-            Kind = NeoPageNodeKind.Container,
-            Style = new ResponsiveNodeStyle
-            {
-                Base = new NodeStyle
-                {
-                    Direction = ContentDirection.RightToLeft
-                },
-                Mobile = new NodeStyleOverride { Hidden = true }
-            },
-            Children =
-            [
-                new NeoPageNode
-                {
-                    NodeId = "text",
-                    CatalogId = "primitive.text",
-                    Kind = NeoPageNodeKind.Primitive,
-                    Properties = new Dictionary<string, JsonElement>
-                    {
-                        ["text"] = JsonSerializer.SerializeToElement("مرحبا")
-                    }
-                }
-            ]
+            Display = CssDisplay.Grid,
+            GridColumns = 2
         };
+        section.Children.Add(container);
+
+        var content = new HtmlPageContent();
+        content.Root.Children.Add(section);
+        return content;
+    }
 }

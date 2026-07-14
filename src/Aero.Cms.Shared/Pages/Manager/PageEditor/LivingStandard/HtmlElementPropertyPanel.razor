@@ -1,0 +1,420 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+@using Aero.Cms.Html
+
+<section class="aero-property-panel" aria-label="Element properties">
+    <header class="aero-property-panel__header">
+        <button type="button" class="aero-property-panel__back" @onclick="ClearSelectionAsync" aria-label="Back to elements">←</button>
+        <div>
+            <span class="aero-property-panel__eyebrow">Selected element</span>
+            <h2>@Definition.DisplayName <code>&lt;@Definition.Tag&gt;</code></h2>
+        </div>
+    </header>
+
+    @if (SupportsRichText)
+    {
+        <div class="aero-property-panel__content-action">
+            <div>
+                <strong>Text content</strong>
+                <span>Edit wording, links, and emphasis.</span>
+            </div>
+            <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="RequestRichTextAsync">Edit text</button>
+        </div>
+    }
+
+    <EditForm Model="Form" OnSubmit="ApplyAsync" class="aero-property-panel__form">
+        <details open>
+            <summary>Attributes</summary>
+            <div class="aero-property-panel__fields">
+                <label>
+                    <span>Element ID</span>
+                    <InputText @bind-Value="Form.Id" placeholder="optional-identifier" />
+                </label>
+                <label>
+                    <span>Tooltip / title</span>
+                    <InputText @bind-Value="Form.Title" placeholder="Optional description" />
+                </label>
+
+                @if (IsLink)
+                {
+                    <label>
+                        <span>Link destination</span>
+                        <InputText @bind-Value="Form.Href" placeholder="/about or https://…" />
+                    </label>
+                    <div class="aero-property-panel__row">
+                        <label>
+                            <span>Open in</span>
+                            <InputSelect @bind-Value="Form.Target">
+                                <option value="">Same window</option>
+                                <option value="_blank">New window</option>
+                                <option value="_self">Same window (_self)</option>
+                            </InputSelect>
+                        </label>
+                        <label>
+                            <span>Relationship</span>
+                            <InputText @bind-Value="Form.Rel" placeholder="noopener" />
+                        </label>
+                    </div>
+                }
+
+                @if (IsImage)
+                {
+                    <label>
+                        <span>Image source</span>
+                        <InputText @bind-Value="Form.Source" placeholder="/media/image.jpg" />
+                    </label>
+                    <label>
+                        <span>Alternative text</span>
+                        <InputText @bind-Value="Form.AlternativeText" placeholder="Describe the image" />
+                    </label>
+                    <div class="aero-property-panel__row">
+                        <label><span>Width</span><InputText @bind-Value="Form.Width" inputmode="numeric" /></label>
+                        <label><span>Height</span><InputText @bind-Value="Form.Height" inputmode="numeric" /></label>
+                    </div>
+                    <label>
+                        <span>Loading</span>
+                        <InputSelect @bind-Value="Form.Loading">
+                            <option value="">Browser default</option>
+                            <option value="lazy">Lazy</option>
+                            <option value="eager">Eager</option>
+                        </InputSelect>
+                    </label>
+                }
+
+                @if (IsButton)
+                {
+                    <label>
+                        <span>Button behavior</span>
+                        <InputSelect @bind-Value="Form.ButtonType">
+                            <option value="button">Button</option>
+                            <option value="submit">Submit</option>
+                            <option value="reset">Reset</option>
+                        </InputSelect>
+                    </label>
+                    <label class="aero-property-panel__check">
+                        <InputCheckbox @bind-Value="Form.Disabled" />
+                        <span>Disabled</span>
+                    </label>
+                }
+
+                @if (IsTableCell)
+                {
+                    <div class="aero-property-panel__row">
+                        <label><span>Column span</span><InputText @bind-Value="Form.ColumnSpan" inputmode="numeric" placeholder="1" /></label>
+                        <label><span>Row span</span><InputText @bind-Value="Form.RowSpan" inputmode="numeric" placeholder="1" /></label>
+                    </div>
+                    @if (IsHeaderCell)
+                    {
+                        <label>
+                            <span>Header scope</span>
+                            <InputSelect @bind-Value="Form.Scope">
+                                <option value="">Not specified</option>
+                                <option value="col">Column</option>
+                                <option value="row">Row</option>
+                                <option value="colgroup">Column group</option>
+                                <option value="rowgroup">Row group</option>
+                            </InputSelect>
+                        </label>
+                    }
+                }
+
+                @if (IsForm)
+                {
+                    <label><span>Submission URL</span><InputText @bind-Value="Form.Action" placeholder="/contact" /></label>
+                    <div class="aero-property-panel__row">
+                        <label>
+                            <span>Method</span>
+                            <InputSelect @bind-Value="Form.Method">
+                                <option value="get">GET</option>
+                                <option value="post">POST</option>
+                            </InputSelect>
+                        </label>
+                        <label>
+                            <span>Open response in</span>
+                            <InputSelect @bind-Value="Form.Target">
+                                <option value="">Same window</option>
+                                <option value="_blank">New window</option>
+                                <option value="_self">Same window (_self)</option>
+                            </InputSelect>
+                        </label>
+                    </div>
+                    <label>
+                        <span>Autocomplete</span>
+                        <InputSelect @bind-Value="Form.AutoComplete">
+                            <option value="">Browser default</option>
+                            <option value="on">On</option>
+                            <option value="off">Off</option>
+                        </InputSelect>
+                    </label>
+                    <p class="aero-property-panel__hint">This builds static HTML only. Aero CMS does not process the submission.</p>
+                }
+
+                @if (IsLabel)
+                {
+                    <label><span>Associated element ID</span><InputText @bind-Value="Form.LabelFor" placeholder="email-field" /></label>
+                }
+
+                @if (IsInput)
+                {
+                    <div class="aero-property-panel__row">
+                        <label>
+                            <span>Input type</span>
+                            <InputSelect @bind-Value="Form.InputType">
+                                @foreach (var inputType in InputTypes)
+                                {
+                                    <option value="@inputType">@inputType</option>
+                                }
+                            </InputSelect>
+                        </label>
+                        <label><span>Name</span><InputText @bind-Value="Form.ControlName" placeholder="email" /></label>
+                    </div>
+                    <label><span>Default value</span><InputText @bind-Value="Form.ControlValue" /></label>
+                    <label><span>Placeholder</span><InputText @bind-Value="Form.Placeholder" /></label>
+                    <div class="aero-property-panel__row">
+                        <label><span>Minimum</span><InputText @bind-Value="Form.Minimum" /></label>
+                        <label><span>Maximum</span><InputText @bind-Value="Form.Maximum" /></label>
+                        <label><span>Step</span><InputText @bind-Value="Form.Step" /></label>
+                    </div>
+                    <label><span>Autocomplete</span><InputText @bind-Value="Form.AutoComplete" placeholder="email or off" /></label>
+                    <div class="aero-property-panel__checks">
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Required" /><span>Required</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Disabled" /><span>Disabled</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.ReadOnly" /><span>Read only</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Checked" /><span>Checked</span></label>
+                    </div>
+                }
+
+                @if (IsTextArea)
+                {
+                    <label><span>Name</span><InputText @bind-Value="Form.ControlName" placeholder="message" /></label>
+                    <label><span>Default text</span><InputTextArea @bind-Value="Form.LiteralText" rows="4" /></label>
+                    <label><span>Placeholder</span><InputText @bind-Value="Form.Placeholder" /></label>
+                    <div class="aero-property-panel__row">
+                        <label><span>Rows</span><InputText @bind-Value="Form.Rows" inputmode="numeric" /></label>
+                        <label><span>Columns</span><InputText @bind-Value="Form.Columns" inputmode="numeric" /></label>
+                        <label><span>Maximum length</span><InputText @bind-Value="Form.MaximumLength" inputmode="numeric" /></label>
+                    </div>
+                    <label>
+                        <span>Autocomplete</span>
+                        <InputSelect @bind-Value="Form.AutoComplete">
+                            <option value="">Browser default</option>
+                            <option value="on">On</option>
+                            <option value="off">Off</option>
+                        </InputSelect>
+                    </label>
+                    <div class="aero-property-panel__checks">
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Required" /><span>Required</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Disabled" /><span>Disabled</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.ReadOnly" /><span>Read only</span></label>
+                    </div>
+                }
+
+                @if (IsSelect)
+                {
+                    <label><span>Name</span><InputText @bind-Value="Form.ControlName" placeholder="choice" /></label>
+                    <label><span>Autocomplete</span><InputText @bind-Value="Form.AutoComplete" /></label>
+                    <div class="aero-property-panel__checks">
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Multiple" /><span>Allow multiple</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Required" /><span>Required</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Disabled" /><span>Disabled</span></label>
+                    </div>
+                }
+
+                @if (IsOption)
+                {
+                    <label><span>Displayed text</span><InputText @bind-Value="Form.LiteralText" /></label>
+                    <label><span>Submitted value</span><InputText @bind-Value="Form.ControlValue" /></label>
+                    <label><span>Alternative label</span><InputText @bind-Value="Form.OptionLabel" /></label>
+                    <div class="aero-property-panel__checks">
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Selected" /><span>Selected</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Disabled" /><span>Disabled</span></label>
+                    </div>
+                }
+            </div>
+        </details>
+
+        @if (HasCapability("layout"))
+        {
+            <details open>
+                <summary>Layout</summary>
+                <div class="aero-property-panel__fields">
+                    <label>
+                        <span>Display</span>
+                        <InputSelect @bind-Value="Form.Display">
+                            <option value="">Default</option>
+                            @foreach (var value in Enum.GetValues<CssDisplay>())
+                            {
+                                <option value="@value">@Friendly(value)</option>
+                            }
+                        </InputSelect>
+                    </label>
+                    @if (IsFlexDisplay)
+                    {
+                        <div class="aero-property-panel__row">
+                            <label>
+                                <span>Direction</span>
+                                <InputSelect @bind-Value="Form.FlexDirection">
+                                    <option value="">Default</option>
+                                    @foreach (var value in Enum.GetValues<CssFlexDirection>())
+                                    {
+                                        <option value="@value">@Friendly(value)</option>
+                                    }
+                                </InputSelect>
+                            </label>
+                            <label class="aero-property-panel__check aero-property-panel__check--bottom">
+                                <InputCheckbox @bind-Value="Form.StackOnSmallScreens" />
+                                <span>Stack on mobile</span>
+                            </label>
+                        </div>
+                    }
+                    @if (IsGridDisplay)
+                    {
+                        <div class="aero-property-panel__row">
+                            <label><span>Columns</span><InputNumber @bind-Value="Form.GridColumns" min="1" max="12" /></label>
+                            <label class="aero-property-panel__check aero-property-panel__check--bottom">
+                                <InputCheckbox @bind-Value="Form.StackOnSmallScreens" />
+                                <span>Stack on mobile</span>
+                            </label>
+                        </div>
+                    }
+                    <LengthEditor Label="Gap" Value="Form.Gap" ValueChanged="value => Form.Gap = value" />
+                    <div class="aero-property-panel__row">
+                        <label>
+                            <span>Align items</span>
+                            <InputSelect @bind-Value="Form.AlignItems">
+                                <option value="">Default</option>
+                                @foreach (var value in Enum.GetValues<CssAlignment>()) { <option value="@value">@Friendly(value)</option> }
+                            </InputSelect>
+                        </label>
+                        <label>
+                            <span>Justify</span>
+                            <InputSelect @bind-Value="Form.JustifyContent">
+                                <option value="">Default</option>
+                                @foreach (var value in Enum.GetValues<CssJustification>()) { <option value="@value">@Friendly(value)</option> }
+                            </InputSelect>
+                        </label>
+                    </div>
+                    <LengthEditor Label="Minimum height" Value="Form.MinimumHeight" ValueChanged="value => Form.MinimumHeight = value" />
+                </div>
+            </details>
+        }
+
+        @if (HasCapability("spacing"))
+        {
+            <details>
+                <summary>Spacing</summary>
+                <div class="aero-property-panel__fields">
+                    <fieldset>
+                        <legend>Padding</legend>
+                        <LengthEditor Label="Top" Value="Form.Padding.BlockStart" ValueChanged="value => Form.Padding.BlockStart = value" />
+                        <LengthEditor Label="Right" Value="Form.Padding.InlineEnd" ValueChanged="value => Form.Padding.InlineEnd = value" />
+                        <LengthEditor Label="Bottom" Value="Form.Padding.BlockEnd" ValueChanged="value => Form.Padding.BlockEnd = value" />
+                        <LengthEditor Label="Left" Value="Form.Padding.InlineStart" ValueChanged="value => Form.Padding.InlineStart = value" />
+                    </fieldset>
+                    <fieldset>
+                        <legend>Margin</legend>
+                        <LengthEditor Label="Top" Value="Form.Margin.BlockStart" ValueChanged="value => Form.Margin.BlockStart = value" />
+                        <LengthEditor Label="Right" Value="Form.Margin.InlineEnd" ValueChanged="value => Form.Margin.InlineEnd = value" />
+                        <LengthEditor Label="Bottom" Value="Form.Margin.BlockEnd" ValueChanged="value => Form.Margin.BlockEnd = value" />
+                        <LengthEditor Label="Left" Value="Form.Margin.InlineStart" ValueChanged="value => Form.Margin.InlineStart = value" />
+                    </fieldset>
+                </div>
+            </details>
+        }
+
+        @if (HasCapability("surface"))
+        {
+            <details>
+                <summary>Background &amp; surface</summary>
+                <div class="aero-property-panel__fields">
+                    <label><span>Background color</span><InputText @bind-Value="Form.BackgroundColor" placeholder="#ffffff or surface.brand" /></label>
+                    <label><span>Background image</span><InputText @bind-Value="Form.BackgroundImageUrl" placeholder="/media/background.jpg" /></label>
+                    @if (!string.IsNullOrWhiteSpace(Form.BackgroundImageUrl))
+                    {
+                        <div class="aero-property-panel__row">
+                            <label>
+                                <span>Image fit</span>
+                                <InputSelect @bind-Value="Form.BackgroundFit">
+                                    <option value="">Default</option>
+                                    @foreach (var value in Enum.GetValues<CssBackgroundFit>()) { <option value="@value">@Friendly(value)</option> }
+                                </InputSelect>
+                            </label>
+                            <label>
+                                <span>Position</span>
+                                <InputSelect @bind-Value="Form.BackgroundPosition">
+                                    <option value="">Default</option>
+                                    @foreach (var value in Enum.GetValues<CssBackgroundPosition>()) { <option value="@value">@Friendly(value)</option> }
+                                </InputSelect>
+                            </label>
+                        </div>
+                        <label>
+                            <span>Repeat</span>
+                            <InputSelect @bind-Value="Form.BackgroundRepeat">
+                                <option value="">Default</option>
+                                @foreach (var value in Enum.GetValues<CssBackgroundRepeat>()) { <option value="@value">@Friendly(value)</option> }
+                            </InputSelect>
+                        </label>
+                        <div class="aero-property-panel__row">
+                            <label>
+                                <span>Overlay color</span>
+                                <InputText @bind-Value="Form.OverlayColor" placeholder="#000000 or overlay.dark" />
+                            </label>
+                            <label>
+                                <span>Overlay opacity</span>
+                                <InputNumber @bind-Value="Form.OverlayOpacity" min="0" max="1" step="0.05" />
+                            </label>
+                        </div>
+                    }
+                    <LengthEditor Label="Corner radius" Value="Form.BorderRadius" ValueChanged="value => Form.BorderRadius = value" />
+                </div>
+            </details>
+        }
+
+        @if (HasCapability("typography"))
+        {
+            <details>
+                <summary>Typography</summary>
+                <div class="aero-property-panel__fields">
+                    <label><span>Text color</span><InputText @bind-Value="Form.TextColor" placeholder="#172033 or text.primary" /></label>
+                    <LengthEditor Label="Font size" Value="Form.FontSize" ValueChanged="value => Form.FontSize = value" />
+                    <LengthEditor Label="Letter spacing" Value="Form.LetterSpacing" ValueChanged="value => Form.LetterSpacing = value" />
+                    <div class="aero-property-panel__row">
+                        <label><span>Weight</span><InputNumber @bind-Value="Form.FontWeight" min="100" max="900" step="100" /></label>
+                        <label><span>Line height</span><InputNumber @bind-Value="Form.LineHeight" min="0.1" step="0.1" /></label>
+                    </div>
+                    <label>
+                        <span>Alignment</span>
+                        <InputSelect @bind-Value="Form.TextAlignment">
+                            <option value="">Default</option>
+                            @foreach (var value in Enum.GetValues<CssTextAlignment>()) { <option value="@value">@Friendly(value)</option> }
+                        </InputSelect>
+                    </label>
+                    <label class="aero-property-panel__check">
+                        <InputCheckbox @bind-Value="Form.UseTextGradient" />
+                        <span>Use gradient text</span>
+                    </label>
+                    @if (Form.UseTextGradient)
+                    {
+                        <div class="aero-property-panel__row">
+                                <label><span>Start color</span><InputText @bind-Value="Form.GradientStartColor" placeholder="#2563eb or text.accent.start" /></label>
+                                <label><span>End color</span><InputText @bind-Value="Form.GradientEndColor" placeholder="#9333ea or text.accent.end" /></label>
+                        </div>
+                        <label>
+                            <span>Gradient angle</span>
+                            <InputNumber @bind-Value="Form.GradientAngleDegrees" min="0" max="360" step="1" />
+                        </label>
+                    }
+                </div>
+            </details>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="aero-property-panel__error" role="alert">@ErrorMessage</div>
+        }
+
+        <footer class="aero-property-panel__actions">
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="Reset">Reset</button>
+            <button type="submit" class="pe-btn pe-btn-primary pe-btn-sm">Apply changes</button>
+        </footer>
+    </EditForm>
+</section>

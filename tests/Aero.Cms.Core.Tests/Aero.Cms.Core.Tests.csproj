@@ -37,7 +37,6 @@
 
   <ItemGroup>
     <Compile Remove="Integration\PageCompositionMartenPersistenceTests.cs" />
-    <Compile Remove="Services\PageCustomComponentServiceTests.cs" />
     <Compile Remove="Services\PageTreeServiceTests.cs" />
   </ItemGroup>
 

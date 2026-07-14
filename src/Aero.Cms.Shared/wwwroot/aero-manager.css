@@ -233,6 +233,25 @@
 .pe-btn:disabled { opacity: .5; cursor: not-allowed; }
 .pe-btn svg { flex-shrink: 0; }
 
+.pe-btn:focus-visible,
+.pe-tab-btn:focus-visible,
+.pe-page-title-input:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--pe-primary) 30%, transparent);
+    outline-offset: 2px;
+}
+
+.pe-visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
 .pe-living-toolbar {
     display: flex;
     align-items: center;
@@ -2045,14 +2064,33 @@ textarea.pe-inline-hero-summary:focus {
     font-size: 14px;
     font-weight: 600;
     min-width: 300px;
-    cursor: pointer;
+    cursor: default;
     transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
     animation: pe-toast-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.pe-toast:hover {
-    transform: translateX(4px);
-    background: var(--pe-bg-tertiary);
+.pe-toast:hover { background: var(--pe-bg-tertiary); }
+
+.pe-toast__close {
+    display: inline-grid;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-left: auto;
+    place-items: center;
+    border: 0;
+    border-radius: var(--pe-radius-sm);
+    color: var(--pe-text-muted);
+    background: transparent;
+    font: inherit;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.pe-toast__close:hover,
+.pe-toast__close:focus-visible {
+    color: var(--pe-text-primary);
+    background: var(--pe-bg-hover);
 }
 
 .pe-toast.success {
@@ -2080,6 +2118,23 @@ textarea.pe-inline-hero-summary:focus {
 @keyframes pe-toast-in {
     from { opacity: 0; transform: translateX(-40px) scale(0.9); }
     to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@media (max-width: 680px) {
+    .pe-page-header { padding: 18px 16px; }
+    .pe-page-meta { align-items: flex-start; flex-direction: column; gap: 12px; }
+    .pe-meta-left, .pe-meta-right { flex-wrap: wrap; }
+    .pe-toast-container { right: 12px; bottom: 12px; left: 12px; }
+    .pe-toast { min-width: 0; width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pe-toast,
+    .pe-btn,
+    .pe-tab-btn {
+        animation: none;
+        transition: none;
+    }
 }
 
 /* ── Utilities ─────────────────────────────────────────── */

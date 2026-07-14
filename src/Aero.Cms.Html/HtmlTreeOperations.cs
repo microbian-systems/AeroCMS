@@ -131,7 +131,10 @@ public static class HtmlTreeOperations
         return node.Children.All(child => HasUniqueNodeIds(child, seen));
     }
 
-    private static HtmlStyle? CloneStyle(HtmlStyle? source) => source is null
+    /// <summary>
+    /// Creates an independent copy of constrained style intent.
+    /// </summary>
+    public static HtmlStyle? CloneStyle(HtmlStyle? source) => source is null
         ? null
         : new HtmlStyle
         {

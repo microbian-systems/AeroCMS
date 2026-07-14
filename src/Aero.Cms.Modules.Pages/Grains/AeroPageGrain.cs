@@ -1,12 +1,6 @@
-using System.Text.Json;
 using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks.Layout;
-using Aero.Cms.Abstractions.Blocks.Neo;
-using Aero.Cms.Abstractions.Blocks.Neo.Styles;
-using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
@@ -123,8 +117,6 @@ public async Task<AeroRequestResponse<PageViewModel>> CreateAsync(IRequest reque
         if (request is not CreatePageRequest create)
             return Fail("Expected CreatePageRequest");
 
-        create = RehydrateTransportPayload(create);
-
         await using var session = await _store.LightweightSessionAsync();
         var pageService = CreatePageService(session, create.SiteId);
         var result = await pageService.CreateAsync(create, ct);
@@ -143,8 +135,6 @@ public async Task<AeroRequestResponse<PageViewModel>> UpdateAsync(IRequest reque
     {
         if (request is not UpdatePageRequest update)
             return Fail("Expected UpdatePageRequest");
-
-        update = RehydrateTransportPayload(update);
 
         // Load page from store to obtain its SiteId (not present on UpdatePageRequest)
         await using var loadSession = await _store.QuerySessionAsync();
@@ -354,11 +344,20 @@ public async Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(
         if (page is null)
             return NotFound($"Page {id} not found");
 
-        var stateChanged = new PageStateChanged(state);
-        session.Events.Append($"page-{id}", new object[] { stateChanged });
-        await session.SaveChangesAsync(ct);
+        var now = DateTimeOffset.UtcNow;
+        if (state == ContentPublicationState.Published)
+        {
+            page.PublishDraftContent(now);
+        }
+        else
+        {
+            page.PublicationState = state;
+            page.PublishedOn = null;
+            page.ModifiedOn = now;
+        }
 
-        page.Apply(stateChanged);
+        session.Store(page);
+        await session.SaveChangesAsync(ct);
         return Ok(page.ToViewModel());
     }
 
@@ -387,30 +386,6 @@ public async Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, C
         return 0;
     }
 
-    /// <summary>
-    /// Event history is a direct AeroDB read — no equivalent in the service layer.
-    /// </summary>
-    public async Task<List<PageEventItem>> GetEventHistoryAsync(long id, CancellationToken ct)
-    {
-        await using var session = await _store.QuerySessionAsync();
-
-        var streamKey = $"page-{id}";
-        var page = await session.LoadAsync<PageDocument>(id, ct);
-
-        if (page is null)
-            return [];
-
-        var events = await session.Events.FetchStreamAsync(streamKey, ct: ct);
-
-        return events.Select(e => new PageEventItem(
-            e.Version,
-            e.EventType.Name,
-            e.Timestamp,
-            e.StreamId.Value ?? streamKey,
-            e.Data is PageArchived
-        )).ToList();
-    }
-
     // ── AeroRequestResponse helpers ────────────────────────────────────
 
     private static AeroRequestResponse<PageViewModel> Ok(PageViewModel vm)
@@ -421,33 +396,6 @@ public async Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, C
 
     private static AeroRequestResponse<PageViewModel> Fail(string msg)
         => new(new PageViewModel(), new PageErrorViewModel { Message = msg });
-
-    private static CreatePageRequest RehydrateTransportPayload(CreatePageRequest request)
-    {
-        var layoutRegions = request.LayoutRegions
-            ?? DeserializeList<LayoutRegion>(request.LayoutRegionsJson);
-
-        return request with
-        {
-            LayoutRegions = layoutRegions
-        };
-    }
-
-    private static UpdatePageRequest RehydrateTransportPayload(UpdatePageRequest request)
-    {
-        var layoutRegions = request.LayoutRegions
-            ?? DeserializeList<LayoutRegion>(request.LayoutRegionsJson);
-
-        return request with
-        {
-            LayoutRegions = layoutRegions
-        };
-    }
-
-    private static List<T>? DeserializeList<T>(string? json)
-        => json is null
-            ? null
-            : JsonSerializer.Deserialize<List<T>>(json, BlockJsonContext.Default.Options);
 
     // ── FixedSiteContext ─────────────────────────────────────────────
 

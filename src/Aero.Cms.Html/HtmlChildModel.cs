@@ -8,5 +8,7 @@ public enum HtmlChildModel
     None,
     Flow,
     Phrasing,
-    List
+    List,
+    Elements,
+    Text
 }

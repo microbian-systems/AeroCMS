@@ -1,6 +1,6 @@
-using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
+using Aero.Cms.Html;
 using Aero.Core.Data;
 using AeroDB.Sable;
 
@@ -33,10 +33,10 @@ public string Slug { get; set; } = string.Empty;
     /// Gets or sets the Summary.
     /// </summary>
 public string? Summary { get; set; }
-        /// <summary>
-    /// Gets or sets the Root Node Json.
+    /// <summary>
+    /// Gets or sets the latest living-standard draft content snapshot.
     /// </summary>
-public string? RootNodeJson { get; set; }
+    public HtmlPageContent? DraftContent { get; set; }
         /// <summary>
     /// Gets or sets the Publication State.
     /// </summary>

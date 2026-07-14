@@ -91,6 +91,58 @@ public sealed class HtmlContentValidatorTests
         await Assert.That(result).IsTypeOf<Result<bool>.Failure>();
     }
 
+    [Test]
+    public async Task Validate_accepts_semantic_tables_and_rejects_invalid_cell_spans()
+    {
+        var content = new HtmlPageContent();
+        var table = Catalog.CreateElement("table");
+        var body = Catalog.CreateElement("tbody");
+        var row = Catalog.CreateElement("tr");
+        var cell = Catalog.CreateElement("td");
+        cell.Attributes["colspan"] = "2";
+        cell.Children.Add(HtmlNode.CreateText("A valid cell"));
+        row.Children.Add(cell);
+        body.Children.Add(row);
+        table.Children.Add(body);
+        content.Root.Children.Add(table);
+
+        await Assert.That(CreateValidator().Validate(content)).IsTypeOf<Result<bool>.Ok>();
+
+        cell.Attributes["colspan"] = "0";
+        await Assert.That(CreateValidator().Validate(content)).IsTypeOf<Result<bool>.Failure>();
+    }
+
+    [Test]
+    public async Task Validate_accepts_static_forms_and_rejects_nested_forms_and_unsafe_actions()
+    {
+        var content = new HtmlPageContent();
+        var form = Catalog.CreateElement("form");
+        form.Attributes["action"] = "/contact";
+        form.Attributes["method"] = "post";
+        var label = Catalog.CreateElement("label");
+        label.Attributes["for"] = "email";
+        label.Children.Add(HtmlNode.CreateText("Email"));
+        var input = Catalog.CreateElement("input");
+        input.Attributes["id"] = "email";
+        input.Attributes["type"] = "email";
+        input.Attributes["name"] = "email";
+        input.Attributes["required"] = string.Empty;
+        form.Children.Add(label);
+        form.Children.Add(input);
+        content.Root.Children.Add(form);
+
+        await Assert.That(CreateValidator().Validate(content)).IsTypeOf<Result<bool>.Ok>();
+
+        var wrapper = Catalog.CreateElement("div");
+        wrapper.Children.Add(Catalog.CreateElement("form"));
+        form.Children.Add(wrapper);
+        await Assert.That(CreateValidator().Validate(content)).IsTypeOf<Result<bool>.Failure>();
+
+        form.Children.Remove(wrapper);
+        form.Attributes["action"] = "javascript:alert(1)";
+        await Assert.That(CreateValidator().Validate(content)).IsTypeOf<Result<bool>.Failure>();
+    }
+
     private static HtmlContentValidator CreateValidator(HtmlContentValidationLimits? limits = null) =>
         new(Catalog, ContentPolicy, AttributePolicy, limits);
 }

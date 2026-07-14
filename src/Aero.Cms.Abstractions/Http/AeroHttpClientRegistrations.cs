@@ -68,7 +68,6 @@ public static IServiceCollection AddAeroHttpClients(
         services.AddHttpClient<INavigationsHttpClient, NavigationsHttpClient>();
         services.AddHttpClient<IFootersHttpClient, FootersHttpClient>();
         services.AddHttpClient<IPagesHttpClient, PagesHttpClient>();
-        services.AddHttpClient<IPageCustomComponentsHttpClient, PageCustomComponentsHttpClient>();
         services.AddHttpClient<IProfileHttpClient, ProfileHttpClient>();
         services.AddHttpClient<ISettingsHttpClient, SettingsHttpClient>();
         services.AddHttpClient<ISeriesHttpClient, SeriesHttpClient>();

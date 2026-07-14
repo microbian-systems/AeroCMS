@@ -2,6 +2,7 @@ using Aero.Cms.Html;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
+using System.Globalization;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 
@@ -20,11 +21,26 @@ public sealed class HtmlNodePreview : ComponentBase
     [Parameter]
     public CompiledPageStyles? CompiledStyles { get; set; }
 
+    [Parameter, EditorRequired]
+    public HtmlElementCatalog Catalog { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public IHtmlContentModelPolicy ContentPolicy { get; set; } = null!;
+
+    [Parameter]
+    public HtmlNode? MoveSourceNode { get; set; }
+
+    [Parameter]
+    public bool CanAcceptMoveAsSibling { get; set; }
+
     [Parameter]
     public bool PreviewMode { get; set; }
 
     [Parameter]
     public EventCallback<long> NodeSelected { get; set; }
+
+    [Parameter]
+    public EventCallback<long> NodeEditRequested { get; set; }
 
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
@@ -51,7 +67,7 @@ public sealed class HtmlNodePreview : ComponentBase
 
         if (!PreviewMode)
         {
-            builder.AddAttribute(3, "data-aero-node-id", Node.NodeId.ToString());
+            builder.AddAttribute(3, "data-aero-node-id", Node.NodeId.ToString(CultureInfo.InvariantCulture));
             builder.AddAttribute(4, "onclick", EventCallback.Factory.Create<MouseEventArgs>(
                 this,
                 () => NodeSelected.InvokeAsync(Node.NodeId)));
@@ -60,6 +76,29 @@ public sealed class HtmlNodePreview : ComponentBase
             {
                 builder.AddEventPreventDefaultAttribute(6, "onclick", true);
             }
+
+            builder.AddAttribute(7, "ondblclick", EventCallback.Factory.Create<MouseEventArgs>(
+                this,
+                () => NodeEditRequested.InvokeAsync(Node.NodeId)));
+            builder.AddEventStopPropagationAttribute(8, "ondblclick", true);
+            if (Node.TagName is "a" or "button")
+            {
+                builder.AddEventPreventDefaultAttribute(9, "ondblclick", true);
+            }
+
+            builder.AddAttribute(11, "data-aero-sortable-node", "true");
+            builder.AddAttribute(
+                12,
+                "data-aero-can-have-children",
+                CanHaveChildren() ? "true" : "false");
+            builder.AddAttribute(
+                13,
+                "data-aero-can-accept-selected-inside",
+                CanAcceptMoveInside() ? "true" : "false");
+            builder.AddAttribute(
+                14,
+                "data-aero-can-accept-selected-as-sibling",
+                CanAcceptMoveAsSibling ? "true" : "false");
         }
 
         RenderChildren(builder);
@@ -77,7 +116,7 @@ public sealed class HtmlNodePreview : ComponentBase
                 continue;
             }
 
-            builder.AddAttribute(10, name, value);
+            builder.AddAttribute(1, name, value);
         }
 
         var classes = new List<string>();
@@ -117,9 +156,24 @@ public sealed class HtmlNodePreview : ComponentBase
             builder.AddAttribute(21, nameof(Node), child);
             builder.AddAttribute(22, nameof(SelectedNodeId), SelectedNodeId);
             builder.AddAttribute(23, nameof(CompiledStyles), CompiledStyles);
-            builder.AddAttribute(24, nameof(PreviewMode), PreviewMode);
-            builder.AddAttribute(25, nameof(NodeSelected), NodeSelected);
+            builder.AddAttribute(24, nameof(Catalog), Catalog);
+            builder.AddAttribute(25, nameof(ContentPolicy), ContentPolicy);
+            builder.AddAttribute(26, nameof(MoveSourceNode), MoveSourceNode);
+            builder.AddAttribute(27, nameof(CanAcceptMoveAsSibling), CanAcceptMoveInside());
+            builder.AddAttribute(28, nameof(PreviewMode), PreviewMode);
+            builder.AddAttribute(29, nameof(NodeSelected), NodeSelected);
+            builder.AddAttribute(30, nameof(NodeEditRequested), NodeEditRequested);
             builder.CloseComponent();
         }
     }
+
+    private bool CanHaveChildren() =>
+        Catalog.TryGet(Node.TagName, out var definition)
+        && definition is not null
+        && definition.ChildModel is not HtmlChildModel.None;
+
+    private bool CanAcceptMoveInside() =>
+        MoveSourceNode is not null
+        && MoveSourceNode.NodeId != Node.NodeId
+        && ContentPolicy.CanContain(Node, MoveSourceNode).IsAllowed;
 }

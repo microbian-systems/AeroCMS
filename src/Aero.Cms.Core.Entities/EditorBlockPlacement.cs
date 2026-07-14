@@ -9,7 +9,7 @@ public sealed class EditorBlockPlacement
 {
     /// <summary>
     /// Stable client-side identifier assigned by the editor UI.
-    /// Used as the key in <see cref="PageEditorState.BlockIdMap"/>.
+    /// Stable editor-side key for this placement.
     /// </summary>
     public string ClientId { get; set; } = string.Empty;
 

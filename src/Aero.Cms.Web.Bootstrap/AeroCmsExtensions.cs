@@ -1,7 +1,6 @@
 using Aero.AppServer;
 using Aero.AppServer.Startup;
 using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
@@ -11,11 +10,7 @@ using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Shared.Localization;
-using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
-using Aero.Cms.Shared.Pages.Manager.PageEditor.Services;
 using Aero.Cms.Shared.Services;
-using Aero.Cms.Ui.Hyper;
-using Aero.Cms.Ui.Neo;
 using Aero.Cms.Web.Bootstrap.Infrastructure;
 using Aero.Cms.Web.Bootstrap.Localization;
 using Aero.Cms.Web.Bootstrap.Services;
@@ -121,11 +116,6 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         services.AddNeoUIComponents();
         // Replace DefaultLocalizer with ASP.NET Core IStringLocalizer-backed bridge
         services.Replace(ServiceDescriptor.Scoped<NeoUI.Blazor.ILocalizer, NeoUiBridgeLocalizer>());
-        services.AddAeroCmsHyperUiBlocks();
-        services.AddAeroCmsNeoUiBlocks();
-        services.AddSingleton<IPageEditorDefinitionRegistry, PageEditorDefinitionRegistry>();
-        services.AddSingleton<CannedBlockDefinitionProvider>();
-        services.AddSingleton<IPageEditorBlockProvider>(sp => sp.GetRequiredService<CannedBlockDefinitionProvider>());
 
         services.AddRazorPages()
             .AddApplicationPart(typeof(SetupModule).Assembly)
@@ -157,7 +147,6 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         services.AddScoped<AppState>();
         services.AddScoped<IAdminStorage, NoopAdminStorage>();
         services.AddScoped<AdminStateContainer>();
-        services.AddScoped<IEditorNodeActionProvider, EditorNodeActionProvider>();
         services.Replace(ServiceDescriptor.Scoped<ISiteContext, DefaultSiteContext>());
 
         services.AddProblemDetails(problemDetails =>

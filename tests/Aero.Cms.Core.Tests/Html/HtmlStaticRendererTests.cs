@@ -110,4 +110,53 @@ public sealed class HtmlStaticRendererTests
         await Assert.That(rendered.Value.CssText).IsEqualTo(compiled.Value.CssText);
         await Assert.That(rendered.Value.StyleContentHash).IsEqualTo(compiled.Value.ContentHash);
     }
+
+    [Test]
+    public async Task Render_emits_semantic_table_markup_and_cell_attributes()
+    {
+        var content = new HtmlPageContent();
+        var table = Catalog.CreateElement("table");
+        var head = Catalog.CreateElement("thead");
+        var row = Catalog.CreateElement("tr");
+        var header = Catalog.CreateElement("th");
+        header.Attributes["scope"] = "col";
+        header.Attributes["colspan"] = "2";
+        header.Children.Add(HtmlNode.CreateText("Features"));
+        row.Children.Add(header);
+        head.Children.Add(row);
+        table.Children.Add(head);
+        content.Root.Children.Add(table);
+
+        var result = Renderer.Render(content) as Result<string>.Ok;
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Value)
+            .IsEqualTo("<table><thead><tr><th colspan=\"2\" scope=\"col\">Features</th></tr></thead></table>");
+    }
+
+    [Test]
+    public async Task Render_emits_encoded_static_form_markup()
+    {
+        var content = new HtmlPageContent();
+        var form = Catalog.CreateElement("form");
+        form.Attributes["action"] = "/contact";
+        form.Attributes["method"] = "post";
+        var label = Catalog.CreateElement("label");
+        label.Attributes["for"] = "message";
+        label.Children.Add(HtmlNode.CreateText("Message"));
+        var textArea = Catalog.CreateElement("textarea");
+        textArea.Attributes["id"] = "message";
+        textArea.Attributes["name"] = "message";
+        textArea.Attributes["rows"] = "4";
+        textArea.Children.Add(HtmlNode.CreateText("Aero <CMS>"));
+        form.Children.Add(label);
+        form.Children.Add(textArea);
+        content.Root.Children.Add(form);
+
+        var result = Renderer.Render(content) as Result<string>.Ok;
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Value)
+            .IsEqualTo("<form action=\"/contact\" method=\"post\"><label for=\"message\">Message</label><textarea id=\"message\" name=\"message\" rows=\"4\">Aero &lt;CMS&gt;</textarea></form>");
+    }
 }

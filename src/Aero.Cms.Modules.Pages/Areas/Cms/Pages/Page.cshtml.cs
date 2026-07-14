@@ -63,7 +63,7 @@ public bool HideFooter { get; private set; }
     /// </summary>
 public bool ShowChatAgent { get; private set; } = true;
         /// <summary>
-    /// Gets or sets the Layout Regions.
+        /// Gets the rendered Living Standard HTML snapshot.
     /// </summary>
 public string RenderedMarkup { get; private set; } = string.Empty;
 
@@ -126,7 +126,7 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
             result = await pageActor.GetBySlugAsync(siteContext.SiteId, normalizedSlug, CultureInfo.CurrentUICulture.Name, cancellationToken);
         }
 
-        if (!string.IsNullOrWhiteSpace(result.error?.Message))
+        if (result is null || !string.IsNullOrWhiteSpace(result.error?.Message))
         {
             return NotFound();
         }

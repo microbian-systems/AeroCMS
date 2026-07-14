@@ -2,33 +2,39 @@ using Aero.AppServer;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Html;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Cms.Web.Bootstrap;
 using Aero.Cms.Web.Core.Eextensions;
+using Aero.Cms.Web.Infrastructure;
 using Aero.Core;
 using Aero.Core.Identity;
 using Aero.Models.Entities;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 using MysticMind.PostgresEmbed;
 using Npgsql;
-using JasperFx;
 using Scalar.AspNetCore;
 using Serilog;
 using System.Globalization;
 using System.Reflection;
-using System.Text.Json;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using Microsoft.Extensions.Options;
+using SurrealDb.Embedded.InMemory;
 using Wolverine;
 using Orleans.Runtime;
 using Aero.Modular;
@@ -53,11 +59,13 @@ namespace Aero.Cms.E2E.Tests;
 /// </summary>
 public sealed class PlaywrightE2EFixture : IAsyncDisposable
 {
+    private const string E2EAuthenticationScheme = "E2E";
+    private static readonly long E2EUserId = Snowflake.NewId();
     private static readonly SemaphoreSlim Lock = new(1, 1);
 
     private PgServer? _postgres;
     private int _pgPort;
-    private IDocumentStore? _store;
+    private AeroDB.Sable.IDocumentStore? _store;
     private WebApplication? _app;
     private CancellationTokenSource? _appCts;
     private Task? _appTask;
@@ -69,6 +77,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     public IPlaywright? PlaywrightInstance { get; private set; }
     public long HomePageId { get; private set; }
     public long BlockPageId { get; private set; }
+    public long SiteId { get; private set; }
 
     public async Task InitializeAsync()
     {
@@ -85,14 +94,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             await EnsureDatabaseAsync(dbName, _pgPort);
 
             var connString = $"Host=localhost;Port={_pgPort};Username={dbName};Database={dbName};";
-
-            // ── 2. Marten store (schema creation, seed runs after app starts) ─
-            _store = DocumentStore.For(options =>
-            {
-                options.Connection(connString);
-                options.DatabaseSchemaName = "aero";
-                options.AutoCreateSchemaObjects = AutoCreate.CreateOrUpdate;
-            });
 
             // ── 3. Build & start the real web app with Kestrel ───────────
             var webProjectPath = Aero.Cms.Modules.Setup.Configuration.AppSettingsPathResolver.GetWebProjectPath();
@@ -140,7 +141,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             var (descriptors, configureWolverine, configureGrains) = LoadGeneratedCatalogs();
 
             // Call the real startup to register all services
-            await builder.AddAeroCmsAsync<Program>(options =>
+            await builder.AddAeroCmsAsync<DefaultSiteContext>(options =>
             {
                 options.ModuleDescriptors = descriptors;
                 options.ConfigureWolverine = configureWolverine;
@@ -148,6 +149,32 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 options.ConfigureApplicationCookie = cookie =>
                     cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             });
+
+            builder.Services.RemoveAll<AeroDB.Sable.IDocumentStore>();
+            builder.Services.AddAeroDB(options =>
+            {
+                options.Namespace = "aero_e2e";
+                options.Database = "aero_e2e";
+                options.ClientFactory = () => new SurrealDbMemoryClient();
+                options.Schema.For<AeroRole>().Identity(role => role.Id);
+                options.Schema.For<AeroUser>().Identity(user => user.Id);
+                options.Events.StreamIdentity = StreamIdentity.AsString;
+            });
+
+            builder.Services.RemoveAll<IBootstrapStateProvider>();
+            builder.Services.AddSingleton<IBootstrapStateProvider>(
+                new AppSettingsBootstrapStateProvider(builder.Configuration));
+
+            builder.Services
+                .AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = E2EAuthenticationScheme;
+                    options.DefaultChallengeScheme = E2EAuthenticationScheme;
+                    options.DefaultForbidScheme = E2EAuthenticationScheme;
+                })
+                .AddScheme<AuthenticationSchemeOptions, E2EAuthenticationHandler>(
+                    E2EAuthenticationScheme,
+                    _ => { });
 
             // Remove the embedded DB background service (already have PG running externally)
             var embeddedDbDescriptor = builder.Services.FirstOrDefault(d =>
@@ -193,7 +220,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             }, _appCts.Token);
 
             // Wait for the app to start responding
-            await WaitForAppReadyAsync();
+            await WaitForAppReadyAsync(maxRetries: 20);
 
             // ── 4. Seed database (roles, admin user, site, homepage) ────
             await SeedDatabaseAfterStartAsync();
@@ -210,7 +237,31 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 IgnoreHTTPSErrors = true,
                 ViewportSize = new ViewportSize { Width = 1440, Height = 900 }
             });
+            await BrowserContext.AddCookiesAsync(
+            [
+                new Cookie
+                {
+                    Name = "AeroCms.SiteId",
+                    Value = SiteId.ToString(CultureInfo.InvariantCulture),
+                    Url = BaseUrl,
+                    SameSite = SameSiteAttribute.Lax
+                }
+            ]);
             Page = await BrowserContext.NewPageAsync();
+            Page.Console += (_, message) =>
+            {
+                if (message.Type is "error" or "warning")
+                    Console.WriteLine("[Browser console:{0}] {1}", message.Type, message.Text);
+            };
+            Page.PageError += (_, error) =>
+                Console.WriteLine("[Browser page error] {0}", error);
+            Page.RequestFailed += (_, request) =>
+                Console.WriteLine("[Browser request failed] {0} {1}", request.Url, request.Failure);
+            Page.Response += (_, response) =>
+            {
+                if (response.Status >= StatusCodes.Status400BadRequest)
+                    Console.WriteLine("[Browser response:{0}] {1}", response.Status, response.Url);
+            };
         }
         finally
         {
@@ -232,7 +283,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                     Action<WolverineOptions> ConfigureWolverine,
                     Action<ISiloBuilder> ConfigureGrains) LoadGeneratedCatalogs()
     {
-        var webAssembly = typeof(Program).Assembly;
+        var webAssembly = typeof(DefaultSiteContext).Assembly;
 
         // ModuleDescriptors from GeneratedAeroModuleCatalog.Descriptors
         IReadOnlyList<ModuleDescriptor> descriptors = [];
@@ -281,6 +332,28 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     {
         var env = app.Environment;
         var options = app.Services.GetRequiredService<AeroCmsOptions>();
+
+        app.Map("/__e2e/ready", readyApp =>
+            readyApp.Run(context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status204NoContent;
+                return Task.CompletedTask;
+            }));
+
+        // The E2E authentication handler supplies the request principal without
+        // persisting Identity records. Mirror that principal for the endpoint
+        // consumed by the Blazor authentication-state provider.
+        app.Map("/api/v1/admin/auth/me", authApp =>
+            authApp.Run(context => context.Response.WriteAsJsonAsync(new
+            {
+                userId = E2EUserId,
+                userName = "admin@aero.local",
+                email = "admin@aero.local",
+                roles = new[] { AeroCmsRoles.Admin },
+                isAdmin = true,
+                nickname = "E2E Administrator",
+                permissions = new[] { "create", "read", "update", "delete" }
+            })));
 
         app.UseExceptionHandler();
 
@@ -335,7 +408,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         });
         app.UseAuthentication();
         app.UseAuthorization();
-        app.UseCmsSetupGate();
         app.UseAeroCmsModulePipeline();
         app.UseAntiforgery();
 
@@ -407,9 +479,14 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
         for (var i = 0; i < maxRetries; i++)
         {
+            if (_appTask?.IsFaulted == true)
+            {
+                await _appTask;
+            }
+
             try
             {
-                var response = await client.GetAsync($"{BaseUrl}/manager/login");
+                var response = await client.GetAsync($"{BaseUrl}/__e2e/ready");
                 if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.Redirect)
                     return;
             }
@@ -419,18 +496,30 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             }
             await Task.Delay(1000);
         }
-        throw new TimeoutException($"App did not start within {maxRetries} seconds at {BaseUrl}");
+
+        var taskState = _appTask?.Status.ToString() ?? "not created";
+        throw new TimeoutException(
+            $"App did not start within {maxRetries} seconds at {BaseUrl}. Host task state: {taskState}.");
     }
 
     // ── Login helper ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Logs in via the browser login page using real form-fill interaction.
-    /// If already authenticated (redirected away from /manager/login), returns immediately.
+    /// Ensures the browser context is authenticated. The E2E host uses a test
+    /// authentication scheme, while the form fallback keeps the fixture usable
+    /// with a normally configured host.
     /// </summary>
     public async Task LoginAsync()
     {
         if (Page is null) throw new InvalidOperationException("Page not initialized");
+
+        var authenticatedResponse = await Page.APIRequest.GetAsync(
+            $"{BaseUrl}/api/v1/admin/auth/me");
+        if (authenticatedResponse.Status == StatusCodes.Status200OK)
+        {
+            Console.WriteLine("[Login] E2E authentication scheme is active");
+            return;
+        }
 
         // Navigate to login page
         await Page.GotoAsync($"{BaseUrl}/manager/login", new()
@@ -453,7 +542,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         var loginForm = Page.Locator("form[method='post'][formname='login'], form[name='login'], form").First;
         await loginForm.WaitForAsync(new() { Timeout = 15000, State = WaitForSelectorState.Visible });
 
-        var loginInputs = loginForm.Locator("input");
+        var loginInputs = loginForm.Locator("input:not([type='hidden'])");
         await loginInputs.First.WaitForAsync(new() { Timeout = 10000, State = WaitForSelectorState.Visible });
 
         await loginInputs.Nth(0).FillAsync("admin@aero.local");
@@ -554,7 +643,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     /// Seeds the database with roles, an admin user, a default site, and a
     /// homepage.  Runs after the Kestrel server is accepting requests so that
     /// the full DI container (including <c>UserManager</c>, <c>RoleManager</c>,
-    /// and the app-configured <c>IDocumentStore</c>) is available.
+    /// and the app-configured Sable <c>IDocumentStore</c>) is available.
     ///
     /// The configuration keys <c>SetupComplete</c> / <c>SeedComplete</c> are set
     /// to <c>true</c> so the app does <b>not</b> redirect to the setup wizard;
@@ -565,54 +654,11 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         using var scope = _app!.Services.CreateScope();
         var sp = scope.ServiceProvider;
 
-        var roleManager   = sp.GetRequiredService<RoleManager<AeroRole>>();
-        var userManager   = sp.GetRequiredService<UserManager<AeroUser>>();
-        var documentStore = sp.GetRequiredService<IDocumentStore>();
-
-        // ── Roles ───────────────────────────────────────────────────────
-        foreach (var roleName in AeroCmsRoles.All)
-        {
-            if (!await roleManager.RoleExistsAsync(roleName))
-            {
-                var role = new AeroRole(roleName);
-                var result = await roleManager.CreateAsync(role);
-                if (!result.Succeeded)
-                    throw new InvalidOperationException(
-                        $"Failed to create role '{roleName}': " +
-                        string.Join("; ", result.Errors.Select(e => e.Description)));
-            }
-        }
-
-        // ── Admin user ──────────────────────────────────────────────────
-        var adminUser = await userManager.FindByEmailAsync("admin@aero.local");
-        if (adminUser is null)
-        {
-            adminUser = new AeroUser
-            {
-                Id             = Snowflake.NewId(),
-                UserName       = "admin@aero.local",
-                Email          = "admin@aero.local",
-                EmailConfirmed = true,
-                FirstName      = "Admin",
-                LastName       = "User",
-                IsActive       = true
-            };
-
-            var createResult = await userManager.CreateAsync(adminUser, "Admin123!");
-            if (!createResult.Succeeded)
-                throw new InvalidOperationException(
-                    "Failed to create admin user: " +
-                    string.Join("; ", createResult.Errors.Select(e => e.Description)));
-
-            var roleResult = await userManager.AddToRoleAsync(adminUser, AeroCmsRoles.Admin);
-            if (!roleResult.Succeeded)
-                throw new InvalidOperationException(
-                    "Failed to assign Admin role: " +
-                    string.Join("; ", roleResult.Errors.Select(e => e.Description)));
-        }
+        var documentStore = sp.GetRequiredService<AeroDB.Sable.IDocumentStore>();
+        _store = documentStore;
 
         // ── Site (tenant) ───────────────────────────────────────────────
-        await using var session = documentStore.LightweightSession();
+        await using var session = await documentStore.LightweightSessionAsync();
 
             var site = (await session.Query<SitesModel>().FirstOrDefaultAsync(s => s.Name == "Aero CMS"))!;
         if (site is null)
@@ -629,6 +675,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
             };
             session.Store(site);
         }
+        SiteId = site.Id;
 
         // ── Site host ───────────────────────────────────────────────────
         var hostEntry = await session.Query<SiteHost>()
@@ -646,17 +693,36 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
 
         // ── User → site assignment ──────────────────────────────────────
         var assignment = await session.Query<UserSiteAssignment>()
-            .FirstOrDefaultAsync(a => a.UserId == adminUser.Id && a.SiteId == site.Id);
+            .FirstOrDefaultAsync(a => a.UserId == E2EUserId && a.SiteId == site.Id);
         if (assignment is null)
         {
             session.Store(new UserSiteAssignment
             {
                 Id          = Snowflake.NewId(),
-                UserId      = adminUser.Id,
+                UserId      = E2EUserId,
                 SiteId      = site.Id,
                 Permissions = ["create", "read", "update", "delete"]
             });
         }
+
+        session.Store(new SetupStateDocument
+        {
+            Id = SetupStateDocument.FixedId,
+            IsComplete = true,
+            CompletedAtUtc = DateTimeOffset.UtcNow,
+            DatabaseMode = "Embedded",
+            CacheMode = "Memory",
+            SecretProvider = "Local Certificate",
+            AdminEmail = "admin@aero.local",
+            SiteName = site.Name ?? "Aero CMS",
+            HomepageTitle = "Home",
+            BlogName = "E2E Blog",
+            CreatedTenantId = site.TenantId,
+            CreatedSiteId = site.Id,
+            Hostname = "localhost",
+            DefaultCulture = site.DefaultCulture,
+            SupportedCultures = site.SupportedCultures ?? []
+        });
 
         // ── Home page ───────────────────────────────────────────────────
         var homePage = await session.Query<PageDocument>()
@@ -679,6 +745,8 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 ShowInNavMenu     = false,
                 ShowHeaderNavigation = true
             };
+            page.ReplaceDraftContent(new HtmlPageContent(), DateTimeOffset.UtcNow);
+            page.PublishDraftContent(DateTimeOffset.UtcNow);
             session.Store(page);
             homePage = page;
         }
@@ -703,19 +771,42 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 PublicationState  = ContentPublicationState.Published,
                 PublishedOn       = DateTimeOffset.UtcNow,
                 ShowInNavMenu     = false,
-                ShowHeaderNavigation = false,
-                RootNodes =
-                [
-                    CreateBoringHeroNode(
-                        "Seeded Hero Block",
-                        "This hero was seeded by the E2E test fixture")
-                ]
+                ShowHeaderNavigation = false
             };
+            blockPage.ReplaceDraftContent(
+                CreateTestPageContent(
+                    "Seeded Hero Block",
+                    "This hero was seeded by the E2E test fixture"),
+                DateTimeOffset.UtcNow);
+            blockPage.PublishDraftContent(DateTimeOffset.UtcNow);
             session.Store(blockPage);
         }
         BlockPageId = blockPage.Id;
 
         await session.SaveChangesAsync();
+
+        await using var verification = await documentStore.QuerySessionAsync();
+        var allPages = await verification.Query<PageDocument>().ToListAsync();
+        var sitePages = await verification.Query<PageDocument>()
+            .Where(page => page.SiteId == site.Id)
+            .ToListAsync();
+        var activeSitePages = await verification.Query<PageDocument>()
+            .Where(page => page.SiteId == site.Id && page.Deleted == false)
+            .ToListAsync();
+
+        Console.WriteLine(
+            "[Fixture] Seed verification: {0} total pages, {1} site pages, {2} active site pages for site {3}",
+            allPages.Count,
+            sitePages.Count,
+            activeSitePages.Count,
+            site.Id);
+
+        if (sitePages.Count < 2)
+        {
+            throw new InvalidOperationException(
+                $"E2E page seeding did not round-trip for site {site.Id}. " +
+                $"Expected at least 2 pages but found {sitePages.Count}.");
+        }
     }
 
     /// <summary>
@@ -724,16 +815,16 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     /// </summary>
     public async Task ResetBlockPageAsync()
     {
-        await using var session = _store!.LightweightSession();
+        await using var session = await _store!.LightweightSessionAsync();
         var page = await session.LoadAsync<PageDocument>(BlockPageId);
         if (page is null) return;
 
-        page.RootNodes =
-        [
-            CreateBoringHeroNode(
+        page.ReplaceDraftContent(
+            CreateTestPageContent(
                 "Seeded Hero Block",
-                "This hero was seeded by the E2E test fixture")
-        ];
+                "This hero was seeded by the E2E test fixture"),
+            DateTimeOffset.UtcNow);
+        page.PublishDraftContent(DateTimeOffset.UtcNow);
 
         session.Store(page);
         await session.SaveChangesAsync();
@@ -746,31 +837,56 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
     /// </summary>
     public async Task ResetHomePageAsync()
     {
-        await using var session = _store!.LightweightSession();
+        await using var session = await _store!.LightweightSessionAsync();
         var page = await session.LoadAsync<PageDocument>(HomePageId);
         if (page is null) return;
-        page.RootNodes = [];
+        page.ReplaceDraftContent(new HtmlPageContent(), DateTimeOffset.UtcNow);
+        page.PublishDraftContent(DateTimeOffset.UtcNow);
         session.Store(page);
         await session.SaveChangesAsync();
         Console.WriteLine("[Fixture] Home page reset to empty state");
     }
 
-    private static Aero.Cms.Abstractions.Blocks.Neo.NeoPageNode CreateBoringHeroNode(
+    private static HtmlPageContent CreateTestPageContent(
         string title,
-        string summary) =>
-        new()
+        string summary)
+    {
+        var content = new HtmlPageContent();
+        var main = HtmlNode.CreateElement("main");
+        var section = HtmlNode.CreateElement("section");
+        var heading = HtmlNode.CreateElement("h1");
+        var paragraph = HtmlNode.CreateElement("p");
+
+        heading.Children.Add(HtmlNode.CreateText(title));
+        paragraph.Children.Add(HtmlNode.CreateText(summary));
+        section.Children.Add(heading);
+        section.Children.Add(paragraph);
+        main.Children.Add(section);
+        content.Root.Children.Add(main);
+
+        return content;
+    }
+
+    private sealed class E2EAuthenticationHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder)
+        : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    {
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            NodeId = Guid.NewGuid().ToString("N"),
-            CatalogId = "boring_hero",
-            Kind = Aero.Cms.Abstractions.Blocks.Neo.NeoPageNodeKind.Primitive,
-            Properties = new Dictionary<string, JsonElement>
-            {
-                ["title"] = JsonSerializer.SerializeToElement(title),
-                ["summary"] = JsonSerializer.SerializeToElement(summary),
-                ["fullWidth"] = JsonSerializer.SerializeToElement(true)
-            },
-            Children = []
-        };
+            var identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, E2EUserId.ToString(CultureInfo.InvariantCulture)),
+                new Claim(ClaimTypes.Name, "admin@aero.local"),
+                new Claim(ClaimTypes.Email, "admin@aero.local"),
+                new Claim(ClaimTypes.Role, AeroCmsRoles.Admin)
+            ], Scheme.Name);
+
+            var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name);
+            return Task.FromResult(AuthenticateResult.Success(ticket));
+        }
+    }
 
     private static async Task EnsureDatabaseAsync(string dbName, int port)
     {
@@ -811,8 +927,6 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         }
 
         if (_app is not null) await _app.DisposeAsync();
-        _store?.Dispose();
-
         if (_postgres is not null)
         {
             await _postgres.StopAsync();

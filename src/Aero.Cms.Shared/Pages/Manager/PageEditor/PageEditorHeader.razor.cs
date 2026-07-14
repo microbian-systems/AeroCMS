@@ -24,6 +24,10 @@ public sealed partial class PageEditorHeader : ComponentBase
     /// Gets or sets the Is Saving.
     /// </summary>
 [Parameter] public bool IsSaving { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether the page has unsaved changes.
+    /// </summary>
+    [Parameter] public bool IsDirty { get; set; }
         /// <summary>
     /// Gets or sets the Publication State.
     /// </summary>
@@ -49,4 +53,10 @@ public sealed partial class PageEditorHeader : ComponentBase
     /// Gets or sets the On Unpublish.
     /// </summary>
 [Parameter] public EventCallback OnUnpublish { get; set; }
+
+    private string SaveStatusText => IsSaving
+        ? L["Saving changes..."]
+        : IsDirty
+            ? L["Unsaved changes"]
+            : L["Last saved: {0}", LastSaved];
 }

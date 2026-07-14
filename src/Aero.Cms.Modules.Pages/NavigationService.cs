@@ -283,7 +283,10 @@ public async Task<Result<bool, AeroError>> SetHiddenAsync(
                     AeroError.NotFoundError($"Page {pageId} not found."));
             }
 
-            _session.Events.Append($"page-{pageId}", new object[] { new PageVisibilityChanged(isHidden, ShowInNavMenu: !isHidden) });
+            page.IsHidden = isHidden;
+            page.ShowInNavMenu = !isHidden;
+            page.ModifiedOn = DateTimeOffset.UtcNow;
+            _session.Store(page);
             await _session.SaveChangesAsync(ct);
 
             // Cascade: if hiding a parent, also hide all descendants (direct update for batch efficiency)

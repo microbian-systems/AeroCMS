@@ -1,10 +1,6 @@
 using System.Text.Encodings.Web;
 using Aero.Cms.Abstractions.Ai;
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Layout;
-using Aero.Cms.Abstractions.Blocks.Neo;
-using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
@@ -12,8 +8,6 @@ using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Html;
 using Aero.Core.Http;
-using Aero.Cms.Shared.Blocks.Rendering;
-using Aero.Cms.Web.Core.Blocks.Rendering;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +18,7 @@ using GrainUpdateRequest = Aero.Cms.Abstractions.Requests.UpdatePageRequest;
 namespace Aero.Cms.Modules.Pages.Areas.Api.v1;
 
 /// <summary>
-/// Thin admin API for page management — delegates persistence and event sourcing
+/// Thin admin API for page management — delegates tracked-document persistence
 /// to <see cref="IAeroPageActor"/> (Orleans grain). Tree/navigation delegates to
 /// existing services (IPageTreeService, INavigationService).
 /// </summary>
@@ -98,10 +92,6 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         
         group.MapDelete("/{id:long}/draft", DeletePageDraft)
             .WithName("DeletePageDraft");
-
-        // Event sourcing — version history (moved to grain)
-        group.MapGet("/{id:long}/events", GetPageEvents)
-            .WithName("GetPageEvents");
 
         // Preview endpoints (moved from Headless PreviewApi)
         app.MapGet($"/{HttpConstants.ApiPrefix}admin/preview/pages/{{id:long}}", PreviewPage)
@@ -184,7 +174,6 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var layoutsJson = SerializeLayoutRegions(request.LayoutRegions);
             var grainRequest = new GrainCreateRequest(
                 request.Title,
                 request.Slug,
@@ -193,14 +182,11 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 request.SeoDescription,
                 request.PublicationState,
                 request.ParentId,
-                null,
                 request.ShowInNavMenu,
                 request.ShowHeaderNavigation,
                 request.HideFooter,
                 request.ShowChatAgent,
                 siteContext.SiteId,
-                LayoutRegionsJson: layoutsJson,
-                RootNodeJson: request.RootNodeJson,
                 DraftContentJson: SerializeDraftContent(request.DraftContent));
 
             var result = await pagesActor.CreateAsync(grainRequest, ct);
@@ -230,7 +216,6 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            var layoutsJson = SerializeLayoutRegions(request.LayoutRegions);
             var grainRequest = new GrainUpdateRequest(
                 id,
                 request.Title,
@@ -240,13 +225,10 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 request.SeoDescription,
                 request.PublicationState,
                 request.ParentId,
-                null,
                 request.ShowInNavMenu,
                 request.ShowHeaderNavigation,
                 request.HideFooter,
                 request.ShowChatAgent,
-                LayoutRegionsJson: layoutsJson,
-                RootNodeJson: request.RootNodeJson,
                 DraftContentJson: SerializeDraftContent(request.DraftContent));
 
             var result = await pagesActor.UpdateAsync(grainRequest, ct);
@@ -616,7 +598,7 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             existing.Title = request.Title;
             existing.Slug = request.Slug;
             existing.Summary = request.Summary;
-            existing.RootNodeJson = request.RootNodeJson;
+            existing.DraftContent = request.DraftContent;
             existing.DraftedAt = DateTimeOffset.UtcNow;
             session.Store(existing);
         }
@@ -630,7 +612,7 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
                 Title = request.Title,
                 Slug = request.Slug,
                 Summary = request.Summary,
-                RootNodeJson = request.RootNodeJson,
+                DraftContent = request.DraftContent,
                 DraftedAt = DateTimeOffset.UtcNow
             };
             session.Store(draft);
@@ -653,30 +635,6 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             await session.SaveChangesAsync();
         }
         return TypedResults.NoContent();
-    }
-
-    // ── Event sourcing — version history (grain-backed) ───────────────
-
-    private static async Task<IResult> GetPageEvents(
-        long id,
-        [FromServices] IAeroPageActor pagesActor,
-        [FromServices] ILoggerFactory loggerFactory,
-        CancellationToken ct)
-    {
-        var logger = loggerFactory.CreateLogger(typeof(PagesApi));
-        try
-        {
-            var events = await pagesActor.GetEventHistoryAsync(id, ct);
-            if (events.Count == 0)
-                return TypedResults.NotFound(new { error = $"Page with id '{id}' not found." });
-
-            return TypedResults.Ok(events);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error fetching event history for page {PageId}", id);
-            return TypedResults.Problem(ex.Message, statusCode: 500);
-        }
     }
 
     // ── Mapping helpers ────────────────────────────────────────────────
@@ -704,7 +662,6 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             vm.Depth,
             vm.Culture,
             vm.TranslationGroupId,
-            vm.RootNodeJson,
             DeserializeDraftContent(vm.DraftContentJson),
             DeserializeDraftContent(vm.PublishedContentJson)
         );
@@ -732,7 +689,6 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
             document.Depth,
             document.Culture,
             document.TranslationGroupId,
-            null,
             document.DraftContent,
             document.PublishedContent);
 
@@ -935,24 +891,31 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
 
     private static async Task<IResult> PreviewPageFragment(
         [FromBody] PreviewPageFragmentRequest request,
-        [FromServices] CmsBlockHtmlRenderer blockRenderer,
+        [FromServices] IStyleCompiler styleCompiler,
+        [FromServices] IStyleProfile styleProfile,
+        [FromServices] HtmlStaticRenderer renderer,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
-            if ((request.LayoutRegions is null || request.LayoutRegions.Count == 0) &&
-                string.IsNullOrEmpty(request.RootNodeJson))
-                return TypedResults.BadRequest(new { error = "Page layout regions or root node JSON are required." });
+            var styles = styleCompiler.Compile(request.Content, styleProfile);
+            if (styles is Result<CompiledPageStyles>.Failure styleFailure)
+                return TypedResults.BadRequest(new { error = styleFailure.Error.ToString() });
 
-            var html = !string.IsNullOrEmpty(request.RootNodeJson)
-                ? await blockRenderer.RenderBlocksAsync(
-                    [BuildPreviewCompositionBlock(request.RootNodeJson)],
-                    cancellationToken: ct)
-                : await blockRenderer.RenderRegionsAsync(request.LayoutRegions ?? [], ct);
+            var rendered = renderer.RenderPage(
+                request.Content,
+                ((Result<CompiledPageStyles>.Ok)styles).Value);
+            if (rendered is Result<RenderedHtmlPage>.Failure renderFailure)
+                return TypedResults.BadRequest(new { error = renderFailure.Error.ToString() });
 
-            return TypedResults.Ok(new PreviewPageFragmentResponse(RenderPreviewHtml(html)));
+            var page = ((Result<RenderedHtmlPage>.Ok)rendered).Value;
+            var html = string.IsNullOrWhiteSpace(page.CssText)
+                ? page.Markup
+                : $"<style data-aero-page-styles>{page.CssText}</style>{page.Markup}";
+
+            return TypedResults.Ok(new PreviewPageFragmentResponse(html));
         }
         catch (Exception ex)
         {
@@ -968,38 +931,6 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         using var writer = new StringWriter();
         content.WriteTo(writer, HtmlEncoder.Default);
         return writer.ToString();
-    }
-
-    private static NeoCompositionBlock BuildPreviewCompositionBlock(string rootNodeJson)
-    {
-        var root = System.Text.Json.JsonSerializer.Deserialize<NeoPageNode>(
-            rootNodeJson,
-            BlockJsonContext.Default.Options);
-
-        if (root is null)
-        {
-            return new NeoCompositionBlock();
-        }
-
-        var rootNodes = string.Equals(root.CatalogId, "page.root", StringComparison.OrdinalIgnoreCase) ||
-                        root.Kind == NeoPageNodeKind.Page
-            ? root.Children
-            : [root];
-
-        return new NeoCompositionBlock
-        {
-            Nodes = PageTreeLegacyNodeMigrator.CloneTree(rootNodes)
-        };
-    }
-
-    private static string? SerializeLayoutRegions(IReadOnlyList<LayoutRegion>? regions)
-    {
-        if (regions is null)
-            return null;
-
-        return System.Text.Json.JsonSerializer.Serialize(
-            regions,
-            BlockJsonContext.Default.Options);
     }
 
     private sealed record AiTranslatePagePlan(

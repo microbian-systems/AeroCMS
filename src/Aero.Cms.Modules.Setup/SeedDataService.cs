@@ -1,7 +1,5 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
-using Aero.Cms.Abstractions.Blocks.Neo;
-using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Modules.Posts;
@@ -1028,14 +1026,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         Log.Information("Seeded /oops error page with /404 → /oops, /500 → /oops, /setup → / aliases");
     }
 
-    private static List<NeoPageNode> BuildOopsPageRootNodes()
-    {
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero("Page Not Found", "The page you're looking for doesn't exist or has been moved.", fullWidth: true),
-            SeededPageCompositionFactory.CreateRichText("<p class='text-lg'>We couldn't find the page you were looking for...</p>")
-        ];
-    }
 
     private async Task SeedStarterMediaAsync(CancellationToken ct)
     {
@@ -1125,57 +1115,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildHomepageRootNodes(SeedDatabaseRequest request)
-    {
-        var homepageSummary = $"A high-performance, block-based content platform built for scale. Experience the next generation of web management with {Normalize(request.SiteName)}.";
-
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero(
-                Normalize(request.HomepageTitle),
-                homepageSummary,
-                backgroundImage: "/media/data-center.png",
-                fullWidth: true),
-            SeededPageCompositionFactory.CreateRichText(
-                "<div class='max-w-4xl mx-auto'>" +
-                    "<p class='text-xl leading-relaxed text-slate-700 mb-10'>" +
-                        "<strong>Aero CMS</strong> is a high-performance content platform designed for the next generation of web experience. " +
-                        "Engineered with a relentless focus on efficiency, our ultimate goal is full <strong>Native AOT</strong> compatibility—delivering " +
-                        "blindingly fast startup times and a minimal memory footprint." +
-                    "</p>" +
-                    "<div class='grid grid-cols-1 md:grid-cols-2 gap-12 mb-16'>" +
-                        "<div class='space-y-4'>" +
-                            "<h3 class='text-lg font-bold text-slate-900 flex items-center gap-2'>" +
-                                "<span class='h-1 w-6 bg-indigo-600 rounded-full'></span>" +
-                                "The Power Core" +
-                            "</h3>" +
-                            "<p class='text-slate-600 leading-relaxed font-medium'>" +
-                                "Built on <strong>.NET 10</strong>, <strong>AeroDB</strong>, and <strong>PostgreSQL</strong>, we provide a sophisticated " +
-                                "document-database experience with the reliability of a relational backend. <strong>Wolverine</strong> and " +
-                                "<strong>LavinMQ</strong> handle our high-performance messaging, while <strong>S3 compatible storage</strong> " +
-                                "ensures your assets are served globally at scale." +
-                            "</p>" +
-                        "</div>" +
-                        "<div class='space-y-4'>" +
-                            "<h3 class='text-lg font-bold text-slate-900 flex items-center gap-2'>" +
-                                "<span class='h-1 w-6 bg-violet-600 rounded-full'></span>" +
-                                "Modern Frontend" +
-                            "</h3>" +
-                            "<p class='text-slate-600 leading-relaxed font-medium'>" +
-                                "We embrace the hypermedia revolution with <strong>HTMX</strong> and <strong>Alpine.js</strong>, supplemented by " +
-                                "<strong>Lit</strong> and <strong>Preact</strong> for standard-based components. The entire ecosystem is " +
-                                "<strong>.NET Aspire</strong> compatible and managed via powerful <strong>.NET MAUI</strong> clients." +
-                            "</p>" +
-                        "</div>" +
-                    "</div>" +
-                "</div>"),
-            SeededPageCompositionFactory.CreateGridTwoColumnSection(
-                "Performance First",
-                "Built on .NET 10 with Native AOT compilation, achieving sub-millisecond cold starts. AeroDB provides document flexibility with PostgreSQL reliability.",
-                "Developer Experience",
-                "HTMX, Alpine.js, and Blazor components with a type-safe TypeScript layer. Source generators eliminate boilerplate and power the block rendering pipeline.")
-        ];
-    }
 
     private static PageDocument BuildBlogListingPage(SeedDatabaseRequest request)
     {
@@ -1195,17 +1134,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildBlogListingPageRootNodes(SeedDatabaseRequest request)
-    {
-        return
-        [
-            SeededPageCompositionFactory.CreateHeadingBlock(Normalize(request.BlogName)),
-            SeededPageCompositionFactory.CreateRichText("<p>Ten example posts are already published so the site is usable right away.</p>"),
-            SeededPageCompositionFactory.CreateSemanticSection(
-                SeededPageCompositionFactory.CreateHeading("Latest Articles", 2),
-                SeededPageCompositionFactory.CreateTextSection("Stay up to date with the latest insights, tutorials, and updates from the Aero CMS team."))
-        ];
-    }
 
     private static PageDocument BuildAboutPage()
     {
@@ -1227,26 +1155,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildAboutPageRootNodes()
-    {
-        const string summary = "Learn more about our mission and the team behind the platform.";
-
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero("About Us", summary),
-            SeededPageCompositionFactory.CreateRichText(
-                "<p class='text-lg leading-relaxed text-slate-700 mb-6'>We believe that content management should be intuitive, performant, and extensible. Our team is dedicated to building tools that empower creators to share their vision without technical friction.</p>" +
-                "<p class='text-lg leading-relaxed text-slate-700'>Founded on the principles of clarity and engineering excellence, Aero CMS is the culmination of years of experience in distributed systems and modern web architecture.</p>"),
-            SeededPageCompositionFactory.CreateFeatureSection(
-                "Our Mission",
-                "We build tools that empower creators to share their vision without technical friction.",
-                "Learn More",
-                "/about"),
-            SeededPageCompositionFactory.CreateSemanticSection(
-                SeededPageCompositionFactory.CreateHeading("Our Values", 2),
-                SeededPageCompositionFactory.CreateBlockquote("Integrity, innovation, and inclusivity drive everything we build."))
-        ];
-    }
 
     private static PageDocument BuildContactPage()
     {
@@ -1268,23 +1176,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildContactPageRootNodes()
-    {
-        const string summary = "Get in touch with our team.";
-
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero("Contact Us", summary),
-            SeededPageCompositionFactory.CreateRichText(
-                "<p class='text-lg leading-relaxed text-slate-700 mb-8'>Have a question or looking to collaborate? We'd love to hear from you. Our team typically responds within 24 hours.</p>"),
-            SeededPageCompositionFactory.CreateCtaButton("Send Us a Message", "mailto:hello@example.com"),
-            SeededPageCompositionFactory.CreateTwoColumnSection(
-                "Get In Touch",
-                "We'd love to hear from you. Our team typically responds within 24 hours.",
-                "Visit Us",
-                "123 Main Street, Suite 100, Anytown, USA")
-        ];
-    }
 
     private static PageDocument BuildPrivacyPage()
     {
@@ -1306,27 +1197,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildPrivacyPageRootNodes()
-    {
-        const string summary = "Our commitment to your privacy and data protection.";
-
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero("Privacy Policy", summary),
-            SeededPageCompositionFactory.CreateRichText(
-                "<p class='text-lg leading-relaxed text-slate-700 mb-6'>We take your privacy seriously. This Privacy Policy explains how we collect, use, and protect your personal information when you use our site.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Information We Collect</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>We may collect information you provide directly, such as your name and email address when you contact us or sign up for updates. We also automatically collect certain information about your device and how you interact with our site.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>How We Use Information</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>We use the information we collect to provide, maintain, and improve our services, to communicate with you, and to comply with legal obligations.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Data Sharing</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>We do not sell your personal information. We may share data with trusted service providers who help us operate our site, subject to confidentiality agreements.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Your Rights</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>You have the right to access, correct, or delete your personal data. Contact us to exercise these rights.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Contact</h2>" +
-                "<p class='leading-relaxed text-slate-600'>If you have questions about this policy, please reach out through our contact page.</p>")
-        ];
-    }
 
     private static PageDocument BuildTermsPage()
     {
@@ -1348,27 +1218,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildTermsPageRootNodes()
-    {
-        const string summary = "Terms and conditions governing the use of our site.";
-
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero("Terms of Service", summary),
-            SeededPageCompositionFactory.CreateRichText(
-                "<p class='text-lg leading-relaxed text-slate-700 mb-6'>By accessing and using this site, you agree to be bound by the following terms and conditions. Please read them carefully.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Use of the Site</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>You may use our site for lawful purposes only. You agree not to misuse or interfere with the operation of the site.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Intellectual Property</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>All content on this site, including text, graphics, logos, and software, is the property of Aero CMS or its licensors and is protected by copyright and other intellectual property laws.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Limitation of Liability</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>We strive to provide accurate and up-to-date information, but we make no warranties regarding the completeness or accuracy of the content. Use the site at your own risk.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Changes to These Terms</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>We may revise these terms at any time. Continued use of the site after changes constitutes acceptance of the new terms.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Contact</h2>" +
-                "<p class='leading-relaxed text-slate-600'>If you have questions about these terms, please reach out through our contact page.</p>")
-        ];
-    }
 
     private static PageDocument BuildCookiesPage()
     {
@@ -1390,27 +1239,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildCookiesPageRootNodes()
-    {
-        const string summary = "How we use cookies to improve your browsing experience.";
-
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero("Cookie Policy", summary),
-            SeededPageCompositionFactory.CreateRichText(
-                "<p class='text-lg leading-relaxed text-slate-700 mb-6'>This Cookie Policy explains what cookies are, how we use them, and your choices regarding their use.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>What Are Cookies?</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>Cookies are small text files stored on your device when you visit a website. They help websites remember your preferences, improve performance, and provide a more personalized experience.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>How We Use Cookies</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>We use essential cookies for site functionality, analytics cookies to understand how visitors use our site, and preference cookies to remember your settings.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Managing Cookies</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>Most browsers allow you to control cookies through their settings. You can block or delete cookies, but this may affect your experience on our site.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Third-Party Cookies</h2>" +
-                "<p class='leading-relaxed text-slate-600 mb-4'>Some third-party services we use may also set cookies on your device. These are governed by the respective third-party privacy policies.</p>" +
-                "<h2 class='text-xl font-bold text-slate-900 mt-8 mb-4'>Contact</h2>" +
-                "<p class='leading-relaxed text-slate-600'>If you have questions about our cookie policy, please reach out through our contact page.</p>")
-        ];
-    }
 
     private static PageDocument BuildSpanishHomepage(
         SeedDatabaseRequest request,
@@ -1438,30 +1266,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildSpanishHomepageRootNodes(
-        SeedDatabaseRequest request)
-    {
-        var title = $"Bienvenido a {Normalize(request.SiteName)}";
-        var summary = "Una plataforma de contenido modular, rapida y preparada para sitios modernos.";
-
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero(
-                title,
-                summary,
-                backgroundImage: "/media/data-center.png"),
-            SeededPageCompositionFactory.CreateRichText(
-                "<p class='text-xl leading-relaxed text-slate-700 mb-8'><strong>Aero CMS</strong> ayuda a equipos a crear, organizar y publicar contenido con un flujo claro y flexible.</p>" +
-                "<p class='text-lg leading-relaxed text-slate-600'>Este sitio incluye una pagina principal, blog, navegacion y pie de pagina listos para personalizar en espanol.</p>"),
-            SeededPageCompositionFactory.CreateBidirectionalFeature(
-                "Bienvenidos",
-                "Construye sitios hermosos con un CMS moderno y rapido.",
-                "مرحباً",
-                "أنشئ مواقع جميلة باستخدام نظام إدارة محتوى حديث وسريع.",
-                "Comenzar",
-                "/es/registro")
-        ];
-    }
 
     private static PageDocument BuildSpanishBlogListingPage(
         SeedDatabaseRequest request,
@@ -1485,14 +1289,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildSpanishBlogListingPageRootNodes()
-    {
-        return
-        [
-            SeededPageCompositionFactory.CreateHeadingBlock("Blog"),
-            SeededPageCompositionFactory.CreateRichText("<p>Notas, novedades y articulos publicados por el equipo.</p>")
-        ];
-    }
 
     private static PageDocument BuildSpanishAboutPage(long TranslationGroupId)
     {
@@ -1517,24 +1313,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildSpanishAboutPageRootNodes()
-    {
-        const string title = "Acerca de";
-        const string summary = "Conoce nuestra mision y la historia detras de la plataforma.";
-
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero(title, summary),
-            SeededPageCompositionFactory.CreateRichText(
-                "<p class='text-lg leading-relaxed text-slate-700 mb-6'>Creemos que la gestion de contenido debe ser clara, rapida y extensible.</p>" +
-                "<p class='text-lg leading-relaxed text-slate-700'>Aero CMS esta disenado para que los equipos publiquen con confianza sin perder flexibilidad tecnica.</p>"),
-            SeededPageCompositionFactory.CreateFeatureSection(
-                "Nuestra Mision",
-                "Construimos herramientas que empoderan a los creadores a compartir su vision sin friccion tecnica.",
-                "Saber Mas",
-                "/es-mx/acerca-de")
-        ];
-    }
 
     private static PageDocument BuildSpanishContactPage(long TranslationGroupId)
     {
@@ -1559,24 +1337,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         };
     }
 
-    private static List<NeoPageNode> BuildSpanishContactPageRootNodes()
-    {
-        const string title = "Contacto";
-        const string summary = "Ponte en contacto con nuestro equipo.";
-
-        return
-        [
-            SeededPageCompositionFactory.CreateBoringHero(title, summary),
-            SeededPageCompositionFactory.CreateRichText(
-                "<p class='text-lg leading-relaxed text-slate-700 mb-8'>Tienes una pregunta o quieres colaborar? Nos encantaria saber de ti.</p>"),
-            SeededPageCompositionFactory.CreateCtaButton("Enviar un mensaje", "mailto:hello@example.com"),
-            SeededPageCompositionFactory.CreateTwoColumnSection(
-                "Comunicate",
-                "Nos encantaria saber de ti. Envianos un mensaje y te responderemos a la brevedad.",
-                "Visitanos",
-                "Calle Principal 123, Colonia Centro, Ciudad de Mexico, Mexico")
-        ];
-    }
 
     private static (IReadOnlyList<PostDocument> Posts, IReadOnlyList<Tag> Tags) BuildStarterBlogContent(SeedDatabaseRequest request)
     {

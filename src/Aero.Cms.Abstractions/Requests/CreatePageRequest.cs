@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Requests;
@@ -16,16 +15,11 @@ public record CreatePageRequest(
     string? SeoDescription,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
     long? ParentId = null,
-    IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
     long SiteId = 0,
-    /// <summary>JSON-serialized LayoutRegions for Orleans-safe grain transport.</summary>
-    string? LayoutRegionsJson = null,
-    /// <summary>JSON-serialized NeoPageNode root tree.</summary>
-    string? RootNodeJson = null,
     /// <summary>Source-generated JSON transport for living-standard draft content.</summary>
     string? DraftContentJson = null
 ) : IRequest;
@@ -44,15 +38,10 @@ public record UpdatePageRequest(
     string? SeoDescription,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
     long? ParentId = null,
-    IReadOnlyList<LayoutRegion>? LayoutRegions = null,
     bool ShowInNavMenu = false,
     bool ShowHeaderNavigation = true,
     bool HideFooter = false,
     bool ShowChatAgent = true,
-    /// <summary>JSON-serialized LayoutRegions for Orleans-safe grain transport.</summary>
-    string? LayoutRegionsJson = null,
-    /// <summary>JSON-serialized NeoPageNode root tree.</summary>
-    string? RootNodeJson = null,
     /// <summary>Source-generated JSON transport for living-standard draft content.</summary>
     string? DraftContentJson = null
 ) : IRequest;

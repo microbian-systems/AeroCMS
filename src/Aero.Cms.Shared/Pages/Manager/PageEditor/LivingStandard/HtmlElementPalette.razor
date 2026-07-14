@@ -18,7 +18,10 @@
                 <button @key="option.Kind"
                         type="button"
                         class="aero-element-palette__item aero-element-palette__item--layout"
-                        title="@option.Description"
+                        title="@($"{option.Description}. Click to add or drag onto the page.")"
+                        data-aero-palette-kind="layout"
+                        data-aero-palette-value="@option.Kind"
+                        data-aero-palette-label="@option.Label"
                         @onclick="() => RequestLayoutAsync(option.Kind)">
                     <span class="aero-element-palette__layout-icon" aria-hidden="true">@option.Icon</span>
                     <span>@option.Label</span>
@@ -43,7 +46,10 @@
                         <button @key="element.Tag"
                                 type="button"
                                 class="aero-element-palette__item"
-                                title="Add @element.DisplayName"
+                                title="Add or drag @element.DisplayName"
+                                data-aero-palette-kind="element"
+                                data-aero-palette-value="@element.Tag"
+                                data-aero-palette-label="@element.DisplayName"
                                 @onclick="() => RequestElementAsync(element.Tag)">
                             <span class="aero-element-palette__tag" aria-hidden="true">&lt;@element.Tag&gt;</span>
                             <span>@element.DisplayName</span>

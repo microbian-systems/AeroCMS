@@ -1,5 +1,5 @@
 using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Html;
 
 namespace Aero.Cms.Abstractions.Http;
 
@@ -7,8 +7,7 @@ namespace Aero.Cms.Abstractions.Http;
 /// Request payload for rendering an unsaved page preview fragment.
 /// </summary>
 public sealed record PreviewPageFragmentRequest(
-    IReadOnlyList<LayoutRegion>? LayoutRegions = null,
-    string? RootNodeJson = null);
+    HtmlPageContent Content);
 
 /// <summary>
 /// Response payload for a rendered page preview fragment.

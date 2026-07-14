@@ -1,7 +1,6 @@
-using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Abstractions.Blocks.Neo;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Html;
 
 namespace Aero.Cms.Modules.Pages;
 
@@ -45,10 +44,9 @@ public static PageDocument Fork(PageDocument source, long targetPageId, string t
             HideHeader = source.HideHeader,
             HideFooter = source.HideFooter,
             ShowChatAgent = source.ShowChatAgent,
-            BlockSchemaVersion = source.BlockSchemaVersion,
-            RootNodes = source.RootNodes?.Select(n => EditorNodeMemento.Capture(n).Restore()).ToList() ?? [],
-            LayoutRegions = [],
-            BlockIdMap = []
+            DraftContent = HtmlTreeOperations.ClonePreservingNodeIds(source.DraftContent),
+            PublishedContent = null,
+            ContentRevision = source.ContentRevision
         };
     }
 }

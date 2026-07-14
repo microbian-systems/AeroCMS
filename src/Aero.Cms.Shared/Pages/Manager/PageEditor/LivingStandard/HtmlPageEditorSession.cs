@@ -12,6 +12,7 @@ public sealed class HtmlPageEditorSession
 {
     private readonly HtmlElementCatalog _catalog;
     private readonly IHtmlContentModelPolicy _contentPolicy;
+    private readonly IHtmlContentValidator _contentValidator;
     private readonly IHtmlLayoutStarterFactory _layoutFactory;
     private readonly IStyleCompiler _styleCompiler;
     private readonly IStyleProfile _styleProfile;
@@ -21,6 +22,7 @@ public sealed class HtmlPageEditorSession
         HtmlPageContent content,
         HtmlElementCatalog catalog,
         IHtmlContentModelPolicy contentPolicy,
+        IHtmlContentValidator contentValidator,
         IHtmlLayoutStarterFactory layoutFactory,
         IStyleCompiler styleCompiler,
         IStyleProfile styleProfile)
@@ -28,10 +30,11 @@ public sealed class HtmlPageEditorSession
         ArgumentNullException.ThrowIfNull(content);
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _contentPolicy = contentPolicy ?? throw new ArgumentNullException(nameof(contentPolicy));
+        _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
         _layoutFactory = layoutFactory ?? throw new ArgumentNullException(nameof(layoutFactory));
         _styleCompiler = styleCompiler ?? throw new ArgumentNullException(nameof(styleCompiler));
         _styleProfile = styleProfile ?? throw new ArgumentNullException(nameof(styleProfile));
-        _treeEditor = new HtmlTreeEditor(content, contentPolicy);
+        _treeEditor = new HtmlTreeEditor(content, contentPolicy, validateCandidate: ValidateCandidate);
 
         RefreshCompiledStyles();
     }
@@ -71,6 +74,19 @@ public sealed class HtmlPageEditorSession
         return Insert(node, parentNodeId);
     }
 
+    public Result<HtmlNode> AddElementRelative(
+        string tagName,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        if (!_catalog.TryGet(tagName, out var definition) || definition is null)
+        {
+            return AeroError.ValidationError([$"The HTML element <{tagName}> is not supported by this editor."]);
+        }
+
+        return InsertRelative(CreatePaletteNode(definition), targetNodeId, placement);
+    }
+
     public Result<HtmlNode> AddLayout(HtmlLayoutStarterKind kind, long? parentNodeId = null)
     {
         var starter = _layoutFactory.Create(kind);
@@ -82,9 +98,38 @@ public sealed class HtmlPageEditorSession
         };
     }
 
+    public Result<HtmlNode> AddLayoutRelative(
+        HtmlLayoutStarterKind kind,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        var starter = _layoutFactory.Create(kind);
+        return starter switch
+        {
+            Result<HtmlNode>.Ok ok => InsertRelative(ok.Value, targetNodeId, placement),
+            Result<HtmlNode>.Failure failure => failure,
+            _ => AeroError.CreateError("The layout starter returned an unknown result state.")
+        };
+    }
+
     public Result<HtmlNode> Move(long nodeId, long destinationParentNodeId, int destinationIndex)
     {
         var result = _treeEditor.Move(nodeId, destinationParentNodeId, destinationIndex);
+        if (result is Result<HtmlNode>.Ok)
+        {
+            SelectedNodeId = nodeId;
+            RefreshCompiledStyles();
+        }
+
+        return result;
+    }
+
+    public Result<HtmlNode> MoveRelative(
+        long nodeId,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        var result = _treeEditor.MoveRelative(nodeId, targetNodeId, placement);
         if (result is Result<HtmlNode>.Ok)
         {
             SelectedNodeId = nodeId;
@@ -105,6 +150,38 @@ public sealed class HtmlPageEditorSession
         if (result is Result<HtmlNode>.Ok)
         {
             SelectedNodeId = null;
+            RefreshCompiledStyles();
+        }
+
+        return result;
+    }
+
+    public Result<HtmlNode> UpdateSelectedProperties(HtmlNodeProperties properties)
+    {
+        if (SelectedNodeId is not { } nodeId)
+        {
+            return AeroError.NotAllowedError("Select an element before editing its properties.");
+        }
+
+        var result = _treeEditor.UpdateProperties(nodeId, properties, ValidateCandidate);
+        if (result is Result<HtmlNode>.Ok)
+        {
+            RefreshCompiledStyles();
+        }
+
+        return result;
+    }
+
+    public Result<HtmlNode> UpdateSelectedChildren(IReadOnlyList<HtmlNode> children)
+    {
+        if (SelectedNodeId is not { } nodeId)
+        {
+            return AeroError.NotAllowedError("Select an element before editing its content.");
+        }
+
+        var result = _treeEditor.UpdateChildren(nodeId, children, ValidateCandidate);
+        if (result is Result<HtmlNode>.Ok)
+        {
             RefreshCompiledStyles();
         }
 
@@ -153,6 +230,21 @@ public sealed class HtmlPageEditorSession
         return result;
     }
 
+    private Result<HtmlNode> InsertRelative(
+        HtmlNode node,
+        long targetNodeId,
+        HtmlRelativePlacement placement)
+    {
+        var result = _treeEditor.InsertRelative(node, targetNodeId, placement);
+        if (result is Result<HtmlNode>.Ok)
+        {
+            SelectedNodeId = node.NodeId;
+            RefreshCompiledStyles();
+        }
+
+        return result;
+    }
+
     private long? FindInsertionParent(HtmlNode child, long? requestedParentNodeId)
     {
         var candidateId = requestedParentNodeId ?? SelectedNodeId;
@@ -191,6 +283,12 @@ public sealed class HtmlPageEditorSession
                 node.Attributes["alt"] = string.Empty;
             }
 
+            if (definition.Tag.Equals("input", StringComparison.OrdinalIgnoreCase))
+            {
+                node.Attributes["type"] = "text";
+                node.Attributes["name"] = "field";
+            }
+
             return node;
         }
 
@@ -204,6 +302,7 @@ public sealed class HtmlPageEditorSession
             "em" => "Emphasized text",
             "a" => "Link text",
             "button" => "Button",
+            "label" => "Field label",
             _ => null
         };
 
@@ -224,7 +323,82 @@ public sealed class HtmlPageEditorSession
             node.Children.Add(item);
         }
 
+        if (definition.Tag.Equals("table", StringComparison.OrdinalIgnoreCase))
+        {
+            AddDefaultTableContent(node);
+        }
+
+        if (definition.Tag.Equals("form", StringComparison.OrdinalIgnoreCase))
+        {
+            AddDefaultFormContent(node);
+        }
+
+        if (definition.Tag.Equals("select", StringComparison.OrdinalIgnoreCase))
+        {
+            node.Children.Add(CreateOption("option-1", "Option 1"));
+        }
+
         return node;
+    }
+
+    private void AddDefaultTableContent(HtmlNode table)
+    {
+        var head = _catalog.CreateElement("thead");
+        var headRow = _catalog.CreateElement("tr");
+        headRow.Children.Add(CreateTableCell("th", "Header 1", "col"));
+        headRow.Children.Add(CreateTableCell("th", "Header 2", "col"));
+        head.Children.Add(headRow);
+
+        var body = _catalog.CreateElement("tbody");
+        var bodyRow = _catalog.CreateElement("tr");
+        bodyRow.Children.Add(CreateTableCell("td", "Cell 1"));
+        bodyRow.Children.Add(CreateTableCell("td", "Cell 2"));
+        body.Children.Add(bodyRow);
+
+        table.Children.Add(head);
+        table.Children.Add(body);
+    }
+
+    private HtmlNode CreateTableCell(string tag, string text, string? scope = null)
+    {
+        var cell = _catalog.CreateElement(tag);
+        if (scope is not null)
+        {
+            cell.Attributes["scope"] = scope;
+        }
+
+        cell.Children.Add(HtmlNode.CreateText(text));
+        return cell;
+    }
+
+    private void AddDefaultFormContent(HtmlNode form)
+    {
+        var input = _catalog.CreateElement("input");
+        var inputId = $"field-{input.NodeId}";
+        input.Attributes["id"] = inputId;
+        input.Attributes["type"] = "text";
+        input.Attributes["name"] = "field";
+        input.Attributes["placeholder"] = "Enter a value";
+
+        var label = _catalog.CreateElement("label");
+        label.Attributes["for"] = inputId;
+        label.Children.Add(HtmlNode.CreateText("Field label"));
+
+        var button = _catalog.CreateElement("button");
+        button.Attributes["type"] = "submit";
+        button.Children.Add(HtmlNode.CreateText("Submit"));
+
+        form.Children.Add(label);
+        form.Children.Add(input);
+        form.Children.Add(button);
+    }
+
+    private HtmlNode CreateOption(string value, string text)
+    {
+        var option = _catalog.CreateElement("option");
+        option.Attributes["value"] = value;
+        option.Children.Add(HtmlNode.CreateText(text));
+        return option;
     }
 
     private void ClearMissingSelection()
@@ -250,5 +424,22 @@ public sealed class HtmlPageEditorSession
                 StyleCompilationError = failure.Error;
                 break;
         }
+    }
+
+    private Result<bool> ValidateCandidate(HtmlPageContent content)
+    {
+        var contentValidation = _contentValidator.Validate(content);
+        if (contentValidation is Result<bool>.Failure contentFailure)
+        {
+            return contentFailure;
+        }
+
+        var styleCompilation = _styleCompiler.Compile(content, _styleProfile);
+        return styleCompilation switch
+        {
+            Result<CompiledPageStyles>.Ok => new Result<bool>.Ok(true),
+            Result<CompiledPageStyles>.Failure styleFailure => styleFailure.Error,
+            _ => AeroError.CreateError("Style compilation returned an unknown result state.")
+        };
     }
 }

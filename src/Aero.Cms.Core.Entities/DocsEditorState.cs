@@ -3,7 +3,7 @@ namespace Aero.Cms.Core.Entities;
 /// <summary>
 /// The editor's draft workspace for docs. The public renderer never reads this document.
 /// Loaded by the docs editor API. Written on every draft save.
-/// Mirrors <see cref="PageEditorState"/>.
+/// Stores the document editor's ordered block workspace.
 /// </summary>
 public sealed class DocsEditorState
 {

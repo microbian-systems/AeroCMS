@@ -3,16 +3,10 @@ using Aero.Cms.Modules.Pages.Validators;
 using Aero.Core.Extensions;
 using Wolverine;
 using Aero.Cms.Abstractions.Enums;
-using Aero.Cms.Abstractions.Blocks.Editor;
-using Aero.Cms.Abstractions.Blocks.Layout;
-using Aero.Cms.Abstractions.Blocks.Neo;
-using Aero.Cms.Abstractions.Blocks.Neo.Styles;
-using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
-using Aero.Cms.Shared.Blocks.Rendering;
 using Aero.Cms.Shared.Localization;
 using Aero.Core.Http;
 using System.Globalization;
@@ -588,8 +582,6 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToke
                 session.Delete(reservation);
             }
 
-            // Append delete event for version history, then soft-delete via AeroDB ISoftDeleted
-            session.Events.Append($"page-{id}", new object[] { new PageDeleted(null) });
             session.Delete(page);
 
             await session.SaveChangesAsync(cancellationToken);
@@ -622,8 +614,7 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDesce
             {
                 // Unpublish the parent page — children remain as-is
                 var previousState = page.PublicationState;
-                page.PublicationState = ContentPublicationState.Draft;
-                session.Events.Append($"page-{id}", new object[] { new PageStateChanged(ContentPublicationState.Draft) });
+                page.UnpublishContent(DateTimeOffset.UtcNow);
                 session.Store(page);
                 await session.SaveChangesAsync(cancellationToken);
                 logger.LogInformation("Unpublished page {PageId} (was {PreviousState})", id, previousState);
@@ -657,7 +648,6 @@ public async Task<Result<bool, AeroError>> DeleteAsync(long id, bool deleteDesce
                 if (reservation is not null)
                     session.Delete(reservation);
 
-                session.Events.Append($"page-{doc.Id}", new object[] { new PageDeleted(null) });
                 session.Delete(doc);
             }
 
@@ -715,10 +705,6 @@ public async Task<Result<int, AeroError>> DeleteMultipleAsync(IReadOnlyList<long
                 && idList.Contains(x.OwnerId)
                 && x.OwnerType == ContentSlugOwnerType.Page);
 
-            // Append PageDeleted events to each stream (audit trail)
-            foreach (var id in idList)
-                session.Events.Append($"page-{id}", new object[] { new PageDeleted(null) });
-
             await session.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Bulk-deleted {Count} pages (deleteDescendants={Cascade})", idList.Count, deleteDescendants);
             return Prelude.Ok<int, AeroError>(idList.Count);
@@ -757,11 +743,6 @@ public async Task<Result<int, AeroError>> DeleteTranslationGroupAsync(long trans
                 x.SiteId == _siteContext.SiteId
                 && ids.Contains(x.OwnerId)
                 && x.OwnerType == ContentSlugOwnerType.Page);
-
-            foreach (var id in ids)
-            {
-                session.Events.Append($"page-{id}", new object[] { new PageDeleted(null) });
-            }
 
             await session.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Deleted page translation group {TranslationGroupId} with {Count} variants", translationGroupId, ids.Count);

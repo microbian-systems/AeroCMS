@@ -310,8 +310,6 @@
 	  <ProjectReference Include="..\Aero.Cms.Modules.WorkOS\Aero.Cms.Modules.WorkOS.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Services\Aero.Cms.Services.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" />
-	  <ProjectReference Include="..\Aero.Cms.Ui.Hyper\Aero.Cms.Ui.Hyper.csproj" />
-	  <ProjectReference Include="..\Aero.Cms.Ui.Neo\Aero.Cms.Ui.Neo.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Web.Core\Aero.Cms.Web.Core.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Blog.Importer\Aero.Cms.Modules.Blog.Importer.csproj" />
 	  <ProjectReference Include="..\Aero.Cms.Modules.Posts\Aero.Cms.Modules.Posts.csproj" />

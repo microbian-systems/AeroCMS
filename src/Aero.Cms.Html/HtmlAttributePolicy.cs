@@ -28,8 +28,15 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
             return HtmlAttributePolicyDecision.Deny("Inline style attributes are not supported; use the style model instead.");
         }
 
-        if (IsGlobalAttribute(attributeName) || IsElementAttribute(element.Tag, attributeName))
+        if (IsGlobalAttribute(attributeName)
+            || element.AllowedAttributes.Contains(attributeName, StringComparer.OrdinalIgnoreCase))
         {
+            if (!IsAllowedValue(element.Tag, attributeName, attributeValue))
+            {
+                return HtmlAttributePolicyDecision.Deny(
+                    $"The {attributeName} value is not supported on <{element.Tag}>.");
+            }
+
             return IsUrlAttribute(attributeName) && !IsSafeUrl(attributeName, attributeValue)
                 ? HtmlAttributePolicyDecision.Deny($"The {attributeName} URL scheme is not supported.")
                 : HtmlAttributePolicyDecision.Allow();
@@ -46,29 +53,62 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
         || attributeName.StartsWith("aria-", StringComparison.OrdinalIgnoreCase)
         || attributeName.StartsWith("data-", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsElementAttribute(string tagName, string attributeName) =>
-        (tagName.Equals("a", StringComparison.OrdinalIgnoreCase)
-            && (attributeName.Equals("href", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("target", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("rel", StringComparison.OrdinalIgnoreCase)))
-        || (tagName.Equals("img", StringComparison.OrdinalIgnoreCase)
-            && (attributeName.Equals("src", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("alt", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("width", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("height", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("loading", StringComparison.OrdinalIgnoreCase)))
-        || (tagName.Equals("button", StringComparison.OrdinalIgnoreCase)
-            && (attributeName.Equals("type", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("disabled", StringComparison.OrdinalIgnoreCase)));
-
     private static bool IsUrlAttribute(string attributeName) =>
         attributeName.Equals("href", StringComparison.OrdinalIgnoreCase)
-        || attributeName.Equals("src", StringComparison.OrdinalIgnoreCase);
+        || attributeName.Equals("src", StringComparison.OrdinalIgnoreCase)
+        || attributeName.Equals("action", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSafeUrl(string attributeName, string value) =>
         attributeName.Equals("src", StringComparison.OrdinalIgnoreCase)
             ? HtmlUrlPolicy.IsSafeMediaUrl(value)
             : HtmlUrlPolicy.IsSafeNavigationUrl(value);
+
+    private static bool IsAllowedValue(string tagName, string attributeName, string value)
+    {
+        if (attributeName.Equals("target", StringComparison.OrdinalIgnoreCase))
+        {
+            return value is "_self" or "_blank" or "_parent" or "_top";
+        }
+
+        if (tagName.Equals("img", StringComparison.OrdinalIgnoreCase)
+            && attributeName.Equals("loading", StringComparison.OrdinalIgnoreCase))
+        {
+            return value is "lazy" or "eager";
+        }
+
+        if (tagName.Equals("button", StringComparison.OrdinalIgnoreCase)
+            && attributeName.Equals("type", StringComparison.OrdinalIgnoreCase))
+        {
+            return value is "button" or "submit" or "reset";
+        }
+
+        if (tagName.Equals("form", StringComparison.OrdinalIgnoreCase)
+            && attributeName.Equals("method", StringComparison.OrdinalIgnoreCase))
+        {
+            return value is "get" or "post";
+        }
+
+        if (tagName.Equals("input", StringComparison.OrdinalIgnoreCase)
+            && attributeName.Equals("type", StringComparison.OrdinalIgnoreCase))
+        {
+            return value is "text" or "email" or "tel" or "url" or "number" or "password"
+                or "checkbox" or "radio" or "date" or "time" or "datetime-local"
+                or "month" or "week" or "color" or "range" or "hidden";
+        }
+
+        if (tagName.Equals("th", StringComparison.OrdinalIgnoreCase)
+            && attributeName.Equals("scope", StringComparison.OrdinalIgnoreCase))
+        {
+            return value is "row" or "col" or "rowgroup" or "colgroup";
+        }
+
+        if (attributeName is "colspan" or "rowspan" or "width" or "height" or "rows" or "cols" or "maxlength")
+        {
+            return int.TryParse(value, out var number) && number > 0;
+        }
+
+        return true;
+    }
 
     private static bool IsValidAttributeName(string value)
     {

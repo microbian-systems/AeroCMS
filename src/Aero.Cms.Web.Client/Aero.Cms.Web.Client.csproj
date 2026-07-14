@@ -50,16 +50,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj" />
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
-    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj"
-                      AdditionalProperties="AeroCmsBrowserClient=true" />
-    <ProjectReference Include="..\Aero.Cms.Ui.Hyper\Aero.Cms.Ui.Hyper.csproj" />
-    <ProjectReference Include="..\Aero.Cms.Ui.Neo\Aero.Cms.Ui.Neo.csproj" />
+    <ProjectReference Include="..\Aero.Cms.Shared\Aero.Cms.Shared.csproj" AdditionalProperties="AeroCmsBrowserClient=true" />
   </ItemGroup>
 
-  <Target Name="AeroCompileClientTypeScriptBeforeStaticWebAssets"
-          BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets"
-          Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
+  <Target Name="AeroCompileClientTypeScriptBeforeStaticWebAssets" BeforeTargets="DefineStaticWebAssets;ResolveProjectStaticWebAssets" Condition="Exists('$(MSBuildProjectDirectory)\tsconfig.json')">
     <PropertyGroup>
       <AeroTscToolExe Condition="'$(TscToolExe)' != ''">$(TscToolExe)</AeroTscToolExe>
       <AeroTscToolExe Condition="'$(AeroTscToolExe)' == ''">node</AeroTscToolExe>

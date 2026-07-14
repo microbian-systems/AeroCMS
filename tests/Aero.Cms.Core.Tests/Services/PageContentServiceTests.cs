@@ -29,8 +29,6 @@ public sealed class PageContentServiceTests
         _harness = new SableTestHarness();
         _harness.WithSchema<PageDocument>(SchemaMode.Flexible);
         _harness.WithSchema<ContentSlugDocument>();
-        _harness.WithConfiguration(o =>
-            o.Projections.Add(new PageDocumentProjection(), ProjectionLifecycle.Inline));
         await _harness.InitializeAsync();
 
         _bus = Substitute.For<IMessageBus>();

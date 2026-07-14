@@ -111,8 +111,6 @@ public interface IAeroPageActor : IAeroCmsContentActor<PageViewModel>
     Task<AeroRequestResponse<PageViewModel>> ForkPageForCultureAsync(long id, string culture, string slug, CancellationToken ct);
     /// <summary>Delete multiple pages.</summary>
     Task<int> DeleteMultipleAsync(long[] ids, bool deleteDescendants, CancellationToken ct);
-    /// <summary>Get event stream history for a page.</summary>
-    Task<List<PageEventItem>> GetEventHistoryAsync(long id, CancellationToken ct);
 }
 /// <summary>
 /// Defines an interface for IAeroPostActor.
@@ -281,15 +279,3 @@ public interface IAeroCmsContentActor<T, TKey> :
     where T : AeroEntityViewModel
     where TKey : IEquatable<TKey>, IComparable<TKey>;
 
-/// <summary>
-/// DTO for a single event in a page's version history (returned by IAeroPageActor).
-/// </summary>
-[GenerateSerializer]
-[Alias("PageEventItem")]
-public sealed record PageEventItem(
-    [property: Id(0)] long Version,
-    [property: Id(1)] string EventType,
-    [property: Id(2)] DateTimeOffset Timestamp,
-    [property: Id(3)] string StreamKey,
-    [property: Id(4)] bool IsArchived
-);

@@ -56,8 +56,15 @@
     padding: 0.625rem;
     color: #334155;
     background: #fff;
-    cursor: pointer;
+    cursor: grab;
+    touch-action: pan-y;
     transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.aero-element-palette__item.aero-palette-drag-source {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgb(124 58 237 / 16%);
+    transform: scale(0.98);
 }
 
 .aero-element-palette__item:hover {

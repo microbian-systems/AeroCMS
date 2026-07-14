@@ -1,0 +1,33 @@
+.aero-length-editor {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4.5rem;
+    gap: .5rem;
+}
+
+.aero-length-editor label {
+    display: grid;
+    gap: .35rem;
+    min-width: 0;
+    color: #475569;
+    font-size: .72rem;
+    font-weight: 650;
+}
+
+.aero-length-editor input,
+.aero-length-editor select {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #dbe3ef;
+    border-radius: .5rem;
+    padding: .55rem .625rem;
+    color: #172033;
+    background: #fff;
+    font: inherit;
+    font-weight: 500;
+}
+
+.aero-length-editor input:focus,
+.aero-length-editor select:focus {
+    border-color: #7c3aed;
+    outline: 3px solid rgb(124 58 237 / 12%);
+}

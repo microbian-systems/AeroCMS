@@ -1,0 +1,26 @@
+.aero-property-panel { color: #172033; }
+.aero-property-panel__header { display: flex; align-items: center; gap: .75rem; padding: 1rem; border-bottom: 1px solid #e2e8f0; }
+.aero-property-panel__header h2 { margin: .125rem 0 0; font-size: 1rem; }
+.aero-property-panel__header code { margin-left: .25rem; color: #7c3aed; font-size: .75rem; }
+.aero-property-panel__eyebrow { color: #64748b; font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.aero-property-panel__back { width: 2rem; height: 2rem; border: 1px solid #dbe3ef; border-radius: .5rem; color: #475569; background: #fff; cursor: pointer; }
+.aero-property-panel__content-action { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: 1rem; border: 1px solid #ddd6fe; border-radius: .7rem; padding: .75rem; background: #faf8ff; }
+.aero-property-panel__content-action div { display: grid; gap: .15rem; }
+.aero-property-panel__content-action strong { color: #4c1d95; font-size: .78rem; }
+.aero-property-panel__content-action span { color: #64748b; font-size: .7rem; }
+.aero-property-panel__form { display: grid; }
+.aero-property-panel details { border-bottom: 1px solid #e2e8f0; }
+.aero-property-panel summary { padding: .9rem 1rem; color: #334155; font-size: .78rem; font-weight: 700; cursor: pointer; }
+.aero-property-panel__fields { display: grid; gap: .8rem; padding: 0 1rem 1rem; }
+.aero-property-panel label { display: grid; gap: .35rem; min-width: 0; color: #475569; font-size: .72rem; font-weight: 650; }
+.aero-property-panel input:not([type="checkbox"]), .aero-property-panel select, .aero-property-panel textarea { width: 100%; min-width: 0; border: 1px solid #dbe3ef; border-radius: .5rem; padding: .55rem .625rem; color: #172033; background: #fff; font: inherit; font-weight: 500; }
+.aero-property-panel input:focus, .aero-property-panel select:focus, .aero-property-panel textarea:focus { border-color: #7c3aed; outline: 3px solid rgb(124 58 237 / 12%); }
+.aero-property-panel__row, .aero-length-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+.aero-property-panel__check { grid-template-columns: auto 1fr !important; align-items: center; justify-content: start; }
+.aero-property-panel__check--bottom { align-self: end; min-height: 2.2rem; }
+.aero-property-panel__checks { display: flex; flex-wrap: wrap; gap: .65rem 1rem; }
+.aero-property-panel__hint { margin: 0; border-radius: .5rem; padding: .65rem; color: #475569; background: #f8fafc; font-size: .7rem; line-height: 1.45; }
+.aero-property-panel fieldset { display: grid; gap: .6rem; margin: 0; border: 1px solid #e2e8f0; border-radius: .625rem; padding: .75rem; }
+.aero-property-panel legend { padding: 0 .25rem; color: #334155; font-size: .72rem; font-weight: 700; }
+.aero-property-panel__error { margin: 1rem; border-radius: .5rem; padding: .7rem; color: #991b1b; background: #fef2f2; font-size: .75rem; }
+.aero-property-panel__actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: .5rem; padding: .9rem 1rem; border-top: 1px solid #e2e8f0; background: rgb(255 255 255 / 96%); }

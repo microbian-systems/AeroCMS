@@ -1,16 +1,10 @@
-using Aero.Cms.Abstractions.Blocks.Editing;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Pages.Areas.Api.v1;
-using Aero.Cms.Modules.Pages.Admin;
 using Aero.Cms.Modules.Pages.Validators;
-using Aero.Cms.Modules.Pages.CustomComponents;
-using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Editor;
 using Aero.Core.Http;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
@@ -89,8 +83,6 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 cache,
                 pageTreeService);
         });
-        services.AddSingleton<BlockEditingService>();
-
         // Grain-backed actor — direct injection for thin API controllers
         services.AddSingleton<IAeroPageActor>(sp =>
             sp.GetRequiredService<IGrainFactory>().GetGrain<IAeroPageActor>(0, "aero"));
@@ -114,27 +106,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddSingleton<IStyleProfile, NativeStyleProfile>();
         services.AddSingleton<HtmlStaticRenderer>();
 
-        // Admin status (read-model comparing published vs draft versions)
-        services.AddSingleton<PageAdminStatusService>();
-
-        // Page delete cleanup (hard-deletes PageEditorState)
-        services.AddScoped<PageDeleteHandler>();
-
-        // Shared layout manifest builder (used by both preview and publish)
-        services.AddSingleton<IPageLayoutManifestBuilder, PageLayoutManifestBuilder>();
-
-        // Preview pipeline (transient layout from draft state)
-        services.AddScoped<IPagePreviewService, PagePreviewService>();
-
-        // Neo editor catalog
-        services.AddSingleton<INeoEditorCatalogProvider, NeoEditorCatalogProvider>();
-
         // FluentValidation
         services.AddScoped<IValidator<PageDocument>, PageDocumentValidator>();
-        services.AddScoped<
-            IValidator<SavePageCustomComponentRequest>,
-            SavePageCustomComponentRequestValidator>();
-        services.AddScoped<IPageCustomComponentService, PageCustomComponentService>();
 
         // HTTP context for audit/user tracking
         services.AddHttpContextAccessor();
@@ -159,11 +132,6 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     /// </summary>
 public void Configure(StoreOptions opts)
     {
-        // ── Event Store ──────────────────────────────────────────────────
-        // Custom IProjection registers inline.
-        opts.Projections.Add(new PageDocumentProjection(), ProjectionLifecycle.Inline);
-        opts.Projections.Add(new PageCompositionProjection(), ProjectionLifecycle.Inline);
-
         // ── PageDocument ──────────────────────────────────────────────────
         opts.Schema.For<PageDocument>().Identity(x => x.Id);
         opts.Schema.For<PageDocument>().SetSchemaMode(SchemaMode.Flexible);
@@ -199,24 +167,6 @@ public void Configure(StoreOptions opts)
         // DuplicateField for DateTimeOffset (computed indexes don't support this type)
         opts.Schema.For<PageDocument>().Duplicate(x => x.PublishedOn);
 
-        // ── PageCompositionDocument ──────────────────────────────────────
-        opts.Schema.For<PageCompositionDocument>().Identity(x => x.Id);
-        opts.Schema.For<PageCompositionDocument>().SetSchemaMode(SchemaMode.Flexible);
-        opts.Schema.For<PageCompositionDocument>().Index(x => x.SiteId);
-        opts.Schema.For<PageCompositionDocument>().Index(x => x.PageId);
-        opts.Schema.For<PageCompositionDocument>().Index(x => x.Culture);
-        opts.Schema.For<PageCompositionDocument>().Index(x => x.State);
-        opts.Schema.For<PageCompositionDocument>().Index(x => new { x.PageId, x.State });
-        opts.Schema.For<PageCompositionDocument>().Index(x => new { x.SiteId, x.Culture });
-
-        // ── PageNodeIndexDocument ────────────────────────────────────────
-        opts.Schema.For<PageNodeIndexDocument>().Identity(x => x.Id);
-        opts.Schema.For<PageNodeIndexDocument>().Index(x => x.SiteId);
-        opts.Schema.For<PageNodeIndexDocument>().Index(x => x.PageId);
-        opts.Schema.For<PageNodeIndexDocument>().Index(x => x.CompositionId);
-        opts.Schema.For<PageNodeIndexDocument>().Index(x => x.CatalogId);
-        opts.Schema.For<PageNodeIndexDocument>().Index(x => new { x.SiteId, x.CatalogId });
-
         // ── ContentSlugDocument ───────────────────────────────────────────
         // DocumentAlias not available in AeroDB
         opts.Schema.For<ContentSlugDocument>().Index(x => x.SiteId);
@@ -228,12 +178,6 @@ public void Configure(StoreOptions opts)
         opts.Schema.For<PageDraft>().Index(x => x.SiteId);
         opts.Schema.For<PageDraft>().Index(x => x.DraftedAt);
 
-        // ── PageCustomComponent ────────────────────────────────────────────
-        opts.Schema.For<PageCustomComponent>().Index(x => x.SiteId);
-        opts.Schema.For<PageCustomComponent>().Index(x => x.Name);
-        opts.Schema.For<PageCustomComponent>().Index(x => x.ModifiedOn);
-        opts.Schema.For<PageCustomComponent>()
-            .UniqueIndex(x => new { x.SiteId, x.Name });
     }
 
         /// <summary>
@@ -249,10 +193,8 @@ public void Configure(IServiceProvider services, StoreOptions opts)
     /// </summary>
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
-        using var scope = builder.ServiceProvider.CreateScope();
         builder.MapPagesApi();
         builder.MapPagesTreeApi();
-        builder.MapPageCustomComponentsApi();
         return Task.CompletedTask;
     }
 }

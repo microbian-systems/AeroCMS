@@ -1,21 +1,9 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Localization;
-using System.Text.Json;
 using System.Globalization;
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Editor;
-using Aero.Cms.Abstractions.Blocks.Common;
-using Aero.Cms.Abstractions.Blocks.Layout;
-using Aero.Cms.Abstractions.Blocks.Neo;
-using Aero.Cms.Abstractions.Blocks.Neo.Composition;
-using Aero.Cms.Abstractions.Blocks.Neo.Styles;
-using Aero.Cms.Abstractions.Blocks.Serialization;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
-using Microsoft.JSInterop;
 using Aero.Core;
-using Aero.Core.Security;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
@@ -24,12 +12,8 @@ using Aero.Core.Railway;
 using CmsPageDetail = Aero.Cms.Abstractions.Http.Clients.PageDetail;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Shared.Services;
-using Aero.Cms.Shared.Pages.Manager.PageEditor.Definitions;
 using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
-using NeoUI.Blazor.Primitives;
-using Aero.Cms.Shared.Pages.Manager.PageEditor.Canvas;
-using PageEditorCatalog = Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Html;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 
@@ -38,7 +22,7 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 /// <summary>
 /// Represents a class for PageEditor.
 /// </summary>
-public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorCallbacks
+public partial class PageEditor : ComponentBase, IAsyncDisposable
 {
     // ──────────────────────────────────────────────────────────
     // Parameters
@@ -48,41 +32,9 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     [Parameter] public long? Id { get; set; }
 
         /// <summary>
-    /// Gets or sets the Docs Client.
-    /// </summary>
-[Inject] protected IDocsHttpClient DocsClient { get; set; } = default!;
-        /// <summary>
     /// Gets or sets the Pages Client.
     /// </summary>
 [Inject] protected IPagesHttpClient PagesClient { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Custom Components Client.
-    /// </summary>
-[Inject] protected IPageCustomComponentsHttpClient CustomComponentsClient { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Media Client.
-    /// </summary>
-[Inject] protected IMediaHttpClient MediaClient { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Blog Client.
-    /// </summary>
-[Inject] protected IBlogHttpClient BlogClient { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Categories Client.
-    /// </summary>
-[Inject] protected ICategoriesHttpClient CategoriesClient { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Tags Client.
-    /// </summary>
-[Inject] protected ITagsHttpClient TagsClient { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Users Client.
-    /// </summary>
-[Inject] protected IUsersHttpClient UsersClient { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Preview Client.
-    /// </summary>
-[Inject] protected IPreviewHttpClient PreviewClient { get; set; } = default!;
         /// <summary>
     /// Gets or sets the Sites Client.
     /// </summary>
@@ -103,22 +55,6 @@ public partial class PageEditor : ComponentBase, IAsyncDisposable, IBlockEditorC
     /// Gets or sets the Nav Manager.
     /// </summary>
 [Inject] protected NavigationManager NavManager { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the JS Runtime.
-    /// </summary>
-[Inject] protected IJSRuntime JSRuntime { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Html Sanitizer.
-    /// </summary>
-[Inject] protected IHtmlSanitizer HtmlSanitizer { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Catalog.
-    /// </summary>
-[Inject] protected Catalog.INeoEditorCatalogProvider Catalog { get; set; } = default!;
-        /// <summary>
-    /// Gets or sets the Definition Registry.
-    /// </summary>
-[Inject] protected IPageEditorDefinitionRegistry DefinitionRegistry { get; set; } = default!;
         /// <summary>
     /// Gets or sets the Dialog Service.
     /// </summary>
@@ -142,20 +78,8 @@ protected string LastSaved    { get; set; } = "Never";
     /// </summary>
 protected string Author       { get; set; } = "Admin";
 
-    // NeoPageNode composition tree root
-        /// <summary>
-    /// Gets or sets the Root Node.
-    /// </summary>
-protected NeoPageNode RootNode { get; set; } = CreateDefaultRootNode();
-    private static NeoPageNode CreateDefaultRootNode() => new()
-    {
-        NodeId = "page-root",
-        CatalogId = "page.root",
-        Kind = NeoPageNodeKind.Page,
-        Children = []
-    };
-
     private static readonly HtmlElementCatalog HtmlCatalog = HtmlElementCatalog.CreateDefault();
+    private static readonly IHtmlContentModelPolicy HtmlContentPolicy = new HtmlContentModelPolicy(HtmlCatalog);
 
     protected IReadOnlyList<HtmlElementDefinition> HtmlElementDefinitions { get; }
         = HtmlCatalog.Definitions
@@ -166,45 +90,35 @@ protected NeoPageNode RootNode { get; set; } = CreateDefaultRootNode();
     protected HtmlPageEditorSession HtmlEditor { get; private set; }
         = CreateHtmlEditorSession(new HtmlPageContent());
 
+    protected HtmlElementDefinition? SelectedHtmlDefinition =>
+        HtmlEditor.SelectedNode is { Kind: HtmlNodeKind.Element } selected
+        && HtmlCatalog.TryGet(selected.TagName, out var definition)
+            ? definition
+            : null;
+
+    protected string? HtmlPropertyError { get; private set; }
+
+    protected bool HtmlRichTextEditorOpen { get; private set; }
+
+    protected string? HtmlRichTextError { get; private set; }
+
     private static HtmlPageEditorSession CreateHtmlEditorSession(HtmlPageContent content) => new(
         content,
         HtmlCatalog,
-        new HtmlContentModelPolicy(HtmlCatalog),
+        HtmlContentPolicy,
+        new HtmlContentValidator(
+            HtmlCatalog,
+            HtmlContentPolicy,
+            new HtmlAttributePolicy()),
         new HtmlLayoutStarterFactory(HtmlCatalog),
         new NativeCssStyleCompiler(),
         new NativeStyleProfile());
 
-    // Selection / drag state
-        /// <summary>
-    /// Gets or sets the Selected Block Id.
-    /// </summary>
-protected string? SelectedBlockId  { get; set; }
-        /// <summary>
-    /// Gets or sets the Dragged Type.
-    /// </summary>
-protected string? DraggedType      { get; set; }
-        /// <summary>
-    /// Gets or sets the Dragged Index.
-    /// </summary>
-protected int?    DraggedIndex     { get; set; }
-        /// <summary>
-    /// Gets or sets the Palette Drag State.
-    /// </summary>
-protected EditorPaletteDragState PaletteDragState { get; } = new();
-
     // UI state
-        /// <summary>
-    /// Gets or sets the Sidebar Collapsed.
-    /// </summary>
-protected bool   SidebarCollapsed { get; set; }
         /// <summary>
     /// Gets or sets the Preview Mode.
     /// </summary>
 protected bool   PreviewMode      { get; set; }
-        /// <summary>
-    /// Gets or sets the Preview Device.
-    /// </summary>
-protected string PreviewDevice    { get; set; } = "desktop";
         /// <summary>
     /// Gets or sets the Is Preview Rendering.
     /// </summary>
@@ -244,48 +158,7 @@ protected bool   IsSaving              { get; set; }
     /// </summary>
 protected string ActiveTab             { get; set; } = "editor";
 
-    // Sidebar category toggles
-        /// <summary>
-    /// Gets or sets the Category Aero Ui.
-    /// </summary>
-protected bool CategoryAeroUi      { get; set; } = true;
-        /// <summary>
-    /// Gets or sets the Category Components.
-    /// </summary>
-protected bool CategoryComponents  { get; set; } = true;
-        /// <summary>
-    /// Gets or sets the Category References.
-    /// </summary>
-protected bool CategoryReferences  { get; set; }
-        /// <summary>
-    /// Gets or sets the Category Settings.
-    /// </summary>
-protected bool CategorySettings    { get; set; } = true;
-        /// <summary>
-    /// Gets or sets the Category Hyper.
-    /// </summary>
-protected bool CategoryHyper       { get; set; } = true;
-        /// <summary>
-    /// Gets or sets the Category Neo.
-    /// </summary>
-protected bool CategoryNeo         { get; set; } = true;
-        /// <summary>
-    /// Gets or sets the Category Primitives.
-    /// </summary>
-protected bool CategoryPrimitives  { get; set; } = true;
-        /// <summary>
-    /// Gets or sets the Category Custom.
-    /// </summary>
-protected bool CategoryCustom      { get; set; } = true;
-        /// <summary>
-    /// Gets or sets the Palette Search.
-    /// </summary>
-protected string PaletteSearch { get; set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Composition Drop Error.
-    /// </summary>
-protected string? CompositionDropError { get; set; }
-    private const string PaletteStateStorageKey = "aero.page-editor.palette-state.v1";
+    private const string SidebarStateStorageKey = "aero.page-editor.sidebar-state.v1";
 
     // Page Settings
         /// <summary>
@@ -405,92 +278,6 @@ protected IEnumerable<string> AvailableTranslationCultures =>
                 string.Equals(variant.Culture, culture, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
-        /// <summary>
-    /// Gets or sets the Docs Categories.
-    /// </summary>
-protected IReadOnlyList<DocsSummary>? DocsCategories { get; set; }
-
-    // Media modal
-        /// <summary>
-    /// Gets or sets the Media Modal Open.
-    /// </summary>
-protected bool         MediaModalOpen   { get; set; }
-        /// <summary>
-    /// Gets or sets the Current Media Block.
-    /// </summary>
-protected EditorBlock? CurrentMediaBlock { get; set; }
-        /// <summary>
-    /// Gets or sets the Is Gallery Mode.
-    /// </summary>
-protected bool         IsGalleryMode    { get; set; }
-        /// <summary>
-    /// Gets or sets the Media Context.
-    /// </summary>
-protected string?      MediaContext     { get; set; }   // "background" | "nested"
-        /// <summary>
-    /// Gets or sets the Nested Media Target.
-    /// </summary>
-protected NestedBlock? NestedMediaTarget { get; set; }
-    private string? NativeMediaNodeId { get; set; }
-    private string? NativeMediaField { get; set; }
-    private EditorBreakpoint NativeMediaBreakpoint { get; set; }
-
-    // Block edit modal
-        /// <summary>
-    /// Gets or sets the Block Editor Modal Open.
-    /// </summary>
-protected bool BlockEditorModalOpen { get; set; }
-        /// <summary>
-    /// Gets or sets the Editing Block Id.
-    /// </summary>
-protected string? EditingBlockId { get; set; }
-        /// <summary>
-    /// Gets or sets the Editing Node Id.
-    /// </summary>
-protected string? EditingNodeId { get; set; }
-        /// <summary>
-    /// Gets or sets the Block Editor Tab.
-    /// </summary>
-protected string BlockEditorTab { get; set; } = "design";
-        /// <summary>
-    /// Gets or sets the Current Edit Node.
-    /// </summary>
-protected NeoPageNode? CurrentEditNode =>
-        string.IsNullOrEmpty(EditingBlockId)
-            ? null
-            : FindNodeInTree(EditingBlockId);
-
-        /// <summary>
-    /// Gets or sets the Custom Components.
-    /// </summary>
-protected IReadOnlyList<PageCustomComponentDetail> CustomComponents { get; set; } = [];
-        /// <summary>
-    /// Gets or sets the Save Custom Component Modal Open.
-    /// </summary>
-protected bool SaveCustomComponentModalOpen { get; set; }
-        /// <summary>
-    /// Gets or sets the Is Saving Custom Component.
-    /// </summary>
-protected bool IsSavingCustomComponent { get; set; }
-        /// <summary>
-    /// Gets or sets the Editing Custom Component Id.
-    /// </summary>
-protected long? EditingCustomComponentId { get; set; }
-        /// <summary>
-    /// Gets or sets the Custom Component Name.
-    /// </summary>
-protected string CustomComponentName { get; set; } = string.Empty;
-        /// <summary>
-    /// Gets or sets the Custom Component Description.
-    /// </summary>
-protected string CustomComponentDescription { get; set; } = string.Empty;
-
-    private Dictionary<string, List<ReferenceItem>> _referenceData = new();
-        /// <summary>
-    /// Gets or sets the Dynamic Template Preview Html.
-    /// </summary>
-protected Dictionary<string, string> DynamicTemplatePreviewHtml { get; } = new();
-
     // Toasts
         /// <summary>
     /// Gets or sets the Toasts.
@@ -503,18 +290,6 @@ protected List<ToastMessage> Toasts { get; set; } = [];
     private CancellationTokenSource? _previewDebounceCts;
     private string? _previewBaseUri;
     private long _previewRefreshVersion;	
-    private readonly Dictionary<string, CompositionHistory> _compositionHistory =
-        new(StringComparer.Ordinal);
-    private DotNetObjectReference<PageEditor>? _shortcutReference;
-    private EditorBlockListMemento? _blockClipboard;
-    private EditorNodeMemento? _nodeClipboard;
-    private NeoPageNode? _pendingSaveNode;
-
-    // Node-tree undo/redo stacks
-    private readonly List<EditorNodeMemento> _treeUndoStack = [];
-    private readonly List<EditorNodeMemento> _treeRedoStack = [];
-    private const int MaxTreeHistory = 100;
-
     /// <summary>Tracks whether unsaved changes exist. Auto-save only fires when Dirty.</summary>
     private enum PageState { Clean, Dirty }
     private PageState _pageState = PageState.Dirty;  // new pages start dirty
@@ -547,12 +322,10 @@ protected override async Task OnParametersSetAsync()
     /// </summary>
 protected override async Task OnInitializedAsync()
     {
-        PaletteDragState.Cleared += ClearPaletteDragState;
-        RestorePaletteState();
+        RestoreSidebarState();
 
         await ResolvePreviewBaseUriAsync();
         CurrentSite = await ResolveCurrentSiteAsync();
-        await LoadCustomComponentsAsync();
 
         if (Id.HasValue)
         {
@@ -569,19 +342,10 @@ protected override async Task OnInitializedAsync()
         _autoSaveTimer.Elapsed += async (_, _) => await InvokeAsync(AutoSaveAsync);
         _autoSaveTimer.AutoReset = true;
         _autoSaveTimer.Start();
-
-        var result = await DocsClient.GetCategoriesAsync();
-
-        if (result is Result<IReadOnlyList<DocsSummary>, AeroError>.Ok ok)
-        {
-            DocsCategories = ok.Value;
-        }
     }
 
     private async Task LoadPageAsync(long id)
     {
-        await LoadReferenceDataAsync();
-
         var result = await PagesClient.GetByIdAsync(id);
         if (result is Result<CmsPageDetail, AeroError>.Ok ok)
         {
@@ -603,9 +367,6 @@ protected override async Task OnInitializedAsync()
             HtmlEditor = CreateHtmlEditorSession(
                 page.DraftContent ?? new HtmlPageContent());
 
-            _compositionHistory.Clear();
-            _treeUndoStack.Clear();
-            _treeRedoStack.Clear();
             UpdateLastSaved();
             _pageState = PageState.Clean;
             await LoadPageTranslationsAsync();
@@ -652,98 +413,15 @@ protected override async Task OnInitializedAsync()
         catch { ParentSlugPrefix = ""; }
     }
 
-    private async Task LoadReferenceDataAsync()
-    {
-        // Reference Picker data
-        var pagesTask = PagesClient.GetAllAsync(take: 50);
-        var blogsTask = BlogClient.GetAllAsync(take: 50);
-        var catsTask = CategoriesClient.GetAllAsync();
-        var tagsTask = TagsClient.GetAllAsync();
-        var usersTask = UsersClient.GetAllAsync(take: 50);
-
-        await pagesTask;
-        await blogsTask;
-        await catsTask;
-        await tagsTask;
-        await usersTask;
-
-        if (pagesTask.Result is Result<PagedResult<PageSummary>, AeroError>.Ok pagesOk)
-            _referenceData["pages"] = pagesOk.Value.Items.Select(p => new ReferenceItem(p.Id.ToString(), p.Title)).ToList();
-        
-        if (blogsTask.Result is Result<PagedResult<BlogSummary>, AeroError>.Ok blogsOk)
-            _referenceData["posts"] = blogsOk.Value.Items.Select(p => new ReferenceItem(p.Id.ToString(), p.Title)).ToList();
-            
-        if (catsTask.Result is Result<IReadOnlyList<CategorySummary>, AeroError>.Ok catsOk)
-            _referenceData["categories"] = catsOk.Value.Select(c => new ReferenceItem(c.Id.ToString(), Name: c.Name)).ToList();
-            
-        if (tagsTask.Result is Result<IReadOnlyList<TagSummary>, AeroError>.Ok tagsOk)
-            _referenceData["tags"] = tagsOk.Value.Select(t => new ReferenceItem(t.Id.ToString(), Name: t.Name)).ToList();
-            
-        if (usersTask.Result is Result<PagedResult<UserSummary>, AeroError>.Ok usersOk)
-            _referenceData["authors"] = usersOk.Value.Items.Select(u => new ReferenceItem(u.Id.ToString(), Name: u.DisplayName)).ToList();
-    }
-
         /// <summary>
     /// DisposeAsync method.
     /// </summary>
-public async ValueTask DisposeAsync()
+public ValueTask DisposeAsync()
     {
-        PaletteDragState.Cleared -= ClearPaletteDragState;
         _autoSaveTimer?.Dispose();
         _previewDebounceCts?.Cancel();
         _previewDebounceCts?.Dispose();
-        if (_shortcutReference is not null)
-        {
-            try
-            {
-                await JSRuntime.InvokeVoidAsync("PageEditorShortcuts.unregister");
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-
-            _shortcutReference.Dispose();
-        }
-    }
-
-        /// <summary>
-    /// OnAfterRenderAsync method.
-    /// </summary>
-protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            _shortcutReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync(
-                "PageEditorShortcuts.register",
-                _shortcutReference);
-        }
-
-        await JSRuntime.InvokeVoidAsync("PeNavTooltip.refresh");
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Category toggle  (mirrors toggleCategory())
-    // ──────────────────────────────────────────────────────────
-
-        /// <summary>
-    /// ToggleCategory method.
-    /// </summary>
-protected void ToggleCategory(string category)
-    {
-        switch (category)
-        {
-            case "aeroui":      CategoryAeroUi      = !CategoryAeroUi;      break;
-            case "components":  CategoryComponents  = !CategoryComponents;  break;
-            case "references":  CategoryReferences  = !CategoryReferences;  break;
-            case "settings":    CategorySettings    = !CategorySettings;    break;
-            case "hyper":       CategoryHyper       = !CategoryHyper;       break;
-            case "neo":         CategoryNeo         = !CategoryNeo;         break;
-            case "primitives":  CategoryPrimitives  = !CategoryPrimitives;  break;
-            case "custom":      CategoryCustom      = !CategoryCustom;      break;
-        }
-
-        PersistPaletteState();
+        return ValueTask.CompletedTask;
     }
 
         /// <summary>
@@ -752,1765 +430,27 @@ protected void ToggleCategory(string category)
 protected Task OnRightSidebarCollapsedChanged(bool isCollapsed)
     {
         RightSidebarCollapsed = isCollapsed;
-        PersistPaletteState();
+        PersistSidebarState();
         return Task.CompletedTask;
     }
 
-    private void RestorePaletteState()
+    private void RestoreSidebarState()
     {
-        var state = AdminStorage.GetItem<PaletteState>(PaletteStateStorageKey);
+        var state = AdminStorage.GetItem<SidebarState>(SidebarStateStorageKey);
         if (state is null)
         {
             return;
         }
 
         RightSidebarCollapsed = state.RightSidebarCollapsed;
-        CategoryAeroUi = state.CategoryAeroUi;
-        CategoryComponents = state.CategoryComponents;
-        CategoryReferences = state.CategoryReferences;
-        CategorySettings = state.CategorySettings;
-        CategoryHyper = state.CategoryHyper;
-        CategoryNeo = state.CategoryNeo;
-        CategoryPrimitives = state.CategoryPrimitives;
-        CategoryCustom = state.CategoryCustom;
     }
 
-    private void PersistPaletteState() =>
+    private void PersistSidebarState() =>
         AdminStorage.SetItem(
-            PaletteStateStorageKey,
-            new PaletteState(
-                RightSidebarCollapsed,
-                CategoryAeroUi,
-                CategoryComponents,
-                CategoryReferences,
-                CategorySettings,
-                CategoryHyper,
-                CategoryNeo,
-                CategoryPrimitives,
-                CategoryCustom));
+            SidebarStateStorageKey,
+            new SidebarState(RightSidebarCollapsed));
 
-    private sealed record PaletteState(
-        bool RightSidebarCollapsed,
-        bool CategoryAeroUi,
-        bool CategoryComponents,
-        bool CategoryReferences,
-        bool CategorySettings,
-        bool CategoryHyper,
-        bool CategoryNeo,
-        bool CategoryPrimitives,
-        bool CategoryCustom);
-
-        /// <summary>
-    /// Gets or sets the Custom Catalog Items.
-    /// </summary>
-protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> CustomCatalogItems =>
-        CustomComponents
-            .Select((component, index) => new PageEditorCatalog.NeoEditorCatalogItem
-            {
-                CatalogId = $"custom:{component.Id}",
-                DisplayName = component.Name,
-                Description = component.Description,
-                Section = PageEditorCatalog.NeoEditorCatalogSection.Components,
-                Kind = PageEditorCatalog.NeoEditorCatalogKind.Component,
-                SortOrder = index,
-                IconName = "box",
-                AllowChildren = component.Root.Children.Count > 0,
-                PublicStaticSsrSafe = true
-            })
-            .ToList();
-
-        /// <summary>
-    /// Gets or sets the Neo Aero Catalog Items.
-    /// </summary>
-protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoAeroCatalogItems =>
-        Catalog.GetCatalogItems()
-            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.AeroUi)
-            .OrderBy(i => i.SortOrder)
-            .ToList();
-
-        /// <summary>
-    /// Gets or sets the Reference Catalog Items.
-    /// </summary>
-protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ReferenceCatalogItems { get; } =
-    [
-        CatalogItem("pages", "Pages", 10),
-        CatalogItem("posts", "Posts", 20),
-        CatalogItem("categories", "Categories", 30),
-        CatalogItem("tags", "Tags", 40),
-        CatalogItem("authors", "Authors", 50)
-    ];
-
-        /// <summary>
-    /// Gets or sets the Neo Hyper Catalog Items.
-    /// </summary>
-protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoHyperCatalogItems =>
-        Catalog.GetCatalogItems()
-            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Hyper)
-            .OrderBy(i => i.SortOrder)
-            .ToList();
-
-        /// <summary>
-    /// Gets or sets the Neo Neo Catalog Items.
-    /// </summary>
-protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> NeoNeoCatalogItems =>
-        DefinitionRegistry.AllDescriptors
-            .Select(ToCatalogItem)
-            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Neo)
-            .OrderBy(i => i.SortOrder)
-            .ToList();
-
-        /// <summary>
-    /// Gets or sets the Primitive Catalog Items.
-    /// </summary>
-protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> PrimitiveCatalogItems =>
-        DefinitionRegistry.AllDescriptors
-            .Select(ToCatalogItem)
-            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Primitives)
-            .OrderBy(i => i.SortOrder)
-            .ToList();
-
-        /// <summary>
-    /// Gets or sets the Components Catalog Items.
-    /// </summary>
-protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> ComponentsCatalogItems =>
-        DefinitionRegistry.AllDescriptors
-            .Select(ToCatalogItem)
-            .Where(i => i.Section == PageEditorCatalog.NeoEditorCatalogSection.Components)
-            .OrderBy(i => i.SortOrder)
-            .ToList();
-
-        /// <summary>
-    /// FilterPaletteItems method.
-    /// </summary>
-protected IReadOnlyList<PageEditorCatalog.NeoEditorCatalogItem> FilterPaletteItems(
-        IEnumerable<PageEditorCatalog.NeoEditorCatalogItem> items)
-    {
-        return items
-            .Where(item => PaletteSearchMatcher.Matches(
-                CreatePaletteSearchDocument(item),
-                PaletteSearch))
-            .ToList();
-    }
-
-        /// <summary>
-    /// Gets or sets the Has Palette Search Results.
-    /// </summary>
-protected bool HasPaletteSearchResults =>
-        string.IsNullOrWhiteSpace(PaletteSearch) ||
-        new IEnumerable<PageEditorCatalog.NeoEditorCatalogItem>[]
-        {
-            CustomCatalogItems,
-            NeoAeroCatalogItems,
-            PrimitiveCatalogItems,
-            ComponentsCatalogItems,
-            ReferenceCatalogItems,
-            NeoHyperCatalogItems,
-            NeoNeoCatalogItems
-        }.Any(items => FilterPaletteItems(items).Count > 0);
-
-    private PaletteSearchDocument CreatePaletteSearchDocument(
-        PageEditorCatalog.NeoEditorCatalogItem item)
-    {
-        IReadOnlyCollection<string>? keywords = null;
-        if (TryGetCustomComponentId(item.CatalogId, out var componentId))
-        {
-            var component = CustomComponents.FirstOrDefault(candidate =>
-                candidate.Id == componentId);
-            if (component is not null)
-            {
-                keywords = component.Tags
-                    .Prepend(component.Category)
-                    .Where(value => !string.IsNullOrWhiteSpace(value))
-                    .ToList();
-            }
-        }
-
-        return new PaletteSearchDocument(
-            item.DisplayName,
-            item.Description,
-            item.CatalogId,
-            item.Kind.ToString(),
-            item.Section.ToString(),
-            keywords);
-    }
-
-    private static PageEditorCatalog.NeoEditorCatalogItem ToCatalogItem(
-        PageEditorDefinitionDescriptor definition) =>
-        new()
-        {
-            CatalogId = definition.CatalogId,
-            DisplayName = definition.Catalog.DisplayName,
-            Description = definition.Catalog.Description,
-            Section = ToCatalogSection(definition.Catalog.Category),
-            Kind = ToCatalogKind(definition.Catalog.Kind),
-            SortOrder = definition.Catalog.SortOrder,
-            IconName = definition.Catalog.IconName,
-            AllowChildren = definition.Catalog.Composition.CanContainChildren,
-            PublicStaticSsrSafe = definition.Catalog.PublicStaticSsrSafe,
-            EditorPreviewComponentType = definition.Catalog.PreviewComponentType,
-            PropertyEditorComponentType = definition.Catalog.PropertyEditorComponentType
-        };
-
-    private static PageEditorCatalog.NeoEditorCatalogSection ToCatalogSection(string? category) =>
-        category?.Trim().ToLowerInvariant() switch
-        {
-            "aero ui" or "aeroui" or "aero" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
-            "aero ux" or "aeroux" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
-            "legacy ui" or "legacy" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
-            "media" => PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
-            "primitive" or "primitives" => PageEditorCatalog.NeoEditorCatalogSection.Primitives,
-            "component" or "components" => PageEditorCatalog.NeoEditorCatalogSection.Components,
-            "hyper" or "hyperui" or "hyper ui" => PageEditorCatalog.NeoEditorCatalogSection.Hyper,
-            "neo" or "neoui" or "neo ui" => PageEditorCatalog.NeoEditorCatalogSection.Neo,
-            _ => PageEditorCatalog.NeoEditorCatalogSection.AeroUi
-        };
-
-    private static PageEditorCatalog.NeoEditorCatalogKind ToCatalogKind(string? kind) =>
-        kind?.Trim().ToLowerInvariant() switch
-        {
-            "primitive" => PageEditorCatalog.NeoEditorCatalogKind.Primitive,
-            "component" => PageEditorCatalog.NeoEditorCatalogKind.Component,
-            _ => PageEditorCatalog.NeoEditorCatalogKind.Block
-        };
-
-    private static PageEditorCatalog.NeoEditorCatalogKind ToCatalogKind(NeoPageNodeKind kind) =>
-        kind switch
-        {
-            NeoPageNodeKind.Primitive => PageEditorCatalog.NeoEditorCatalogKind.Primitive,
-            NeoPageNodeKind.Component or NeoPageNodeKind.Container or NeoPageNodeKind.Section =>
-                PageEditorCatalog.NeoEditorCatalogKind.Component,
-            _ => PageEditorCatalog.NeoEditorCatalogKind.Block
-        };
-
-    private static PageEditorCatalog.NeoEditorCatalogItem CatalogItem(string id, string name, int sortOrder) =>
-        new()
-        {
-            CatalogId = id,
-            DisplayName = name,
-            Section = PageEditorCatalog.NeoEditorCatalogSection.AeroUi,
-            Kind = PageEditorCatalog.NeoEditorCatalogKind.Block,
-            SortOrder = sortOrder,
-            IconName = "box",
-            PublicStaticSsrSafe = true
-        };
-
-    // ──────────────────────────────────────────────────────────
-    // Node tree helpers
-    // ──────────────────────────────────────────────────────────
-
-    /// <summary>Finds a node by ID in root's direct children.</summary>
-    private NeoPageNode? FindRootChild(string nodeId) =>
-        RootNode.Children.FirstOrDefault(n => n.NodeId == nodeId);
-
-    /// <summary>Finds a node anywhere in the tree by ID.</summary>
-    private NeoPageNode? FindNodeInTree(string nodeId) =>
-        FindRootChild(nodeId) ?? FindNodeRecursive(RootNode.Children, nodeId);
-
-    private static NeoPageNode? FindNodeRecursive(List<NeoPageNode> parents, string nodeId)
-    {
-        foreach (var parent in parents)
-        {
-            var found = parent.Children.FirstOrDefault(n => n.NodeId == nodeId);
-            if (found is not null)
-                return found;
-            if (FindNodeRecursive(parent.Children, nodeId) is { } deep)
-                return deep;
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Finds the parent and index of the node with the given ID.
-    /// Returns null for the root node itself (no parent).
-    /// </summary>
-    private (NeoPageNode? Parent, int Index) FindParentAndIndex(string nodeId)
-    {
-        for (var i = 0; i < RootNode.Children.Count; i++)
-        {
-            if (RootNode.Children[i].NodeId == nodeId)
-                return (RootNode, i);
-        }
-        return FindParentRecursive(RootNode.Children, nodeId);
-    }
-
-    private static (NeoPageNode? Parent, int Index) FindParentRecursive(List<NeoPageNode> parents, string nodeId)
-    {
-        foreach (var parent in parents)
-        {
-            for (var i = 0; i < parent.Children.Count; i++)
-            {
-                if (parent.Children[i].NodeId == nodeId)
-                    return (parent, i);
-            }
-            var (foundParent, foundIndex) = FindParentRecursive(parent.Children, nodeId);
-            if (foundParent is not null)
-                return (foundParent, foundIndex);
-        }
-        return (null, -1);
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Block management  (mirrors addBlock / deleteBlock / etc.)
-    // ──────────────────────────────────────────────────────────
-
-        /// <summary>
-    /// CreateNode method.
-    /// </summary>
-protected NeoPageNode CreateNode(string catalogId)
-    {
-        if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor))
-        {
-            return CreateNodeFromDescriptor(descriptor);
-        }
-
-        // Legacy path: create from EditorBlock definition and extract node
-        var block = CreateBlock(catalogId);
-        var node = block.CompositionNodes is { Count: > 0 } nodes
-            ? nodes[0]
-            : CreateCatalogFallbackNode(catalogId);
-
-        return NormalizeCreatedNode(node, catalogId, ResolveCatalogKind(catalogId));
-    }
-
-    private NeoPageNode CreateNodeFromDescriptor(PageEditorDefinitionDescriptor descriptor)
-    {
-        var node = descriptor.NodeFactory.CreateDefaultNode();
-        return NormalizeCreatedNode(node, descriptor.CatalogId, descriptor.Catalog.Kind);
-    }
-
-    private NeoPageNode CreateCatalogFallbackNode(string catalogId)
-    {
-        var properties = new Dictionary<string, JsonElement>();
-        if (Catalog.TryGet(catalogId, out var item))
-        {
-            properties["displayName"] = JsonSerializer.SerializeToElement(item.DisplayName);
-        }
-
-        return new NeoPageNode
-        {
-            NodeId = Guid.NewGuid().ToString("N"),
-            CatalogId = catalogId,
-            Kind = ResolveCatalogKind(catalogId),
-            Style = new ResponsiveNodeStyle(),
-            Properties = properties,
-            Children = []
-        };
-    }
-
-    private NeoPageNode NormalizeCreatedNode(
-        NeoPageNode node,
-        string catalogId,
-        NeoPageNodeKind fallbackKind)
-    {
-        if (string.IsNullOrWhiteSpace(node.NodeId))
-        {
-            node.NodeId = Guid.NewGuid().ToString("N");
-        }
-
-        if (string.IsNullOrWhiteSpace(node.CatalogId))
-        {
-            node.CatalogId = catalogId;
-        }
-
-        if (string.Equals(node.CatalogId, "primitive.section", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(catalogId, "primitive.section", StringComparison.OrdinalIgnoreCase))
-        {
-            node.CatalogId = catalogId;
-            node.Kind = fallbackKind;
-        }
-
-        node.Properties ??= [];
-        node.Style ??= new ResponsiveNodeStyle();
-        node.Children ??= [];
-        return node;
-    }
-
-    private NeoPageNodeKind ResolveCatalogKind(string catalogId)
-    {
-        if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor))
-        {
-            return descriptor.Catalog.Kind;
-        }
-
-        return Catalog.TryGet(catalogId, out var item)
-            ? ToNodeKind(item.Kind)
-            : NeoPageNodeKind.Block;
-    }
-
-    private static NeoPageNodeKind ToNodeKind(PageEditorCatalog.NeoEditorCatalogKind kind) =>
-        kind switch
-        {
-            PageEditorCatalog.NeoEditorCatalogKind.Primitive => NeoPageNodeKind.Primitive,
-            PageEditorCatalog.NeoEditorCatalogKind.Component => NeoPageNodeKind.Component,
-            _ => NeoPageNodeKind.Block
-        };
-
-        /// <summary>
-    /// AddBlock method.
-    /// </summary>
-protected void AddBlock(string type)
-    {
-        EnsureCanvasHistory();
-        var node = CreateNode(type);
-        RootNode.Children.Add(node);
-        RecordCanvasMutation();
-        SelectBlock(node.NodeId);
-        MarkDirty();
-        ShowToast(L["Block added"], "success");
-        QueuePreviewRefresh();
-    }
-
-        /// <summary>
-    /// OnEditorBlockChanged method.
-    /// </summary>
-protected Task OnEditorBlockChanged(EditorBlock block)
-    {
-        MarkDirty();
-        QueuePreviewRefresh();
-        return Task.CompletedTask;
-    }
-
-        /// <summary>
-    /// OpenBlockEditor method.
-    /// </summary>
-protected void OpenBlockEditor(string editorId)
-    {
-        SelectedBlockId = editorId;
-        EditingBlockId = editorId;
-        EditingNodeId = null;
-        BlockEditorTab = "design";
-        BlockEditorModalOpen = true;
-    }
-
-        /// <summary>
-    /// CloseBlockEditor method.
-    /// </summary>
-protected void CloseBlockEditor()
-    {
-        BlockEditorModalOpen = false;
-        EditingBlockId = null;
-        EditingNodeId = null;
-    }
-
-        /// <summary>
-    /// OpenSaveCustomComponentModal method.
-    /// </summary>
-protected void OpenSaveCustomComponentModal()
-    {
-        if (CurrentEditNode is null && _pendingSaveNode is null)
-        {
-            return;
-        }
-
-        _pendingSaveNode = null;
-        CustomComponentName = CurrentEditNode is not null
-            ? GetBlockDisplayName(CurrentEditNode.CatalogId)
-            : string.Empty;
-        CustomComponentDescription = string.Empty;
-        EditingCustomComponentId = null;
-        SaveCustomComponentModalOpen = true;
-    }
-
-        /// <summary>
-    /// OpenEditCustomComponentModal method.
-    /// </summary>
-protected void OpenEditCustomComponentModal(
-        PageEditorCatalog.NeoEditorCatalogItem item)
-    {
-        if (!TryGetCustomComponentId(item.CatalogId, out var componentId))
-        {
-            return;
-        }
-
-        var component = CustomComponents.FirstOrDefault(candidate =>
-            candidate.Id == componentId);
-        if (component is null)
-        {
-            return;
-        }
-
-        EditingCustomComponentId = component.Id;
-        CustomComponentName = component.Name;
-        CustomComponentDescription = component.Description ?? string.Empty;
-        SaveCustomComponentModalOpen = true;
-    }
-
-        /// <summary>
-    /// CloseSaveCustomComponentModal method.
-    /// </summary>
-protected void CloseSaveCustomComponentModal()
-    {
-        if (IsSavingCustomComponent)
-        {
-            return;
-        }
-
-        _pendingSaveNode = null;
-        SaveCustomComponentModalOpen = false;
-        EditingCustomComponentId = null;
-    }
-
-        /// <summary>
-    /// SaveCurrentBlockAsCustomAsync method.
-    /// </summary>
-protected async Task SaveCurrentBlockAsCustomAsync()
-    {
-        if ((!EditingCustomComponentId.HasValue && CurrentEditNode is null && _pendingSaveNode is null) ||
-            string.IsNullOrWhiteSpace(CustomComponentName))
-        {
-            ShowToast(L["A component name is required."], "error");
-            return;
-        }
-
-        IsSavingCustomComponent = true;
-        try
-        {
-            var existing = EditingCustomComponentId.HasValue
-                ? CustomComponents.FirstOrDefault(component =>
-                    component.Id == EditingCustomComponentId.Value)
-                : null;
-            var root = _pendingSaveNode is not null
-                ? CustomComponentTemplate.Capture(_pendingSaveNode)
-                : existing is not null
-                    ? CustomComponentTemplate.Capture(existing.Root)
-                    : CustomComponentTemplate.Capture(CurrentEditNode!);
-            var request = new SavePageCustomComponentRequest(
-                CustomComponentName.Trim(),
-                root,
-                string.IsNullOrWhiteSpace(CustomComponentDescription)
-                    ? null
-                    : CustomComponentDescription.Trim());
-            var result = EditingCustomComponentId.HasValue
-                ? await CustomComponentsClient.UpdateAsync(
-                    EditingCustomComponentId.Value,
-                    request)
-                : await CustomComponentsClient.CreateAsync(request);
-            if (result is Result<PageCustomComponentDetail, AeroError>.Ok ok)
-            {
-                CustomComponents = CustomComponents
-                    .Where(component => component.Id != ok.Value.Id)
-                    .Append(ok.Value)
-                    .OrderBy(component => component.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                SaveCustomComponentModalOpen = false;
-                EditingCustomComponentId = null;
-                CategoryCustom = true;
-                ShowToast(L["Custom component saved"], "success");
-            }
-            else if (result is Result<PageCustomComponentDetail, AeroError>.Failure failure)
-            {
-                ShowToast(L["Could not save custom component: {0}", failure.Error], "error");
-            }
-        }
-        finally
-        {
-            _pendingSaveNode = null;
-            IsSavingCustomComponent = false;
-        }
-    }
-
-        /// <summary>
-    /// DeleteCustomComponentAsync method.
-    /// </summary>
-protected async Task DeleteCustomComponentAsync(
-        PageEditorCatalog.NeoEditorCatalogItem item)
-    {
-        if (!TryGetCustomComponentId(item.CatalogId, out var componentId))
-        {
-            return;
-        }
-
-        var component = CustomComponents.FirstOrDefault(candidate =>
-            candidate.Id == componentId);
-        if (component is null)
-        {
-            return;
-        }
-
-        var confirmed = await DialogService.Confirm(
-            L["Delete custom component '{0}'? Existing page instances will not be changed.", component.Name],
-            L["Delete Custom Component"],
-            new ConfirmOptions
-            {
-                OkButtonText = L["Delete"],
-                CancelButtonText = L["Cancel"]
-            });
-        if (confirmed != true)
-        {
-            return;
-        }
-
-        var result = await CustomComponentsClient.DeleteAsync(component.Id);
-        if (result is Result<bool, AeroError>.Ok)
-        {
-            CustomComponents = CustomComponents
-                .Where(candidate => candidate.Id != component.Id)
-                .ToList();
-            ShowToast(L["Custom component deleted"], "success");
-        }
-        else if (result is Result<bool, AeroError>.Failure failure)
-        {
-            ShowToast(L["Could not delete custom component: {0}", failure.Error], "error");
-        }
-    }
-
-    private static bool TryGetCustomComponentId(
-        string catalogId,
-        out long componentId)
-    {
-        componentId = default;
-        return catalogId.StartsWith("custom:", StringComparison.OrdinalIgnoreCase) &&
-               long.TryParse(
-                   catalogId.AsSpan("custom:".Length),
-                   out componentId);
-    }
-
-    private async Task LoadCustomComponentsAsync()
-    {
-        var result = await CustomComponentsClient.GetAllAsync();
-        if (result is Result<IReadOnlyList<PageCustomComponentDetail>, AeroError>.Ok ok)
-        {
-            CustomComponents = ok.Value
-                .OrderBy(component => component.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-    }
-
-    private NeoPageNode CreateCustomComponentRoot(EditorBlock block)
-    {
-        if (block.CompositionNodes.Count == 1)
-        {
-            return CustomComponentTemplate.Capture(block.CompositionNodes[0]);
-        }
-
-        if (block.CompositionNodes.Count > 1)
-        {
-            return new NeoPageNode
-            {
-                NodeId = Guid.NewGuid().ToString("N"),
-                CatalogId = "ui.container",
-                Kind = NeoPageNodeKind.Container,
-                Children = block.CompositionNodes
-                    .Select(CustomComponentTemplate.Capture)
-                    .ToList()
-            };
-        }
-
-        var node = MapEditorBlockToNeoNode(block);
-        if (string.IsNullOrWhiteSpace(node.NodeId))
-        {
-            node.NodeId = Guid.NewGuid().ToString("N");
-        }
-
-        return node;
-    }
-
-        /// <summary>
-    /// GetBlockDisplayName method.
-    /// </summary>
-protected string GetBlockDisplayName(string catalogId)
-    {
-        var allItems = NeoAeroCatalogItems
-            .Concat(NeoHyperCatalogItems)
-            .Concat(ComponentsCatalogItems)
-            .Concat(PrimitiveCatalogItems)
-            .Concat(ReferenceCatalogItems);
-
-        return allItems.FirstOrDefault(item => item.CatalogId == catalogId)?.DisplayName
-            ?? catalogId;
-    }
-
-    private EditorBlock CreateBlock(string type)
-    {
-        if (DefinitionRegistry.TryGetDescriptor(type, out var descriptor) &&
-            descriptor.LegacyDefinition is { } definition)
-        {
-            var defaultBlock = definition.CreateDefaultEditorBlock();
-            defaultBlock.Type = string.IsNullOrWhiteSpace(defaultBlock.Type)
-                ? descriptor.CatalogId
-                : defaultBlock.Type;
-            return defaultBlock;
-        }
-
-        if (DefinitionRegistry.TryGetDescriptor(type, out descriptor))
-        {
-            return new EditorBlock
-            {
-                Type = descriptor.CatalogId,
-                CompositionNodes = [CreateNodeFromDescriptor(descriptor)]
-            };
-        }
-
-        var block = new EditorBlock { Type = type };
-
-        switch (type)
-        {
-            // All block types are now registered in the definition registry.
-            // If a type is not found, fall through to unknown type handling.
-            default:
-                // fall through silently - unknown type
-                break;
-        }
-
-        return block;
-    }
-
-    /// <summary>
-    /// Converts an EditorBlock to its corresponding BlockBase for property editing.
-    /// </summary>
-    private BlockBase? GetBlockBaseForEditor(EditorBlock? block)
-    {
-        if (block == null) return null;
-
-        if (TryMapWithDefinition(block, out var mappedBlock, out _))
-        {
-            return mappedBlock;
-        }
-
-        var node = MapEditorBlockToNeoNode(block);
-        return block.Type switch
-        {
-            _ => null
-        };
-    }
-
-    private NeoPageNode MapEditorBlockToNeoNode(EditorBlock block)
-    {
-        if (TryMapWithDefinition(block, out _, out var mappedNode))
-        {
-            return mappedNode;
-        }
-
-        // Native definitions (no LegacyDefinition): preserve CompositionNodes
-        if (block.CompositionNodes is { Count: > 0 } compositionNodes)
-        {
-            var root = compositionNodes[0];
-            // Reparent any additional root nodes as children of the first
-            for (var i = 1; i < compositionNodes.Count; i++)
-                root.Children.Add(compositionNodes[i]);
-            return root;
-        }
-
-        return block.Type switch
-        {
-            _ => NormalizeCreatedNode(
-                new NeoPageNode
-                {
-                    CatalogId = block.Type,
-                    Kind = ResolveCatalogKind(block.Type),
-                    Properties = [],
-                    Style = block.Style.DeepClone(),
-                    Children = []
-                },
-                block.Type,
-                ResolveCatalogKind(block.Type))
-        };
-    }
-
-    private bool TryMapWithDefinition(
-        EditorBlock block,
-        out BlockBase? mappedBlock,
-        out NeoPageNode mappedNode)
-    {
-        mappedBlock = null;
-        mappedNode = NormalizeCreatedNode(
-            new NeoPageNode
-            {
-                CatalogId = block.Type,
-                Kind = ResolveCatalogKind(block.Type),
-                Properties = [],
-                Style = block.Style.DeepClone(),
-                Children = []
-            },
-            block.Type,
-            ResolveCatalogKind(block.Type));
-
-        if (!DefinitionRegistry.TryGetDescriptor(block.Type, out var descriptor) ||
-            descriptor.LegacyDefinition is not { } definition)
-        {
-            return false;
-        }
-
-        mappedBlock = definition.ToBlockBase(block);
-        mappedNode = definition.ToNeoPageNode(block);
-        if (string.IsNullOrWhiteSpace(mappedNode.CatalogId))
-        {
-            mappedNode.CatalogId = descriptor.CatalogId;
-        }
-
-        if (mappedNode.Kind == default)
-        {
-            mappedNode.Kind = descriptor.Catalog.Kind;
-        }
-
-        NormalizeCreatedNode(mappedNode, descriptor.CatalogId, descriptor.Catalog.Kind);
-        return true;
-    }
-
-        /// <summary>
-    /// SelectBlock method.
-    /// </summary>
-protected void SelectBlock(string id) => SelectedBlockId = id;
-
-        /// <summary>
-    /// DeleteBlock method.
-    /// </summary>
-protected void DeleteBlock(int index)
-    {
-        EnsureCanvasHistory();
-        if (index >= 0 && index < RootNode.Children.Count)
-        {
-            var nodeId = RootNode.Children[index].NodeId;
-            RootNode.Children.RemoveAt(index);
-            RecordCanvasMutation();
-            if (SelectedBlockId == nodeId)
-                SelectedBlockId = null;
-            MarkDirty();
-            ShowToast(L["Block deleted"]);
-            QueuePreviewRefresh();
-        }
-    }
-
-        /// <summary>
-    /// DuplicateBlock method.
-    /// </summary>
-protected void DuplicateBlock(int index)
-    {
-        if (index < 0 || index >= RootNode.Children.Count) return;
-
-        var original = RootNode.Children[index];
-        var clone = EditorNodeMemento.Capture(original).Restore();
-        AssignFreshNodeIds(clone);
-        ApplyCanvasDrop(
-            clone,
-            new CanvasDropArgs(
-                RootNode.NodeId,
-                null,
-                index + 1,
-                DropZoneId: ResolveDropZoneId(RootNode, clone)),
-            L["Block duplicated"]);
-    }
-
-        /// <summary>
-    /// MoveBlockUp method.
-    /// </summary>
-protected void MoveBlockUp(int index)
-    {
-        if (index <= 0 || index >= RootNode.Children.Count) return;
-        EnsureCanvasHistory();
-        (RootNode.Children[index], RootNode.Children[index - 1]) =
-            (RootNode.Children[index - 1], RootNode.Children[index]);
-        RecordCanvasMutation();
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-        /// <summary>
-    /// MoveBlockDown method.
-    /// </summary>
-protected void MoveBlockDown(int index)
-    {
-        if (index < 0 || index >= RootNode.Children.Count - 1) return;
-        EnsureCanvasHistory();
-        (RootNode.Children[index], RootNode.Children[index + 1]) =
-            (RootNode.Children[index + 1], RootNode.Children[index]);
-        RecordCanvasMutation();
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Node operation handlers  (called from CanvasTree)
-    // ──────────────────────────────────────────────────────────
-
-        /// <summary>
-    /// OnNodeSelected method.
-    /// </summary>
-protected void OnNodeSelected(string nodeId)
-    {
-        SelectedBlockId = nodeId;
-    }
-
-        /// <summary>
-    /// OnNodeEditRequested method.
-    /// </summary>
-protected void OnNodeEditRequested(string nodeId)
-    {
-        var node = FindNodeInTree(nodeId);
-        if (node is null) return;
-
-        OpenBlockEditor(nodeId);
-    }
-
-    /// <summary>
-    /// Applies a mutation emitted by a nested composition surface in the page tree.
-    /// The child surface has already validated the mutation, so the editor owns
-    /// history, dirty state, and preview refresh from this point forward.
-    /// </summary>
-    protected Task OnRootCompositionChanged(CompositionMutation mutation)
-    {
-        _treeUndoStack.Add(EditorNodeMemento.Capture(mutation.Before));
-        if (_treeUndoStack.Count > MaxTreeHistory)
-            _treeUndoStack.RemoveRange(0, _treeUndoStack.Count - MaxTreeHistory);
-
-        _treeRedoStack.Clear();
-        SyncRootNodeFrom(mutation.After);
-        MarkDirty();
-        QueuePreviewRefresh();
-        return InvokeAsync(StateHasChanged);
-    }
-
-        /// <summary>
-    /// OnRootCompositionDropRejected method.
-    /// </summary>
-protected void OnRootCompositionDropRejected(string message)
-    {
-        CompositionDropError = message;
-        ShowToast(L["Cannot place item here: {0}", message], "error");
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-    /// <summary>Handle drop from palette or tree reorder.</summary>
-    protected async Task OnCanvasDrop(CanvasDropArgs args)
-    {
-        // Palette drop: DraggedType is set by the palette DragStart
-        // or passed via args.CatalogId (from future dataTransfer-based flows).
-        var paletteCatalogId = args.CatalogId ?? PaletteDragState.CatalogId ?? DraggedType;
-        if (!string.IsNullOrWhiteSpace(paletteCatalogId))
-        {
-            var catalogId = paletteCatalogId;
-            PaletteDragState.Clear();
-
-            if (TryGetCustomComponentId(catalogId, out var componentId))
-            {
-                var result = await CustomComponentsClient.CreateInstanceAsync(componentId);
-                if (result is Result<NeoPageNode, AeroError>.Ok ok)
-                {
-                    ApplyCanvasDrop(ok.Value, args, L["Custom component added"]);
-                    return;
-                }
-                if (result is Result<NeoPageNode, AeroError>.Failure failure)
-                {
-                    ShowToast(L["Could not add custom component: {0}", failure.Error], "error");
-                    return;
-                }
-            }
-
-            AddChildNodeAt(catalogId, args);
-            return;
-        }
-
-        // Tree reorder: move the dropped node
-        if (!string.IsNullOrWhiteSpace(args.TargetSiblingNodeId))
-        {
-            var (parent, index) = FindParentAndIndex(args.TargetSiblingNodeId);
-            if (parent is null) return;
-
-            var targetNode = parent.Children[index];
-            ApplyCanvasDrop(targetNode, args, null);
-        }
-    }
-
-    /// <summary>Add a child node at a specific position in the tree.</summary>
-    private void AddChildNodeAt(string catalogId, CanvasDropArgs args)
-    {
-        NeoPageNode node;
-        if (DefinitionRegistry.TryGetDescriptor(catalogId, out var descriptor))
-        {
-            node = CreateNodeFromDescriptor(descriptor);
-        }
-        else
-        {
-            node = CreateCatalogFallbackNode(catalogId);
-        }
-
-        ApplyCanvasDrop(node, args, L["Block added"]);
-    }
-
-    /// <summary>
-    /// Applies a canvas insertion/move as a policy-checked composition command.
-    /// This is the command core used by the current NeoUI sortable bridge and by
-    /// the upcoming Aero-owned pointer/drop-zone interaction layer.
-    /// </summary>
-    private bool ApplyCanvasDrop(
-        NeoPageNode node,
-        CanvasDropArgs args,
-        string? successMessage)
-    {
-        var before = EditorNodeMemento.Capture(RootNode).Restore();
-        var isRootDrop = string.Equals(args.ParentNodeId, RootNode.NodeId, StringComparison.Ordinal) ||
-                         string.Equals(args.ParentNodeId, RootNode.CatalogId, StringComparison.OrdinalIgnoreCase);
-
-        var result = isRootDrop
-            ? CreateCompositionTreeEditor().Drop(
-                RootNode.Children,
-                new CompositionDropRequest(
-                    node,
-                    ParentNodeId: null,
-                    DropZoneId: args.DropZoneId,
-                    TargetIndex: args.InsertAtIndex))
-            : CreateCompositionTreeEditor().Drop(
-                [RootNode],
-                new CompositionDropRequest(
-                    node,
-                    args.ParentNodeId,
-                    args.DropZoneId,
-                    args.InsertAtIndex));
-
-        if (result is Result<IReadOnlyList<NeoPageNode>, AeroError>.Failure failure)
-        {
-            OnRootCompositionDropRejected(FormatError(failure.Error));
-            return false;
-        }
-
-        if (result is not Result<IReadOnlyList<NeoPageNode>, AeroError>.Ok ok)
-        {
-            OnRootCompositionDropRejected("The drop operation did not return a valid composition tree.");
-            return false;
-        }
-
-        if (isRootDrop)
-        {
-            RootNode.Children = ok.Value.ToList();
-        }
-        else if (ok.Value.FirstOrDefault() is { } updatedRoot)
-        {
-            SyncRootNodeFrom(updatedRoot);
-        }
-
-        RecordCanvasMutationFromBefore(before);
-        SelectBlock(node.NodeId);
-        MarkDirty();
-        QueuePreviewRefresh();
-        if (!string.IsNullOrWhiteSpace(successMessage))
-        {
-            ShowToast(successMessage, "success");
-        }
-
-        return true;
-    }
-
-    private bool CanContainChildren(NeoPageNode node) =>
-        DefinitionRegistry.TryGetDescriptor(node.CatalogId, out var descriptor) &&
-        descriptor.Catalog.Composition.CanContainChildren;
-
-    private string ResolveDropZoneId(NeoPageNode parent, NeoPageNode child)
-    {
-        if (!DefinitionRegistry.TryGetDescriptor(parent.CatalogId, out var parentDescriptor))
-        {
-            return NeoDropZoneDefinition.DefaultId;
-        }
-
-        var dropZones = parentDescriptor.Catalog.Composition.SupportedDropZones;
-        if (dropZones.Count == 0)
-        {
-            return NeoDropZoneDefinition.DefaultId;
-        }
-
-        var compatible = dropZones
-            .Where(zone => zone.AllowedChildKinds.Contains(child.Kind))
-            .OrderBy(zone => zone.MaximumChildren.HasValue)
-            .ThenByDescending(zone => zone.MaximumChildren ?? int.MaxValue)
-            .FirstOrDefault();
-
-        return compatible?.Id ?? dropZones[0].Id;
-    }
-
-    private static void AssignFreshNodeIds(NeoPageNode node)
-    {
-        node.NodeId = Guid.NewGuid().ToString("N");
-        foreach (var child in node.Children)
-        {
-            AssignFreshNodeIds(child);
-        }
-    }
-
-    private CompositionTreeEditor CreateCompositionTreeEditor() =>
-        new(
-            new CompositionPolicy(
-                new PageEditorRegistryCompositionCapabilityResolver(DefinitionRegistry)));
-
-    private static string FormatError(AeroError error) => error switch
-    {
-        AeroError.Validation validation => string.Join("; ", validation.Errors),
-        AeroError.NotAllowed notAllowed => notAllowed.msg,
-        AeroError.NotFound notFound => notFound.msg,
-        AeroError.Conflict conflict => conflict.msg,
-        AeroError.Timeout timeout => timeout.msg,
-        AeroError.Error general => general.msg,
-        _ => error.ToString()
-    };
-
-    private void RecordCanvasMutationFromBefore(NeoPageNode before)
-    {
-        _treeUndoStack.Add(EditorNodeMemento.Capture(before));
-        if (_treeUndoStack.Count > MaxTreeHistory)
-            _treeUndoStack.RemoveRange(0, _treeUndoStack.Count - MaxTreeHistory);
-        _treeRedoStack.Clear();
-    }
-
-        /// <summary>
-    /// OnNodeCopy method.
-    /// </summary>
-protected void OnNodeCopy(string nodeId)
-    {
-        var node = FindNodeInTree(nodeId);
-        if (node is null) return;
-        _nodeClipboard = EditorNodeMemento.Capture(node);
-        _blockClipboard = null;  // clear legacy clipboard
-        ShowToast(L["Node copied"], "success");
-    }
-
-        /// <summary>
-    /// OnNodePaste method.
-    /// </summary>
-protected void OnNodePaste(string targetNodeId)
-    {
-        if (_nodeClipboard is null)
-        {
-            ShowToast(L["Nothing to paste"], "info");
-            return;
-        }
-
-        var restored = _nodeClipboard.Restore();
-        AssignFreshNodeIds(restored);
-
-        var target = FindNodeInTree(targetNodeId);
-        if (target is not null && CanContainChildren(target))
-        {
-            ApplyCanvasDrop(
-                restored,
-                new CanvasDropArgs(
-                    target.NodeId,
-                    null,
-                    target.Children.Count,
-                    DropZoneId: ResolveDropZoneId(target, restored)),
-                L["Node pasted"]);
-            return;
-        }
-
-        var (parent, index) = FindParentAndIndex(targetNodeId);
-        var container = parent ?? RootNode;
-        ApplyCanvasDrop(
-            restored,
-            new CanvasDropArgs(
-                container.NodeId,
-                null,
-                Math.Clamp(index + 1, 0, container.Children.Count),
-                DropZoneId: ResolveDropZoneId(container, restored)),
-            L["Node pasted"]);
-    }
-
-        /// <summary>
-    /// OnNodeSaveAsCustom method.
-    /// </summary>
-protected void OnNodeSaveAsCustom(string nodeId)
-    {
-        var node = FindNodeInTree(nodeId);
-        if (node is null) return;
-
-        _pendingSaveNode = node;
-        EditingCustomComponentId = null;
-        CustomComponentName = node.CatalogId;
-        CustomComponentDescription = string.Empty;
-        SaveCustomComponentModalOpen = true;
-    }
-
-        /// <summary>
-    /// OnNodeDuplicate method.
-    /// </summary>
-protected void OnNodeDuplicate(string nodeId)
-    {
-        var node = FindNodeInTree(nodeId);
-        if (node is null) return;
-
-        var (parent, index) = FindParentAndIndex(nodeId);
-        if (parent is null) return;
-
-        var clone = EditorNodeMemento.Capture(node).Restore();
-        AssignFreshNodeIds(clone);
-        ApplyCanvasDrop(
-            clone,
-            new CanvasDropArgs(
-                parent.NodeId,
-                null,
-                index + 1,
-                DropZoneId: ResolveDropZoneId(parent, clone)),
-            L["Block duplicated"]);
-    }
-
-        /// <summary>
-    /// OnNodeDelete method.
-    /// </summary>
-protected void OnNodeDelete(string nodeId)
-    {
-        if (nodeId == RootNode.NodeId) return;  // can't delete root
-
-        EnsureCanvasHistory();
-        var (parent, index) = FindParentAndIndex(nodeId);
-        if (parent is null) return;
-
-        parent.Children.RemoveAt(index);
-        RecordCanvasMutation();
-        if (SelectedBlockId == nodeId)
-            SelectedBlockId = null;
-        MarkDirty();
-        ShowToast(L["Node deleted"]);
-        QueuePreviewRefresh();
-    }
-
-        /// <summary>
-    /// OnNodeMoveUp method.
-    /// </summary>
-protected void OnNodeMoveUp(string nodeId)
-    {
-        var (parent, index) = FindParentAndIndex(nodeId);
-        if (parent is null || index <= 0) return;
-
-        EnsureCanvasHistory();
-        (parent.Children[index], parent.Children[index - 1]) = (parent.Children[index - 1], parent.Children[index]);
-        RecordCanvasMutation();
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-        /// <summary>
-    /// OnNodeMoveDown method.
-    /// </summary>
-protected void OnNodeMoveDown(string nodeId)
-    {
-        var (parent, index) = FindParentAndIndex(nodeId);
-        if (parent is null || index >= parent.Children.Count - 1) return;
-
-        EnsureCanvasHistory();
-        (parent.Children[index], parent.Children[index + 1]) = (parent.Children[index + 1], parent.Children[index]);
-        RecordCanvasMutation();
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Drag & Drop  (mirrors dragStart / dragStartBlock / drop / etc.)
-    // ──────────────────────────────────────────────────────────
-
-        /// <summary>
-    /// DragStart method.
-    /// </summary>
-protected void DragStart(DragEventArgs e, string type)
-    {
-        DraggedType  = type;
-        DraggedIndex   = null;
-        PaletteDragState.Start(type);
-    }
-
-        /// <summary>
-    /// OnPaletteDragStarted method.
-    /// </summary>
-protected void OnPaletteDragStarted(string catalogId)
-    {
-        if (string.IsNullOrWhiteSpace(catalogId))
-        {
-            return;
-        }
-
-        DraggedType = catalogId;
-        DraggedIndex = null;
-        PaletteDragState.Start(catalogId);
-    }
-
-        /// <summary>
-    /// OnPaletteDragEnded method.
-    /// </summary>
-protected void OnPaletteDragEnded()
-    {
-        PaletteDragState.Clear();
-    }
-
-    private void ClearPaletteDragState()
-    {
-        DraggedType = null;
-        DraggedIndex = null;
-    }
-
-    /// <summary>Handle canvas reorder (legacy — now handled by CanvasTree).</summary>
-    protected void OnCanvasReordered(IList<EditorBlock> reordered)
-    {
-        // No-op: CanvasTree handles reorder via OnNodeMoveUp/OnNodeMoveDown
-    }
-
-    /// <summary>Handle catalog item dropped onto canvas from Sortable palette.</summary>
-    protected async Task OnCatalogItemTransferred(SortableTransferArgs args)
-    {
-        var catalogId = args.ActiveId;
-        if (TryGetCustomComponentId(catalogId, out var componentId))
-        {
-            var result = await CustomComponentsClient.CreateInstanceAsync(componentId);
-            if (result is Result<NeoPageNode, AeroError>.Ok ok)
-            {
-                EnsureCanvasHistory();
-                var node = ok.Value;
-                RootNode.Children.Add(node);
-                RecordCanvasMutation();
-                SelectBlock(node.NodeId);
-                MarkDirty();
-                QueuePreviewRefresh();
-                ShowToast(L["Custom component added"], "success");
-            }
-            else if (result is Result<NeoPageNode, AeroError>.Failure failure)
-            {
-                ShowToast(L["Could not add custom component: {0}", failure.Error], "error");
-            }
-
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(catalogId))
-        {
-            AddBlock(catalogId);
-        }
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Markdown  (mirrors renderMarkdown())
-    // ──────────────────────────────────────────────────────────
-
-        /// <summary>
-    /// RenderMarkdown method.
-    /// </summary>
-protected static string RenderMarkdown(string? content)
-    {
-        if (string.IsNullOrEmpty(content)) return string.Empty;
-
-        var html = content
-            .Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;")   // basic escape
-            ;
-
-        // headings
-        html = Regex.Replace(html, @"^#### (.+)$", "<h4>$1</h4>", RegexOptions.Multiline);
-        html = Regex.Replace(html, @"^### (.+)$",  "<h3>$1</h3>", RegexOptions.Multiline);
-        html = Regex.Replace(html, @"^## (.+)$",   "<h2>$1</h2>", RegexOptions.Multiline);
-        html = Regex.Replace(html, @"^# (.+)$",    "<h1>$1</h1>", RegexOptions.Multiline);
-
-        // inline
-        html = Regex.Replace(html, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
-        html = Regex.Replace(html, @"\*(.+?)\*",      "<em>$1</em>");
-        html = Regex.Replace(html, @"`(.+?)`",         "<code>$1</code>");
-        html = Regex.Replace(html, @"\[([^\]]+)\]\(([^)]+)\)", "<a href=\"$2\">$1</a>");
-
-        // lists
-        html = Regex.Replace(html, @"^- (.+)$", "<li>$1</li>", RegexOptions.Multiline);
-        html = Regex.Replace(html, @"(<li>.+</li>)+", m => $"<ul>{m.Value}</ul>", RegexOptions.Singleline);
-
-        // paragraphs
-        var lines = html.Split('\n');
-        html = string.Concat(lines.Select(l =>
-            l.Trim().Length > 0 && !l.TrimStart().StartsWith('<') ? $"<p>{l}</p>" : l));
-
-        return html;
-    }
-
-        /// <summary>
-    /// SanitizeHtmlPaste method.
-    /// </summary>
-protected void SanitizeHtmlPaste(HtmlEditorPasteEventArgs args)
-    {
-        args.Html = HtmlSanitizer.Sanitize(args.Html);
-    }
-
-        /// <summary>
-    /// RefreshDynamicTemplatePreviewAsync method.
-    /// </summary>
-protected async Task RefreshDynamicTemplatePreviewAsync(EditorBlock block)
-    {
-        if (string.IsNullOrWhiteSpace(block.ScribanTemplate))
-        {
-            DynamicTemplatePreviewHtml[block.EditorId] = $"<div class=\"text-sm text-red-600\">{L["Template is required."]}</div>";
-            return;
-        }
-
-        JsonDocument? data = null;
-        try
-        {
-            data = string.IsNullOrWhiteSpace(block.ScribanDataJson)
-                ? JsonDocument.Parse("{}")
-                : JsonDocument.Parse(block.ScribanDataJson);
-
-            var previewBlock = new DynamicTemplateBlock
-            {
-                DefinitionVersion = 1,
-                InlineTemplate = block.ScribanTemplate,
-                Data = data
-            };
-
-            var result = await PreviewClient.RenderBlockFragmentAsync(previewBlock);
-            DynamicTemplatePreviewHtml[block.EditorId] = result switch
-            {
-                Result<string, AeroError>.Ok ok => ok.Value,
-                Result<string, AeroError>.Failure failure => BuildPreviewError(failure.Error.ToString()),
-                _ => BuildPreviewError(L["Preview failed."])
-            };
-        }
-        catch (JsonException ex)
-        {
-            DynamicTemplatePreviewHtml[block.EditorId] = BuildPreviewError(L["Invalid JSON data: {0}", ex.Message]);
-        }
-        finally
-        {
-            data?.Dispose();
-        }
-    }
-
-    private static string BuildPreviewError(string message)
-    {
-        return $"<div class=\"text-sm text-red-600\">{System.Net.WebUtility.HtmlEncode(message)}</div>";
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Media selector  (mirrors openMediaSelector / confirmMediaSelection / etc.)
-    // ──────────────────────────────────────────────────────────
-
-        /// <summary>
-    /// OpenMediaSelector method.
-    /// </summary>
-protected void OpenMediaSelector(EditorBlock block, bool isGallery = false, string? context = null)
-    {
-        CurrentMediaBlock = block;
-        IsGalleryMode     = isGallery;
-        MediaContext      = context;
-        NestedMediaTarget = null;
-        NativeMediaNodeId = null;
-        NativeMediaField = null;
-        MediaModalOpen    = true;
-        InvokeAsync(StateHasChanged);
-    }
-
-        /// <summary>
-    /// OpenMediaSelectorForNested method.
-    /// </summary>
-protected void OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb)
-    {
-        CurrentMediaBlock = parent;
-        IsGalleryMode     = false;
-        MediaContext      = "nested";
-        NestedMediaTarget = nb;
-        MediaModalOpen    = true;
-        InvokeAsync(StateHasChanged);
-    }
-
-        /// <summary>
-    /// OpenNodeMediaSelector method.
-    /// </summary>
-protected void OpenNodeMediaSelector(
-        EditorBlock block,
-        string nodeId,
-        string field,
-        EditorBreakpoint breakpoint)
-    {
-        CurrentMediaBlock = block;
-        IsGalleryMode = false;
-        MediaContext = "native";
-        NestedMediaTarget = null;
-        NativeMediaNodeId = nodeId;
-        NativeMediaField = field;
-        NativeMediaBreakpoint = breakpoint;
-        MediaModalOpen = true;
-        InvokeAsync(StateHasChanged);
-    }
-
-        /// <summary>
-    /// OpenNodeMediaSelector method.
-    /// </summary>
-protected void OpenNodeMediaSelector(
-        string nodeId,
-        string field,
-        EditorBreakpoint breakpoint)
-    {
-        var node = FindNodeInTree(nodeId);
-        if (node is null)
-        {
-            ShowToast(L["The selected element is no longer available."], "error");
-            return;
-        }
-
-        var block = new EditorBlock
-        {
-            EditorId = node.NodeId,
-            Type = node.CatalogId,
-            Style = node.Style,
-            CompositionNodes = [RootNode]
-        };
-
-        OpenNodeMediaSelector(block, nodeId, field, breakpoint);
-    }
-
-        /// <summary>
-    /// OpenAudioSelector method.
-    /// </summary>
-protected void OpenAudioSelector(EditorBlock block)
-    {
-        // Simulate audio selection with a placeholder URL
-        block.Src = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-        ShowToast(L["Audio added"], "success");
-    }
-
-    private async Task OnConfirmMediaSelection(List<MediaItem> items)
-    {
-        await AutoSaveAsync();
-        if (!items.Any()) return;
-
-        if (MediaContext == "native" &&
-            CurrentMediaBlock is not null &&
-            NativeMediaField == "background-image")
-        {
-            var selected = items.First();
-            var image = new BackgroundImageStyle
-            {
-                MediaId = selected.Id,
-                Url = selected.Src,
-                Size = BackgroundImageSize.Cover
-            };
-
-            var style = FindCompositionNode(
-                    CurrentMediaBlock.CompositionNodes,
-                    NativeMediaNodeId)
-                ?.Style;
-            if (style is null &&
-                string.Equals(
-                    CurrentMediaBlock.EditorId,
-                    NativeMediaNodeId,
-                    StringComparison.Ordinal))
-            {
-                style = CurrentMediaBlock.Style;
-            }
-
-            if (style is null)
-            {
-                return;
-            }
-
-            switch (NativeMediaBreakpoint)
-            {
-                case EditorBreakpoint.Desktop:
-                    style.Base = style.Base with { BackgroundImage = image };
-                    break;
-                case EditorBreakpoint.Tablet:
-                    style.Tablet = (style.Tablet ?? new()) with
-                    {
-                        BackgroundImage = image
-                    };
-                    break;
-                case EditorBreakpoint.Mobile:
-                    style.Mobile = (style.Mobile ?? new()) with
-                    {
-                        BackgroundImage = image
-                    };
-                    break;
-            }
-        }
-        else if (MediaContext == "native" &&
-                 CurrentMediaBlock is not null &&
-                 NativeMediaField == "background-video")
-        {
-            var selected = items.First();
-            var video = new BackgroundVideoStyle
-            {
-                MediaId = selected.Id,
-                Url = selected.Src
-            };
-
-            var style = FindCompositionNode(
-                    CurrentMediaBlock.CompositionNodes,
-                    NativeMediaNodeId)
-                ?.Style;
-            if (style is null &&
-                string.Equals(
-                    CurrentMediaBlock.EditorId,
-                    NativeMediaNodeId,
-                    StringComparison.Ordinal))
-            {
-                style = CurrentMediaBlock.Style;
-            }
-
-            if (style is null)
-            {
-                return;
-            }
-
-            switch (NativeMediaBreakpoint)
-            {
-                case EditorBreakpoint.Desktop:
-                    style.Base = style.Base with { BackgroundVideo = video };
-                    break;
-                case EditorBreakpoint.Tablet:
-                    style.Tablet = (style.Tablet ?? new()) with
-                    {
-                        BackgroundVideo = video
-                    };
-                    break;
-                case EditorBreakpoint.Mobile:
-                    style.Mobile = (style.Mobile ?? new()) with
-                    {
-                        BackgroundVideo = video
-                    };
-                    break;
-            }
-        }
-        else if (MediaContext == "native" &&
-                 CurrentMediaBlock is not null &&
-                 NativeMediaField?.StartsWith(
-                     "property:",
-                     StringComparison.Ordinal) == true &&
-                 FindCompositionNode(
-                     CurrentMediaBlock.CompositionNodes,
-                     NativeMediaNodeId) is { } propertyNode)
-        {
-            var propertyName = NativeMediaField["property:".Length..];
-            propertyNode.Properties[propertyName] =
-                System.Text.Json.JsonSerializer.SerializeToElement(
-                    items.First().Src);
-        }
-        else if (MediaContext == "background" && CurrentMediaBlock != null)
-        {
-            CurrentMediaBlock.BackgroundImage = items.First().Src;
-        }
-        else if (MediaContext == "video" && CurrentMediaBlock != null)
-        {
-            // Set the URL and auto-load the video (resolves YouTube/Vimeo embeds or direct URL)
-            // LoadVideo handles its own toast — skip the generic one below.
-            CurrentMediaBlock.Url = items.First().Src;
-            LoadVideo(CurrentMediaBlock);
-            MediaModalOpen = false;
-            return;
-        }
-        else if (MediaContext == "nested" && NestedMediaTarget is not null)
-        {
-            NestedMediaTarget.Src = items.First().Src;
-            NestedMediaTarget.Alt = items.First().Alt;
-        }
-        else if (IsGalleryMode && CurrentMediaBlock != null)
-        {
-            CurrentMediaBlock.GalleryImages.AddRange(
-                items.Select(img => new GalleryImage { Src = img.Src, Alt = img.Alt }));
-        }
-        else if (CurrentMediaBlock != null)
-        {
-            CurrentMediaBlock.Src = items.First().Src;
-            CurrentMediaBlock.Alt = items.First().Alt;
-        }
-
-        MediaModalOpen = false;
-        MarkDirty();
-        QueuePreviewRefresh();
-        ShowToast(L["Media added"], "success");
-    }
-
-    private static NeoPageNode? FindCompositionNode(
-        IEnumerable<NeoPageNode> nodes,
-        string? nodeId)
-    {
-        if (string.IsNullOrWhiteSpace(nodeId))
-        {
-            return null;
-        }
-
-        foreach (var node in nodes)
-        {
-            if (string.Equals(node.NodeId, nodeId, StringComparison.Ordinal))
-            {
-                return node;
-            }
-
-            if (FindCompositionNode(node.Children, nodeId) is { } child)
-            {
-                return child;
-            }
-        }
-
-        return null;
-    }
-
-        /// <summary>
-    /// RemoveImage method.
-    /// </summary>
-protected void RemoveImage(EditorBlock block)
-    {
-        block.Src     = string.Empty;
-        block.Alt     = string.Empty;
-        block.Caption = string.Empty;
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Video  (mirrors loadVideo / removeVideo)
-    // ──────────────────────────────────────────────────────────
-
-        /// <summary>
-    /// LoadVideo method.
-    /// </summary>
-protected void LoadVideo(EditorBlock block)
-    {
-        var url      = block.Url;
-        var embedUrl = ResolveVideoEmbed(url);
-
-        if (!string.IsNullOrEmpty(embedUrl))
-        {
-            block.Src = embedUrl;
-            ShowToast(L["Video added"], "success");
-        }
-        else
-        {
-            ShowToast(L["Invalid video URL"], "error");
-        }
-    }
-
-        /// <summary>
-    /// LoadNestedVideo method.
-    /// </summary>
-protected void LoadNestedVideo(NestedBlock nb)
-    {
-        var url      = nb.Url;
-        var embedUrl = ResolveVideoEmbed(url);
-        if (!string.IsNullOrEmpty(embedUrl))
-            nb.Src = embedUrl;
-    }
-
-        /// <summary>
-    /// RemoveVideo method.
-    /// </summary>
-protected void RemoveVideo(EditorBlock block)
-    {
-        block.Src = string.Empty;
-        block.Url = string.Empty;
-    }
-
-    private static string ResolveVideoEmbed(string url)
-    {
-        // YouTube
-        var yt = Regex.Match(url, @"(?:youtube\.com/watch\?v=|youtu\.be/)([^&\s]+)");
-        if (yt.Success) return $"https://www.youtube.com/embed/{yt.Groups[1].Value}";
-
-        // Vimeo
-        var vm = Regex.Match(url, @"vimeo\.com/(\d+)");
-        if (vm.Success) return $"https://player.vimeo.com/video/{vm.Groups[1].Value}";
-
-        // Direct
-        if (Regex.IsMatch(url, @"\.(mp4|webm|ogg)$", RegexOptions.IgnoreCase))
-            return url;
-
-        return string.Empty;
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // References  (mirrors getReferenceItems / renderReferencePreview)
-    // ──────────────────────────────────────────────────────────
-
-        /// <summary>
-    /// GetReferenceItems method.
-    /// </summary>
-protected List<ReferenceItem> GetReferenceItems(string type)
-        => _referenceData.TryGetValue(type, out var items) ? items : [];
-
+    private sealed record SidebarState(bool RightSidebarCollapsed);
     // ──────────────────────────────────────────────────────────
     // Preview  (mirrors togglePreview())
     // ──────────────────────────────────────────────────────────
@@ -2523,7 +463,6 @@ protected async Task TogglePreview()
         PreviewMode = !PreviewMode;
         if (PreviewMode)
         {
-            SelectedBlockId = null;
             HtmlEditor.Select(null);
         }
 
@@ -2533,8 +472,16 @@ protected async Task TogglePreview()
     protected Task SelectHtmlNodeAsync(long? nodeId)
     {
         HtmlEditor.Select(nodeId);
+        HtmlPropertyError = null;
+        if (nodeId is not null)
+        {
+            RightSidebarCollapsed = false;
+        }
+
         return Task.CompletedTask;
     }
+
+    protected Task ClearHtmlSelectionAsync() => SelectHtmlNodeAsync(null);
 
     protected Task AddHtmlElementAsync(string tagName)
     {
@@ -2547,6 +494,37 @@ protected async Task TogglePreview()
     {
         var result = HtmlEditor.AddLayout(kind);
         HandleHtmlEditorResult(result, "Layout added.");
+        return Task.CompletedTask;
+    }
+
+    protected Task MoveHtmlNodeAsync(HtmlSortMoveIntent intent)
+    {
+        var result = HtmlEditor.MoveRelative(intent.NodeId, intent.TargetNodeId, intent.Placement);
+        HandleHtmlEditorResult(result, null);
+        return Task.CompletedTask;
+    }
+
+    protected Task InsertHtmlPaletteItemAsync(HtmlPaletteInsertIntent intent)
+    {
+        Result<HtmlNode> result = intent.ItemKind switch
+        {
+            HtmlPaletteItemKind.Element => HtmlEditor.AddElementRelative(
+                intent.ItemValue,
+                intent.TargetNodeId,
+                intent.Placement),
+            HtmlPaletteItemKind.Layout when Enum.TryParse<HtmlLayoutStarterKind>(
+                intent.ItemValue,
+                true,
+                out var layoutKind) => HtmlEditor.AddLayoutRelative(
+                    layoutKind,
+                    intent.TargetNodeId,
+                    intent.Placement),
+            _ => AeroError.ValidationError(["The dragged palette item is not supported."])
+        };
+
+        HandleHtmlEditorResult(result, intent.ItemKind is HtmlPaletteItemKind.Layout
+            ? "Layout added."
+            : $"Added <{intent.ItemValue}>.");
         return Task.CompletedTask;
     }
 
@@ -2571,6 +549,74 @@ protected async Task TogglePreview()
         return Task.CompletedTask;
     }
 
+    protected Task ApplyHtmlPropertiesAsync(HtmlNodeProperties properties)
+    {
+        var result = HtmlEditor.UpdateSelectedProperties(properties);
+        switch (result)
+        {
+            case Result<HtmlNode>.Ok:
+                HtmlPropertyError = null;
+                MarkDirty();
+                ShowToast(L["Element updated."], "success");
+                break;
+            case Result<HtmlNode>.Failure failure:
+                HtmlPropertyError = FormatError(failure.Error);
+                ShowToast(HtmlPropertyError, "error");
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    protected Task OpenHtmlRichTextEditorAsync()
+    {
+        HtmlRichTextError = null;
+        HtmlRichTextEditorOpen = HtmlEditor.SelectedNode is not null;
+        return Task.CompletedTask;
+    }
+
+    protected Task OpenHtmlRichTextForNodeAsync(long nodeId)
+    {
+        HtmlEditor.Select(nodeId);
+        HtmlPropertyError = null;
+        RightSidebarCollapsed = false;
+
+        var node = HtmlEditor.SelectedNode;
+        var converter = new TiptapInlineContentConverter();
+        HtmlRichTextEditorOpen = node is not null
+            && SelectedHtmlDefinition?.ChildModel is HtmlChildModel.Phrasing
+            && converter.CanEdit(node);
+        HtmlRichTextError = null;
+        return Task.CompletedTask;
+    }
+
+    protected Task CloseHtmlRichTextEditorAsync()
+    {
+        HtmlRichTextEditorOpen = false;
+        HtmlRichTextError = null;
+        return Task.CompletedTask;
+    }
+
+    protected Task ApplyHtmlRichTextAsync(IReadOnlyList<HtmlNode> children)
+    {
+        var result = HtmlEditor.UpdateSelectedChildren(children);
+        switch (result)
+        {
+            case Result<HtmlNode>.Ok:
+                HtmlRichTextEditorOpen = false;
+                HtmlRichTextError = null;
+                MarkDirty();
+                ShowToast(L["Text updated."], "success");
+                break;
+            case Result<HtmlNode>.Failure failure:
+                HtmlRichTextError = FormatError(failure.Error);
+                ShowToast(HtmlRichTextError, "error");
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
     private void HandleHtmlEditorResult<T>(Result<T> result, string? successMessage)
     {
         switch (result)
@@ -2587,6 +633,17 @@ protected async Task TogglePreview()
                 break;
         }
     }
+
+    private static string FormatError(AeroError error) => error switch
+    {
+        AeroError.Validation validation => string.Join("; ", validation.Errors),
+        AeroError.NotAllowed notAllowed => notAllowed.msg,
+        AeroError.NotFound notFound => notFound.msg,
+        AeroError.Conflict conflict => conflict.msg,
+        AeroError.Timeout timeout => timeout.msg,
+        AeroError.Error general => general.msg,
+        _ => error.ToString()
+    };
 
     private void QueuePreviewRefresh()
     {
@@ -2637,16 +694,35 @@ protected async Task TogglePreview()
 
         try
         {
-            var rootJson = JsonSerializer.Serialize(RootNode, BlockJsonContext.Default.Options);
-            var result = await PreviewClient.RenderPageFragmentAsync(rootNodeJson: rootJson, ct: cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (HtmlEditor.CompiledStyles is not { } compiledStyles)
+            {
+                PreviewHtml = null;
+                PreviewError = HtmlEditor.StyleCompilationError is { } styleError
+                    ? FormatError(styleError)
+                    : "The page styles could not be compiled.";
+                return;
+            }
+
+            var renderer = new HtmlStaticRenderer(
+                HtmlCatalog,
+                HtmlContentPolicy,
+                new HtmlAttributePolicy(),
+                new HtmlContentValidator(
+                    HtmlCatalog,
+                    HtmlContentPolicy,
+                    new HtmlAttributePolicy()));
+            var result = renderer.RenderPage(HtmlEditor.Content, compiledStyles);
             switch (result)
             {
-                case Result<string, AeroError>.Ok ok:
-                    PreviewHtml = ok.Value;
+                case Result<RenderedHtmlPage>.Ok ok:
+                    PreviewHtml = string.IsNullOrWhiteSpace(ok.Value.CssText)
+                        ? ok.Value.Markup
+                        : $"<style>{ok.Value.CssText}</style>{ok.Value.Markup}";
                     break;
-                case Result<string, AeroError>.Failure failure:
+                case Result<RenderedHtmlPage>.Failure failure:
                     PreviewHtml = null;
-                    PreviewError = failure.Error.ToString();
+                    PreviewError = FormatError(failure.Error);
                     break;
             }
         }
@@ -3259,7 +1335,6 @@ protected string FormatCulture(string? culture)
                     SeoDescription,
                     PublicationState,
                     ParentId,
-                    null,
                     ShowInNavMenu,
                     ShowHeaderNavigation,
                     HideFooter,
@@ -3294,7 +1369,6 @@ protected string FormatCulture(string? culture)
                     SeoDescription,
                     PublicationState,
                     ParentId,
-                    null,
                     ShowInNavMenu,
                     ShowHeaderNavigation,
                     HideFooter,
@@ -3340,9 +1414,12 @@ protected string FormatCulture(string? culture)
     /// </summary>
 protected async Task PublishPage()
     {
-        if (!Id.HasValue)
+        if (!Id.HasValue || _pageState == PageState.Dirty)
         {
             await SavePage();
+
+            if (_pageState != PageState.Clean)
+                return;
         }
 
         if (Id.HasValue)
@@ -3470,392 +1547,5 @@ protected void RemoveToast(string id)
             : string.Equals(tab, "translations", StringComparison.OrdinalIgnoreCase)
                 ? "translations"
                 : "editor";
-
-    // ──────────────────────────────────────────────────────────
-    // IBlockEditorCallbacks explicit implementation
-    // These forward to protected methods and properties used by
-    // BlockEditorPreviewHost via the cascading IBlockEditorCallbacks.
-    // ──────────────────────────────────────────────────────────
-
-    bool IBlockEditorCallbacks.PreviewMode => PreviewMode;
-    Dictionary<string, string> IBlockEditorCallbacks.DynamicTemplatePreviewHtml => DynamicTemplatePreviewHtml;
-
-    void IBlockEditorCallbacks.SelectBlock(string editorId) => SelectBlock(editorId);
-    void IBlockEditorCallbacks.BlockChanged(EditorBlock block)
-    {
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-        /// <summary>
-    /// AddPaletteItemAsync method.
-    /// </summary>
-protected async Task AddPaletteItemAsync(
-        PageEditorCatalog.NeoEditorCatalogItem item)
-    {
-        if (!TryGetCustomComponentId(item.CatalogId, out var componentId))
-        {
-            AddBlock(item.CatalogId);
-            return;
-        }
-
-        var result = await CustomComponentsClient.CreateInstanceAsync(componentId);
-        if (result is Result<NeoPageNode, AeroError>.Ok ok)
-        {
-            EnsureCanvasHistory();
-            var node = ok.Value;
-            RootNode.Children.Add(node);
-            RecordCanvasMutation();
-            SelectBlock(node.NodeId);
-            MarkDirty();
-            QueuePreviewRefresh();
-            ShowToast(L["Custom component added"], "success");
-        }
-        else if (result is Result<NeoPageNode, AeroError>.Failure failure)
-        {
-            ShowToast(L["Could not add custom component: {0}", failure.Error], "error");
-        }
-    }
-
-        /// <summary>
-    /// CopySelectedBlock method.
-    /// </summary>
-protected void CopySelectedBlock()
-    {
-        if (_nodeClipboard is not null)
-        {
-            // Already has a node clipboard — re-use
-            ShowToast(L["Block copied"], "success");
-            return;
-        }
-
-        var index = GetSelectedBlockIndex();
-        if (index < 0 || index >= RootNode.Children.Count) return;
-
-        var node = RootNode.Children[index];
-        _nodeClipboard = EditorNodeMemento.Capture(node);
-        ShowToast(L["Block copied"], "success");
-    }
-
-        /// <summary>
-    /// CutSelectedBlock method.
-    /// </summary>
-protected void CutSelectedBlock()
-    {
-        var index = GetSelectedBlockIndex();
-        if (index < 0 || index >= RootNode.Children.Count)
-        {
-            return;
-        }
-
-        var node = RootNode.Children[index];
-        _nodeClipboard = EditorNodeMemento.Capture(node);
-        RootNode.Children.RemoveAt(index);
-        if (SelectedBlockId == node.NodeId)
-            SelectedBlockId = null;
-        MarkDirty();
-        ShowToast(L["Block cut"], "success");
-        QueuePreviewRefresh();
-    }
-
-        /// <summary>
-    /// PasteBlock method.
-    /// </summary>
-protected void PasteBlock()
-    {
-        if (_nodeClipboard is null)
-        {
-            ShowToast(L["Nothing to paste"], "info");
-            return;
-        }
-
-        var pasteNode = _nodeClipboard.Restore();
-        AssignFreshNodeIds(pasteNode);
-        var selectedIndex = GetSelectedBlockIndex();
-        var insertIndex = selectedIndex >= 0 ? selectedIndex + 1 : RootNode.Children.Count;
-        ApplyCanvasDrop(
-            pasteNode,
-            new CanvasDropArgs(
-                RootNode.NodeId,
-                null,
-                insertIndex,
-                DropZoneId: ResolveDropZoneId(RootNode, pasteNode)),
-            L["Block pasted"]);
-    }
-
-        /// <summary>
-    /// HandleEditorShortcut method.
-    /// </summary>
-[JSInvokable]
-    public Task HandleEditorShortcut(string command)
-    {
-        switch (command)
-        {
-            case "undo":
-                UndoComposition();
-                break;
-            case "redo":
-                RedoComposition();
-                break;
-            case "copy":
-                CopySelectedBlock();
-                break;
-            case "cut":
-                CutSelectedBlock();
-                break;
-            case "paste":
-                PasteBlock();
-                break;
-            case "duplicate":
-                var duplicateIndex = GetSelectedBlockIndex();
-                if (duplicateIndex >= 0)
-                {
-                    DuplicateBlock(duplicateIndex);
-                }
-                break;
-            case "delete":
-                var deleteIndex = GetSelectedBlockIndex();
-                if (deleteIndex >= 0)
-                {
-                    DeleteBlock(deleteIndex);
-                }
-                break;
-        }
-
-        return InvokeAsync(StateHasChanged);
-    }
-
-    private NeoPageNode? GetSelectedBlock() =>
-        string.IsNullOrWhiteSpace(SelectedBlockId)
-            ? null
-            : FindNodeInTree(SelectedBlockId);
-
-    private int GetSelectedBlockIndex() =>
-        string.IsNullOrWhiteSpace(SelectedBlockId)
-            ? -1
-            : RootNode.Children.FindIndex(node => node.NodeId == SelectedBlockId);
-
-    void IBlockEditorCallbacks.CompositionChanged(
-        EditorBlock block,
-        CompositionMutation mutation)
-    {
-        if (!_compositionHistory.TryGetValue(block.EditorId, out var history))
-        {
-            history = new CompositionHistory(mutation.Before);
-            _compositionHistory[block.EditorId] = history;
-        }
-
-        history.Record(mutation.After, mutation.CoalescingKey);
-        block.CompositionNodes = [history.Current];
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-    void IBlockEditorCallbacks.CompositionDropRejected(string message)
-    {
-        CompositionDropError = message;
-        ShowToast(L["Cannot place item here: {0}", message], "error");
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-        /// <summary>
-    /// ClearCompositionDropError method.
-    /// </summary>
-protected void ClearCompositionDropError()
-    {
-        CompositionDropError = null;
-    }
-
-    void IBlockEditorCallbacks.OpenNodeEditor(EditorBlock block, string nodeId)
-    {
-        SelectedBlockId = block.EditorId;
-        EditingBlockId = block.EditorId;
-        EditingNodeId = nodeId;
-        BlockEditorTab = "content";
-        BlockEditorModalOpen = true;
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-        /// <summary>
-    /// Gets or sets the Can Undo Composition.
-    /// </summary>
-protected bool CanUndoComposition =>
-        CurrentCompositionHistory?.CanUndo == true ||
-        _treeUndoStack.Count > 0;
-
-        /// <summary>
-    /// Gets or sets the Can Redo Composition.
-    /// </summary>
-protected bool CanRedoComposition =>
-        CurrentCompositionHistory?.CanRedo == true ||
-        _treeRedoStack.Count > 0;
-
-    private CompositionHistory? CurrentCompositionHistory =>
-        !string.IsNullOrWhiteSpace(SelectedBlockId) &&
-        _compositionHistory.TryGetValue(SelectedBlockId, out var history)
-            ? history
-            : null;
-
-        /// <summary>
-    /// UndoComposition method.
-    /// </summary>
-protected void UndoComposition()
-    {
-        if (CurrentCompositionHistory?.CanUndo == true)
-        {
-            ApplyCompositionHistory(CurrentCompositionHistory.Undo());
-            return;
-        }
-
-        if (_treeUndoStack.Count == 0) return;
-
-        // Push current state to redo stack
-        _treeRedoStack.Add(EditorNodeMemento.Capture(RootNode));
-
-        // Restore previous state
-        var previous = _treeUndoStack[^1];
-        _treeUndoStack.RemoveAt(_treeUndoStack.Count - 1);
-        var restored = previous.Restore();
-        SyncRootNodeFrom(restored);
-
-        _compositionHistory.Clear();
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-        /// <summary>
-    /// RedoComposition method.
-    /// </summary>
-protected void RedoComposition()
-    {
-        if (CurrentCompositionHistory?.CanRedo == true)
-        {
-            ApplyCompositionHistory(CurrentCompositionHistory.Redo());
-            return;
-        }
-
-        if (_treeRedoStack.Count == 0) return;
-
-        // Push current state to undo stack
-        _treeUndoStack.Add(EditorNodeMemento.Capture(RootNode));
-        if (_treeUndoStack.Count > MaxTreeHistory)
-            _treeUndoStack.RemoveRange(0, _treeUndoStack.Count - MaxTreeHistory);
-
-        // Restore next state
-        var next = _treeRedoStack[^1];
-        _treeRedoStack.RemoveAt(_treeRedoStack.Count - 1);
-        var restored = next.Restore();
-        SyncRootNodeFrom(restored);
-
-        _compositionHistory.Clear();
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-    /// <summary>Replace RootNode's children with those from the restored tree.</summary>
-    private void SyncRootNodeFrom(NeoPageNode restored)
-    {
-        RootNode.Children.Clear();
-        foreach (var child in restored.Children)
-            RootNode.Children.Add(child);
-    }
-
-    private void EnsureCanvasHistory()
-    {
-        if (_treeUndoStack.Count == 0 && _treeRedoStack.Count == 0)
-        {
-            _treeUndoStack.Add(EditorNodeMemento.Capture(RootNode));
-        }
-    }
-
-    private void RecordCanvasMutation()
-    {
-        // Snapshot current state to undo stack
-        _treeUndoStack.Add(EditorNodeMemento.Capture(RootNode));
-        if (_treeUndoStack.Count > MaxTreeHistory)
-            _treeUndoStack.RemoveRange(0, _treeUndoStack.Count - MaxTreeHistory);
-        _treeRedoStack.Clear();
-    }
-
-    private void ApplyCanvasHistory(List<EditorBlock>? blocks)
-    {
-        // Legacy canvas history — no-op; tree history handles undo/redo
-    }
-
-    private void ApplyCompositionHistory(NeoPageNode? root)
-    {
-        if (root is null || string.IsNullOrWhiteSpace(SelectedBlockId))
-        {
-            return;
-        }
-
-        var node = FindNodeInTree(SelectedBlockId);
-        if (node is null)
-        {
-            return;
-        }
-
-        // Replace the node's children with the root's children
-        node.Children.Clear();
-        foreach (var child in root.Children)
-            node.Children.Add(child);
-        node.Properties = root.Properties;
-        node.Style = root.Style;
-        MarkDirty();
-        QueuePreviewRefresh();
-    }
-
-    void IBlockEditorCallbacks.OpenBlockEditor(EditorBlock block) => OpenBlockEditor(block.EditorId);
-
-    void IBlockEditorCallbacks.OpenMediaSelector(EditorBlock block, bool multiSelect, string field)
-        => OpenMediaSelector(block, multiSelect, field);
-
-    void IBlockEditorCallbacks.OpenNodeMediaSelector(
-        EditorBlock block,
-        string nodeId,
-        string field,
-        EditorBreakpoint breakpoint) =>
-        OpenNodeMediaSelector(block, nodeId, field, breakpoint);
-
-    void IBlockEditorCallbacks.OpenNodeMediaSelector(
-        string nodeId,
-        string field,
-        EditorBreakpoint breakpoint) =>
-        OpenNodeMediaSelector(nodeId, field, breakpoint);
-
-    void IBlockEditorCallbacks.OpenAudioSelector(EditorBlock block) => OpenAudioSelector(block);
-    void IBlockEditorCallbacks.RemoveImage(EditorBlock block) => RemoveImage(block);
-    void IBlockEditorCallbacks.RemoveVideo(EditorBlock block) => RemoveVideo(block);
-    void IBlockEditorCallbacks.LoadVideo(EditorBlock block) => LoadVideo(block);
-    Task IBlockEditorCallbacks.RefreshDynamicTemplatePreviewAsync(EditorBlock block)
-        => RefreshDynamicTemplatePreviewAsync(block);
-    void IBlockEditorCallbacks.LoadNestedVideo(NestedBlock nb) => LoadNestedVideo(nb);
-    void IBlockEditorCallbacks.OpenMediaSelectorForNested(EditorBlock parent, int colIndex, NestedBlock nb)
-        => OpenMediaSelectorForNested(parent, colIndex, nb);
-    List<ReferenceItem> IBlockEditorCallbacks.GetReferenceItems(string type) => GetReferenceItems(type);
-
-    string IBlockEditorCallbacks.RenderDynamicTemplateIfCached(EditorBlock block)
-    {
-        return DynamicTemplatePreviewHtml.TryGetValue(block.EditorId, out var html)
-            ? html
-            : string.Empty;
-    }
-
-    /// <summary>Toggle sidebar panels (from empty-state click).</summary>
-    protected void ToggleSidebarPanels() => RightSidebarCollapsed = false;
-
-    // ──────────────────────────────────────────────────────────
-    // Version History  (event sourcing — mt_events timeline)
-    // ──────────────────────────────────────────────────────────
-
-    private PageVersionHistory? _historyPanel;
-
-    private async Task ShowHistoryAsync()
-    {
-        if (_historyPanel is not null && Id.HasValue)
-        {
-            await _historyPanel.OpenAsync();
-        }
-    }
 }
 

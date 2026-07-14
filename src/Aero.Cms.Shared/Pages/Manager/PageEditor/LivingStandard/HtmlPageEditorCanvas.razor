@@ -1,12 +1,30 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
 
 <section class="aero-page-canvas" aria-label="Page canvas">
+    <p id="aero-page-canvas-instructions" class="pe-visually-hidden">
+        Select an element, then use the drag handle or arrow keys to reorder it. Use left and right arrow keys to change nesting.
+    </p>
     @if (!string.IsNullOrWhiteSpace(CompiledStyles?.CssText))
     {
         <style>@((MarkupString)CompiledStyles.CssText)</style>
     }
 
-    <div class="aero-page-canvas__surface" @onclick="ClearSelectionAsync">
+    <div class="aero-page-canvas__surface"
+         @ref="_surface"
+         data-aero-sortable-enabled="@(!PreviewMode ? "true" : "false")"
+         data-aero-root-node-id="@RootNodeId"
+         data-aero-can-have-children="true"
+         data-aero-can-accept-selected-inside="@(CanRootAcceptMove ? "true" : "false")"
+         @onclick="ClearSelectionAsync">
+        <button class="aero-page-canvas__drag-handle"
+                @ref="_dragHandle"
+                type="button"
+                aria-describedby="aero-page-canvas-instructions"
+                aria-label="Drag selected element to reorder. Use arrow keys for keyboard reordering."
+                title="Drag to move · Arrow keys to reorder or nest">
+            <span aria-hidden="true">⠿</span>
+        </button>
+
         @if (Content.Root.Children.Count == 0)
         {
             <div class="aero-page-canvas__empty">
@@ -21,8 +39,12 @@
             <HtmlNodePreview Node="Content.Root"
                              SelectedNodeId="SelectedNodeId"
                              CompiledStyles="CompiledStyles"
+                             Catalog="Catalog"
+                             ContentPolicy="ContentPolicy"
+                             MoveSourceNode="ActiveMoveSource"
                              PreviewMode="PreviewMode"
-                             NodeSelected="SelectNodeAsync" />
+                             NodeSelected="SelectNodeAsync"
+                             NodeEditRequested="EditNodeAsync" />
         }
     </div>
 </section>

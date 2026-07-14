@@ -13,5 +13,9 @@ public sealed class HtmlElementDefinition
     public bool IsInteractive { get; set; }
     public bool IsPhrasingContent { get; set; }
     public bool IsFlowContent { get; set; }
+    public bool IsPaletteVisible { get; set; } = true;
+    public List<string> AllowedParentTags { get; set; } = [];
+    public List<string> AllowedChildTags { get; set; } = [];
+    public List<string> AllowedAttributes { get; set; } = [];
     public List<string> StyleCapabilities { get; set; } = [];
 }

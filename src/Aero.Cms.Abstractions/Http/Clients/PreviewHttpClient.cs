@@ -1,5 +1,5 @@
 using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Html;
 using Microsoft.Extensions.Logging;
 
 namespace Aero.Cms.Abstractions.Http.Clients;
@@ -29,8 +29,7 @@ public interface IPreviewHttpClient
     /// Renders an unsaved page document to an HTML fragment.
     /// </summary>
     Task<Result<string, AeroError>> RenderPageFragmentAsync(
-        IReadOnlyList<LayoutRegion>? layoutRegions = null,
-        string? rootNodeJson = null,
+        HtmlPageContent content,
         CancellationToken ct = default);
 
     /// <summary>
@@ -67,13 +66,12 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
 
     /// <inheritdoc />
     public async Task<Result<string, AeroError>> RenderPageFragmentAsync(
-        IReadOnlyList<LayoutRegion>? layoutRegions = null,
-        string? rootNodeJson = null,
+        HtmlPageContent content,
         CancellationToken ct = default)
     {
         var result = await PostAsync<PreviewPageFragmentRequest, PreviewPageFragmentResponse>(
             "pages/render-fragment",
-            new PreviewPageFragmentRequest(layoutRegions, rootNodeJson),
+            new PreviewPageFragmentRequest(content),
             ct);
 
         if (result is Result<PreviewPageFragmentResponse, AeroError>.Ok ok)
