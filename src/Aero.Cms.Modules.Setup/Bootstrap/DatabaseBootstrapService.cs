@@ -32,6 +32,7 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
         bootstrap["DatabaseMode"] = model.DatabaseMode;
         bootstrap["SecretProvider"] = model.SecretProvider;
         bootstrap["AuthenticationMode"] = model.AuthenticationMode;
+        bootstrap["DatabaseUnauthenticated"] = model.DatabaseUnauthenticated;
         bootstrap["HasBootstrapConfig"] = model.HasBootstrapConfig;
         bootstrap["SetupComplete"] = false;
         bootstrap["SeedComplete"] = false;
@@ -44,16 +45,31 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
         if (model.DatabaseMode.Equals("Embedded", StringComparison.OrdinalIgnoreCase))
         {
             bootstrap.Remove("DatabaseConnectionStringReference");
+            bootstrap.Remove("DatabaseUsernameReference");
+            bootstrap.Remove("DatabasePasswordReference");
             // Sable embedded (SurrealDB KV) requires no connection string.
             // The data path is derived from env.ContentRootPath at DI registration time.
         }
         else if (!string.IsNullOrWhiteSpace(model.ConnectionString) && model.DatabaseMode.Equals("Server", StringComparison.OrdinalIgnoreCase))
         {
-            var stored = StoreConnectionString(model.ConnectionString, "AeroCms:Database:ConnectionString", model);
+            var stored = StoreDatabaseSecret(model.ConnectionString, "AeroCms:Database:ConnectionString", model);
             bootstrap["DatabaseConnectionStringReference"] = stored.Metadata ?? stored.Value;
             if (ShouldStoreEncryptedValue(model.SecretProvider))
             {
                 SetConnectionString(root, "aero", stored);
+            }
+
+            if (model.DatabaseUnauthenticated)
+            {
+                bootstrap.Remove("DatabaseUsernameReference");
+                bootstrap.Remove("DatabasePasswordReference");
+            }
+            else
+            {
+                var username = StoreDatabaseSecret(model.DatabaseUsername ?? string.Empty, "AeroCms:Database:Username", model);
+                var password = StoreDatabaseSecret(model.DatabasePassword ?? string.Empty, "AeroCms:Database:Password", model);
+                bootstrap["DatabaseUsernameReference"] = username.Metadata ?? username.Value;
+                bootstrap["DatabasePasswordReference"] = password.Metadata ?? password.Value;
             }
         }
 
@@ -62,7 +78,7 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
             cancellationToken);
     }
 
-    private StoredSecretReference StoreConnectionString(string connectionString, string name, DatabaseBootstrapModel model)
+    private StoredSecretReference StoreDatabaseSecret(string value, string name, DatabaseBootstrapModel model)
     {
         if (model.SecretProvider.Equals("Infisical", StringComparison.OrdinalIgnoreCase))
         {
@@ -73,10 +89,10 @@ public async Task PersistAsync(DatabaseBootstrapModel model, CancellationToken c
                 ClientSecret = string.IsNullOrWhiteSpace(model.InfisicalClientSecret) ? infisicalSettings.ClientSecret : model.InfisicalClientSecret
             };
             var manager = new InfisicalSecretManager(infisical);
-            return manager.Store(connectionString, name, SecretProviderType.Infisical);
+            return manager.Store(value, name, SecretProviderType.Infisical);
         }
 
-        return secretManager.Store(connectionString, name, SecretProviderType.Local);
+        return secretManager.Store(value, name, SecretProviderType.Local);
     }
 
     private void PersistInfisicalAuth(JsonObject bootstrap, DatabaseBootstrapModel model)

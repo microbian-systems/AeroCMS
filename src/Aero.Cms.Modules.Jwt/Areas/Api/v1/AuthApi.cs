@@ -71,7 +71,7 @@ public static void MapAuthApi(this IEndpointRouteBuilder app)
 
             // Enforce CMS role membership before setting cookie
             var roles = await userManager.GetRolesAsync(user);
-            if (!roles.Intersect(AeroCmsRoles.All, StringComparer.OrdinalIgnoreCase).Any())
+            if (!roles.Intersect(CmsRoleNames.All, StringComparer.OrdinalIgnoreCase).Any())
             {
                 return TypedResults.Forbid();
             }

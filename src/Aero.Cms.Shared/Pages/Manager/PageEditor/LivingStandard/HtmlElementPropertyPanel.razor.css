@@ -4,6 +4,7 @@
 .aero-property-panel__header code { margin-left: .25rem; color: #7c3aed; font-size: .75rem; }
 .aero-property-panel__eyebrow { color: #64748b; font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .aero-property-panel__back { width: 2rem; height: 2rem; border: 1px solid #dbe3ef; border-radius: .5rem; color: #475569; background: #fff; cursor: pointer; }
+.aero-property-panel__element-actions { display: flex; justify-content: flex-end; gap: .45rem; padding: .65rem 1rem 0; }
 .aero-property-panel__content-action { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: 1rem; border: 1px solid #ddd6fe; border-radius: .7rem; padding: .75rem; background: #faf8ff; }
 .aero-property-panel__content-action div { display: grid; gap: .15rem; }
 .aero-property-panel__content-action strong { color: #4c1d95; font-size: .78rem; }
@@ -12,6 +13,7 @@
 .aero-property-panel__structure > strong { color: #334155; font-size: .78rem; }
 .aero-property-panel__structure > span { color: #64748b; font-size: .7rem; line-height: 1.4; }
 .aero-property-panel__structure-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .3rem; }
+.aero-property-panel__media-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .45rem; align-items: center; }
 .aero-property-panel__form { display: grid; }
 .aero-property-panel details { border-bottom: 1px solid #e2e8f0; }
 .aero-property-panel summary { padding: .9rem 1rem; color: #334155; font-size: .78rem; font-weight: 700; cursor: pointer; }

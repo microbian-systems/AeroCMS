@@ -29,6 +29,31 @@ public sealed class HtmlPageEditorSessionTests
     }
 
     [Test]
+    public async Task DuplicateSelected_creates_a_fresh_sibling_as_one_undoable_change()
+    {
+        var section = HtmlNode.CreateElement("section");
+        var paragraph = HtmlNode.CreateElement("p");
+        paragraph.Children.Add(HtmlNode.CreateText("Duplicate me"));
+        section.Children.Add(paragraph);
+        var session = CreateSession(section);
+        session.Select(paragraph.NodeId);
+
+        var duplicated = session.DuplicateSelected() as Result<HtmlNode>.Ok;
+
+        await Assert.That(duplicated).IsNotNull();
+        await Assert.That(section.Children).Count().IsEqualTo(2);
+        await Assert.That(duplicated!.Value.NodeId).IsNotEqualTo(paragraph.NodeId);
+        await Assert.That(duplicated.Value.Children.Single().NodeId)
+            .IsNotEqualTo(paragraph.Children.Single().NodeId);
+        await Assert.That(duplicated.Value.Children.Single().Text).IsEqualTo("Duplicate me");
+        await Assert.That(session.SelectedNodeId).IsEqualTo(duplicated.Value.NodeId);
+        await Assert.That(HtmlTreeOperations.HasUniqueNodeIds(session.Content.Root)).IsTrue();
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Content.Root.Children.Single().Children).Count().IsEqualTo(1);
+    }
+
+    [Test]
     public async Task AddElement_UsesSelectedContainer_AndFallsBackToItsParent()
     {
         var section = HtmlNode.CreateElement("section");

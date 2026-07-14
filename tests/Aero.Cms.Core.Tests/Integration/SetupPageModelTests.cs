@@ -36,6 +36,50 @@ public class SetupPageModelTests
     }
 
     [Test]
+    public async Task Server_database_mode_requires_credentials_when_unauthenticated_access_is_disabled()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 2;
+        model.Input.DatabaseMode = "Server";
+        model.Input.ConnectionString = "ws://localhost:8000/rpc";
+        model.Input.DatabaseUnauthenticated = false;
+        model.Input.DatabaseUsername = string.Empty;
+        model.Input.DatabasePassword = string.Empty;
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(2);
+        model.StatusMessage.Should().Be("A database username is required unless unauthenticated access is enabled.");
+        model.HasValidationErrors.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Server_database_mode_allows_unauthenticated_connections_without_credentials()
+    {
+        var model = CreateModel();
+        model.CurrentStep = 2;
+        model.Input.DatabaseMode = "Server";
+        model.Input.ConnectionString = "ws://localhost:8000/rpc";
+        model.Input.DatabaseUnauthenticated = true;
+        model.Input.DatabaseUsername = null;
+        model.Input.DatabasePassword = null;
+
+        await model.NextStep();
+
+        await Assert.That(model.CurrentStep).IsEqualTo(3);
+        model.StatusMessage.Should().BeNull();
+        model.HasValidationErrors.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Setup_input_defaults_server_endpoint_to_local_surreal_rpc()
+    {
+        var input = new SetupInput();
+
+        await Assert.That(input.ConnectionString).IsEqualTo("ws://localhost:8000/rpc");
+    }
+
+    [Test]
     public async Task Embedded_cache_mode_does_not_block_step_3_progression_on_readiness()
     {
         var model = CreateModel();

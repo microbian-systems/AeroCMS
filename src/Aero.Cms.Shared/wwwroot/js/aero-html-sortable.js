@@ -357,6 +357,8 @@ export function initialize(surface, dragHandle, dotNetCallback) {
             event.stopImmediatePropagation();
         }
     };
+    const isEditableTarget = (target) => target instanceof Element
+        && target.closest('input, textarea, select, [contenteditable="true"]') !== null;
     const onDocumentKeyDown = (event) => {
         if (event.key === 'Escape' && activeDrag) {
             event.preventDefault();
@@ -366,6 +368,30 @@ export function initialize(surface, dragHandle, dotNetCallback) {
             event.preventDefault();
             cleanupPaletteDrag(true);
         }
+        if (!isEnabled() || !selectedNode() || isEditableTarget(event.target)) {
+            return;
+        }
+        let command = null;
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+            command = event.shiftKey ? 'redo' : 'undo';
+        }
+        else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
+            command = 'redo';
+        }
+        else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
+            command = 'duplicate';
+        }
+        else if (event.key === 'Delete' || event.key === 'Backspace') {
+            command = 'delete';
+        }
+        if (!command) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        void dotNetCallback
+            .invokeMethodAsync('OnEditorCommandRequested', command)
+            .catch((error) => console.error('Aero editor command failed.', error));
     };
     const observer = new MutationObserver(scheduleHandlePosition);
     observer.observe(surface, {

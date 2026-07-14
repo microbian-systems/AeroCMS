@@ -131,7 +131,9 @@ namespace Aero.Cms.Abstractions.Blocks.Serialization;
 [JsonSerializable(typeof(ScrollingContentBlock))]
 [JsonSerializable(typeof(Aero.Cms.Abstractions.Blocks.Common.ContentEmbedBlock))]
 [JsonSerializable(typeof(List<Aero.Cms.Abstractions.Blocks.Common.ContentEmbedBlock>))]
+#if !AERO_CMS_BROWSER_CLIENT
 [JsonSerializable(typeof(Aero.Cms.Abstractions.Content.ContentItem))]
+#endif
 [JsonSerializable(typeof(Dictionary<string, System.Text.Json.JsonElement>))]
 [JsonSerializable(typeof(FormEditorBlock))]
 [JsonSerializable(typeof(NavigationBlock))]

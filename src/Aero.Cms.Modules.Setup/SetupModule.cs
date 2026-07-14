@@ -106,6 +106,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             // These services depend on Identity and AeroDB, which are only available in runtime mode
             services.TryAddScoped<ISetupStateStore, AeroSetupStateStore>();
             services.TryAddScoped<ISetupIdentityBootstrapper, SetupIdentityBootstrapper>();
+            services.AddHostedService<InitialAdminRoleRepairService>();
             services.TryAddScoped<ISetupCompletionService, SeedDatabaseService>();
             services.TryAddScoped<ITranslationImportService, TranslationImportService>();
             services.TryAddTransient<IRuntimeBootstrapInitializer, RuntimeBootstrapInitializer>();

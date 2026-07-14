@@ -30,6 +30,10 @@ public sealed class LivingStandardSeedPageFactoryTests
             throw new InvalidOperationException(string.Join("; ", validationError.Errors));
         }
         (validation is Result<bool>.Ok).ShouldBeTrue();
+        var hero = content.Root.Children[0].Children[0];
+        hero.Children[0].Style!.Typography!.Color!.Value.ShouldBe("#ffffff");
+        hero.Children[1].Style!.Typography!.Color!.Value.ShouldBe("#ffffff");
+
         var compiled = new NativeCssStyleCompiler().Compile(content, new NativeStyleProfile());
         (compiled is Result<CompiledPageStyles>.Ok).ShouldBeTrue();
 

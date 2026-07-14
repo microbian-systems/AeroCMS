@@ -56,6 +56,10 @@
                 </button>
                 <span class="pe-living-toolbar__divider" aria-hidden="true"></span>
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                        disabled="@(HtmlEditor.SelectedNodeId is null)" @onclick="DuplicateSelectedHtmlNodeAsync">
+                    @L["Duplicate element"]
+                </button>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
                         disabled="@(HtmlEditor.SelectedNodeId is null)" @onclick="RemoveSelectedHtmlNodeAsync">
                     @L["Delete element"]
                 </button>
@@ -75,6 +79,7 @@
                               NodeEditRequested="OpenHtmlRichTextForNodeAsync"
                               SortMoveRequested="MoveHtmlNodeAsync"
                               PaletteInsertRequested="InsertHtmlPaletteItemAsync"
+                              EditorCommandRequested="ApplyHtmlEditorCommandAsync"
                               ElementRequested="AddHtmlElementAsync" />
     }
 }
@@ -422,7 +427,10 @@ else if (ActiveTab == "translations")
                                           PropertiesChanged="ApplyHtmlPropertiesAsync"
                                           SelectionCleared="ClearHtmlSelectionAsync"
                                           RichTextRequested="OpenHtmlRichTextEditorAsync"
-                                          CollectionActionRequested="ApplyHtmlCollectionActionAsync" />
+                                          CollectionActionRequested="ApplyHtmlCollectionActionAsync"
+                                          DuplicateRequested="DuplicateSelectedHtmlNodeAsync"
+                                          RemoveRequested="RemoveSelectedHtmlNodeAsync"
+                                          MediaRequested="OpenHtmlMediaSelectorAsync" />
             }
             else
             {
@@ -443,6 +451,11 @@ else if (ActiveTab == "translations")
                               Closed="CloseHtmlRichTextEditorAsync"
                               ContentSaved="ApplyHtmlRichTextAsync" />
 }
+
+<MediaSelectorModal Show="HtmlMediaSelectorOpen"
+                    MultiSelect="false"
+                    OnClose="CloseHtmlMediaSelectorAsync"
+                    OnConfirm="ApplyHtmlMediaSelectionAsync" />
 
 @* ── Toast notifications ─────────────────────────────────── *@
 <div class="pe-toast-container" aria-live="polite" aria-label="@L["Page editor notifications"]">

@@ -9,6 +9,11 @@ namespace Aero.Cms.Modules.Footer.Projections;
 /// </summary>
 public sealed class SiteFooterSettingsProjection : IProjection
 {
+    public Type[] EventTypes => [typeof(SiteDefaultFooterChanged)];
+
+    public Task ApplyAsync(IProjectionContext context, CancellationToken ct)
+        => ApplyAsync(context.Session, context.TypedEvents, ct);
+
         /// <summary>
     /// Apply method.
     /// </summary>

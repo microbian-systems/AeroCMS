@@ -23,48 +23,48 @@ public abstract class LoginBase : ComponentBase
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 
-        /// <summary>
+    /// <summary>
     /// Gets or sets the Configuration.
     /// </summary>
-[Inject]
+    [Inject]
     protected IConfiguration Configuration { get; set; } = default!;
 
     [Inject]
     private IHttpClientFactory HttpClientFactory { get; set; } = default!;
 
-        /// <summary>
+    /// <summary>
     /// Gets or sets the L.
     /// </summary>
-[Inject]
+    [Inject]
     protected IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
 
-        /// <summary>
+    /// <summary>
     /// Gets or sets the Return Url.
     /// </summary>
-[SupplyParameterFromQuery(Name = "returnUrl")]
+    [SupplyParameterFromQuery(Name = "returnUrl")]
     protected string? ReturnUrl { get; set; }
 
-        /// <summary>
+    /// <summary>
     /// Model.
     /// </summary>
-protected readonly LoginModel Model = new();
-        /// <summary>
+    protected readonly LoginModel Model = new();
+    /// <summary>
     /// ErrorMessage.
     /// </summary>
-protected string? ErrorMessage;
-        /// <summary>
+    protected string? ErrorMessage;
+    /// <summary>
     /// Gets or sets the Is Submitting.
     /// </summary>
-protected bool IsSubmitting { get; set; }
-        /// <summary>
+    protected bool IsSubmitting { get; set; }
+    /// <summary>
     /// Gets or sets the Show Password.
     /// </summary>
-protected bool ShowPassword { get; set; }
+    protected bool ShowPassword { get; set; }
 
-        /// <summary>
+    /// <summary>
     /// OnInitialized method.
     /// </summary>
-protected override void OnInitialized()
+    protected override void OnInitialized()
     {
         var env = Configuration["ASPNETCORE_ENVIRONMENT"] ?? Configuration["Environment"];
         var isDev = env == "Development" || Navigation.BaseUri.Contains("localhost") || Navigation.BaseUri.Contains("127.0.0.1");
@@ -76,19 +76,20 @@ protected override void OnInitialized()
         }
     }
 
-        /// <summary>
+    /// <summary>
     /// TogglePasswordVisibility method.
     /// </summary>
-protected void TogglePasswordVisibility() => ShowPassword = !ShowPassword;
+    protected void TogglePasswordVisibility() => ShowPassword = !ShowPassword;
 
-        /// <summary>
+    /// <summary>
     /// HandleSubmit method.
     /// </summary>
-protected async Task HandleSubmit()
+    protected async Task HandleSubmit()
     {
         ErrorMessage = null;
         IsSubmitting = true;
         await InvokeAsync(StateHasChanged);
+        string? redirectUrl = null;
 
         try
         {
@@ -111,11 +112,12 @@ protected async Task HandleSubmit()
                     return; // ErrorMessage already set by LoginViaCookieAsync
                 }
 
-                Navigation.NavigateTo(string.IsNullOrWhiteSpace(ReturnUrl) ? "/manager" : ReturnUrl!, forceLoad: true);
-                return;
+                redirectUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? "/manager" : ReturnUrl;
             }
-
-            ErrorMessage = "Login failed: Invalid credentials or insufficient permissions.";
+            else
+            {
+                ErrorMessage = "Login failed: Invalid credentials or insufficient permissions.";
+            }
         }
         catch (Exception ex)
         {
@@ -124,6 +126,14 @@ protected async Task HandleSubmit()
         finally
         {
             IsSubmitting = false;
+        }
+
+        // Keep navigation outside the exception boundary. During static SSR,
+        // NavigateTo may use NavigationException as redirect control flow; it
+        // must reach the framework rather than be presented as a login failure.
+        if (redirectUrl is not null)
+        {
+            Navigation.NavigateTo(redirectUrl, forceLoad: true);
         }
     }
 
@@ -138,7 +148,7 @@ protected async Task HandleSubmit()
         {
             var request = new LoginRequest(Model.EmailOrUserName, Model.Password, Model.RememberMe);
             var cookieResponse = await AuthClient.LoginWithCookieAsync(request);
-                
+
             if (cookieResponse.IsSuccessStatusCode)
             {
                 return true;
@@ -155,26 +165,26 @@ protected async Task HandleSubmit()
         }
     }
 
-        /// <summary>
+    /// <summary>
     /// Represents a class for LoginModel.
     /// </summary>
-protected sealed class LoginModel
+    protected sealed class LoginModel
     {
-                /// <summary>
+        /// <summary>
         /// Gets or sets the Email Or User Name.
         /// </summary>
-[Required]
+        [Required]
         public string EmailOrUserName { get; set; } = string.Empty;
 
-                /// <summary>
+        /// <summary>
         /// Gets or sets the Password.
         /// </summary>
-[Required]
+        [Required]
         public string Password { get; set; } = string.Empty;
 
-                /// <summary>
+        /// <summary>
         /// Gets or sets the Remember Me.
         /// </summary>
-public bool RememberMe { get; set; }
+        public bool RememberMe { get; set; }
     }
 }

@@ -13,7 +13,10 @@ public sealed record DatabaseBootstrapModel(
     string? InfisicalMachineIdReference = null,
     string? InfisicalClientSecretReference = null,
     string? ConnectionStringReference = null,
-    bool HasBootstrapConfig = true);
+    bool HasBootstrapConfig = true,
+    bool DatabaseUnauthenticated = false,
+    string? DatabaseUsername = null,
+    string? DatabasePassword = null);
 
 /// <summary>
 /// Represents a record for CacheBootstrapModel.

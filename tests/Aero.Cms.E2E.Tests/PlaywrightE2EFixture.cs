@@ -9,7 +9,6 @@ using Aero.Cms.Web.Bootstrap;
 using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Web.Infrastructure;
 using Aero.Core;
-using Aero.Core.Identity;
 using Aero.Models.Entities;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -349,7 +348,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 userId = E2EUserId,
                 userName = "admin@aero.local",
                 email = "admin@aero.local",
-                roles = new[] { AeroCmsRoles.Admin },
+                roles = new[] { CmsRoleNames.Admin },
                 isAdmin = true,
                 nickname = "E2E Administrator",
                 permissions = new[] { "create", "read", "update", "delete" }
@@ -880,7 +879,7 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
                 new Claim(ClaimTypes.NameIdentifier, E2EUserId.ToString(CultureInfo.InvariantCulture)),
                 new Claim(ClaimTypes.Name, "admin@aero.local"),
                 new Claim(ClaimTypes.Email, "admin@aero.local"),
-                new Claim(ClaimTypes.Role, AeroCmsRoles.Admin)
+                new Claim(ClaimTypes.Role, CmsRoleNames.Admin)
             ], Scheme.Name);
 
             var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name);

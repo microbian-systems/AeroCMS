@@ -3,7 +3,7 @@ namespace Aero.Cms.Core;
 /// <summary>
 /// default Aero CMS roles
 /// </summary>
-public static class AeroCmsRoles
+public static class CmsRoleNames
 {
     /// <summary>
     /// aero application administrator

@@ -49,6 +49,9 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     [Parameter]
     public EventCallback<HtmlPaletteInsertIntent> PaletteInsertRequested { get; set; }
 
+    [Parameter]
+    public EventCallback<HtmlEditorCommandKind> EditorCommandRequested { get; set; }
+
     private string RootNodeId => Content.Root.NodeId.ToString(CultureInfo.InvariantCulture);
 
     private HtmlNode? SelectedMoveSource => SelectedNodeId is { } nodeId
@@ -143,6 +146,17 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     {
         _paletteMoveSource = null;
         return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnEditorCommandRequested(string command)
+    {
+        if (PreviewMode || !Enum.TryParse<HtmlEditorCommandKind>(command, true, out var parsedCommand))
+        {
+            return Task.CompletedTask;
+        }
+
+        return EditorCommandRequested.InvokeAsync(parsedCommand);
     }
 
     private Task SelectNodeAsync(long nodeId) => SelectionChanged.InvokeAsync(nodeId);

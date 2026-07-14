@@ -16,6 +16,7 @@ using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
 using Aero.Cms.Html;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
+using Aero.Cms.Abstractions.Blocks.Layout;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -101,6 +102,10 @@ protected string Author       { get; set; } = "Admin";
     protected bool HtmlRichTextEditorOpen { get; private set; }
 
     protected string? HtmlRichTextError { get; private set; }
+
+    protected bool HtmlMediaSelectorOpen { get; private set; }
+
+    private HtmlMediaTargetKind? _htmlMediaTarget;
 
     private static HtmlPageEditorSession CreateHtmlEditorSession(HtmlPageContent content) => new(
         content,
@@ -554,6 +559,22 @@ protected async Task TogglePreview()
         return Task.CompletedTask;
     }
 
+    protected Task DuplicateSelectedHtmlNodeAsync()
+    {
+        var result = HtmlEditor.DuplicateSelected();
+        HandleHtmlEditorResult(result, "Element duplicated.");
+        return Task.CompletedTask;
+    }
+
+    protected Task ApplyHtmlEditorCommandAsync(HtmlEditorCommandKind command) => command switch
+    {
+        HtmlEditorCommandKind.Undo when HtmlEditor.CanUndo => UndoHtmlChangeAsync(),
+        HtmlEditorCommandKind.Redo when HtmlEditor.CanRedo => RedoHtmlChangeAsync(),
+        HtmlEditorCommandKind.Duplicate => DuplicateSelectedHtmlNodeAsync(),
+        HtmlEditorCommandKind.Delete => RemoveSelectedHtmlNodeAsync(),
+        _ => Task.CompletedTask
+    };
+
     protected Task UndoHtmlChangeAsync()
     {
         var result = HtmlEditor.Undo();
@@ -653,6 +674,54 @@ protected async Task TogglePreview()
             _ => "Structure updated."
         };
         HandleHtmlEditorResult(result, successMessage);
+        return Task.CompletedTask;
+    }
+
+    protected Task OpenHtmlMediaSelectorAsync(HtmlMediaTargetKind target)
+    {
+        _htmlMediaTarget = target;
+        HtmlMediaSelectorOpen = HtmlEditor.SelectedNode is not null;
+        return Task.CompletedTask;
+    }
+
+    protected Task CloseHtmlMediaSelectorAsync()
+    {
+        HtmlMediaSelectorOpen = false;
+        _htmlMediaTarget = null;
+        return Task.CompletedTask;
+    }
+
+    protected Task ApplyHtmlMediaSelectionAsync(List<MediaItem> selectedItems)
+    {
+        var selectedMedia = selectedItems.FirstOrDefault();
+        var selectedNode = HtmlEditor.SelectedNode;
+        if (selectedMedia is null || selectedNode is null || _htmlMediaTarget is null)
+        {
+            return CloseHtmlMediaSelectorAsync();
+        }
+
+        var properties = HtmlMediaPropertyMapper.Map(
+            selectedNode,
+            _htmlMediaTarget.Value,
+            selectedMedia.Src,
+            selectedMedia.Alt);
+
+        var result = HtmlEditor.UpdateSelectedProperties(properties);
+        switch (result)
+        {
+            case Result<HtmlNode>.Ok:
+                HtmlPropertyError = null;
+                MarkDirty();
+                ShowToast(L["Media selected."], "success");
+                HtmlMediaSelectorOpen = false;
+                _htmlMediaTarget = null;
+                break;
+            case Result<HtmlNode>.Failure failure:
+                HtmlPropertyError = FormatError(failure.Error);
+                ShowToast(HtmlPropertyError, "error");
+                break;
+        }
+
         return Task.CompletedTask;
     }
 

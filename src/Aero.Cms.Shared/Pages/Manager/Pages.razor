@@ -15,8 +15,10 @@
             <p class="mt-1 text-sm pe-description">@L["Manage your page hierarchy and content."]</p>
         </div>
         <div class="flex gap-4">
-            <RadzenButton Icon="add" Text="@L["Create Page"]" ButtonStyle="ButtonStyle.Primary"
-                          Click='() => Navigation.NavigateTo("/manager/page/editor")' />
+            <a href="/manager/page/editor" class="pe-btn pe-btn-primary">
+                <RadzenIcon Icon="add" />
+                @L["Create Page"]
+            </a>
         </div>
     </div>
 

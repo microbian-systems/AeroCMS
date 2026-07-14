@@ -1,7 +1,6 @@
 using Aero.Core.Logging;
 using Aero.AppServer.Startup;
 using Aero.Secrets;
-using Aero.Core.Identity;
 using Aero.Models.Entities;
 using AeroDB.Sable;
 using Microsoft.AspNetCore.Builder;
@@ -111,9 +110,12 @@ public static class AeroAppServerExtensions
             }
             else
             {
-                opts.Endpoint = "ws://localhost:8000/rpc";
-                opts.Username = "root";
-                opts.Password = "root";
+                opts.Endpoint = resolved.DatabaseConnectionString;
+                if (!resolved.DatabaseUnauthenticated)
+                {
+                    opts.Username = resolved.DatabaseUsername;
+                    opts.Password = resolved.DatabasePassword;
+                }
             }
 
             // Schema configuration

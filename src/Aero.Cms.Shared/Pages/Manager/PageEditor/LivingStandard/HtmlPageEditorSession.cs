@@ -186,6 +186,37 @@ public sealed class HtmlPageEditorSession
         return result;
     }
 
+    public Result<HtmlNode> DuplicateSelected()
+    {
+        if (SelectedNodeId is not { } nodeId)
+        {
+            return AeroError.NotAllowedError("Select an element before duplicating it.");
+        }
+
+        if (Content.Root.NodeId == nodeId)
+        {
+            return AeroError.NotAllowedError("The page fragment root cannot be duplicated.");
+        }
+
+        var source = HtmlTreeOperations.FindById(Content.Root, nodeId);
+        var parent = HtmlTreeOperations.FindParentById(Content.Root, nodeId);
+        if (source is null || parent is null)
+        {
+            return AeroError.NotFoundError($"The node {nodeId} was not found.");
+        }
+
+        var sourceIndex = parent.Children.FindIndex(child => child.NodeId == nodeId);
+        var duplicate = HtmlTreeOperations.CloneWithFreshNodeIds(source);
+        var result = _treeEditor.InsertChild(parent.NodeId, duplicate, sourceIndex + 1);
+        if (result is Result<HtmlNode>.Ok)
+        {
+            SelectedNodeId = duplicate.NodeId;
+            RefreshCompiledStyles();
+        }
+
+        return result;
+    }
+
     public Result<HtmlNode> UpdateSelectedProperties(HtmlNodeProperties properties)
     {
         if (SelectedNodeId is not { } nodeId)

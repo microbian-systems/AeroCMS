@@ -9,7 +9,6 @@ using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Modules.Modules.Services;
 using Aero.Core.Http;
 using Aero.Models.Entities;
-using Aero.Core.Identity;
 using AeroDB.Sable;
 using AeroDB.AspNetIdentity;
 using Microsoft.AspNetCore.Identity;
@@ -72,6 +71,11 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         logger.LogInformation("Step 2/6: Creating AeroDB DocumentStore...");
         var opts = new global::AeroDB.Sable.StoreOptions();
         opts.Endpoint = serverConnectionString;
+        if (!request.DatabaseUnauthenticated)
+        {
+            opts.Username = request.DatabaseUsername;
+            opts.Password = request.DatabasePassword;
+        }
         opts.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
         opts.UseAeroGeneratedJsonContext();
         opts.Events.StreamIdentity = global::AeroDB.Sable.StreamIdentity.AsString;
@@ -107,7 +111,8 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         var blogPostContentService = new PostContentService(session, noopSiteContext);
         var userStore = CreateUserStore(store, rootServiceProvider);
         var userManager = CreateUserManager(userStore, rootServiceProvider);
-        var identityBootstrapper = new SetupIdentityBootstrapper(userManager);
+        var roleManager = CreateRoleManager(store);
+        var identityBootstrapper = new SetupIdentityBootstrapper(userManager, roleManager);
         
         var mediaService = rootServiceProvider.GetRequiredService<IMediaService>();
         var commerceSeedService = rootServiceProvider.GetRequiredService<ICommerceSeedService>();
@@ -186,6 +191,20 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         var errors = new IdentityErrorDescriber();
         var logger = NullLogger<UserManager<AeroUser>>.Instance;
         return new UserManager<AeroUser>(userStore, options, passwordHasher, userValidators, passwordValidators, keyNormalizer, errors, services, logger);
+    }
+
+    private static RoleManager<AeroRole> CreateRoleManager(IDocumentStore store)
+    {
+        var roleStore = new AeroDBRoleStore<AeroRole, long>(
+            store,
+            NullLogger<AeroDBRoleStore<AeroRole, long>>.Instance);
+
+        return new RoleManager<AeroRole>(
+            roleStore,
+            Array.Empty<IRoleValidator<AeroRole>>(),
+            new UpperInvariantLookupNormalizer(),
+            new IdentityErrorDescriber(),
+            NullLogger<RoleManager<AeroRole>>.Instance);
     }
 
 }

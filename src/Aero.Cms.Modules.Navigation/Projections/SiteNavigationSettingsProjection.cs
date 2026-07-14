@@ -9,6 +9,11 @@ namespace Aero.Cms.Modules.Navigation.Projections;
 /// </summary>
 public sealed class SiteNavigationSettingsProjection : IProjection
 {
+    public Type[] EventTypes => [typeof(SiteDefaultNavMenuChanged)];
+
+    public Task ApplyAsync(IProjectionContext context, CancellationToken ct)
+        => ApplyAsync(context.Session, context.TypedEvents, ct);
+
         /// <summary>
     /// Apply method.
     /// </summary>

@@ -57,7 +57,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Aero.Cms.Abstractions\Aero.Cms.Abstractions.csproj"
+                      AdditionalProperties="AeroCmsBrowserClient=$(AeroCmsBrowserClient)" />
+    <ProjectReference Include="..\Aero.Cms.Core\Aero.Cms.Core.csproj"
+                      PrivateAssets="all"
+                      Condition="'$(AeroCmsBrowserClient)' != 'true'" />
     <ProjectReference Include="..\Aero.Cms.Contracts\Aero.Cms.Contracts.csproj" />
     <ProjectReference Include="..\Aero.Cms.Html\Aero.Cms.Html.csproj" />
   </ItemGroup>

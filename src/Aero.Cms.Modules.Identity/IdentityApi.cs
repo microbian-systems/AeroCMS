@@ -95,7 +95,7 @@ public static void MapIdentityApi(this IEndpointRouteBuilder endpoints)
         }
 
         var roles = await userManager.GetRolesAsync(user);
-        if (!roles.Intersect(AeroCmsRoles.All, StringComparer.OrdinalIgnoreCase).Any())
+        if (!roles.Intersect(CmsRoleNames.All, StringComparer.OrdinalIgnoreCase).Any())
         {
             await signInManager.SignOutAsync();
             return Results.Forbid();

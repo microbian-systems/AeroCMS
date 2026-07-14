@@ -1,5 +1,4 @@
 ﻿using Aero.Cms.Modules.Setup;
-using Aero.Core.Identity;
 using Aero.Models.Entities;
 using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
@@ -11,6 +10,15 @@ namespace Aero.Cms.Core.Tests.Integration;
 
 public class SetupIdentityBootstrapperTests
 {
+    [Test]
+    public void Aero_role_initializes_the_inherited_identity_id()
+    {
+        var role = new AeroRole();
+
+        role.Id.Should().NotBe(0);
+        ((IdentityRole<long>)role).Id.Should().Be(role.Id);
+    }
+
     [Test]
     public async Task Bootstrap_creates_required_roles_and_first_admin_with_hashed_password()
     {
@@ -30,7 +38,7 @@ public class SetupIdentityBootstrapperTests
         admin.PasswordHash.Should().NotBe("CorrectHorseBattery1!");
         harness.PasswordHasher.VerifyHashedPassword(admin, admin.PasswordHash!, "CorrectHorseBattery1!")
             .Should().NotBe(PasswordVerificationResult.Failed);
-        (await harness.UserManager.IsInRoleAsync(admin, AeroCmsRoles.Admin)).Should().BeTrue();
+        (await harness.UserManager.IsInRoleAsync(admin, CmsRoleNames.Admin)).Should().BeTrue();
     }
 
     [Test]
@@ -54,7 +62,26 @@ public class SetupIdentityBootstrapperTests
         secondResult.CreatedRoles.Should().BeFalse();
         // One admin user with the Admin role (roles tracked per-user)
         harness.UserStore.Users.Should().ContainSingle();
-        (await harness.UserManager.GetUsersInRoleAsync(AeroCmsRoles.Admin)).Should().ContainSingle();
+        (await harness.UserManager.GetUsersInRoleAsync(CmsRoleNames.Admin)).Should().ContainSingle();
+    }
+
+    [Test]
+    public async Task Initial_admin_role_repair_creates_missing_roles_and_restores_admin_membership()
+    {
+        var harness = new IdentityHarness();
+        var bootstrap = await harness.Bootstrapper.BootstrapAsync(new SetupIdentityBootstrapRequest(
+            "admin.user",
+            "admin@example.com",
+            "CorrectHorseBattery1!"));
+        var admin = bootstrap.AdminUser!;
+        await harness.UserStore.RemoveFromRoleAsync(admin, CmsRoleNames.Admin, CancellationToken.None);
+
+        var repair = await harness.Bootstrapper.EnsureInitialAdminRoleAsync("admin@example.com");
+
+        repair.Succeeded.Should().BeTrue();
+        repair.CreatedRoles.Should().BeTrue();
+        (await harness.UserManager.IsInRoleAsync(admin, CmsRoleNames.Admin)).Should().BeTrue();
+        harness.RoleStore.Roles.Select(role => role.Name).Should().BeEquivalentTo(CmsRoleNames.All);
     }
 
     private sealed class IdentityHarness
@@ -100,8 +127,7 @@ public class SetupIdentityBootstrapperTests
                 identityErrorDescriber,
                 NullLogger<RoleManager<AeroRole>>.Instance);
 
-            // Bootstrapper = new SetupIdentityBootstrapper(UserManager, RoleManager);
-            Bootstrapper = new SetupIdentityBootstrapper(UserManager);
+            Bootstrapper = new SetupIdentityBootstrapper(UserManager, RoleManager);
         }
 
         public SetupIdentityBootstrapper Bootstrapper { get; }

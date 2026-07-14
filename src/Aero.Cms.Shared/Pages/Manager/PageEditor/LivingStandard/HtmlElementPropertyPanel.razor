@@ -10,6 +10,11 @@
         </div>
     </header>
 
+    <div class="aero-property-panel__element-actions" role="group" aria-label="Selected element actions">
+        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="RequestDuplicateAsync">Duplicate</button>
+        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="RequestRemoveAsync">Delete</button>
+    </div>
+
     @if (SupportsRichText)
     {
         <div class="aero-property-panel__content-action">
@@ -106,7 +111,11 @@
                 {
                     <label>
                         <span>Image source</span>
-                        <InputText @bind-Value="Form.Source" placeholder="/media/image.jpg" />
+                        <div class="aero-property-panel__media-field">
+                            <InputText @bind-Value="Form.Source" placeholder="/media/image.jpg" />
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick="() => RequestMediaAsync(HtmlMediaTargetKind.ElementSource)">Browse</button>
+                        </div>
                     </label>
                     <label>
                         <span>Alternative text</span>
@@ -130,13 +139,21 @@
                 {
                     <label>
                         <span>Media source</span>
-                        <InputText @bind-Value="Form.Source" placeholder="/media/file.mp4" />
+                        <div class="aero-property-panel__media-field">
+                            <InputText @bind-Value="Form.Source" placeholder="/media/file.mp4" />
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick="() => RequestMediaAsync(HtmlMediaTargetKind.ElementSource)">Browse</button>
+                        </div>
                     </label>
                     @if (IsVideo)
                     {
                         <label>
                             <span>Poster image</span>
-                            <InputText @bind-Value="Form.Poster" placeholder="/media/poster.jpg" />
+                            <div class="aero-property-panel__media-field">
+                                <InputText @bind-Value="Form.Poster" placeholder="/media/poster.jpg" />
+                                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                        @onclick="() => RequestMediaAsync(HtmlMediaTargetKind.VideoPoster)">Browse</button>
+                            </div>
                         </label>
                         <div class="aero-property-panel__row">
                             <label><span>Width</span><InputText @bind-Value="Form.Width" inputmode="numeric" /></label>
@@ -166,8 +183,22 @@
 
                 @if (IsSource)
                 {
-                    <label><span>Source URL</span><InputText @bind-Value="Form.Source" placeholder="/media/file.mp4" /></label>
-                    <label><span>Responsive source set</span><InputText @bind-Value="Form.SourceSet" placeholder="/media/image.jpg 1280w" /></label>
+                    <label>
+                        <span>Source URL</span>
+                        <div class="aero-property-panel__media-field">
+                            <InputText @bind-Value="Form.Source" placeholder="/media/file.mp4" />
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick="() => RequestMediaAsync(HtmlMediaTargetKind.ElementSource)">Browse</button>
+                        </div>
+                    </label>
+                    <label>
+                        <span>Responsive source set</span>
+                        <div class="aero-property-panel__media-field">
+                            <InputText @bind-Value="Form.SourceSet" placeholder="/media/image.jpg 1280w" />
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick="() => RequestMediaAsync(HtmlMediaTargetKind.ResponsiveSourceSet)">Browse</button>
+                        </div>
+                    </label>
                     <label><span>Sizes</span><InputText @bind-Value="Form.Sizes" placeholder="(min-width: 48rem) 50vw, 100vw" /></label>
                     <label><span>Media query</span><InputText @bind-Value="Form.MediaQuery" placeholder="(min-width: 48rem)" /></label>
                     <label><span>Media type</span><InputText @bind-Value="Form.MediaType" placeholder="video/mp4" /></label>
@@ -495,7 +526,14 @@
                 <summary>Background &amp; surface</summary>
                 <div class="aero-property-panel__fields">
                     <label><span>Background color</span><InputText @bind-Value="Form.BackgroundColor" placeholder="#ffffff or surface.brand" /></label>
-                    <label><span>Background image</span><InputText @bind-Value="Form.BackgroundImageUrl" placeholder="/media/background.jpg" /></label>
+                    <label>
+                        <span>Background image</span>
+                        <div class="aero-property-panel__media-field">
+                            <InputText @bind-Value="Form.BackgroundImageUrl" placeholder="/media/background.jpg" />
+                            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                                    @onclick="() => RequestMediaAsync(HtmlMediaTargetKind.BackgroundImage)">Browse</button>
+                        </div>
+                    </label>
                     @if (!string.IsNullOrWhiteSpace(Form.BackgroundImageUrl))
                     {
                         <div class="aero-property-panel__row">

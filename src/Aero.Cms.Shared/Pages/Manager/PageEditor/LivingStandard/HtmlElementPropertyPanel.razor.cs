@@ -36,6 +36,15 @@ public partial class HtmlElementPropertyPanel
     [Parameter]
     public EventCallback<HtmlCollectionActionKind> CollectionActionRequested { get; set; }
 
+    [Parameter]
+    public EventCallback DuplicateRequested { get; set; }
+
+    [Parameter]
+    public EventCallback RemoveRequested { get; set; }
+
+    [Parameter]
+    public EventCallback<HtmlMediaTargetKind> MediaRequested { get; set; }
+
     protected InspectorForm Form { get; private set; } = new();
 
     protected bool IsLink => Definition.Tag.Equals("a", StringComparison.OrdinalIgnoreCase);
@@ -95,6 +104,12 @@ public partial class HtmlElementPropertyPanel
 
     protected Task RequestCollectionActionAsync(HtmlCollectionActionKind action) =>
         CollectionActionRequested.InvokeAsync(action);
+
+    protected Task RequestDuplicateAsync() => DuplicateRequested.InvokeAsync();
+
+    protected Task RequestRemoveAsync() => RemoveRequested.InvokeAsync();
+
+    protected Task RequestMediaAsync(HtmlMediaTargetKind target) => MediaRequested.InvokeAsync(target);
 
     protected Task ApplyAsync() => PropertiesChanged.InvokeAsync(BuildProperties());
 

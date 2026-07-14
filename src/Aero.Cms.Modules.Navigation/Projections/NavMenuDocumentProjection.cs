@@ -9,6 +9,17 @@ namespace Aero.Cms.Modules.Navigation.Projections;
 /// </summary>
 public sealed class NavMenuDocumentProjection : IProjection
 {
+    public Type[] EventTypes =>
+    [
+        typeof(NavMenuCreated),
+        typeof(NavMenuDraftSaved),
+        typeof(NavMenuPublished),
+        typeof(NavMenuArchived)
+    ];
+
+    public Task ApplyAsync(IProjectionContext context, CancellationToken ct)
+        => ApplyAsync(context.Session, context.TypedEvents, ct);
+
         /// <summary>
     /// Apply method.
     /// </summary>

@@ -48,7 +48,17 @@ public sealed record SeedDatabaseRequest(
     string BlogName,
     string Hostname,
     string DefaultCulture,
-    IReadOnlyList<string> SupportedCultures);
+    IReadOnlyList<string> SupportedCultures)
+{
+    /// <summary>Gets whether the configured server accepts unauthenticated connections.</summary>
+    public bool DatabaseUnauthenticated { get; init; }
+
+    /// <summary>Gets the configured SurrealDB server username.</summary>
+    public string? DatabaseUsername { get; init; }
+
+    /// <summary>Gets the configured SurrealDB server password.</summary>
+    public string? DatabasePassword { get; init; }
+}
 
 /// <summary>
 /// Represents a class for SeedDatabaseResult.

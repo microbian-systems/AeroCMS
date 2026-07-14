@@ -79,7 +79,10 @@ public async Task<SetupBootstrapHandoffResult> CompleteAndHandoffAsync(SeedDatab
                 request.SecretProvider,
                 request.AuthenticationMode,
                 request.InfisicalMachineId,
-                request.InfisicalClientSecret
+                request.InfisicalClientSecret,
+                DatabaseUnauthenticated: request.DatabaseUnauthenticated,
+                DatabaseUsername: request.DatabaseUsername,
+                DatabasePassword: request.DatabasePassword
             ), cancellationToken);
 
             // Step 2: Persist cache bootstrap configuration

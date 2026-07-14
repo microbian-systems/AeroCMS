@@ -13,6 +13,7 @@ namespace Aero.Cms.Modules.Setup.Areas.Setup.Pages;
 public partial class Setup : ComponentBase
 {
     private const int TotalSteps = 6;
+    private const string DefaultServerDatabaseEndpoint = "ws://localhost:8000/rpc";
 
     [Inject]
     private ISetupBootstrapHandoffService SetupBootstrapHandoffService { get; set; } = default!;
@@ -179,6 +180,7 @@ protected override void OnInitialized()
             CacheMode = "Memory",
             SecretProvider = "Local Certificate",
             AuthenticationMode = "Local",
+            ConnectionString = DefaultServerDatabaseEndpoint,
             AdminUserName = "admin",
             AdminEmail = "hello@getaerocms.net",
             SiteName = "Aero CMS",
@@ -229,8 +231,9 @@ public async Task NextStep()
             CurrentStep++;
             HasValidationErrors = false;
             StatusMessage = null;
-            await InvokeAsync(StateHasChanged);
         }
+
+        await Task.CompletedTask;
     }
 
         /// <summary>
@@ -363,7 +366,12 @@ protected async Task HandleSubmit()
             Input.BlogName,
             Input.Hostname,
             Input.DefaultCulture,
-            Input.SupportedCultures);
+            Input.SupportedCultures)
+        {
+            DatabaseUnauthenticated = Input.DatabaseUnauthenticated,
+            DatabaseUsername = Input.DatabaseUsername,
+            DatabasePassword = Input.DatabasePassword
+        };
 
         // Call the handoff service which will:
         // 1. Persist bootstrap configuration
@@ -401,6 +409,10 @@ protected async Task HandleSubmit()
             1 when !IsCultureSelected(Input.DefaultCulture) => "Default culture must be selected as a supported culture.",
             2 when string.Equals(Input.DatabaseMode, "Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.ConnectionString)
                 => "A database connection string is required when Database is set to Server.",
+            2 when string.Equals(Input.DatabaseMode, "Server", StringComparison.OrdinalIgnoreCase) && !Input.DatabaseUnauthenticated && string.IsNullOrWhiteSpace(Input.DatabaseUsername)
+                => "A database username is required unless unauthenticated access is enabled.",
+            2 when string.Equals(Input.DatabaseMode, "Server", StringComparison.OrdinalIgnoreCase) && !Input.DatabaseUnauthenticated && string.IsNullOrWhiteSpace(Input.DatabasePassword)
+                => "A database password is required unless unauthenticated access is enabled.",
             3 when string.Equals(Input.CacheMode, "Server", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.CacheConnectionString)
                 => "A cache connection string is required when Cache is set to Server.",
             4 when string.Equals(Input.SecretProvider, "Infisical", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(Input.InfisicalMachineId)
@@ -558,7 +570,22 @@ public class SetupInput
         /// <summary>
     /// Gets or sets the Connection String.
     /// </summary>
-public string? ConnectionString { get; set; }
+public string? ConnectionString { get; set; } = "ws://localhost:8000/rpc";
+
+        /// <summary>
+    /// Gets or sets whether the server database permits unauthenticated connections.
+    /// </summary>
+public bool DatabaseUnauthenticated { get; set; }
+
+        /// <summary>
+    /// Gets or sets the server database username.
+    /// </summary>
+public string? DatabaseUsername { get; set; }
+
+        /// <summary>
+    /// Gets or sets the server database password.
+    /// </summary>
+public string? DatabasePassword { get; set; }
 
         /// <summary>
     /// Gets or sets the Cache Connection String.

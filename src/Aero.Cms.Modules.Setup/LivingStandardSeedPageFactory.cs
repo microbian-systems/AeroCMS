@@ -94,8 +94,21 @@ internal static class LivingStandardSeedPageFactory
             }
         };
 
-        hero.Children.Add(TextElement("h1", title, fontSizeRem: 3m, fontWeight: 800, centered: true));
-        hero.Children.Add(TextElement("p", summary, fontSizeRem: 1.25m, lineHeight: 1.6m, centered: true));
+        var foregroundColor = backgroundImageUrl is null ? null : CssColor.Hex("#ffffff");
+        hero.Children.Add(TextElement(
+            "h1",
+            title,
+            fontSizeRem: 3m,
+            fontWeight: 800,
+            centered: true,
+            color: foregroundColor));
+        hero.Children.Add(TextElement(
+            "p",
+            summary,
+            fontSizeRem: 1.25m,
+            lineHeight: 1.6m,
+            centered: true,
+            color: foregroundColor));
         return hero;
     }
 
@@ -105,13 +118,15 @@ internal static class LivingStandardSeedPageFactory
         decimal? fontSizeRem = null,
         int? fontWeight = null,
         decimal? lineHeight = null,
-        bool centered = false)
+        bool centered = false,
+        CssColor? color = null)
     {
         var element = HtmlNode.CreateElement(tag);
         element.Style = new HtmlStyle
         {
             Typography = new CssTypographyStyle
             {
+                Color = color,
                 FontSize = fontSizeRem is null ? null : CssLength.Rem(fontSizeRem.Value),
                 FontWeight = fontWeight,
                 LineHeight = lineHeight,

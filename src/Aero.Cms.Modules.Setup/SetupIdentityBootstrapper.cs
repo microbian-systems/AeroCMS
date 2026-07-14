@@ -59,23 +59,35 @@ public interface ISetupIdentityBootstrapper
     /// BootstrapAsync method.
     /// </summary>
 Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ensures the installation's initial administrator is assigned the CMS administrator role.
+    /// </summary>
+    Task<SetupIdentityBootstrapResult> EnsureInitialAdminRoleAsync(string adminEmail, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
 /// Represents a class for SetupIdentityBootstrapper.
 /// </summary>
 public sealed class SetupIdentityBootstrapper(
-    UserManager<AeroUser> userManager) : ISetupIdentityBootstrapper
+    UserManager<AeroUser> userManager,
+    RoleManager<AeroRole> roleManager) : ISetupIdentityBootstrapper
 {
         /// <summary>
     /// BootstrapAsync method.
     /// </summary>
 public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBootstrapRequest request, CancellationToken cancellationToken = default)
     {
-        var existingAdmins = await userManager.GetUsersInRoleAsync(AeroCmsRoles.Admin);
+        var roleResult = await EnsureCmsRolesAsync(cancellationToken);
+        if (!roleResult.Succeeded)
+        {
+            return SetupIdentityBootstrapResult.Failure(roleResult.Errors);
+        }
+
+        var existingAdmins = await userManager.GetUsersInRoleAsync(CmsRoleNames.Admin);
         var adminUser = existingAdmins.FirstOrDefault();
         var createdAdmin = false;
-        var createdRoles = false;
+        var createdRoles = roleResult.CreatedRoles;
 
         if (adminUser == null)
         {
@@ -102,10 +114,10 @@ public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBoot
             }
         }
 
-        if (!await userManager.IsInRoleAsync(adminUser, AeroCmsRoles.Admin))
+        if (!await userManager.IsInRoleAsync(adminUser, CmsRoleNames.Admin))
         {
             createdRoles = true;
-            var addToRoleResult = await userManager.AddToRoleAsync(adminUser, AeroCmsRoles.Admin);
+            var addToRoleResult = await userManager.AddToRoleAsync(adminUser, CmsRoleNames.Admin);
             if (!addToRoleResult.Succeeded)
             {
                 return SetupIdentityBootstrapResult.Failure(addToRoleResult.Errors);
@@ -118,5 +130,79 @@ public async Task<SetupIdentityBootstrapResult> BootstrapAsync(SetupIdentityBoot
             CreatedAdmin = createdAdmin,
             CreatedRoles = createdRoles
         };
+    }
+
+    /// <inheritdoc />
+    public async Task<SetupIdentityBootstrapResult> EnsureInitialAdminRoleAsync(
+        string adminEmail,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(adminEmail))
+        {
+            return SetupIdentityBootstrapResult.Failure([new IdentityError
+            {
+                Description = "The setup administrator email is required to repair CMS role membership."
+            }]);
+        }
+
+        var roleResult = await EnsureCmsRolesAsync(cancellationToken);
+        if (!roleResult.Succeeded)
+        {
+            return SetupIdentityBootstrapResult.Failure(roleResult.Errors);
+        }
+
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
+        if (adminUser is null)
+        {
+            return SetupIdentityBootstrapResult.Failure([new IdentityError
+            {
+                Description = "The setup administrator could not be found for CMS role repair."
+            }]);
+        }
+
+        var addedAdminRole = false;
+        if (!await userManager.IsInRoleAsync(adminUser, CmsRoleNames.Admin))
+        {
+            var addToRoleResult = await userManager.AddToRoleAsync(adminUser, CmsRoleNames.Admin);
+            if (!addToRoleResult.Succeeded)
+            {
+                return SetupIdentityBootstrapResult.Failure(addToRoleResult.Errors);
+            }
+
+            addedAdminRole = true;
+        }
+
+        return new SetupIdentityBootstrapResult
+        {
+            AdminUser = adminUser,
+            CreatedRoles = roleResult.CreatedRoles || addedAdminRole
+        };
+    }
+
+    private async Task<SetupIdentityBootstrapResult> EnsureCmsRolesAsync(CancellationToken cancellationToken)
+    {
+        var createdRoles = false;
+        foreach (var roleName in CmsRoleNames.All)
+        {
+            if (await roleManager.RoleExistsAsync(roleName))
+            {
+                continue;
+            }
+
+            var createResult = await roleManager.CreateAsync(new AeroRole
+            {
+                Id = Snowflake.NewId(),
+                Name = roleName
+            });
+
+            if (!createResult.Succeeded)
+            {
+                return SetupIdentityBootstrapResult.Failure(createResult.Errors);
+            }
+
+            createdRoles = true;
+        }
+
+        return new SetupIdentityBootstrapResult { CreatedRoles = createdRoles };
     }
 }
