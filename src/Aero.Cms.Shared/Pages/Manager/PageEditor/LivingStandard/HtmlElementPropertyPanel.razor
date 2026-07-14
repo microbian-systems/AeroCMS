@@ -21,6 +21,52 @@
         </div>
     }
 
+    @if (SupportsCollectionActions)
+    {
+        <div class="aero-property-panel__structure" aria-label="Structure actions">
+            <strong>Structure</strong>
+            <span>Add repeated content without manually assembling its required HTML.</span>
+            <div class="aero-property-panel__structure-actions">
+                @if (SupportsListActions)
+                {
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddListItem)">Add list item</button>
+                }
+                @if (SupportsTableActions)
+                {
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddTableRow)">Add row</button>
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddTableColumn)">Add column</button>
+                }
+                @if (SupportsMediaSourceAction)
+                {
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddMediaSource)">Add source</button>
+                }
+                @if (SupportsMediaTrackAction)
+                {
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddMediaTrack)">Add captions</button>
+                }
+                @if (SupportsFormActions)
+                {
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddFormInput)">Add text field</button>
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddFormTextArea)">Add text area</button>
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddFormSelect)">Add choice list</button>
+                }
+                @if (SupportsSelectOptionAction)
+                {
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddSelectOption)">Add option</button>
+                }
+            </div>
+        </div>
+    }
+
     <EditForm Model="Form" OnSubmit="ApplyAsync" class="aero-property-panel__form">
         <details open>
             <summary>Attributes</summary>
@@ -78,6 +124,74 @@
                             <option value="eager">Eager</option>
                         </InputSelect>
                     </label>
+                }
+
+                @if (IsMediaElement)
+                {
+                    <label>
+                        <span>Media source</span>
+                        <InputText @bind-Value="Form.Source" placeholder="/media/file.mp4" />
+                    </label>
+                    @if (IsVideo)
+                    {
+                        <label>
+                            <span>Poster image</span>
+                            <InputText @bind-Value="Form.Poster" placeholder="/media/poster.jpg" />
+                        </label>
+                        <div class="aero-property-panel__row">
+                            <label><span>Width</span><InputText @bind-Value="Form.Width" inputmode="numeric" /></label>
+                            <label><span>Height</span><InputText @bind-Value="Form.Height" inputmode="numeric" /></label>
+                        </div>
+                    }
+                    <label>
+                        <span>Preload</span>
+                        <InputSelect @bind-Value="Form.Preload">
+                            <option value="">Browser default</option>
+                            <option value="none">None</option>
+                            <option value="metadata">Metadata</option>
+                            <option value="auto">Auto</option>
+                        </InputSelect>
+                    </label>
+                    <div class="aero-property-panel__checks">
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Controls" /><span>Show controls</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.AutoPlay" /><span>Autoplay</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Loop" /><span>Loop</span></label>
+                        <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Muted" /><span>Muted</span></label>
+                        @if (IsVideo)
+                        {
+                            <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.PlaysInline" /><span>Play inline</span></label>
+                        }
+                    </div>
+                }
+
+                @if (IsSource)
+                {
+                    <label><span>Source URL</span><InputText @bind-Value="Form.Source" placeholder="/media/file.mp4" /></label>
+                    <label><span>Responsive source set</span><InputText @bind-Value="Form.SourceSet" placeholder="/media/image.jpg 1280w" /></label>
+                    <label><span>Sizes</span><InputText @bind-Value="Form.Sizes" placeholder="(min-width: 48rem) 50vw, 100vw" /></label>
+                    <label><span>Media query</span><InputText @bind-Value="Form.MediaQuery" placeholder="(min-width: 48rem)" /></label>
+                    <label><span>Media type</span><InputText @bind-Value="Form.MediaType" placeholder="video/mp4" /></label>
+                }
+
+                @if (IsTrack)
+                {
+                    <label><span>Track source</span><InputText @bind-Value="Form.Source" placeholder="/media/captions.vtt" /></label>
+                    <div class="aero-property-panel__row">
+                        <label>
+                            <span>Track kind</span>
+                            <InputSelect @bind-Value="Form.TrackKind">
+                                <option value="">Not specified</option>
+                                <option value="subtitles">Subtitles</option>
+                                <option value="captions">Captions</option>
+                                <option value="descriptions">Descriptions</option>
+                                <option value="chapters">Chapters</option>
+                                <option value="metadata">Metadata</option>
+                            </InputSelect>
+                        </label>
+                        <label><span>Language</span><InputText @bind-Value="Form.SourceLanguage" placeholder="en" /></label>
+                    </div>
+                    <label><span>Track label</span><InputText @bind-Value="Form.TrackLabel" placeholder="English" /></label>
+                    <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.DefaultTrack" /><span>Default track</span></label>
                 }
 
                 @if (IsButton)
@@ -227,6 +341,60 @@
                     <div class="aero-property-panel__checks">
                         <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Selected" /><span>Selected</span></label>
                         <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Disabled" /><span>Disabled</span></label>
+                    </div>
+                }
+
+                @if (HasCitationUrl)
+                {
+                    <label>
+                        <span>Citation URL</span>
+                        <InputText @bind-Value="Form.CitationUrl" placeholder="https://example.com/source" />
+                    </label>
+                }
+
+                @if (IsDetails)
+                {
+                    <label class="aero-property-panel__check">
+                        <InputCheckbox @bind-Value="Form.Open" />
+                        <span>Expanded by default</span>
+                    </label>
+                }
+
+                @if (HasDateTimeAttribute)
+                {
+                    <label>
+                        <span>Machine-readable date/time</span>
+                        <InputText @bind-Value="Form.DateTimeValue" placeholder="2026-01-01 or 2026-01-01T12:00:00Z" />
+                    </label>
+                }
+
+                @if (IsData)
+                {
+                    <label>
+                        <span>Machine-readable value</span>
+                        <InputText @bind-Value="Form.MachineValue" placeholder="42" />
+                    </label>
+                }
+
+                @if (IsProgress)
+                {
+                    <div class="aero-property-panel__row">
+                        <label><span>Current value</span><InputText @bind-Value="Form.NumericValue" inputmode="decimal" /></label>
+                        <label><span>Maximum</span><InputText @bind-Value="Form.NumericMaximum" inputmode="decimal" /></label>
+                    </div>
+                }
+
+                @if (IsMeter)
+                {
+                    <div class="aero-property-panel__row">
+                        <label><span>Value</span><InputText @bind-Value="Form.NumericValue" inputmode="decimal" /></label>
+                        <label><span>Minimum</span><InputText @bind-Value="Form.NumericMinimum" inputmode="decimal" /></label>
+                        <label><span>Maximum</span><InputText @bind-Value="Form.NumericMaximum" inputmode="decimal" /></label>
+                    </div>
+                    <div class="aero-property-panel__row">
+                        <label><span>Low range</span><InputText @bind-Value="Form.NumericLow" inputmode="decimal" /></label>
+                        <label><span>High range</span><InputText @bind-Value="Form.NumericHigh" inputmode="decimal" /></label>
+                        <label><span>Optimum</span><InputText @bind-Value="Form.NumericOptimum" inputmode="decimal" /></label>
                     </div>
                 }
             </div>

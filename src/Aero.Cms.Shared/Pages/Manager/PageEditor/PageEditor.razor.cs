@@ -111,6 +111,7 @@ protected string Author       { get; set; } = "Admin";
             HtmlContentPolicy,
             new HtmlAttributePolicy()),
         new HtmlLayoutStarterFactory(HtmlCatalog),
+        new HtmlComponentTemplateFactory(HtmlCatalog),
         new NativeCssStyleCompiler(),
         new NativeStyleProfile());
 
@@ -497,6 +498,13 @@ protected async Task TogglePreview()
         return Task.CompletedTask;
     }
 
+    protected Task AddHtmlComponentAsync(HtmlComponentTemplateKind kind)
+    {
+        var result = HtmlEditor.AddComponent(kind);
+        HandleHtmlEditorResult(result, "Component added.");
+        return Task.CompletedTask;
+    }
+
     protected Task MoveHtmlNodeAsync(HtmlSortMoveIntent intent)
     {
         var result = HtmlEditor.MoveRelative(intent.NodeId, intent.TargetNodeId, intent.Placement);
@@ -519,12 +527,23 @@ protected async Task TogglePreview()
                     layoutKind,
                     intent.TargetNodeId,
                     intent.Placement),
+            HtmlPaletteItemKind.Component when Enum.TryParse<HtmlComponentTemplateKind>(
+                intent.ItemValue,
+                true,
+                out var componentKind) => HtmlEditor.AddComponentRelative(
+                    componentKind,
+                    intent.TargetNodeId,
+                    intent.Placement),
             _ => AeroError.ValidationError(["The dragged palette item is not supported."])
         };
 
-        HandleHtmlEditorResult(result, intent.ItemKind is HtmlPaletteItemKind.Layout
-            ? "Layout added."
-            : $"Added <{intent.ItemValue}>.");
+        var successMessage = intent.ItemKind switch
+        {
+            HtmlPaletteItemKind.Layout => "Layout added.",
+            HtmlPaletteItemKind.Component => "Component added.",
+            _ => $"Added <{intent.ItemValue}>."
+        };
+        HandleHtmlEditorResult(result, successMessage);
         return Task.CompletedTask;
     }
 
@@ -614,6 +633,26 @@ protected async Task TogglePreview()
                 break;
         }
 
+        return Task.CompletedTask;
+    }
+
+    protected Task ApplyHtmlCollectionActionAsync(HtmlCollectionActionKind action)
+    {
+        var result = HtmlEditor.ApplySelectedCollectionAction(action);
+        var successMessage = action switch
+        {
+            HtmlCollectionActionKind.AddListItem => "List item added.",
+            HtmlCollectionActionKind.AddTableRow => "Table row added.",
+            HtmlCollectionActionKind.AddTableColumn => "Table column added.",
+            HtmlCollectionActionKind.AddMediaSource => "Media source added.",
+            HtmlCollectionActionKind.AddMediaTrack => "Caption track added.",
+            HtmlCollectionActionKind.AddFormInput => "Text field added.",
+            HtmlCollectionActionKind.AddFormTextArea => "Text area added.",
+            HtmlCollectionActionKind.AddFormSelect => "Choice list added.",
+            HtmlCollectionActionKind.AddSelectOption => "Choice added.",
+            _ => "Structure updated."
+        };
+        HandleHtmlEditorResult(result, successMessage);
         return Task.CompletedTask;
     }
 

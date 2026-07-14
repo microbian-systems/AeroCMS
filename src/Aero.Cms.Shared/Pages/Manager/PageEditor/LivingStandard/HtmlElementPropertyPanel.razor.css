@@ -8,6 +8,10 @@
 .aero-property-panel__content-action div { display: grid; gap: .15rem; }
 .aero-property-panel__content-action strong { color: #4c1d95; font-size: .78rem; }
 .aero-property-panel__content-action span { color: #64748b; font-size: .7rem; }
+.aero-property-panel__structure { display: grid; gap: .35rem; margin: 1rem; border: 1px solid #dbe3ef; border-radius: .7rem; padding: .75rem; background: #f8fafc; }
+.aero-property-panel__structure > strong { color: #334155; font-size: .78rem; }
+.aero-property-panel__structure > span { color: #64748b; font-size: .7rem; line-height: 1.4; }
+.aero-property-panel__structure-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .3rem; }
 .aero-property-panel__form { display: grid; }
 .aero-property-panel details { border-bottom: 1px solid #e2e8f0; }
 .aero-property-panel summary { padding: .9rem 1rem; color: #334155; font-size: .78rem; font-weight: 700; cursor: pointer; }

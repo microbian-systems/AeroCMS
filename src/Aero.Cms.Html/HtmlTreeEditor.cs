@@ -347,6 +347,44 @@ public sealed class HtmlTreeEditor
     }
 
     /// <summary>
+    /// Applies one guided structural mutation to a cloned subtree and commits it
+    /// as one Memento only after the complete candidate document is valid.
+    /// </summary>
+    public Result<HtmlNode> UpdateStructure(
+        long nodeId,
+        Action<HtmlNode> updateCandidate,
+        Func<HtmlPageContent, Result<bool>> validateCandidate)
+    {
+        ArgumentNullException.ThrowIfNull(updateCandidate);
+        ArgumentNullException.ThrowIfNull(validateCandidate);
+
+        var existing = HtmlTreeOperations.FindById(Content.Root, nodeId);
+        if (existing is null)
+        {
+            return AeroError.NotFoundError($"The node {nodeId} was not found.");
+        }
+
+        if (existing.Kind is not HtmlNodeKind.Element)
+        {
+            return AeroError.NotAllowedError("Only HTML element structure can be edited.");
+        }
+
+        var candidateContent = HtmlTreeOperations.ClonePreservingNodeIds(Content);
+        var candidateNode = HtmlTreeOperations.FindById(candidateContent.Root, nodeId)!;
+        updateCandidate(candidateNode);
+
+        var validation = validateCandidate(candidateContent);
+        if (validation is Result<bool>.Failure failure)
+        {
+            return failure.Error;
+        }
+
+        History.CaptureBeforeChange(Content);
+        Content = candidateContent;
+        return candidateNode;
+    }
+
+    /// <summary>
     /// Restores the preceding content snapshot, if available.
     /// </summary>
     public Result<HtmlPageContent> Undo()

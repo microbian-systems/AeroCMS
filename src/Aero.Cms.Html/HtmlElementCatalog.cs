@@ -12,13 +12,28 @@ public sealed class HtmlElementCatalog
     private const string ManifestResourceName = "Aero.Cms.Html.HtmlElementManifest.json";
     private readonly IReadOnlyDictionary<string, HtmlElementDefinition> _definitions;
 
-    public HtmlElementCatalog(IEnumerable<HtmlElementDefinition> definitions)
+    public HtmlElementCatalog(
+        IEnumerable<HtmlElementDefinition> definitions,
+        int schemaVersion = 1,
+        string catalogVersion = "custom")
     {
         ArgumentNullException.ThrowIfNull(definitions);
+
+        if (schemaVersion < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(schemaVersion), "The manifest schema version must be positive.");
+        }
+
+        if (string.IsNullOrWhiteSpace(catalogVersion))
+        {
+            throw new ArgumentException("The catalog version is required.", nameof(catalogVersion));
+        }
 
         _definitions = definitions.ToDictionary(
             definition => definition.Tag,
             StringComparer.OrdinalIgnoreCase);
+        SchemaVersion = schemaVersion;
+        CatalogVersion = catalogVersion;
     }
 
     /// <summary>
@@ -36,16 +51,34 @@ public sealed class HtmlElementCatalog
         };
         serializerOptions.Converters.Add(new JsonStringEnumConverter());
 
-        var definitions = JsonSerializer.Deserialize<List<HtmlElementDefinition>>(stream, serializerOptions)
-            ?? throw new InvalidOperationException("The HTML manifest did not contain any element definitions.");
+        var manifest = JsonSerializer.Deserialize<HtmlElementManifest>(stream, serializerOptions)
+            ?? throw new InvalidOperationException("The HTML manifest could not be read.");
 
-        return new HtmlElementCatalog(definitions);
+        if (manifest.SchemaVersion != 1)
+        {
+            throw new InvalidOperationException(
+                $"The HTML manifest schema version '{manifest.SchemaVersion}' is not supported.");
+        }
+
+        if (manifest.Elements.Count == 0)
+        {
+            throw new InvalidOperationException("The HTML manifest did not contain any element definitions.");
+        }
+
+        return new HtmlElementCatalog(
+            manifest.Elements,
+            manifest.SchemaVersion,
+            manifest.CatalogVersion);
     }
 
     /// <summary>
     /// Gets every supported element definition.
     /// </summary>
     public IReadOnlyCollection<HtmlElementDefinition> Definitions => _definitions.Values.ToArray();
+
+    public int SchemaVersion { get; }
+
+    public string CatalogVersion { get; }
 
     /// <summary>
     /// Attempts to find a supported element by tag name.

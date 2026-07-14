@@ -8,6 +8,8 @@ using Aero.Cms.Core;
 using Aero.Cms.Modules.Identity;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Web.Core.Diagnostics;
+using Aero.Cms.Web.Core.Middleware;
 using Aero.Cms.ServiceDefaults;
 using Aero.Cms.Shared.Localization;
 using Aero.Cms.Shared.Services;
@@ -188,6 +190,10 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
         var options = app.Services.GetService<AeroCmsOptions>() ?? new AeroCmsOptions();
 
         app.UseExceptionHandler();
+        if (string.Equals(bootstrapState.DatabaseMode, "Embedded", StringComparison.OrdinalIgnoreCase))
+        {
+            app.UseMiddleware<RequestCancellationIsolationMiddleware>();
+        }
         app.MapDefaultEndpoints();
 
         if (app.Environment.IsDevelopment() &&
@@ -306,20 +312,26 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
             app.UseHydro(app.Environment);
         }
 
+        var startupStage = "host startup";
+
         try
         {
+            startupStage = "host start";
             log.Information("Starting main Aero application host...");
             await app.StartAsync();
 
             try
             {
+                startupStage = "infrastructure readiness";
                 await AeroStartupPipeline.WaitForRequiredInfrastructureAsync(app, bootstrapState, log);
 
+                startupStage = "runtime preparation";
                 log.Information("Applying runtime preparation...");
                 await app.PrepareAeroAppAsync();
 
                 if (bootstrapState.IsConfiguredMode)
                 {
+                    startupStage = "runtime bootstrap initialization";
                     await using var runtimeBootstrapScope = app.Services.CreateAsyncScope();
                     var initializer = runtimeBootstrapScope.ServiceProvider.GetService<IRuntimeBootstrapInitializer>();
                     if (initializer is not null)
@@ -330,14 +342,35 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
                     }
                 }
 
+                startupStage = "runtime service initialization";
                 log.Information("Initializing runtime services...");
                 await app.InitializeAeroAppAsync();
 
+                startupStage = "application lifetime";
                 await app.WaitForShutdownAsync();
             }
             catch (Exception ex) when (bootstrapState.IsConfiguredMode)
             {
-                log.Error(ex, "Bootstrap initialization failed: {Message}", ex.Message);
+                var rootCauses = ExceptionDiagnostics.GetRootCauses(ex);
+                log.Error(
+                    ex,
+                    "Bootstrap initialization failed during {StartupStage}. RootCauseCount={RootCauseCount}",
+                    startupStage,
+                    rootCauses.Count);
+
+                for (var index = 0; index < rootCauses.Count; index++)
+                {
+                    var rootCause = rootCauses[index];
+                    log.Error(
+                        rootCause,
+                        "Bootstrap root cause {RootCauseIndex}/{RootCauseCount} during {StartupStage}: {ExceptionType}: {ExceptionMessage}",
+                        index + 1,
+                        rootCauses.Count,
+                        startupStage,
+                        rootCause.GetType().FullName,
+                        rootCause.Message);
+                }
+
                 await AeroStartupPipeline.TryMarkBootstrapFailedAsync(app, log);
                 throw;
             }
@@ -356,7 +389,7 @@ public static async Task RunAeroCmsAsync<TRootComponent>(
         }
         catch (Exception ex)
         {
-            log.Fatal(ex, "Error starting the main Aero CMS application");
+            log.Fatal(ex, "Error starting the main Aero CMS application during {StartupStage}", startupStage);
             throw;
         }
         finally

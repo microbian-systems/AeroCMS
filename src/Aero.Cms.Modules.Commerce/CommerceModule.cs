@@ -110,6 +110,14 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
     /// </summary>
 public void Configure(StoreOptions opts)
     {
+        opts.Schema.Analyzers.DefineAnalyzer(
+            Search.Analyzer.English,
+            filters:
+            [
+                Search.Filter.Lowercase,
+                Search.Filter.SnowballEnglish
+            ]);
+
         // Product document — AeroDB schema
         // DatabaseSchemaName/DocumentAlias not available in AeroDB
         opts.Schema.For<ProductDocument>()
@@ -118,8 +126,8 @@ public void Configure(StoreOptions opts)
             .Index(x => x.Sku)
             .Index(x => x.Category)
             .Index(x => x.Price)
-            .FullTextIndex(x => x.Name, "english")
-            .FullTextIndex(x => x.Description, "english");
+            .FullTextIndex(x => x.Name, Search.Analyzer.English)
+            .FullTextIndex(x => x.Description, Search.Analyzer.English);
 
         opts.Schema.For<ProductTranslation>().Index(x => x.ProductId);
         opts.Schema.For<ProductTranslation>().Index(x => x.Culture);

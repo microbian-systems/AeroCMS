@@ -50,7 +50,9 @@ public sealed class HtmlContentModelPolicy(HtmlElementCatalog catalog) : IHtmlCo
             return HtmlContentPolicyDecision.Deny("The child is not a supported HTML element.");
         }
 
-        if (parentDefinition.IsInteractive && childDefinition!.IsInteractive)
+        var isDisclosureSummary = parentDefinition.Tag.Equals("details", StringComparison.OrdinalIgnoreCase)
+            && childDefinition!.Tag.Equals("summary", StringComparison.OrdinalIgnoreCase);
+        if (parentDefinition.IsInteractive && childDefinition.IsInteractive && !isDisclosureSummary)
         {
             return HtmlContentPolicyDecision.Deny("Interactive elements cannot be nested inside interactive elements.");
         }
@@ -66,6 +68,11 @@ public sealed class HtmlContentModelPolicy(HtmlElementCatalog catalog) : IHtmlCo
         {
             return HtmlContentPolicyDecision.Deny(
                 $"<{childDefinition.Tag}> is only allowed inside {string.Join(", ", childDefinition.AllowedParentTags.Select(tag => $"<{tag}>"))}.");
+        }
+
+        if (isDisclosureSummary)
+        {
+            return HtmlContentPolicyDecision.Allow();
         }
 
         if (parentDefinition.AllowedChildTags.Count > 0)

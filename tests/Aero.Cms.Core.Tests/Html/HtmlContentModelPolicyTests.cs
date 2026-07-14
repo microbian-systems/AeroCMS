@@ -93,4 +93,60 @@ public sealed class HtmlContentModelPolicyTests
         await Assert.That(policy.CanContain(form, form).IsAllowed).IsFalse();
         await Assert.That(policy.CanContain(HtmlNode.CreateFragment(), option).IsAllowed).IsFalse();
     }
+
+    [Test]
+    public async Task Policy_enforces_description_list_and_disclosure_relationships()
+    {
+        var policy = new HtmlContentModelPolicy(_catalog);
+        var descriptionList = _catalog.CreateElement("dl");
+        var term = _catalog.CreateElement("dt");
+        var description = _catalog.CreateElement("dd");
+        var details = _catalog.CreateElement("details");
+        var summary = _catalog.CreateElement("summary");
+
+        await Assert.That(policy.CanContain(descriptionList, term).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(descriptionList, description).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(descriptionList, _catalog.CreateElement("div")).IsAllowed).IsFalse();
+        await Assert.That(policy.CanContain(details, summary).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(details, _catalog.CreateElement("p")).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(_catalog.CreateElement("section"), summary).IsAllowed).IsFalse();
+    }
+
+    [Test]
+    public async Task Policy_enforces_picture_audio_and_video_children()
+    {
+        var policy = new HtmlContentModelPolicy(_catalog);
+        var picture = _catalog.CreateElement("picture");
+        var audio = _catalog.CreateElement("audio");
+        var video = _catalog.CreateElement("video");
+        var source = _catalog.CreateElement("source");
+        var track = _catalog.CreateElement("track");
+        var image = _catalog.CreateElement("img");
+
+        await Assert.That(policy.CanContain(picture, source).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(picture, image).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(audio, source).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(audio, track).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(video, source).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(video, track).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(picture, track).IsAllowed).IsFalse();
+        await Assert.That(policy.CanContain(_catalog.CreateElement("section"), source).IsAllowed).IsFalse();
+    }
+
+    [Test]
+    public async Task Policy_treats_low_risk_semantics_as_flow_and_phrasing_content()
+    {
+        var policy = new HtmlContentModelPolicy(_catalog);
+        var paragraph = _catalog.CreateElement("p");
+        var section = _catalog.CreateElement("section");
+
+        foreach (var tag in new[] { "time", "data", "kbd", "samp", "var", "del", "ins", "progress", "meter", "wbr" })
+        {
+            await Assert.That(policy.CanContain(paragraph, _catalog.CreateElement(tag)).IsAllowed)
+                .IsTrue();
+        }
+
+        await Assert.That(policy.CanContain(section, _catalog.CreateElement("address")).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(paragraph, _catalog.CreateElement("address")).IsAllowed).IsFalse();
+    }
 }

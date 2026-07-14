@@ -196,7 +196,99 @@ public sealed class HtmlContentValidator : IHtmlContentValidator
         }
 
         ValidateStyleCapabilities(node.Style, definition, errors);
+        ValidateElementStructure(node, definition, errors);
     }
+
+    private static void ValidateElementStructure(
+        HtmlNode node,
+        HtmlElementDefinition definition,
+        ICollection<string> errors)
+    {
+        if (!definition.Tag.Equals("details", StringComparison.OrdinalIgnoreCase))
+        {
+            ValidateNumericElement(node, definition, errors);
+            return;
+        }
+
+        var summaries = node.Children
+            .Where(child => child.Kind is HtmlNodeKind.Element
+                && child.TagName?.Equals("summary", StringComparison.OrdinalIgnoreCase) == true)
+            .ToArray();
+        if (summaries.Length > 1)
+        {
+            errors.Add("<details> can contain at most one <summary> element.");
+        }
+
+        if (summaries.Length == 1 && !ReferenceEquals(node.Children.FirstOrDefault(), summaries[0]))
+        {
+            errors.Add("The <summary> element must be the first child of <details>.");
+        }
+
+
+        ValidateNumericElement(node, definition, errors);
+    }
+
+    private static void ValidateNumericElement(
+        HtmlNode node,
+        HtmlElementDefinition definition,
+        ICollection<string> errors)
+    {
+        if (definition.Tag.Equals("progress", StringComparison.OrdinalIgnoreCase))
+        {
+            var maximum = DecimalAttribute(node, "max") ?? 1m;
+            var value = DecimalAttribute(node, "value");
+            if (value is < 0 || value > maximum)
+            {
+                errors.Add("The <progress> value must be between zero and max.");
+            }
+
+            return;
+        }
+
+        if (!definition.Tag.Equals("meter", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var minimum = DecimalAttribute(node, "min") ?? 0m;
+        var maximumMeter = DecimalAttribute(node, "max") ?? 1m;
+        var meterValue = DecimalAttribute(node, "value");
+        var low = DecimalAttribute(node, "low");
+        var high = DecimalAttribute(node, "high");
+        var optimum = DecimalAttribute(node, "optimum");
+
+        if (maximumMeter <= minimum)
+        {
+            errors.Add("The <meter> max value must be greater than min.");
+        }
+
+        if (meterValue is null || meterValue < minimum || meterValue > maximumMeter)
+        {
+            errors.Add("The <meter> value must be present and fall between min and max.");
+        }
+
+        if (low is not null && (low < minimum || low > maximumMeter)
+            || high is not null && (high < minimum || high > maximumMeter)
+            || optimum is not null && (optimum < minimum || optimum > maximumMeter))
+        {
+            errors.Add("The <meter> low, high, and optimum values must fall between min and max.");
+        }
+
+        if (low is not null && high is not null && low > high)
+        {
+            errors.Add("The <meter> low value cannot be greater than high.");
+        }
+    }
+
+    private static decimal? DecimalAttribute(HtmlNode node, string name) =>
+        node.Attributes.TryGetValue(name, out var value)
+        && decimal.TryParse(
+            value,
+            System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var parsed)
+            ? parsed
+            : null;
 
     private static void ValidateStyleCapabilities(
         HtmlStyle? style,

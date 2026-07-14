@@ -88,7 +88,6 @@ public void Configure(StoreOptions opts)
         // SitesModel — no host info stored here; host resolution uses SiteHost.
         // DatabaseSchemaName/DocumentAlias not available in AeroDB
         opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
-        opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
 
         // SiteHost — separate document for multi-domain support.
         // Each row stores one normalized host/domain. The unique index on Host

@@ -39,6 +39,49 @@
     gap: 0.625rem;
 }
 
+.aero-element-palette__element-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 0.25rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.aero-element-palette__element-heading h3 {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.aero-element-palette__element-heading span {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.72rem;
+    color: #94a3b8;
+}
+
+.aero-element-palette__advanced-toggle {
+    flex: 0 0 auto;
+    border: 1px solid #d8b4fe;
+    border-radius: 999px;
+    padding: 0.35rem 0.625rem;
+    color: #6b21a8;
+    background: #faf5ff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.aero-element-palette__advanced-toggle:hover,
+.aero-element-palette__advanced-toggle:focus-visible {
+    border-color: #a855f7;
+    outline: none;
+}
+
 .aero-element-palette__grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -83,6 +126,11 @@
     background: #faf8ff;
 }
 
+.aero-element-palette__item--component {
+    color: #075985;
+    background: #f0f9ff;
+}
+
 .aero-element-palette__tag {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.72rem;
@@ -92,6 +140,11 @@
 .aero-element-palette__layout-icon {
     font-size: 1.1rem;
     letter-spacing: -0.14em;
+}
+
+.aero-element-palette__component-icon {
+    font-size: 1.15rem;
+    line-height: 1;
 }
 
 .aero-element-palette__empty {

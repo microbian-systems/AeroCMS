@@ -33,10 +33,17 @@ public partial class HtmlElementPropertyPanel
     [Parameter]
     public EventCallback RichTextRequested { get; set; }
 
+    [Parameter]
+    public EventCallback<HtmlCollectionActionKind> CollectionActionRequested { get; set; }
+
     protected InspectorForm Form { get; private set; } = new();
 
     protected bool IsLink => Definition.Tag.Equals("a", StringComparison.OrdinalIgnoreCase);
     protected bool IsImage => Definition.Tag.Equals("img", StringComparison.OrdinalIgnoreCase);
+    protected bool IsMediaElement => Definition.Tag is "audio" or "video";
+    protected bool IsVideo => Definition.Tag.Equals("video", StringComparison.OrdinalIgnoreCase);
+    protected bool IsSource => Definition.Tag.Equals("source", StringComparison.OrdinalIgnoreCase);
+    protected bool IsTrack => Definition.Tag.Equals("track", StringComparison.OrdinalIgnoreCase);
     protected bool IsButton => Definition.Tag.Equals("button", StringComparison.OrdinalIgnoreCase);
     protected bool IsTableCell => Definition.Tag is "th" or "td";
     protected bool IsHeaderCell => Definition.Tag.Equals("th", StringComparison.OrdinalIgnoreCase);
@@ -46,6 +53,23 @@ public partial class HtmlElementPropertyPanel
     protected bool IsTextArea => Definition.Tag.Equals("textarea", StringComparison.OrdinalIgnoreCase);
     protected bool IsSelect => Definition.Tag.Equals("select", StringComparison.OrdinalIgnoreCase);
     protected bool IsOption => Definition.Tag.Equals("option", StringComparison.OrdinalIgnoreCase);
+    protected bool HasCitationUrl => Definition.AllowedAttributes.Contains("cite", StringComparer.OrdinalIgnoreCase);
+    protected bool IsDetails => Definition.Tag.Equals("details", StringComparison.OrdinalIgnoreCase);
+    protected bool HasDateTimeAttribute => Definition.AllowedAttributes.Contains("datetime", StringComparer.OrdinalIgnoreCase);
+    protected bool IsData => Definition.Tag.Equals("data", StringComparison.OrdinalIgnoreCase);
+    protected bool IsProgress => Definition.Tag.Equals("progress", StringComparison.OrdinalIgnoreCase);
+    protected bool IsMeter => Definition.Tag.Equals("meter", StringComparison.OrdinalIgnoreCase);
+    protected bool SupportsListActions => Definition.Tag is "ul" or "ol" or "li";
+    protected bool SupportsTableActions => Definition.Tag is "table" or "thead" or "tbody" or "tr" or "th" or "td";
+    protected bool SupportsMediaSourceAction => Definition.Tag is "picture" or "audio" or "video" or "source";
+    protected bool SupportsMediaTrackAction => Definition.Tag is "audio" or "video" or "track";
+    protected bool SupportsFormActions => Definition.Tag is "form" or "label" or "input" or "textarea" or "select" or "option" or "button";
+    protected bool SupportsSelectOptionAction => Definition.Tag is "select" or "option";
+    protected bool SupportsCollectionActions => SupportsListActions
+        || SupportsTableActions
+        || SupportsMediaSourceAction
+        || SupportsMediaTrackAction
+        || SupportsFormActions;
     protected bool IsFlexDisplay => Form.Display is CssDisplay.Flex or CssDisplay.InlineFlex;
     protected bool IsGridDisplay => Form.Display is CssDisplay.Grid or CssDisplay.InlineGrid;
     protected bool SupportsRichText => Definition.ChildModel is HtmlChildModel.Phrasing
@@ -69,6 +93,9 @@ public partial class HtmlElementPropertyPanel
 
     protected Task RequestRichTextAsync() => RichTextRequested.InvokeAsync();
 
+    protected Task RequestCollectionActionAsync(HtmlCollectionActionKind action) =>
+        CollectionActionRequested.InvokeAsync(action);
+
     protected Task ApplyAsync() => PropertiesChanged.InvokeAsync(BuildProperties());
 
     protected void Reset() => LoadFromNode();
@@ -85,6 +112,21 @@ public partial class HtmlElementPropertyPanel
             Target = Attribute("target"),
             Rel = Attribute("rel"),
             Source = Attribute("src"),
+            SourceSet = Attribute("srcset"),
+            Sizes = Attribute("sizes"),
+            MediaQuery = Attribute("media"),
+            MediaType = Attribute("type"),
+            Poster = Attribute("poster"),
+            Preload = Attribute("preload"),
+            AutoPlay = Node.Attributes.ContainsKey("autoplay"),
+            Controls = Node.Attributes.ContainsKey("controls"),
+            Loop = Node.Attributes.ContainsKey("loop"),
+            Muted = Node.Attributes.ContainsKey("muted"),
+            PlaysInline = Node.Attributes.ContainsKey("playsinline"),
+            TrackKind = Attribute("kind"),
+            SourceLanguage = Attribute("srclang"),
+            TrackLabel = Attribute("label"),
+            DefaultTrack = Node.Attributes.ContainsKey("default"),
             AlternativeText = Attribute("alt"),
             Width = Attribute("width"),
             Height = Attribute("height"),
@@ -114,6 +156,16 @@ public partial class HtmlElementPropertyPanel
             Columns = Attribute("cols"),
             MaximumLength = Attribute("maxlength"),
             OptionLabel = Attribute("label"),
+            CitationUrl = Attribute("cite"),
+            Open = Node.Attributes.ContainsKey("open"),
+            DateTimeValue = Attribute("datetime"),
+            MachineValue = Attribute("value"),
+            NumericValue = Attribute("value"),
+            NumericMinimum = Attribute("min"),
+            NumericMaximum = Attribute("max"),
+            NumericLow = Attribute("low"),
+            NumericHigh = Attribute("high"),
+            NumericOptimum = Attribute("optimum"),
             LiteralText = IsTextArea || IsOption
                 ? string.Concat(Node.Children.Where(child => child.Kind is HtmlNodeKind.Text).Select(child => child.Text))
                 : null,
@@ -168,6 +220,41 @@ public partial class HtmlElementPropertyPanel
             SetOrRemove(properties.Attributes, "width", Form.Width);
             SetOrRemove(properties.Attributes, "height", Form.Height);
             SetOrRemove(properties.Attributes, "loading", Form.Loading);
+        }
+
+        if (IsMediaElement)
+        {
+            SetOrRemove(properties.Attributes, "src", Form.Source);
+            SetOrRemove(properties.Attributes, "preload", Form.Preload);
+            SetBoolean(properties.Attributes, "autoplay", Form.AutoPlay);
+            SetBoolean(properties.Attributes, "controls", Form.Controls);
+            SetBoolean(properties.Attributes, "loop", Form.Loop);
+            SetBoolean(properties.Attributes, "muted", Form.Muted);
+            if (IsVideo)
+            {
+                SetOrRemove(properties.Attributes, "poster", Form.Poster);
+                SetOrRemove(properties.Attributes, "width", Form.Width);
+                SetOrRemove(properties.Attributes, "height", Form.Height);
+                SetBoolean(properties.Attributes, "playsinline", Form.PlaysInline);
+            }
+        }
+
+        if (IsSource)
+        {
+            SetOrRemove(properties.Attributes, "src", Form.Source);
+            SetOrRemove(properties.Attributes, "srcset", Form.SourceSet);
+            SetOrRemove(properties.Attributes, "sizes", Form.Sizes);
+            SetOrRemove(properties.Attributes, "media", Form.MediaQuery);
+            SetOrRemove(properties.Attributes, "type", Form.MediaType);
+        }
+
+        if (IsTrack)
+        {
+            SetOrRemove(properties.Attributes, "kind", Form.TrackKind);
+            SetOrRemove(properties.Attributes, "src", Form.Source);
+            SetOrRemove(properties.Attributes, "srclang", Form.SourceLanguage);
+            SetOrRemove(properties.Attributes, "label", Form.TrackLabel);
+            SetBoolean(properties.Attributes, "default", Form.DefaultTrack);
         }
 
         if (IsButton)
@@ -248,6 +335,42 @@ public partial class HtmlElementPropertyPanel
             SetBoolean(properties.Attributes, "disabled", Form.Disabled);
             properties.ReplaceChildrenWithLiteralText = true;
             properties.LiteralText = Form.LiteralText;
+        }
+
+        if (HasCitationUrl)
+        {
+            SetOrRemove(properties.Attributes, "cite", Form.CitationUrl);
+        }
+
+        if (IsDetails)
+        {
+            SetBoolean(properties.Attributes, "open", Form.Open);
+        }
+
+        if (HasDateTimeAttribute)
+        {
+            SetOrRemove(properties.Attributes, "datetime", Form.DateTimeValue);
+        }
+
+        if (IsData)
+        {
+            SetOrRemove(properties.Attributes, "value", Form.MachineValue);
+        }
+
+        if (IsProgress)
+        {
+            SetOrRemove(properties.Attributes, "value", Form.NumericValue);
+            SetOrRemove(properties.Attributes, "max", Form.NumericMaximum);
+        }
+
+        if (IsMeter)
+        {
+            SetOrRemove(properties.Attributes, "value", Form.NumericValue);
+            SetOrRemove(properties.Attributes, "min", Form.NumericMinimum);
+            SetOrRemove(properties.Attributes, "max", Form.NumericMaximum);
+            SetOrRemove(properties.Attributes, "low", Form.NumericLow);
+            SetOrRemove(properties.Attributes, "high", Form.NumericHigh);
+            SetOrRemove(properties.Attributes, "optimum", Form.NumericOptimum);
         }
 
         var style = properties.Style ?? new HtmlStyle();
@@ -380,6 +503,21 @@ public partial class HtmlElementPropertyPanel
         public string? Target { get; set; }
         public string? Rel { get; set; }
         public string? Source { get; set; }
+        public string? SourceSet { get; set; }
+        public string? Sizes { get; set; }
+        public string? MediaQuery { get; set; }
+        public string? MediaType { get; set; }
+        public string? Poster { get; set; }
+        public string? Preload { get; set; }
+        public bool AutoPlay { get; set; }
+        public bool Controls { get; set; }
+        public bool Loop { get; set; }
+        public bool Muted { get; set; }
+        public bool PlaysInline { get; set; }
+        public string? TrackKind { get; set; }
+        public string? SourceLanguage { get; set; }
+        public string? TrackLabel { get; set; }
+        public bool DefaultTrack { get; set; }
         public string? AlternativeText { get; set; }
         public string? Width { get; set; }
         public string? Height { get; set; }
@@ -409,6 +547,16 @@ public partial class HtmlElementPropertyPanel
         public string? Columns { get; set; }
         public string? MaximumLength { get; set; }
         public string? OptionLabel { get; set; }
+        public string? CitationUrl { get; set; }
+        public bool Open { get; set; }
+        public string? DateTimeValue { get; set; }
+        public string? MachineValue { get; set; }
+        public string? NumericValue { get; set; }
+        public string? NumericMinimum { get; set; }
+        public string? NumericMaximum { get; set; }
+        public string? NumericLow { get; set; }
+        public string? NumericHigh { get; set; }
+        public string? NumericOptimum { get; set; }
         public string? LiteralText { get; set; }
         public CssDisplay? Display { get; set; }
         public CssFlexDirection? FlexDirection { get; set; }

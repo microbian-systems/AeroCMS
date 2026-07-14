@@ -12,6 +12,8 @@ public sealed class CssLength
     public static CssLength Rem(decimal value) => new() { Value = value, Unit = CssLengthUnit.Rem };
     public static CssLength Em(decimal value) => new() { Value = value, Unit = CssLengthUnit.Em };
     public static CssLength Percent(decimal value) => new() { Value = value, Unit = CssLengthUnit.Percent };
+    public static CssLength ViewportHeight(decimal value) => new() { Value = value, Unit = CssLengthUnit.ViewportHeight };
+    public static CssLength ViewportWidth(decimal value) => new() { Value = value, Unit = CssLengthUnit.ViewportWidth };
 }
 
 /// <summary>

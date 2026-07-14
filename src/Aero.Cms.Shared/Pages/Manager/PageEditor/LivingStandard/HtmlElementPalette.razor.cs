@@ -5,6 +5,25 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 
 public partial class HtmlElementPalette
 {
+    private static readonly HashSet<string> BasicElementTags = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "section", "div", "h1", "h2", "h3", "p", "a", "button", "img", "figure",
+        "ul", "ol", "hr", "blockquote", "details", "table", "form", "audio", "video"
+    };
+
+    private static readonly IReadOnlyList<ComponentOption> ComponentOptions =
+    [
+        new(HtmlComponentTemplateKind.Hero, "Hero", "A centered introduction with primary actions", "◆"),
+        new(HtmlComponentTemplateKind.FeatureGrid, "Features", "A responsive three-card feature section", "▦"),
+        new(HtmlComponentTemplateKind.CallToAction, "Call to action", "A focused prompt with one primary action", "→"),
+        new(HtmlComponentTemplateKind.FrequentlyAskedQuestions, "FAQ", "A responsive question-and-answer section", "?"),
+        new(HtmlComponentTemplateKind.Testimonial, "Testimonial", "A highlighted customer quotation", "“”"),
+        new(HtmlComponentTemplateKind.Statistics, "Statistics", "Three responsive headline metrics", "%"),
+        new(HtmlComponentTemplateKind.ImageAndText, "Image + text", "A responsive visual and copy split", "◫"),
+        new(HtmlComponentTemplateKind.ContactForm, "Contact form", "A static, accessible contact section", "✉"),
+        new(HtmlComponentTemplateKind.Gallery, "Gallery", "A responsive three-image gallery", "▧"),
+    ];
+
     private static readonly IReadOnlyList<LayoutOption> LayoutOptions =
     [
         new(HtmlLayoutStarterKind.OneColumn, "1 column", "One full-width content area", "▭"),
@@ -16,6 +35,7 @@ public partial class HtmlElementPalette
 
     private IReadOnlyList<ElementGroup> _groups = [];
     private string _searchText = string.Empty;
+    private bool _showAdvanced;
 
     [Parameter, EditorRequired]
     public IReadOnlyList<HtmlElementDefinition> Elements { get; set; } = [];
@@ -26,16 +46,22 @@ public partial class HtmlElementPalette
     [Parameter]
     public EventCallback<HtmlLayoutStarterKind> LayoutRequested { get; set; }
 
+    [Parameter]
+    public EventCallback<HtmlComponentTemplateKind> ComponentRequested { get; set; }
+
     private string SearchText
     {
         get => _searchText;
         set => _searchText = value ?? string.Empty;
     }
 
+    private bool ShowingAllElements => _showAdvanced || !string.IsNullOrWhiteSpace(SearchText);
+
     private IReadOnlyList<ElementGroup> FilteredGroups => _groups
         .Select(group => new ElementGroup(
             group.Category,
             group.Elements
+                .Where(element => ShowingAllElements || BasicElementTags.Contains(element.Tag))
                 .Where(MatchesSearch)
                 .ToArray()))
         .Where(group => group.Elements.Count > 0)
@@ -63,10 +89,20 @@ public partial class HtmlElementPalette
 
     private Task RequestLayoutAsync(HtmlLayoutStarterKind kind) => LayoutRequested.InvokeAsync(kind);
 
+    private Task RequestComponentAsync(HtmlComponentTemplateKind kind) => ComponentRequested.InvokeAsync(kind);
+
+    private void ToggleAdvanced() => _showAdvanced = !_showAdvanced;
+
     private sealed record ElementGroup(string Category, IReadOnlyList<HtmlElementDefinition> Elements);
 
     private sealed record LayoutOption(
         HtmlLayoutStarterKind Kind,
+        string Label,
+        string Description,
+        string Icon);
+
+    private sealed record ComponentOption(
+        HtmlComponentTemplateKind Kind,
         string Label,
         string Description,
         string Icon);

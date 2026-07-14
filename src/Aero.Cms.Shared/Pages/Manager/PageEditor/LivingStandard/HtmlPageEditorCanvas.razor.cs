@@ -104,6 +104,8 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
             HtmlPaletteItemKind.Element when Catalog.TryGet(itemValue, out _) => Catalog.CreateElement(itemValue),
             HtmlPaletteItemKind.Layout when Enum.TryParse<HtmlLayoutStarterKind>(itemValue, true, out _)
                 => Catalog.CreateElement("section"),
+            HtmlPaletteItemKind.Component when Enum.TryParse<HtmlComponentTemplateKind>(itemValue, true, out _)
+                => Catalog.CreateElement("section"),
             _ => null
         };
 

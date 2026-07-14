@@ -421,13 +421,15 @@ else if (ActiveTab == "translations")
                                           ErrorMessage="HtmlPropertyError"
                                           PropertiesChanged="ApplyHtmlPropertiesAsync"
                                           SelectionCleared="ClearHtmlSelectionAsync"
-                                          RichTextRequested="OpenHtmlRichTextEditorAsync" />
+                                          RichTextRequested="OpenHtmlRichTextEditorAsync"
+                                          CollectionActionRequested="ApplyHtmlCollectionActionAsync" />
             }
             else
             {
                 <HtmlElementPalette Elements="HtmlElementDefinitions"
                                     ElementRequested="AddHtmlElementAsync"
-                                    LayoutRequested="AddHtmlLayoutAsync" />
+                                    LayoutRequested="AddHtmlLayoutAsync"
+                                    ComponentRequested="AddHtmlComponentAsync" />
             }
         }
     </AeroSidebar>

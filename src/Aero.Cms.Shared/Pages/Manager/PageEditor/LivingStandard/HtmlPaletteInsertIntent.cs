@@ -5,7 +5,8 @@ namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
 public enum HtmlPaletteItemKind
 {
     Element,
-    Layout
+    Layout,
+    Component
 }
 
 /// <summary>

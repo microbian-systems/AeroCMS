@@ -11,6 +11,26 @@
     </div>
 
     <div class="aero-element-palette__section">
+        <h3>Components</h3>
+        <div class="aero-element-palette__grid">
+            @foreach (var option in ComponentOptions)
+            {
+                <button @key="option.Kind"
+                        type="button"
+                        class="aero-element-palette__item aero-element-palette__item--component"
+                        title="@($"{option.Description}. Click to add or drag onto the page.")"
+                        data-aero-palette-kind="component"
+                        data-aero-palette-value="@option.Kind"
+                        data-aero-palette-label="@option.Label"
+                        @onclick="() => RequestComponentAsync(option.Kind)">
+                    <span class="aero-element-palette__component-icon" aria-hidden="true">@option.Icon</span>
+                    <span>@option.Label</span>
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="aero-element-palette__section">
         <h3>Layouts</h3>
         <div class="aero-element-palette__grid">
             @foreach (var option in LayoutOptions)
@@ -28,6 +48,19 @@
                 </button>
             }
         </div>
+    </div>
+
+    <div class="aero-element-palette__element-heading">
+        <div>
+            <h3>@(ShowingAllElements ? "All HTML elements" : "Basic elements")</h3>
+            <span>@(ShowingAllElements ? "Choose individual semantic elements." : "The most useful building primitives.")</span>
+        </div>
+        <button type="button"
+                class="aero-element-palette__advanced-toggle"
+                aria-pressed="@_showAdvanced"
+                @onclick="ToggleAdvanced">
+            @(_showAdvanced ? "Show basic" : "Show all")
+        </button>
     </div>
 
     @if (FilteredGroups.Count == 0)

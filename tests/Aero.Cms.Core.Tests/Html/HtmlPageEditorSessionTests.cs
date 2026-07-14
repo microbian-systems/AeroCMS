@@ -65,6 +65,26 @@ public sealed class HtmlPageEditorSessionTests
     }
 
     [Test]
+    public async Task AddComponent_inserts_one_editable_undoable_subtree()
+    {
+        var session = CreateSession();
+
+        var added = session.AddComponent(HtmlComponentTemplateKind.Hero) as Result<HtmlNode>.Ok;
+
+        await Assert.That(added).IsNotNull();
+        await Assert.That(added!.Value.TagName).IsEqualTo("section");
+        await Assert.That(session.SelectedNodeId).IsEqualTo(added.Value.NodeId);
+        await Assert.That(session.CompiledStyles!.CssText).Contains("min-height: 65vh");
+        await Assert.That(session.CanUndo).IsTrue();
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Content.Root.Children).IsEmpty();
+
+        await Assert.That(session.Redo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Content.Root.Children.Single().TagName).IsEqualTo("section");
+    }
+
+    [Test]
     public async Task AddTable_creates_an_editable_semantic_two_column_table()
     {
         var session = CreateSession();
@@ -101,6 +121,204 @@ public sealed class HtmlPageEditorSessionTests
         await Assert.That(label.Attributes["for"]).IsEqualTo(input.Attributes["id"]);
         await Assert.That(input.Attributes["type"]).IsEqualTo("text");
         await Assert.That(form.Children[2].Attributes["type"]).IsEqualTo("submit");
+    }
+
+    [Test]
+    public async Task AddSemanticPrimitives_creates_useful_valid_default_subtrees()
+    {
+        var session = CreateSession();
+
+        var descriptionList = session.AddElement("dl") as Result<HtmlNode>.Ok;
+        var disclosure = session.AddElement("details") as Result<HtmlNode>.Ok;
+        var blockQuote = session.AddElement("blockquote") as Result<HtmlNode>.Ok;
+
+        await Assert.That(descriptionList).IsNotNull();
+        await Assert.That(descriptionList!.Value.Children.Select(node => node.TagName ?? string.Empty))
+            .IsEquivalentTo(["dt", "dd"]);
+        await Assert.That(disclosure).IsNotNull();
+        await Assert.That(disclosure!.Value.Children[0].TagName).IsEqualTo("summary");
+        await Assert.That(disclosure.Value.Children[1].TagName).IsEqualTo("p");
+        await Assert.That(blockQuote).IsNotNull();
+        await Assert.That(blockQuote!.Value.Children.Single().TagName).IsEqualTo("p");
+        await Assert.That(session.CanUndo).IsTrue();
+    }
+
+    [Test]
+    public async Task AddMediaPrimitives_creates_safe_editable_default_sources()
+    {
+        var session = CreateSession();
+
+        var picture = session.AddElement("picture") as Result<HtmlNode>.Ok;
+        var audio = session.AddElement("audio") as Result<HtmlNode>.Ok;
+        var video = session.AddElement("video") as Result<HtmlNode>.Ok;
+
+        await Assert.That(picture).IsNotNull();
+        await Assert.That(picture!.Value.Children.Select(node => node.TagName ?? string.Empty))
+            .IsEquivalentTo(["source", "img"]);
+        await Assert.That(picture.Value.Children[0].Attributes["srcset"]).Contains("1280w");
+        await Assert.That(picture.Value.Children[1].Attributes["alt"]).IsNotEmpty();
+
+        await Assert.That(audio).IsNotNull();
+        await Assert.That(audio!.Value.Attributes.ContainsKey("controls")).IsTrue();
+        await Assert.That(audio.Value.Children.Single().Attributes["type"]).IsEqualTo("audio/mpeg");
+
+        await Assert.That(video).IsNotNull();
+        await Assert.That(video!.Value.Attributes["preload"]).IsEqualTo("metadata");
+        await Assert.That(video.Value.Children.Single().Attributes["type"]).IsEqualTo("video/mp4");
+        await Assert.That(session.StyleCompilationError).IsNull();
+    }
+
+    [Test]
+    public async Task Guided_list_item_is_valid_selected_and_one_undoable_change()
+    {
+        var list = HtmlNode.CreateElement("ul");
+        var existing = HtmlNode.CreateElement("li");
+        existing.Children.Add(HtmlNode.CreateText("Existing item"));
+        list.Children.Add(existing);
+        var session = CreateSession(list);
+        session.Select(list.NodeId);
+
+        var added = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddListItem)
+            as Result<HtmlNode>.Ok;
+
+        await Assert.That(added).IsNotNull();
+        await Assert.That(list.Children).Count().IsEqualTo(2);
+        await Assert.That(added!.Value.TagName).IsEqualTo("li");
+        await Assert.That(added.Value.Children.Single().Text).IsEqualTo("List item");
+        await Assert.That(session.SelectedNodeId).IsEqualTo(added.Value.NodeId);
+        await Assert.That(session.CanUndo).IsTrue();
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(session.Content.Root.Children.Single().Children).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Guided_table_row_and_column_preserve_semantics_and_each_use_one_memento()
+    {
+        var session = CreateSession();
+        var table = (session.AddElement("table") as Result<HtmlNode>.Ok)!.Value;
+        session.Select(table.NodeId);
+
+        var row = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddTableRow)
+            as Result<HtmlNode>.Ok;
+
+        await Assert.That(row).IsNotNull();
+        await Assert.That(row!.Value.Children.Select(cell => cell.TagName ?? string.Empty))
+            .IsEquivalentTo(["td", "td"]);
+
+        session.Select(table.NodeId);
+        var column = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddTableColumn)
+            as Result<HtmlNode>.Ok;
+
+        await Assert.That(column).IsNotNull();
+        var currentTable = session.SelectedNode!;
+        var rows = Flatten(currentTable).Where(node => node.TagName == "tr").ToArray();
+        await Assert.That(rows).Count().IsEqualTo(3);
+        await Assert.That(rows.All(item => item.Children.Count == 3)).IsTrue();
+        await Assert.That(rows[0].Children.All(cell => cell.TagName == "th")).IsTrue();
+        await Assert.That(rows.Skip(1).SelectMany(item => item.Children).All(cell => cell.TagName == "td")).IsTrue();
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(Flatten(session.SelectedNode!).Where(node => node.TagName == "tr")
+            .All(item => item.Children.Count == 2)).IsTrue();
+    }
+
+    [Test]
+    public async Task Guided_media_actions_keep_sources_before_fallback_image_and_add_caption_track()
+    {
+        var session = CreateSession();
+        var picture = (session.AddElement("picture") as Result<HtmlNode>.Ok)!.Value;
+        session.Select(picture.NodeId);
+
+        var pictureSource = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddMediaSource)
+            as Result<HtmlNode>.Ok;
+
+        await Assert.That(pictureSource).IsNotNull();
+        var currentPicture = session.Content.Root.Children.Single(node => node.TagName == "picture");
+        await Assert.That(currentPicture.Children.Last().TagName).IsEqualTo("img");
+        await Assert.That(currentPicture.Children.Count(node => node.TagName == "source")).IsEqualTo(2);
+
+        var video = (session.AddElement("video", session.Content.Root.NodeId) as Result<HtmlNode>.Ok)!.Value;
+        session.Select(video.NodeId);
+        var track = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddMediaTrack)
+            as Result<HtmlNode>.Ok;
+
+        await Assert.That(track).IsNotNull();
+        await Assert.That(track!.Value.Attributes["kind"]).IsEqualTo("captions");
+        await Assert.That(track.Value.Attributes["srclang"]).IsEqualTo("en");
+        await Assert.That(video.Children.Last().TagName).IsEqualTo("track");
+        await Assert.That(session.StyleCompilationError).IsNull();
+    }
+
+    [Test]
+    public async Task Guided_form_actions_create_accessible_fields_and_editable_options()
+    {
+        var session = CreateSession();
+        var form = (session.AddElement("form") as Result<HtmlNode>.Ok)!.Value;
+        session.Select(form.NodeId);
+
+        var input = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddFormInput)
+            as Result<HtmlNode>.Ok;
+        session.Select(form.NodeId);
+        var textArea = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddFormTextArea)
+            as Result<HtmlNode>.Ok;
+        session.Select(form.NodeId);
+        var select = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddFormSelect)
+            as Result<HtmlNode>.Ok;
+
+        await Assert.That(input).IsNotNull();
+        await Assert.That(textArea).IsNotNull();
+        await Assert.That(select).IsNotNull();
+        await Assert.That(input!.Value.Attributes["type"]).IsEqualTo("text");
+        await Assert.That(textArea!.Value.Attributes["rows"]).IsEqualTo("5");
+        await Assert.That(select!.Value.Children.Single().TagName).IsEqualTo("option");
+
+        var fields = form.Children.Where(child => child.TagName == "div").ToArray();
+        await Assert.That(fields).Count().IsEqualTo(3);
+        foreach (var field in fields)
+        {
+            var label = field.Children.Single(child => child.TagName == "label");
+            var control = field.Children.Single(child => child.TagName is "input" or "textarea" or "select");
+            await Assert.That(label.Attributes["for"]).IsEqualTo(control.Attributes["id"]);
+        }
+
+        session.Select(select.Value.NodeId);
+        var option = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddSelectOption)
+            as Result<HtmlNode>.Ok;
+
+        await Assert.That(option).IsNotNull();
+        await Assert.That(select.Value.Children).Count().IsEqualTo(2);
+        await Assert.That(option!.Value.Attributes["value"]).IsEqualTo("option-2");
+        await Assert.That(session.CanUndo).IsTrue();
+
+        await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        var restoredSelect = HtmlTreeOperations.FindById(session.Content.Root, select.Value.NodeId)!;
+        await Assert.That(restoredSelect.Children).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task AddLowRiskSemanticPrimitives_creates_valid_useful_defaults()
+    {
+        var session = CreateSession();
+        var rootNodeId = session.Content.Root.NodeId;
+
+        var address = session.AddElement("address", rootNodeId) as Result<HtmlNode>.Ok;
+        var time = session.AddElement("time", rootNodeId) as Result<HtmlNode>.Ok;
+        var data = session.AddElement("data", rootNodeId) as Result<HtmlNode>.Ok;
+        var progress = session.AddElement("progress", rootNodeId) as Result<HtmlNode>.Ok;
+        var meter = session.AddElement("meter", rootNodeId) as Result<HtmlNode>.Ok;
+
+        await Assert.That(address).IsNotNull();
+        await Assert.That(address!.Value.Children.Single().TagName).IsEqualTo("p");
+        await Assert.That(time).IsNotNull();
+        await Assert.That(time!.Value.Attributes["datetime"]).IsEqualTo("2026-01-01");
+        await Assert.That(data).IsNotNull();
+        await Assert.That(data!.Value.Attributes["value"]).IsEqualTo("42");
+        await Assert.That(progress).IsNotNull();
+        await Assert.That(progress!.Value.Attributes["max"]).IsEqualTo("1");
+        await Assert.That(meter).IsNotNull();
+        await Assert.That(meter!.Value.Attributes["low"]).IsEqualTo("0.3");
+        await Assert.That(session.StyleCompilationError).IsNull();
     }
 
     [Test]
@@ -340,6 +558,24 @@ public sealed class HtmlPageEditorSessionTests
         await Assert.That(session.CanUndo).IsTrue();
     }
 
+    [Test]
+    public async Task AddComponentRelative_inserts_the_complete_component_at_the_drop_location()
+    {
+        var section = HtmlNode.CreateElement("section");
+        var session = CreateSession(section);
+
+        var added = session.AddComponentRelative(
+            HtmlComponentTemplateKind.CallToAction,
+            section.NodeId,
+            HtmlRelativePlacement.After) as Result<HtmlNode>.Ok;
+
+        await Assert.That(added).IsNotNull();
+        await Assert.That(session.Content.Root.Children).Count().IsEqualTo(2);
+        await Assert.That(session.Content.Root.Children[1]).IsSameReferenceAs(added!.Value);
+        await Assert.That(session.SelectedNodeId).IsEqualTo(added.Value.NodeId);
+        await Assert.That(session.CanUndo).IsTrue();
+    }
+
     private static HtmlPageEditorSession CreateSession(params HtmlNode[] children)
     {
         var catalog = HtmlElementCatalog.CreateDefault();
@@ -355,7 +591,20 @@ public sealed class HtmlPageEditorSessionTests
                 new HtmlContentModelPolicy(catalog),
                 new HtmlAttributePolicy()),
             new HtmlLayoutStarterFactory(catalog),
+            new HtmlComponentTemplateFactory(catalog),
             new NativeCssStyleCompiler(),
             new NativeStyleProfile());
+    }
+
+    private static IEnumerable<HtmlNode> Flatten(HtmlNode root)
+    {
+        yield return root;
+        foreach (var child in root.Children)
+        {
+            foreach (var descendant in Flatten(child))
+            {
+                yield return descendant;
+            }
+        }
     }
 }

@@ -9,50 +9,50 @@ namespace Aero.Cms.Core.Models;
 /// </summary>
 public class MediaAsset : SableDocument, IAuditable, ISiteOwned
 {
-        /// <summary>
+    /// <summary>
     /// Gets or sets the Site Id.
     /// </summary>
-public long SiteId { get; set; }
-        /// <summary>
+    public long SiteId { get; set; }
+    /// <summary>
     /// Gets or sets the File Name.
     /// </summary>
-public string FileName { get; set; } = string.Empty;
-        /// <summary>
+    public string FileName { get; set; } = string.Empty;
+    /// <summary>
     /// Gets or sets the Url.
     /// </summary>
-public string Url { get; set; } = string.Empty;
-        /// <summary>
+    public string Url { get; set; } = string.Empty;
+    /// <summary>
     /// Gets or sets the Mime Type.
     /// </summary>
-public string MimeType { get; set; } = string.Empty;
-        /// <summary>
+    public string MimeType { get; set; } = string.Empty;
+    /// <summary>
     /// Gets or sets the File Size.
     /// </summary>
-public long FileSize { get; set; }
-        /// <summary>
+    public long FileSize { get; set; }
+    /// <summary>
     /// Gets or sets the Width.
     /// </summary>
-public int Width { get; set; }
-        /// <summary>
+    public int Width { get; set; }
+    /// <summary>
     /// Gets or sets the Height.
     /// </summary>
-public int Height { get; set; }
-        /// <summary>
+    public int Height { get; set; }
+    /// <summary>
     /// Gets or sets the Alt Text.
     /// </summary>
-public string? AltText { get; set; }
-        /// <summary>
+    public string? AltText { get; set; }
+    /// <summary>
     /// Gets or sets the Description.
     /// </summary>
-public string? Description { get; set; }
-        /// <summary>
+    public string? Description { get; set; }
+    /// <summary>
     /// Gets or sets the Is Folder.
     /// </summary>
-public bool IsFolder { get; set; }
-        /// <summary>
+    public bool IsFolder { get; set; }
+    /// <summary>
     /// Gets or sets the Parent Id.
     /// </summary>
-public long? ParentId { get; set; }
+    public long? ParentId { get; set; }
 
     /// <summary>
     /// Optional attribution metadata for third-party sourced media
