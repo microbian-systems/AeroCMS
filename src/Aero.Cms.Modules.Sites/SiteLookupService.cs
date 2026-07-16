@@ -78,6 +78,7 @@ public async Task<IReadOnlyList<SiteViewModel>> GetAllAsync(CancellationToken ca
             IsEnabled = model.IsEnabled,
             DefaultCulture = model.DefaultCulture,
             SupportedCultures = model.SupportedCultures,
+            StyleProfile = SiteStyleProfileMapper.ToViewModel(model.StyleProfile),
             CreatedOn = model.CreatedOn,
             ModifiedOn = model.ModifiedOn,
             CreatedBy = model.CreatedBy,

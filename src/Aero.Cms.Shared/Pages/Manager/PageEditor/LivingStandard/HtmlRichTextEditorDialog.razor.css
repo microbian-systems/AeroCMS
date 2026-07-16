@@ -48,8 +48,16 @@
 .aero-rich-text-toolbar > span { width: 1px; height: 1.5rem; margin: 0 .2rem; background: #cbd5e1; }
 .aero-rich-text-toolbar button { min-width: 2.25rem; height: 2.25rem; border: 1px solid #dbe3ef; border-radius: .45rem; color: #334155; background: #fff; cursor: pointer; }
 .aero-rich-text-toolbar button:disabled { cursor: wait; opacity: .45; }
+.aero-rich-text-toolbar button.is-active {
+    border-color: #7c3aed;
+    color: #5b21b6;
+    background: #ede9fe;
+    box-shadow: inset 0 0 0 1px rgb(124 58 237 / 18%);
+}
 .aero-rich-text-toolbar__bold { font-weight: 800; }
 .aero-rich-text-toolbar__italic { font-style: italic; }
+.aero-rich-text-toolbar__strike { text-decoration: line-through; }
+.aero-rich-text-toolbar__code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .72rem; }
 .aero-rich-text-toolbar label { min-width: 10rem; flex: 1; }
 .aero-rich-text-toolbar input { width: 100%; border: 1px solid #dbe3ef; border-radius: .45rem; padding: .55rem .65rem; background: #fff; }
 

@@ -11,8 +11,12 @@
     </header>
 
     <div class="aero-property-panel__element-actions" role="group" aria-label="Selected element actions">
-        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="RequestDuplicateAsync">Duplicate</button>
-        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="RequestRemoveAsync">Delete</button>
+        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                aria-keyshortcuts="Control+D Meta+D"
+                @onclick="RequestDuplicateAsync">Duplicate</button>
+        <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                aria-keyshortcuts="Delete Backspace"
+                @onclick="RequestRemoveAsync">Delete</button>
     </div>
 
     @if (SupportsRichText)
@@ -67,6 +71,11 @@
                 {
                     <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
                             @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddSelectOption)">Add option</button>
+                }
+                @if (SupportsOptionGroupAction)
+                {
+                    <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                            @onclick="() => RequestCollectionActionAsync(HtmlCollectionActionKind.AddOptionGroup)">Add option group</button>
                 }
             </div>
         </div>
@@ -262,6 +271,11 @@
                     }
                 }
 
+                @if (IsTableColumnDefinition)
+                {
+                    <label><span>Column span</span><InputText @bind-Value="Form.ColumnSpan" inputmode="numeric" placeholder="1" /></label>
+                }
+
                 @if (IsForm)
                 {
                     <label><span>Submission URL</span><InputText @bind-Value="Form.Action" placeholder="/contact" /></label>
@@ -291,6 +305,12 @@
                         </InputSelect>
                     </label>
                     <p class="aero-property-panel__hint">This builds static HTML only. Aero CMS does not process the submission.</p>
+                }
+
+                @if (IsFieldset)
+                {
+                    <label><span>Group name</span><InputText @bind-Value="Form.ControlName" placeholder="contact-details" /></label>
+                    <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Disabled" /><span>Disable all fields in this group</span></label>
                 }
 
                 @if (IsLabel)
@@ -364,6 +384,12 @@
                     </div>
                 }
 
+                @if (IsOptionGroup)
+                {
+                    <label><span>Group label</span><InputText @bind-Value="Form.OptionLabel" placeholder="Option group" /></label>
+                    <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Disabled" /><span>Disable this option group</span></label>
+                }
+
                 @if (IsOption)
                 {
                     <label><span>Displayed text</span><InputText @bind-Value="Form.LiteralText" /></label>
@@ -373,6 +399,12 @@
                         <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Selected" /><span>Selected</span></label>
                         <label class="aero-property-panel__check"><InputCheckbox @bind-Value="Form.Disabled" /><span>Disabled</span></label>
                     </div>
+                }
+
+                @if (IsOutput)
+                {
+                    <label><span>Name</span><InputText @bind-Value="Form.ControlName" placeholder="result" /></label>
+                    <label><span>Associated element IDs</span><InputText @bind-Value="Form.LabelFor" placeholder="quantity price" /></label>
                 }
 
                 @if (HasCitationUrl)
@@ -525,7 +557,7 @@
             <details>
                 <summary>Background &amp; surface</summary>
                 <div class="aero-property-panel__fields">
-                    <label><span>Background color</span><InputText @bind-Value="Form.BackgroundColor" placeholder="#ffffff or surface.brand" /></label>
+                    <label><span>Background color</span><InputText @bind-Value="Form.BackgroundColor" placeholder="#ffffff or surface-brand" /></label>
                     <label>
                         <span>Background image</span>
                         <div class="aero-property-panel__media-field">
@@ -562,7 +594,7 @@
                         <div class="aero-property-panel__row">
                             <label>
                                 <span>Overlay color</span>
-                                <InputText @bind-Value="Form.OverlayColor" placeholder="#000000 or overlay.dark" />
+                                <InputText @bind-Value="Form.OverlayColor" placeholder="#000000 or overlay-dark" />
                             </label>
                             <label>
                                 <span>Overlay opacity</span>
@@ -580,7 +612,10 @@
             <details>
                 <summary>Typography</summary>
                 <div class="aero-property-panel__fields">
-                    <label><span>Text color</span><InputText @bind-Value="Form.TextColor" placeholder="#172033 or text.primary" /></label>
+                    @if (!Form.UseTextGradient)
+                    {
+                        <label><span>Text color</span><InputText @bind-Value="Form.TextColor" placeholder="#172033 or text-primary" /></label>
+                    }
                     <LengthEditor Label="Font size" Value="Form.FontSize" ValueChanged="value => Form.FontSize = value" />
                     <LengthEditor Label="Letter spacing" Value="Form.LetterSpacing" ValueChanged="value => Form.LetterSpacing = value" />
                     <div class="aero-property-panel__row">
@@ -601,8 +636,8 @@
                     @if (Form.UseTextGradient)
                     {
                         <div class="aero-property-panel__row">
-                                <label><span>Start color</span><InputText @bind-Value="Form.GradientStartColor" placeholder="#2563eb or text.accent.start" /></label>
-                                <label><span>End color</span><InputText @bind-Value="Form.GradientEndColor" placeholder="#9333ea or text.accent.end" /></label>
+                                <label><span>Start color</span><InputText @bind-Value="Form.GradientStartColor" placeholder="#2563eb or text-accent-start" /></label>
+                                <label><span>End color</span><InputText @bind-Value="Form.GradientEndColor" placeholder="#9333ea or text-accent-end" /></label>
                         </div>
                         <label>
                             <span>Gradient angle</span>

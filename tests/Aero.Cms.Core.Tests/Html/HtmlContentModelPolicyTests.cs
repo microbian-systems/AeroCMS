@@ -15,7 +15,8 @@ public sealed class HtmlContentModelPolicyTests
         await Assert.That(paragraph!.ChildModel).IsEqualTo(HtmlChildModel.Phrasing);
         await Assert.That(_catalog.TryGet("table", out var table)).IsTrue();
         await Assert.That(table!.PaletteCategory).IsEqualTo("Tables");
-        await Assert.That(table.AllowedChildTags).IsEquivalentTo(["thead", "tbody", "tr"]);
+        await Assert.That(table.AllowedChildTags)
+            .IsEquivalentTo(["caption", "colgroup", "thead", "tbody", "tfoot", "tr"]);
     }
 
     [Test]
@@ -55,18 +56,28 @@ public sealed class HtmlContentModelPolicyTests
     {
         var policy = new HtmlContentModelPolicy(_catalog);
         var table = _catalog.CreateElement("table");
+        var caption = _catalog.CreateElement("caption");
+        var columnGroup = _catalog.CreateElement("colgroup");
+        var column = _catalog.CreateElement("col");
         var head = _catalog.CreateElement("thead");
         var body = _catalog.CreateElement("tbody");
+        var foot = _catalog.CreateElement("tfoot");
         var row = _catalog.CreateElement("tr");
         var header = _catalog.CreateElement("th");
         var cell = _catalog.CreateElement("td");
 
+        await Assert.That(policy.CanContain(table, caption).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(table, columnGroup).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(columnGroup, column).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(table, head).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(table, body).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(table, foot).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(head, row).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(row, header).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(row, cell).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(table, cell).IsAllowed).IsFalse();
+        await Assert.That(policy.CanContain(table, column).IsAllowed).IsFalse();
+        await Assert.That(policy.CanContain(body, caption).IsAllowed).IsFalse();
         await Assert.That(policy.CanContain(row, HtmlNode.CreateText("invalid")).IsAllowed).IsFalse();
         await Assert.That(policy.CanContain(HtmlNode.CreateFragment(), body).IsAllowed).IsFalse();
     }
@@ -76,20 +87,34 @@ public sealed class HtmlContentModelPolicyTests
     {
         var policy = new HtmlContentModelPolicy(_catalog);
         var form = _catalog.CreateElement("form");
+        var fieldset = _catalog.CreateElement("fieldset");
+        var legend = _catalog.CreateElement("legend");
         var label = _catalog.CreateElement("label");
         var input = _catalog.CreateElement("input");
         var textArea = _catalog.CreateElement("textarea");
         var select = _catalog.CreateElement("select");
+        var optionGroup = _catalog.CreateElement("optgroup");
+        var dataList = _catalog.CreateElement("datalist");
         var option = _catalog.CreateElement("option");
+        var output = _catalog.CreateElement("output");
 
+        await Assert.That(policy.CanContain(form, fieldset).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(fieldset, legend).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(form, label).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(form, input).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(form, textArea).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(form, select).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(form, dataList).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(form, output).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(label, input).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(select, option).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(select, optionGroup).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(optionGroup, option).IsAllowed).IsTrue();
+        await Assert.That(policy.CanContain(dataList, option).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(option, HtmlNode.CreateText("Choice")).IsAllowed).IsTrue();
         await Assert.That(policy.CanContain(select, HtmlNode.CreateText("invalid")).IsAllowed).IsFalse();
+        await Assert.That(policy.CanContain(form, legend).IsAllowed).IsFalse();
+        await Assert.That(policy.CanContain(dataList, optionGroup).IsAllowed).IsFalse();
         await Assert.That(policy.CanContain(form, form).IsAllowed).IsFalse();
         await Assert.That(policy.CanContain(HtmlNode.CreateFragment(), option).IsAllowed).IsFalse();
     }

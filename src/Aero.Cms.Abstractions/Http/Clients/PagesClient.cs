@@ -125,21 +125,6 @@ Task<Result<AiTranslatePageResult, AeroError>> TranslateWithAiAsync(long id, AiT
     /// </summary>
     Task<Result<PageDetail, AeroError>> ForkToCultureAsync(long id, ForkPageCultureRequest request, CancellationToken ct = default);
 
-    /// <summary>
-    /// Gets the latest draft for a page, if one exists.
-    /// </summary>
-    Task<Result<PageDraftSummary?, AeroError>> GetDraftAsync(long id, CancellationToken ct = default);
-
-    /// <summary>
-    /// Upserts a draft for a page. Used by auto-save.
-    /// </summary>
-    Task<Result<bool, AeroError>> SaveDraftAsync(long id, PageDraftRequest request, CancellationToken ct = default);
-
-    /// <summary>
-    /// Deletes the draft for a page. Called after manual save or publish.
-    /// </summary>
-    Task<Result<bool, AeroError>> DeleteDraftAsync(long id, CancellationToken ct = default);
-
     // ── Tree / Hierarchy methods ──────────────────────────────────────
 
     /// <summary>
@@ -335,24 +320,6 @@ public Task<Result<AiTranslatePageResult, AeroError>> TranslateWithAiAsync(long 
         return PostAsync<ForkPageCultureRequest, PageDetail>($"{id}/translations", request, ct);
     }
 
-    /// <inheritdoc />
-    public Task<Result<PageDraftSummary?, AeroError>> GetDraftAsync(long id, CancellationToken ct = default)
-    {
-        return GetAsync<PageDraftSummary?>($"{id}/draft", ct);
-    }
-
-    /// <inheritdoc />
-    public Task<Result<bool, AeroError>> SaveDraftAsync(long id, PageDraftRequest request, CancellationToken ct = default)
-    {
-        return MapBoolResult(PutAsync<PageDraftRequest, HttpResponseMessage>($"{id}/draft", request, ct));
-    }
-
-    /// <inheritdoc />
-    public Task<Result<bool, AeroError>> DeleteDraftAsync(long id, CancellationToken ct = default)
-    {
-        return MapBoolResult(base.DeleteAsync($"{id}/draft", ct));
-    }
-
     // ── Tree / Hierarchy implementations ──────────────────────────────
 
         /// <summary>
@@ -441,6 +408,7 @@ public record PageSummary(long Id, string Title, string Slug, DateTime CreatedAt
 /// </summary>
 public record PageDetail(
     long Id, 
+    long SiteId,
     string Title, 
     string Slug, 
     string? Excerpt, 
@@ -503,28 +471,6 @@ public record UpdatePageRequest(
 public record ForkPageCultureRequest(
     string Culture,
     string Slug);
-
-/// <summary>
-/// Summary of a page draft returned by the draft API.
-/// </summary>
-public record PageDraftSummary(
-    long Id,
-    long PageId,
-    long SiteId,
-    string Title,
-    string Slug,
-    string? Summary,
-    DateTimeOffset DraftedAt,
-    HtmlPageContent? DraftContent = null);
-
-/// <summary>
-/// Request to upsert a page draft (used by auto-save).
-/// </summary>
-public record PageDraftRequest(
-    string Title,
-    string Slug,
-    string? Summary,
-    HtmlPageContent? DraftContent = null);
 
 /// <summary>
 /// Flat tree node model for page hierarchy display.

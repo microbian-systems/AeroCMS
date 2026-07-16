@@ -45,6 +45,7 @@ public sealed class PagesApiTests
 
         var detail = (PageDetail)mapper!.Invoke(null, [page])!;
 
+        await Assert.That(detail.SiteId).IsEqualTo(page.SiteId);
         await Assert.That(detail.UpdatedAt).IsEqualTo(createdOn.DateTime);
     }
 

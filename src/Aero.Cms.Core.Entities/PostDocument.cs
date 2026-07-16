@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 
@@ -63,9 +62,9 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
 public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
 
     /// <summary>
-    /// Gets or sets the block-based content for this blog post.
+    /// Gets or sets the Markdown body for this blog post.
     /// </summary>
-    public List<BlockBase> Content { get; set; } = [];
+    public string MarkdownContent { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the IDs of tags associated with this blog post.

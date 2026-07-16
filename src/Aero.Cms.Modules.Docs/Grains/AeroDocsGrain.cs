@@ -1,6 +1,5 @@
 using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
@@ -41,13 +40,11 @@ public AeroDocsGrain(
 
     private DocsContentService CreateDocsService(IDocumentSession session, long siteId)
     {
-        var blockService = _services.GetRequiredService<IBlockService>();
         var bus = _services.GetRequiredService<IMessageBus>();
         var logger = _services.GetRequiredService<ILogger<DocsContentService>>();
         var cache = _services.GetService<IFusionCache>();
         return new DocsContentService(
             session,
-            blockService,
             bus,
             new FixedSiteContext(siteId),
             logger,

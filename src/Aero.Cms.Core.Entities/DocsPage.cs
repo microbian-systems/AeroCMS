@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Aero.Cms.Abstractions.Blocks.Layout;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
@@ -66,8 +65,6 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
 
     /// <summary>
     /// Monotonic counter incremented on every publish.
-    /// Compared against <see cref="DocsEditorState.DraftVersion"/> in the admin
-    /// service layer to detect unpublished changes.
     /// </summary>
     public long PublishedVersion { get; set; }
 
@@ -90,24 +87,6 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
     /// Gets or sets the sort order among siblings.
     /// </summary>
     public int Order { get; set; }
-
-    // ── Published block layout ──────────────────────────────────────────
-
-    /// <summary>
-    /// Published layout manifest: regions → columns → block placements.
-    /// Built from <see cref="DocsEditorState"/> on publish.
-    /// Rendered SSR by LayoutRegionRenderer components during public page rendering.
-    /// </summary>
-    public List<LayoutRegion> LayoutRegions { get; set; } = [];
-
-    // ── Block schema versioning ─────────────────────────────────────────
-
-    /// <summary>
-    /// Tracks the block content schema version. Incremented by migration when
-    /// legacy block content is transformed into Neo blocks. Used for idempotency.
-    /// Mirroring <c>PageDocument.BlockSchemaVersion</c>.
-    /// </summary>
-    public int BlockSchemaVersion { get; set; }
 
     // ── IAuditable ─────────────────────────────────────────────────────────
 
@@ -142,7 +121,6 @@ public DateTimeOffset? PublishedOn { get; set; } = null;
         ParentId = ParentId,
         Order = Order,
         PublishedVersion = PublishedVersion,
-        BlockSchemaVersion = BlockSchemaVersion,
         CreatedOn = CreatedOn,
         ModifiedOn = ModifiedOn,
         CreatedBy = CreatedBy,

@@ -4,6 +4,7 @@ using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Html;
@@ -82,16 +83,6 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         
         group.MapPut("/{id:long}/unpublish", UnpublishPage)
             .WithName("UnpublishPage");
-
-        // Draft endpoints — remain on IDocumentSession (lightweight, no grain needed)
-        group.MapGet("/{id:long}/draft", GetPageDraft)
-            .WithName("GetPageDraft");
-        
-        group.MapPut("/{id:long}/draft", SavePageDraft)
-            .WithName("SavePageDraft");
-        
-        group.MapDelete("/{id:long}/draft", DeletePageDraft)
-            .WithName("DeletePageDraft");
 
         // Preview endpoints (moved from Headless PreviewApi)
         app.MapGet($"/{HttpConstants.ApiPrefix}admin/preview/pages/{{id:long}}", PreviewPage)
@@ -570,79 +561,13 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         return TypedResults.Ok(new PublicationBulkResult(items.Count, items));
     }
 
-    // ── Draft handlers (lightweight, stay on session) ─────────────────
-
-    private static async Task<IResult> GetPageDraft(
-        long id,
-        [FromServices] IQuerySession querySession)
-    {
-        var draft = await querySession.Query<PageDraft>()
-            .FirstOrDefaultAsync(d => d.PageId == id);
-        return TypedResults.Ok(draft);
-    }
-
-    private static async Task<IResult> SavePageDraft(
-        long id,
-        [FromBody] PageDraftRequest request,
-        [FromServices] IDocumentSession session,
-        [FromServices] IQuerySession querySession)
-    {
-        var page = await querySession.LoadAsync<PageDocument>(id);
-        if (page is null) return TypedResults.NotFound();
-
-        var existing = await querySession.Query<PageDraft>()
-            .FirstOrDefaultAsync(d => d.PageId == id);
-
-        if (existing is not null)
-        {
-            existing.Title = request.Title;
-            existing.Slug = request.Slug;
-            existing.Summary = request.Summary;
-            existing.DraftContent = request.DraftContent;
-            existing.DraftedAt = DateTimeOffset.UtcNow;
-            session.Store(existing);
-        }
-        else
-        {
-            var draft = new PageDraft
-            {
-                Id = Snowflake.NewId(),
-                SiteId = page.SiteId,
-                PageId = id,
-                Title = request.Title,
-                Slug = request.Slug,
-                Summary = request.Summary,
-                DraftContent = request.DraftContent,
-                DraftedAt = DateTimeOffset.UtcNow
-            };
-            session.Store(draft);
-        }
-
-        await session.SaveChangesAsync();
-        return TypedResults.Ok();
-    }
-
-    private static async Task<IResult> DeletePageDraft(
-        long id,
-        [FromServices] IDocumentSession session,
-        [FromServices] IQuerySession querySession)
-    {
-        var existing = await querySession.Query<PageDraft>()
-            .FirstOrDefaultAsync(d => d.PageId == id);
-        if (existing is not null)
-        {
-            session.Delete(existing);
-            await session.SaveChangesAsync();
-        }
-        return TypedResults.NoContent();
-    }
-
     // ── Mapping helpers ────────────────────────────────────────────────
 
     private static PageDetail MapToDetail(PageViewModel vm)
     {
         return new PageDetail(
             vm.Id,
+            vm.SiteId,
             vm.Title ?? "",
             vm.Slug ?? "",
             vm.Summary,
@@ -670,6 +595,7 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
     private static PageDetail MapToDetail(PageDocument document)
         => new(
             document.Id,
+            document.SiteId,
             document.Title ?? "",
             document.Slug ?? "",
             document.Summary,
@@ -891,8 +817,9 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
 
     private static async Task<IResult> PreviewPageFragment(
         [FromBody] PreviewPageFragmentRequest request,
+        [FromServices] ISiteContext siteContext,
+        [FromServices] ISiteStyleProfileResolver styleProfileResolver,
         [FromServices] IStyleCompiler styleCompiler,
-        [FromServices] IStyleProfile styleProfile,
         [FromServices] HtmlStaticRenderer renderer,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
@@ -900,6 +827,11 @@ public static void MapPagesApi(this IEndpointRouteBuilder app)
         var logger = loggerFactory.CreateLogger(typeof(PagesApi));
         try
         {
+            var profileResult = await styleProfileResolver.ResolveAsync(siteContext.SiteId, ct);
+            if (profileResult is Result<IStyleProfile, AeroError>.Failure profileFailure)
+                return TypedResults.BadRequest(new { error = profileFailure.Error.ToString() });
+
+            var styleProfile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
             var styles = styleCompiler.Compile(request.Content, styleProfile);
             if (styles is Result<CompiledPageStyles>.Failure styleFailure)
                 return TypedResults.BadRequest(new { error = styleFailure.Error.ToString() });

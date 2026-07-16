@@ -222,6 +222,14 @@ public sealed record SiteViewModelUpdated(SiteViewModel site, string? msg = null
 /// </summary>
 public sealed record SiteViewModelDeleted(SiteViewModel site, string? msg = null) : AeroEvent<SiteViewModel>(site, msg);
 
+/// <summary>
+/// Published after a site's style profile has been persisted.
+/// </summary>
+public sealed record SiteStyleProfileChangedEvent(
+    long SiteId,
+    long Revision,
+    DateTimeOffset ChangedOn) : AeroEvent($"style profile revision {Revision} changed for site {SiteId}");
+
 // tag events
 /// <summary>
 /// Represents a record for TagViewModelCreated.

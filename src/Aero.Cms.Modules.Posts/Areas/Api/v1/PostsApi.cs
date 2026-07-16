@@ -1,20 +1,16 @@
 using Aero.Cms.Abstractions.Ai;
 using System.Security.Claims;
-using System.Text.Encodings.Web;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Audit;
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
-using Aero.Cms.Web.Core.Blocks.Rendering;
 using Aero.Core.Http;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Markdig;
 using CreatePostRequest = Aero.Cms.Modules.Posts.Requests.CreatePostRequest;
 using UpdatePostRequest = Aero.Cms.Modules.Posts.Requests.UpdatePostRequest;
 
@@ -344,10 +340,7 @@ public static class PostsApi
                 ImageUrl = request.ImageUrl,
                 SeriesId = request.SeriesId,
                 PublicationState = request.PublicationState,
-                // Store raw markdown string — Orleans can't serialize MarkdownBlock
-                Content = string.IsNullOrWhiteSpace(request.MarkdownContent)
-                    ? new List<object>()
-                    : new List<object> { request.MarkdownContent },
+                MarkdownContent = request.MarkdownContent ?? string.Empty,
                 CreatedOn = DateTimeOffset.UtcNow,
                 CreatedBy = "system",
                 ModifiedBy = "system"
@@ -415,9 +408,7 @@ public static class PostsApi
             // Update markdown content if provided
             if (request.MarkdownContent is not null)
             {
-                existing.Content = string.IsNullOrWhiteSpace(request.MarkdownContent)
-                    ? new List<object>()
-                    : new List<object> { request.MarkdownContent };
+                existing.MarkdownContent = request.MarkdownContent;
             }
 
             var result = await postsActor.SavePostAsync(existing, siteId, cancellationToken);
@@ -702,20 +693,20 @@ public static class PostsApi
         }
     }
 
-    private static async Task<IResult> PreviewBlogPostFragment(
+    private static IResult PreviewBlogPostFragment(
         [FromBody] PreviewBlogPostFragmentRequest request,
-        CmsBlockHtmlRenderer blockRenderer,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var logger = loggerFactory.CreateLogger(typeof(PostsApi));
         try
         {
-            if (request.Content is null)
+            if (request.MarkdownContent is null)
                 return TypedResults.BadRequest(new { error = "Blog post content is required." });
 
-            var html = await blockRenderer.RenderBlocksAsync(request.Content, cancellationToken: ct);
-            return TypedResults.Ok(new PreviewBlogPostFragmentResponse(RenderPreviewHtml(html)));
+            ct.ThrowIfCancellationRequested();
+            var html = Markdown.ToHtml(request.MarkdownContent);
+            return TypedResults.Ok(new PreviewBlogPostFragmentResponse(html));
         }
         catch (Exception ex)
         {
@@ -724,37 +715,13 @@ public static class PostsApi
         }
     }
 
-    // ── Preview helpers ─────────────────────────────────────────────────
-
-    private static string RenderPreviewHtml(IHtmlContent content)
-    {
-        using var writer = new StringWriter();
-        content.WriteTo(writer, HtmlEncoder.Default);
-        return writer.ToString();
-    }
-
     // ── Mapping helpers ────────────────────────────────────────────────
 
     /// <summary>
-    /// Maps <see cref="PostViewModel"/> (Orleans-safe, strings in Content)
-    /// to <see cref="BlogDetail"/> (JSON-safe, <see cref="BlockBase"/> in Content).
+    /// Maps <see cref="PostViewModel"/> to the HTTP detail contract.
     /// </summary>
     private static BlogDetail MapToBlogDetail(PostViewModel vm)
     {
-        var blocks = new List<BlockBase>();
-        foreach (var item in vm.Content ?? [])
-        {
-            if (item is string markdown && !string.IsNullOrWhiteSpace(markdown))
-            {
-                blocks.Add(new MarkdownBlock
-                {
-                    Id = Snowflake.NewId(),
-                    Content = markdown,
-                    Order = blocks.Count
-                });
-            }
-        }
-
         return new BlogDetail(
             vm.Id,
             vm.Title ?? string.Empty,
@@ -764,7 +731,7 @@ public static class PostsApi
             vm.SeoDescription,
             vm.PublishedOn,
             (int)vm.PublicationState,
-            blocks,
+            vm.MarkdownContent,
             vm.TagIds ?? [],
             vm.CategoryIds ?? [],
             vm.AuthorId,
@@ -788,7 +755,7 @@ public static class PostsApi
             document.SeoDescription,
             document.PublishedOn,
             (int)document.PublicationState,
-            document.Content,
+            document.MarkdownContent,
             document.TagIds ?? [],
             document.CategoryIds ?? [],
             document.AuthorId,
@@ -848,18 +815,12 @@ public static class PostsApi
         AddOptionalField(fields, "seoTitle", ContentFieldHint.SeoTitle, source.SeoTitle);
         AddOptionalField(fields, "seoDescription", ContentFieldHint.SeoDescription, source.SeoDescription);
 
-        var markdownBlocks = source.Content
-            .OfType<MarkdownBlock>()
-            .Where(x => !string.IsNullOrWhiteSpace(x.Content))
-            .Select((block, index) => new { Block = block, Index = index })
-            .ToList();
-
-        foreach (var item in markdownBlocks)
+        if (!string.IsNullOrWhiteSpace(source.MarkdownContent))
         {
             fields.Add(new TranslateDocumentField(
-                $"markdown.{item.Index}",
+                "markdown",
                 ContentFieldHint.MarkdownContent,
-                item.Block.Content));
+                source.MarkdownContent));
         }
 
         return fields;
@@ -916,15 +877,7 @@ public static class PostsApi
         target.SeoTitle = GetTranslated(response, "seoTitle", target.SeoTitle);
         target.SeoDescription = GetTranslated(response, "seoDescription", target.SeoDescription);
 
-        var markdownBlocks = target.Content
-            .OfType<MarkdownBlock>()
-            .Where(x => !string.IsNullOrWhiteSpace(x.Content))
-            .Select((block, index) => new { Block = block, Index = index });
-
-        foreach (var item in markdownBlocks)
-        {
-            item.Block.Content = GetTranslated(response, $"markdown.{item.Index}", item.Block.Content);
-        }
+        target.MarkdownContent = GetTranslated(response, "markdown", target.MarkdownContent);
     }
 
     private static string GetTranslatedSlug(TranslateDocumentResponse response, string fallback)

@@ -105,16 +105,11 @@
         </div>
     </header>
 
-    @* Content Blocks — render markdown directly via Markdig *@
+    @* Markdown content *@
     <div class="prose prose-lg">
-        @{
-            var markdownContent = string.Join("\n\n", post.Content
-                .OfType<string>()
-                .Select(s => s));
-        }
-        @if (!string.IsNullOrWhiteSpace(markdownContent))
+        @if (!string.IsNullOrWhiteSpace(post.MarkdownContent))
         {
-            @Html.Raw(Markdown.ToHtml(markdownContent))
+            @Html.Raw(Markdown.ToHtml(post.MarkdownContent))
         }
         else
         {

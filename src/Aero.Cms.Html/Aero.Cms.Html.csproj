@@ -5,6 +5,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AngleSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="HtmlElementManifest.json" />
   </ItemGroup>
 

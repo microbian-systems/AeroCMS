@@ -1,7 +1,6 @@
 namespace Aero.Cms.Abstractions.Http.Clients;
 
 using System.Net.Http.Json;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Core.Railway;
 using Microsoft.Extensions.Logging;
 
@@ -320,7 +319,7 @@ public record BlogDetail(
     string? SeoDescription,
     DateTimeOffset? PublishedOn,
     int PublicationState,
-    List<BlockBase>? Content,
+    string MarkdownContent,
     List<long> TagIds,
     List<long> CategoryIds,
     long? AuthorId,

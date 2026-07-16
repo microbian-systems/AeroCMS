@@ -1448,11 +1448,6 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         return (posts, tags);
     }
 
-    private static List<BlockBase> BuildMarkdownContent(string markdown) =>
-    [
-        new MarkdownBlock { Id = Snowflake.NewId(), Content = markdown, Order = 0 }
-    ];
-
     private static PostDocument BuildPost(long id, string slug, string title, string excerpt, string markdown, List<long>? tagIds = null, string? imageUrl = null, int likes = 0) =>
         new PostDocument
         {
@@ -1462,7 +1457,7 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
             Excerpt = excerpt,
             SeoTitle = title,
             SeoDescription = excerpt,
-            Content = BuildMarkdownContent(markdown),
+            MarkdownContent = markdown,
             PublishedOn = DateTimeOffset.UtcNow,
             PublicationState = ContentPublicationState.Published,
             TagIds = tagIds ?? [],

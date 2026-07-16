@@ -71,7 +71,16 @@ public void ApplyRule(RewriteContext context)
         var scope = _serviceProvider.CreateAsyncScope();
         try
         {
-            var session = scope.ServiceProvider.GetRequiredService<IDocumentSession>();
+            var session = scope.ServiceProvider.GetService<IDocumentSession>();
+            if (session is null)
+            {
+                _log.LogDebug(
+                    "No document session is available for alias cache-miss fallback; passing through SiteId={SiteId} Path='{Path}'",
+                    slice.SiteId,
+                    path);
+                return;
+            }
+
             var aliases = session.Query<AliasDocument>()
                 .Where(x => x.SiteId == slice.SiteId)  // site-scoped
                 .ToList();

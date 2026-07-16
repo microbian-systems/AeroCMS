@@ -1,5 +1,3 @@
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Entities;
 
@@ -33,7 +31,7 @@ public static PostDocument Fork(PostDocument source, long targetPostId, string t
             SeoTitle = source.SeoTitle,
             SeoDescription = source.SeoDescription,
             PublicationState = ContentPublicationState.Draft,
-            Content = CloneContent(source.Content),
+            MarkdownContent = source.MarkdownContent,
             TagIds = source.TagIds.ToList(),
             CategoryIds = source.CategoryIds.ToList(),
             AuthorId = source.AuthorId,
@@ -42,25 +40,4 @@ public static PostDocument Fork(PostDocument source, long targetPostId, string t
         };
     }
 
-    private static List<BlockBase> CloneContent(IEnumerable<BlockBase>? content)
-    {
-        if (content is null)
-            return [];
-
-        return content.Select(CloneBlock).ToList();
-    }
-
-    private static BlockBase CloneBlock(BlockBase block)
-    {
-        return block switch
-        {
-            MarkdownBlock markdown => new MarkdownBlock
-            {
-                Id = Snowflake.NewId(),
-                Content = markdown.Content,
-                Order = markdown.Order
-            },
-            _ => block
-        };
-    }
 }

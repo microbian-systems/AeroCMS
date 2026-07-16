@@ -54,6 +54,42 @@ public sealed class HtmlPageEditorSessionTests
     }
 
     [Test]
+    public async Task RemoveSelected_selects_the_next_sibling_to_preserve_keyboard_context()
+    {
+        var section = HtmlNode.CreateElement("section");
+        var first = HtmlNode.CreateElement("p");
+        var selected = HtmlNode.CreateElement("p");
+        var next = HtmlNode.CreateElement("p");
+        section.Children.Add(first);
+        section.Children.Add(selected);
+        section.Children.Add(next);
+        var session = CreateSession(section);
+        session.Select(selected.NodeId);
+
+        var removed = session.RemoveSelected();
+
+        await Assert.That(removed).IsTypeOf<Result<HtmlNode>.Ok>();
+        await Assert.That(section.Children).IsEquivalentTo([first, next]);
+        await Assert.That(session.SelectedNodeId).IsEqualTo(next.NodeId);
+    }
+
+    [Test]
+    public async Task RemoveSelected_selects_the_parent_when_its_last_child_is_removed()
+    {
+        var section = HtmlNode.CreateElement("section");
+        var paragraph = HtmlNode.CreateElement("p");
+        section.Children.Add(paragraph);
+        var session = CreateSession(section);
+        session.Select(paragraph.NodeId);
+
+        var removed = session.RemoveSelected();
+
+        await Assert.That(removed).IsTypeOf<Result<HtmlNode>.Ok>();
+        await Assert.That(section.Children).IsEmpty();
+        await Assert.That(session.SelectedNodeId).IsEqualTo(section.NodeId);
+    }
+
+    [Test]
     public async Task AddElement_UsesSelectedContainer_AndFallsBackToItsParent()
     {
         var section = HtmlNode.CreateElement("section");
@@ -118,12 +154,17 @@ public sealed class HtmlPageEditorSessionTests
 
         await Assert.That(added).IsNotNull();
         var table = added!.Value;
-        await Assert.That(table.Children.Select(node => node.TagName ?? string.Empty)).IsEquivalentTo(["thead", "tbody"]);
-        await Assert.That(table.Children[0].Children.Single().Children.Select(node => node.TagName ?? string.Empty))
+        await Assert.That(table.Children.Select(node => node.TagName ?? string.Empty))
+            .IsEquivalentTo(["caption", "colgroup", "thead", "tbody", "tfoot"]);
+        await Assert.That(table.Children[1].Children.Select(node => node.TagName ?? string.Empty))
+            .IsEquivalentTo(["col", "col"]);
+        await Assert.That(table.Children[2].Children.Single().Children.Select(node => node.TagName ?? string.Empty))
             .IsEquivalentTo(["th", "th"]);
-        await Assert.That(table.Children[1].Children.Single().Children.Select(node => node.TagName ?? string.Empty))
+        await Assert.That(table.Children[3].Children.Single().Children.Select(node => node.TagName ?? string.Empty))
             .IsEquivalentTo(["td", "td"]);
-        await Assert.That(table.Children[0].Children[0].Children[0].Attributes["scope"]).IsEqualTo("col");
+        await Assert.That(table.Children[4].Children.Single().Children.Select(node => node.TagName ?? string.Empty))
+            .IsEquivalentTo(["td", "td"]);
+        await Assert.That(table.Children[2].Children[0].Children[0].Attributes["scope"]).IsEqualTo("col");
         await Assert.That(session.CanUndo).IsTrue();
 
         await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
@@ -146,6 +187,30 @@ public sealed class HtmlPageEditorSessionTests
         await Assert.That(label.Attributes["for"]).IsEqualTo(input.Attributes["id"]);
         await Assert.That(input.Attributes["type"]).IsEqualTo("text");
         await Assert.That(form.Children[2].Attributes["type"]).IsEqualTo("submit");
+    }
+
+    [Test]
+    public async Task AddAdvancedTableAndFormPrimitives_creates_valid_useful_defaults()
+    {
+        var session = CreateSession();
+        var rootNodeId = session.Content.Root.NodeId;
+
+        var fieldset = session.AddElement("fieldset", rootNodeId) as Result<HtmlNode>.Ok;
+        var dataList = session.AddElement("datalist", rootNodeId) as Result<HtmlNode>.Ok;
+        var output = session.AddElement("output", rootNodeId) as Result<HtmlNode>.Ok;
+
+        await Assert.That(fieldset).IsNotNull();
+        await Assert.That(fieldset!.Value.Children.Select(node => node.TagName ?? string.Empty))
+            .IsEquivalentTo(["legend", "label", "input"]);
+        await Assert.That(fieldset.Value.Children[1].Attributes["for"])
+            .IsEqualTo(fieldset.Value.Children[2].Attributes["id"]);
+        await Assert.That(dataList).IsNotNull();
+        await Assert.That(dataList!.Value.Children).Count().IsEqualTo(2);
+        await Assert.That(dataList.Value.Children.All(node => node.TagName == "option")).IsTrue();
+        await Assert.That(output).IsNotNull();
+        await Assert.That(output!.Value.Attributes["name"]).IsEqualTo("result");
+        await Assert.That(output.Value.Children.Single().Text).IsEqualTo("Calculated result");
+        await Assert.That(session.StyleCompilationError).IsNull();
     }
 
     [Test]
@@ -238,10 +303,12 @@ public sealed class HtmlPageEditorSessionTests
         await Assert.That(column).IsNotNull();
         var currentTable = session.SelectedNode!;
         var rows = Flatten(currentTable).Where(node => node.TagName == "tr").ToArray();
-        await Assert.That(rows).Count().IsEqualTo(3);
+        await Assert.That(rows).Count().IsEqualTo(4);
         await Assert.That(rows.All(item => item.Children.Count == 3)).IsTrue();
         await Assert.That(rows[0].Children.All(cell => cell.TagName == "th")).IsTrue();
         await Assert.That(rows.Skip(1).SelectMany(item => item.Children).All(cell => cell.TagName == "td")).IsTrue();
+        await Assert.That(currentTable.Children.Single(node => node.TagName == "colgroup").Children)
+            .Count().IsEqualTo(3);
 
         await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
         await Assert.That(Flatten(session.SelectedNode!).Where(node => node.TagName == "tr")
@@ -319,6 +386,36 @@ public sealed class HtmlPageEditorSessionTests
         await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();
         var restoredSelect = HtmlTreeOperations.FindById(session.Content.Root, select.Value.NodeId)!;
         await Assert.That(restoredSelect.Children).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Guided_option_actions_support_groups_and_suggested_values()
+    {
+        var session = CreateSession();
+        var select = (session.AddElement("select") as Result<HtmlNode>.Ok)!.Value;
+        session.Select(select.NodeId);
+
+        var group = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddOptionGroup)
+            as Result<HtmlNode>.Ok;
+
+        await Assert.That(group).IsNotNull();
+        await Assert.That(group!.Value.TagName).IsEqualTo("optgroup");
+        await Assert.That(group.Value.Attributes["label"]).IsEqualTo("Option group 1");
+        await Assert.That(group.Value.Children.Single().TagName).IsEqualTo("option");
+
+        session.Select(group.Value.NodeId);
+        var groupedOption = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddSelectOption)
+            as Result<HtmlNode>.Ok;
+        await Assert.That(groupedOption).IsNotNull();
+        await Assert.That(group.Value.Children).Count().IsEqualTo(2);
+
+        var dataList = (session.AddElement("datalist", session.Content.Root.NodeId) as Result<HtmlNode>.Ok)!.Value;
+        session.Select(dataList.NodeId);
+        var suggestedOption = session.ApplySelectedCollectionAction(HtmlCollectionActionKind.AddSelectOption)
+            as Result<HtmlNode>.Ok;
+        await Assert.That(suggestedOption).IsNotNull();
+        await Assert.That(dataList.Children).Count().IsEqualTo(3);
+        await Assert.That(session.StyleCompilationError).IsNull();
     }
 
     [Test]
@@ -476,6 +573,10 @@ public sealed class HtmlPageEditorSessionTests
                     { "type": "bold" }, { "type": "italic" }
                   ]},
                   { "type": "text", "text": " and " },
+                  { "type": "text", "text": "obsolete", "marks": [{ "type": "strike" }] },
+                  { "type": "text", "text": " " },
+                  { "type": "text", "text": "OldApi()", "marks": [{ "type": "code" }] },
+                  { "type": "text", "text": " " },
                   { "type": "text", "text": "documentation", "marks": [{
                     "type": "link",
                     "attrs": { "href": "/docs", "target": "_blank", "rel": "noopener" }
@@ -494,7 +595,7 @@ public sealed class HtmlPageEditorSessionTests
         var editorHtml = converter.ToEditorHtml(session.SelectedNode!) as Result<string>.Ok;
         await Assert.That(editorHtml).IsNotNull();
         await Assert.That(editorHtml!.Value)
-            .IsEqualTo("<p><strong><em>Bold emphasis</em></strong> and <a href=\"/docs\" rel=\"noopener\" target=\"_blank\">documentation</a></p>");
+            .IsEqualTo("<p><strong><em>Bold emphasis</em></strong> and <s>obsolete</s> <code>OldApi()</code> <a href=\"/docs\" rel=\"noopener\" target=\"_blank\">documentation</a></p>");
         await Assert.That(session.CanUndo).IsTrue();
 
         await Assert.That(session.Undo()).IsTypeOf<Result<HtmlPageContent>.Ok>();

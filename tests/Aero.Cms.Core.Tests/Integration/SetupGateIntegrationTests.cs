@@ -17,10 +17,10 @@ using Aero.Core.Http;
 using Aero.Services.Images;
 using NSubstitute;
 using Shouldly;
-using System.Text.RegularExpressions;
 using Orleans;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
+using Radzen;
 
 namespace Aero.Cms.Core.Tests.Integration;
 
@@ -71,83 +71,32 @@ public sealed class SetupGateIntegrationTests
         var html = await response.Content.ReadAsStringAsync();
 
         response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
-        html.ShouldContain("Aero CMS Setup");
-        html.ShouldContain("Administrator access");
-        html.ShouldContain("Starter site metadata");
-        html.ShouldContain("name=\"Input.AdminUserName\"");
-        html.ShouldContain("name=\"Input.AdminEmail\"");
-        html.ShouldContain("name=\"Input.Password\"");
-        html.ShouldContain("name=\"Input.ConfirmPassword\"");
+        html.ShouldContain("System Setup");
+        html.ShouldContain("Welcome to");
+        html.ShouldContain("CMS Main Info");
         html.ShouldContain("name=\"Input.SiteName\"");
         html.ShouldContain("name=\"Input.HomepageTitle\"");
         html.ShouldContain("name=\"Input.BlogName\"");
+        html.ShouldContain("_framework/blazor.web.js");
     }
 
     [Test]
-    public async Task Setup_submit_reaches_the_running_page_model_and_redirects_after_bootstrap()
+    public async Task Setup_component_route_precedes_the_public_page_catch_all()
     {
         await using var harness = new SableTestHarness()
             .WithSchema<SetupStateDocument>().WithSchema<PageDocument>()
             .WithSchema<PostDocument>().WithSchema<ContentSlugDocument>();
         await harness.InitializeAsync();
-
-        var bootstrapper = Substitute.For<ISetupIdentityBootstrapper>();
-        bootstrapper.BootstrapAsync(Arg.Any<SetupIdentityBootstrapRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new SetupIdentityBootstrapResult { CreatedAdmin = true });
-
-        await using var app = await CreateAppAsync(harness, bootstrapper: bootstrapper);
+        await using var app = await CreateAppAsync(harness);
         using var client = app.GetTestClient();
 
-        using var getResponse = await client.GetAsync("/setup?returnUrl=%2Fadmin");
-        var html = await getResponse.Content.ReadAsStringAsync();
-        var token = Regex.Match(html, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"(?<token>[^\"]+)\"")
-            .Groups["token"]
-            .Value;
-        var antiforgeryCookie = getResponse.Headers.GetValues("Set-Cookie")
-            .Select(value => value.Split(';', 2)[0])
-            .First(cookie => cookie.StartsWith(".AspNetCore.Antiforgery.", StringComparison.Ordinal));
+        using var response = await client.GetAsync("/setup");
+        var html = await response.Content.ReadAsStringAsync();
 
-        token.ShouldNotBeNullOrWhiteSpace();
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/setup?returnUrl=%2Fadmin")
-        {
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["__RequestVerificationToken"] = token,
-                ["Input.AdminUserName"] = "admin.user",
-                ["Input.AdminEmail"] = "admin@example.com",
-                ["Input.Password"] = "CorrectHorseBattery1!",
-                ["Input.ConfirmPassword"] = "CorrectHorseBattery1!",
-                ["Input.SiteName"] = "Aero CMS",
-                ["Input.HomepageTitle"] = "Welcome to Aero CMS",
-                ["Input.BlogName"] = "Field Notes"
-            })
-        };
-        request.Headers.Add("Cookie", antiforgeryCookie);
-
-        using var response = await client.SendAsync(request);
-
-        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Redirect);
-        response.Headers.Location.ShouldNotBeNull();
-        response.Headers.Location!.OriginalString.ShouldBe("/admin");
-
-        // Verify setup state was persisted in the real DB
-        var state = await harness.Session.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId);
-        state.ShouldNotBeNull();
-        state!.IsComplete.ShouldBeTrue();
-
-        // Verify pages were created
-        (await harness.Session.Query<PageDocument>().Where(p => p.Slug == "/").AnyAsync()).ShouldBeTrue();
-        (await harness.Session.Query<PageDocument>().Where(p => p.Slug == "blog").AnyAsync()).ShouldBeTrue();
-
-        // Verify blog posts were created
-        var postCount = await harness.Session.Query<PostDocument>().CountAsync();
-        postCount.ShouldBe(3);
-
-        await bootstrapper.Received(1)
-            .BootstrapAsync(Arg.Is<SetupIdentityBootstrapRequest>(request =>
-                request.AdminUserName == "admin.user" &&
-                request.AdminEmail == "admin@example.com"), Arg.Any<CancellationToken>());
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        html.ShouldContain("System Setup");
+        html.ShouldContain("_framework/blazor.web.js");
+        html.ShouldNotContain("data-aero-page-styles");
     }
 
     [Test]
@@ -207,6 +156,9 @@ public sealed class SetupGateIntegrationTests
         builder.Services.AddAuthentication();
         builder.Services.AddAuthorization();
         builder.Services.AddHealthChecks();
+        builder.Services.AddRazorComponents()
+            .AddInteractiveServerComponents();
+        builder.Services.AddRadzenComponents();
         builder.Services.AddRazorPages()
             .AddApplicationPart(typeof(SetupModule).Assembly);
 
@@ -255,6 +207,8 @@ public sealed class SetupGateIntegrationTests
         }
 
         app.MapRazorPages();
+        app.MapRazorComponents<Aero.Cms.Modules.Setup.Areas.Setup.Pages.SetupRoot>()
+            .AddInteractiveServerRenderMode();
         app.MapGet("/", () => Results.Ok("home"));
         app.MapGet("/admin", () => Results.Ok("admin"));
         app.MapGet("/error", () => Results.Ok("error"));

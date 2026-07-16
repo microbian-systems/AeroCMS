@@ -89,7 +89,7 @@ protected string Author       { get; set; } = "Admin";
             .ToArray();
 
     protected HtmlPageEditorSession HtmlEditor { get; private set; }
-        = CreateHtmlEditorSession(new HtmlPageContent());
+        = CreateHtmlEditorSession(new HtmlPageContent(), new NativeStyleProfile());
 
     protected HtmlElementDefinition? SelectedHtmlDefinition =>
         HtmlEditor.SelectedNode is { Kind: HtmlNodeKind.Element } selected
@@ -105,9 +105,18 @@ protected string Author       { get; set; } = "Admin";
 
     protected bool HtmlMediaSelectorOpen { get; private set; }
 
+    protected bool HtmlFragmentImportOpen { get; private set; }
+
+    protected string? HtmlFragmentImportError { get; private set; }
+
     private HtmlMediaTargetKind? _htmlMediaTarget;
 
-    private static HtmlPageEditorSession CreateHtmlEditorSession(HtmlPageContent content) => new(
+    private IStyleProfile? _siteStyleProfile;
+    private bool _styleProfileResolutionAttempted;
+
+    private static HtmlPageEditorSession CreateHtmlEditorSession(
+        HtmlPageContent content,
+        IStyleProfile styleProfile) => new(
         content,
         HtmlCatalog,
         HtmlContentPolicy,
@@ -118,7 +127,13 @@ protected string Author       { get; set; } = "Admin";
         new HtmlLayoutStarterFactory(HtmlCatalog),
         new HtmlComponentTemplateFactory(HtmlCatalog),
         new NativeCssStyleCompiler(),
-        new NativeStyleProfile());
+        styleProfile);
+
+    private static IHtmlFragmentImporter CreateHtmlFragmentImporter() => new HtmlFragmentImporter(
+        HtmlCatalog,
+        new HtmlAttributePolicy(),
+        HtmlContentPolicy,
+        new HtmlContentValidator(HtmlCatalog, HtmlContentPolicy, new HtmlAttributePolicy()));
 
     // UI state
         /// <summary>
@@ -305,12 +320,26 @@ protected List<ToastMessage> Toasts { get; set; } = [];
     // ──────────────────────────────────────────────────────────
 
     private long? _previousParentId;
+    private long? _loadedPageId;
+    private bool _isPersistedPageLoaded;
 
         /// <summary>
     /// OnParametersSetAsync method.
     /// </summary>
 protected override async Task OnParametersSetAsync()
     {
+        // Route parameters can change while this component remains alive (for
+        // example, after creating a page and replacing /editor with
+        // /editor/{id}). Loading in OnInitializedAsync misses that transition
+        // and leaves an interactive WASM instance holding the new ID with the
+        // default "Homepage" draft. Always synchronize routed resource state
+        // from OnParametersSetAsync instead.
+        if (Id is { } pageId && _loadedPageId != pageId)
+        {
+            _isPersistedPageLoaded = false;
+            await LoadPageAsync(pageId);
+        }
+
         if (IsKnownTab(RequestedTab))
         {
             ActiveTab = NormalizeTab(RequestedTab);
@@ -332,12 +361,9 @@ protected override async Task OnInitializedAsync()
 
         await ResolvePreviewBaseUriAsync();
         CurrentSite = await ResolveCurrentSiteAsync();
+        await EnsureSiteStyleProfileAsync();
 
-        if (Id.HasValue)
-        {
-            await LoadPageAsync(Id.Value);
-        }
-        else
+        if (!Id.HasValue)
         {
             UpdateLastSaved();
         }
@@ -356,6 +382,11 @@ protected override async Task OnInitializedAsync()
         if (result is Result<CmsPageDetail, AeroError>.Ok ok)
         {
             var page = ok.Value;
+            if (!await BindPageOwnerStyleProfileAsync(page.SiteId))
+            {
+                return;
+            }
+
             LoadedPage = page;
             PageTitle = page.Title;
             PageSlug = page.Slug;
@@ -371,10 +402,13 @@ protected override async Task OnInitializedAsync()
             ParentId = page.ParentId;
             
             HtmlEditor = CreateHtmlEditorSession(
-                page.DraftContent ?? new HtmlPageContent());
+                page.DraftContent ?? new HtmlPageContent(),
+                _siteStyleProfile!);
 
             UpdateLastSaved();
             _pageState = PageState.Clean;
+            _loadedPageId = id;
+            _isPersistedPageLoaded = true;
             await LoadPageTranslationsAsync();
             await InvokeAsync(StateHasChanged);
         }
@@ -470,6 +504,7 @@ protected async Task TogglePreview()
         if (PreviewMode)
         {
             HtmlEditor.Select(null);
+            await RefreshPreviewAsync();
         }
 
         await InvokeAsync(StateHasChanged);
@@ -507,6 +542,50 @@ protected async Task TogglePreview()
     {
         var result = HtmlEditor.AddComponent(kind);
         HandleHtmlEditorResult(result, "Component added.");
+        return Task.CompletedTask;
+    }
+
+    protected Task OpenHtmlFragmentImportAsync()
+    {
+        HtmlFragmentImportError = null;
+        HtmlFragmentImportOpen = true;
+        return Task.CompletedTask;
+    }
+
+    protected Task CloseHtmlFragmentImportAsync()
+    {
+        HtmlFragmentImportOpen = false;
+        HtmlFragmentImportError = null;
+        return Task.CompletedTask;
+    }
+
+    protected Task ImportHtmlFragmentAsync(string fragment)
+    {
+        var imported = CreateHtmlFragmentImporter().Import(fragment);
+        switch (imported)
+        {
+            case Result<HtmlPageContent>.Ok ok:
+            {
+                var inserted = HtmlEditor.InsertImportedFragment(ok.Value);
+                if (inserted is Result<IReadOnlyList<HtmlNode>>.Failure failure)
+                {
+                    HtmlFragmentImportError = FormatError(failure.Error);
+                    return Task.CompletedTask;
+                }
+
+                HtmlFragmentImportOpen = false;
+                HtmlFragmentImportError = null;
+                ShowToast("HTML imported.", "success");
+                break;
+            }
+            case Result<HtmlPageContent>.Failure failure:
+                HtmlFragmentImportError = FormatError(failure.Error);
+                break;
+            default:
+                HtmlFragmentImportError = "The HTML fragment could not be imported.";
+                break;
+        }
+
         return Task.CompletedTask;
     }
 
@@ -578,14 +657,14 @@ protected async Task TogglePreview()
     protected Task UndoHtmlChangeAsync()
     {
         var result = HtmlEditor.Undo();
-        HandleHtmlEditorResult(result, null);
+        HandleHtmlEditorResult(result, "Change undone.");
         return Task.CompletedTask;
     }
 
     protected Task RedoHtmlChangeAsync()
     {
         var result = HtmlEditor.Redo();
-        HandleHtmlEditorResult(result, null);
+        HandleHtmlEditorResult(result, "Change redone.");
         return Task.CompletedTask;
     }
 
@@ -740,6 +819,97 @@ protected async Task TogglePreview()
                 ShowToast(FormatError(failure.Error), "error");
                 break;
         }
+    }
+
+    private async Task<bool> BindPageOwnerStyleProfileAsync(long siteId)
+    {
+        if (siteId <= 0)
+        {
+            return FailSiteStyleProfile("The page does not identify an owning site.");
+        }
+
+        if (CurrentSite?.Id != siteId)
+        {
+            var ownerSite = await LoadSiteByIdAsync(siteId);
+            if (ownerSite is null)
+            {
+                return FailSiteStyleProfile(
+                    $"The page's owning site ({siteId}) could not be loaded.");
+            }
+
+            CurrentSite = ownerSite;
+            _siteStyleProfile = null;
+            _styleProfileResolutionAttempted = false;
+            _previewBaseUri = ResolvePreviewBaseUri(ownerSite) ?? NavManager.BaseUri;
+        }
+
+        return await EnsureSiteStyleProfileAsync();
+    }
+
+    private async Task<bool> EnsureSiteStyleProfileAsync()
+    {
+        if (_siteStyleProfile is not null)
+        {
+            return true;
+        }
+
+        if (CurrentSite is null)
+        {
+            CurrentSite = await ResolveCurrentSiteAsync();
+        }
+
+        if (CurrentSite is null)
+        {
+            return FailSiteStyleProfile("Select a site before editing page styles.");
+        }
+
+        if (_styleProfileResolutionAttempted)
+        {
+            return false;
+        }
+
+        _styleProfileResolutionAttempted = true;
+        if (CurrentSite.StyleProfile is null)
+        {
+            return FailSiteStyleProfile(
+                $"Site {CurrentSite.Id} does not have a style profile.");
+        }
+
+        var settings = new StyleProfileSettings
+        {
+            Revision = CurrentSite.StyleProfile.Revision,
+            SmallScreenBreakpointRem = CurrentSite.StyleProfile.SmallScreenBreakpointRem,
+            ColorTokens = (CurrentSite.StyleProfile.ColorTokens ?? [])
+                .Select(static token => new StyleColorToken
+                {
+                    Name = token.Name,
+                    HexValue = token.HexValue
+                })
+                .ToList()
+        };
+
+        var profileResult = NativeStyleProfileFactory.Create(CurrentSite.Id, settings);
+        if (profileResult is Result<NativeStyleProfile, AeroError>.Failure failure)
+        {
+            return FailSiteStyleProfile(
+                $"The selected site's style profile is invalid: {FormatError(failure.Error)}");
+        }
+
+        _siteStyleProfile = ((Result<NativeStyleProfile, AeroError>.Ok)profileResult).Value;
+        HtmlEditor = CreateHtmlEditorSession(HtmlEditor.Content, _siteStyleProfile);
+        HtmlPropertyError = null;
+        return true;
+    }
+
+    private bool FailSiteStyleProfile(string message)
+    {
+        HtmlPropertyError = message;
+        if (!Toasts.Any(toast => string.Equals(toast.Message, message, StringComparison.Ordinal)))
+        {
+            ShowToast(message, "error");
+        }
+
+        return false;
     }
 
     private static string FormatError(AeroError error) => error switch
@@ -1367,6 +1537,7 @@ protected string FormatCulture(string? culture)
         var appCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/app.css");
         var managerCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Shared/aero-manager.css");
         var radzenCss = new Uri(new Uri(baseUri), "_content/Radzen.Blazor/css/standard-base.css");
+        var pagesCss = new Uri(new Uri(baseUri), "_content/Aero.Cms.Modules.Pages/css/pages.css");
 
         return $$"""
             <!DOCTYPE html>
@@ -1378,6 +1549,7 @@ protected string FormatCulture(string? culture)
                 <link rel="stylesheet" href="{{appCss}}">
                 <link rel="stylesheet" href="{{managerCss}}">
                 <link rel="stylesheet" href="{{radzenCss}}">
+                <link rel="stylesheet" href="{{pagesCss}}">
                 <style>
                     html, body { margin: 0; min-height: 100%; background: #fff; }
                     body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -1385,7 +1557,7 @@ protected string FormatCulture(string? culture)
                 </style>
             </head>
             <body>
-                <main class="aero-preview-document">
+                <main class="aero-preview-document aero-page-content">
                     {{content}}
                 </main>
             </body>
@@ -1421,6 +1593,22 @@ protected string FormatCulture(string? culture)
     private async Task SavePageCore(bool showSuccessToast)
     {
         if (IsSaving) return;
+
+        if (!await EnsureSiteStyleProfileAsync())
+        {
+            return;
+        }
+
+        if (Id is { } persistedId && (!_isPersistedPageLoaded || _loadedPageId != persistedId))
+        {
+            await LoadPageAsync(persistedId);
+            if (!_isPersistedPageLoaded || _loadedPageId != persistedId)
+            {
+                ShowToast(L["The page is still loading. Please try again."], "info");
+                return;
+            }
+        }
+
         IsSaving = true;
         await InvokeAsync(StateHasChanged);
 
@@ -1489,6 +1677,8 @@ protected string FormatCulture(string? culture)
                 {
                     Id = createOk.Value.Id;
                     LoadedPage = createOk.Value;
+                    _loadedPageId = Id;
+                    _isPersistedPageLoaded = true;
                     _slugState = SlugState.Locked;  // preserve generated slug going forward
                     _pageState = PageState.Clean;
                     UpdateLastSaved();
@@ -1497,8 +1687,12 @@ protected string FormatCulture(string? culture)
                     {
                         ShowToast(L["Page created successfully"], "success");
                     }
-                    // Update URL without refreshing
-                    // NavManager.NavigateTo($"/manager/page/editor/{Id}", false); 
+
+                    // Replace the transient create URL with the persisted resource URL.
+                    // This keeps refresh/back behavior correct without reloading the WASM editor.
+                    NavManager.NavigateTo(
+                        $"/manager/page/editor/{Id}",
+                        new NavigationOptions { ReplaceHistoryEntry = true });
                 }
                 else if (result is Result<CmsPageDetail, AeroError>.Failure err)
                 {
@@ -1522,6 +1716,16 @@ protected string FormatCulture(string? culture)
     /// </summary>
 protected async Task PublishPage()
     {
+        if (Id is { } persistedId && (!_isPersistedPageLoaded || _loadedPageId != persistedId))
+        {
+            await LoadPageAsync(persistedId);
+            if (!_isPersistedPageLoaded || _loadedPageId != persistedId)
+            {
+                ShowToast(L["The page is still loading. Please try again."], "info");
+                return;
+            }
+        }
+
         if (!Id.HasValue || _pageState == PageState.Dirty)
         {
             await SavePage();
@@ -1537,7 +1741,6 @@ protected async Task PublishPage()
             {
                 PublicationState = ok.Value.PublicationState;
                 _pageState = PageState.Clean;
-                await PagesClient.DeleteDraftAsync(Id.Value);  // clean up draft
                 ShowToast(L["Page published!"], "success");
             }
             else

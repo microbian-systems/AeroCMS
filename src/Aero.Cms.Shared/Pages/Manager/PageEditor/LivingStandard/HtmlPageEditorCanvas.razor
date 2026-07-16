@@ -3,6 +3,7 @@
 <section class="aero-page-canvas" aria-label="Page canvas">
     <p id="aero-page-canvas-instructions" class="pe-visually-hidden">
         Select an element, then use the drag handle or arrow keys to reorder it. Use left and right arrow keys to change nesting.
+        Use Control or Command plus D to duplicate, Delete or Backspace to remove, and Control or Command plus Z to undo.
     </p>
     @if (!string.IsNullOrWhiteSpace(CompiledStyles?.CssText))
     {
@@ -15,11 +16,14 @@
          data-aero-root-node-id="@RootNodeId"
          data-aero-can-have-children="true"
          data-aero-can-accept-selected-inside="@(CanRootAcceptMove ? "true" : "false")"
+         tabindex="-1"
+         aria-describedby="aero-page-canvas-instructions"
          @onclick="ClearSelectionAsync">
         <button class="aero-page-canvas__drag-handle"
                 @ref="_dragHandle"
                 type="button"
                 aria-describedby="aero-page-canvas-instructions"
+                aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Control+D Meta+D Delete Backspace Control+Z Meta+Z Control+Y Meta+Y"
                 aria-label="Drag selected element to reorder. Use arrow keys for keyboard reordering."
                 title="Drag to move · Arrow keys to reorder or nest">
             <span aria-hidden="true">⠿</span>

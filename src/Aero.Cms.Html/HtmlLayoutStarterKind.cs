@@ -8,6 +8,8 @@ public enum HtmlLayoutStarterKind
     OneColumn,
     TwoColumns,
     ThreeColumns,
+    FourColumns,
     Split,
+    HeadingTwoColumns,
     CardGrid
 }

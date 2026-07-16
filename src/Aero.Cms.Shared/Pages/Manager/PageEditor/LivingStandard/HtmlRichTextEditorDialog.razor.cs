@@ -13,9 +13,14 @@ public partial class HtmlRichTextEditorDialog
     private ElementReference _editorElement;
     private ElementReference _closeButton;
     private TiptapEditorInterop? _interop;
+    private DotNetObjectReference<HtmlRichTextEditorDialog>? _callbackReference;
     private string? _initialHtml;
     private string? _localError;
     private string? _linkUrl;
+    private bool _boldActive;
+    private bool _italicActive;
+    private bool _strikeActive;
+    private bool _codeActive;
     private bool _isReady;
     private bool _isSaving;
 
@@ -66,7 +71,8 @@ public partial class HtmlRichTextEditorDialog
         try
         {
             _interop = new TiptapEditorInterop(JS);
-            await _interop.InitializeAsync(_editorElement, _initialHtml);
+            _callbackReference = DotNetObjectReference.Create(this);
+            await _interop.InitializeAsync(_editorElement, _initialHtml, _callbackReference);
             _isReady = true;
             await _closeButton.FocusAsync();
             await InvokeAsync(StateHasChanged);
@@ -77,6 +83,17 @@ public partial class HtmlRichTextEditorDialog
             await InvokeAsync(StateHasChanged);
         }
     }
+
+    [JSInvokable]
+    public Task OnFormattingStateChanged(TiptapFormattingState state) =>
+        InvokeAsync(() =>
+        {
+            _boldActive = state.Bold;
+            _italicActive = state.Italic;
+            _strikeActive = state.Strike;
+            _codeActive = state.Code;
+            StateHasChanged();
+        });
 
     protected async Task ExecuteAsync(string command, string? argument = null)
     {
@@ -145,11 +162,29 @@ public partial class HtmlRichTextEditorDialog
         _ => error.ToString()
     };
 
+    private static string ToggleButtonClass(string styleClass, bool active) =>
+        active ? $"{styleClass} is-active" : styleClass;
+
+    private static string Pressed(bool active) => active ? "true" : "false";
+
     public async ValueTask DisposeAsync()
     {
-        if (_interop is not null)
+        try
         {
-            await _interop.DisposeAsync();
+            if (_interop is not null)
+            {
+                await _interop.DisposeAsync();
+            }
+        }
+        finally
+        {
+            _callbackReference?.Dispose();
         }
     }
+
+    public sealed record TiptapFormattingState(
+        bool Bold,
+        bool Italic,
+        bool Strike,
+        bool Code);
 }

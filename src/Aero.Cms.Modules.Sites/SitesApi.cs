@@ -45,6 +45,7 @@ public static class SitesApi
         group.MapGet("/{id:long}", GetSiteById);
         group.MapPost("/", CreateSite);
         group.MapPut("/{id:long}", UpdateSite);
+        group.MapPut("/{id:long}/style-profile", UpdateSiteStyleProfile);
         group.MapDelete("/{id:long}", DeleteSite);
 
         // ── Client error reporting ──
@@ -177,6 +178,7 @@ public static class SitesApi
             IsEnabled = some.Value.IsEnabled,
             DefaultCulture = some.Value.DefaultCulture,
             SupportedCultures = NormalizeCultureSettings(some.Value.DefaultCulture, some.Value.SupportedCultures).SupportedCultures,
+            StyleProfile = SiteStyleProfileMapper.ToViewModel(some.Value.StyleProfile),
             CreatedOn = some.Value.CreatedOn,
             ModifiedOn = some.Value.ModifiedOn,
             CreatedBy = some.Value.CreatedBy,
@@ -290,6 +292,28 @@ public static class SitesApi
             await siteService.ReplaceHostsAsync(site.Id, allHosts);
 
         return Results.Ok(site);
+    }
+
+    private static async Task<IResult> UpdateSiteStyleProfile(
+        long id,
+        [FromBody] UpdateSiteStyleProfileRequest request,
+        [FromServices] ISiteStyleProfileService styleProfileService,
+        CancellationToken cancellationToken)
+    {
+        var result = await styleProfileService.UpdateAsync(id, request, cancellationToken).ConfigureAwait(false);
+        return result switch
+        {
+            Result<SiteStyleProfileViewModel, AeroError>.Ok ok => Results.Ok(ok.Value),
+            Result<SiteStyleProfileViewModel, AeroError>.Failure { Error: AeroError.NotFound notFound } =>
+                Results.NotFound(new { message = notFound.msg }),
+            Result<SiteStyleProfileViewModel, AeroError>.Failure { Error: AeroError.Conflict conflict } =>
+                Results.Conflict(new { message = conflict.msg }),
+            Result<SiteStyleProfileViewModel, AeroError>.Failure { Error: AeroError.Validation validation } =>
+                Results.BadRequest(new { errors = validation.Errors }),
+            Result<SiteStyleProfileViewModel, AeroError>.Failure { Error: var error } =>
+                Results.Problem(error.ToString(), statusCode: StatusCodes.Status500InternalServerError),
+            _ => Results.Problem("Unexpected style-profile update result.")
+        };
     }
 
     private static async Task<IResult> DeleteSite(

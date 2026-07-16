@@ -1,8 +1,5 @@
 using Aero.Cms.Abstractions.Blocks.Neo.Styles;
-using Aero.Cms.Abstractions.Blocks.Neo;
-using Aero.Cms.Abstractions.Blocks.Serialization;
 using System.Globalization;
-using System.Text.Json;
 using TUnit.Core;
 
 namespace Aero.Cms.Abstractions.Tests;
@@ -120,39 +117,4 @@ public sealed class ResponsiveNodeStyleTests
         await Assert.That(result.IsValid).IsTrue();
     }
 
-    [Test]
-    public async Task BlockJsonContext_RoundTripsResponsiveNodeStyle()
-    {
-        var node = new NeoPageNode
-        {
-            NodeId = "node-1",
-            CatalogId = "ui.container",
-            Kind = NeoPageNodeKind.Container,
-            Style = new ResponsiveNodeStyle
-            {
-                Base = new NodeStyle
-                {
-                    Width = new CssLength(100, CssLengthUnit.Percent),
-                    Direction = ContentDirection.RightToLeft
-                },
-                Mobile = new NodeStyleOverride
-                {
-                    Width = new CssLength(20, CssLengthUnit.Rem)
-                }
-            }
-        };
-
-        var json = JsonSerializer.Serialize(
-            node,
-            BlockJsonContext.Default.NeoPageNode);
-        var roundTripped = JsonSerializer.Deserialize(
-            json,
-            BlockJsonContext.Default.NeoPageNode);
-
-        await Assert.That(roundTripped).IsNotNull();
-        await Assert.That(roundTripped!.Style.Base.Direction)
-            .IsEqualTo(ContentDirection.RightToLeft);
-        await Assert.That(roundTripped.Style.Mobile!.Width)
-            .IsEqualTo(new CssLength(20, CssLengthUnit.Rem));
-    }
 }

@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Posts;
@@ -23,15 +22,7 @@ public sealed class PostCultureForkerTests
             SeoDescription = "Source SEO description",
             PublicationState = ContentPublicationState.Published,
             PublishedOn = DateTimeOffset.UtcNow,
-            Content =
-            [
-                new MarkdownBlock
-                {
-                    Id = 1234,
-                    Content = "Source markdown",
-                    Order = 0
-                }
-            ],
+            MarkdownContent = "Source markdown",
             TagIds = [1, 2],
             CategoryIds = [3],
             AuthorId = 4,
@@ -49,12 +40,9 @@ public sealed class PostCultureForkerTests
         await Assert.That(fork.Title).IsEqualTo("Hello World");
         await Assert.That(fork.PublicationState).IsEqualTo(ContentPublicationState.Draft);
         await Assert.That(fork.PublishedOn).IsNull();
-        await Assert.That(fork.Content.Count).IsEqualTo(1);
-        await Assert.That(fork.Content[0]).IsAssignableTo<MarkdownBlock>();
-        await Assert.That(((MarkdownBlock)fork.Content[0]).Content).IsEqualTo("Source markdown");
-        await Assert.That(fork.Content[0].Id).IsNotEqualTo(1234);
-        await Assert.That(fork.TagIds).IsEqualTo([1, 2]);
-        await Assert.That(fork.CategoryIds).IsEqualTo([3]);
+        await Assert.That(fork.MarkdownContent).IsEqualTo("Source markdown");
+        await Assert.That(fork.TagIds).IsEquivalentTo([1L, 2L]);
+        await Assert.That(fork.CategoryIds).IsEquivalentTo([3L]);
     }
 
     [Test]

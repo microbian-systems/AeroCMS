@@ -1,54 +1,96 @@
 @namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
 
 <section class="aero-element-palette" aria-label="Page elements">
+    <div class="aero-element-palette__section">
+        <h3>Import</h3>
+        <div class="aero-element-palette__grid">
+            <button type="button"
+                    class="aero-element-palette__item aero-element-palette__item--component"
+                    title="Import a validated static HTML fragment into this page"
+                    @onclick="RequestImportAsync">
+                <span class="aero-element-palette__component-icon" aria-hidden="true">&lt;/&gt;</span>
+                <span>Import HTML</span>
+            </button>
+        </div>
+    </div>
+
     <div class="aero-element-palette__search">
         <label for="aero-element-search">Add content</label>
         <input id="aero-element-search"
                type="search"
-               placeholder="Find an element"
+               placeholder="Find content"
                @bind="SearchText"
                @bind:event="oninput" />
+        <p class="aero-element-palette__guidance" role="status">
+            @if (HasSearch)
+            {
+                <span>Showing @VisibleItemCount matching options.</span>
+            }
+            else
+            {
+                <span>Start with a template, then select any part on the canvas to make it your own.</span>
+            }
+        </p>
     </div>
 
-    <div class="aero-element-palette__section">
-        <h3>Components</h3>
-        <div class="aero-element-palette__grid">
-            @foreach (var option in ComponentOptions)
-            {
-                <button @key="option.Kind"
-                        type="button"
-                        class="aero-element-palette__item aero-element-palette__item--component"
-                        title="@($"{option.Description}. Click to add or drag onto the page.")"
-                        data-aero-palette-kind="component"
-                        data-aero-palette-value="@option.Kind"
-                        data-aero-palette-label="@option.Label"
-                        @onclick="() => RequestComponentAsync(option.Kind)">
-                    <span class="aero-element-palette__component-icon" aria-hidden="true">@option.Icon</span>
-                    <span>@option.Label</span>
-                </button>
-            }
-        </div>
-    </div>
+    @if (FilteredComponentGroups.Count > 0)
+    {
+        @foreach (var group in FilteredComponentGroups)
+        {
+            <div @key="ComponentGroupKey(group.Category)" class="aero-element-palette__section">
+                <h3>@group.Category</h3>
+                <div class="aero-element-palette__grid">
+                    @foreach (var option in group.Options)
+                    {
+                        <button @key="option.Kind"
+                                type="button"
+                                class="aero-element-palette__item aero-element-palette__item--component"
+                                title="@($"{option.Description}. Click to add or drag onto the page.")"
+                                data-aero-palette-kind="component"
+                                data-aero-palette-value="@option.Kind"
+                                data-aero-palette-label="@option.Label"
+                                data-aero-palette-category="@option.Category"
+                                @onclick="() => RequestComponentAsync(option.Kind)">
+                            <span class="aero-element-palette__component-icon" aria-hidden="true">@option.Icon</span>
+                            <span>@option.Label</span>
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+        @if (CanToggleComponents)
+        {
+            <button type="button"
+                    class="aero-element-palette__show-more"
+                    aria-expanded="@_showAllComponents"
+                    @onclick="ToggleComponents">
+                @(_showAllComponents ? "Show fewer components" : $"Show all {ComponentOptions.Count} components")
+            </button>
+        }
+    }
 
-    <div class="aero-element-palette__section">
-        <h3>Layouts</h3>
-        <div class="aero-element-palette__grid">
-            @foreach (var option in LayoutOptions)
-            {
-                <button @key="option.Kind"
-                        type="button"
-                        class="aero-element-palette__item aero-element-palette__item--layout"
-                        title="@($"{option.Description}. Click to add or drag onto the page.")"
-                        data-aero-palette-kind="layout"
-                        data-aero-palette-value="@option.Kind"
-                        data-aero-palette-label="@option.Label"
-                        @onclick="() => RequestLayoutAsync(option.Kind)">
-                    <span class="aero-element-palette__layout-icon" aria-hidden="true">@option.Icon</span>
-                    <span>@option.Label</span>
-                </button>
-            }
+    @if (FilteredLayoutOptions.Count > 0)
+    {
+        <div class="aero-element-palette__section">
+            <h3>Layouts</h3>
+            <div class="aero-element-palette__grid">
+                @foreach (var option in FilteredLayoutOptions)
+                {
+                    <button @key="option.Kind"
+                            type="button"
+                            class="aero-element-palette__item aero-element-palette__item--layout"
+                            title="@($"{option.Description}. Click to add or drag onto the page.")"
+                            data-aero-palette-kind="layout"
+                            data-aero-palette-value="@option.Kind"
+                            data-aero-palette-label="@option.Label"
+                            @onclick="() => RequestLayoutAsync(option.Kind)">
+                        <span class="aero-element-palette__layout-icon" aria-hidden="true">@option.Icon</span>
+                        <span>@option.Label</span>
+                    </button>
+                }
+            </div>
         </div>
-    </div>
+    }
 
     <div class="aero-element-palette__element-heading">
         <div>
@@ -63,15 +105,15 @@
         </button>
     </div>
 
-    @if (FilteredGroups.Count == 0)
+    @if (HasNoMatches)
     {
-        <div class="aero-element-palette__empty">No elements match “@SearchText”.</div>
+        <div class="aero-element-palette__empty">No content matches “@SearchText”.</div>
     }
-    else
+    else if (FilteredGroups.Count > 0)
     {
         @foreach (var group in FilteredGroups)
         {
-            <div @key="group.Category" class="aero-element-palette__section">
+            <div @key="ElementGroupKey(group.Category)" class="aero-element-palette__section">
                 <h3>@group.Category</h3>
                 <div class="aero-element-palette__grid">
                     @foreach (var element in group.Elements)

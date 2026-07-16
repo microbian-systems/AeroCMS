@@ -32,6 +32,25 @@ public sealed class HtmlTreeEditorTests
     }
 
     [Test]
+    public async Task Insert_children_commits_a_fragment_as_one_atomic_undoable_change()
+    {
+        var content = new HtmlPageContent();
+        var editor = new HtmlTreeEditor(content, new HtmlContentModelPolicy(Catalog));
+        var first = HtmlNode.CreateElement("section");
+        var second = HtmlNode.CreateElement("section");
+
+        var inserted = editor.InsertChildren(content.Root.NodeId, [first, second]);
+
+        await Assert.That(inserted).IsTypeOf<Result<IReadOnlyList<HtmlNode>>.Ok>();
+        await Assert.That(editor.Content.Root.Children).Count().IsEqualTo(2);
+
+        var undo = editor.Undo();
+
+        await Assert.That(undo).IsTypeOf<Result<HtmlPageContent>.Ok>();
+        await Assert.That(editor.Content.Root.Children).IsEmpty();
+    }
+
+    [Test]
     public async Task Move_rejects_a_destination_that_violates_the_content_model()
     {
         var content = new HtmlPageContent();

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" role="img" aria-labelledby="title">
+  <title id="title">Warm abstract gallery placeholder</title>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7c2d12"/><stop offset="0.5" stop-color="#ea580c"/><stop offset="1" stop-color="#facc15"/></linearGradient></defs>
+  <rect width="900" height="700" fill="url(#g)"/>
+  <path d="M-80 500C140 250 310 640 510 370S810 170 980 310" fill="none" stroke="#fff" stroke-width="90" stroke-linecap="round" opacity="0.24"/>
+  <circle cx="190" cy="155" r="78" fill="#fff7ed" opacity="0.55"/>
+  <circle cx="720" cy="560" r="135" fill="#fff" opacity="0.2"/>
+</svg>

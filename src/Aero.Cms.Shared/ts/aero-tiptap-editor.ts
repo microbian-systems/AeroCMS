@@ -7,6 +7,8 @@ type TiptapChain = {
   focus(): TiptapChain;
   toggleBold(): TiptapChain;
   toggleItalic(): TiptapChain;
+  toggleStrike(): TiptapChain;
+  toggleCode(): TiptapChain;
   undo(): TiptapChain;
   redo(): TiptapChain;
   setLink(attributes: { href: string }): TiptapChain;
@@ -18,7 +20,23 @@ type TiptapEditor = {
   chain(): TiptapChain;
   commands: { setHardBreak(): boolean };
   getJSON(): unknown;
+  isActive(name: string): boolean;
   destroy(): void;
+};
+
+type FormattingState = {
+  bold: boolean;
+  italic: boolean;
+  strike: boolean;
+  code: boolean;
+};
+
+type DotNetCallback = {
+  invokeMethodAsync(method: string, state: FormattingState): Promise<void>;
+};
+
+type TiptapEditorEvent = {
+  editor: TiptapEditor;
 };
 
 type ConfigurableExtension = {
@@ -47,9 +65,32 @@ async function loadTiptap(): Promise<{
   };
 }
 
-export async function initialize(element: HTMLElement, content: string): Promise<string> {
+export async function initialize(
+  element: HTMLElement,
+  content: string,
+  dotNetCallback: DotNetCallback,
+): Promise<string> {
   const { Editor, StarterKit, Link } = await loadTiptap();
   let editor: TiptapEditor;
+  let lastFormattingState: string | null = null;
+
+  const reportFormattingState = ({ editor: currentEditor }: TiptapEditorEvent): void => {
+    const state: FormattingState = {
+      bold: currentEditor.isActive('bold'),
+      italic: currentEditor.isActive('italic'),
+      strike: currentEditor.isActive('strike'),
+      code: currentEditor.isActive('code'),
+    };
+    const serialized = JSON.stringify(state);
+    if (serialized === lastFormattingState) {
+      return;
+    }
+
+    lastFormattingState = serialized;
+    void dotNetCallback
+      .invokeMethodAsync('OnFormattingStateChanged', state)
+      .catch((error: unknown) => console.error('Aero Tiptap formatting-state update failed.', error));
+  };
 
   editor = new Editor({
     element,
@@ -59,13 +100,12 @@ export async function initialize(element: HTMLElement, content: string): Promise
       StarterKit.configure({
         blockquote: false,
         bulletList: false,
-        code: false,
         codeBlock: false,
         heading: false,
         horizontalRule: false,
+        link: false,
         listItem: false,
         orderedList: false,
-        strike: false,
       }),
       Link.configure({
         autolink: true,
@@ -85,6 +125,9 @@ export async function initialize(element: HTMLElement, content: string): Promise
         return editor.commands.setHardBreak();
       },
     },
+    onCreate: reportFormattingState,
+    onSelectionUpdate: reportFormattingState,
+    onTransaction: reportFormattingState,
   });
 
   const handle = crypto.randomUUID();
@@ -101,6 +144,10 @@ export function execute(handle: string, command: string, argument?: string): boo
       return chain.toggleBold().run();
     case 'italic':
       return chain.toggleItalic().run();
+    case 'strike':
+      return chain.toggleStrike().run();
+    case 'code':
+      return chain.toggleCode().run();
     case 'undo':
       return chain.undo().run();
     case 'redo':

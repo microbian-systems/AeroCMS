@@ -15,9 +15,26 @@ async function loadTiptap() {
         Link: (linkModule.Link ?? linkModule.default),
     };
 }
-export async function initialize(element, content) {
+export async function initialize(element, content, dotNetCallback) {
     const { Editor, StarterKit, Link } = await loadTiptap();
     let editor;
+    let lastFormattingState = null;
+    const reportFormattingState = ({ editor: currentEditor }) => {
+        const state = {
+            bold: currentEditor.isActive('bold'),
+            italic: currentEditor.isActive('italic'),
+            strike: currentEditor.isActive('strike'),
+            code: currentEditor.isActive('code'),
+        };
+        const serialized = JSON.stringify(state);
+        if (serialized === lastFormattingState) {
+            return;
+        }
+        lastFormattingState = serialized;
+        void dotNetCallback
+            .invokeMethodAsync('OnFormattingStateChanged', state)
+            .catch((error) => console.error('Aero Tiptap formatting-state update failed.', error));
+    };
     editor = new Editor({
         element,
         content,
@@ -26,13 +43,12 @@ export async function initialize(element, content) {
             StarterKit.configure({
                 blockquote: false,
                 bulletList: false,
-                code: false,
                 codeBlock: false,
                 heading: false,
                 horizontalRule: false,
+                link: false,
                 listItem: false,
                 orderedList: false,
-                strike: false,
             }),
             Link.configure({
                 autolink: true,
@@ -51,6 +67,9 @@ export async function initialize(element, content) {
                 return editor.commands.setHardBreak();
             },
         },
+        onCreate: reportFormattingState,
+        onSelectionUpdate: reportFormattingState,
+        onTransaction: reportFormattingState,
     });
     const handle = crypto.randomUUID();
     editors.set(handle, editor);
@@ -64,6 +83,10 @@ export function execute(handle, command, argument) {
             return chain.toggleBold().run();
         case 'italic':
             return chain.toggleItalic().run();
+        case 'strike':
+            return chain.toggleStrike().run();
+        case 'code':
+            return chain.toggleCode().run();
         case 'undo':
             return chain.undo().run();
         case 'redo':

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title description">
+  <title id="title">Abstract dark call-to-action placeholder</title>
+  <desc id="description">A dark indigo field with luminous geometric forms.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#020617"/>
+      <stop offset="0.55" stop-color="#312e81"/>
+      <stop offset="1" stop-color="#581c87"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#38bdf8" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#c4b5fd"/>
+      <stop offset="1" stop-color="#f0abfc" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#background)"/>
+  <g fill="none" stroke="url(#line)">
+    <circle cx="800" cy="450" r="285" stroke-width="3"/>
+    <circle cx="800" cy="450" r="205" stroke-width="2" opacity="0.7"/>
+    <path d="M0 220H1600M0 680H1600" opacity="0.35"/>
+    <path d="M230 0L650 900M1370 0L950 900" opacity="0.3"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="800" cy="165" r="10" opacity="0.8"/>
+    <circle cx="1085" cy="450" r="8" opacity="0.65"/>
+    <circle cx="800" cy="735" r="12" opacity="0.75"/>
+    <circle cx="515" cy="450" r="7" opacity="0.6"/>
+  </g>
+</svg>

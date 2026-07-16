@@ -35,7 +35,7 @@ public interface IPreviewHttpClient
     /// <summary>
     /// Renders an unsaved blog post document to an HTML fragment.
     /// </summary>
-    Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(IReadOnlyList<BlockBase> content, CancellationToken ct = default);
+    Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(string markdownContent, CancellationToken ct = default);
 
     /// <summary>
     /// Renders an unsaved block to an HTML fragment.
@@ -80,11 +80,11 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
     }
 
     /// <inheritdoc />
-    public async Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(IReadOnlyList<BlockBase> content, CancellationToken ct = default)
+    public async Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(string markdownContent, CancellationToken ct = default)
     {
         var result = await PostAsync<PreviewBlogPostFragmentRequest, PreviewBlogPostFragmentResponse>(
             "blog-posts/render-fragment",
-            new PreviewBlogPostFragmentRequest(content),
+            new PreviewBlogPostFragmentRequest(markdownContent),
             ct);
 
         if (result is Result<PreviewBlogPostFragmentResponse, AeroError>.Ok ok)

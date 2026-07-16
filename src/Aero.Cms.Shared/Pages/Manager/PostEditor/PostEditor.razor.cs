@@ -461,7 +461,7 @@ public void Dispose()
             LoadedPost = post;
             PostTitle = post.Title;
             PostSlug = post.Slug;
-            Content = ExtractMarkdownContent(post.Content);
+            Content = post.MarkdownContent;
             _contentInitialized = true;
             Excerpt = post.Excerpt ?? string.Empty;
             SeoTitle = post.SeoTitle ?? string.Empty;
@@ -480,14 +480,6 @@ public void Dispose()
         {
             ShowToast("Error loading post", "error");
         }
-    }
-
-    private static string ExtractMarkdownContent(List<BlockBase>? blocks)
-    {
-        var markdownBlock = blocks?
-            .OfType<MarkdownBlock>()
-            .FirstOrDefault();
-        return markdownBlock?.Content ?? string.Empty;
     }
 
     // ──────────────────────────────────────────────────────────
@@ -643,8 +635,7 @@ protected async Task TogglePreview()
 
         try
         {
-            var blocks = ContentToBlocks();
-            var result = await PreviewClient.RenderBlogPostFragmentAsync(blocks, cancellationToken);
+            var result = await PreviewClient.RenderBlogPostFragmentAsync(Content, cancellationToken);
             switch (result)
             {
                 case Result<string, AeroError>.Ok ok:
@@ -670,15 +661,6 @@ protected async Task TogglePreview()
             IsPreviewRendering = false;
             await InvokeAsync(StateHasChanged);
         }
-    }
-
-    private IReadOnlyList<BlockBase> ContentToBlocks()
-    {
-        var currentContent = Content;
-        if (string.IsNullOrWhiteSpace(currentContent))
-            return [];
-
-        return [new MarkdownBlock { Content = currentContent }];
     }
 
     private static string BuildPreviewFrameDocument(string? html, string baseUri, IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L)

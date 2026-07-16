@@ -43,6 +43,7 @@ const DROP_CLASSES = [
   'aero-sort-drop-inside',
 ] as const;
 const DRAG_THRESHOLD = 5;
+const ON_EDITOR_COMMAND_REQUESTED = 'OnEditorCommandRequested';
 
 export function initialize(
   surface: HTMLElement,
@@ -103,8 +104,12 @@ export function initialize(
     return node && surface.contains(node) ? node : null;
   };
 
-  const proposeDrop = (event: PointerEvent, source: HTMLElement | null): DropProposal | null => {
-    const pointedElement = document.elementFromPoint(event.clientX, event.clientY);
+  const proposeDrop = (
+    clientX: number,
+    clientY: number,
+    source: HTMLElement | null,
+  ): DropProposal | null => {
+    const pointedElement = document.elementFromPoint(clientX, clientY);
     const target = closestNode(pointedElement);
 
     if (target) {
@@ -119,7 +124,7 @@ export function initialize(
 
       const rect = target.getBoundingClientRect();
       const verticalRatio = rect.height > 0
-        ? Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height))
+        ? Math.min(1, Math.max(0, (clientY - rect.top) / rect.height))
         : 0.5;
       let placement: Placement;
       const canAcceptAsSibling = target.dataset.aeroCanAcceptSelectedAsSibling === 'true';
@@ -141,10 +146,10 @@ export function initialize(
     }
 
     const surfaceRect = surface.getBoundingClientRect();
-    const isInsideSurface = event.clientX >= surfaceRect.left
-      && event.clientX <= surfaceRect.right
-      && event.clientY >= surfaceRect.top
-      && event.clientY <= surfaceRect.bottom;
+    const isInsideSurface = clientX >= surfaceRect.left
+      && clientX <= surfaceRect.right
+      && clientY >= surfaceRect.top
+      && clientY <= surfaceRect.bottom;
     const rootNodeId = surface.dataset.aeroRootNodeId;
 
     return isInsideSurface
@@ -235,7 +240,7 @@ export function initialize(
       beginDragging(activeDrag);
     }
 
-    activeDrag.proposal = proposeDrop(event, activeDrag.source);
+    activeDrag.proposal = proposeDrop(event.clientX, event.clientY, activeDrag.source);
     showDropProposal(activeDrag.proposal);
   };
 
@@ -370,7 +375,7 @@ export function initialize(
       dragHandle.classList.remove('is-visible');
     }
 
-    activePaletteDrag.proposal = proposeDrop(event, null);
+    activePaletteDrag.proposal = proposeDrop(event.clientX, event.clientY, null);
     showDropProposal(activePaletteDrag.proposal);
   };
 
@@ -380,6 +385,57 @@ export function initialize(
     }
 
     const completedDrag = activePaletteDrag;
+    const distance = Math.hypot(
+      event.clientX - completedDrag.startX,
+      event.clientY - completedDrag.startY,
+    );
+
+    // The Blazor content-policy callback can finish after a quick pointer
+    // gesture. Preserve the validated release location instead of dropping the
+    // gesture merely because the callback was still in flight at pointer-up.
+    if (distance >= DRAG_THRESHOLD
+      && (!completedDrag.ready || completedDrag.proposal === null)) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressedPaletteSource = completedDrag.source;
+      suppressPaletteClickUntil = performance.now() + 300;
+      const releaseX = event.clientX;
+      const releaseY = event.clientY;
+      cleanupPaletteDrag(false);
+
+      void (async (): Promise<void> => {
+        let inserted = false;
+        try {
+          if (await completedDrag.preparation) {
+            // The interop result and the render batch are separate browser
+            // turns. Allow the validated drop-zone attributes to reach the DOM
+            // before resolving the preserved release point.
+            await new Promise<void>((resolve) => requestAnimationFrame(
+              () => requestAnimationFrame(() => resolve()),
+            ));
+            const proposal = proposeDrop(releaseX, releaseY, null);
+            if (proposal) {
+              await dotNetCallback.invokeMethodAsync(
+                'OnPaletteInsertRequested',
+                completedDrag.itemKind,
+                completedDrag.itemValue,
+                proposal.targetNodeId,
+                proposal.placement,
+              );
+              inserted = true;
+            }
+          }
+        } catch (error: unknown) {
+          console.error('Aero palette insertion failed.', error);
+        } finally {
+          if (!inserted) {
+            await dotNetCallback.invokeMethodAsync('OnPaletteDragEnded');
+          }
+        }
+      })().catch((error: unknown) => console.error('Aero palette drag cleanup failed.', error));
+      return;
+    }
+
     const shouldInsert = completedDrag.dragging && completedDrag.proposal !== null;
     if (shouldInsert) {
       event.preventDefault();
@@ -493,6 +549,28 @@ export function initialize(
     target instanceof Element
     && target.closest('input, textarea, select, [contenteditable="true"]') !== null;
 
+  const restoreCommandFocus = (): void => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      scheduleHandlePosition();
+      if (selectedNode()) {
+        dragHandle.focus({ preventScroll: true });
+      } else {
+        surface.focus({ preventScroll: true });
+      }
+    }));
+  };
+
+  const requestEditorCommand = async (
+    command: 'undo' | 'redo' | 'duplicate' | 'delete',
+  ): Promise<void> => {
+    try {
+      await dotNetCallback.invokeMethodAsync(ON_EDITOR_COMMAND_REQUESTED, command);
+      restoreCommandFocus();
+    } catch (error: unknown) {
+      console.error('Aero editor command failed.', error);
+    }
+  };
+
   const onDocumentKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape' && activeDrag) {
       event.preventDefault();
@@ -523,9 +601,7 @@ export function initialize(
 
     event.preventDefault();
     event.stopPropagation();
-    void dotNetCallback
-      .invokeMethodAsync('OnEditorCommandRequested', command)
-      .catch((error: unknown) => console.error('Aero editor command failed.', error));
+    void requestEditorCommand(command);
   };
 
   const observer = new MutationObserver(scheduleHandlePosition);
@@ -550,6 +626,7 @@ export function initialize(
   document.addEventListener('pointercancel', onDocumentPointerCancel);
   document.addEventListener('click', onDocumentClick, true);
   window.addEventListener('resize', scheduleHandlePosition);
+  surface.dataset.aeroSortableInitialized = 'true';
   scheduleHandlePosition();
 
   const handle = crypto.randomUUID();
@@ -576,6 +653,7 @@ export function initialize(
       document.removeEventListener('pointercancel', onDocumentPointerCancel);
       document.removeEventListener('click', onDocumentClick, true);
       window.removeEventListener('resize', scheduleHandlePosition);
+      delete surface.dataset.aeroSortableInitialized;
     },
   });
 

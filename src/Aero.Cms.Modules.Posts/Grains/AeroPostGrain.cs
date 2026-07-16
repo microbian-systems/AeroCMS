@@ -157,17 +157,6 @@ public async Task<AeroRequestResponse<PostViewModel>> ForkPostForCultureAsync(lo
         var post = MapToDocument(vm);
         post.SiteId = siteId;
 
-        // Preserve existing content when incoming Content is empty
-        // (Content is stripped from PostViewModel to avoid Orleans BlockBase serialization errors)
-        if (post.Content.Count == 0)
-        {
-            await using var loadSession = await _store.LightweightSessionAsync();
-            var loadService = CreatePostService(loadSession, siteId);
-            var loadResult = await loadService.LoadAsync(post.Id, ct);
-            if (loadResult is Result<PostDocument?, AeroError>.Ok { Value: not null } existing)
-                post.Content = existing.Value.Content;
-        }
-
         await using var session = await _store.LightweightSessionAsync();
         var postService = CreatePostService(session, siteId);
         var result = await postService.SaveAsync(post, ct);
@@ -422,15 +411,6 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
 
     private static PostViewModel MapToViewModel(PostDocument d)
     {
-        // Extract markdown content as strings — Orleans can't serialize BlockBase.
-        // The PostEditor reads these strings back into its text editor.
-        var content = new List<object>();
-        foreach (var block in d.Content)
-        {
-            if (block is MarkdownBlock md && !string.IsNullOrWhiteSpace(md.Content))
-                content.Add(md.Content);
-        }
-
         return new()
         {
             Id = d.Id,
@@ -442,7 +422,7 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
             SeoDescription = d.SeoDescription,
             PublishedOn = d.PublishedOn,
             PublicationState = d.PublicationState,
-            Content = content,
+            MarkdownContent = d.MarkdownContent,
             TagIds = d.TagIds ?? [],
             CategoryIds = d.CategoryIds ?? [],
             AuthorId = d.AuthorId,
@@ -485,29 +465,7 @@ public async Task<(List<PostViewModel> Items, int TotalCount, int TotalPages, bo
             ModifiedBy = vm.ModifiedBy ?? "system"
         };
 
-        // Content: List<object> → List<BlockBase>
-        // Strings in Content represent MarkdownContent carried across Orleans wire
-        // (actual BlockBase instances can't be serialized by Orleans)
-        doc.Content = [];
-        if (vm.Content is { Count: > 0 })
-        {
-            foreach (var item in vm.Content)
-            {
-                if (item is BlockBase block)
-                {
-                    doc.Content.Add(block);
-                }
-                else if (item is string markdown && !string.IsNullOrWhiteSpace(markdown))
-                {
-                    doc.Content.Add(new MarkdownBlock
-                    {
-                        Id = Snowflake.NewId(),
-                        Content = markdown,
-                        Order = doc.Content.Count
-                    });
-                }
-            }
-        }
+        doc.MarkdownContent = vm.MarkdownContent;
 
         return doc;
     }

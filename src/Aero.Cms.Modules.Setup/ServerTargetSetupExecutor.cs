@@ -96,17 +96,18 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
         await using var session = await store.LightweightSessionAsync();
         var bus = rootServiceProvider.GetRequiredService<IMessageBus>();
         var noopSiteContext = new NoopSiteContext();
+        var styleProfileResolver = new SiteStyleProfileResolver(store);
         var pageContentService = new AeroPageContentService(session, bus, noopSiteContext,
             rootServiceProvider.GetRequiredService<ILogger<AeroPageContentService>>(),
             rootServiceProvider.GetRequiredService<IHtmlContentValidator>(),
             rootServiceProvider.GetRequiredService<IStyleCompiler>(),
-            rootServiceProvider.GetRequiredService<IStyleProfile>());
+            styleProfileResolver);
         var pagePublishingWorkflowService = new PagePublishingWorkflowService(
             session,
             bus,
             rootServiceProvider.GetRequiredService<IHtmlContentValidator>(),
             rootServiceProvider.GetRequiredService<IStyleCompiler>(),
-            rootServiceProvider.GetRequiredService<IStyleProfile>(),
+            styleProfileResolver,
             rootServiceProvider.GetRequiredService<ILogger<PagePublishingWorkflowService>>());
         var blogPostContentService = new PostContentService(session, noopSiteContext);
         var userStore = CreateUserStore(store, rootServiceProvider);

@@ -52,7 +52,17 @@ public CmsOutputCachePolicy()
         context.AllowCacheStorage = attemptOutputCaching;
         context.AllowLocking = true;
 
-        // Vary by all query parameters by default
+        // The built-in output-cache policy includes the URL in its cache key.
+        // This custom policy replaces that policy in order to allow the
+        // antiforgery cookie, so it must restore the request-path partition
+        // explicitly. Without it, a successful response for one public page
+        // can be served for every page using this policy.
+        context.CacheVaryByRules.VaryByValues["path"] =
+            context.HttpContext.Request.PathBase.Add(context.HttpContext.Request.Path).Value ?? "/";
+        context.CacheVaryByRules.VaryByValues["origin"] =
+            $"{context.HttpContext.Request.Scheme}://{context.HttpContext.Request.Host.Value}".ToLowerInvariant();
+
+        // Vary by all query parameters by default.
         context.CacheVaryByRules.QueryKeys = "*";
         context.CacheVaryByRules.VaryByValues["culture"] = CultureInfo.CurrentUICulture.Name;
 
@@ -108,13 +118,14 @@ public CmsOutputCachePolicy()
 
     /// <summary>
     /// Extracts page ID and slug from HttpContext.Items and adds
-    /// <c>page-id-{id}</c> and <c>page-slug-{slug}</c> tags to the
-    /// OutputCache entry. These tags are then usable in
+    /// <c>page-id-{id}</c>, <c>page-slug-{slug}</c>, and
+    /// <c>site-pages-{siteId}</c> tags to the OutputCache entry. These tags are then usable in
     /// <c>IOutputCacheStore.EvictByTagAsync</c> for single-page invalidation.
     ///
     /// Uses separate HttpContext.Items keys to avoid reflection:
     ///   "AeroCms.PageId"  → long (stored as boxed long)
     ///   "AeroCms.PageSlug" → string
+    ///   "AeroCms.SiteId" → long (stored as boxed long)
     /// Both are set by DynamicPageModel.OnGetAsync after page load.
     /// </summary>
     private static void AddPerPageTags(OutputCacheContext context)
@@ -131,6 +142,11 @@ public CmsOutputCachePolicy()
             var normalizedSlug = slug.ToLowerInvariant();
             context.Tags.Add($"page-slug-{normalizedSlug}");
             context.Tags.Add($"page-slug-{CultureInfo.CurrentUICulture.Name.ToLowerInvariant()}-{normalizedSlug}");
+        }
+
+        if (items["AeroCms.SiteId"] is long siteId and > 0)
+        {
+            context.Tags.Add($"site-pages-{siteId}");
         }
     }
 

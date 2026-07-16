@@ -16,12 +16,12 @@ public sealed class TiptapInlineContentConverter
 {
     private static readonly HashSet<string> EditableTags = new(StringComparer.OrdinalIgnoreCase)
     {
-        "strong", "em", "a", "br"
+        "strong", "em", "s", "code", "a", "br"
     };
 
     public bool CanEdit(HtmlNode node) =>
         node.Kind is HtmlNodeKind.Element
-        && node.Children.All(IsEditableNode);
+        && node.Children.All(child => IsEditableNode(child, insideMark: false));
 
     public Result<string> ToEditorHtml(HtmlNode node)
     {
@@ -149,12 +149,21 @@ public sealed class TiptapInlineContentConverter
             return AeroError.ValidationError(["Text marks must be an array."]);
         }
 
-        foreach (var mark in marks.EnumerateArray().Reverse())
+        var markItems = marks.EnumerateArray().ToArray();
+        if (markItems.Length > 1
+            && markItems.Any(mark => string.Equals(TypeOf(mark), "code", StringComparison.Ordinal)))
+        {
+            return AeroError.ValidationError(["Inline code cannot be combined with other rich-text marks."]);
+        }
+
+        foreach (var mark in markItems.Reverse())
         {
             var wrapper = TypeOf(mark) switch
             {
                 "bold" => HtmlNode.CreateElement("strong"),
                 "italic" => HtmlNode.CreateElement("em"),
+                "strike" => HtmlNode.CreateElement("s"),
+                "code" => HtmlNode.CreateElement("code"),
                 "link" => CreateLink(mark),
                 var unsupported => null
             };
@@ -196,13 +205,30 @@ public sealed class TiptapInlineContentConverter
         }
     }
 
-    private static bool IsEditableNode(HtmlNode node) => node.Kind switch
+    private static bool IsEditableNode(HtmlNode node, bool insideMark)
     {
-        HtmlNodeKind.Text => true,
-        HtmlNodeKind.Element when node.TagName is not null && EditableTags.Contains(node.TagName)
-            => node.Attributes.Keys.All(IsEditableAttribute) && node.Children.All(IsEditableNode),
-        _ => false
-    };
+        if (node.Kind is HtmlNodeKind.Text)
+        {
+            return true;
+        }
+
+        if (node.Kind is not HtmlNodeKind.Element
+            || node.TagName is null
+            || !EditableTags.Contains(node.TagName)
+            || !node.Attributes.Keys.All(IsEditableAttribute))
+        {
+            return false;
+        }
+
+        if (node.TagName.Equals("code", StringComparison.OrdinalIgnoreCase))
+        {
+            return !insideMark && node.Children.All(child => child.Kind is HtmlNodeKind.Text);
+        }
+
+        var childIsInsideMark = insideMark
+            || !node.TagName.Equals("br", StringComparison.OrdinalIgnoreCase);
+        return node.Children.All(child => IsEditableNode(child, childIsInsideMark));
+    }
 
     private static bool IsEditableAttribute(string name) =>
         name.Equals("href", StringComparison.OrdinalIgnoreCase)

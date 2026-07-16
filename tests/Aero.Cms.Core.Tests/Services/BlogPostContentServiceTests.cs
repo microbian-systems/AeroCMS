@@ -1,8 +1,10 @@
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Posts;
 using Aero.Core;
 using Aero.Core.Http;
+using Aero.Core.Railway;
 using AeroDB.Sable;
 using NSubstitute;
 using Shouldly;
@@ -60,6 +62,38 @@ public sealed class BlogPostContentServiceTests
         // The SaveAsync stamps SiteId on the post object itself before persisting.
         // Verify the stamped value is correct.
         post.SiteId.ShouldBe(42);
+    }
+
+    [Test]
+    public async Task FindBySlugAsync_RoundTripsMarkdownContent_InFreshSession()
+    {
+        var post = new PostDocument
+        {
+            Id = Snowflake.NewId(),
+            Title = "Post with body",
+            Slug = "post-with-body",
+            MarkdownContent = "# Persisted body",
+            PublicationState = ContentPublicationState.Published
+        };
+
+        var saveResult = await _service.SaveAsync(post, CancellationToken.None);
+        saveResult.IsSuccess.ShouldBeTrue();
+
+        await using var readSession = await _harness.OpenSessionAsync(
+            new SessionOptions { Tracking = DocumentTracking.None });
+        var readService = new PostContentService(readSession, _siteContext);
+
+        var result = await readService.FindBySlugAsync(
+            post.Slug,
+            post.Culture,
+            CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        var loaded = result is Result<PostDocument?, AeroError>.Ok ok
+            ? ok.Value
+            : null;
+        loaded.ShouldNotBeNull();
+        loaded.MarkdownContent.ShouldBe(post.MarkdownContent);
     }
 
     // -----------------------------------------------------------------------

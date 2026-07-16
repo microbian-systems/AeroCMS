@@ -1,4 +1,32 @@
 <Project>
+	<!--
+	  Aero.Cms.Abstractions and Aero.Cms.Shared have different server and browser
+	  compile surfaces. Keep the AeroCmsBrowserClient project instances isolated
+	  so a WASM build cannot overwrite the server assembly (or its generated files)
+	  in a parallel graph build.
+	-->
+	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true' AND
+		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared')">
+		<BaseOutputPath>bin\browser\</BaseOutputPath>
+		<BaseIntermediateOutputPath>obj\browser\</BaseIntermediateOutputPath>
+		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(AeroCmsBrowserClient)' != 'true' AND
+		('$(MSBuildProjectName)' == 'Aero.Cms.Abstractions' OR
+		 '$(MSBuildProjectName)' == 'Aero.Cms.Shared')">
+		<DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+	</PropertyGroup>
+	<PropertyGroup>
+		<!--
+		  The browser-specific Shared/Abstractions graph is a distinct MSBuild
+		  graph instance. Its ordinary dependencies may also be top-level solution
+		  projects, so give the recursive browser dependency graph separate output
+		  paths to prevent concurrent compiler writes during a clean build.
+		-->
+		<AeroCmsBrowserDependencyProperties Condition="'$(AeroCmsBrowserClient)' == 'true'">OutputPath=bin\browser-dependencies\$(Configuration)\$(TargetFramework)\;IntermediateOutputPath=obj\browser-dependencies\$(Configuration)\$(TargetFramework)\</AeroCmsBrowserDependencyProperties>
+	</PropertyGroup>
+
 	<PropertyGroup>
 		<!--
       Skip TargetFramework for MAUI projects — they self-define multi-targeted
@@ -58,9 +86,11 @@
 	<ItemGroup Condition="'$(MSBuildProjectName)' != 'Aero.Cms.SourceGenerators'">
 		<ProjectReference Include="$(MSBuildThisFileDirectory)Aero.Cms.SourceGenerators\Aero.Cms.SourceGenerators.csproj"
 			OutputItemType="Analyzer"
+			GlobalPropertiesToRemove="AeroCmsBrowserClient"
 			ReferenceOutputAssembly="false" />
 		<ProjectReference Include="$(MSBuildThisFileDirectory)..\AeroDB\src\AeroDB.Analyzers\AeroDB.Analyzers.csproj"
 			OutputItemType="Analyzer"
+			GlobalPropertiesToRemove="AeroCmsBrowserClient"
 			ReferenceOutputAssembly="false" />
 	</ItemGroup>
 

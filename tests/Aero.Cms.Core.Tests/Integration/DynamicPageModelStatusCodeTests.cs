@@ -1,9 +1,12 @@
 using Aero.Cms.Abstractions.Actors;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Core.Http;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
+using Aero.Core;
+using Aero.Core.Railway;
 using FluentAssertions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
@@ -96,7 +99,7 @@ public class DynamicPageModelStatusCodeTests
             harness.Store,
             renderer,
             new NativeCssStyleCompiler(),
-            new NativeStyleProfile(),
+            CreateStyleProfileResolver(),
             NullLogger<DynamicPageModel>.Instance)
         {
             PageContext = new PageContext
@@ -107,6 +110,15 @@ public class DynamicPageModelStatusCodeTests
                     new ModelStateDictionary())
             }
         };
+    }
+
+    private static ISiteStyleProfileResolver CreateStyleProfileResolver()
+    {
+        var resolver = Substitute.For<ISiteStyleProfileResolver>();
+        resolver.ResolveAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<IStyleProfile, AeroError>>(
+                new Result<IStyleProfile, AeroError>.Ok(new NativeStyleProfile())));
+        return resolver;
     }
 
     private static PageDocument CreatePublishedPage(long id)

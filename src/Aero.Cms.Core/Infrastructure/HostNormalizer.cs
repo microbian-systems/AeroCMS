@@ -14,6 +14,10 @@ public static string Normalize(string? host)
         if (string.IsNullOrWhiteSpace(host))
             return string.Empty;
 
-        return host.Trim().ToLowerInvariant().TrimEnd('.');
+        var normalized = host.Trim().ToLowerInvariant();
+        if (Uri.TryCreate($"http://{normalized}", UriKind.Absolute, out var uri))
+            return uri.IdnHost.TrimEnd('.');
+
+        return normalized.TrimEnd('.');
     }
 }

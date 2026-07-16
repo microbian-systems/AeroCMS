@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" role="img" aria-labelledby="title">
+  <title id="title">Violet geometric gallery placeholder</title>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#312e81"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs>
+  <rect width="900" height="700" fill="url(#g)"/>
+  <circle cx="680" cy="170" r="210" fill="#c4b5fd" opacity="0.45"/>
+  <path d="M0 620L260 280l170 210 130-150 340 360H0Z" fill="#fff" opacity="0.22"/>
+</svg>

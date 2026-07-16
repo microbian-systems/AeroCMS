@@ -19,4 +19,10 @@ Task InvalidateNavigationAsync(NavigationMenuChangedEvent @event, CancellationTo
     /// InvalidateFooterAsync method.
     /// </summary>
 Task InvalidateFooterAsync(FooterChangedEvent @event, CancellationToken cancellationToken = default);
+        /// <summary>
+    /// Invalidates all rendered page responses whose CSS depends on a site's style profile.
+    /// </summary>
+Task InvalidateSiteStyleProfileAsync(
+    SiteStyleProfileChangedEvent @event,
+    CancellationToken cancellationToken = default);
 }

@@ -1,16 +1,11 @@
 using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Blocks.Common;
-using Aero.Cms.Abstractions.Blocks.Editing;
-using Aero.Cms.Abstractions.Blocks.Layout;
-using Aero.Cms.Abstractions.Blocks.Neo;
-using Aero.Cms.Abstractions.Blocks.Neo.Styles;
 using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Shared.Blocks.Rendering;
-using Aero.Cms.Shared.Pages.Manager.PageEditor.Catalog;
 using Aero.Cms.Web.Core.Blocks.Rendering;
 using Aero.Core.Railway;
 using FluentAssertions;
@@ -22,7 +17,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using NSubstitute;
 using Radzen;
-using System.Text.Json;
 using TUnit.Core;
 
 namespace Aero.Cms.BlockRendering.Tests;
@@ -179,216 +173,6 @@ public sealed class BlockRendererBaselineTests
     }
 
     [Test]
-    public async Task PublishedRegion_WithNeoComposition_RendersResponsiveRtlHtml()
-    {
-        const long blockId = 902;
-        var block = new NeoCompositionBlock
-        {
-            Id = blockId,
-            Nodes =
-            [
-                new NeoPageNode
-                {
-                    NodeId = "rtl-container",
-                    CatalogId = "primitive.container",
-                    Kind = NeoPageNodeKind.Container,
-                    Style = new ResponsiveNodeStyle
-                    {
-                        Base = new NodeStyle
-                        {
-                            Direction = ContentDirection.RightToLeft,
-                            BackgroundColor = new CssColor("#f8fafc"),
-                            Padding = new LogicalSpacing
-                            {
-                                InlineStart = new CssLength(24, CssLengthUnit.Pixels)
-                            }
-                        },
-                        Mobile = new NodeStyleOverride
-                        {
-                            Hidden = true
-                        }
-                    },
-                    Children =
-                    [
-                        new NeoPageNode
-                        {
-                            NodeId = "localized-text",
-                            CatalogId = "primitive.text",
-                            Kind = NeoPageNodeKind.Primitive,
-                            Properties = new Dictionary<string, JsonElement>
-                            {
-                                ["text"] = JsonSerializer.SerializeToElement("مرحبا بالعالم")
-                            }
-                        }
-                    ]
-                }
-            ]
-        };
-        var region = new LayoutRegion
-        {
-            Name = "main",
-            Order = 0,
-            Columns =
-            [
-                new LayoutColumn
-                {
-                    Width = 12,
-                    Order = 0,
-                    Blocks =
-                    [
-                        new BlockPlacement
-                        {
-                            BlockId = blockId,
-                            BlockType = "neo_composition",
-                            Order = 0
-                        }
-                    ]
-                }
-            ]
-        };
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddRadzenComponents();
-        services.AddBlockSystemServices();
-        services.AddSingleton<INeoEditorCatalogProvider, NeoEditorCatalogProvider>();
-        services.AddSingleton<IJSRuntime, NoOpJSRuntime>();
-        services.AddSingleton<IErrorBoundaryLogger, NoOpErrorBoundaryLogger>();
-        services.AddScoped(_ => Substitute.For<IDocumentSession>());
-
-        await using var serviceProvider = services.BuildServiceProvider();
-        await using var scope = serviceProvider.CreateAsyncScope();
-        var cache = scope.ServiceProvider.GetRequiredService<BlockRenderCache>();
-        var blockService = Substitute.For<IBlockService>();
-        blockService.GetByIdsAsync(
-                Arg.Any<IReadOnlyList<long>>(),
-                Arg.Any<CancellationToken>())
-            .Returns(new Dictionary<long, BlockBase> { [blockId] = block });
-        await cache.PreloadAsync([blockId], blockService);
-
-        var loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
-        await using var htmlRenderer = new HtmlRenderer(scope.ServiceProvider, loggerFactory);
-        var renderer = new CmsBlockHtmlRenderer(htmlRenderer);
-        var content = await renderer.RenderRegionsAsync([region]);
-        var html = RenderHtmlContent(content);
-
-        html.Should().Contain("data-region=\"main\"");
-        html.Should().Contain("col-span-12");
-        html.Should().Contain("neo-composition");
-        html.Should().Contain("data-catalog-id=\"primitive.container\"");
-        html.Should().Contain("direction:rtl");
-        html.Should().Contain("padding-inline-start:24px");
-        html.Should().Contain("background-color:#f8fafc");
-        html.Should().Contain("&#x645;&#x631;&#x62D;&#x628;&#x627;");
-
-        var mobileHtml = await htmlRenderer.Dispatcher.InvokeAsync(async () =>
-        {
-            var parameters = ParameterView.FromDictionary(
-                new Dictionary<string, object?>
-                {
-                    ["Node"] = block.Nodes[0],
-                    ["Breakpoint"] = EditorBreakpoint.Mobile
-                });
-            var output = await htmlRenderer.RenderComponentAsync<NeoNodeRenderer>(parameters);
-            return output.ToHtmlString();
-        });
-        mobileHtml.Should().Contain("display:none");
-        mobileHtml.Should().Contain("direction:rtl");
-    }
-
-    [Test]
-    public async Task NeoNodeRenderer_RendersPalettePrimitiveIds()
-    {
-        var root = new NeoPageNode
-        {
-            NodeId = "root-section",
-            CatalogId = "primitive.section",
-            Kind = NeoPageNodeKind.Section,
-            Children =
-            [
-                new NeoPageNode
-                {
-                    NodeId = "legacy-text",
-                    CatalogId = "text",
-                    Kind = NeoPageNodeKind.Primitive,
-                    Properties = new Dictionary<string, JsonElement>
-                    {
-                        ["content"] = JsonSerializer.SerializeToElement("Legacy text primitive")
-                    }
-                },
-                new NeoPageNode
-                {
-                    NodeId = "quote",
-                    CatalogId = "quote",
-                    Kind = NeoPageNodeKind.Primitive,
-                    Properties = new Dictionary<string, JsonElement>
-                    {
-                        ["content"] = JsonSerializer.SerializeToElement("Quote primitive"),
-                        ["citation"] = JsonSerializer.SerializeToElement("Aero")
-                    }
-                },
-                new NeoPageNode
-                {
-                    NodeId = "video",
-                    CatalogId = "video",
-                    Kind = NeoPageNodeKind.Primitive,
-                    Properties = new Dictionary<string, JsonElement>
-                    {
-                        ["src"] = JsonSerializer.SerializeToElement("/media/sample.mp4"),
-                        ["caption"] = JsonSerializer.SerializeToElement("Video caption")
-                    }
-                },
-                new NeoPageNode
-                {
-                    NodeId = "audio",
-                    CatalogId = "audio",
-                    Kind = NeoPageNodeKind.Primitive,
-                    Properties = new Dictionary<string, JsonElement>
-                    {
-                        ["url"] = JsonSerializer.SerializeToElement("/media/sample.mp3")
-                    }
-                },
-                new NeoPageNode
-                {
-                    NodeId = "columns",
-                    CatalogId = "columns",
-                    Kind = NeoPageNodeKind.Container,
-                    Children =
-                    [
-                        new NeoPageNode
-                        {
-                            NodeId = "columns-button",
-                            CatalogId = "primitive.button",
-                            Kind = NeoPageNodeKind.Primitive,
-                            Properties = new Dictionary<string, JsonElement>
-                            {
-                                ["text"] = JsonSerializer.SerializeToElement("Nested button"),
-                                ["url"] = JsonSerializer.SerializeToElement("#")
-                            }
-                        }
-                    ]
-                }
-            ]
-        };
-
-        var html = await RenderComponentAsync<NeoNodeRenderer>(
-            new Dictionary<string, object?>
-            {
-                ["Node"] = root,
-                ["MaxDepth"] = 16
-            });
-
-        html.Should().Contain("Legacy text primitive");
-        html.Should().Contain("Quote primitive");
-        html.Should().Contain("<video");
-        html.Should().Contain("/media/sample.mp4");
-        html.Should().Contain("<audio");
-        html.Should().Contain("/media/sample.mp3");
-        html.Should().Contain("neo-primitive-columns");
-        html.Should().Contain("Nested button");
-    }
-
-    [Test]
     public void CmsBlockRenderRegistry_ResolvesCurrentSwitchSupportedBlocks()
     {
         string[] blockTypes =
@@ -451,32 +235,9 @@ public sealed class BlockRendererBaselineTests
     }
 
     [Test]
-    public void CmsBlockManifestEditorMetadata_AdaptsManifestForEditorPalette()
-    {
-        var blockTypes = CmsBlockManifestEditorMetadata.GetAvailableBlockTypes();
-
-        blockTypes.Should().ContainEquivalentOf(
-            new BlockTypeInfo
-            {
-                Name = "markdown",
-                DisplayName = "Markdown Text",
-                Category = "Text",
-                Type = typeof(MarkdownBlock)
-            },
-            options => options.Excluding(blockType => blockType.Description)
-                .Excluding(blockType => blockType.Icon)
-                .Excluding(blockType => blockType.SortOrder));
-
-        CmsBlockManifestEditorMetadata.GetBlockTypeInfo("raw_html")
-            .Should()
-            .BeOfType<Option<BlockTypeInfo>.Some>()
-            .Which.Value.DisplayName.Should().Be("Raw HTML");
-    }
-
-    [Test]
     public void GeneratedBlockModelManifest_ExposesAllDiscoveredBlockModelsForJsonAndMarten()
     {
-        GeneratedBlockModelManifest.Blocks.Should().HaveCount(36);
+        GeneratedBlockModelManifest.Blocks.Should().HaveCount(45);
         GeneratedBlockModelManifest.Blocks["markdown"].ModelType.Should().Be(typeof(MarkdownBlock));
         GeneratedBlockModelManifest.Blocks["markdown"].SchemaVersion.Should().Be(1);
         GeneratedBlockModelManifest.Blocks["youtube_player"].ModelType.Should().Be(typeof(YouTubeBlock));

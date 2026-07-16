@@ -1,5 +1,6 @@
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Html;
 using Aero.Core.Railway;
 using Wolverine;
@@ -23,7 +24,7 @@ public sealed class PagePublishingWorkflowService(
     IMessageBus bus,
     IHtmlContentValidator contentValidator,
     IStyleCompiler styleCompiler,
-    IStyleProfile styleProfile,
+    ISiteStyleProfileResolver styleProfileResolver,
     ILogger<PagePublishingWorkflowService> logger) : IPagePublishingWorkflowService
 {
     public async Task<Result<bool, AeroError>> SubmitForReviewAsync(long pageId, CancellationToken ct = default)
@@ -35,7 +36,7 @@ public sealed class PagePublishingWorkflowService(
             if (page.PublicationState != ContentPublicationState.Draft)
                 return AeroError.ConflictError("Only draft pages can be submitted for review.");
 
-            var validation = ValidateDraft(page);
+            var validation = await ValidateDraftAsync(page, ct);
             if (validation is Result<CompiledPageStyles>.Failure failure) return failure.Error;
 
             page.PublicationState = ContentPublicationState.InReview;
@@ -155,7 +156,7 @@ public sealed class PagePublishingWorkflowService(
 
     private async Task<Result<bool, AeroError>> PublishAsync(PageDocument page, CancellationToken ct)
     {
-        var validation = ValidateDraft(page);
+        var validation = await ValidateDraftAsync(page, ct);
         if (validation is Result<CompiledPageStyles>.Failure failure) return failure.Error;
 
         page.PublishDraftContent(DateTimeOffset.UtcNow);
@@ -166,12 +167,22 @@ public sealed class PagePublishingWorkflowService(
         return Prelude.Ok<bool, AeroError>(true);
     }
 
-    private Result<CompiledPageStyles> ValidateDraft(PageDocument page)
+    private async Task<Result<CompiledPageStyles>> ValidateDraftAsync(
+        PageDocument page,
+        CancellationToken cancellationToken)
     {
         var contentValidation = contentValidator.Validate(page.DraftContent);
-        return contentValidation is Result<bool>.Failure failure
-            ? failure.Error
-            : styleCompiler.Compile(page.DraftContent, styleProfile);
+        if (contentValidation is Result<bool>.Failure failure)
+            return failure.Error;
+
+        var profileResult = await styleProfileResolver.ResolveAsync(
+            page.SiteId,
+            cancellationToken);
+        if (profileResult is Result<IStyleProfile, AeroError>.Failure profileFailure)
+            return profileFailure.Error;
+
+        var profile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
+        return styleCompiler.Compile(page.DraftContent, profile);
     }
 
     private async Task SaveAsync(PageDocument page, CancellationToken ct)

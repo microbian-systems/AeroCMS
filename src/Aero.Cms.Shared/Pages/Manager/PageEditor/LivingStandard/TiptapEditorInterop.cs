@@ -14,10 +14,17 @@ public sealed class TiptapEditorInterop(IJSRuntime js) : IAsyncDisposable
     private IJSObjectReference? _module;
     private string? _handle;
 
-    public async ValueTask InitializeAsync(ElementReference element, string content)
+    public async ValueTask InitializeAsync(
+        ElementReference element,
+        string content,
+        DotNetObjectReference<HtmlRichTextEditorDialog> callbackReference)
     {
         var module = await GetModuleAsync();
-        _handle = await module.InvokeAsync<string>(InitializeMethod, element, content);
+        _handle = await module.InvokeAsync<string>(
+            InitializeMethod,
+            element,
+            content,
+            callbackReference);
     }
 
     public async ValueTask<bool> ExecuteAsync(string command, string? argument = null)

@@ -81,6 +81,65 @@ public sealed class HtmlTreeEditor
     }
 
     /// <summary>
+    /// Inserts an ordered collection of disconnected subtrees as one atomic editor mutation.
+    /// This is the boundary used by static HTML fragment import so one undo restores the
+    /// complete pre-import document.
+    /// </summary>
+    public Result<IReadOnlyList<HtmlNode>> InsertChildren(
+        long parentNodeId,
+        IReadOnlyList<HtmlNode> children,
+        int? index = null)
+    {
+        ArgumentNullException.ThrowIfNull(children);
+
+        if (children.Count == 0)
+        {
+            return AeroError.ValidationError(["The imported HTML fragment does not contain any insertable elements."]);
+        }
+
+        var parent = HtmlTreeOperations.FindById(Content.Root, parentNodeId);
+        if (parent is null)
+        {
+            return AeroError.NotFoundError($"The parent node {parentNodeId} was not found.");
+        }
+
+        var importedIds = new HashSet<long>();
+        foreach (var child in children)
+        {
+            if (child is null
+                || !HtmlTreeOperations.HasUniqueNodeIds(child)
+                || HtmlTreeOperations.FindById(Content.Root, child.NodeId) is not null
+                || !CollectIds(child, importedIds))
+            {
+                return AeroError.ConflictError("A page tree node identity may occur only once.");
+            }
+
+            var decision = _contentPolicy.CanContain(parent, child);
+            if (!decision.IsAllowed)
+            {
+                return AeroError.ValidationError([decision.Reason ?? "The imported element cannot be placed in this location."]);
+            }
+        }
+
+        var insertionIndex = NormalizeIndex(index, parent.Children.Count);
+        if (_validateCandidate is not null)
+        {
+            var candidate = HtmlTreeOperations.ClonePreservingNodeIds(Content);
+            var candidateParent = HtmlTreeOperations.FindById(candidate.Root, parentNodeId)!;
+            candidateParent.Children.InsertRange(insertionIndex, children.Select(HtmlTreeOperations.ClonePreservingNodeIds));
+            var validation = _validateCandidate(candidate);
+            if (validation is Result<bool>.Failure failure)
+            {
+                return failure.Error;
+            }
+        }
+
+        History.CaptureBeforeChange(Content);
+        parent.Children.InsertRange(insertionIndex, children);
+        return new Result<IReadOnlyList<HtmlNode>>.Ok(children);
+    }
+
+    /// <summary>
     /// Inserts a disconnected subtree before, after, or inside a stable target
     /// identity. Palette adapters use this semantic boundary instead of model indexes.
     /// </summary>
@@ -414,4 +473,14 @@ public sealed class HtmlTreeEditor
 
     private static int NormalizeIndex(int? requestedIndex, int collectionCount) =>
         Math.Clamp(requestedIndex ?? collectionCount, 0, collectionCount);
+
+    private static bool CollectIds(HtmlNode node, ISet<long> ids)
+    {
+        if (!ids.Add(node.NodeId))
+        {
+            return false;
+        }
+
+        return node.Children.All(child => CollectIds(child, ids));
+    }
 }

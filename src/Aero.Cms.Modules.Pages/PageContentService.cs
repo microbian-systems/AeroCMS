@@ -4,6 +4,7 @@ using Aero.Core.Extensions;
 using Wolverine;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Requests;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
@@ -94,7 +95,7 @@ public sealed class AeroPageContentService(
     ILogger<AeroPageContentService> logger,
     IHtmlContentValidator contentValidator,
     IStyleCompiler styleCompiler,
-    IStyleProfile styleProfile,
+    ISiteStyleProfileResolver styleProfileResolver,
     string? actor = null,
     IFusionCache? cache = null,
     IPageTreeService? pageTreeService = null) : IPageContentService
@@ -208,25 +209,6 @@ public async Task<Result<PageDocument?, AeroError>> FindBySlugAsync(string slug,
 
             var normalized = ContentSlugDocument.Normalize(routeSlug);
 
-            var reservation = await FindSlugReservationAsync(normalized, currentCulture, cancellationToken)
-                ?? await FindDefaultCultureSlugReservationAsync(normalized, currentCulture, cancellationToken);
-
-            if (reservation is not null && reservation.OwnerType == ContentSlugOwnerType.Page)
-            {
-                var document = await session.LoadAsync<PageDocument>(reservation.OwnerId, cancellationToken);
-                if (document is not null)
-                {
-                    // Filter by published state — unpublished pages must not be publicly accessible
-                    if (document.PublicationState != ContentPublicationState.Published)
-                        return Prelude.Fail<PageDocument?, AeroError>(AeroError.NotFoundError($"Page with slug '{slug}' not found"));
-
-                    await SetCacheAsync(cacheKey, document, cancellationToken);
-                    return Prelude.Ok<PageDocument?, AeroError>(document);
-                }
-            }
-
-            // Fallback: direct Path lookup (handles pages created without slug reservation)
-            // PageDocument.Path stores the leading "/" (e.g., "/main-page/child-page")
             var pathToMatch = "/" + normalized;
             var directPage = await FindDirectPageAsync(pathToMatch, currentCulture, cancellationToken)
                 ?? await FindDefaultCultureDirectPageAsync(pathToMatch, currentCulture, cancellationToken);
@@ -427,7 +409,7 @@ public async Task<Result<PageDocument, AeroError>> CreateAsync(CreatePageRequest
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
             }
 
-            var htmlValidation = ValidateHtmlDraft(page);
+            var htmlValidation = await ValidateHtmlDraftAsync(page, cancellationToken);
             if (htmlValidation is Result<bool, AeroError>.Failure htmlFailure)
             {
                 return Prelude.Fail<PageDocument, AeroError>(htmlFailure.Error);
@@ -485,6 +467,8 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
             }
 
             var oldSlug = page.Slug;
+            var oldPath = page.Path;
+            var oldParentId = page.ParentId;
 
             if (request.DraftContentJson is not null)
             {
@@ -502,6 +486,31 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
             // Apply metadata update to the document
             ApplyUpdateRequest(page, request);
 
+            if (!string.Equals(oldSlug, page.Slug, StringComparison.Ordinal)
+                || oldParentId != page.ParentId)
+            {
+                if (pageTreeService is null)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(
+                        AeroError.DatabaseError("Page hierarchy service is required to update a page route."));
+                }
+
+                var pathResult = await pageTreeService.ComputePathAsync(
+                    page.SiteId,
+                    page.ParentId,
+                    page.Slug,
+                    excludePageId: page.Id,
+                    ct: cancellationToken);
+                if (pathResult is Result<(string Path, int Depth), AeroError>.Failure pathFailure)
+                {
+                    return Prelude.Fail<PageDocument, AeroError>(pathFailure.Error);
+                }
+
+                var path = ((Result<(string Path, int Depth), AeroError>.Ok)pathResult).Value;
+                page.Path = path.Path;
+                page.Depth = path.Depth;
+            }
+
             // Validate the updated page
             var validationResult = await ValidatePage(page);
             if (validationResult is Result<bool, AeroError>.Failure vf)
@@ -510,7 +519,7 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
             }
 
-            var htmlValidation = ValidateHtmlDraft(page);
+            var htmlValidation = await ValidateHtmlDraftAsync(page, cancellationToken);
             if (htmlValidation is Result<bool, AeroError>.Failure htmlFailure)
             {
                 return Prelude.Fail<PageDocument, AeroError>(htmlFailure.Error);
@@ -518,12 +527,10 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
 
             // Reserve the new slug path (if changed) — uses full Path so
             // hierarchical pages like /parent/child route correctly.
-            if (oldSlug != request.Slug)
+            if (!string.Equals(oldPath, page.Path, StringComparison.Ordinal))
             {
-                var oldPublicSlug = page.Path.TrimStart('/');
-                var segments = oldPublicSlug.Split('/');
-                segments[^1] = request.Slug;
-                var newPublicSlug = string.Join('/', segments);
+                var oldPublicSlug = oldPath.TrimStart('/');
+                var newPublicSlug = page.Path.TrimStart('/');
 
                 await ContentSlugReservation.ReserveAsync(
                     session,
@@ -539,6 +546,23 @@ public async Task<Result<PageDocument, AeroError>> UpdateAsync(long id, UpdatePa
             page.ModifiedOn = DateTimeOffset.UtcNow;
             page.ModifiedBy = actor ?? "system";
             session.Store(page);
+
+            if (!string.Equals(oldPath, page.Path, StringComparison.Ordinal))
+            {
+                if (pageTreeService is not null)
+                {
+                    var descendantsResult = await pageTreeService.UpdateDescendantPathsAsync(
+                        page.Id,
+                        oldPath,
+                        page.Path,
+                        cancellationToken);
+                    if (descendantsResult is Result<bool, AeroError>.Failure descendantsFailure)
+                    {
+                        return Prelude.Fail<PageDocument, AeroError>(descendantsFailure.Error);
+                    }
+                }
+            }
+
             await session.SaveChangesAsync(cancellationToken);
 
             // Publish events via Wolverine outbox
@@ -775,7 +799,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
                 return Prelude.Fail<PageDocument, AeroError>(vf.Error);
             }
 
-            var htmlValidation = ValidateHtmlDraft(page);
+            var htmlValidation = await ValidateHtmlDraftAsync(page, cancellationToken);
             if (htmlValidation is Result<bool, AeroError>.Failure htmlFailure)
             {
                 logger.LogWarning("HTML draft validation failed saving page {PageId}: {Errors}", page.Id, htmlFailure.Error);
@@ -866,7 +890,9 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
         return Prelude.Ok<bool, AeroError>(true);
     }
 
-    private Result<bool, AeroError> ValidateHtmlDraft(PageDocument page)
+    private async Task<Result<bool, AeroError>> ValidateHtmlDraftAsync(
+        PageDocument page,
+        CancellationToken cancellationToken)
     {
         var contentValidation = contentValidator.Validate(page.DraftContent);
         if (contentValidation is Result<bool>.Failure contentFailure)
@@ -874,6 +900,15 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
             return Prelude.Fail<bool, AeroError>(contentFailure.Error);
         }
 
+        var profileResult = await styleProfileResolver.ResolveAsync(
+            page.SiteId,
+            cancellationToken);
+        if (profileResult is Result<IStyleProfile, AeroError>.Failure profileFailure)
+        {
+            return Prelude.Fail<bool, AeroError>(profileFailure.Error);
+        }
+
+        var styleProfile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
         var styleCompilation = styleCompiler.Compile(page.DraftContent, styleProfile);
         return styleCompilation is Result<CompiledPageStyles>.Failure styleFailure
             ? Prelude.Fail<bool, AeroError>(styleFailure.Error)
@@ -891,6 +926,7 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
         page.ShowHeaderNavigation = request.ShowHeaderNavigation;
         page.HideFooter = request.HideFooter;
         page.ShowChatAgent = request.ShowChatAgent;
+        page.ParentId = request.ParentId;
     }
 
     private static Result<HtmlPageContent, AeroError> DeserializeDraftContent(string? json)
@@ -934,40 +970,20 @@ public async Task<Result<PageDocument, AeroError>> SaveAsync(PageDocument page, 
     private string BuildCacheKey(string suffix)
         => $"cms:page:{_siteContext.SiteId}:{suffix}";
 
-    private async Task<ContentSlugDocument?> FindSlugReservationAsync(
-        string normalizedSlug,
-        string culture,
-        CancellationToken cancellationToken)
-        => await session.Query<ContentSlugDocument>()
-            .FirstOrDefaultAsync(x =>
-                x.SiteId == _siteContext.SiteId &&
-                x.Culture == culture &&
-                string.Equals(normalizedSlug, x.NormalizedSlug, StringComparison.OrdinalIgnoreCase),
-                cancellationToken);
-
-    private async Task<ContentSlugDocument?> FindDefaultCultureSlugReservationAsync(
-        string normalizedSlug,
-        string culture,
-        CancellationToken cancellationToken)
-    {
-        var defaultCulture = await GetSiteDefaultCultureAsync(cancellationToken);
-        if (string.Equals(culture, defaultCulture, StringComparison.OrdinalIgnoreCase))
-            return null;
-
-        return await FindSlugReservationAsync(normalizedSlug, defaultCulture, cancellationToken);
-    }
-
     private async Task<PageDocument?> FindDirectPageAsync(
         string pathToMatch,
         string culture,
         CancellationToken cancellationToken)
-        => await session.Query<PageDocument>()
-            .FirstOrDefaultAsync(x =>
-                x.SiteId == _siteContext.SiteId &&
-                x.Culture == culture &&
-                string.Equals(pathToMatch, x.Path, StringComparison.OrdinalIgnoreCase) &&
-                x.PublicationState == ContentPublicationState.Published,
-                cancellationToken);
+    {
+        var candidates = await session.Query<PageDocument>()
+            .Where(candidate => candidate.SiteId == _siteContext.SiteId)
+            .ToListAsync(cancellationToken);
+        return candidates.FirstOrDefault(candidate =>
+            candidate.PublicationState == ContentPublicationState.Published
+            && !candidate.Deleted
+            && string.Equals(candidate.Path, pathToMatch, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(candidate.Culture, culture, StringComparison.OrdinalIgnoreCase));
+    }
 
     private async Task<PageDocument?> FindDefaultCultureDirectPageAsync(
         string pathToMatch,

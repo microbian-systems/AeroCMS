@@ -55,13 +55,17 @@ public partial class HtmlElementPropertyPanel
     protected bool IsTrack => Definition.Tag.Equals("track", StringComparison.OrdinalIgnoreCase);
     protected bool IsButton => Definition.Tag.Equals("button", StringComparison.OrdinalIgnoreCase);
     protected bool IsTableCell => Definition.Tag is "th" or "td";
+    protected bool IsTableColumnDefinition => Definition.Tag is "col" or "colgroup";
     protected bool IsHeaderCell => Definition.Tag.Equals("th", StringComparison.OrdinalIgnoreCase);
     protected bool IsForm => Definition.Tag.Equals("form", StringComparison.OrdinalIgnoreCase);
+    protected bool IsFieldset => Definition.Tag.Equals("fieldset", StringComparison.OrdinalIgnoreCase);
     protected bool IsLabel => Definition.Tag.Equals("label", StringComparison.OrdinalIgnoreCase);
     protected bool IsInput => Definition.Tag.Equals("input", StringComparison.OrdinalIgnoreCase);
     protected bool IsTextArea => Definition.Tag.Equals("textarea", StringComparison.OrdinalIgnoreCase);
     protected bool IsSelect => Definition.Tag.Equals("select", StringComparison.OrdinalIgnoreCase);
+    protected bool IsOptionGroup => Definition.Tag.Equals("optgroup", StringComparison.OrdinalIgnoreCase);
     protected bool IsOption => Definition.Tag.Equals("option", StringComparison.OrdinalIgnoreCase);
+    protected bool IsOutput => Definition.Tag.Equals("output", StringComparison.OrdinalIgnoreCase);
     protected bool HasCitationUrl => Definition.AllowedAttributes.Contains("cite", StringComparer.OrdinalIgnoreCase);
     protected bool IsDetails => Definition.Tag.Equals("details", StringComparison.OrdinalIgnoreCase);
     protected bool HasDateTimeAttribute => Definition.AllowedAttributes.Contains("datetime", StringComparer.OrdinalIgnoreCase);
@@ -69,16 +73,21 @@ public partial class HtmlElementPropertyPanel
     protected bool IsProgress => Definition.Tag.Equals("progress", StringComparison.OrdinalIgnoreCase);
     protected bool IsMeter => Definition.Tag.Equals("meter", StringComparison.OrdinalIgnoreCase);
     protected bool SupportsListActions => Definition.Tag is "ul" or "ol" or "li";
-    protected bool SupportsTableActions => Definition.Tag is "table" or "thead" or "tbody" or "tr" or "th" or "td";
+    protected bool SupportsTableActions => Definition.Tag is "table" or "caption" or "colgroup" or "col"
+        or "thead" or "tbody" or "tfoot" or "tr" or "th" or "td";
     protected bool SupportsMediaSourceAction => Definition.Tag is "picture" or "audio" or "video" or "source";
     protected bool SupportsMediaTrackAction => Definition.Tag is "audio" or "video" or "track";
-    protected bool SupportsFormActions => Definition.Tag is "form" or "label" or "input" or "textarea" or "select" or "option" or "button";
-    protected bool SupportsSelectOptionAction => Definition.Tag is "select" or "option";
+    protected bool SupportsFormActions => Definition.Tag is "form" or "fieldset" or "legend" or "label"
+        or "input" or "textarea" or "select" or "optgroup" or "option" or "button" or "output";
+    protected bool SupportsSelectOptionAction => Definition.Tag is "select" or "optgroup" or "datalist" or "option";
+    protected bool SupportsOptionGroupAction => Definition.Tag is "select" or "optgroup";
     protected bool SupportsCollectionActions => SupportsListActions
         || SupportsTableActions
         || SupportsMediaSourceAction
         || SupportsMediaTrackAction
-        || SupportsFormActions;
+        || SupportsFormActions
+        || SupportsSelectOptionAction
+        || SupportsOptionGroupAction;
     protected bool IsFlexDisplay => Form.Display is CssDisplay.Flex or CssDisplay.InlineFlex;
     protected bool IsGridDisplay => Form.Display is CssDisplay.Grid or CssDisplay.InlineGrid;
     protected bool SupportsRichText => Definition.ChildModel is HtmlChildModel.Phrasing
@@ -148,7 +157,7 @@ public partial class HtmlElementPropertyPanel
             Loading = Attribute("loading"),
             ButtonType = Attribute("type") ?? "button",
             Disabled = Node.Attributes.ContainsKey("disabled"),
-            ColumnSpan = Attribute("colspan"),
+            ColumnSpan = Attribute(IsTableColumnDefinition ? "span" : "colspan"),
             RowSpan = Attribute("rowspan"),
             Scope = Attribute("scope"),
             Action = Attribute("action"),
@@ -289,12 +298,23 @@ public partial class HtmlElementPropertyPanel
             }
         }
 
+        if (IsTableColumnDefinition)
+        {
+            SetOrRemove(properties.Attributes, "span", Form.ColumnSpan);
+        }
+
         if (IsForm)
         {
             SetOrRemove(properties.Attributes, "action", Form.Action);
             SetOrRemove(properties.Attributes, "method", Form.Method);
             SetOrRemove(properties.Attributes, "target", Form.Target);
             SetOrRemove(properties.Attributes, "autocomplete", Form.AutoComplete);
+        }
+
+        if (IsFieldset)
+        {
+            SetOrRemove(properties.Attributes, "name", Form.ControlName);
+            SetBoolean(properties.Attributes, "disabled", Form.Disabled);
         }
 
         if (IsLabel)
@@ -342,6 +362,12 @@ public partial class HtmlElementPropertyPanel
             SetBoolean(properties.Attributes, "disabled", Form.Disabled);
         }
 
+        if (IsOptionGroup)
+        {
+            SetOrRemove(properties.Attributes, "label", Form.OptionLabel);
+            SetBoolean(properties.Attributes, "disabled", Form.Disabled);
+        }
+
         if (IsOption)
         {
             SetOrRemove(properties.Attributes, "value", Form.ControlValue, preserveEmpty: true);
@@ -350,6 +376,12 @@ public partial class HtmlElementPropertyPanel
             SetBoolean(properties.Attributes, "disabled", Form.Disabled);
             properties.ReplaceChildrenWithLiteralText = true;
             properties.LiteralText = Form.LiteralText;
+        }
+
+        if (IsOutput)
+        {
+            SetOrRemove(properties.Attributes, "name", Form.ControlName);
+            SetOrRemove(properties.Attributes, "for", Form.LabelFor);
         }
 
         if (HasCitationUrl)
@@ -415,7 +447,7 @@ public partial class HtmlElementPropertyPanel
         if (HasCapability("typography"))
         {
             var typography = style.Typography ?? new CssTypographyStyle();
-            typography.Color = ParseColor(Form.TextColor);
+            typography.Color = Form.UseTextGradient ? null : ParseColor(Form.TextColor);
             typography.FontSize = Form.FontSize.ToModel();
             typography.FontWeight = Form.FontWeight;
             typography.LineHeight = Form.LineHeight;

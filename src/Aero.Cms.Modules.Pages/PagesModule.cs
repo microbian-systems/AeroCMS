@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Http.Clients;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core;
 using Aero.Cms.Modules.Pages.Areas.Api.v1;
 using Aero.Cms.Modules.Pages.Validators;
@@ -39,7 +40,7 @@ public override string Author => AeroConstants.Author;
         /// <summary>
     /// Gets or sets the Dependencies.
     /// </summary>
-public override IReadOnlyList<string> Dependencies => [];
+public override IReadOnlyList<string> Dependencies => ["SitesModule"];
         /// <summary>
     /// Gets or sets the Category.
     /// </summary>
@@ -69,7 +70,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             var pageTreeService = sp.GetService<IPageTreeService>();
             var contentValidator = sp.GetRequiredService<IHtmlContentValidator>();
             var styleCompiler = sp.GetRequiredService<IStyleCompiler>();
-            var styleProfile = sp.GetRequiredService<IStyleProfile>();
+            var styleProfileResolver = sp.GetRequiredService<ISiteStyleProfileResolver>();
             var actor = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
             return new AeroPageContentService(
                 session,
@@ -78,7 +79,7 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
                 logger,
                 contentValidator,
                 styleCompiler,
-                styleProfile,
+                styleProfileResolver,
                 actor,
                 cache,
                 pageTreeService);
@@ -103,7 +104,6 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
             sp.GetRequiredService<IHtmlContentModelPolicy>(),
             sp.GetRequiredService<IHtmlAttributePolicy>()));
         services.AddSingleton<IStyleCompiler, NativeCssStyleCompiler>();
-        services.AddSingleton<IStyleProfile, NativeStyleProfile>();
         services.AddSingleton<HtmlStaticRenderer>();
 
         // FluentValidation
@@ -172,11 +172,6 @@ public void Configure(StoreOptions opts)
         opts.Schema.For<ContentSlugDocument>().Index(x => x.SiteId);
         opts.Schema.For<ContentSlugDocument>().Index(x => x.Culture);
         opts.Schema.For<ContentSlugDocument>().UniqueIndex(x => new { x.SiteId, x.Culture, x.NormalizedSlug });
-
-        // ── PageDraft ─────────────────────────────────────────────────────
-        opts.Schema.For<PageDraft>().Index(x => x.PageId);
-        opts.Schema.For<PageDraft>().Index(x => x.SiteId);
-        opts.Schema.For<PageDraft>().Index(x => x.DraftedAt);
 
     }
 

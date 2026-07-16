@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Core.Entities;
@@ -20,7 +19,6 @@ public sealed class DocsServiceTests
     private IDocumentSession _session = null!;
     private IMessageBus _bus = null!;
     private ISiteContext _siteContext = null!;
-    private IBlockService _blockService = null!;
     private ILogger<DocsContentService> _logger = null!;
     private DocsContentService _service = null!;
 
@@ -35,12 +33,11 @@ public sealed class DocsServiceTests
 
         _bus = Substitute.For<IMessageBus>();
         _siteContext = Substitute.For<ISiteContext>();
-        _blockService = Substitute.For<IBlockService>();
         _logger = Substitute.For<ILogger<DocsContentService>>();
 
         _siteContext.SiteId.Returns(42);
 
-        _service = new DocsContentService(_session, _blockService, _bus, _siteContext, _logger);
+        _service = new DocsContentService(_session, _bus, _siteContext, _logger);
     }
 
     [After(Test)]
@@ -67,7 +64,7 @@ public sealed class DocsServiceTests
             ModifiedBy = "system"
         };
         var service = new DocsContentService(
-            freshSession, _blockService, Substitute.For<IMessageBus>(), CreateSiteContext(42), _logger);
+            freshSession, Substitute.For<IMessageBus>(), CreateSiteContext(42), _logger);
 
         var result = await service.SaveAsync(page, CancellationToken.None);
 
@@ -97,9 +94,9 @@ public sealed class DocsServiceTests
         };
 
         // Capture the message that gets published via bus
-        object? publishedMessage = null;
-        _bus.When(x => x.PublishAsync(Arg.Any<object>()))
-            .Do(callInfo => { publishedMessage = callInfo.Arg<object>(); });
+        DocViewModelCreated? publishedMessage = null;
+        _bus.When(x => x.PublishAsync(Arg.Any<DocViewModelCreated>()))
+            .Do(callInfo => { publishedMessage = callInfo.Arg<DocViewModelCreated>(); });
 
         // Act — real session has no data, LoadAsync returns null => treated as new page
         await _service.SaveAsync(page, CancellationToken.None);
@@ -107,9 +104,7 @@ public sealed class DocsServiceTests
         // Assert — the event published via bus contains a DocViewModel with SiteId=42,
         // proving that the private ToViewModel method correctly mapped the property.
         publishedMessage.ShouldNotBeNull();
-        publishedMessage.ShouldBeOfType<DocViewModelCreated>();
-        var docCreated = (DocViewModelCreated)publishedMessage!;
-        docCreated.doc.SiteId.ShouldBe(42);
+        publishedMessage.doc.SiteId.ShouldBe(42);
     }
 
     // -----------------------------------------------------------------------
@@ -173,6 +168,40 @@ public sealed class DocsServiceTests
         var stored = await _session.LoadAsync<DocsPage>(pageId);
         stored.ShouldNotBeNull();
         stored.SiteId.ShouldBe(99);
+    }
+
+    [Test]
+    public async Task GetPublishedAsync_ReturnsSeededHierarchyForSiteAndCulture()
+    {
+        var root = new DocsPage
+        {
+            Id = 301,
+            SiteId = 42,
+            Culture = "en-US",
+            Title = "Documentation",
+            Slug = "docs",
+            PublicationState = ContentPublicationState.Published,
+            Order = 0
+        };
+        var chapter = new DocsPage
+        {
+            Id = 302,
+            SiteId = 42,
+            Culture = "en-US",
+            ParentId = root.Id,
+            Title = "Getting Started",
+            Slug = "docs/getting-started",
+            PublicationState = ContentPublicationState.Published,
+            Order = 0
+        };
+        _session.Store(root, chapter);
+        await _session.SaveChangesAsync();
+
+        var result = await _service.GetPublishedAsync("en-US", CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        var pages = ((global::Aero.Core.Railway.Result<IReadOnlyList<DocsPage>, AeroError>.Ok)result).Value;
+        pages.Select(page => page.Slug).ShouldBe(["docs", "docs/getting-started"]);
     }
 
     private static ISiteContext CreateSiteContext(long siteId)

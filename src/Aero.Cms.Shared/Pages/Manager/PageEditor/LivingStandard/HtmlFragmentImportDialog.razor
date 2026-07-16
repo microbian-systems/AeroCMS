@@ -1,0 +1,36 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<div class="aero-fragment-import-overlay" @onclick="CloseAsync">
+    <section class="aero-fragment-import-dialog"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="aero-fragment-import-title"
+             @onclick:stopPropagation="true">
+        <header>
+            <div>
+                <span>Static HTML</span>
+                <h2 id="aero-fragment-import-title">Import page content</h2>
+            </div>
+            <button type="button" @onclick="CloseAsync" aria-label="Close">×</button>
+        </header>
+
+        <div class="aero-fragment-import-dialog__body">
+            <p>Only supported HTML elements and safe attributes are imported. The fragment is added to the page root and can be undone as one action.</p>
+            <label for="aero-fragment-import-source">HTML fragment</label>
+            <textarea id="aero-fragment-import-source"
+                      @bind="_fragment"
+                      @bind:event="oninput"
+                      spellcheck="false"
+                      placeholder="&lt;section&gt;&lt;h2&gt;Example&lt;/h2&gt;&lt;p&gt;Editable content&lt;/p&gt;&lt;/section&gt;"></textarea>
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="aero-fragment-import-dialog__error" role="alert">@ErrorMessage</div>
+            }
+        </div>
+
+        <footer>
+            <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="CloseAsync">Cancel</button>
+            <button type="button" class="pe-btn pe-btn-primary pe-btn-sm" @onclick="ImportAsync">Import</button>
+        </footer>
+    </section>
+</div>

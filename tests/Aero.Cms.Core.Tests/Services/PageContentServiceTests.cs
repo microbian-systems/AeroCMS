@@ -1,4 +1,5 @@
 using Aero.Cms.Abstractions.Requests;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Html;
@@ -43,7 +44,7 @@ public sealed class PageContentServiceTests
             NullLogger,
             CreateContentValidator(),
             new NativeCssStyleCompiler(),
-            new NativeStyleProfile()
+            CreateStyleProfileResolver()
         );
     }
 
@@ -144,7 +145,7 @@ public sealed class PageContentServiceTests
             NullLogger,
             CreateContentValidator(),
             new NativeCssStyleCompiler(),
-            new NativeStyleProfile());
+            CreateStyleProfileResolver());
 
         var otherPage = new PageDocument
         {
@@ -161,6 +162,97 @@ public sealed class PageContentServiceTests
 
         // Assert — cross-site deletion is rejected
         result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public async Task UpdateAsync_RenamingPage_UpdatesPathAndSlugReservation()
+    {
+        var pageTreeService = new PageTreeService(
+            _harness.Session,
+            _siteContext,
+            _bus,
+            NullLogger<PageTreeService>.Instance);
+        var service = new AeroPageContentService(
+            _harness.Session,
+            _bus,
+            _siteContext,
+            NullLogger,
+            CreateContentValidator(),
+            new NativeCssStyleCompiler(),
+            CreateStyleProfileResolver(),
+            pageTreeService: pageTreeService);
+
+        var created = await service.CreateAsync(
+            new CreatePageRequest(
+                Title: "Original Page",
+                Slug: "original-page",
+                Summary: null,
+                SeoTitle: null,
+                SeoDescription: null),
+            CancellationToken.None);
+        var page = ((Result<PageDocument, AeroError>.Ok)created).Value;
+
+        var updated = await service.UpdateAsync(
+            page.Id,
+            new UpdatePageRequest(
+                page.Id,
+                "Renamed Page",
+                "renamed-page",
+                null,
+                null,
+                null),
+            CancellationToken.None);
+
+        updated.IsSuccess.ShouldBeTrue();
+        var renamedPage = ((Result<PageDocument, AeroError>.Ok)updated).Value;
+        renamedPage.Slug.ShouldBe("renamed-page");
+        renamedPage.Path.ShouldBe("/renamed-page");
+
+        var reservations = await _harness.Session.Query<ContentSlugDocument>()
+            .ToListAsync();
+        var ownerReservation = reservations.Single(x => x.OwnerId == page.Id);
+        ownerReservation.Slug.ShouldBe("renamed-page");
+        ownerReservation.NormalizedSlug.ShouldBe("renamed-page");
+    }
+
+    [Test]
+    public async Task UpdateAsync_RenamingParent_UpdatesDescendantPathAndReservations()
+    {
+        var pageTreeService = new PageTreeService(
+            _harness.Session,
+            _siteContext,
+            _bus,
+            NullLogger<PageTreeService>.Instance);
+        var service = new AeroPageContentService(
+            _harness.Session,
+            _bus,
+            _siteContext,
+            NullLogger,
+            CreateContentValidator(),
+            new NativeCssStyleCompiler(),
+            CreateStyleProfileResolver(),
+            pageTreeService: pageTreeService);
+
+        var parent = ((Result<PageDocument, AeroError>.Ok)await service.CreateAsync(
+            new CreatePageRequest("Parent", "parent", null, null, null),
+            CancellationToken.None)).Value;
+        var child = ((Result<PageDocument, AeroError>.Ok)await service.CreateAsync(
+            new CreatePageRequest("Child", "child", null, null, null, ParentId: parent.Id),
+            CancellationToken.None)).Value;
+
+        var updated = await service.UpdateAsync(
+            parent.Id,
+            new UpdatePageRequest(parent.Id, "Renamed Parent", "renamed-parent", null, null, null),
+            CancellationToken.None);
+
+        updated.IsSuccess.ShouldBeTrue();
+        var reloadedChild = await _harness.Session.LoadAsync<PageDocument>(child.Id);
+        reloadedChild.ShouldNotBeNull();
+        reloadedChild.Path.ShouldBe("/renamed-parent/child");
+
+        var reservations = await _harness.Session.Query<ContentSlugDocument>().ToListAsync();
+        reservations.Single(x => x.OwnerId == parent.Id).NormalizedSlug.ShouldBe("renamed-parent");
+        reservations.Single(x => x.OwnerId == child.Id).NormalizedSlug.ShouldBe("renamed-parent/child");
     }
 
     // -----------------------------------------------------------------------
@@ -181,5 +273,14 @@ public sealed class PageContentServiceTests
             catalog,
             new HtmlContentModelPolicy(catalog),
             new HtmlAttributePolicy());
+    }
+
+    private static ISiteStyleProfileResolver CreateStyleProfileResolver()
+    {
+        var resolver = Substitute.For<ISiteStyleProfileResolver>();
+        resolver.ResolveAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<IStyleProfile, AeroError>>(
+                new Result<IStyleProfile, AeroError>.Ok(new NativeStyleProfile())));
+        return resolver;
     }
 }

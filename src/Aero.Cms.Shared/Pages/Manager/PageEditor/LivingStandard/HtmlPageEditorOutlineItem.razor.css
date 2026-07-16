@@ -1,0 +1,47 @@
+.aero-page-outline-item > button {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: 0.35rem;
+    border: 0;
+    border-radius: 0.4rem;
+    padding: 0.35rem 0.45rem;
+    color: #475569;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.aero-page-outline-item > button:hover,
+.aero-page-outline-item > button:focus-visible {
+    color: #334155;
+    background: #f8fafc;
+    outline: none;
+}
+
+.aero-page-outline-item > button.is-selected {
+    color: #5b21b6;
+    background: #f3e8ff;
+}
+
+.aero-page-outline-item > ol {
+    margin-left: 0.6rem;
+    border-left: 1px solid #e2e8f0;
+    padding-left: 0.5rem;
+}
+
+.aero-page-outline-item__tag {
+    flex: 0 0 auto;
+    color: #7c3aed;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.7rem;
+}
+
+.aero-page-outline-item__summary {
+    overflow: hidden;
+    color: currentColor;
+    font-size: 0.72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

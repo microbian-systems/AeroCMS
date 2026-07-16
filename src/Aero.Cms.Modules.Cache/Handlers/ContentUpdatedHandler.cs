@@ -44,6 +44,12 @@ public Task Handle(NavigationMenuChangedEvent @event, CancellationToken cancella
 public Task Handle(FooterChangedEvent @event, CancellationToken cancellationToken)
         => cacheInvalidationService.InvalidateFooterAsync(@event, cancellationToken);
 
+        /// <summary>
+    /// Invalidates all rendered pages for a site after its design tokens change.
+    /// </summary>
+public Task Handle(SiteStyleProfileChangedEvent @event, CancellationToken cancellationToken)
+        => cacheInvalidationService.InvalidateSiteStyleProfileAsync(@event, cancellationToken);
+
     // Rich events — carry PageViewModel for zero-DB consumers
         /// <summary>
     /// Handle method.

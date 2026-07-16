@@ -246,6 +246,8 @@ public async Task<Result<PageDocument, AeroError>> MoveAsync(
             // Update descendant paths directly (derived fields, not historical events)
             if (oldPath != newPath)
             {
+                await UpdateSlugReservationAsync(page, oldPath, ct);
+
                 var descendants = await _session
                     .QueryAsync(new PagesByPathPrefixQuery
                     {
@@ -255,9 +257,11 @@ public async Task<Result<PageDocument, AeroError>> MoveAsync(
 
                 foreach (var descendant in descendants)
                 {
+                    var oldDescendantPath = descendant.Path;
                     descendant.Path = newPath + descendant.Path[oldPath.Length..];
                     descendant.Depth = descendant.Path.Count(c => c == '/') - 1;
                     _session.Update(descendant);
+                    await UpdateSlugReservationAsync(descendant, oldDescendantPath, ct);
                 }
             }
 
@@ -397,9 +401,11 @@ public async Task<Result<bool, AeroError>> UpdateDescendantPathsAsync(
 
             foreach (var descendant in descendants)
             {
+                var oldDescendantPath = descendant.Path;
                 descendant.Path = newPath + descendant.Path[oldPath.Length..];
                 descendant.Depth += depthDelta;
                 _session.Update(descendant);
+                await UpdateSlugReservationAsync(descendant, oldDescendantPath, ct);
             }
 
             await _session.SaveChangesAsync(ct);
@@ -417,6 +423,20 @@ public async Task<Result<bool, AeroError>> UpdateDescendantPathsAsync(
                 AeroError.DatabaseError("Failed to update descendant paths."));
         }
     }
+
+    private Task UpdateSlugReservationAsync(
+        PageDocument page,
+        string previousPath,
+        CancellationToken cancellationToken)
+        => ContentSlugReservation.ReserveAsync(
+            _session,
+            page.Id,
+            ContentSlugOwnerType.Page,
+            page.Path.TrimStart('/'),
+            page.SiteId,
+            page.Culture,
+            previousPath.TrimStart('/'),
+            cancellationToken);
 }
 
 /// <summary>

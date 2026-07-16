@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Models;
@@ -22,7 +21,6 @@ namespace Aero.Cms.Modules.Docs;
 public sealed class DocsContentService : IDocsService
 {
     private readonly IDocumentSession _session;
-    private readonly IBlockService _blockService;
     private readonly IMessageBus _bus;
     private readonly ISiteContext _siteContext;
     private readonly ILogger<DocsContentService> _logger;
@@ -35,7 +33,6 @@ public sealed class DocsContentService : IDocsService
     /// </summary>
 public DocsContentService(
         IDocumentSession session,
-        IBlockService blockService,
         IMessageBus bus,
         ISiteContext siteContext,
         ILogger<DocsContentService> logger,
@@ -43,7 +40,6 @@ public DocsContentService(
         IFusionCache? cache = null)
     {
         _session = session;
-        _blockService = blockService;
         _bus = bus;
         _siteContext = siteContext;
         _logger = logger;
@@ -400,8 +396,6 @@ public async Task<Result<DocsPage, AeroError>> ForkToCultureAsync(long id, strin
                 HeaderImageUrl = source.HeaderImageUrl,
                 ParentId = parentId,
                 Order = source.Order,
-                LayoutRegions = source.LayoutRegions,
-                BlockSchemaVersion = source.BlockSchemaVersion,
                 CreatedOn = now,
                 ModifiedOn = now,
                 ModifiedBy = _actor ?? "system"
@@ -621,8 +615,6 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
             doc.HeaderImageUrl = vm.HeaderImageUrl;
             doc.ParentId = vm.ParentId;
             doc.Order = vm.Order;
-            doc.BlockSchemaVersion = vm.BlockSchemaVersion;
-
             return await SaveAsync(doc, ct);
         }
         catch (Exception ex)
@@ -668,7 +660,6 @@ public async Task<Result<IReadOnlyList<DocsPage>, AeroError>> GetChildrenAsync(l
         ParentId = page.ParentId,
         Order = page.Order,
         PublishedVersion = page.PublishedVersion,
-        BlockSchemaVersion = page.BlockSchemaVersion,
         CreatedOn = page.CreatedOn,
         ModifiedOn = page.ModifiedOn,
         CreatedBy = page.CreatedBy,

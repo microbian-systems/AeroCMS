@@ -149,14 +149,15 @@ public partial class HtmlPageEditorCanvas : IAsyncDisposable
     }
 
     [JSInvokable]
-    public Task OnEditorCommandRequested(string command)
+    public async Task OnEditorCommandRequested(string command)
     {
         if (PreviewMode || !Enum.TryParse<HtmlEditorCommandKind>(command, true, out var parsedCommand))
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        return EditorCommandRequested.InvokeAsync(parsedCommand);
+        await EditorCommandRequested.InvokeAsync(parsedCommand);
+        await InvokeAsync(StateHasChanged);
     }
 
     private Task SelectNodeAsync(long nodeId) => SelectionChanged.InvokeAsync(nodeId);

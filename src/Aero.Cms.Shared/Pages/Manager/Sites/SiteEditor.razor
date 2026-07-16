@@ -62,6 +62,73 @@
 
                 <div class="rounded-lg border p-5"
                      style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
+                    <div class="mb-5">
+                        <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Design System"]</h2>
+                        <p class="mt-1 text-sm pe-description">
+                            @L["Set reusable colors for page content. Page authors use these named roles instead of framework-specific classes."]
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        @foreach (var token in StyleTokens)
+                        {
+                            <div class="rounded-md border p-4"
+                                 style="border-color: var(--pe-border); background: var(--pe-bg-primary);">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <label class="text-sm font-semibold" style="color: var(--pe-text-primary);" for="@($"style-token-{token.Name}")">
+                                            @L[token.Label]
+                                        </label>
+                                        <p class="mt-1 text-xs" style="color: var(--pe-text-muted);">@L[token.Description]</p>
+                                    </div>
+                                    <input type="color"
+                                           @bind="token.HexValue"
+                                           aria-label="@L[$"{token.Label} color"]"
+                                           class="h-10 w-12 cursor-pointer rounded border bg-transparent p-1"
+                                           style="border-color: var(--pe-border);" />
+                                </div>
+                                <div class="mt-3">
+                                    <input id="@($"style-token-{token.Name}")"
+                                           @bind="token.HexValue"
+                                           @bind:event="oninput"
+                                           aria-describedby="@($"style-token-name-{token.Name}")"
+                                           placeholder="#172033"
+                                           spellcheck="false" />
+                                    <div id="@($"style-token-name-{token.Name}")"
+                                         class="mt-1 font-mono text-xs"
+                                         style="color: var(--pe-text-muted);">
+                                        @token.Name
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-end">
+                        <label class="pe-field">
+                            <span>@L["Mobile breakpoint (rem)"]</span>
+                            <input type="number"
+                                   min="20"
+                                   max="120"
+                                   step="0.25"
+                                   @bind="SmallScreenBreakpointRem" />
+                        </label>
+                        <p class="text-sm pe-description">
+                            @L["Responsive page styles switch to their small-screen values at this width. The default is 48rem."]
+                        </p>
+                    </div>
+
+                    @if (_additionalStyleTokens.Count > 0)
+                    {
+                        <p class="mt-4 rounded-md border px-3 py-2 text-xs"
+                           style="border-color: var(--pe-border); background: var(--pe-bg-primary); color: var(--pe-text-muted);">
+                            @L["Advanced tokens are preserved when this form is saved. They are not shown in the simplified editor."]
+                        </p>
+                    }
+                </div>
+
+                <div class="rounded-lg border p-5"
+                     style="border-color: var(--pe-border); background: var(--pe-bg-secondary);">
                     <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>
                             <h2 class="text-lg font-semibold" style="color: var(--pe-text-primary);">@L["Hosts"]</h2>

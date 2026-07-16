@@ -123,6 +123,24 @@ public async Task InvalidateFooterAsync(FooterChangedEvent @event, CancellationT
             @event.ChangeKind);
     }
 
+        /// <summary>
+    /// Invalidates rendered page responses for the site whose design tokens changed.
+    /// Page-document FusionCache entries contain semantic content rather than compiled
+    /// CSS, so only the site-scoped output-cache tag needs eviction.
+    /// </summary>
+public async Task InvalidateSiteStyleProfileAsync(
+    SiteStyleProfileChangedEvent @event,
+    CancellationToken cancellationToken = default)
+    {
+        var tag = $"site-pages-{@event.SiteId}";
+        await outputCacheStore.EvictByTagAsync(tag, cancellationToken);
+
+        logger.LogDebug(
+            "Invalidated rendered pages for site {SiteId} after style profile revision {Revision}",
+            @event.SiteId,
+            @event.Revision);
+    }
+
     private async Task RemoveSlugKeyAsync(string contentType, long siteId, string? slug, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(slug))

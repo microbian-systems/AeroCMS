@@ -78,6 +78,11 @@ protected List<string> SupportedCultures { get; } = ["en-US"];
     /// Gets or sets the Locale Options.
     /// </summary>
 protected IReadOnlyList<AeroLocaleOption> LocaleOptions { get; } = AeroLocaleCatalog.GetLocales();
+protected decimal SmallScreenBreakpointRem { get; set; } = 48;
+protected List<StyleTokenEditorModel> StyleTokens { get; } = CreateDefaultStyleTokens();
+
+    private long _styleProfileRevision = 1;
+    private List<SiteStyleColorTokenViewModel> _additionalStyleTokens = [];
 
         /// <summary>
     /// Gets or sets the Is New.
@@ -168,8 +173,18 @@ protected async Task SaveAsync()
                 var result = await SitesClient.CreateAsync(create);
                 if (result is Result<SiteViewModel, AeroError>.Ok ok)
                 {
-                    NotificationService.Notify(NotificationSeverity.Success, $"Site '{ok.Value.Name}' created");
-                    Navigation.NavigateTo("/manager/sites");
+                    var profileSaved = await SaveStyleProfileAsync(
+                        ok.Value.Id,
+                        Math.Max(1, ok.Value.StyleProfile?.Revision ?? 1));
+                    if (profileSaved)
+                    {
+                        NotificationService.Notify(NotificationSeverity.Success, $"Site '{ok.Value.Name}' created");
+                        Navigation.NavigateTo("/manager/sites");
+                    }
+                    else
+                    {
+                        Navigation.NavigateTo($"/manager/sites/{ok.Value.Id}");
+                    }
                 }
                 else if (result is Result<SiteViewModel, AeroError>.Failure fail)
                 {
@@ -191,8 +206,11 @@ protected async Task SaveAsync()
                 var result = await SitesClient.UpdateAsync(Id.Value, update);
                 if (result is Result<SiteViewModel, AeroError>.Ok ok)
                 {
-                    NotificationService.Notify(NotificationSeverity.Success, $"Site '{ok.Value.Name}' updated");
-                    Navigation.NavigateTo("/manager/sites");
+                    if (await SaveStyleProfileAsync(Id.Value, _styleProfileRevision))
+                    {
+                        NotificationService.Notify(NotificationSeverity.Success, $"Site '{ok.Value.Name}' updated");
+                        Navigation.NavigateTo("/manager/sites");
+                    }
                 }
                 else if (result is Result<SiteViewModel, AeroError>.Failure fail)
                 {
@@ -299,6 +317,7 @@ protected static string FormatCulture(string? culture)
 
         DefaultCulture = AeroLocaleCatalog.NormalizeCultureOrDefault(site.DefaultCulture, SupportedCultures.FirstOrDefault() ?? "en-US");
         EnsureDefaultCulture();
+        LoadStyleProfile(site.StyleProfile);
     }
 
     private bool Validate()
@@ -315,9 +334,95 @@ protected static string FormatCulture(string? culture)
             return false;
         }
 
+        if (SmallScreenBreakpointRem is < 20 or > 120)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Warning,
+                "The mobile breakpoint must be between 20 and 120 rem.");
+            return false;
+        }
+
         EnsureDefaultCulture();
         return true;
     }
+
+    private async Task<bool> SaveStyleProfileAsync(long siteId, long expectedRevision)
+    {
+        var tokens = StyleTokens
+            .Select(static token => new SiteStyleColorTokenViewModel
+            {
+                Name = token.Name,
+                HexValue = token.HexValue
+            })
+            .Concat(_additionalStyleTokens)
+            .ToList();
+
+        var result = await SitesClient.UpdateStyleProfileAsync(
+            siteId,
+            new UpdateSiteStyleProfileRequest(
+                expectedRevision,
+                SmallScreenBreakpointRem,
+                tokens));
+
+        if (result is Result<SiteStyleProfileViewModel, AeroError>.Ok ok)
+        {
+            _styleProfileRevision = ok.Value.Revision;
+            return true;
+        }
+
+        if (result is Result<SiteStyleProfileViewModel, AeroError>.Failure failure)
+        {
+            NotificationService.Notify(
+                NotificationSeverity.Error,
+                failure.Error.ToString(),
+                duration: 6000);
+        }
+
+        return false;
+    }
+
+    private void LoadStyleProfile(SiteStyleProfileViewModel? profile)
+    {
+        _styleProfileRevision = Math.Max(1, profile?.Revision ?? 1);
+        SmallScreenBreakpointRem = profile?.SmallScreenBreakpointRem is >= 20 and <= 120
+            ? profile.SmallScreenBreakpointRem
+            : 48;
+
+        var loadedTokens = (profile?.ColorTokens ?? [])
+            .Where(static token => !string.IsNullOrWhiteSpace(token.Name))
+            .GroupBy(static token => token.Name, StringComparer.Ordinal)
+            .ToDictionary(static group => group.Key, static group => group.First(), StringComparer.Ordinal);
+
+        foreach (var token in StyleTokens)
+        {
+            if (loadedTokens.TryGetValue(token.Name, out var loaded))
+            {
+                token.HexValue = loaded.HexValue;
+            }
+        }
+
+        var curatedNames = StyleTokens
+            .Select(static token => token.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        _additionalStyleTokens = loadedTokens.Values
+            .Where(token => !curatedNames.Contains(token.Name))
+            .Select(static token => new SiteStyleColorTokenViewModel
+            {
+                Name = token.Name,
+                HexValue = token.HexValue
+            })
+            .ToList();
+    }
+
+    private static List<StyleTokenEditorModel> CreateDefaultStyleTokens() =>
+    [
+        new("brand-primary", "Primary", "Main actions, links, and brand accents.", "#7c3aed"),
+        new("brand-secondary", "Secondary", "Supporting accents and secondary actions.", "#2563eb"),
+        new("surface-page", "Page background", "The default public page background.", "#ffffff"),
+        new("surface-card", "Card surface", "Cards and elevated content surfaces.", "#f8fafc"),
+        new("text-primary", "Primary text", "Headings and normal body copy.", "#172033"),
+        new("text-muted", "Muted text", "Descriptions, captions, and supporting copy.", "#64748b")
+    ];
 
     private List<string> NormalizeSupportedCultures()
     {
@@ -336,5 +441,17 @@ protected static string FormatCulture(string? culture)
 
         if (SupportedCultures.Count == 0)
             SupportedCultures.Add(DefaultCulture);
+    }
+
+    protected sealed class StyleTokenEditorModel(
+        string name,
+        string label,
+        string description,
+        string hexValue)
+    {
+        public string Name { get; } = name;
+        public string Label { get; } = label;
+        public string Description { get; } = description;
+        public string HexValue { get; set; } = hexValue;
     }
 }

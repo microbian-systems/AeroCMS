@@ -1,8 +1,7 @@
 @page "/manager/page/editor"
-@page "/manager/page/editor/{id:long}"
+@page "/manager/page/editor/{Id:long}"
 @attribute [Authorize]
 
-@* @layout _PageEditorLayout *@
 @using Aero.Cms.Abstractions.Enums
 @using Aero.Cms.Shared.Pages.Manager.PageTree
 @using Microsoft.AspNetCore.Components.Sections
@@ -47,19 +46,23 @@
 
             <div class="pe-living-toolbar" role="toolbar" aria-label="Page editing commands">
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                        aria-keyshortcuts="Control+Z Meta+Z"
                         disabled="@(!HtmlEditor.CanUndo)" @onclick="UndoHtmlChangeAsync">
                     @L["Undo"]
                 </button>
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                        aria-keyshortcuts="Control+Y Meta+Y Control+Shift+Z Meta+Shift+Z"
                         disabled="@(!HtmlEditor.CanRedo)" @onclick="RedoHtmlChangeAsync">
                     @L["Redo"]
                 </button>
                 <span class="pe-living-toolbar__divider" aria-hidden="true"></span>
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                        aria-keyshortcuts="Control+D Meta+D"
                         disabled="@(HtmlEditor.SelectedNodeId is null)" @onclick="DuplicateSelectedHtmlNodeAsync">
                     @L["Duplicate element"]
                 </button>
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm"
+                        aria-keyshortcuts="Delete Backspace"
                         disabled="@(HtmlEditor.SelectedNodeId is null)" @onclick="RemoveSelectedHtmlNodeAsync">
                     @L["Delete element"]
                 </button>
@@ -418,6 +421,10 @@ else if (ActiveTab == "translations")
                  IsCollapsedChanged="OnRightSidebarCollapsedChanged">
         @if (ActiveTab == "editor")
         {
+            <HtmlPageEditorOutline Content="HtmlEditor.Content"
+                                   SelectedNodeId="HtmlEditor.SelectedNodeId"
+                                   SelectionChanged="SelectHtmlNodeAsync" />
+
             @if (HtmlEditor.SelectedNode is { } selectedNode
                 && SelectedHtmlDefinition is { } selectedDefinition)
             {
@@ -437,7 +444,8 @@ else if (ActiveTab == "translations")
                 <HtmlElementPalette Elements="HtmlElementDefinitions"
                                     ElementRequested="AddHtmlElementAsync"
                                     LayoutRequested="AddHtmlLayoutAsync"
-                                    ComponentRequested="AddHtmlComponentAsync" />
+                                    ComponentRequested="AddHtmlComponentAsync"
+                                    ImportRequested="OpenHtmlFragmentImportAsync" />
             }
         }
     </AeroSidebar>
@@ -450,6 +458,13 @@ else if (ActiveTab == "translations")
                               ErrorMessage="HtmlRichTextError"
                               Closed="CloseHtmlRichTextEditorAsync"
                               ContentSaved="ApplyHtmlRichTextAsync" />
+}
+
+@if (HtmlFragmentImportOpen)
+{
+    <HtmlFragmentImportDialog ErrorMessage="HtmlFragmentImportError"
+                              ImportRequested="ImportHtmlFragmentAsync"
+                              Closed="CloseHtmlFragmentImportAsync" />
 }
 
 <MediaSelectorModal Show="HtmlMediaSelectorOpen"

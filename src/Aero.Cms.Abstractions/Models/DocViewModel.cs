@@ -85,22 +85,16 @@ public bool IsPubliclyVisible => PublicationState == ContentPublicationState.Pub
     [Id(12)]
     public long PublishedVersion { get; set; }
 
-    /// <summary>
-    /// Gets or sets the current block schema version for docs content.
-    /// </summary>
-    [Id(13)]
-    public int BlockSchemaVersion { get; set; }
-
         /// <summary>
     /// Gets or sets the Culture.
     /// </summary>
-[Id(14)]
+[Id(13)]
     public string Culture { get; set; } = "en-US";
 
         /// <summary>
     /// Gets or sets the Translation Group Id.
     /// </summary>
-[Id(15)]
+[Id(14)]
     public long? TranslationGroupId { get; set; }
 }
 

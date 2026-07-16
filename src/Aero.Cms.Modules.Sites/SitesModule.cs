@@ -1,5 +1,6 @@
 using Aero.Cms.Core;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Data.Repositories;
 using Aero.Cms.Web.Core.Modules;
 using Aero.Modular;
@@ -58,6 +59,8 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<ISiteService, SiteService>();
         services.AddScoped<ISiteLookupService, SiteLookupService>();
         services.AddScoped<IUserSiteService, UserSiteService>();
+        services.AddScoped<ISiteStyleProfileResolver, SiteStyleProfileResolver>();
+        services.AddScoped<ISiteStyleProfileService, SiteStyleProfileService>();
 
         // Register site authorization handler and policies.
         // Policies: site:create, site:read, site:update, site:delete
@@ -87,7 +90,9 @@ public void Configure(StoreOptions opts)
     {
         // SitesModel — no host info stored here; host resolution uses SiteHost.
         // DatabaseSchemaName/DocumentAlias not available in AeroDB
-        opts.Schema.For<SitesModel>().Index(x => x.IsEnabled);
+        var sites = opts.Schema.For<SitesModel>();
+        sites.UseOptimisticConcurrency = true;
+        sites.Index(x => x.IsEnabled);
 
         // SiteHost — separate document for multi-domain support.
         // Each row stores one normalized host/domain. The unique index on Host

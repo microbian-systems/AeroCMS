@@ -16,8 +16,8 @@ public sealed class HtmlElementManifestConformanceTests
         var definitions = catalog.Definitions.ToArray();
 
         await Assert.That(catalog.SchemaVersion).IsEqualTo(1);
-        await Assert.That(catalog.CatalogVersion).IsEqualTo("2026.1");
-        await Assert.That(definitions.Length).IsGreaterThanOrEqualTo(72);
+        await Assert.That(catalog.CatalogVersion).IsEqualTo("2026.2");
+        await Assert.That(definitions.Length).IsGreaterThanOrEqualTo(81);
         await Assert.That(definitions.Select(definition => definition.Tag).Distinct(StringComparer.OrdinalIgnoreCase).Count())
             .IsEqualTo(definitions.Length);
         await Assert.That(definitions.All(definition =>

@@ -1,0 +1,44 @@
+@namespace Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard
+
+<section class="aero-page-outline" aria-labelledby="aero-page-outline-title">
+    <header class="aero-page-outline__header">
+        <div>
+            <h2 id="aero-page-outline-title">Document outline</h2>
+            <span>Navigate the page structure.</span>
+        </div>
+        <span class="aero-page-outline__count">@ElementCount elements</span>
+    </header>
+
+    @if (Content.Root.Children.Count == 0)
+    {
+        <p class="aero-page-outline__empty">Add a section or component to begin.</p>
+    }
+    else
+    {
+        @if (Breadcrumbs.Count > 0)
+        {
+            <nav class="aero-page-outline__breadcrumbs" aria-label="Selected element path">
+                @foreach (var node in Breadcrumbs)
+                {
+                    <button @key="node.NodeId"
+                            type="button"
+                            class="@(node.NodeId == SelectedNodeId ? "is-selected" : null)"
+                            @onclick="() => SelectNodeAsync(node.NodeId)">
+                        &lt;@node.TagName&gt;
+                    </button>
+                }
+            </nav>
+        }
+
+        <ol class="aero-page-outline__tree" role="tree" aria-label="Page element tree">
+            @foreach (var node in RootElements)
+            {
+                <HtmlPageEditorOutlineItem @key="node.NodeId"
+                                           Node="node"
+                                           SelectedNodeId="SelectedNodeId"
+                                           Depth="1"
+                                           NodeSelected="SelectionChanged" />
+            }
+        </ol>
+    }
+</section>

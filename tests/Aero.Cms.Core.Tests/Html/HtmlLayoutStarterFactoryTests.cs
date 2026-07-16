@@ -49,4 +49,19 @@ public sealed class HtmlLayoutStarterFactoryTests
         await Assert.That(cardGrid.Children[0].Children.All(node => node.TagName == "article")).IsTrue();
         await Assert.That(HtmlTreeOperations.HasUniqueNodeIds(cardGrid)).IsTrue();
     }
+
+    [Test]
+    public async Task Four_column_and_heading_starters_supply_expected_responsive_structure()
+    {
+        var fourColumns = (Factory.Create(HtmlLayoutStarterKind.FourColumns) as Result<HtmlNode>.Ok)!.Value;
+        var headingColumns = (Factory.Create(HtmlLayoutStarterKind.HeadingTwoColumns) as Result<HtmlNode>.Ok)!.Value;
+
+        await Assert.That(fourColumns.Children[0].Style!.GridColumns).IsEqualTo(4);
+        await Assert.That(fourColumns.Children[0].Children).Count().IsEqualTo(4);
+        await Assert.That(fourColumns.Children[0].Style!.StackOnSmallScreens).IsTrue();
+        await Assert.That(headingColumns.Children[0].Children.Select(node => node.TagName!))
+            .IsEquivalentTo(["h2", "p"]);
+        await Assert.That(headingColumns.Children[1].Style!.GridColumns).IsEqualTo(2);
+        await Assert.That(headingColumns.Children[1].Children).Count().IsEqualTo(2);
+    }
 }

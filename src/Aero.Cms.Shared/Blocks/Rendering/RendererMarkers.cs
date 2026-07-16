@@ -140,12 +140,6 @@ public partial class AeroAuthRenderer;
 public partial class CarouselRenderer;
 
 /// <summary>
-/// Represents a class for NeoCompositionBlockRenderer.
-/// </summary>
-[CmsBlockRenderer(typeof(NeoCompositionBlock))]
-public partial class NeoCompositionBlockRenderer;
-
-/// <summary>
 /// Represents a class for ImageBlockRenderer.
 /// </summary>
 [CmsBlockRenderer(typeof(Aero.Cms.Abstractions.Blocks.Neo.ImageBlock))]

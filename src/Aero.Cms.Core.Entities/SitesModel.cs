@@ -1,4 +1,5 @@
 using Aero.Core.Data;
+using Aero.Cms.Html;
 using AeroDB.Sable;
 
 namespace Aero.Cms.Core.Entities;
@@ -38,6 +39,11 @@ public string? DefaultCulture { get; set; } = DefaultCultureName;
     /// Gets or sets the Supported Cultures.
     /// </summary>
     public List<string> SupportedCultures { get; set; } = [DefaultCultureName];
+
+    /// <summary>
+    /// Gets or sets the framework-neutral site style profile.
+    /// </summary>
+    public StyleProfileSettings StyleProfile { get; set; } = new();
 
     // IAuditable
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;

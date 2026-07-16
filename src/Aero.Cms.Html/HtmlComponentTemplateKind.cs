@@ -6,12 +6,29 @@ namespace Aero.Cms.Html;
 public enum HtmlComponentTemplateKind
 {
     Hero,
+    SplitHero,
     FeatureGrid,
+    FeatureList,
     CallToAction,
+    CenteredCallToAction,
     FrequentlyAskedQuestions,
+    AccordionFaq,
     Testimonial,
     Statistics,
     ImageAndText,
     ContactForm,
-    Gallery
+    Gallery,
+    NavigationHeader,
+    LogoCloud,
+    PricingGrid,
+    TeamGrid,
+    SiteFooter,
+    NewsletterSignup,
+    AnnouncementBanner,
+    LatestArticles,
+    ProcessSteps,
+    ShowcaseCollection,
+    MilestoneTimeline,
+    FeatureComparisonTable,
+    DetailsList
 }

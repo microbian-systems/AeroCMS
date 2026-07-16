@@ -17,7 +17,7 @@ public sealed record PreviewPageFragmentResponse(string Html);
 /// <summary>
 /// Request payload for rendering an unsaved blog post preview fragment.
 /// </summary>
-public sealed record PreviewBlogPostFragmentRequest(IReadOnlyList<BlockBase>? Content = null);
+public sealed record PreviewBlogPostFragmentRequest(string? MarkdownContent = null);
 
 /// <summary>
 /// Response payload for a rendered blog post preview fragment.

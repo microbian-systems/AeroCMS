@@ -1,6 +1,4 @@
 using System.Text.Json;
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Core.Http;
 using Aero.Cms.Modules.Posts.Parsers;
@@ -212,7 +210,7 @@ public PostsImportService(
                             document = existingDoc;
                             document.Title = post.Title;
                             document.Slug = post.Slug;
-                            document.Content = CreateContentBlocks(post.MarkdownContent);
+                            document.MarkdownContent = post.MarkdownContent;
                             document.ImageUrl = resolvedImageUrl;
                             document.PublicationState = request.PublishImported
                                 ? ContentPublicationState.Published
@@ -310,7 +308,7 @@ public PostsImportService(
             Excerpt = post.MarkdownContent.Length > 500
                 ? post.MarkdownContent[..500] + "..."
                 : post.MarkdownContent,
-            Content = CreateContentBlocks(post.MarkdownContent),
+            MarkdownContent = post.MarkdownContent,
             ImageUrl = imageUrl,
             PublicationState = request.PublishImported
                 ? ContentPublicationState.Published
@@ -325,22 +323,6 @@ public PostsImportService(
             SeriesId = generalSeriesId,
             AuthorId = request.DefaultAuthorId
         };
-    }
-
-    private static List<BlockBase> CreateContentBlocks(string markdown)
-    {
-        if (string.IsNullOrWhiteSpace(markdown))
-            return [];
-
-        return
-        [
-            new MarkdownBlock
-            {
-                Id = Snowflake.NewId(),
-                Content = markdown,
-                Order = 0
-            }
-        ];
     }
 
     private async Task<Dictionary<string, long>> ResolveTagsAsync(

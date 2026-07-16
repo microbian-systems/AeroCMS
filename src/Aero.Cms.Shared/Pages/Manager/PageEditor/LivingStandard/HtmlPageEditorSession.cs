@@ -142,6 +142,25 @@ public sealed class HtmlPageEditorSession
         };
     }
 
+    /// <summary>
+    /// Inserts a validated static fragment at the page root as one undoable mutation.
+    /// The fragment importer owns parsing and validation; this session owns editor state.
+    /// </summary>
+    public Result<IReadOnlyList<HtmlNode>> InsertImportedFragment(HtmlPageContent fragment)
+    {
+        ArgumentNullException.ThrowIfNull(fragment);
+
+        var importedNodes = fragment.Root.Children;
+        var result = _treeEditor.InsertChildren(Content.Root.NodeId, importedNodes);
+        if (result is Result<IReadOnlyList<HtmlNode>>.Ok ok)
+        {
+            SelectedNodeId = ok.Value[0].NodeId;
+            RefreshCompiledStyles();
+        }
+
+        return result;
+    }
+
     public Result<HtmlNode> Move(long nodeId, long destinationParentNodeId, int destinationIndex)
     {
         var result = _treeEditor.Move(nodeId, destinationParentNodeId, destinationIndex);
@@ -176,14 +195,42 @@ public sealed class HtmlPageEditorSession
             return AeroError.NotAllowedError("Select an element before removing it.");
         }
 
+        var fallbackSelectionId = FindRemovalFallbackSelection(nodeId);
         var result = _treeEditor.Remove(nodeId);
         if (result is Result<HtmlNode>.Ok)
         {
-            SelectedNodeId = null;
+            SelectedNodeId = fallbackSelectionId;
             RefreshCompiledStyles();
         }
 
         return result;
+    }
+
+    private long? FindRemovalFallbackSelection(long nodeId)
+    {
+        var parent = HtmlTreeOperations.FindParentById(Content.Root, nodeId);
+        if (parent is null)
+        {
+            return null;
+        }
+
+        var index = parent.Children.FindIndex(child => child.NodeId == nodeId);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        if (index + 1 < parent.Children.Count)
+        {
+            return parent.Children[index + 1].NodeId;
+        }
+
+        if (index > 0)
+        {
+            return parent.Children[index - 1].NodeId;
+        }
+
+        return parent.Kind is HtmlNodeKind.Fragment ? null : parent.NodeId;
     }
 
     public Result<HtmlNode> DuplicateSelected()
@@ -267,6 +314,7 @@ public sealed class HtmlPageEditorSession
             HtmlCollectionActionKind.AddFormTextArea => AddFormControl(nodeId, "textarea"),
             HtmlCollectionActionKind.AddFormSelect => AddFormControl(nodeId, "select"),
             HtmlCollectionActionKind.AddSelectOption => AddSelectOption(nodeId),
+            HtmlCollectionActionKind.AddOptionGroup => AddOptionGroup(nodeId),
             _ => AeroError.ValidationError(["The requested structure action is not supported."])
         };
     }
@@ -356,7 +404,7 @@ public sealed class HtmlPageEditorSession
         {
             container = FindAncestorOrSelf(
                 selectedNodeId,
-                node => node.TagName is "table" or "thead" or "tbody");
+                node => node.TagName is "table" or "thead" or "tbody" or "tfoot");
         }
 
         if (container is null)
@@ -533,14 +581,33 @@ public sealed class HtmlPageEditorSession
 
     private Result<HtmlNode> AddSelectOption(long selectedNodeId)
     {
+        var optionContainer = FindAncestorOrSelf(
+            selectedNodeId,
+            node => node.TagName is "select" or "optgroup" or "datalist");
+        if (optionContainer is null)
+        {
+            return AeroError.NotAllowedError("Select a choice list, option group, or suggested-values list before adding an option.");
+        }
+
+        var number = optionContainer.Children.Count(child => child.TagName == "option") + 1;
+        return InsertGuidedChild(
+            optionContainer.NodeId,
+            CreateOption($"option-{number}", $"Option {number}"));
+    }
+
+    private Result<HtmlNode> AddOptionGroup(long selectedNodeId)
+    {
         var select = FindAncestorOrSelf(selectedNodeId, node => node.TagName == "select");
         if (select is null)
         {
-            return AeroError.NotAllowedError("Select a choice list before adding an option.");
+            return AeroError.NotAllowedError("Select a choice list before adding an option group.");
         }
 
-        var number = select.Children.Count(child => child.TagName == "option") + 1;
-        return InsertGuidedChild(select.NodeId, CreateOption($"option-{number}", $"Option {number}"));
+        var number = select.Children.Count(child => child.TagName == "optgroup") + 1;
+        var optionGroup = _catalog.CreateElement("optgroup");
+        optionGroup.Attributes["label"] = $"Option group {number}";
+        optionGroup.Children.Add(CreateOption($"group-{number}-option-1", "Option 1"));
+        return InsertGuidedChild(select.NodeId, optionGroup);
     }
 
     private Result<HtmlNode> InsertGuidedChild(long parentNodeId, HtmlNode child, int? index = null)
@@ -574,6 +641,11 @@ public sealed class HtmlPageEditorSession
     private void AppendTableColumn(HtmlNode node, bool insideTableHead)
     {
         var isInsideTableHead = insideTableHead || node.TagName == "thead";
+        if (node.TagName == "colgroup")
+        {
+            node.Children.Add(_catalog.CreateElement("col"));
+        }
+
         if (node.TagName == "tr")
         {
             var cellCount = node.Children.Count(child => child.TagName is "th" or "td") + 1;
@@ -661,6 +733,8 @@ public sealed class HtmlPageEditorSession
             "a" => "Link text",
             "button" => "Button",
             "label" => "Field label",
+            "legend" => "Field group",
+            "output" => "Calculated result",
             "pre" => "Preformatted text",
             "code" => "code",
             "small" => "Small print",
@@ -802,11 +876,34 @@ public sealed class HtmlPageEditorSession
             node.Children.Add(CreateOption("option-1", "Option 1"));
         }
 
+        if (definition.Tag.Equals("fieldset", StringComparison.OrdinalIgnoreCase))
+        {
+            AddDefaultFieldsetContent(node);
+        }
+
+        if (definition.Tag.Equals("datalist", StringComparison.OrdinalIgnoreCase))
+        {
+            node.Children.Add(CreateOption("suggestion-1", "Suggestion 1"));
+            node.Children.Add(CreateOption("suggestion-2", "Suggestion 2"));
+        }
+
+        if (definition.Tag.Equals("output", StringComparison.OrdinalIgnoreCase))
+        {
+            node.Attributes["name"] = "result";
+        }
+
         return node;
     }
 
     private void AddDefaultTableContent(HtmlNode table)
     {
+        var caption = _catalog.CreateElement("caption");
+        caption.Children.Add(HtmlNode.CreateText("Table caption"));
+
+        var columnGroup = _catalog.CreateElement("colgroup");
+        columnGroup.Children.Add(_catalog.CreateElement("col"));
+        columnGroup.Children.Add(_catalog.CreateElement("col"));
+
         var head = _catalog.CreateElement("thead");
         var headRow = _catalog.CreateElement("tr");
         headRow.Children.Add(CreateTableCell("th", "Header 1", "col"));
@@ -819,8 +916,17 @@ public sealed class HtmlPageEditorSession
         bodyRow.Children.Add(CreateTableCell("td", "Cell 2"));
         body.Children.Add(bodyRow);
 
+        var foot = _catalog.CreateElement("tfoot");
+        var footRow = _catalog.CreateElement("tr");
+        footRow.Children.Add(CreateTableCell("td", "Total"));
+        footRow.Children.Add(CreateTableCell("td", "0"));
+        foot.Children.Add(footRow);
+
+        table.Children.Add(caption);
+        table.Children.Add(columnGroup);
         table.Children.Add(head);
         table.Children.Add(body);
+        table.Children.Add(foot);
     }
 
     private HtmlNode CreateTableCell(string tag, string text, string? scope = null)
@@ -855,6 +961,26 @@ public sealed class HtmlPageEditorSession
         form.Children.Add(label);
         form.Children.Add(input);
         form.Children.Add(button);
+    }
+
+    private void AddDefaultFieldsetContent(HtmlNode fieldset)
+    {
+        var legend = _catalog.CreateElement("legend");
+        legend.Children.Add(HtmlNode.CreateText("Field group"));
+
+        var input = _catalog.CreateElement("input");
+        var inputId = $"field-{input.NodeId}";
+        input.Attributes["id"] = inputId;
+        input.Attributes["type"] = "text";
+        input.Attributes["name"] = "field";
+
+        var label = _catalog.CreateElement("label");
+        label.Attributes["for"] = inputId;
+        label.Children.Add(HtmlNode.CreateText("Field label"));
+
+        fieldset.Children.Add(legend);
+        fieldset.Children.Add(label);
+        fieldset.Children.Add(input);
     }
 
     private HtmlNode CreateOption(string value, string text)

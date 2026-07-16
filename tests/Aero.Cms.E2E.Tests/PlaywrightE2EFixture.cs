@@ -5,6 +5,7 @@ using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Setup;
 using Aero.Cms.Modules.Setup.Bootstrap;
+using Aero.Cms.Modules.Sites;
 using Aero.Cms.Web.Bootstrap;
 using Aero.Cms.Web.Core.Eextensions;
 using Aero.Cms.Web.Infrastructure;
@@ -383,6 +384,14 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
 
             await next(context);
         });
+
+        // The production host receives this through SiteStartupFilter. This
+        // fixture builds its pipeline manually, so add it explicitly to give
+        // public requests the same host-derived site context. The readiness
+        // endpoint runs before the database is seeded and must stay reachable.
+        app.UseWhen(
+            context => !context.Request.Path.StartsWithSegments("/__e2e", StringComparison.OrdinalIgnoreCase),
+            branch => branch.UseMiddleware<SiteResolutionMiddleware>());
 
         app.UseStaticFiles();
         app.MapStaticAssets();
@@ -783,6 +792,18 @@ public sealed class PlaywrightE2EFixture : IAsyncDisposable
         BlockPageId = blockPage.Id;
 
         await session.SaveChangesAsync();
+
+        await using (var resolutionScope = _app.Services.CreateAsyncScope())
+        {
+            var siteLookup = resolutionScope.ServiceProvider.GetRequiredService<ISiteLookupService>();
+            var resolvedSite = await siteLookup.ResolveByHostAsync("localhost");
+            if (resolvedSite?.Id != site.Id)
+            {
+                throw new InvalidOperationException(
+                    $"E2E site host resolution failed. Expected site {site.Id} for localhost, " +
+                    $"but resolved {resolvedSite?.Id.ToString() ?? "no site"}.");
+            }
+        }
 
         await using var verification = await documentStore.QuerySessionAsync();
         var allPages = await verification.Query<PageDocument>().ToListAsync();

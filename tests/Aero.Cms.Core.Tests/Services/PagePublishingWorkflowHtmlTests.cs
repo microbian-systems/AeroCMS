@@ -1,7 +1,10 @@
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
+using Aero.Core;
+using Aero.Core.Railway;
 using AeroDB.Sable;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -91,8 +94,17 @@ public sealed class PagePublishingWorkflowHtmlTests
             Substitute.For<IMessageBus>(),
             new HtmlContentValidator(catalog, contentPolicy, attributePolicy),
             new NativeCssStyleCompiler(),
-            new NativeStyleProfile(),
+            CreateStyleProfileResolver(),
             NullLogger<PagePublishingWorkflowService>.Instance);
+    }
+
+    private static ISiteStyleProfileResolver CreateStyleProfileResolver()
+    {
+        var resolver = Substitute.For<ISiteStyleProfileResolver>();
+        resolver.ResolveAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<IStyleProfile, AeroError>>(
+                new Result<IStyleProfile, AeroError>.Ok(new NativeStyleProfile())));
+        return resolver;
     }
 
     private static PageDocument CreatePage(long id, HtmlPageContent content) => new()

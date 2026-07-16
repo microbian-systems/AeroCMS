@@ -1,10 +1,12 @@
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Enums;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Entities;
 using Aero.Cms.Html;
 using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Pages.Areas.Cms.Pages;
+using Aero.Core;
 using Aero.Core.Http;
 using Aero.Core.Railway;
 using AeroDB.Sable;
@@ -21,6 +23,56 @@ namespace Aero.Cms.Core.Tests.Integration;
 
 public sealed class PageEditorPublishingGoldenPathTests
 {
+    [Test]
+    public async Task Public_render_resolves_the_same_token_from_each_pages_site_profile()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+
+        var first = CreatePage(9_601, 61, CreateTokenContent("brand-color"));
+        first.PublicationState = ContentPublicationState.Published;
+        first.PublishedContent = HtmlTreeOperations.ClonePreservingNodeIds(first.DraftContent);
+        var second = CreatePage(9_602, 62, CreateTokenContent("brand-color"));
+        second.PublicationState = ContentPublicationState.Published;
+        second.PublishedContent = HtmlTreeOperations.ClonePreservingNodeIds(second.DraftContent);
+        harness.Session.Store(first);
+        harness.Session.Store(second);
+        await harness.Session.SaveChangesAsync();
+
+        var resolver = Substitute.For<ISiteStyleProfileResolver>();
+        resolver.ResolveAsync(61, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<IStyleProfile, AeroError>>(
+                new Result<IStyleProfile, AeroError>.Ok(new NativeStyleProfile
+                {
+                    ProfileId = "site-61",
+                    ColorTokens = new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["brand-color"] = "#112233"
+                    }
+                })));
+        resolver.ResolveAsync(62, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<IStyleProfile, AeroError>>(
+                new Result<IStyleProfile, AeroError>.Ok(new NativeStyleProfile
+                {
+                    ProfileId = "site-62",
+                    ColorTokens = new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["brand-color"] = "#ddeeff"
+                    }
+                })));
+
+        var firstModel = await RenderPublicPageAsync(harness, first.Id, first.SiteId, resolver);
+        var secondModel = await RenderPublicPageAsync(harness, second.Id, second.SiteId, resolver);
+
+        firstModel.RenderedCss.ShouldContain("color: #112233;");
+        firstModel.RenderedCss.ShouldNotContain("#ddeeff");
+        secondModel.RenderedCss.ShouldContain("color: #ddeeff;");
+        secondModel.RenderedCss.ShouldNotContain("#112233");
+        await resolver.Received(1).ResolveAsync(61, Arg.Any<CancellationToken>());
+        await resolver.Received(1).ResolveAsync(62, Arg.Any<CancellationToken>());
+    }
+
     [Test]
     public async Task Saved_draft_round_trips_and_public_render_remains_on_the_published_snapshot()
     {
@@ -94,7 +146,7 @@ public sealed class PageEditorPublishingGoldenPathTests
                 new HtmlContentModelPolicy(catalog),
                 new HtmlAttributePolicy()),
             new NativeCssStyleCompiler(),
-            new NativeStyleProfile());
+            CreateStyleProfileResolver());
     }
 
     private static PagePublishingWorkflowService CreatePublishingService(IDocumentSession session)
@@ -108,14 +160,15 @@ public sealed class PageEditorPublishingGoldenPathTests
                 new HtmlContentModelPolicy(catalog),
                 new HtmlAttributePolicy()),
             new NativeCssStyleCompiler(),
-            new NativeStyleProfile(),
+            CreateStyleProfileResolver(),
             NullLogger<PagePublishingWorkflowService>.Instance);
     }
 
     private static async Task<DynamicPageModel> RenderPublicPageAsync(
         SableTestHarness harness,
         long pageId,
-        long siteId)
+        long siteId,
+        ISiteStyleProfileResolver? styleProfileResolver = null)
     {
         await using var session = await harness.OpenSessionAsync();
         var page = await session.LoadAsync<PageDocument>(pageId);
@@ -158,7 +211,7 @@ public sealed class PageEditorPublishingGoldenPathTests
                 attributePolicy,
                 new HtmlContentValidator(catalog, contentPolicy, attributePolicy)),
             new NativeCssStyleCompiler(),
-            new NativeStyleProfile(),
+            styleProfileResolver ?? CreateStyleProfileResolver(),
             NullLogger<DynamicPageModel>.Instance)
         {
             Slug = page.Slug,
@@ -176,6 +229,32 @@ public sealed class PageEditorPublishingGoldenPathTests
         var result = await model.OnGetAsync();
         result.ShouldBeOfType<PageResult>();
         return model;
+    }
+
+    private static HtmlPageContent CreateTokenContent(string tokenName)
+    {
+        var heading = HtmlNode.CreateElement("h1");
+        heading.Children.Add(HtmlNode.CreateText("Site themed heading"));
+        heading.Style = new HtmlStyle
+        {
+            Typography = new CssTypographyStyle
+            {
+                Color = CssColor.Token(tokenName)
+            }
+        };
+
+        var content = new HtmlPageContent();
+        content.Root.Children.Add(heading);
+        return content;
+    }
+
+    private static ISiteStyleProfileResolver CreateStyleProfileResolver()
+    {
+        var resolver = Substitute.For<ISiteStyleProfileResolver>();
+        resolver.ResolveAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Result<IStyleProfile, AeroError>>(
+                new Result<IStyleProfile, AeroError>.Ok(new NativeStyleProfile())));
+        return resolver;
     }
 
     private static PageDocument CreatePage(long id, long siteId, HtmlPageContent content) => new()

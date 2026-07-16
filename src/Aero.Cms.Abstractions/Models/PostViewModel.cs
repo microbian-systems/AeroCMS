@@ -46,10 +46,10 @@ public sealed record PostViewModel : AeroEntityViewModel
     public ContentPublicationState PublicationState { get; set; } = ContentPublicationState.Draft;
 
     /// <summary>
-    /// Gets or sets the block-based content for this blog post.
+    /// Gets or sets the Markdown body for this blog post.
     /// </summary>
     [Id(7)]
-    public List<object> Content { get; set; } = [];
+    public string MarkdownContent { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the IDs of tags associated with this blog post.

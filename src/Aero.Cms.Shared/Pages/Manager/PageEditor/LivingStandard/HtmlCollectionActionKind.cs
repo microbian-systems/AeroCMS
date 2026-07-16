@@ -13,5 +13,6 @@ public enum HtmlCollectionActionKind
     AddFormInput,
     AddFormTextArea,
     AddFormSelect,
-    AddSelectOption
+    AddSelectOption,
+    AddOptionGroup
 }

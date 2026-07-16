@@ -42,6 +42,11 @@ public record SiteViewModel : AeroEntityViewModel
     /// </summary>
 [Id(7)]
     public List<string> SupportedCultures { get; set; } = ["en-US"];
+        /// <summary>
+    /// Gets or sets the site's framework-neutral style profile.
+    /// </summary>
+[Id(8)]
+    public SiteStyleProfileViewModel StyleProfile { get; set; } = new();
 }
 
 /// <summary>

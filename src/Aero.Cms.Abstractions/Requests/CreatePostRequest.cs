@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Enums;
 
 namespace Aero.Cms.Abstractions.Requests;
@@ -17,7 +16,6 @@ public record CreatePostRequest(
     string? AuthorName,
     DateTimeOffset? PublishDate,
     ContentPublicationState PublicationState = ContentPublicationState.Draft,
-    IReadOnlyList<EditorBlock>? EditorBlocks = null,
     long SiteId = 0
 ): IRequest;
 
@@ -35,8 +33,7 @@ public record UpdatePostRequest(
     string? SeoDescription,
     string? AuthorName,
     DateTimeOffset? PublishDate,
-    ContentPublicationState PublicationState = ContentPublicationState.Draft,
-    IReadOnlyList<EditorBlock>? EditorBlocks = null
+    ContentPublicationState PublicationState = ContentPublicationState.Draft
 ): IRequest;
 
 /// <summary>

@@ -8,6 +8,44 @@ namespace Aero.Cms.Core.Tests.Integration;
 public sealed class PageDocumentHtmlContentPersistenceTests
 {
     [Test]
+    public async Task Flexible_page_document_load_by_long_selects_requested_page()
+    {
+        await using var harness = new SableTestHarness()
+            .WithSchema<PageDocument>(SchemaMode.Flexible);
+        await harness.InitializeAsync();
+
+        var first = new PageDocument
+        {
+            Id = 9_100,
+            SiteId = 7,
+            Title = "First page",
+            Slug = "first-page",
+            Path = "/first-page",
+            DraftContent = CreateContent("First")
+        };
+        var requested = new PageDocument
+        {
+            Id = 9_101,
+            SiteId = 7,
+            Title = "Requested page",
+            Slug = "requested-page",
+            Path = "/requested-page",
+            DraftContent = CreateContent("Requested")
+        };
+
+        harness.Session.Store(first);
+        harness.Session.Store(requested);
+        await harness.Session.SaveChangesAsync();
+
+        await using var verificationSession = await harness.OpenSessionAsync();
+        var restored = await verificationSession.LoadAsync<PageDocument>(requested.Id);
+
+        await Assert.That(restored).IsNotNull();
+        await Assert.That(restored!.Id).IsEqualTo(requested.Id);
+        await Assert.That(restored.Title).IsEqualTo("Requested page");
+    }
+
+    [Test]
     public async Task Flexible_page_document_round_trips_independent_draft_and_published_html_snapshots()
     {
         await using var harness = new SableTestHarness()

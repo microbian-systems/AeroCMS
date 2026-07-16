@@ -46,18 +46,23 @@ public AeroPageGrain(
         var bus = _services.GetRequiredService<IMessageBus>();
         var logger = _services.GetRequiredService<ILogger<AeroPageContentService>>();
         var cache = _services.GetService<IFusionCache>();
-        var pageTreeService = _services.GetService<IPageTreeService>();
         var contentValidator = _services.GetRequiredService<IHtmlContentValidator>();
         var styleCompiler = _services.GetRequiredService<IStyleCompiler>();
-        var styleProfile = _services.GetRequiredService<IStyleProfile>();
+        var styleProfileResolver = _services.GetRequiredService<ISiteStyleProfileResolver>();
+        var fixedSiteContext = new FixedSiteContext(siteId);
+        var pageTreeService = new PageTreeService(
+            session,
+            fixedSiteContext,
+            bus,
+            _services.GetRequiredService<ILogger<PageTreeService>>());
         return new AeroPageContentService(
             session,
             bus,
-            new FixedSiteContext(siteId),
+            fixedSiteContext,
             logger,
             contentValidator,
             styleCompiler,
-            styleProfile,
+            styleProfileResolver,
             "system",
             cache,
             pageTreeService);
@@ -266,7 +271,7 @@ public Task<AeroRequestResponse<PageViewModel>> GetBySlugAsync(long siteId, stri
     /// </summary>
 public async Task<AeroRequestResponse<PageViewModel>> PublishAsync(long id, CancellationToken ct)
     {
-        using var scope = _services.CreateScope();
+        await using var scope = _services.CreateAsyncScope();
         var workflow = scope.ServiceProvider.GetRequiredService<IPagePublishingWorkflowService>();
         var result = await workflow.PublishNowAsync(id, ct);
 

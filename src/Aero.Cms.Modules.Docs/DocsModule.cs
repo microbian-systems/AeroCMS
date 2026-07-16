@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Aero.Cms.Core;
 using Aero.Modular;
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Core.Http;
 using Wolverine;
 using ZiggyCreatures.Caching.Fusion;
@@ -71,9 +70,6 @@ public void Configure(StoreOptions opts)
         // Full-text search (Phase 1)
         // NgramIndex not available in AeroDB
 
-        // Editor state (Phase 1)
-        opts.Schema.For<DocsEditorState>().Identity(x => x.Id);
-        opts.Schema.For<DocsEditorState>().Index(x => x.SiteId);
     }
 
         /// <summary>
@@ -101,14 +97,13 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
         services.AddScoped<IDocsService>(sp =>
         {
             var session = sp.GetRequiredService<IDocumentSession>();
-            var blockService = sp.GetRequiredService<IBlockService>();
             var bus = sp.GetRequiredService<IMessageBus>();
             var siteContext = sp.GetRequiredService<ISiteContext>();
             var logger = sp.GetRequiredService<ILogger<DocsContentService>>();
             var httpContextAccessor = sp.GetService<IHttpContextAccessor>();
             var cache = sp.GetService<IFusionCache>();
             var actor = httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "system";
-            return new DocsContentService(session, blockService, bus, siteContext, logger, actor, cache);
+            return new DocsContentService(session, bus, siteContext, logger, actor, cache);
         });
         services.AddScoped<IDocsTreeService, DocsTreeService>();
 

@@ -15,7 +15,9 @@ public sealed class HtmlLayoutStarterFactory(HtmlElementCatalog catalog) : IHtml
             HtmlLayoutStarterKind.OneColumn => CreateGrid(columns: 1, childCount: 1, childTag: "div"),
             HtmlLayoutStarterKind.TwoColumns => CreateGrid(columns: 2, childCount: 2, childTag: "div"),
             HtmlLayoutStarterKind.ThreeColumns => CreateGrid(columns: 3, childCount: 3, childTag: "div"),
+            HtmlLayoutStarterKind.FourColumns => CreateGrid(columns: 4, childCount: 4, childTag: "div"),
             HtmlLayoutStarterKind.Split => CreateSplit(),
+            HtmlLayoutStarterKind.HeadingTwoColumns => CreateHeadingTwoColumns(),
             HtmlLayoutStarterKind.CardGrid => CreateGrid(columns: 3, childCount: 3, childTag: "article"),
             _ => null
         };
@@ -60,6 +62,30 @@ public sealed class HtmlLayoutStarterFactory(HtmlElementCatalog catalog) : IHtml
         container.Children.Add(catalog.CreateElement("div"));
         container.Children.Add(catalog.CreateElement("div"));
         section.Children.Add(container);
+        return section;
+    }
+
+    private HtmlNode CreateHeadingTwoColumns()
+    {
+        var section = catalog.CreateElement("section");
+        var heading = catalog.CreateElement("div");
+        heading.Children.Add(catalog.CreateElement("h2"));
+        heading.Children.Add(catalog.CreateElement("p"));
+
+        var columns = catalog.CreateElement("div");
+        columns.Style = new HtmlStyle
+        {
+            Display = CssDisplay.Grid,
+            GridColumns = 2,
+            StackOnSmallScreens = true,
+            Gap = CssLength.Rem(1.5m),
+            Margin = new CssLogicalSpacing { BlockStart = CssLength.Rem(1.5m) }
+        };
+        columns.Children.Add(catalog.CreateElement("div"));
+        columns.Children.Add(catalog.CreateElement("div"));
+
+        section.Children.Add(heading);
+        section.Children.Add(columns);
         return section;
     }
 }

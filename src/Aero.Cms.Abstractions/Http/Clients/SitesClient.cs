@@ -30,6 +30,13 @@ Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest request, Ca
     /// </summary>
 Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default);
         /// <summary>
+    /// Updates a site's framework-neutral style profile.
+    /// </summary>
+Task<Result<SiteStyleProfileViewModel, AeroError>> UpdateStyleProfileAsync(
+    long id,
+    UpdateSiteStyleProfileRequest request,
+    CancellationToken ct = default);
+        /// <summary>
     /// DeleteAsync method.
     /// </summary>
 Task<Result<bool, AeroError>> DeleteAsync(long id, CancellationToken ct = default);
@@ -75,6 +82,18 @@ public Task<Result<SiteViewModel, AeroError>> CreateAsync(CreateSiteRequest requ
     /// </summary>
 public Task<Result<SiteViewModel, AeroError>> UpdateAsync(long id, UpdateSiteRequest request, CancellationToken ct = default)
         => PutAsync<UpdateSiteRequest, SiteViewModel>(id.ToString(), request, ct);
+
+        /// <summary>
+    /// Updates a site's framework-neutral style profile.
+    /// </summary>
+public Task<Result<SiteStyleProfileViewModel, AeroError>> UpdateStyleProfileAsync(
+    long id,
+    UpdateSiteStyleProfileRequest request,
+    CancellationToken ct = default)
+        => PutAsync<UpdateSiteStyleProfileRequest, SiteStyleProfileViewModel>(
+            $"{id}/style-profile",
+            request,
+            ct);
 
         /// <summary>
     /// DeleteAsync method.

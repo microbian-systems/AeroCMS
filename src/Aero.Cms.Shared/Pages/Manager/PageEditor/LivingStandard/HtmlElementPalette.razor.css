@@ -34,6 +34,13 @@
     outline: 3px solid rgb(124 58 237 / 12%);
 }
 
+.aero-element-palette__guidance {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
 .aero-element-palette__section {
     display: grid;
     gap: 0.625rem;
@@ -79,6 +86,24 @@
 .aero-element-palette__advanced-toggle:hover,
 .aero-element-palette__advanced-toggle:focus-visible {
     border-color: #a855f7;
+    outline: none;
+}
+
+.aero-element-palette__show-more {
+    width: 100%;
+    border: 0;
+    padding: 0.25rem;
+    color: #0369a1;
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.aero-element-palette__show-more:hover,
+.aero-element-palette__show-more:focus-visible {
+    color: #075985;
+    text-decoration: underline;
     outline: none;
 }
 

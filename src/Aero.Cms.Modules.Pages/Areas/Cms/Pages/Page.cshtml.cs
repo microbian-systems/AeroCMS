@@ -27,7 +27,7 @@ public class DynamicPageModel(
     IDocumentStore documentStore,
     HtmlStaticRenderer htmlRenderer,
     IStyleCompiler styleCompiler,
-    IStyleProfile styleProfile,
+    ISiteStyleProfileResolver styleProfileResolver,
     ILogger<DynamicPageModel> logger) : PageModel
 {
         /// <summary>
@@ -107,33 +107,45 @@ public IReadOnlyList<CultureSwitcherLink> CultureSwitcherLinks { get; private se
         /// <summary>
     /// OnGetAsync method.
     /// </summary>
-public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
+    public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken = default)
     {
         AeroRequestResponse<Aero.Cms.Abstractions.Models.PageViewModel> result;
         RequestedCulture = CultureInfo.CurrentUICulture.Name;
+        var requestedSlug = Slug ?? HttpContext.Request.RouteValues["slug"]?.ToString();
 
         if (DraftId is { } draftId)
         {
             result = await pageActor.GetByIdAsync(draftId, cancellationToken);
         }
-        else if (string.IsNullOrWhiteSpace(Slug))
+        else if (string.IsNullOrWhiteSpace(requestedSlug))
         {
             result = await pageActor.GetBySlugAsync(siteContext.SiteId, "/", CultureInfo.CurrentUICulture.Name, cancellationToken);
         }
         else
         {
-            var normalizedSlug = AeroCultureRoute.StripLeadingCulture(Slug);
+            var normalizedSlug = AeroCultureRoute.StripLeadingCulture(requestedSlug);
             result = await pageActor.GetBySlugAsync(siteContext.SiteId, normalizedSlug, CultureInfo.CurrentUICulture.Name, cancellationToken);
         }
 
         if (result is null || !string.IsNullOrWhiteSpace(result.error?.Message))
         {
+            logger.LogWarning(
+                "Public page lookup failed for SiteId={SiteId}, Slug={Slug}, Culture={Culture}: {Error}",
+                siteContext.SiteId,
+                requestedSlug,
+                CultureInfo.CurrentUICulture.Name,
+                result?.error?.Message ?? "No actor response");
             return NotFound();
         }
 
         var vm = result.data;
         if (vm is null)
         {
+            logger.LogWarning(
+                "Public page lookup returned no document for SiteId={SiteId}, Slug={Slug}, Culture={Culture}",
+                siteContext.SiteId,
+                requestedSlug,
+                CultureInfo.CurrentUICulture.Name);
             return NotFound();
         }
 
@@ -153,6 +165,10 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
             var document = await session.LoadAsync<PageDocument>(vm.Id, cancellationToken);
             if (document is null)
             {
+                logger.LogWarning(
+                    "Public page metadata resolved to missing PageDocument {PageId} for Slug={Slug}",
+                    vm.Id,
+                    requestedSlug);
                 return NotFound();
             }
 
@@ -162,9 +178,28 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
 
             if (content is null)
             {
+                logger.LogWarning(
+                    "Public page {PageId} has no {ContentKind} HTML snapshot for Slug={Slug}",
+                    vm.Id,
+                    DraftId is not null ? "draft" : "published",
+                    requestedSlug);
                 return NotFound();
             }
 
+            var profileResult = await styleProfileResolver.ResolveAsync(
+                document.SiteId,
+                cancellationToken);
+            if (profileResult is Result<IStyleProfile, AeroError>.Failure profileFailure)
+            {
+                logger.LogError(
+                    "Style-profile resolution failed for page {PageId} on site {SiteId}: {Error}",
+                    vm.Id,
+                    document.SiteId,
+                    profileFailure.Error);
+                return StatusCode(StatusCodes.Status500InternalServerError);
+            }
+
+            var styleProfile = ((Result<IStyleProfile, AeroError>.Ok)profileResult).Value;
             var compiled = styleCompiler.Compile(content, styleProfile);
             if (compiled is Result<CompiledPageStyles>.Failure styleFailure)
             {
@@ -190,6 +225,7 @@ public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken 
             var renderedPage = ((Result<RenderedHtmlPage>.Ok)rendered).Value;
             RenderedMarkup = renderedPage.Markup;
             RenderedCss = renderedPage.CssText;
+            HttpContext.Items["AeroCms.SiteId"] = document.SiteId;
         }
 
         // Store page ID + slug for output cache tagging
