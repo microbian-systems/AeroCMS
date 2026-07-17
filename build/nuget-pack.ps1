@@ -163,7 +163,10 @@ if ($metaCsproj = Get-ChildItem "$metaProjDir/*.csproj" | Select-Object -First 1
     }
 
     if ($failed.Count -eq 0) {
-        $output = dotnet pack $metaCsproj -c $Configuration -o $OutputDir --no-restore --no-build -p:IncludeSymbols=false @versionArgs 2>&1
+        # The meta-package bundles module DLLs directly from their Release outputs.
+        # Build the private ProjectReference graph before the custom pack target
+        # stages those DLLs; a clean checkout cannot rely on pre-existing bin files.
+        $output = dotnet pack $metaCsproj -c $Configuration -o $OutputDir --no-restore -p:IncludeSymbols=false @versionArgs 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  FAILED (pack): Meta-package" -ForegroundColor Red
             $failed += $metaProjDir
