@@ -114,8 +114,7 @@ public void Configure(StoreOptions opts)
         opts.Schema.For<ContentTypeDocument>()
             .Identity(x => x.Id)
             .Index(x => x.SiteId)
-            .UniqueIndex(x => new { x.SiteId, x.Alias })
-            .Field("render_mode", field => field.Remove = true);
+            .UniqueIndex(x => new { x.SiteId, x.Alias });
 
         opts.Schema.For<ContentItem>()
             .Index(x => x.SiteId)

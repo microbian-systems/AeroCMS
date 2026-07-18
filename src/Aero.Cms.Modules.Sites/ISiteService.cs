@@ -205,6 +205,29 @@ public async Task<Result<SiteHost, AeroError>> AddHostAsync(long siteId, string 
             if (string.IsNullOrWhiteSpace(normalized))
                 return AeroError.CreateError("Host value cannot be empty");
 
+            var existing = await session.Query<SiteHost>()
+                .Where(siteHost => siteHost.Host == normalized)
+                .FirstOrDefaultAsync(ct);
+
+            if (existing is not null)
+            {
+                if (existing.SiteId != siteId)
+                {
+                    return AeroError.CreateError(
+                        $"Host '{normalized}' is already assigned to site {existing.SiteId}");
+                }
+
+                if (isPrimary && !existing.IsPrimary)
+                {
+                    existing.IsPrimary = true;
+                    existing.ModifiedOn = DateTimeOffset.UtcNow;
+                    session.Store(existing);
+                    await session.SaveChangesAsync(ct);
+                }
+
+                return existing;
+            }
+
             var siteHost = new SiteHost
             {
                 Id = Snowflake.NewId(),

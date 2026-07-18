@@ -199,6 +199,7 @@
 .pe-header-right { display: flex; align-items: center; gap: 8px; }
 
 .pe-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.pe-logo-image { width: 28px; height: 28px; object-fit: contain; flex: 0 0 auto; }
 .pe-logo-text { font-size: 20px; font-weight: 700; color: var(--pe-text-primary); letter-spacing: -0.5px; }
 
 .pe-nav { display: flex; gap: 4px; }

@@ -6,6 +6,7 @@ using Aero.Cms.Modules.Pages;
 using Aero.Cms.Modules.Sites;
 using Aero.Cms.Modules.Tenant;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Core.Infrastructure;
 using Aero.Cms.Html;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -164,6 +165,10 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         var existingState = await session.LoadAsync<SetupStateDocument>(SetupStateDocument.FixedId, ct);
         if (existingState?.IsComplete == true)
         {
+            // The database is authoritative. If the prior process committed the
+            // setup transaction but stopped before updating appsettings, repair
+            // the bootstrap flags on the next run.
+            await bootstrapCompletionWriter.MarkCompleteAsync(ct);
             return new SeedDatabaseResult
             {
                 AlreadyComplete = true
@@ -257,6 +262,28 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         SeedDatabaseRequest request, 
         CancellationToken cancellationToken)
     {
+        var existing = await FindExistingTenantAndSiteAsync(request, cancellationToken);
+        if (existing is { Tenant: not null, Site: not null })
+        {
+            var hostResult = await siteService.AddHostAsync(
+                existing.Site.Id,
+                request.Hostname,
+                isPrimary: true,
+                cancellationToken);
+
+            if (hostResult.IsFailure)
+            {
+                return (
+                    new Result<TenantModel, AeroError>.Ok(existing.Tenant),
+                    new Result<SitesModel, AeroError>.Failure(
+                        AeroError.CreateError(GetHostFailureMessage(hostResult))));
+            }
+
+            return (
+                new Result<TenantModel, AeroError>.Ok(existing.Tenant),
+                new Result<SitesModel, AeroError>.Ok(existing.Site));
+        }
+
         // Create tenant with SiteName as the tenant name
         var tenant = new TenantModel
         {
@@ -300,11 +327,75 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         {
             // Create a SiteHost entry for the primary host/domain
             var siteId = siteResult is Result<SitesModel, AeroError>.Ok ok ? ok.Value.Id : site.Id;
-            await siteService.AddHostAsync(siteId, request.Hostname!, isPrimary: true, cancellationToken);
+            var hostResult = await siteService.AddHostAsync(
+                siteId,
+                request.Hostname!,
+                isPrimary: true,
+                cancellationToken);
+
+            if (hostResult.IsFailure)
+            {
+                return (
+                    tenantResult,
+                    new Result<SitesModel, AeroError>.Failure(
+                        AeroError.CreateError(GetHostFailureMessage(hostResult))));
+            }
         }
         
         return (tenantResult, siteResult);
     }
+
+    private async Task<(TenantModel? Tenant, SitesModel? Site)> FindExistingTenantAndSiteAsync(
+        SeedDatabaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedHost = HostNormalizer.Normalize(request.Hostname);
+
+        var existingHost = await session.Query<SiteHost>()
+            .Where(siteHost => siteHost.Host == normalizedHost)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingHost is not null)
+        {
+            var existingSite = await session.LoadAsync<SitesModel>(existingHost.SiteId, cancellationToken);
+            if (existingSite is not null)
+            {
+                var existingTenant = await session.LoadAsync<TenantModel>(existingSite.TenantId, cancellationToken);
+                if (existingTenant is not null)
+                {
+                    return (existingTenant, existingSite);
+                }
+            }
+        }
+
+        var tenant = await session.Query<TenantModel>()
+            .Where(candidate =>
+                candidate.Hostname == normalizedHost &&
+                candidate.Name == request.SiteName)
+            .OrderBy(candidate => candidate.CreatedOn)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (tenant is null)
+        {
+            return (null, null);
+        }
+
+        var site = await session.Query<SitesModel>()
+            .Where(candidate =>
+                candidate.TenantId == tenant.Id &&
+                candidate.Name == request.SiteName)
+            .OrderBy(candidate => candidate.CreatedOn)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return (tenant, site);
+    }
+
+    private static string GetHostFailureMessage(Result<SiteHost, AeroError> hostResult)
+        => hostResult is Result<SiteHost, AeroError>.Failure failure
+            ? failure.Error is AeroError.Error error
+                ? error.msg
+                : "Failed to create site host"
+            : "Failed to create site host";
 
     private async Task SeedStarterContentAsync(
         SeedDatabaseRequest request,
