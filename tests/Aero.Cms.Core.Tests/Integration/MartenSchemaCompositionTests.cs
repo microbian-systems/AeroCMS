@@ -1,12 +1,10 @@
 using Aero.EfCore.Extensions;
 using FluentAssertions;
 using AeroDB.Sable;
-using Aero.Cms.Core.Blocks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Extensions;
 using Aero.Modular;
 using Aero.Cms.Modules.Modules.Services;
@@ -18,7 +16,7 @@ namespace Aero.Cms.Core.Tests.Integration;
 /// Regression tests for Marten schema composition through the module system.
 /// 
 /// VALIDATION APPROACH: These tests verify that module-level IConfigureMarten contributions
-/// (from both framework-level BlockAeroDbConfiguration and module-level configurations)
+/// contributed by independently registered modules
 /// flow into the resolved DocumentStore when AddAeroDataLayer() is called.
 ///
 /// The critical gap being tested: AddAeroDataLayer() must be called AFTER module
@@ -48,9 +46,7 @@ public class AeroDbSchemaCompositionTests
         var environment = new FakeHostEnvironment();
 
         // Simulate what AddAeroModulesAsync does:
-        // 1. Register block services (Marten serialization config)
-        services.AddBlockSystemServices();
-        // 2. Register module system services
+        // Register module system services
         services.AddModuleSystemServices();
     
         
@@ -69,18 +65,12 @@ public class AeroDbSchemaCompositionTests
             .Where(sd => sd.ServiceType == typeof(global::AeroDB.Sable.IConfigureAeroDB))
             .ToList();
 
-        // Assert - at minimum, BlockAeroDbConfiguration and TestAeroDbConfiguration should be registered
-        configureMartenServices.Should().Contain(sd => 
-            sd.ImplementationType == typeof(BlockAeroDbConfiguration),
-            "BlockAeroDbConfiguration should be registered via AddModuleSystemServices()");
-        
         configureMartenServices.Should().Contain(sd => 
             sd.ImplementationType == typeof(TestAeroDbConfiguration),
             "TestAeroDbConfiguration should be registered via TestAeroDbModule.ConfigureServices()");
 
-        // This count verifies both framework and module contributions are present
-        configureMartenServices.Should().HaveCountGreaterThanOrEqualTo(2,
-            "Both framework (Block) and module (TestMarten) IConfigureMarten should be registered");
+        configureMartenServices.Should().ContainSingle(
+            "the test module is the only persistence contributor registered in this isolated service collection");
     }
 
     /// <summary>
@@ -106,7 +96,6 @@ public class AeroDbSchemaCompositionTests
         var environment = new FakeHostEnvironment();
 
         // Simulate full startup chain up to where AddAeroDataLayer() should be
-        services.AddBlockSystemServices();
         services.AddModuleSystemServices();
         services.AddSingleton<IAeroModule, TestAeroDbModule>();
         
@@ -180,7 +169,6 @@ public class AeroDbSchemaCompositionTests
         var configuration = new ConfigurationBuilder().Build();
         var environment = new FakeHostEnvironment();
 
-        services.AddBlockSystemServices();
         services.AddModuleSystemServices();
         services.AddSingleton<IAeroModule, TestAeroDbModule>();
         
@@ -194,8 +182,6 @@ public class AeroDbSchemaCompositionTests
         var configurators = afterConfigServices.GetServices<global::AeroDB.Sable.IConfigureAeroDB>().ToList();
 
         // Assert
-        configurators.Should().Contain(sd => sd.GetType() == typeof(BlockAeroDbConfiguration),
-            "BlockAeroDbConfiguration should be resolvable after module services configured");
         configurators.Should().Contain(sd => sd.GetType() == typeof(TestAeroDbConfiguration),
             "TestAeroDbConfiguration should be resolvable after module services configured");
     }

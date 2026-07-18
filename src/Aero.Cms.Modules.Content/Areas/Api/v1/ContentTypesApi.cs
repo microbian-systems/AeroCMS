@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Content.Services;
 using Aero.Core;
@@ -51,7 +52,9 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             {
                 var fields = string.IsNullOrWhiteSpace(t.FieldsJson) || t.FieldsJson == "[]"
                     ? []
-                    : JsonSerializer.Deserialize<List<ContentFieldDefinition>>(t.FieldsJson) ?? [];
+                    : JsonSerializer.Deserialize(
+                        t.FieldsJson,
+                        ContentJsonContext.Default.ListContentFieldDefinition) ?? [];
 
                 var itemCount = 0L;
                 var countResult = await contentQueryService.CountByTypeAsync(siteId, t.Alias, ct);
@@ -62,7 +65,7 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
 
                 summaries.Add(new ContentTypeSummary(
                     t.Alias, t.Name, t.Description, t.Category,
-                    t.AllowPublicUrl, t.HideFromSearch, fields.Count, t.RenderMode.ToString(),
+                    t.AllowPublicUrl, t.HideFromSearch, fields.Count,
                     !string.IsNullOrWhiteSpace(t.ScribanTemplate), itemCount));
             }
 
@@ -125,9 +128,10 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
                 Icon = request.Icon,
                 AllowPublicUrl = request.AllowPublicUrl,
                 HideFromSearch = request.HideFromSearch,
-                FieldsJson = JsonSerializer.Serialize(request.Fields.ToList()),
+                FieldsJson = JsonSerializer.Serialize(
+                    request.Fields.ToList(),
+                    ContentJsonContext.Default.ListContentFieldDefinition),
                 ScribanTemplate = request.ScribanTemplate,
-                RenderMode = Enum.Parse<ContentTypeRenderMode>(request.RenderMode),
                 ScheduleConfig = request.ScheduleConfig
             };
 
@@ -170,9 +174,10 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
             existing.Icon = request.Icon;
             existing.AllowPublicUrl = request.AllowPublicUrl;
             existing.HideFromSearch = request.HideFromSearch;
-            existing.FieldsJson = JsonSerializer.Serialize(request.Fields.ToList());
+            existing.FieldsJson = JsonSerializer.Serialize(
+                request.Fields.ToList(),
+                ContentJsonContext.Default.ListContentFieldDefinition);
             existing.ScribanTemplate = request.ScribanTemplate;
-            existing.RenderMode = Enum.Parse<ContentTypeRenderMode>(request.RenderMode);
             existing.ScheduleConfig = request.ScheduleConfig;
 
             var result = await contentTypeActor.UpdateAsync(existing, ct);
@@ -215,12 +220,14 @@ public static void MapContentTypesApi(this IEndpointRouteBuilder app)
     {
         var fields = string.IsNullOrWhiteSpace(vm.FieldsJson) || vm.FieldsJson == "[]"
             ? []
-            : JsonSerializer.Deserialize<List<ContentFieldDefinition>>(vm.FieldsJson) ?? [];
+            : JsonSerializer.Deserialize(
+                vm.FieldsJson,
+                ContentJsonContext.Default.ListContentFieldDefinition) ?? [];
 
         return new ContentTypeDetail(
             vm.Alias, vm.Name, vm.Description, vm.Category,
             vm.Icon, vm.AllowPublicUrl, vm.HideFromSearch, fields, vm.ScribanTemplate,
-            vm.RenderMode.ToString(), vm.ScheduleConfig);
+            vm.ScheduleConfig);
     }
 
     private static IResult MissingSite()

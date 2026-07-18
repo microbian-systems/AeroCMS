@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Interfaces;
@@ -262,7 +262,9 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
         TranslationGroupId = item.TranslationGroupId,
         Culture = item.Culture,
         SourceItemId = item.SourceItemId,
-        FieldsJson = JsonSerializer.Serialize(item.Fields, BlockJsonContext.Default.Options),
+        FieldsJson = JsonSerializer.Serialize(
+            item.Fields,
+            ContentJsonContext.Default.DictionaryStringJsonElement),
         PublicationState = item.PublicationState,
         PublishedOn = item.PublishedOn,
         VersionNumber = item.VersionNumber,
@@ -276,7 +278,9 @@ public async Task<AeroRequestResponse<ContentItemViewModel>> UnpublishAsync(long
     {
         var fields = string.IsNullOrWhiteSpace(vm.FieldsJson) || vm.FieldsJson == "{}"
             ? new Dictionary<string, JsonElement>()
-            : JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(vm.FieldsJson, BlockJsonContext.Default.Options)
+            : JsonSerializer.Deserialize(
+                vm.FieldsJson,
+                ContentJsonContext.Default.DictionaryStringJsonElement)
               ?? new Dictionary<string, JsonElement>();
 
         return new ContentItem

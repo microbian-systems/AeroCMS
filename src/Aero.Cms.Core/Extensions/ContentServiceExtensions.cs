@@ -1,9 +1,11 @@
 using Aero.Cms.Abstractions.Content;
-using Aero.Cms.Core.Blocks.Dynamic;
 using Aero.Cms.Core.Content.Indexing;
 using Aero.Cms.Core.Content.Jobs;
 using Aero.Cms.Core.Content.Rendering;
 using Aero.Cms.Core.Content.Services;
+using Aero.Cms.Core.Content.Templating;
+using Aero.Core.Security;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Aero.Cms.Core.Extensions;
 
@@ -13,7 +15,7 @@ namespace Aero.Cms.Core.Extensions;
 public static class ContentServiceExtensions
 {
     /// <summary>
-    /// Registers all content type system services, bridges, editors, validators,
+    /// Registers all content type system services, editors, validators,
     /// template snippets, indexers, and background jobs.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -26,11 +28,11 @@ public static class ContentServiceExtensions
         services.AddScoped<IContentQueryService, AeroContentQueryService>();
         services.AddScoped<ContentValidationService>();
         services.AddScoped<ContentCommandService>();
-        services.AddScoped<ContentEmbedBlockRenderer>();
         services.AddScoped<IContentItemRenderer, ContentItemRenderer>();
-
-        // Rendering bridge (scoped — depends on IDocumentSession)
-        services.AddScoped<IContentTypeRenderingBridge, ContentTypeDynamicBlockBridge>();
+        services.TryAddSingleton<IHtmlSanitizer, HtmlSanitizer>();
+        services.TryAddSingleton<SecureScribanTemplateOptions>();
+        services.TryAddSingleton<ScribanTemplateValidator>();
+        services.TryAddSingleton<ISecureScribanRenderer, SecureScribanRenderer>();
 
         // Field editors (admin UI)
         services.AddSingleton<IContentFieldEditor, TextFieldEditor>();

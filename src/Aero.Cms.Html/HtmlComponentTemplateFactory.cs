@@ -41,6 +41,7 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
             HtmlComponentTemplateKind.MilestoneTimeline => CreateMilestoneTimeline(),
             HtmlComponentTemplateKind.FeatureComparisonTable => CreateFeatureComparisonTable(),
             HtmlComponentTemplateKind.DetailsList => CreateDetailsList(),
+            HtmlComponentTemplateKind.ConfirmationDialog => CreateConfirmationDialog(),
             _ => null
         };
 
@@ -864,6 +865,79 @@ public sealed class HtmlComponentTemplateFactory(HtmlElementCatalog catalog)
         section.Children.Add(header);
         section.Children.Add(details);
         return section;
+    }
+
+    private HtmlNode CreateConfirmationDialog()
+    {
+        var section = Element("section", style: new HtmlStyle
+        {
+            Padding = All(CssLength.Rem(3)),
+            Surface = Surface("#f8fafc", CssLength.Rem(1))
+        });
+        var introduction = Element("header");
+        introduction.Children.Add(Element("h2", "Confirmation dialog", Typography(
+            color: "#111827", size: CssLength.Rem(2.25m), weight: 700, alignment: CssTextAlignment.Center)));
+        introduction.Children.Add(Element("p", "Edit the message and actions, then choose whether the dialog begins open.", Typography(
+            color: "#4b5563", alignment: CssTextAlignment.Center)));
+
+        var dialog = Element("dialog", style: new HtmlStyle
+        {
+            Display = CssDisplay.Flex,
+            FlexDirection = CssFlexDirection.Column,
+            Gap = CssLength.Rem(1),
+            Margin = Vertical(CssLength.Rem(2)),
+            Padding = All(CssLength.Rem(1.5m)),
+            Surface = Surface("#ffffff", CssLength.Rem(0.75m))
+        });
+        dialog.Attributes["open"] = string.Empty;
+        dialog.Attributes["aria-labelledby"] = "confirmation-dialog-title";
+
+        var title = Element("h3", "Confirm this action", Typography(
+            color: "#111827", size: CssLength.Rem(1.5m), weight: 700));
+        title.Attributes["id"] = "confirmation-dialog-title";
+        dialog.Children.Add(title);
+        dialog.Children.Add(Element(
+            "p",
+            "Review the details before continuing. You can change this message for the action your page requires.",
+            Typography(color: "#4b5563")));
+
+        var actions = Element("div", style: new HtmlStyle
+        {
+            Display = CssDisplay.Flex,
+            Gap = CssLength.Rem(0.75m)
+        });
+        var cancel = DialogButton("Cancel", "#e5e7eb", "#111827");
+        var confirm = DialogButton("Continue", "#7c3aed", "#ffffff");
+        actions.Children.Add(cancel);
+        actions.Children.Add(confirm);
+        dialog.Children.Add(actions);
+
+        section.Children.Add(introduction);
+        section.Children.Add(dialog);
+        return section;
+    }
+
+    private HtmlNode DialogButton(string text, string backgroundColor, string textColor)
+    {
+        var button = Element("button", text, new HtmlStyle
+        {
+            Padding = new CssLogicalSpacing
+            {
+                BlockStart = CssLength.Rem(0.75m),
+                InlineEnd = CssLength.Rem(1.25m),
+                BlockEnd = CssLength.Rem(0.75m),
+                InlineStart = CssLength.Rem(1.25m)
+            },
+            Surface = Surface(backgroundColor, CssLength.Rem(0.5m)),
+            Typography = new CssTypographyStyle
+            {
+                Color = CssColor.Hex(textColor),
+                FontWeight = 600,
+                Alignment = CssTextAlignment.Center
+            }
+        });
+        button.Attributes["type"] = "button";
+        return button;
     }
 
     private HtmlNode ProcessStep(string number, string heading, string body)

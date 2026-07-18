@@ -74,7 +74,6 @@ public static IServiceCollection AddAeroHttpClients(
         services.AddHttpClient<ITagsHttpClient, TagsHttpClient>();
         services.AddHttpClient<IThemesHttpClient, ThemesHttpClient>();
         services.AddHttpClient<IUsersHttpClient, UsersHttpClient>();
-        services.AddHttpClient<IBlocksHttpClient, BlocksHttpClient>();
         services.AddHttpClient<IPublishHttpClient, PublishHttpClient>();
         services.AddHttpClient<IPreviewHttpClient, PreviewHttpClient>();
         services.AddHttpClient<IDocsHttpClient, DocsHttpClient>();

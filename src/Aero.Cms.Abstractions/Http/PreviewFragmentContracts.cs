@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Html;
 
 namespace Aero.Cms.Abstractions.Http;
@@ -23,16 +22,6 @@ public sealed record PreviewBlogPostFragmentRequest(string? MarkdownContent = nu
 /// Response payload for a rendered blog post preview fragment.
 /// </summary>
 public sealed record PreviewBlogPostFragmentResponse(string Html);
-
-/// <summary>
-/// Request payload for rendering an unsaved single block preview fragment.
-/// </summary>
-public sealed record PreviewBlockFragmentRequest(BlockBase? Block);
-
-/// <summary>
-/// Response payload for a rendered single block preview fragment.
-/// </summary>
-public sealed record PreviewBlockFragmentResponse(string Html);
 
 /// <summary>
 /// Response wrapper for preview content.

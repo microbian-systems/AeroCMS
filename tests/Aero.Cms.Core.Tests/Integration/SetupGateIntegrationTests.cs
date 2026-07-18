@@ -10,9 +10,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Core.Blocks;
 using Aero.Cms.Core.Entities;
+using Aero.Cms.Abstractions.Interfaces;
 using Aero.Core.Http;
 using Aero.Services.Images;
 using NSubstitute;
@@ -170,13 +169,12 @@ public sealed class SetupGateIntegrationTests
         builder.Services.AddScoped(_ => harness.Session);
         builder.Services.AddScoped<IDocumentSession>(_ => harness.Session);
         builder.Services.AddScoped<IQuerySession>(_ => harness.Session);
-        builder.Services.AddSingleton(Substitute.For<IBlockService>());
         builder.Services.AddSingleton(Substitute.For<IFusionCache>());
         builder.Services.AddSingleton(Substitute.For<ISiteContext>());
+        builder.Services.AddSingleton(Substitute.For<ISiteStyleProfileResolver>());
         builder.Services.AddSingleton(Substitute.For<IMessageBus>());
         builder.Services.AddSingleton(Substitute.For<IPexelsService>());
         builder.Services.AddSingleton(Substitute.For<IGrainFactory>());
-        builder.Services.AddScoped<BlockRenderCache>();
         builder.Services.AddScoped(_ => harness.Store);
 
         bootstrapper ??= Substitute.For<ISetupIdentityBootstrapper>();

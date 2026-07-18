@@ -1,6 +1,6 @@
-using Aero.Cms.Abstractions.Blocks.Common;
+using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
-using Aero.Cms.Core.Blocks.Dynamic;
+using Aero.Cms.Core.Content.Templating;
 using Aero.Core;
 using Aero.Core.Railway;
 
@@ -10,7 +10,7 @@ namespace Aero.Cms.Core.Content.Rendering;
 /// Represents a class for ContentItemRenderer.
 /// </summary>
 public sealed class ContentItemRenderer(
-    IContentTypeRenderingBridge bridge,
+    IEnumerable<IFieldTemplateSnippet> templateSnippets,
     ISecureScribanRenderer scribanRenderer) : IContentItemRenderer
 {
         /// <summary>
@@ -24,25 +24,44 @@ public async Task<Result<string, AeroError>> RenderAsync(
         ArgumentNullException.ThrowIfNull(typeDefinition);
         ArgumentNullException.ThrowIfNull(item);
 
-        if (typeDefinition.RenderMode != ContentTypeRenderMode.DynamicBlock)
+        var template = string.IsNullOrWhiteSpace(typeDefinition.ScribanTemplate)
+            ? ContentTypeTemplateGenerator.GenerateTemplate(typeDefinition, templateSnippets)
+            : typeDefinition.ScribanTemplate;
+        template = ContentTypeTemplateGenerator.NormalizeTemplate(
+            template,
+            typeDefinition.Fields);
+
+        using var schema = ContentTypeSchemaGenerator.GenerateSchema(typeDefinition);
+        using var data = CreateTemplateData(item.Fields);
+        var definition = new ScribanRenderDefinition(
+            typeDefinition.Id,
+            Version: 1,
+            template,
+            JsonDocument.Parse(schema.RootElement.GetRawText()));
+        try
         {
-            return AeroError.CreateError(
-                $"Content type render mode '{typeDefinition.RenderMode}' is not implemented.");
+            return await scribanRenderer.RenderAsync(definition, data, ct);
+        }
+        finally
+        {
+            definition.DataSchema?.Dispose();
+        }
+    }
+
+    private static JsonDocument CreateTemplateData(IReadOnlyDictionary<string, JsonElement> fields)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            foreach (var (name, value) in fields.OrderBy(static field => field.Key, StringComparer.Ordinal))
+            {
+                writer.WritePropertyName(name);
+                value.WriteTo(writer);
+            }
+            writer.WriteEndObject();
         }
 
-        var blockResult = await bridge.ToDynamicBlockAsync(typeDefinition, item, ct);
-        if (blockResult is Result<DynamicTemplateBlock, AeroError>.Failure blockFailure)
-            return blockFailure.Error;
-
-        var definitionResult = await bridge.GetDefinitionAsync(typeDefinition, ct);
-        if (definitionResult is Result<DynamicBlockDefinition, AeroError>.Failure definitionFailure)
-            return definitionFailure.Error;
-
-        var block = ((Result<DynamicTemplateBlock, AeroError>.Ok)blockResult).Value;
-        var definition = ((Result<DynamicBlockDefinition, AeroError>.Ok)definitionResult).Value;
-        definition.ScribanTemplate = ContentTypeTemplateGenerator.NormalizeTemplate(
-            definition.ScribanTemplate,
-            typeDefinition.Fields);
-        return await scribanRenderer.RenderAsync(definition, block.Data, ct);
+        return JsonDocument.Parse(stream.ToArray());
     }
 }

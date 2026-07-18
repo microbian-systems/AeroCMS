@@ -219,7 +219,6 @@ public record ContentTypeSummary(
     bool AllowPublicUrl,
     bool HideFromSearch,
     int FieldCount,
-    string RenderMode,
     bool HasCustomTemplate,
     long ItemCount);
 
@@ -234,7 +233,6 @@ public record ContentTypeDetail(
     bool HideFromSearch,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
-    string RenderMode,
     ContentTypeScheduleConfig? ScheduleConfig);
 
 /// <summary>Request to create or update a content type definition.</summary>
@@ -248,7 +246,6 @@ public record CreateContentTypeRequest(
     bool HideFromSearch,
     IReadOnlyList<ContentFieldDefinition> Fields,
     string? ScribanTemplate,
-    string RenderMode,
     ContentTypeScheduleConfig? ScheduleConfig);
 
 /// <summary>Summary information for a content item.</summary>
@@ -285,7 +282,7 @@ public record ContentItemDetail(
 public record CreateContentItemRequest(
     string Title,
     string Slug,
-    IReadOnlyDictionary<string, object?> Fields,
+    IReadOnlyDictionary<string, JsonElement> Fields,
     DateTimeOffset? SchedulePublishUtc,
     DateTimeOffset? ScheduleUnpublishUtc);
 

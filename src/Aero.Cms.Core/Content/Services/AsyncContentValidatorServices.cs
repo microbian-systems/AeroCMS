@@ -43,7 +43,8 @@ public async Task<IReadOnlyList<ValidationFailure>> ValidateAsync(ContentItem it
             if (!item.Fields.TryGetValue(field.Name, out var element)) continue;
             if (element.ValueKind == System.Text.Json.JsonValueKind.Null) continue;
 
-            if (field.Settings.TryGetValue("allowMultiple", out var multi) && multi?.ToString() == "True")
+            if (field.Settings.TryGetValue("allowMultiple", out var multiple)
+                && multiple.ValueKind == System.Text.Json.JsonValueKind.True)
             {
                 foreach (var refItem in element.EnumerateArray())
                     await CheckReference(refItem, field, failures, ct);

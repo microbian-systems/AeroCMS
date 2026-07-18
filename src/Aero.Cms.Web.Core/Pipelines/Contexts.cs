@@ -1,12 +1,7 @@
-using Aero.Cms.Abstractions.Blocks;
-using System.Globalization;
-
 namespace Aero.Cms.Web.Core.Pipelines;
 
 
 using Aero.Cms.Core.Pipelines;
-using Microsoft.AspNetCore.Html;
-using Microsoft.AspNetCore.Mvc.Rendering;
 
 /// <summary>
 /// Represents a class for PageReadContext.
@@ -60,31 +55,4 @@ public List<string> ValidationErrors { get; } = [];
     /// Gets or sets the Has Validation Errors.
     /// </summary>
 public bool HasValidationErrors => ValidationErrors.Count > 0;
-}
-
-/// <summary>
-/// Represents a class for BlockRenderContext.
-/// </summary>
-public class BlockRenderContext : PipelineContext
-{
-        /// <summary>
-    /// Gets or sets the Block.
-    /// </summary>
-public required BlockBase Block { get; init; }
-        /// <summary>
-    /// Gets or sets the View Context.
-    /// </summary>
-public required ViewContext ViewContext { get; init; }
-        /// <summary>
-    /// Gets or sets the Culture.
-    /// </summary>
-public CultureInfo Culture { get; init; } = CultureInfo.CurrentCulture;
-        /// <summary>
-    /// Gets or sets the Output.
-    /// </summary>
-public IHtmlContent? Output { get; set; }
-        /// <summary>
-    /// Gets or sets the Render Data.
-    /// </summary>
-public Dictionary<string, object> RenderData { get; } = new();
 }

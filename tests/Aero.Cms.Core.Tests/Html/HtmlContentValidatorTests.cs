@@ -113,6 +113,29 @@ public sealed class HtmlContentValidatorTests
     }
 
     [Test]
+    public async Task Validate_accepts_signed_ordered_list_start_and_rejects_non_integer_values()
+    {
+        var content = new HtmlPageContent();
+        var list = Catalog.CreateElement("ol");
+        list.Attributes["start"] = "3";
+        var item = Catalog.CreateElement("li");
+        item.Children.Add(HtmlNode.CreateText("Third item"));
+        list.Children.Add(item);
+        content.Root.Children.Add(list);
+
+        await Assert.That(CreateValidator().Validate(content)).IsTypeOf<Result<bool>.Ok>();
+
+        list.Attributes["start"] = "0";
+        await Assert.That(CreateValidator().Validate(content)).IsTypeOf<Result<bool>.Ok>();
+
+        list.Attributes["start"] = "-2";
+        await Assert.That(CreateValidator().Validate(content)).IsTypeOf<Result<bool>.Ok>();
+
+        list.Attributes["start"] = "not-a-number";
+        await Assert.That(CreateValidator().Validate(content)).IsTypeOf<Result<bool>.Failure>();
+    }
+
+    [Test]
     public async Task Validate_accepts_static_forms_and_rejects_nested_forms_and_unsafe_actions()
     {
         var content = new HtmlPageContent();

@@ -331,6 +331,23 @@ public sealed class HtmlComponentTemplateFactoryTests
             .IsEquivalentTo(["dt", "dd", "dt", "dd", "dt", "dd", "dt", "dd"]);
     }
 
+    [Test]
+    public async Task Confirmation_dialog_is_visible_accessible_and_entirely_editable()
+    {
+        var component = (Factory.Create(HtmlComponentTemplateKind.ConfirmationDialog) as Result<HtmlNode>.Ok)!.Value;
+        var dialog = Flatten(component).Single(node => node.TagName == "dialog");
+        var title = dialog.Children.Single(node => node.TagName == "h3");
+        var buttons = Flatten(dialog).Where(node => node.TagName == "button").ToArray();
+
+        await Assert.That(component.TagName).IsEqualTo("section");
+        await Assert.That(dialog.Attributes).ContainsKey("open");
+        await Assert.That(dialog.Attributes["aria-labelledby"]).IsEqualTo(title.Attributes["id"]);
+        await Assert.That(buttons).Count().IsEqualTo(2);
+        await Assert.That(buttons.All(button => button.Attributes.GetValueOrDefault("type") == "button")).IsTrue();
+        await Assert.That(dialog.Style!.Display).IsEqualTo(CssDisplay.Flex);
+        await Assert.That(dialog.Style.FlexDirection).IsEqualTo(CssFlexDirection.Column);
+    }
+
     private static IEnumerable<HtmlNode> Flatten(HtmlNode root)
     {
         yield return root;

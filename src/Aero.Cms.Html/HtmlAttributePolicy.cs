@@ -114,6 +114,16 @@ public sealed class HtmlAttributePolicy : IHtmlAttributePolicy
 
     private static bool IsAllowedValue(string tagName, string attributeName, string value)
     {
+        if (tagName.Equals("ol", StringComparison.OrdinalIgnoreCase)
+            && attributeName.Equals("start", StringComparison.OrdinalIgnoreCase))
+        {
+            return int.TryParse(
+                value,
+                System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out _);
+        }
+
         if ((tagName is "time" or "del" or "ins")
             && attributeName.Equals("datetime", StringComparison.OrdinalIgnoreCase))
         {

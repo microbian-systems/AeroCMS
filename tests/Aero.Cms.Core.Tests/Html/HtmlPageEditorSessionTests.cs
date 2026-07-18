@@ -231,6 +231,14 @@ public sealed class HtmlPageEditorSessionTests
         await Assert.That(blockQuote).IsNotNull();
         await Assert.That(blockQuote!.Value.Children.Single().TagName).IsEqualTo("p");
         await Assert.That(session.CanUndo).IsTrue();
+
+        var dialogSession = CreateSession();
+        var dialog = dialogSession.AddElement("dialog") as Result<HtmlNode>.Ok;
+        await Assert.That(dialog).IsNotNull();
+        await Assert.That(dialog!.Value.Attributes.ContainsKey("open")).IsTrue();
+        await Assert.That(dialog.Value.Children.Select(node => node.TagName!))
+            .IsEquivalentTo(["h2", "p"]);
+        await Assert.That(dialogSession.CanUndo).IsTrue();
     }
 
     [Test]

@@ -834,6 +834,17 @@ public sealed class HtmlPageEditorSession
             node.Children.Add(paragraph);
         }
 
+        if (definition.Tag.Equals("dialog", StringComparison.OrdinalIgnoreCase))
+        {
+            node.Attributes["open"] = string.Empty;
+            var heading = _catalog.CreateElement("h2");
+            heading.Children.Add(HtmlNode.CreateText("Dialog heading"));
+            var paragraph = _catalog.CreateElement("p");
+            paragraph.Children.Add(HtmlNode.CreateText("Add dialog content here."));
+            node.Children.Add(heading);
+            node.Children.Add(paragraph);
+        }
+
         if (definition.Tag.Equals("picture", StringComparison.OrdinalIgnoreCase))
         {
             var source = _catalog.CreateElement("source");

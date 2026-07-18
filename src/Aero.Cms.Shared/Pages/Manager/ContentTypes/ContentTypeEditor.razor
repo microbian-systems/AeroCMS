@@ -158,10 +158,6 @@
                         <RadzenTextBox Value="@AliasValue" ValueChanged="@OnAliasChanged" Placeholder="testimonial" Class="w-full" />
                         <span class="text-xs ct-muted">@L["Used in URLs and APIs. Editors usually do not need to change this."]</span>
                     </label>
-                    <label class="pe-property-group">
-                        <span class="pe-property-label">@L["Render mode"]</span>
-                        <RadzenDropDown TValue="string" @bind-Value="RenderMode" Data="@RenderModes" TextProperty="Text" ValueProperty="Value" Class="w-full" />
-                    </label>
                 </div>
             </RadzenFieldset>
         </section>

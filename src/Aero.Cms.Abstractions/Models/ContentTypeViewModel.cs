@@ -45,24 +45,19 @@ public sealed record ContentTypeViewModel : AeroEntityViewModel
 [Id(6)]
     public string? ScribanTemplate { get; set; }
         /// <summary>
-    /// Gets or sets the Render Mode.
-    /// </summary>
-[Id(7)]
-    public ContentTypeRenderMode RenderMode { get; set; }
-        /// <summary>
     /// Gets or sets the Allow Public Url.
     /// </summary>
-[Id(8)]
+[Id(7)]
     public bool AllowPublicUrl { get; set; }
         /// <summary>
     /// Gets or sets the Hide From Search.
     /// </summary>
-[Id(9)]
+[Id(8)]
     public bool HideFromSearch { get; set; }
         /// <summary>
     /// Gets or sets the Schedule Config.
     /// </summary>
-[Id(10)]
+[Id(9)]
     public ContentTypeScheduleConfig? ScheduleConfig { get; set; }
 }
 

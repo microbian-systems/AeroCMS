@@ -30,5 +30,6 @@ public enum HtmlComponentTemplateKind
     ShowcaseCollection,
     MilestoneTimeline,
     FeatureComparisonTable,
-    DetailsList
+    DetailsList,
+    ConfirmationDialog
 }

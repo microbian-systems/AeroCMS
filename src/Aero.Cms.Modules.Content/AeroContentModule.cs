@@ -41,7 +41,7 @@ public override string Author => AeroConstants.Author;
 public override string Description => "Runtime-defined content types with Scriban-based rendering. " +
         "Managers define content type schemas (fields, validation, templates) at runtime. " +
         "Content items are stored as field bags (Dictionary<string, JsonElement>) and rendered " +
-        "through the existing DynamicTemplateBlock pipeline.";
+        "directly through the secure Scriban pipeline.";
 
         /// <summary>
     /// Gets or sets the Dependencies.
@@ -132,7 +132,6 @@ public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapContentTypesApi();
         builder.MapContentItemsApi();
-        builder.MapBlocksApi();
 
         return Task.CompletedTask;
     }

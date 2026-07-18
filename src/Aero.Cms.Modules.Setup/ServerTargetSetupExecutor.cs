@@ -18,7 +18,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Wolverine;
-using Aero.Cms.Generated;
 using Aero.Cms.Modules.Setup.Bootstrap;
 using Aero.Modular;
 
@@ -77,7 +76,6 @@ public async Task<SeedDatabaseResult> ExecuteAsync(
             opts.Password = request.DatabasePassword;
         }
         opts.DatabaseSchemaName = global::Aero.Core.Data.Schemas.Aero;
-        opts.UseAeroGeneratedJsonContext();
         opts.Events.StreamIdentity = global::AeroDB.Sable.StreamIdentity.AsString;
         opts.Schema.For<AeroRole>().Identity(x => x.Id);
         opts.Schema.For<AeroUser>().Identity(x => x.Id);

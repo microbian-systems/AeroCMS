@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -47,7 +48,9 @@ public sealed class ContentCommandService(
             {
                 ContentItemId = item.Id,
                 VersionNumber = item.VersionNumber,
-                FieldsJson = JsonSerializer.Serialize(item.Fields),
+                FieldsJson = JsonSerializer.Serialize(
+                    item.Fields,
+                    ContentJsonContext.Default.DictionaryStringJsonElement),
                 CreatedUtc = DateTimeOffset.UtcNow
             });
         }

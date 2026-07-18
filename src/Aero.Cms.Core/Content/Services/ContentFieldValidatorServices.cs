@@ -27,10 +27,10 @@ public void ValidateElement(ContentFieldDefinition field, JsonElement element, C
 
         var value = element.GetString() ?? "";
 
-        if (field.Settings.TryGetValue("maxLength", out var maxObj) && maxObj is JsonElement maxElem && maxElem.TryGetInt32(out var max) && value.Length > max)
+        if (field.Settings.TryGetValue("maxLength", out var maxElement) && maxElement.TryGetInt32(out var max) && value.Length > max)
             context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be {max} characters or fewer.");
 
-        if (field.Settings.TryGetValue("minLength", out var minObj) && minObj is JsonElement minElem && minElem.TryGetInt32(out var min) && value.Length < min)
+        if (field.Settings.TryGetValue("minLength", out var minElement) && minElement.TryGetInt32(out var min) && value.Length < min)
             context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be at least {min} characters.");
     }
 }
@@ -56,10 +56,10 @@ public void ValidateElement(ContentFieldDefinition field, JsonElement element, C
             return;
         }
 
-        if (field.Settings.TryGetValue("min", out var minObj) && minObj is JsonElement minElem && minElem.TryGetDecimal(out var min) && value < min)
+        if (field.Settings.TryGetValue("min", out var minElement) && minElement.TryGetDecimal(out var min) && value < min)
             context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be at least {min}.");
 
-        if (field.Settings.TryGetValue("max", out var maxObj) && maxObj is JsonElement maxElem && maxElem.TryGetDecimal(out var max) && value > max)
+        if (field.Settings.TryGetValue("max", out var maxElement) && maxElement.TryGetDecimal(out var max) && value > max)
             context.AddFailure(field.Name, $"{field.Label ?? field.Name} must be at most {max}.");
     }
 }
@@ -79,9 +79,13 @@ public string FieldType => "reference";
     /// </summary>
 public void ValidateElement(ContentFieldDefinition field, JsonElement element, ContentValidationMode mode, ValidationContext<ContentItem> context)
     {
-        var targetContentType = field.Settings.TryGetValue("targetContentType", out var t) ? t?.ToString() : null;
+        var targetContentType = field.Settings.TryGetValue("targetContentType", out var target)
+            && target.ValueKind == JsonValueKind.String
+                ? target.GetString()
+                : null;
 
-        if (field.Settings.TryGetValue("allowMultiple", out var multi) && multi?.ToString() == "True")
+        if (field.Settings.TryGetValue("allowMultiple", out var multiple)
+            && multiple.ValueKind == JsonValueKind.True)
         {
             if (element.ValueKind != JsonValueKind.Array)
             {

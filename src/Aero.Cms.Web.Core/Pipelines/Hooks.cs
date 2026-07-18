@@ -29,18 +29,3 @@ int Order { get; }
     /// </summary>
 Task ExecuteAsync(PageSaveContext ctx, CancellationToken ct);
 }
-
-/// <summary>
-/// Defines an interface for IBlockRenderHook.
-/// </summary>
-public interface IBlockRenderHook
-{
-        /// <summary>
-    /// Gets or sets the Order.
-    /// </summary>
-int Order { get; }
-        /// <summary>
-    /// ExecuteAsync method.
-    /// </summary>
-Task ExecuteAsync(BlockRenderContext ctx, CancellationToken ct);
-}

@@ -1,5 +1,3 @@
-using Aero.Cms.Abstractions.Blocks;
-using Aero.Cms.Abstractions.Blocks.Common;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Services;
 using Aero.Cms.Modules.Posts;
@@ -381,23 +379,7 @@ public async Task<SeedDatabaseResult> CompleteAsync(SeedDatabaseRequest request,
         StampPageCulture(privacyPage, defaultCulture);
         StampPageCulture(termsPage, defaultCulture);
         StampPageCulture(cookiesPage, defaultCulture);
-        // Create main navigation menu
-        var mainNav = new NavigationBlock
-        {
-            Id = Snowflake.NewId(),
-            Name = "Main Navigation",
-            Items =
-            {
-                { 0, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Home", Url = "/", PageId = homepage.Id, Order = 0, AltText = "Home Page" } },
-                { 1, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "About", Url = "/about", PageId = aboutPage.Id, Order = 1, AltText = "About Us" } },
-                { 2, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Contact", Url = "/contact", PageId = contactPage.Id, Order = 2, AltText = "Contact Us" } },
-                { 3, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Blog", Url = "/blog", PageId = blogListing.Id, Order = 3, AltText = "Blog and Field Notes" } },
-                { 4, new NavigationBlock.NavigationBlockItem { Id = Snowflake.NewId(), Label = "Docs", Url = "/docs", PageId = rootDoc.Id, Order = 4, AltText = "Documentation" } }
-            }
-        };
-        session.Store(mainNav);
-
-        // Store pages and their blocks
+        // Store Living Standard pages.
         homepage.SiteId = siteId;
         var homeR = await SavePublishedPageAsync(homepage, cancellationToken);
         if (homeR.IsFailure) Log.Warning("Failed to seed homepage: {Error}", ErrMsg(homeR));

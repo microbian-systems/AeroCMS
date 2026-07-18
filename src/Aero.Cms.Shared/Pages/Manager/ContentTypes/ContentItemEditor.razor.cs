@@ -1,7 +1,8 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Media;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Shared.Components;
@@ -510,19 +511,27 @@ protected override async Task OnInitializedAsync()
             _ => !_fieldValues.TryGetValue(field.Name, out var value) || string.IsNullOrWhiteSpace(value)
         };
 
-    private Dictionary<string, object?> BuildFieldsDictionary()
+    private Dictionary<string, JsonElement> BuildFieldsDictionary()
     {
-        var dict = new Dictionary<string, object?>();
+        var dict = new Dictionary<string, JsonElement>();
         if (_typeDefinition is null) return dict;
 
         foreach (var field in _typeDefinition.Fields)
         {
             dict[field.Name] = field.FieldType switch
             {
-                "number" => _numberValues.GetValueOrDefault(field.Name),
-                "boolean" => _boolValues.GetValueOrDefault(field.Name),
-                "date" => _dateValues.GetValueOrDefault(field.Name),
-                _ => _fieldValues.GetValueOrDefault(field.Name, string.Empty)
+                "number" => JsonSerializer.SerializeToElement(
+                    _numberValues.GetValueOrDefault(field.Name),
+                    ContentJsonContext.Default.Options),
+                "boolean" => JsonSerializer.SerializeToElement(
+                    _boolValues.GetValueOrDefault(field.Name),
+                    ContentJsonContext.Default.Options),
+                "date" => JsonSerializer.SerializeToElement(
+                    _dateValues.GetValueOrDefault(field.Name),
+                    ContentJsonContext.Default.Options),
+                _ => JsonSerializer.SerializeToElement(
+                    _fieldValues.GetValueOrDefault(field.Name, string.Empty),
+                    ContentJsonContext.Default.Options)
             };
         }
 

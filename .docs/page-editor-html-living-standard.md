@@ -206,9 +206,10 @@ CSS framework adapter   IStyleCompiler strategy
 Rendered output         HTML classes plus generated scoped CSS when needed
 ```
 
-`IStyleCompiler` has implementations such as `NativeCssStyleCompiler`,
-`TailwindStyleCompiler`, and `BootstrapStyleCompiler`. Compilation is a
-page-level pass, not an independent per-node side effect:
+`IStyleCompiler` has the native implementation `NativeCssStyleCompiler` and
+the adapter decorator `FrameworkStyleCompiler`, which accepts either
+`TailwindStyleFrameworkAdapter` or `BootstrapStyleFrameworkAdapter`.
+Compilation is a page-level pass, not an independent per-node side effect:
 
 ```text
 Compile(HtmlPageContent, IStyleProfile)
@@ -231,6 +232,16 @@ writer; the manager preview uses a small recursive Blazor renderer. Both are
 covered by shared rendering conformance tests so that they cannot diverge on
 tags, attributes, void elements, or compiled styles. The render host owns safe
 stylesheet placement and CSP integration.
+
+`FrameworkStyleCompiler` now decorates the native compiler through an
+`IStyleFrameworkAdapter` Strategy. The built-in Tailwind and Bootstrap
+adapters emit only documented, exact utility mappings. They never emit
+arbitrary-value utilities or approximate a framework concept. Any unmatched
+intent stays on a cloned residual `HtmlStyle` and is compiled to deterministic
+scoped native CSS. Responsive stacking remains native because the site-owned
+breakpoint cannot be assumed to equal a framework breakpoint. Native CSS
+remains the active default until a site explicitly selects and supplies the
+corresponding framework stylesheet/class safelist.
 
 The property panel exposes semantic controls to ordinary users and reserves
 raw classes/custom declarations for an administrator-focused Advanced panel.
@@ -336,7 +347,7 @@ manifest namespaces.
 
 ### First Shippable Catalog
 
-Manifest version `2026.2` contains 81 elements:
+Manifest version `2026.3` contains 82 elements:
 
 - Structural: `section`, `div`, `main`, `header`, `footer`, `article`, `nav`,
   `aside`.
@@ -344,8 +355,8 @@ Manifest version `2026.2` contains 81 elements:
   buttons, quotations, code/preformatted text, edits, dates, and data values.
 - Media: `img`, `picture`, `audio`, `video`, `source`, `track`, `figure`, and
   `figcaption`.
-- Lists and disclosure: ordered/unordered/description lists, `details`, and
-  `summary`.
+- Lists, disclosure, and dialogs: ordered/unordered/description lists,
+  `details`, `summary`, and `dialog`.
 - Tables: `table`, `caption`, column groups, header/body/footer row groups,
   rows, and header/data cells.
 - Static forms: `form`, `label`, `input`, `textarea`, `fieldset`, `legend`,
@@ -357,8 +368,8 @@ Manifest version `2026.2` contains 81 elements:
 - Guided semantic controls: display, gap, padding, margin, alignment,
   background, typography, and element-specific attributes/actions.
 
-Iframes, SVG, MathML, dialog, custom elements, and other embedded or high-risk
-elements remain later catalog phases.
+Iframes, SVG, MathML, custom elements, and other embedded or high-risk elements
+remain later catalog phases.
 
 ### Layout Is Behavior, Not an Element Category
 
@@ -509,13 +520,24 @@ the tree is saved or rendered.
 
 An HTML `<textarea>` is a literal form-control element: its `value`,
 `placeholder`, and related attributes are edited through the normal property
-panel, not with a rich-text editor inside the control. Markdown import/export
-is a later explicit conversion feature; it must not become another persisted
-page format. If implemented, build and reuse an immutable Markdig pipeline with
-raw HTML parsing disabled, convert Markdown to HTML with `Markdown.ToHtml`,
-then pass that HTML through the existing AngleSharp importer and the manifest,
-attribute, URL, nesting, and size policies. Markdig conversion is not a
-sanitization or validation boundary.
+panel, not with a rich-text editor inside the control.
+
+Markdown import/export is implemented as explicit interchange, never as another
+persisted page format. Import uses one reusable immutable Markdig pipeline with
+raw HTML parsing disabled, converts Markdown to HTML, and then passes the output
+through the existing AngleSharp importer and the manifest, attribute, URL,
+nesting, and size policies. Markdig conversion is not a sanitization or
+validation boundary. A successful import is inserted as one undoable editor
+mutation.
+
+Export uses a fail-closed visitor over the canonical `HtmlNode` tree. It emits
+only the semantic subset Markdown can preserve losslessly: headings,
+paragraphs, emphasis, links, images, quotes, lists, rules, line breaks, and
+inline or fenced code. Presentation styles, theme classes, unsupported
+attributes, and non-representable elements cause a visible validation failure
+instead of being silently discarded. The PageEditor exposes separate Import
+Markdown and Export Markdown commands; exported text is an interchange copy
+and never replaces the stored HTML tree.
 
 ### Localization, Direction, and Accessibility
 
@@ -653,7 +675,7 @@ this checkout is pre-production.
 4. **Complete:** static encoded renderer and style output, public
    `Page.cshtml` integration, and Living Standard seed templates.
 5. **Complete:** editor commands, bounded Memento undo/redo, manifest palette,
-   26 curated ordinary-HTML component templates, and 7 responsive layout
+   27 curated ordinary-HTML component templates, and 7 responsive layout
    starters. Templates are grouped by authoring purpose across Start here,
    Content, Conversion, Trust, Navigation, and Structure. The palette initially
    shows six choices, expands on demand, and searches components, layouts, and
@@ -662,8 +684,9 @@ this checkout is pre-production.
    PageEditor shell.
 7. **Complete:** owned TypeScript sortable and Tiptap adapters packaged as RCL
    static assets and exercised from the Blazor WASM manager.
-8. **Complete:** first catalog, including the table and static-form phases (81
-   elements in manifest `2026.2`).
+8. **Complete:** first catalog, including the table and static-form phases (82
+   elements in manifest `2026.3`). Ordered lists support the Living Standard
+   `start` attribute with signed-integer validation.
 9. **Complete for Pages, Posts, and Docs:** PageEditor/page persistence/public
    rendering no longer reference Neo or legacy blocks. Posts persist and
    transport their Markdown body directly; Docs retain their direct Markdown
@@ -680,18 +703,33 @@ this checkout is pre-production.
 12. **Complete:** document outline and ancestor breadcrumbs derived directly
     from the active `HtmlPageContent` tree, with synchronized canvas/inspector
     selection and no parallel navigation model.
-13. **Separate content-types boundary:** the runtime Content Types feature still
-    owns `DynamicTemplateBlock`/`ContentEmbedBlock` rendering. That subsystem is
-    not part of the PageEditor document model and must be redesigned as its own
-    content-rendering cutover before the remaining generic block infrastructure
-    can be deleted safely. `BlockBase`, its static block renderers, and the legacy-
-    named `Neo.Styles` value objects currently used by `BlockBase.ResponsiveStyle`
-    are retained solely on that side of the boundary; they are not used by the
-    Living Standard page document or PageEditor.
+13. **Content Types/Scriban cutover complete:** `ContentItemRenderer` now renders
+    a content type's normalized, validated Scriban template directly from its
+    `ContentItem.Fields`. Content-type saves no longer create duplicate
+    `DynamicBlockDefinition` documents, and the former
+    `IContentTypeRenderingBridge`/`DynamicTemplateBlock` conversion has been
+    removed. The secure Scriban engine accepts only a content-owned
+    `ScribanRenderDefinition`; there is no dynamic-block compatibility overload
+    or render-mode switch. Content field bags use a content-specific
+    source-generated JSON context, and the generic `BlockBase`,
+    `ContentEmbedBlock`, block persistence, HTTP, preview, rendering, source
+    generator, and legacy Neo style infrastructure have been removed from the
+    compiled product.
+    Strict embedded-SurrealDB coverage now verifies that content items and
+    content-type definitions round-trip nested objects, arrays, scalar values,
+    field settings, and subsequent updates. Both field bags and settings use
+    source-generated `System.Text.Json` metadata; no reflection-based fallback
+    or legacy block serializer participates in persistence.
 14. **Complete:** site-owned native style profiles, strict-safe persisted color
     tokens, revision-checked updates, per-site server and WASM resolution, a
     curated Site editor design-system panel, and site-scoped rendered-output
     cache invalidation.
+15. **Complete:** Markdig-based Markdown import/export as non-persisted,
+    fail-closed interchange. Import reuses the AngleSharp policy boundary and
+    export refuses to drop page structure or presentation information.
+16. **Complete:** exact Tailwind and Bootstrap style-adapter Strategies with
+    native scoped-CSS fallback. Adapter output participates in the deterministic
+    content hash; native remains the default profile.
 
 Browser acceptance covers palette insertion, owned pointer drag, undo/redo,
 rich-text editing, and the create → save → reload → publish → public-render
@@ -753,25 +791,29 @@ history, or persistence path.
 There are no required Living Standard cutover items left for the first usable
 PageEditor. Remaining work is optional expansion:
 
-1. Add explicit Markdig-based Markdown import/export only if authors need that
-   interchange workflow. Raw HTML stays disabled and imported output must pass
-   through the existing AngleSharp and Living Standard policy boundary;
-   Markdown must not become another persisted page model.
-2. Refine Tailwind or Bootstrap adapters where exact mappings are useful,
-   retaining native scoped-CSS fallback. Site-owned native profiles and the
-   curated token editor are complete.
-3. Add immutable `PageRevisionDocument` snapshots on save/publish only if
-   visible revision history becomes a product requirement.
-4. Expand the catalog in isolated, policy-reviewed phases for `dialog`,
-   `iframe`, SVG, MathML, and custom elements.
-5. Continue curated component/template expansion when concrete site patterns
+1. Expand element attribute descriptors so future catalog phases can render
+   property controls from manifest metadata instead of adding tag-specific UI.
+2. Continue curated component/template expansion when concrete site patterns
    justify it.
-6. Redesign the separate Content Types rendering subsystem before deleting its
-   remaining generic block infrastructure. Its current Scriban templates are
-   developer-controlled Content Types output and are not PageEditor blocks.
-
+3. Add an explicit site-level framework selection only when a consuming theme
+   supplies the corresponding Tailwind or Bootstrap stylesheet contract. Exact
+   adapters and native scoped-CSS fallback are complete; native remains the
+   default.
+4. Add immutable `PageRevisionDocument` snapshots on save/publish only if
+   visible revision history becomes a product requirement.
+5. Continue later catalog phases for `iframe`, SVG, MathML, and custom
+   elements. Each phase requires namespace, URL, child-content, rendering, and
+   import-policy review before it becomes palette-visible.
 Source-generated catalog code and offline-vendored Tiptap modules remain
 optional engineering improvements, not PageEditor feature blockers.
+
+6. **TODO (future): align the AngleSharp dependency graph.** The current
+   solution build resolves both the legacy `AngleSharp` 0.17.x family (through
+   existing sanitizer/CSS dependencies) and `AngleSharp` 1.x for Living
+   Standard HTML import. Consolidate these packages onto a compatible version
+   family, remove the assembly-resolution warnings, and rerun the approved
+   static-fragment import and browser acceptance coverage before treating HTML
+   import as production-hardened.
 
 ### Cutover Strategy
 

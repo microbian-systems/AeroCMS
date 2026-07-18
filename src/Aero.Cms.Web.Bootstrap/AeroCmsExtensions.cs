@@ -1,6 +1,5 @@
 using Aero.AppServer;
 using Aero.AppServer.Startup;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Http;
 using Aero.Cms.Contracts.Abstractions;
 using Aero.Cms.Contracts.Services;
@@ -122,7 +121,6 @@ public static async Task<(WebApplicationBuilder Builder, Serilog.ILogger Log)> A
         services.AddRazorPages()
             .AddApplicationPart(typeof(SetupModule).Assembly)
             .AddApplicationPart(typeof(Aero.Cms.Modules.Docs.DocsModule).Assembly)
-            .AddApplicationPart(typeof(BlockBase).Assembly)
             .AddViewLocalization(LanguageViewLocationExpanderFormat.Suffix)
             .AddDataAnnotationsLocalization();
 

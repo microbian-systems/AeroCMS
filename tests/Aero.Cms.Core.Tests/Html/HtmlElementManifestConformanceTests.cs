@@ -16,8 +16,8 @@ public sealed class HtmlElementManifestConformanceTests
         var definitions = catalog.Definitions.ToArray();
 
         await Assert.That(catalog.SchemaVersion).IsEqualTo(1);
-        await Assert.That(catalog.CatalogVersion).IsEqualTo("2026.2");
-        await Assert.That(definitions.Length).IsGreaterThanOrEqualTo(81);
+        await Assert.That(catalog.CatalogVersion).IsEqualTo("2026.3");
+        await Assert.That(definitions.Length).IsGreaterThanOrEqualTo(82);
         await Assert.That(definitions.Select(definition => definition.Tag).Distinct(StringComparer.OrdinalIgnoreCase).Count())
             .IsEqualTo(definitions.Length);
         await Assert.That(definitions.All(definition =>
@@ -25,6 +25,12 @@ public sealed class HtmlElementManifestConformanceTests
             && definition.Tag == definition.Tag.ToLowerInvariant()
             && definition.Tag.All(character => char.IsAsciiLetterOrDigit(character) || character == '-')))
             .IsTrue();
+
+        var dialog = definitions.Single(definition => definition.Tag == "dialog");
+        await Assert.That(dialog.ChildModel).IsEqualTo(HtmlChildModel.Flow);
+        await Assert.That(dialog.IsFlowContent).IsTrue();
+        await Assert.That(dialog.IsInteractive).IsFalse();
+        await Assert.That(dialog.AllowedAttributes).Contains("open");
     }
 
     [Test]

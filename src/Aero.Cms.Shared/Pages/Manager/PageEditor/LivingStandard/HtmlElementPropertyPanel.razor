@@ -415,11 +415,11 @@
                     </label>
                 }
 
-                @if (IsDetails)
+                @if (HasOpenAttribute)
                 {
                     <label class="aero-property-panel__check">
                         <InputCheckbox @bind-Value="Form.Open" />
-                        <span>Expanded by default</span>
+                        <span>@OpenAttributeLabel</span>
                     </label>
                 }
 

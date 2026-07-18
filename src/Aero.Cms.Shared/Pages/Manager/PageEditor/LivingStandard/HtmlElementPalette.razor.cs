@@ -41,6 +41,7 @@ public partial class HtmlElementPalette
         new(HtmlComponentTemplateKind.MilestoneTimeline, "Timeline", "Three dated milestones in a semantic ordered timeline", "◷", "Structure"),
         new(HtmlComponentTemplateKind.FeatureComparisonTable, "Comparison table", "A compact editable feature comparison", "▤", "Structure"),
         new(HtmlComponentTemplateKind.DetailsList, "Details list", "Responsive editable terms and descriptions", "☷", "Structure"),
+        new(HtmlComponentTemplateKind.ConfirmationDialog, "Confirmation dialog", "An editable open dialog with two static actions", "▣", "Conversion"),
     ];
 
     private static readonly IReadOnlyList<LayoutOption> LayoutOptions =

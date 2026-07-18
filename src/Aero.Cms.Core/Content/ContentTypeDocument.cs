@@ -50,10 +50,6 @@ public List<ContentFieldDefinition> Fields { get; set; } = [];
     /// </summary>
 public string? ScribanTemplate { get; set; }
         /// <summary>
-    /// Gets or sets the Render Mode.
-    /// </summary>
-public ContentTypeRenderMode RenderMode { get; set; }
-        /// <summary>
     /// Gets or sets the Schedule Config.
     /// </summary>
     public ContentTypeScheduleConfig? ScheduleConfig { get; set; }

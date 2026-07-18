@@ -2,6 +2,7 @@ using System.Text.Json;
 using Aero.Actors;
 using Aero.Cms.Abstractions.Actors;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Events;
 using Aero.Cms.Abstractions.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -158,9 +159,10 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
         Icon = def.Icon,
         AllowPublicUrl = def.AllowPublicUrl,
         HideFromSearch = def.HideFromSearch,
-        FieldsJson = JsonSerializer.Serialize(def.Fields),
+        FieldsJson = JsonSerializer.Serialize(
+            def.Fields,
+            ContentJsonContext.Default.ListContentFieldDefinition),
         ScribanTemplate = def.ScribanTemplate,
-        RenderMode = def.RenderMode,
         ScheduleConfig = def.ScheduleConfig
     };
 
@@ -168,7 +170,9 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
     {
         var fields = string.IsNullOrWhiteSpace(vm.FieldsJson) || vm.FieldsJson == "[]"
             ? []
-            : JsonSerializer.Deserialize<List<ContentFieldDefinition>>(vm.FieldsJson) ?? [];
+            : JsonSerializer.Deserialize(
+                vm.FieldsJson,
+                ContentJsonContext.Default.ListContentFieldDefinition) ?? [];
 
         return new ContentTypeDefinition
         {
@@ -183,7 +187,6 @@ public async Task<bool> DeleteAsync(long siteId, string alias, CancellationToken
             HideFromSearch = vm.HideFromSearch,
             Fields = fields,
             ScribanTemplate = vm.ScribanTemplate,
-            RenderMode = vm.RenderMode,
             ScheduleConfig = vm.ScheduleConfig
         };
     }

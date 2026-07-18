@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Aero.Cms.Abstractions.Content;
 
 /// <summary>
@@ -26,5 +28,5 @@ public bool Required { get; set; }
     public string? Placeholder { get; set; }
 
     /// <summary>Validation rules, editor hints, etc. consumed by FluentValidation + admin UI</summary>
-    public Dictionary<string, object?> Settings { get; set; } = [];
+    public Dictionary<string, JsonElement> Settings { get; set; } = [];
 }

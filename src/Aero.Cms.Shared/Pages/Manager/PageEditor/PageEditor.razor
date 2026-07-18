@@ -66,6 +66,13 @@
                         disabled="@(HtmlEditor.SelectedNodeId is null)" @onclick="RemoveSelectedHtmlNodeAsync">
                     @L["Delete element"]
                 </button>
+                <span class="pe-living-toolbar__divider" aria-hidden="true"></span>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="OpenMarkdownImportAsync">
+                    @L["Import Markdown"]
+                </button>
+                <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="OpenMarkdownExportAsync">
+                    @L["Export Markdown"]
+                </button>
                 <button type="button" class="pe-btn pe-btn-ghost pe-btn-sm" @onclick="TogglePreview">
                     @L["Preview"]
                 </button>
@@ -465,6 +472,15 @@ else if (ActiveTab == "translations")
     <HtmlFragmentImportDialog ErrorMessage="HtmlFragmentImportError"
                               ImportRequested="ImportHtmlFragmentAsync"
                               Closed="CloseHtmlFragmentImportAsync" />
+}
+
+@if (MarkdownInterchangeOpen)
+{
+    <MarkdownInterchangeDialog Mode="MarkdownMode"
+                                 InitialValue="MarkdownInterchangeText"
+                                 ErrorMessage="MarkdownInterchangeError"
+                                 ImportRequested="ImportMarkdownAsync"
+                                 Closed="CloseMarkdownInterchangeAsync" />
 }
 
 <MediaSelectorModal Show="HtmlMediaSelectorOpen"

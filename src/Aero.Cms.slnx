@@ -113,7 +113,6 @@
   <Project Path="Aero.Cms.Db.Marten/Aero.Cms.Db.Marten.csproj" Id="57a77636-537c-4ee7-b81d-f8b26dad3058" />
   <Project Path="Aero.Cms.Db.Polecat/Aero.Cms.Db.Polecat.csproj" Id="bca26121-0db6-4489-9cd0-7d9519917dc8" />
   <Project Path="Aero.Cms.Db.Sable/Aero.Cms.Db.Sable.csproj" Id="3deb0fc4-0e72-4cf6-9692-f8e00549c8ec" />
-  <Project Path="Aero.Cms.Generated.Json/Aero.Cms.Generated.Json.csproj" />
   <Project Path="Aero.Cms.Marten.Identity/Aero.Cms.Marten.Identity.csproj" />
   <Project Path="Aero.Cms.ServiceDefaults/Aero.Cms.ServiceDefaults.csproj" />
   <Project Path="Aero.Cms.Services/Aero.Cms.Services.csproj" />

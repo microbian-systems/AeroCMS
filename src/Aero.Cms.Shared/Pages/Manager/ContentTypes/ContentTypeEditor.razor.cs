@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Http.Clients;
 using Aero.Core;
 using Aero.Core.Railway;
@@ -27,12 +28,6 @@ public partial class ContentTypeEditor
     [Inject] private DialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private IStringLocalizer<Aero.Cms.Shared.Localization.ManagerResource> L { get; set; } = default!;
-
-    private List<DropDownItem> RenderModes =>
-    [
-        new(L["Standard field display"], "DynamicBlock"),
-        new(L["Block layout"], "BlockLayout")
-    ];
 
     private List<FieldTypeOption> FieldOptions =>
     [
@@ -65,7 +60,6 @@ public partial class ContentTypeEditor
     private string? Category { get; set; }
     private bool AllowPublicUrl { get; set; }
     private bool HideFromSearch { get; set; }
-    private string RenderMode { get; set; } = "DynamicBlock";
     private string? ScribanTemplate { get; set; }
     private List<ContentFieldDefinition> Fields { get; set; } = [];
 
@@ -101,7 +95,6 @@ protected override async Task OnInitializedAsync()
             Category = detail.Category;
             AllowPublicUrl = detail.AllowPublicUrl;
             HideFromSearch = detail.HideFromSearch;
-            RenderMode = detail.RenderMode;
             ScribanTemplate = detail.ScribanTemplate;
             _useCustomTemplate = !string.IsNullOrWhiteSpace(detail.ScribanTemplate);
             Fields = detail.Fields.Select(CloneField).ToList();
@@ -213,43 +206,63 @@ protected override async Task OnInitializedAsync()
         => string.IsNullOrWhiteSpace(field.Label) ? field.Name : field.Label!;
 
     private int? GetIntSetting(ContentFieldDefinition field, string key)
-        => TryGetSetting(field, key, out var value) switch
-        {
-            true when value is int i => i,
-            true when value is JsonElement element && element.TryGetInt32(out var i) => i,
-            true when int.TryParse(value?.ToString(), out var i) => i,
-            _ => null
-        };
+        => TryGetSetting(field, key, out var value) && value.TryGetInt32(out var parsed)
+            ? parsed
+            : null;
 
     private decimal? GetDecimalSetting(ContentFieldDefinition field, string key)
-        => TryGetSetting(field, key, out var value) switch
-        {
-            true when value is decimal d => d,
-            true when value is JsonElement element && element.TryGetDecimal(out var d) => d,
-            true when decimal.TryParse(value?.ToString(), out var d) => d,
-            _ => null
-        };
+        => TryGetSetting(field, key, out var value) && value.TryGetDecimal(out var parsed)
+            ? parsed
+            : null;
 
     private string? GetStringSetting(ContentFieldDefinition field, string key)
     {
         if (!TryGetSetting(field, key, out var value)) return null;
-        return value is JsonElement element
-            ? element.ValueKind == JsonValueKind.String ? element.GetString() : element.GetRawText()
-            : value?.ToString();
+        return value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : value.GetRawText();
     }
 
-    private static bool TryGetSetting(ContentFieldDefinition field, string key, out object? value)
+    private static bool TryGetSetting(ContentFieldDefinition field, string key, out JsonElement value)
         => field.Settings.TryGetValue(key, out value);
 
-    private static void SetSetting(ContentFieldDefinition field, string key, object? value)
+    private static void SetSetting(ContentFieldDefinition field, string key, int? value)
     {
-        if (value is null || value is string text && string.IsNullOrWhiteSpace(text))
+        if (value is null)
         {
             field.Settings.Remove(key);
             return;
         }
 
-        field.Settings[key] = value;
+        field.Settings[key] = JsonSerializer.SerializeToElement(
+            value.Value,
+            ContentJsonContext.Default.Int32);
+    }
+
+    private static void SetSetting(ContentFieldDefinition field, string key, decimal? value)
+    {
+        if (value is null)
+        {
+            field.Settings.Remove(key);
+            return;
+        }
+
+        field.Settings[key] = JsonSerializer.SerializeToElement(
+            value.Value,
+            ContentJsonContext.Default.Decimal);
+    }
+
+    private static void SetSetting(ContentFieldDefinition field, string key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            field.Settings.Remove(key);
+            return;
+        }
+
+        field.Settings[key] = JsonSerializer.SerializeToElement(
+            value,
+            ContentJsonContext.Default.String);
     }
 
     private void AutoGenerateTemplate()
@@ -283,7 +296,6 @@ protected override async Task OnInitializedAsync()
                 HideFromSearch,
                 Fields,
                 _useCustomTemplate ? ScribanTemplate : null,
-                RenderMode,
                 null);
 
             var result = IsNew
@@ -500,7 +512,7 @@ protected override async Task OnInitializedAsync()
             Required = field.Required,
             DefaultValue = field.DefaultValue,
             Placeholder = field.Placeholder,
-            Settings = field.Settings.ToDictionary(pair => pair.Key, pair => pair.Value)
+            Settings = field.Settings.ToDictionary(pair => pair.Key, pair => pair.Value.Clone())
         };
 
     private static string GenerateHandle(string value)

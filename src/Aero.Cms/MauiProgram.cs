@@ -5,7 +5,6 @@ using Aero.Cms.Services;
 using Radzen;
 using Serilog;
 using Serilog.Events;
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Abstractions.Http;
 using NeoUI.Blazor.Primitives.Extensions;
 using NeoUI.Blazor.Extensions;
@@ -60,8 +59,6 @@ public static MauiApp CreateMauiApp()
         // Register all Aero HTTP clients
         var baseUrl = builder.Configuration["ApiSettings:BaseUrl"];
         builder.Services.AddAeroHttpClients(baseUrl is not null ? new Uri(baseUrl) : null);
-        
-        builder.Services.AddScoped<IBlockService, HttpBlockService>();
         
         // Legacy registrations (ensure both class and interface work for transition)
         builder.Services.AddScoped<ManagerThemeService>();

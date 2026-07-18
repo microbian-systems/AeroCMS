@@ -16,7 +16,7 @@ using Aero.Cms.Shared.Pages.Manager.PageTree;
 using Radzen;
 using Aero.Cms.Html;
 using Aero.Cms.Shared.Pages.Manager.PageEditor.LivingStandard;
-using Aero.Cms.Abstractions.Blocks.Layout;
+using Aero.Cms.Abstractions.Media;
 
 namespace Aero.Cms.Shared.Pages.Manager.PageEditor;
 
@@ -109,6 +109,14 @@ protected string Author       { get; set; } = "Admin";
 
     protected string? HtmlFragmentImportError { get; private set; }
 
+    protected bool MarkdownInterchangeOpen { get; private set; }
+
+    protected MarkdownInterchangeMode MarkdownMode { get; private set; }
+
+    protected string MarkdownInterchangeText { get; private set; } = string.Empty;
+
+    protected string? MarkdownInterchangeError { get; private set; }
+
     private HtmlMediaTargetKind? _htmlMediaTarget;
 
     private IStyleProfile? _siteStyleProfile;
@@ -134,6 +142,11 @@ protected string Author       { get; set; } = "Admin";
         new HtmlAttributePolicy(),
         HtmlContentPolicy,
         new HtmlContentValidator(HtmlCatalog, HtmlContentPolicy, new HtmlAttributePolicy()));
+
+    private static IMarkdownInterchangeAdapter CreateMarkdownInterchangeAdapter() =>
+        new MarkdownInterchangeAdapter(
+            CreateHtmlFragmentImporter(),
+            new HtmlContentValidator(HtmlCatalog, HtmlContentPolicy, new HtmlAttributePolicy()));
 
     // UI state
         /// <summary>
@@ -575,6 +588,7 @@ protected async Task TogglePreview()
 
                 HtmlFragmentImportOpen = false;
                 HtmlFragmentImportError = null;
+                MarkDirty();
                 ShowToast("HTML imported.", "success");
                 break;
             }
@@ -583,6 +597,80 @@ protected async Task TogglePreview()
                 break;
             default:
                 HtmlFragmentImportError = "The HTML fragment could not be imported.";
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    protected Task OpenMarkdownImportAsync()
+    {
+        MarkdownMode = MarkdownInterchangeMode.Import;
+        MarkdownInterchangeText = string.Empty;
+        MarkdownInterchangeError = null;
+        MarkdownInterchangeOpen = true;
+        return Task.CompletedTask;
+    }
+
+    protected Task OpenMarkdownExportAsync()
+    {
+        MarkdownMode = MarkdownInterchangeMode.Export;
+        MarkdownInterchangeOpen = true;
+
+        var exported = CreateMarkdownInterchangeAdapter().Export(HtmlEditor.Content);
+        switch (exported)
+        {
+            case Result<string>.Ok ok:
+                MarkdownInterchangeText = ok.Value;
+                MarkdownInterchangeError = null;
+                break;
+            case Result<string>.Failure failure:
+                MarkdownInterchangeText = string.Empty;
+                MarkdownInterchangeError = FormatError(failure.Error);
+                break;
+            default:
+                MarkdownInterchangeText = string.Empty;
+                MarkdownInterchangeError = "The page could not be exported to Markdown.";
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    protected Task CloseMarkdownInterchangeAsync()
+    {
+        MarkdownInterchangeOpen = false;
+        MarkdownInterchangeText = string.Empty;
+        MarkdownInterchangeError = null;
+        return Task.CompletedTask;
+    }
+
+    protected Task ImportMarkdownAsync(string markdown)
+    {
+        var imported = CreateMarkdownInterchangeAdapter().Import(markdown);
+        switch (imported)
+        {
+            case Result<HtmlPageContent>.Ok ok:
+            {
+                var inserted = HtmlEditor.InsertImportedFragment(ok.Value);
+                if (inserted is Result<IReadOnlyList<HtmlNode>>.Failure failure)
+                {
+                    MarkdownInterchangeError = FormatError(failure.Error);
+                    return Task.CompletedTask;
+                }
+
+                MarkdownInterchangeOpen = false;
+                MarkdownInterchangeText = string.Empty;
+                MarkdownInterchangeError = null;
+                MarkDirty();
+                ShowToast("Markdown imported.", "success");
+                break;
+            }
+            case Result<HtmlPageContent>.Failure failure:
+                MarkdownInterchangeError = FormatError(failure.Error);
+                break;
+            default:
+                MarkdownInterchangeError = "The Markdown content could not be imported.";
                 break;
         }
 
@@ -1859,4 +1947,3 @@ protected void RemoveToast(string id)
                 ? "translations"
                 : "editor";
 }
-

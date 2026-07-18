@@ -159,4 +159,26 @@ public sealed class HtmlStaticRendererTests
         await Assert.That(result!.Value)
             .IsEqualTo("<form action=\"/contact\" method=\"post\"><label for=\"message\">Message</label><textarea id=\"message\" name=\"message\" rows=\"4\">Aero &lt;CMS&gt;</textarea></form>");
     }
+
+    [Test]
+    public async Task Render_emits_a_policy_validated_open_dialog()
+    {
+        var content = new HtmlPageContent();
+        var dialog = Catalog.CreateElement("dialog");
+        dialog.Attributes["open"] = string.Empty;
+        var heading = Catalog.CreateElement("h2");
+        heading.Children.Add(HtmlNode.CreateText("Confirm"));
+        var button = Catalog.CreateElement("button");
+        button.Attributes["type"] = "button";
+        button.Children.Add(HtmlNode.CreateText("Continue"));
+        dialog.Children.Add(heading);
+        dialog.Children.Add(button);
+        content.Root.Children.Add(dialog);
+
+        var result = Renderer.Render(content) as Result<string>.Ok;
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Value)
+            .IsEqualTo("<dialog open=\"\"><h2>Confirm</h2><button type=\"button\">Continue</button></dialog>");
+    }
 }

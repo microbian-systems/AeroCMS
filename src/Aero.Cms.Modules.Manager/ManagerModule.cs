@@ -54,7 +54,6 @@ public override void ConfigureServices(IServiceCollection services, IConfigurati
 public override Task RunAsync(IEndpointRouteBuilder builder)
     {
         builder.MapDashboardApi();
-        builder.MapPreviewBlockFragmentApi();
         return Task.CompletedTask;
     }
 }

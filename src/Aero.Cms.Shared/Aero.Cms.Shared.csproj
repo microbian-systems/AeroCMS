@@ -12,7 +12,6 @@
   <ItemGroup>
     <PackageReference Include="Blazor.Radzen.Theming" />
     <PackageReference Include="BlazorMonaco" />
-    <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
     <PackageReference Include="Microsoft.Extensions.Localization" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
@@ -37,19 +36,6 @@
     <None Remove="tsconfig.json;ts\**\*" />
     <TypeScriptCompile Remove="ts\**\*" />
     <None Include="tsconfig.json;ts\**\*" Pack="false" Visible="false" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">
-    <Content Remove="Blocks\Rendering\BlockPlacementRenderer.razor" />
-    <RazorComponent Remove="Blocks\Rendering\BlockPlacementRenderer.razor" />
-    <Content Remove="Blocks\Rendering\LayoutColumnRenderer.razor" />
-    <RazorComponent Remove="Blocks\Rendering\LayoutColumnRenderer.razor" />
-    <Content Remove="Blocks\Rendering\DynamicTemplateBlockRenderer.razor" />
-    <RazorComponent Remove="Blocks\Rendering\DynamicTemplateBlockRenderer.razor" />
-    <Compile Remove="Blocks\Rendering\DynamicTemplateBlockRenderer.razor.cs" />
-    <Content Remove="Blocks\Rendering\ScribanBlockRenderer.razor" />
-    <RazorComponent Remove="Blocks\Rendering\ScribanBlockRenderer.razor" />
-    <Compile Remove="Blocks\Rendering\ScribanBlockRenderer.razor.cs" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(AeroCmsBrowserClient)' == 'true'">

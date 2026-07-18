@@ -9,9 +9,7 @@ using Serilog.Extensions.Hosting;
 using Aero.Core.Extensions;
 using Aero.Cms.Core.Extensions;
 using Aero.Cms.Modules.Modules.Services;
-using Aero.Cms.Web.Core.Blocks.Rendering;
 using Aero.Modular;
-using Microsoft.AspNetCore.Components.Web;
 
 namespace Aero.Cms.Web.Core.Eextensions;
 
@@ -62,9 +60,6 @@ public static async Task<(WebApplicationBuilder, ReloadableLogger)> AddAeroCmsRu
         _ = config.AddConfiguration<T>(env);
         var log = await services.ConfigureLogging(config);
 
-        services.AddBlockSystemServices();
-        services.AddScoped<HtmlRenderer>();
-        services.AddScoped<CmsBlockHtmlRenderer>();
         services.AddModuleSystemServices();
         await services.AddAeroModulesAsync(config, env, generatedDescriptors);
         services.AddAeroDataLayer(config, env);

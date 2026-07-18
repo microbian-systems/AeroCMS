@@ -67,7 +67,11 @@ public partial class HtmlElementPropertyPanel
     protected bool IsOption => Definition.Tag.Equals("option", StringComparison.OrdinalIgnoreCase);
     protected bool IsOutput => Definition.Tag.Equals("output", StringComparison.OrdinalIgnoreCase);
     protected bool HasCitationUrl => Definition.AllowedAttributes.Contains("cite", StringComparer.OrdinalIgnoreCase);
-    protected bool IsDetails => Definition.Tag.Equals("details", StringComparison.OrdinalIgnoreCase);
+    protected bool HasOpenAttribute =>
+        Definition.AllowedAttributes.Contains("open", StringComparer.OrdinalIgnoreCase);
+    protected string OpenAttributeLabel => Definition.Tag.Equals("dialog", StringComparison.OrdinalIgnoreCase)
+        ? "Open by default"
+        : "Expanded by default";
     protected bool HasDateTimeAttribute => Definition.AllowedAttributes.Contains("datetime", StringComparer.OrdinalIgnoreCase);
     protected bool IsData => Definition.Tag.Equals("data", StringComparison.OrdinalIgnoreCase);
     protected bool IsProgress => Definition.Tag.Equals("progress", StringComparison.OrdinalIgnoreCase);
@@ -389,7 +393,7 @@ public partial class HtmlElementPropertyPanel
             SetOrRemove(properties.Attributes, "cite", Form.CitationUrl);
         }
 
-        if (IsDetails)
+        if (HasOpenAttribute)
         {
             SetBoolean(properties.Attributes, "open", Form.Open);
         }

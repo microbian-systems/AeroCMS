@@ -13,7 +13,6 @@ using NeoUI.Blazor;
 using NeoUI.Blazor.Extensions;
 using NeoUI.Blazor.Primitives.Extensions;
 using Radzen;
-using Aero.Cms.Abstractions.Blocks;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
@@ -30,7 +29,6 @@ builder.Services.AddScoped<ServerAuthenticationStateProvider>(); // Allow explic
 
 // Add device-specific services used by the Aero.Cms.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
-builder.Services.AddScoped<IBlockService, HttpBlockService>();
 
 // Override HttpClient BaseAddress to the host origin for all Aero typed clients.
 // This follows the official Blazor WASM pattern documented at:

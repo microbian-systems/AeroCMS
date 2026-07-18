@@ -107,7 +107,7 @@ No new project references needed beyond what concretions already require.
 
 | File | Method | 
 |------|--------|
-| `Extensions/BlockServiceExtensions.cs` (new name) | `AddBlockSystemServices()` → registers `IBlockService→MartenBlockService`, `BlockMartenConfiguration` |
+| `Extensions/ModuleServiceExtensions.cs` | Shared module-registration helpers; the retired generic block runtime is not registered |
 
 ---
 

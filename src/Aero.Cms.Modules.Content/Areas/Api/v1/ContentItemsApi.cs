@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Aero.Cms.Abstractions.Actors;
-using Aero.Cms.Abstractions.Blocks.Serialization;
 using Aero.Cms.Abstractions.Content;
+using Aero.Cms.Abstractions.Content.Serialization;
 using Aero.Cms.Abstractions.Enums;
 using Aero.Cms.Abstractions.Models;
 using Aero.Cms.Core.Content.Services;
@@ -115,7 +115,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var fields = new Dictionary<string, JsonElement>();
             foreach (var (key, value) in request.Fields)
-                fields[key] = JsonSerializer.SerializeToElement(value, BlockJsonContext.Default.Options);
+                fields[key] = value.Clone();
 
             var vm = new ContentItemViewModel
             {
@@ -123,7 +123,7 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
                 ContentTypeAlias = alias,
                 Title = request.Title,
                 Slug = request.Slug,
-                FieldsJson = JsonSerializer.Serialize(fields, BlockJsonContext.Default.Options),
+                FieldsJson = JsonSerializer.Serialize(fields, ContentJsonContext.Default.Options),
                 SchedulePublishUtc = request.SchedulePublishUtc,
                 ScheduleUnpublishUtc = request.ScheduleUnpublishUtc
             };
@@ -164,11 +164,11 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
 
             var fields = new Dictionary<string, JsonElement>();
             foreach (var (key, value) in request.Fields)
-                fields[key] = JsonSerializer.SerializeToElement(value, BlockJsonContext.Default.Options);
+                fields[key] = value.Clone();
 
             existingVm.Title = request.Title;
             existingVm.Slug = request.Slug;
-            existingVm.FieldsJson = JsonSerializer.Serialize(fields, BlockJsonContext.Default.Options);
+            existingVm.FieldsJson = JsonSerializer.Serialize(fields, ContentJsonContext.Default.Options);
             existingVm.SchedulePublishUtc = request.SchedulePublishUtc;
             existingVm.ScheduleUnpublishUtc = request.ScheduleUnpublishUtc;
 
@@ -387,7 +387,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
     {
         var fields = string.IsNullOrWhiteSpace(vm.FieldsJson) || vm.FieldsJson == "{}"
             ? []
-            : JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(vm.FieldsJson, BlockJsonContext.Default.Options) ?? [];
+            : JsonSerializer.Deserialize(
+                vm.FieldsJson,
+                ContentJsonContext.Default.DictionaryStringJsonElement) ?? [];
 
         return new ContentItemDetail(
             vm.Id, vm.Title ?? string.Empty, vm.Slug, vm.ContentTypeAlias,
@@ -401,7 +403,9 @@ public static void MapContentItemsApi(this IEndpointRouteBuilder app)
         string? firstFieldValue = null;
         if (!string.IsNullOrEmpty(item.FieldsJson) && item.FieldsJson != "{}")
         {
-            var fields = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(item.FieldsJson);
+            var fields = JsonSerializer.Deserialize(
+                item.FieldsJson,
+                ContentJsonContext.Default.DictionaryStringJsonElement);
             var firstField = fields?.Values.FirstOrDefault();
             if (firstField?.ValueKind != JsonValueKind.Undefined)
                 firstFieldValue = firstField?.GetRawText();

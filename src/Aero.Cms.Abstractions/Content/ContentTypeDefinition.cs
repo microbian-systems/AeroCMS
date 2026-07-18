@@ -68,11 +68,6 @@ public string? Icon { get; set; }
     public string? ScribanTemplate { get; set; }
 
     /// <summary>
-    /// The rendering mode: as a single dynamic block, or as individual block instances.
-    /// </summary>
-    public ContentTypeRenderMode RenderMode { get; set; } = ContentTypeRenderMode.DynamicBlock;
-
-    /// <summary>
     /// Optional scheduling configuration.
     /// </summary>
     public ContentTypeScheduleConfig? ScheduleConfig { get; set; }

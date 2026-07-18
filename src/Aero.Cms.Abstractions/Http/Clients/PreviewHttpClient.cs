@@ -1,4 +1,3 @@
-using Aero.Cms.Abstractions.Blocks;
 using Aero.Cms.Html;
 using Microsoft.Extensions.Logging;
 
@@ -37,10 +36,6 @@ public interface IPreviewHttpClient
     /// </summary>
     Task<Result<string, AeroError>> RenderBlogPostFragmentAsync(string markdownContent, CancellationToken ct = default);
 
-    /// <summary>
-    /// Renders an unsaved block to an HTML fragment.
-    /// </summary>
-    Task<Result<string, AeroError>> RenderBlockFragmentAsync(BlockBase block, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -92,16 +87,4 @@ public class PreviewHttpClient(HttpClient httpClient, ILogger<PreviewHttpClient>
         return new Result<string, AeroError>.Failure(((Result<PreviewBlogPostFragmentResponse, AeroError>.Failure)result).Error);
     }
 
-    /// <inheritdoc />
-    public async Task<Result<string, AeroError>> RenderBlockFragmentAsync(BlockBase block, CancellationToken ct = default)
-    {
-        var result = await PostAsync<PreviewBlockFragmentRequest, PreviewBlockFragmentResponse>(
-            "blocks/render-fragment",
-            new PreviewBlockFragmentRequest(block),
-            ct);
-
-        if (result is Result<PreviewBlockFragmentResponse, AeroError>.Ok ok)
-            return new Result<string, AeroError>.Ok(ok.Value.Html);
-        return new Result<string, AeroError>.Failure(((Result<PreviewBlockFragmentResponse, AeroError>.Failure)result).Error);
-    }
 }
